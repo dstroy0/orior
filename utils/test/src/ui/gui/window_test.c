@@ -720,6 +720,25 @@ static void tab_menu_checked(void)
     cli_check(g_cli_menus_open.levels == 0u, "Escape closes it");
 }
 
+// The view's menu from the keys: the menu key and Shift+F10 open the editor's menu at the caret while the editor has
+// the keys, under no title of the bar, and Escape closes it
+static void editor_menu_checked(void)
+{
+    tabs_closed("first.txt", "one\n", NULL, NULL);
+    cli_check(tab_opened("first.txt"), "a file opens for the editor's menu");
+    typed("x");
+    key_pressed("ContextMenu");
+    cli_check((g_cli_menus_open.levels == 1u) && (g_cli_menus_open.open == -1) &&
+                  (g_cli_menus_open.place == CLI_MENU_PLACE_POINT),
+              "the menu key opens the editor's menu at a point while the editor has the keys");
+    key_pressed("Escape");
+    cli_check(g_cli_menus_open.levels == 0u, "Escape closes the editor's menu");
+    key_pressed("Shift+F10");
+    cli_check(g_cli_menus_open.levels == 1u, "Shift+F10 opens the editor's menu too");
+    key_pressed("Escape");
+    cli_check(g_cli_menus_open.levels == 0u, "and Escape closes it again");
+}
+
 // whether the text `text` is `required`
 // The theme commands through the door: a theme made from the scheme's colors and chosen, renamed, given an icon the
 // explorer's marks take, given a color the palette takes, shared to the clipboard, left for the scheme's own colors
@@ -1151,6 +1170,7 @@ int main(void)
     explorer_stays_checked();
     terminal_menu_checked();
     tab_menu_checked();
+    editor_menu_checked();
     minimap_lines_checked();
     autoscroll_checked();
     tips_checked();

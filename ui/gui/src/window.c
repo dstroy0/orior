@@ -2316,6 +2316,7 @@ EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args);
 EMBED_INLINE int window_setting_on(const GuiWindowCtx *args);
 EMBED_INLINE void window_tabs_save(const GuiWindowCtx *args);
 static void window_key_take(const GuiWindowCtx *args);
+EMBED_INLINE int window_editor_menu(const GuiWindowCtx *args);
 EMBED_INLINE void window_editing(const GuiWindowCtx *args);
 EMBED_INLINE void window_view_input(const GuiWindowCtx *args);
 EMBED_INLINE void window_editor_bar_numbers(const GuiWindowCtx *args);
@@ -5110,18 +5111,31 @@ EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
     }
 }
 
-// the key `name` taken, `on` where the name's pane stands and no view takes it: the menu key opens the terminal's menu
-// at its key field while the panel takes the keys; the panel takes them ahead of the window while no menu is open; the
-// menus', a command's own, a tool's, the panels' and else the view's
+// the key `name` taken, `on` where the name's pane stands and no view takes it: the menu key and Shift+F10 open the
+// terminal's menu at its key field while the panel takes the keys, and the view's menu under the caret while the editor
+// has them; the panel takes the keys ahead of the window while no menu is open; the menus', a command's own, a tool's,
+// the panels' and else the view's
 static void window_key_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     const char *const name = args->name;
-    if ((g_cli_menus_open.levels == 0u) && !args->on &&
-        EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "ContextMenu") &&
-        cli_terminal_tabs_checked("terminal-keys"))
+    const int menu_key = (g_cli_menus_open.levels == 0u) && !args->on &&
+                         (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "ContextMenu") ||
+                          EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "Shift+F10"));
+    if (menu_key && cli_terminal_tabs_checked("terminal-keys"))
     {
         cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_TERMINAL_KEYS, 0, 0);
+        EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
+        return;
+    }
+    if (menu_key && window->editing && EMBED_CALL(window_editor_menu, GuiWindowCtx, .window_read = window))
+    {
+        unsigned int count = 0u;
+        const CliItem *const rows = cli_menus_own_rows(&count);
+        const GuiRect caret =
+            EMBED_CALL(gui_editor_position.caret_rect, GuiEditorPositionCfg, .editor_read = &window->editor,
+                       .glyphs = &window->glyphs, .place = window->frame.editor, .scale = window->frame.scale);
+        cli_menus_own_open(rows, count, CLI_MENU_PLACE_POINT, caret.x, caret.y + caret.height);
         EMBED_CALL(window_menus_laid, GuiWindowCtx, .window = window);
         return;
     }
