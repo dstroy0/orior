@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_view_edits.c: edits the CLI answers written into a view as one step: two edits on two lines are written, the
 // cursor at the first's start; one undo takes both back and one redo brings both again; an edit after them is a step
-// of its own; and a key with no view open is refused
+// of its own; and a key with no view open is refused. A tidy takes the blanks off the lines' ends and puts a line end
+// after the last line as one step, and leaves a text with nothing to change as it is; a replace writes another text
+// over the lines that differ alone, to the text's end where the last lines differ, and nothing where the texts read
+// the same
 #include "ui/cli/src/editor/view_edits.h"
+#include "ui/cli/src/editor/view_tidy.h"
 #include "ui/cli/src/command_line/pool.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -89,6 +93,88 @@ void test_an_edit_after_them_is_a_step_of_its_own(void)
     text_is("ALPHA\nB\nG\n");
     keyed("Mod+Z");
     text_is("ALPHA\nbeta\nG\n");
+    keyed("Mod+Z");
+    text_is(s_text);
+}
+
+// the view closed and opened again on `text`, `size` bytes
+static void reopened(const char *text, unsigned long long size)
+{
+    tearDown();
+    CliShape shape;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = text, .size = size,
+                                .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = "check/edits.txt"));
+}
+
+// the view tidied as the two switches ask
+static void tidied(int trim, int final_newline)
+{
+    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_tidy_table.tidy, CliViewTidyCfg, .key = s_key, .trim = trim,
+                                .final_newline = final_newline, .err_msg = &err_msg));
+}
+
+// the view's text replaced by `text`, `size` bytes
+static void replaced(const char *text, unsigned long long size)
+{
+    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_replace_table.replace, CliViewReplaceCfg, .key = s_key, .text = text,
+                                .length = size, .err_msg = &err_msg));
+}
+
+void test_a_tidy_takes_the_blanks_off_the_lines_ends_and_puts_a_line_end_after_the_last_as_one_step(void)
+{
+    static const char s_untidy[] = "alpha  \nbeta\t\ngamma";
+    reopened(s_untidy, sizeof(s_untidy) - 1u);
+    tidied(1, 1);
+    text_is("alpha\nbeta\ngamma\n");
+    keyed("Mod+Z");
+    text_is(s_untidy);
+}
+
+void test_a_tidy_with_nothing_to_change_leaves_the_text_and_its_steps(void)
+{
+    tidied(1, 1);
+    text_is(s_text);
+    keyed("Mod+Z");
+    text_is(s_text);
+}
+
+void test_trim_alone_keeps_a_last_line_without_a_line_end(void)
+{
+    static const char s_untidy[] = "alpha \nbeta";
+    reopened(s_untidy, sizeof(s_untidy) - 1u);
+    tidied(1, 0);
+    text_is("alpha\nbeta");
+}
+
+void test_a_replace_writes_only_the_lines_that_differ_with_the_cursor_before_them(void)
+{
+    static const char s_other[] = "alpha\nBETA\nbeta two\ngamma\n";
+    replaced(s_other, sizeof(s_other) - 1u);
+    text_is(s_other);
+    CliPosition cursor;
+    CliPosition anchor;
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key, .cursor = &cursor, .anchor = &anchor));
+    TEST_ASSERT_EQUAL_UINT64(1ULL, cursor.line);
+    TEST_ASSERT_EQUAL_UINT64(0ULL, cursor.col);
+    keyed("Mod+Z");
+    text_is(s_text);
+}
+
+void test_a_replace_reaches_the_texts_end_where_the_last_lines_differ(void)
+{
+    static const char s_other[] = "alpha\nbeta\nGAMMA";
+    replaced(s_other, sizeof(s_other) - 1u);
+    text_is(s_other);
+}
+
+void test_a_replace_with_the_same_text_changes_nothing(void)
+{
+    replaced(s_text, sizeof(s_text) - 1u);
+    text_is(s_text);
     keyed("Mod+Z");
     text_is(s_text);
 }

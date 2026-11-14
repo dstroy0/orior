@@ -35,9 +35,9 @@ int cli_format_program_get(const CliFormatLanguageCfg *args);
 int cli_format_width(const CliFormatPathLanguageCfg *args);
 int cli_format_margin(const CliFormatPathLanguageCfg *args);
 
-// `length` bytes of `text`, the text of the file at `path` in `language`, formatted, written as a JSON string. `{file}`
-// in a formatter's word is the file's path, and `{edition}` the Rust edition of the crate that contains it. 1, or 0
-// with why given
+// `length` bytes of `text`, the text of the file at `path` in `language`, formatted, written as a JSON string, or as
+// its own bytes where `raw` is 1. `{file}` in a formatter's word is the file's path, and `{edition}` the Rust edition
+// of the crate that contains it. 1, or 0 with why given
 int cli_format(const CliFormatPathCfg *args);
 
 struct CliFormatPathCfg
@@ -48,6 +48,7 @@ struct CliFormatPathCfg
     const char *text;
     unsigned long long length;
     VerbaLinea *err_msg;
+    int raw;
 };
 
 struct CliFormatPathLanguageCfg

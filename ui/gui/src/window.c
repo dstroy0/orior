@@ -29,7 +29,9 @@
 #include "../../cli/src/machine/report.h"
 #include "../../cli/src/machine/settings.h"
 #include "../../cli/src/machine/state.h"
+#include "../../cli/src/editor/view_tidy.h"
 #include "../../cli/src/machine/trust.h"
+#include "../../cli/src/toolchains/format.h"
 #include "../../cli/src/plugins/plugins.h"
 #include "../../cli/src/plugins/templates.h"
 #include "../../cli/src/preview/preview.h"
@@ -72,6 +74,9 @@
 #define GUI_WINDOW_AUTOSAVE_KEY "autosave"
 // the File menu's rest before auto save writes, in seconds, as a setting
 #define GUI_WINDOW_AUTOSAVE_AFTER_KEY "auto-save-after"
+#define GUI_WINDOW_FORMAT_ON_SAVE_KEY "format-on-save"
+#define GUI_WINDOW_TRIM_KEY "trim"
+#define GUI_WINDOW_FINAL_NEWLINE_KEY "final-newline"
 // the Edit menu's settings: the continuation indents, the operator sign's line, the documentation margin and the
 // docstring's form; the key a kept macro is saved under, the name after it; and the most bytes read off the clipboard
 // for a comparison
@@ -2613,6 +2618,18 @@ EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args)
     {
         EMBED_CALL(window_autosave_after_apply, GuiWindowCtx, .window = window, .value = args->value);
     }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_FORMAT_ON_SAVE_KEY))
+    {
+        window->format_on_save = EMBED_CALL(window_setting_on, GuiWindowCtx, .value = args->value);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_TRIM_KEY))
+    {
+        window->trim = EMBED_CALL(window_setting_on, GuiWindowCtx, .value = args->value);
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_FINAL_NEWLINE_KEY))
+    {
+        window->final_newline = EMBED_CALL(window_setting_on, GuiWindowCtx, .value = args->value);
+    }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_OPERATOR_KEY))
     {
         window->operator_next_line = EMBED_CALL(window_setting_on, GuiWindowCtx, .value = args->value);
@@ -3260,6 +3277,7 @@ EMBED_INLINE int window_file_is(const GuiWindowCtx *args)
     static const char *const s_file_commands[] = {"create-folder",      "create-repository", "open-folder",
                                                   "open-folder-window", "create-project",    "keep-template",
                                                   "trust-tree",         "auto-save",         "auto-save-after",
+                                                  "format-on-save",     "trim",              "final-newline",
                                                   "reload-plugins",     "environment"};
     return EMBED_CALL(window_name_among, GuiWindowCtx, .name = args->name, .words = s_file_commands,
                       .count = sizeof(s_file_commands) / sizeof(s_file_commands[0]));
@@ -3734,7 +3752,7 @@ EMBED_INLINE void window_autosave_step(const GuiWindowCtx *args)
         return;
     }
     window->edited_ms = 0ULL;
-    EMBED_CALL(window_tabs_save, GuiWindowCtx, .window = window);
+    EMBED_CALL(window_tabs_save, GuiWindowCtx, .window = window, .on = 1);
 }
 
 // the File menu's commands with their `words`, `count` of them: 1 where one ran, 0 where it was refused with a notice
@@ -3866,6 +3884,30 @@ EMBED_INLINE int window_file_run(const GuiWindowCtx *args)
         }
         EMBED_CALL(window_autosave_after_apply, GuiWindowCtx, .window = window, .value = first);
         EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_AUTOSAVE_AFTER_KEY, .value = first);
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_FORMAT_ON_SAVE_KEY))
+    {
+        window->format_on_save = EMBED_CALL(window_switch_next, GuiWindowCtx, .words = args->words,
+                                            .count = args->count, .on = window->format_on_save);
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_FORMAT_ON_SAVE_KEY,
+                   .value = window->format_on_save ? "true" : "false");
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_TRIM_KEY))
+    {
+        window->trim = EMBED_CALL(window_switch_next, GuiWindowCtx, .words = args->words, .count = args->count,
+                                  .on = window->trim);
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_TRIM_KEY,
+                   .value = window->trim ? "true" : "false");
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_FINAL_NEWLINE_KEY))
+    {
+        window->final_newline = EMBED_CALL(window_switch_next, GuiWindowCtx, .words = args->words,
+                                           .count = args->count, .on = window->final_newline);
+        EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_FINAL_NEWLINE_KEY,
+                   .value = window->final_newline ? "true" : "false");
         return 1;
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "reload-plugins"))
@@ -4244,8 +4286,38 @@ EMBED_INLINE void window_tabs_close(const GuiWindowCtx *args)
     }
 }
 
+// the view under `key`, the file at the whole path `value`, made ready for its file as the settings ask: formatted
+// where Format on Save is on and a formatter formats its language; the blanks at its lines' ends taken off where Trim
+// Trailing Whitespace is on and the file is not Markdown, whose two spaces at a line's end break the line; and a line
+// end put after its last line where Insert Final Newline is on. A failure is posted as a notice, and the save goes on
+EMBED_INLINE void window_save_tidy(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    char language[CLI_NAME_MAX_LEN];
+    char program[CLI_NAME_MAX_LEN];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const int known = EMBED_CALL(cli_format_table.language_get, CliFormatCfg, .path = args->value, .id = language);
+    if (window->format_on_save && known &&
+        EMBED_CALL(cli_format_language.program_get, CliFormatLanguageCfg, .language = language, .program = program) &&
+        !EMBED_CALL(cli_view_format_table.format, CliViewFormatCfg, .key = args->key, .full = args->value,
+                    .language = language, .err_msg = &err_msg))
+    {
+        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be formatted.", 1);
+        err_msg.at = 0ULL;
+    }
+    const int markdown = known && EMBED_CALL(window_is, GuiWindowCtx, .name = language, .key = "markdown");
+    if ((window->trim || window->final_newline) &&
+        !EMBED_CALL(cli_view_tidy_table.tidy, CliViewTidyCfg, .key = args->key, .trim = window->trim && !markdown,
+                    .final_newline = window->final_newline, .err_msg = &err_msg))
+    {
+        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The text could not be tidied.", 1);
+    }
+}
+
 // the view at `at` saved to its file as the tree writes every file, its close no longer waiting: the save a break for
-// the notices waiting, or a write that failed posted as a failure's notice
+// the notices waiting, or a write that failed posted as a failure's notice. `on` 1 is auto save's write, which writes
+// the text as it stands; a save of the reader's own makes the text ready for its file first, as the settings ask
 EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
 {
     char key[CLI_NAME_MAX_LEN];
@@ -4260,6 +4332,10 @@ EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     cli_view_closing_set(args->at, 0);
+    if (!args->on)
+    {
+        EMBED_CALL(window_save_tidy, GuiWindowCtx, .window = args->window, .key = key, .value = full);
+    }
     // Local History: the file as it stands before the write, and as written, stored as its snapshots after the save
     unsigned long long before_size = 0ULL;
     const unsigned char *const before = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
@@ -4289,7 +4365,7 @@ EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
     args->window->pending = 1;
 }
 
-// every view with changes not saved saved
+// every view with changes not saved saved, `on` 1 for auto save's writes
 EMBED_INLINE void window_tabs_save(const GuiWindowCtx *args)
 {
     const unsigned int count = cli_view_count();
@@ -4298,7 +4374,7 @@ EMBED_INLINE void window_tabs_save(const GuiWindowCtx *args)
     {
         if (cli_view_key(at, key) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key))
         {
-            EMBED_CALL(window_tab_save, GuiWindowCtx, .window = args->window, .at = at);
+            EMBED_CALL(window_tab_save, GuiWindowCtx, .window = args->window, .at = at, .on = args->on);
         }
     }
 }
@@ -4528,6 +4604,18 @@ static int window_item_checked(const CliItem *item)
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = "auto-save"))
     {
         return (s_window != NULL) && s_window->autosave;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = GUI_WINDOW_FORMAT_ON_SAVE_KEY))
+    {
+        return (s_window != NULL) && s_window->format_on_save;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = GUI_WINDOW_TRIM_KEY))
+    {
+        return (s_window != NULL) && s_window->trim;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = GUI_WINDOW_FINAL_NEWLINE_KEY))
+    {
+        return (s_window != NULL) && s_window->final_newline;
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = checks, .key = "macro-recording"))
     {

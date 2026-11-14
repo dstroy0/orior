@@ -445,6 +445,10 @@ int cli_format(const CliFormatPathCfg *args)
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
+    else if (args->raw)
+    {
+        mmgr_line_put_n(args->out, run_result->out, run_result->out_size);
+    }
     else
     {
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,

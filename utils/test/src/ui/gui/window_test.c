@@ -891,7 +891,8 @@ static void file_checked(void)
               "a command the window has none of is answered as none of its");
     cli_check(asked("auto-save-after", "3") && (s_window.autosave_ms == 3000ULL),
               "auto-save-after sets the rest in seconds");
-    tabs_closed("kept.txt", "alpha\n", NULL, NULL);
+    cli_check(asked("trim", "on") && s_window.trim, "trim on is kept");
+    tabs_closed("kept.txt", "alpha  \n", NULL, NULL);
     cli_check(tab_opened("kept.txt"), "a file opens");
     typed("x");
     // an edit that does not reach the view fails with where the text went: the views open, the one shown, the dialog,
@@ -938,8 +939,25 @@ static void file_checked(void)
     }
     (void)mmgr_line_finish(&saved_line);
     cli_check(!changed(0u), saved_why);
-    cli_check(file_reads("kept.txt", "xalpha\n"), "the rest past, auto save writes the tab to the disk");
+    cli_check(file_reads("kept.txt", "xalpha  \n"),
+              "the rest past, auto save writes the tab to the disk as it stands, the blanks at its line's end kept");
     cli_check(asked("auto-save", "off") && !s_window.autosave, "auto-save off");
+    cli_check(asked("final-newline", "on") && s_window.final_newline, "final-newline on is kept");
+    tabs_closed("tidy.txt", "alpha  \nbeta\t\ngamma", NULL, NULL);
+    cli_check(tab_opened("tidy.txt"), "a file with blanks at its lines' ends and no line end after its last line opens");
+    typed("x");
+    cli_check(asked("save", NULL) && !changed(0u) && file_reads("tidy.txt", "xalpha\nbeta\ngamma\n"),
+              "Save takes the blanks off the lines' ends and puts a line end after the last line");
+    key_pressed("Mod+Z");
+    cli_check(changed(0u), "one undo takes the tidy back whole, and the tab reads changed");
+    (void)row_chosen("File", "Format on Save", &item);
+    cli_check(asked("format-on-save", "on") && s_window.format_on_save && g_cli_menus_open.checked(&item),
+              "format-on-save on shows checked");
+    cli_check(asked("save", NULL) && file_reads("tidy.txt", "xalpha\nbeta\ngamma\n"),
+              "a save with Format on Save on writes a file whose language no formatter formats, tidied");
+    cli_check(asked("format-on-save", "off") && !s_window.format_on_save, "format-on-save off");
+    cli_check(asked("trim", "off") && !s_window.trim, "trim off");
+    cli_check(asked("final-newline", "off") && !s_window.final_newline, "final-newline off");
     char templates[CLI_PATH_MAX_LEN];
     cli_check(EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = templates), "the templates' folder is known");
     char kept[CLI_PATH_MAX_LEN];

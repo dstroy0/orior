@@ -233,6 +233,11 @@ typedef struct GuiWindow
     unsigned long long autosave_ms;
     unsigned long long edited_ms;
     int trust_asked;
+    // whether a save of the reader's own formats the text first, takes the blanks off its lines' ends and puts a line
+    // end after its last line; auto save's writes do none of these
+    int format_on_save;
+    int trim;
+    int final_newline;
     // the macro: whether the keys and texts the view takes are recorded, whether the record plays, and the record, a
     // line each, `key <name>` or `text <bytes>` with the text's backslashes and line breaks escaped; and whether an
     // operator sign goes on the next line, the Edit menu's switch, saved as its setting
