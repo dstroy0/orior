@@ -153,6 +153,14 @@ void test_utf16_units_are_counted_across_words(void)
     TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg, .text = text, .size = 0ull));
 }
 
+void test_characters_are_counted_across_words(void)
+{
+    // ten ASCII characters past a word's width, then a two, a three and a four byte character
+    const char text[] = "abcdefghij\xc3\xa9\xe2\x82\xac\xf0\x9f\x98\x80";
+    TEST_ASSERT_EQUAL_UINT64(13ull, EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = text, .size = sizeof(text) - 1u));
+    TEST_ASSERT_EQUAL_UINT64(11ull, EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = text, .size = 12ull));
+}
+
 void test_the_byte_of_a_utf16_unit_is_found_across_words(void)
 {
     // ten ASCII bytes, then a two, a three and a four byte character: the units start at bytes 0 to 9, 10, 12, 15,

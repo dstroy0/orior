@@ -656,24 +656,18 @@ int cli_text_word(const CliTextSizeLengthCfg *args)
     return 1;
 }
 
-unsigned long long cli_text_characters(const CliTextSizeByteCfg *args)
-{
-    unsigned long long count = 0ULL;
-    for (unsigned long long at = 0ULL; at < args->size;)
-    {
-        unsigned long long length = 0ULL;
-        (void)EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text, .size = args->size, .at = at,
-                         .length = &length);
-        at += length;
-        count += 1u;
-    }
-    return count;
-}
-
 // the UTF-16 units the `loaded` word's first `lanes` bytes start: every byte that is no continuation byte starts a
 // character of one unit, and a byte that leads four bytes starts a character of two. Each lane's bits 7 to 3 are
 // moved up into its high bit in turn: a continuation byte is 10xxxxxx and a four byte lead 11110xxx; a lane mask
 // holds each lane's high bit alone
+EMBED_INLINE embed_word text_word_leads(const TextCtx *args)
+{
+    const embed_word below = mask.lanes_below(&(ScrutMaskCfg){.bytes = args->lanes});
+    const embed_word bit7 = args->loaded & MMGR_VERBUM_SCRUTOR_HIGH;
+    const embed_word bit6 = (args->loaded << 1) & MMGR_VERBUM_SCRUTOR_HIGH;
+    return below & ~(bit7 & ~bit6);
+}
+
 EMBED_INLINE unsigned long long text_word_units(const TextCtx *args)
 {
     const embed_word below = mask.lanes_below(&(ScrutMaskCfg){.bytes = args->lanes});
@@ -682,10 +676,9 @@ EMBED_INLINE unsigned long long text_word_units(const TextCtx *args)
     const embed_word bit5 = (args->loaded << 2) & MMGR_VERBUM_SCRUTOR_HIGH;
     const embed_word bit4 = (args->loaded << 3) & MMGR_VERBUM_SCRUTOR_HIGH;
     const embed_word bit3 = (args->loaded << 4) & MMGR_VERBUM_SCRUTOR_HIGH;
-    const embed_word continuation = bit7 & ~bit6;
-    const embed_word leads = below & ~continuation;
     const embed_word four = below & bit7 & bit6 & bit5 & bit4 & ~bit3;
-    return lane.count(&(ScrutLaneCfg){.mask = leads}) + lane.count(&(ScrutLaneCfg){.mask = four});
+    return lane.count(&(ScrutLaneCfg){.mask = EMBED_CALL(text_word_leads, TextCtx, .loaded = args->loaded, .lanes = args->lanes)}) +
+           lane.count(&(ScrutLaneCfg){.mask = four});
 }
 
 // the word of `text` at `at`, `size` bytes long, loaded into a word, the bytes past the text zero
@@ -696,6 +689,21 @@ EMBED_INLINE embed_word text_word_loaded(const TextCtx *args)
     embed_word loaded = 0u;
     memor.cpy(&(MemoriaCfg){.dst = &loaded, .src = args->text + args->at, .bytes = bytes});
     return loaded;
+}
+
+unsigned long long cli_text_characters(const CliTextSizeByteCfg *args)
+{
+    // a word at a time: every byte that is no continuation byte starts a character
+    unsigned long long count = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->size; at += MMGR_SWAR_BYTES)
+    {
+        const embed_word bytes = ((args->size - at) < MMGR_SWAR_BYTES) ? (embed_word)(args->size - at) : MMGR_SWAR_BYTES;
+        count += lane.count(&(ScrutLaneCfg){
+            .mask = EMBED_CALL(text_word_leads, TextCtx,
+                               .loaded = EMBED_CALL(text_word_loaded, TextCtx, .text = args->text, .at = at, .size = args->size),
+                               .lanes = bytes)});
+    }
+    return count;
 }
 
 unsigned long long cli_text_units(const CliTextSizeByteCfg *args)
