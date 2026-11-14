@@ -14,6 +14,7 @@
 #include "../../../../../ui/cli/src/machine/state.h"
 #include "../../../../../ui/cli/src/machine/trust.h"
 #include "../../../../../ui/cli/src/plugins/templates.h"
+#include "../../../../../ui/cli/src/terminal/terminal_tabs.h"
 #include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../includes/window/top_menu.h"
 #include "../../../../../includes/window/controls.h"
@@ -888,7 +889,33 @@ static void file_checked(void)
     tabs_closed("kept.txt", "alpha\n", NULL, NULL);
     cli_check(tab_opened("kept.txt"), "a file opens");
     typed("x");
-    cli_check(changed(0u) && (s_window.edited_ms != 0ULL), "an edit marks the tab changed and starts the rest");
+    // an edit that does not reach the view fails with where the text went: the views open, the one shown, the dialog,
+    // which part takes the keys, and the notice shown
+    char edited_why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea edited_line = {edited_why, sizeof(edited_why), 0ULL};
+    mmgr_line_put(&edited_line, "an edit marks the tab changed and starts the rest");
+    if (!changed(0u) || (s_window.edited_ms == 0ULL))
+    {
+        mmgr_line_put(&edited_line, ": views ");
+        mmgr_line_decimal(&edited_line, cli_view_count(), 1u);
+        mmgr_line_put(&edited_line, (cli_view_shown() < 0) ? ", none shown" : ", shown ");
+        if (cli_view_shown() >= 0)
+        {
+            // Explicit cast widens the index the view count bounds
+            mmgr_line_decimal(&edited_line, (uint64_t)cli_view_shown(), 1u);
+        }
+        mmgr_line_put(&edited_line, s_window.dialog.displayed ? ", dialog up" : ", dialog down");
+        mmgr_line_put(&edited_line, cli_terminal_tabs_checked("terminal-keys") ? ", terminal keys" : ", editor keys");
+        mmgr_line_put(&edited_line, s_window.editing ? ", editing" : ", not editing");
+        mmgr_line_put(&edited_line, s_window.wordmark.exists ? ", name's pane up" : ", name's pane down");
+        if (cli_notice_shown() != NULL)
+        {
+            mmgr_line_put(&edited_line, ", notice ");
+            mmgr_line_put(&edited_line, cli_notice_shown());
+        }
+    }
+    (void)mmgr_line_finish(&edited_line);
+    cli_check(changed(0u) && (s_window.edited_ms != 0ULL), edited_why);
     g_test_clock_ms = s_window.edited_ms + 2000ULL;
     stepped();
     cli_check(changed(0u), "before the rest is up the tab stays changed");
