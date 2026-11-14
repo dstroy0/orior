@@ -14,6 +14,7 @@ extern void test_type_answers_each_ending_and_none_for_others(void);
 extern void test_mode_reads_its_word_turns_off_where_it_is_and_is_saved(void);
 extern void test_markdown_positions_every_block_as_items_sorted_by_top(void);
 extern void test_markdown_cells_are_the_size_of_what_they_carry(void);
+extern void test_a_bare_address_is_a_link_to_its_last_punctuation(void);
 extern void test_an_address_that_runs_script_is_no_link(void);
 extern void test_first_starts_at_the_outermost_block_at_a_top(void);
 extern void test_line_at_and_top_of_answer_each_other_between_two_blocks(void);
@@ -87,14 +88,15 @@ int main(void)
   run_test(test_mode_reads_its_word_turns_off_where_it_is_and_is_saved, "test_mode_reads_its_word_turns_off_where_it_is_and_is_saved", 227);
   run_test(test_markdown_positions_every_block_as_items_sorted_by_top, "test_markdown_positions_every_block_as_items_sorted_by_top", 253);
   run_test(test_markdown_cells_are_the_size_of_what_they_carry, "test_markdown_cells_are_the_size_of_what_they_carry", 344);
-  run_test(test_an_address_that_runs_script_is_no_link, "test_an_address_that_runs_script_is_no_link", 376);
-  run_test(test_first_starts_at_the_outermost_block_at_a_top, "test_first_starts_at_the_outermost_block_at_a_top", 395);
-  run_test(test_line_at_and_top_of_answer_each_other_between_two_blocks, "test_line_at_and_top_of_answer_each_other_between_two_blocks", 414);
-  run_test(test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back, "test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back", 434);
-  run_test(test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back, "test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back", 453);
-  run_test(test_the_cursor_line_marks_its_block, "test_the_cursor_line_marks_its_block", 466);
-  run_test(test_a_press_follows_its_link_and_elsewhere_nothing, "test_a_press_follows_its_link_and_elsewhere_nothing", 484);
-  run_test(test_a_step_positions_the_text_again_only_where_it_changed, "test_a_step_positions_the_text_again_only_where_it_changed", 505);
+  run_test(test_a_bare_address_is_a_link_to_its_last_punctuation, "test_a_bare_address_is_a_link_to_its_last_punctuation", 376);
+  run_test(test_an_address_that_runs_script_is_no_link, "test_an_address_that_runs_script_is_no_link", 395);
+  run_test(test_first_starts_at_the_outermost_block_at_a_top, "test_first_starts_at_the_outermost_block_at_a_top", 414);
+  run_test(test_line_at_and_top_of_answer_each_other_between_two_blocks, "test_line_at_and_top_of_answer_each_other_between_two_blocks", 433);
+  run_test(test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back, "test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back", 453);
+  run_test(test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back, "test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back", 472);
+  run_test(test_the_cursor_line_marks_its_block, "test_the_cursor_line_marks_its_block", 485);
+  run_test(test_a_press_follows_its_link_and_elsewhere_nothing, "test_a_press_follows_its_link_and_elsewhere_nothing", 503);
+  run_test(test_a_step_positions_the_text_again_only_where_it_changed, "test_a_step_positions_the_text_again_only_where_it_changed", 524);
 
   return UNITY_END();
 }

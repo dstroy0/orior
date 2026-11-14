@@ -373,6 +373,25 @@ void test_markdown_cells_are_the_size_of_what_they_carry(void)
     released(&more);
 }
 
+void test_a_bare_address_is_a_link_to_its_last_punctuation(void)
+{
+    // the address ends at the blank, its full stop left off and run with the words after it, and `www.` takes
+    // `http://` before it
+    static const char s_text[] = "see www.example.com. now\n";
+    CliPreviewItems items;
+    positioned(s_text, &items);
+    const CliPreviewItem *const link = run_reading(&items, "www.example.com");
+    TEST_ASSERT_NOT_NULL(link);
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ROLE_LINK, link->role);
+    TEST_ASSERT_EQUAL_UINT(22u, link->link_length);
+    TEST_ASSERT_TRUE(text_reads(&items, link->link, link->link_length, "http://www.example.com"));
+    const CliPreviewItem *const after = run_reading(&items, ". now");
+    TEST_ASSERT_NOT_NULL(after);
+    TEST_ASSERT_EQUAL_UINT(0u, after->flags);
+    TEST_ASSERT_EQUAL_UINT(0u, after->link_length);
+    released(&items);
+}
+
 void test_an_address_that_runs_script_is_no_link(void)
 {
     static const char s_text[] = "[x](javascript:alert) [y]( JavaScript:alert) [z](vbscript:do) [w](data:text/html,a) "

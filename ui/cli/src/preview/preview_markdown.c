@@ -9,6 +9,8 @@
 // the word moves to the next line where it passes the width, and a run of characters of one mark on one line is one item
 #include "preview_markdown.h"
 
+#include "../text/text.h"
+
 // the sizes in the page's pixels: the body's text and its line, the code's text and its line, the code block's
 // padding and its corners, the gap after a block and inside a list, the gap above a heading, a list item's indent,
 // the quote's bar and its indent, a table cell's padding and its least width, a rule's thickness and the gap about it,
@@ -178,6 +180,22 @@ EMBED_INLINE void cell_released(const MarkdownCtx *args)
     {
         (void)g_cli_guard->movable_buf_release(args->cell, g_cli_preview_owner);
     }
+}
+
+// the first place from `from` before `to` whose byte the set `bytes` holds, `to` where none is, found a word at a
+// time: a text the preview positions is far shorter than four gigabytes, so the place is a word
+EMBED_INLINE unsigned int scan_to(const MarkdownCtx *args)
+{
+    return (unsigned int)EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text,
+                                    .at = args->from, .size = args->to, .set = args->bytes);
+}
+
+// the first place from `from` before `to` whose byte the set `bytes` does not hold, `to` where every byte is of the
+// set, found a word at a time: the place is a word, as scan_to's is
+EMBED_INLINE unsigned int scan_end(const MarkdownCtx *args)
+{
+    return (unsigned int)EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->text,
+                                    .at = args->from, .size = args->to, .set = args->bytes);
 }
 
 // the item `item` put after the items positioned, the height every item fills grown to its foot: its row
@@ -557,27 +575,17 @@ EMBED_INLINE int link_read(const MarkdownCtx *args)
     {
         return 0;
     }
-    unsigned int end = close + 2u;
-    while ((end < args->to) && (text[end] != ')'))
-    {
-        end += 1u;
-    }
+    const unsigned int end = EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = close + 2u, .to = args->to, .bytes = ")");
     if (end >= args->to)
     {
         return 0;
     }
-    unsigned int from = close + 2u;
-    while ((from < end) && (text[from] == ' '))
-    {
-        from += 1u;
-    }
+    unsigned int from = EMBED_CALL(scan_end, MarkdownCtx, .text = text, .from = close + 2u, .to = end, .bytes = " ");
     const int angled = (from < end) && (text[from] == '<');
     from += angled ? 1u : 0u;
-    unsigned int to = from;
-    while ((to < end) && (text[to] != ' ') && (!angled || (text[to] != '>')))
-    {
-        to += 1u;
-    }
+    // the address ends at a blank, or at the angle bracket that closes one written in angle brackets
+    const unsigned int to =
+        EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = from, .to = end, .bytes = angled ? " >" : " ");
     *args->link_out = (MarkdownLink){args->from + 1u, close, from, to, end + 1u};
     return 1;
 }
@@ -617,11 +625,7 @@ EMBED_INLINE unsigned int bare_end(const MarkdownCtx *args)
     {
         return MARKDOWN_NONE_AT;
     }
-    unsigned int end = args->from;
-    while ((end < args->to) && (text[end] != ' ') && (text[end] != '\t') && (text[end] != '<'))
-    {
-        end += 1u;
-    }
+    unsigned int end = EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = args->from, .to = args->to, .bytes = " \t<");
     while ((end > args->from) &&
            ((text[end - 1u] == '.') || (text[end - 1u] == ',') || (text[end - 1u] == ':') || (text[end - 1u] == ';') ||
             (text[end - 1u] == '"') || (text[end - 1u] == '\'') || (text[end - 1u] == ')') || (text[end - 1u] == ']')))
@@ -920,11 +924,8 @@ EMBED_INLINE unsigned int slice_heading(const MarkdownCtx *args)
     {
         return 0u;
     }
-    unsigned int from = at;
-    while ((from < args->slice->to) && ((args->text[from] == ' ') || (args->text[from] == '\t')))
-    {
-        from += 1u;
-    }
+    const unsigned int from =
+        EMBED_CALL(scan_end, MarkdownCtx, .text = args->text, .from = at, .to = args->slice->to, .bytes = " \t");
     unsigned int to = args->slice->to;
     while ((to > from) && ((args->text[to - 1u] == ' ') || (args->text[to - 1u] == '\t')))
     {
@@ -1079,12 +1080,8 @@ EMBED_INLINE int slice_aligns(const MarkdownCtx *args)
 EMBED_INLINE unsigned int slice_cells(const MarkdownCtx *args)
 {
     const char *const text = args->text;
-    unsigned int from = args->slice->from;
     unsigned int to = args->slice->to;
-    while ((from < to) && ((text[from] == ' ') || (text[from] == '\t')))
-    {
-        from += 1u;
-    }
+    unsigned int from = EMBED_CALL(scan_end, MarkdownCtx, .text = text, .from = args->slice->from, .to = to, .bytes = " \t");
     while ((to > from) && ((text[to - 1u] == ' ') || (text[to - 1u] == '\t')))
     {
         to -= 1u;
@@ -1243,12 +1240,9 @@ EMBED_INLINE void flow_positioned(const MarkdownCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const MarkdownLine *const slice = &args->lines[at];
-        unsigned int from = (at == 0u) ? args->from : slice->from;
         unsigned int to = (at == 0u) ? args->to : slice->to;
-        while ((from < to) && ((args->text[from] == ' ') || (args->text[from] == '\t')))
-        {
-            from += 1u;
-        }
+        unsigned int from = EMBED_CALL(scan_end, MarkdownCtx, .text = args->text,
+                                       .from = (at == 0u) ? args->from : slice->from, .to = to, .bytes = " \t");
         const int broken = ((to >= from + 2u) && (args->text[to - 1u] == ' ') && (args->text[to - 2u] == ' ')) ||
                            ((to > from) && (args->text[to - 1u] == '\\'));
         to -= ((to > from) && (args->text[to - 1u] == '\\')) ? 1u : 0u;
@@ -1840,11 +1834,9 @@ int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args)
     CliPreviewItems *const items = args->items;
     // a text the preview positions is far shorter than four gigabytes, so its places are words
     const unsigned int length = (args->length < 0xffffffffULL) ? (unsigned int)args->length : 0xfffffffeu;
-    unsigned int count = 1u;
-    for (unsigned int at = 0u; at < length; at += 1u)
-    {
-        count += (text[at] == '\n') ? 1u : 0u;
-    }
+    // the lines are the newlines and one: the count is far inside what a word holds
+    const unsigned int count =
+        1u + (unsigned int)EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = length, .byte = '\n');
     MarkdownLine *const lines = g_cli_guard->temporary_buf_alloc(count * sizeof(MarkdownLine), g_cli_preview_owner);
     if (lines == NULL)
     {
