@@ -120,7 +120,7 @@ static void graph_created(void)
     }
     s_graph_created = 1;
     cli_unity_folder("git_graph", s_graph_root);
-    repository_started(s_graph_root, "main", "Ada", NULL, NULL);
+    repository_started(s_graph_root, "main", "Grace", NULL, NULL);
     cli_unity_file(s_graph_root, "a.txt", "one\ntwo\nthree\nfour\n");
     cli_unity_file(s_graph_root, "b.txt", "b\n");
     (void)git_run_result(s_graph_root, "add", ".", NULL, NULL);
@@ -159,7 +159,7 @@ static void lines_created(void)
     cli_unity_folder("git_lines", base);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "sub", .joined = s_lines_sub);
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = s_lines_sub);
-    repository_started(base, "main", "Ada", NULL, NULL);
+    repository_started(base, "main", "Grace", NULL, NULL);
     cli_unity_file(s_lines_sub, "a.txt", "one\ntwo\n");
     (void)git_run_result(base, "add", ".", NULL, NULL);
     (void)git_run_result(base, "commit", "-q", "-m", "first");
@@ -352,19 +352,20 @@ void test_the_graph_contains_every_commit_its_branch_and_its_author(void)
     TEST_ASSERT_EQUAL_STRING("Second, renamed", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_graph.text, .at = s_graph.item[0].subject));
     TEST_ASSERT_EQUAL_STRING("first", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_graph.text, .at = s_graph.item[1].subject));
     TEST_ASSERT_TRUE(main_ref);
-    TEST_ASSERT_EQUAL_STRING("Ada", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_graph.text, .at = s_graph.item[0].author));
+    TEST_ASSERT_EQUAL_STRING("Grace", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_graph.text, .at = s_graph.item[0].author));
 }
 
 void test_a_search_finds_a_commit_each_word_in_any_case(void)
 {
-    graph_read("RENAMED ada", 1);
+    graph_read("RENAMED grace", 1);
     TEST_ASSERT_EQUAL_UINT(1u, s_graph.count);
     TEST_ASSERT_EQUAL_STRING(s_second_id, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_graph.text, .at = s_graph.item[0].id));
 }
 
+// the author's name holds letters no hex id holds: a commit's id cannot match the name by chance
 void test_an_author_is_matched_only_where_authors_show(void)
 {
-    graph_read("RENAMED ada", 0);
+    graph_read("RENAMED grace", 0);
     TEST_ASSERT_EQUAL_UINT(0u, s_graph.count);
 }
 
@@ -393,7 +394,7 @@ void test_a_lines_commit_has_its_author_path_and_parent(void)
 {
     line_history_read();
     const CliLineCommit *const second = &s_lines.commit[(s_lines.line[1] < 0) ? 0 : s_lines.line[1]];
-    TEST_ASSERT_EQUAL_STRING("Ada", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_lines.text, .at = second->author));
+    TEST_ASSERT_EQUAL_STRING("Grace", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_lines.text, .at = second->author));
     TEST_ASSERT_TRUE(second->has_path);
     TEST_ASSERT_EQUAL_STRING("a.txt", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_lines.text, .at = second->path));
     TEST_ASSERT_TRUE(second->has_parent);
