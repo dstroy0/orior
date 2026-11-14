@@ -13,6 +13,7 @@
 #include "../editor/document.h"
 #include "../editor/view.h"
 #include "../text/json_tree.h"
+#include "../text/text.h"
 #include "embed_atomic.h"
 #include "requests_internal.h"
 
@@ -371,13 +372,12 @@ EMBED_INLINE void requests_pairs_positioned(const RequestsPaneCtx *args)
 // return before the newline left out
 EMBED_INLINE void requests_lines_positioned(const RequestsPaneCtx *args)
 {
+    // each line to its newline, found a word at a time, and the last to the text's end
     unsigned long long start = 0ULL;
-    for (unsigned long long at = 0ULL; at <= args->length; at += 1ULL)
+    while (start <= args->length)
     {
-        if ((at < args->length) && (args->text[at] != '\n'))
-        {
-            continue;
-        }
+        const unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                 .text = args->text, .at = start, .size = args->length, .set = "\n");
         unsigned long long length = at - start;
         length -= ((length != 0ULL) && (args->text[at - 1ULL] == '\r')) ? 1ULL : 0ULL;
         EMBED_CALL(requests_text_positioned, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
@@ -1374,12 +1374,14 @@ EMBED_INLINE void requests_answer_text(const RequestsPaneCtx *args)
     }
     const char *const body = EMBED_CALL(requests_string, RequestsPaneCtx, .json = json, .node = args->node,
                                         .name = "body", .length_out = &length_of);
-    for (unsigned long long at = 0ULL; (body != NULL) && (at < length_of); at += 1ULL)
+    // the body's bytes written in runs between its carriage returns, which are left out
+    unsigned long long run = 0ULL;
+    while ((body != NULL) && (run < length_of))
     {
-        if (body[at] != '\r')
-        {
-            mmgr_line_ch(line, body[at]);
-        }
+        const unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = body,
+                                                 .at = run, .size = length_of, .set = "\r");
+        mmgr_line_put_n(line, body + run, at - run);
+        run = at + 1ULL;
     }
 }
 
@@ -1388,16 +1390,17 @@ EMBED_INLINE void requests_answer_text(const RequestsPaneCtx *args)
 EMBED_INLINE unsigned int requests_line_starts(const RequestsPaneCtx *args)
 {
     unsigned long long *const starts = args->starts;
+    // each line starts past a newline, the newlines found a word at a time
     unsigned int lines = 0u;
     starts[lines] = 0ULL;
     lines += 1u;
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
+    for (unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                            .text = args->text, .at = 0ULL, .size = args->length, .set = "\n");
+         at < args->length; at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                            .text = args->text, .at = at + 1ULL, .size = args->length, .set = "\n"))
     {
-        if (args->text[at] == '\n')
-        {
-            starts[lines] = at + 1ULL;
-            lines += 1u;
-        }
+        starts[lines] = at + 1ULL;
+        lines += 1u;
     }
     starts[lines] = args->length + 1ULL;
     return lines;

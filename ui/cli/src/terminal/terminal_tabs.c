@@ -1344,20 +1344,16 @@ void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root)
         EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
     const unsigned long long height =
         EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
-    while ((at < size) && (place[at] != '\n'))
-    {
-        at += 1ULL;
-    }
-    at += 1ULL;
+    // the first line's end and each tab line's end found a word at a time
+    at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = place, .at = at, .size = size,
+                    .set = "\n") +
+         1ULL;
     while (at < size)
     {
         const unsigned long long number =
             EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
-        unsigned long long end = at;
-        while ((end < size) && (place[end] != '\n'))
-        {
-            end += 1ULL;
-        }
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = place,
+                                                  .at = at, .size = size, .set = "\n");
         int taken = (number == 0ULL) || (number > 0xFFFFULL);
         for (unsigned int tab = 0u; tab < s_terminal.tabs; tab += 1u)
         {

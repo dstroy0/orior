@@ -56,11 +56,9 @@ static void cli_version(const ReportPageCtx *args)
                        .count = 0u, .run_result = run_result, .err_msg = &unstarted) &&
             (run_result->code == 0LL))
         {
-            for (unsigned long long at = 0ULL; !changed && (at < run_result->out_size); at += 1ULL)
-            {
-                changed =
-                    !((run_result->out[at] == ' ') || ((run_result->out[at] >= '\t') && (run_result->out[at] <= '\r')));
-            }
+            // a byte that is no blank in the status says the tree has changes
+            changed = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = run_result->out,
+                                 .at = 0ULL, .size = run_result->out_size, .set = CLI_TEXT_WHITE) < run_result->out_size;
         }
         mmgr_line_put(args->out, " at ");
         mmgr_line_put(args->out, short_commit);

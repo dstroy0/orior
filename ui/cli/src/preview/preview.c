@@ -11,6 +11,7 @@
 #include "../editor/document.h"
 #include "../editor/view.h"
 #include "../machine/report.h"
+#include "../text/text.h"
 #include "preview_markdown.h"
 
 // a scale's whole, in percent; a line's fraction's whole; and no block
@@ -315,11 +316,11 @@ EMBED_INLINE int path_resolved(const PreviewCtx *args)
     unsigned int used = 0u;
     const char *const bound = s_preview.bound ? s_preview.path : "";
     const unsigned long long bound_length = cellul.len(&(CatenaFinitaCfg){.src = bound, .cap = CLI_PATH_MAX_LEN});
-    unsigned int folder = 0u;
-    for (unsigned int at = 0u; at < bound_length; at += 1u)
-    {
-        folder = (bound[at] == '/') ? at : folder;
-    }
+    // the bound's last slash, 0 where it has none: the place past it, less one where there is one; a path is far
+    // shorter than an unsigned int counts
+    const unsigned long long past_slash =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = bound, .at = bound_length, .set = "/");
+    const unsigned int folder = (past_slash != 0ULL) ? (unsigned int)(past_slash - 1ULL) : 0u;
     const int rooted = (args->length != 0u) && (args->text[0] == '/');
     // the folder and the address are both read part by part, `/` between, the folder's parts first
     for (unsigned int side = rooted ? 1u : 0u; side < 2u; side += 1u)
@@ -330,10 +331,11 @@ EMBED_INLINE int path_resolved(const PreviewCtx *args)
         {
             end = (folder != 0u) ? folder : 0u;
         }
-        for (unsigned int at = 0u; (side == 1u) && (at < end); at += 1u)
-        {
-            end = (from[at] == '#') ? at : end;
-        }
+        // the address ends at its fragment mark, found a word at a time; the text is far shorter than an unsigned int
+        // counts
+        end = (side == 1u) ? (unsigned int)EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                      .text = from, .at = 0ULL, .size = end, .set = "#")
+                           : end;
         unsigned int part = 0u;
         for (unsigned int at = 0u; at <= end; at += 1u)
         {
@@ -433,11 +435,12 @@ unsigned int cli_preview_type(const CliPreviewCfg *args)
 {
     const char *const path = (args->path != NULL) ? args->path : "";
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-    unsigned long long dot = length;
-    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
-    {
-        dot = (path[at] == '.') ? at : ((path[at] == '/') ? length : dot);
-    }
+    // the last dot of the name after the last slash, `length` where the name has none, each found a word at a time
+    const unsigned long long name =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path, .at = length, .set = "/");
+    const unsigned long long past_dot =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path + name, .at = length - name, .set = ".");
+    const unsigned long long dot = (past_dot != 0ULL) ? (name + past_dot - 1ULL) : length;
     char ending[16];
     unsigned int ending_length = 0u;
     for (unsigned long long at = dot + 1ULL; (at < length) && (ending_length + 1u < sizeof(ending)); at += 1ULL)
