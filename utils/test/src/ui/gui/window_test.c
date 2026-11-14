@@ -550,6 +550,18 @@ static int cell_near(int x, int start, float cell, int cells)
     return (gap >= -1) && (gap <= 1);
 }
 
+// the cursor, the caret and the cell told where the caret is not `cells` cells right of `start`
+static void caret_told(int start, float cell, int cells)
+{
+    const CliViewFrame *const frame = s_window.editor.frame;
+    if ((frame == NULL) || !cell_near(caret_x(), start, cell, cells))
+    {
+        (void)fprintf(stderr, "  caret: cursor %llu:%llu, x %d, start %d, cell %.3f, cells %d, keys %s\n",
+                      (frame != NULL) ? frame->cursor.line : 0ULL, (frame != NULL) ? frame->cursor.col : 0ULL,
+                      caret_x(), start, (double)cell, cells, s_window.editing ? "editing" : "not editing");
+    }
+}
+
 static void table_checked(void)
 {
     tabs_closed("grid.tsv", "a\tbb\tc\nxxxx\ty\tz\n", NULL, NULL);
@@ -565,9 +577,11 @@ static void table_checked(void)
     const int first_x = caret_x();
     key_pressed("Right");
     key_pressed("Right");
+    caret_told(first_x, cell, 5);
     cli_check((cell > 0.0f) && cell_near(caret_x(), first_x, cell, 5),
               "the caret at the second field's first character is five cells right of the line's start");
     key_pressed("End");
+    caret_told(first_x, cell, 9);
     cli_check(cell_near(caret_x(), first_x, cell, 9), "the caret at the line's end is at cell 9");
     cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->column_offset[3] == 10ULL),
               "the offset past the last column is at cell 10");
