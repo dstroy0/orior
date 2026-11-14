@@ -37,6 +37,7 @@ extern void test_a_name_set_does_not_name_a_module(void);
 extern void test_a_report_of_an_attribute_names_it_and_its_class(void);
 extern void test_another_report_names_no_attribute(void);
 extern void test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes(void);
+extern void test_the_check_slices_a_file_a_viewports_height_at_a_time(void);
 
 
 /*=======Mock Management=====*/
@@ -127,6 +128,7 @@ int main(void)
   run_test(test_a_report_of_an_attribute_names_it_and_its_class, "test_a_report_of_an_attribute_names_it_and_its_class", 508);
   run_test(test_another_report_names_no_attribute, "test_another_report_names_no_attribute", 521);
   run_test(test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes, "test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes", 580);
+  run_test(test_the_check_slices_a_file_a_viewports_height_at_a_time, "test_the_check_slices_a_file_a_viewports_height_at_a_time", 626);
 
   return UNITY_END();
 }

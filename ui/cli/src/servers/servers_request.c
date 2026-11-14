@@ -5,7 +5,7 @@
 // once, whether the symbol can be renamed and the edits that rename it, and the signature of the call the cursor is
 // in. An answer requested while no server has the file open is none, but a usage, a rename and what it would change,
 // which report there is no server to query. A file given its server as slices is asked of the tree alone: its
-// definition, usages and renames are the tree's (servers_usages.c), its completions the names the tree has in effect
+// definition, references and renames are the tree's (code/references.c), its completions the names the tree has in effect
 // at the place (symbols_complete.c), and what the tree does not answer is none
 #include "../builds/builds.h"
 #include "../code/schema.h"
@@ -15,15 +15,6 @@
 #include "servers_internal.h"
 
 #include "../text/text.h"
-
-// One usage: its path in the paths' pool, its span, and its place among the usages
-typedef struct
-{
-    unsigned int path;
-    CliTextPosition from;
-    CliTextPosition to;
-    unsigned int order;
-} CliServersUsage;
 
 // what a server answers quickly and what a search of the tree answers, each read under its own lock
 static CliServersReadState s_quick = {0};

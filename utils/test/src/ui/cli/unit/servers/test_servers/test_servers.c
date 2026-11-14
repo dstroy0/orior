@@ -4,7 +4,7 @@
 // done; clangd serves C and names CUDA files as CUDA; a hover reads as Markdown in each shape; a workspace edit reads in either shape; edits are written
 // by UTF-16 columns and preserve line ends; a signature names each parameter by its span; a server requesting settings is sent its defaults; a file the
 // check releases stores its diagnostics and wakes its checker; a file names another in its includes and imports only; a report of an attribute names it
-// and its class; and a completion is named by what it inserts
+// and its class; a completion is named by what it inserts; and the check slices a file a view's height at a time
 #include "ui/cli/src/servers/servers_internal.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -604,4 +604,54 @@ void test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes(void
     {
         TEST_ASSERT_EQUAL_UINT(1u, atomic_load(&s_jobs_value[at]));
     }
+}
+
+// the windows the check's slicing cut a file into, each its first and last line
+#define SLICE_WINDOWS_MAX 8u
+static unsigned int s_windows;
+static unsigned int s_window_first[SLICE_WINDOWS_MAX];
+static unsigned int s_window_last[SLICE_WINDOWS_MAX];
+
+static int window_recorded(const CliServersWindowCfg *args)
+{
+    if (s_windows < SLICE_WINDOWS_MAX)
+    {
+        s_window_first[s_windows] = args->first;
+        s_window_last[s_windows] = args->last;
+    }
+    s_windows += 1u;
+    return 1;
+}
+
+void test_the_check_slices_a_file_a_viewports_height_at_a_time(void)
+{
+    // a C file of 150 lines: a function whose body runs past two windows
+    static char text[8192];
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_put(&line, "int body(int n)\n{\n");
+    for (unsigned int at = 0u; at < 147u; at += 1u)
+    {
+        mmgr_line_put(&line, "    n += 1;\n");
+    }
+    mmgr_line_put(&line, "}\n");
+    const unsigned long long size = mmgr_line_finish(&line);
+    char tree[CLI_PATH_MAX_LEN];
+    cli_unity_folder("servers_slices", tree);
+    cli_unity_file(tree, "long.c", text);
+    s_windows = 0u;
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int cut = EMBED_CALL(cli_servers_path_size_root_err_msg_internal.slices_cut, CliServersPathSizeRootErrMsgCtx,
+                               .path = "long.c", .size = size, .root = tree, .err_msg = &err_msg, .text = text,
+                               .window = window_recorded, .context = NULL);
+    (void)mmgr_line_finish(&err_msg);
+    TEST_ASSERT_TRUE_MESSAGE(cut, why);
+    // a window is a view's height, 64 lines, the last one whole past the file's end
+    TEST_ASSERT_EQUAL_UINT(3u, s_windows);
+    TEST_ASSERT_EQUAL_UINT(0u, s_window_first[0]);
+    TEST_ASSERT_EQUAL_UINT(63u, s_window_last[0]);
+    TEST_ASSERT_EQUAL_UINT(64u, s_window_first[1]);
+    TEST_ASSERT_EQUAL_UINT(127u, s_window_last[1]);
+    TEST_ASSERT_EQUAL_UINT(128u, s_window_first[2]);
+    TEST_ASSERT_EQUAL_UINT(191u, s_window_last[2]);
 }
