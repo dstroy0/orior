@@ -29,10 +29,9 @@ INSTALL_TEXT = (
     "\n"
     "The install shows the license and asks you to accept it, copies the programs into\n"
     "your programs folder or the folder you name, and puts imp and tab on your PATH\n"
-    "where neither name is taken. --no-imp and --no-tab leave a name out, --aliases\n"
-    "writes shell aliases in place of links, and --debug-port sets the window's\n"
-    "debugging port. imp file uninstall takes everything out again; with --files it\n"
-    "removes your settings too.\n"
+    "where neither name is taken. --no-imp and --no-tab leave a name out, and\n"
+    "--aliases writes shell aliases in place of links. imp file uninstall takes\n"
+    "everything out again; with --files it removes your settings too.\n"
 )
 
 
@@ -91,7 +90,7 @@ def install_checked(bundle, cli_name, gui_name, suffix, windows):
     env = dict(os.environ)
     env["ORIOR_HOME"] = os.path.join(ROOT, "build", "package", "check_home")
     shutil.rmtree(env["ORIOR_HOME"], ignore_errors=True)
-    words = [program, "file", "install", into, "--accept", "--yes", "--debug-port", "off"]
+    words = [program, "file", "install", into, "--accept", "--yes"]
     installed = subprocess.run(words, cwd=ROOT, env=env, capture_output=True, text=True)
     print(installed.stdout, end="", flush=True)
     if installed.returncode != 0:
@@ -109,14 +108,9 @@ def install_checked(bundle, cli_name, gui_name, suffix, windows):
         return 1
     if not windows and not libraries_resolved(into, cli_name, gui_name):
         return 1
-    state = os.path.join(env["ORIOR_HOME"], "state.json")
-    if not os.path.isfile(state):
-        print("the install wrote no %s" % state, flush=True)
+    if not os.path.isdir(env["ORIOR_HOME"]):
+        print("the install made no %s" % env["ORIOR_HOME"], flush=True)
         return 1
-    with open(state, encoding="utf-8") as retained:
-        if "debug-port" not in retained.read():
-            print("the install wrote no debugging port default", flush=True)
-            return 1
     removed = subprocess.run([os.path.join(into, cli_name + suffix), "file", "uninstall", "--yes"], cwd=ROOT, env=env, capture_output=True, text=True)
     print(removed.stdout, end="", flush=True)
     if removed.returncode != 0:

@@ -62,7 +62,7 @@
         { "label": "Tree Environment…", "command": "environment", "args": "[place|none]" },
         { "label": "Maven Settings…", "command": "maven-settings" },
         { "label": "Toolchains…", "command": "toolchains", "args": "[check|install <tool>|add-path <tool|orior>|use <tool> <folder>|forget <tool>|add <name> --group <group> --program <name,...> [--for <text>] [--id <id>] [--version <word,...>] [--install <url>]|add-group <group>|remove <tool>|remove-group <group>]", "console": true },
-        { "label": "Install…", "command": "install", "args": "[folder] [--accept] [--yes] [--no-imp] [--no-tab] [--aliases] [--debug-port <port|off>]", "console": true },
+        { "label": "Install…", "command": "install", "args": "[folder] [--accept] [--yes] [--no-imp] [--no-tab] [--aliases]", "console": true },
         { "label": "Uninstall…", "command": "uninstall", "args": "[--files] [--yes]", "console": true },
         "-",
         { "label": "Exit", "command": "exit" }

@@ -252,7 +252,7 @@ static int console_install_asked(void *context, const char *question)
     return (read != QRY_MEMBER_UNREAD) && ((answer[0] == 'y') || (answer[0] == 'Y'));
 }
 
-// `imp file install [folder] [--accept] [--yes] [--no-imp] [--no-tab] [--aliases] [--debug-port <port|off>]` and
+// `imp file install [folder] [--accept] [--yes] [--no-imp] [--no-tab] [--aliases]` and
 // `imp file uninstall [--files] [--yes]`: the code to exit with
 EMBED_INLINE int console_install(const CommandLineConsoleCtx *args)
 {

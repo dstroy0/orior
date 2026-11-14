@@ -21,12 +21,10 @@ typedef struct CliInstallCfg CliInstallCfg;
 #define CLI_INSTALL_RECORD "install.tsv"
 #define CLI_INSTALL_SHIMS "bin"
 #define CLI_INSTALL_LINKS ".local/bin"
-#define CLI_INSTALL_PORT_KEY "debug-port"
-#define CLI_INSTALL_PORT_DEFAULT "off"
 
 // what the install's or the uninstall's words asked for: the install folder, "" for the default; the license accepted
-// on the command line; every question answered yes; shell aliases in place of links; each program left out; the
-// reader's files removed by the uninstall; and the debugging port's setting, "" where not given
+// on the command line; every question answered yes; shell aliases in place of links; each program left out; and the
+// reader's files removed by the uninstall
 typedef struct
 {
     char folder[CLI_PATH_MAX_LEN];
@@ -35,7 +33,6 @@ typedef struct
     int aliases;
     int skipped[CLI_INSTALL_PROGRAMS];
     int files;
-    char port[16];
 } CliInstallOptions;
 
 // the names of the two programs on the command line, impero's then tabvla's

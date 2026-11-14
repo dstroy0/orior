@@ -11,7 +11,6 @@
 #include "install.h"
 #include "../toolchains/toolchains.h"
 #include "../toolchains/toolchains_internal.h"
-#include "state.h"
 
 #if !defined(_WIN32)
 #include <sys/stat.h>
@@ -27,9 +26,6 @@ const char *const g_cli_install_names[CLI_INSTALL_PROGRAMS] = {"imp", "tab"};
 
 // the license the programs come under, said where no LICENSE is beside them
 #define INSTALL_LICENSE_LINE "AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
-
-// the state file the window reads its settings from, whose absence says the install is the first
-#define INSTALL_STATE_FILE "state.json"
 
 typedef struct
 {
@@ -128,35 +124,11 @@ int cli_install_options(const CliInstallCfg *args)
         {
             options->files = 1;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--debug-port", .cap = CLI_POOL_BYTES}))
-        {
-            const char *const value = (at + 1u < args->count) ? args->words[at + 1u] : NULL;
-            int digits = (value != NULL) && (value[0] != '\0');
-            for (const char *character = (value != NULL) ? value : ""; digits && (character[0] != '\0'); character += 1)
-            {
-                digits = (character[0] >= '0') && (character[0] <= '9');
-            }
-            const int off =
-                (value != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_POOL_BYTES});
-            if (!digits && !off)
-            {
-                mmgr_line_put(args->err_msg, "--debug-port takes a port number or off");
-                return 0;
-            }
-            VerbaLinea port = {options->port, sizeof(options->port), 0ULL};
-            mmgr_line_put(&port, value);
-            if (mmgr_line_finish(&port) == 0ULL)
-            {
-                mmgr_line_put(args->err_msg, "--debug-port takes a port number or off");
-                return 0;
-            }
-            at += 1u;
-        }
         else if ((word[0] == '-') || (options->folder[0] != '\0'))
         {
             mmgr_line_put(args->err_msg, word);
             mmgr_line_put(args->err_msg, " is not a word install takes: [folder] [--accept] [--yes] [--no-imp] "
-                                         "[--no-tab] [--aliases] [--debug-port <port|off>] [--files]");
+                                         "[--no-tab] [--aliases] [--files]");
             return 0;
         }
         else
@@ -528,7 +500,7 @@ EMBED_INLINE int install_placed(InstallCtx *args)
     return whole;
 }
 
-// the reader's orior folder made, and the debugging port's setting written: as given, or off on a first install
+// the reader's orior folder made, where the settings, themes and terminal logs go
 EMBED_INLINE int install_defaults(const InstallCtx *args)
 {
     char home[CLI_PATH_MAX_LEN];
@@ -543,24 +515,7 @@ EMBED_INLINE int install_defaults(const InstallCtx *args)
         mmgr_line_put(args->cfg->err_msg, " could not be made");
         return 0;
     }
-    char state[CLI_PATH_MAX_LEN];
-    VerbaLinea state_line = {state, sizeof(state), 0ULL};
-    EMBED_CALL(install_joined, InstallCtx, .line = &state_line, .folder = home, .name = INSTALL_STATE_FILE);
-    const int first = !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = state);
-    const char *const port = (args->cfg->options->port[0] != '\0') ? args->cfg->options->port : NULL;
-    if ((port == NULL) && !first)
-    {
-        return 1;
-    }
-    if (!cli_state_value_save(&(CliStateValueCfg){.folder = home,
-                                                  .key = CLI_INSTALL_PORT_KEY,
-                                                  .value = (port != NULL) ? port : CLI_INSTALL_PORT_DEFAULT,
-                                                  .err_msg = args->cfg->err_msg}))
-    {
-        return 0;
-    }
-    EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg, .text = "your files are in ", .other = home,
-               .path = (port != NULL) ? "; the debugging port is set" : "; the debugging port is off");
+    EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg, .text = "your files are in ", .other = home, .path = "");
     return 1;
 }
 

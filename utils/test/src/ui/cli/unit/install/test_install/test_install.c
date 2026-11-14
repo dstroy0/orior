@@ -21,15 +21,14 @@ void tearDown(void)
 
 void test_the_words_fill_the_options(void)
 {
-    const char *const words[] = {"--accept", "--no-tab", "--debug-port", "9333", "D:/somewhere/orior", "--yes"};
+    const char *const words[] = {"--accept", "--no-tab", "D:/somewhere/orior", "--yes"};
     CliInstallOptions options;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_install.options, CliInstallCfg, .words = words, .count = 6u, .options = &options,
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_install.options, CliInstallCfg, .words = words, .count = 4u, .options = &options,
                                 .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_INT(1, options.accepted);
     TEST_ASSERT_EQUAL_INT(1, options.yes);
     TEST_ASSERT_EQUAL_INT(0, options.skipped[0]);
     TEST_ASSERT_EQUAL_INT(1, options.skipped[1]);
-    TEST_ASSERT_EQUAL_STRING("9333", options.port);
     TEST_ASSERT_EQUAL_STRING("D:/somewhere/orior", options.folder);
     TEST_ASSERT_EQUAL_INT(0, options.aliases);
     TEST_ASSERT_EQUAL_INT(0, options.files);
@@ -42,14 +41,6 @@ void test_a_word_not_taken_is_refused(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_install.options, CliInstallCfg, .words = words, .count = 1u, .options = &options,
                                  .err_msg = &s_err_msg));
     TEST_ASSERT_TRUE(mmgr_line_finish(&s_err_msg) > 0ULL);
-}
-
-void test_a_port_that_is_not_a_number_is_refused(void)
-{
-    const char *const words[] = {"--debug-port", "soon"};
-    CliInstallOptions options;
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_install.options, CliInstallCfg, .words = words, .count = 2u, .options = &options,
-                                 .err_msg = &s_err_msg));
 }
 
 void test_the_default_folder_is_under_the_readers_programs(void)

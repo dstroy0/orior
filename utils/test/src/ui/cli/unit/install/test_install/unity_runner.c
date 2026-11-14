@@ -9,7 +9,6 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_the_words_fill_the_options(void);
 extern void test_a_word_not_taken_is_refused(void);
-extern void test_a_port_that_is_not_a_number_is_refused(void);
 extern void test_the_default_folder_is_under_the_readers_programs(void);
 extern void test_no_base_gives_no_default_folder(void);
 extern void test_a_name_another_folder_answers_to_collides(void);
@@ -76,12 +75,11 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\install\\test_install\\test_install.c");
   run_test(test_the_words_fill_the_options, "test_the_words_fill_the_options", 22);
-  run_test(test_a_word_not_taken_is_refused, "test_a_word_not_taken_is_refused", 38);
-  run_test(test_a_port_that_is_not_a_number_is_refused, "test_a_port_that_is_not_a_number_is_refused", 47);
-  run_test(test_the_default_folder_is_under_the_readers_programs, "test_the_default_folder_is_under_the_readers_programs", 55);
-  run_test(test_no_base_gives_no_default_folder, "test_no_base_gives_no_default_folder", 67);
-  run_test(test_a_name_another_folder_answers_to_collides, "test_a_name_another_folder_answers_to_collides", 74);
-  run_test(test_the_own_and_install_folders_do_not_collide, "test_the_own_and_install_folders_do_not_collide", 96);
+  run_test(test_a_word_not_taken_is_refused, "test_a_word_not_taken_is_refused", 37);
+  run_test(test_the_default_folder_is_under_the_readers_programs, "test_the_default_folder_is_under_the_readers_programs", 46);
+  run_test(test_no_base_gives_no_default_folder, "test_no_base_gives_no_default_folder", 58);
+  run_test(test_a_name_another_folder_answers_to_collides, "test_a_name_another_folder_answers_to_collides", 65);
+  run_test(test_the_own_and_install_folders_do_not_collide, "test_the_own_and_install_folders_do_not_collide", 87);
 
   return UNITY_END();
 }
