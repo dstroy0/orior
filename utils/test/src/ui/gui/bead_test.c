@@ -166,6 +166,10 @@ int main(void)
     (void)EMBED_CALL(gui_bead_bake_table.bake, GuiBeadBakeCfg, .atlas = &atlas_store, .pixels = pixels_span, .colors = colors,
                      .width = BEAD_TEST_SIDE, .height = BEAD_TEST_SIDE, .pad = BEAD_TEST_PAD, .reach = BEAD_TEST_REACH,
                      .cells = moved, .tools = 2u, .lights = lights, .light_count = light_count);
+    // the dome's shape chosen again unbakes every button: the button bakes again before its frames are read
+    cli_check((atlas->baked == 0u) &&
+                  EMBED_CALL(gui_bead_blit_table.tool_bake, GuiBeadBlitCfg, .atlas = &atlas_store, .tool = 0u),
+              "the dome's shape chosen again bakes the button anew");
 
     const unsigned int idle = EMBED_CALL(gui_bead.frame, GuiBeadCfg, .press = 0, .one = BEAD_TEST_ONE);
     const unsigned int center = atlas->cell_width / 2u;

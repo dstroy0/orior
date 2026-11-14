@@ -21,6 +21,8 @@
 #define CLI_PANELS_HOVER_LINGER_MS 300ULL
 #define CLI_PANELS_SIGNATURE_WAIT_MS 120ULL
 #define CLI_PANELS_VIEW_REST_MS 250ULL
+// how long Go to Definition waits on the tree's first reading before it answers that it knows no declaration
+#define CLI_PANELS_DEFINITION_WAIT_MS 10000ULL
 // the max declarations the tree is asked for and the max of them a hover shows; the bytes a word takes; the lines
 // above the cursor a signature is read from; the bytes of the state they are entered in; and the regions a view's first
 // line is told as located inside
@@ -609,6 +611,21 @@ int cli_references_definition(const CliReferencesPlaceCfg *args)
     (void)mmgr_line_finish(&path);
     panels_hover_tree_run(&asked);
     g_cli_guard->persistent_buf_release(asked.text, g_cli_servers_owner);
+    // the tree's first reading started by the ask: waited for, no longer than CLI_PANELS_DEFINITION_WAIT_MS, and the
+    // declarations asked for again once it has read them
+    if (!asked.defined_found && asked.reading)
+    {
+        CliWake pause = CLI_WAKE_INIT;
+        const unsigned long long last_ms = cli_clock_milliseconds() + CLI_PANELS_DEFINITION_WAIT_MS;
+        while (cli_tree_unwalked() && (cli_clock_milliseconds() < last_ms))
+        {
+            (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 20ULL);
+        }
+        asked.text = NULL;
+        asked.reading = 0;
+        panels_hover_tree_run(&asked);
+        g_cli_guard->persistent_buf_release(asked.text, g_cli_servers_owner);
+    }
     if (!asked.defined_found)
     {
         return 0;

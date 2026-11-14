@@ -530,6 +530,19 @@ static int caret_x(void)
     return s_window.editor.caret_rect.x;
 }
 
+// the pixel `cells` cells right of the line's start `start`, each `cell` pixels wide, as the editor rounds it
+static int cell_x(int start, float cell, int cells)
+{
+    return start + (int)(((float)cells * cell) + 0.5f);
+}
+
+// whether the pixel `x` is within a pixel of `cells` cells right of `start`
+static int cell_near(int x, int start, float cell, int cells)
+{
+    const int gap = x - cell_x(start, cell, cells);
+    return (gap >= -1) && (gap <= 1);
+}
+
 static void table_checked(void)
 {
     tabs_closed("grid.tsv", "a\tbb\tc\nxxxx\ty\tz\n", NULL, NULL);
@@ -538,24 +551,25 @@ static void table_checked(void)
     cli_check((frame != NULL) && (frame->table == '\t') && (frame->table_quote == 0u) && (frame->column_count == 3u) &&
                   (frame->column_offset[1] == 5ULL) && (frame->column_offset[2] == 8ULL),
               "the frame carries the tab delimiter and three column offsets, the second at cell 5 and the third at 8");
+    // a cell's width as the glyphs give it, fractional where the face's advance is
+    const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &s_window.glyphs,
+                                  .size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                                   .pixels = (int)GUI_CODE_SIZE, .scale = s_window.frame.scale));
     const int first_x = caret_x();
     key_pressed("Right");
-    const int tab_x = caret_x();
     key_pressed("Right");
-    const int second_x = caret_x();
-    const int cell = tab_x - first_x;
-    cli_check((cell > 0) && (second_x - first_x == 5 * cell),
+    cli_check((cell > 0.0f) && cell_near(caret_x(), first_x, cell, 5),
               "the caret at the second field's first character is five cells right of the line's start");
     key_pressed("End");
-    cli_check(caret_x() - first_x == 9 * cell, "the caret at the line's end is at cell 9");
+    cli_check(cell_near(caret_x(), first_x, cell, 9), "the caret at the line's end is at cell 9");
     cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->column_offset[3] == 10ULL),
               "the offset past the last column is at cell 10");
     // the second column's line, at cell 8, dragged to cell 10 widens the second column from 2 cells to 5
     const int row_y = s_window.editor.caret_rect.y + (s_window.editor.caret_rect.height / 2);
-    pressed_with(first_x + (8 * cell), row_y, GUI_BUTTON_LEFT);
+    pressed_with(cell_x(first_x, cell, 8), row_y, GUI_BUTTON_LEFT);
     cli_check(s_window.column_drag == 2u, "a press on the second column's line grips it");
-    moved(first_x + (10 * cell), row_y);
-    released_with(first_x + (10 * cell), row_y, GUI_BUTTON_LEFT);
+    moved(cell_x(first_x, cell, 10), row_y);
+    released_with(cell_x(first_x, cell, 10), row_y, GUI_BUTTON_LEFT);
     cli_check((s_window.column_drag == 0u) && (s_window.editor.frame != NULL) &&
                   (s_window.editor.frame->column_offset[2] == 11ULL),
               "the line let go leaves the third column's offset at cell 11");
