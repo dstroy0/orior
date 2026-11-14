@@ -198,10 +198,13 @@ void cli_lossy(const CliJsonTreeLengthOutCfg *args)
     unsigned long long at = 0ULL;
     while (at < args->length)
     {
-        if (args->text_bytes[at] < 0x80u)
+        // the ASCII bytes passed over a word at a time, to the first byte past ASCII
+        at = EMBED_CALL(cli_text_at_size_classes.to_class, CliTextAtSizeClassesCfg,
+                        .text = (const char *)args->text_bytes, .at = at, .size = args->length,
+                        .classes = CLI_TEXT_END_ASCII, .set = "");
+        if (at >= args->length)
         {
-            at += 1ULL;
-            continue;
+            break;
         }
         const unsigned long long bytes =
             EMBED_CALL(cli_sequence, JsonTreeWriteCtx, .text = args->text_bytes, .length = args->length, .at = at);

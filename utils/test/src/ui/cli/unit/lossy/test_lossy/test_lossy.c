@@ -32,6 +32,17 @@ void test_ascii_passes_through(void)
     TEST_ASSERT_EQUAL_STRING(ascii, s_out);
 }
 
+void test_a_bad_byte_past_a_run_of_whole_words_of_ascii_is_found(void)
+{
+    // 21 ASCII bytes, past two 8-byte words, then a byte that starts no character, then more ASCII
+    const char broken[] = "abcdefghijklmnopqrstu\xff"
+                          "vwxyz";
+    TEST_ASSERT_TRUE(decoded(broken, sizeof(broken) - 1u, sizeof(s_out)));
+    TEST_ASSERT_EQUAL_STRING("abcdefghijklmnopqrstu\xef\xbf\xbd"
+                             "vwxyz",
+                             s_out);
+}
+
 void test_two_three_and_four_byte_sequences_pass_through(void)
 {
     const char characters[] = "a\xc3\xa9 \xe2\x82\xac \xf0\x9f\x98\x80 z";

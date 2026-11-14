@@ -7,6 +7,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_ascii_passes_through(void);
+extern void test_a_bad_byte_past_a_run_of_whole_words_of_ascii_is_found(void);
 extern void test_two_three_and_four_byte_sequences_pass_through(void);
 extern void test_an_invalid_prefix_byte_and_a_truncated_sequence_become_replacement_characters(void);
 extern void test_each_byte_of_a_surrogate_becomes_a_replacement_character(void);
@@ -75,12 +76,13 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\lossy\\test_lossy\\test_lossy.c");
   run_test(test_ascii_passes_through, "test_ascii_passes_through", 28);
-  run_test(test_two_three_and_four_byte_sequences_pass_through, "test_two_three_and_four_byte_sequences_pass_through", 35);
-  run_test(test_an_invalid_prefix_byte_and_a_truncated_sequence_become_replacement_characters, "test_an_invalid_prefix_byte_and_a_truncated_sequence_become_replacement_characters", 42);
-  run_test(test_each_byte_of_a_surrogate_becomes_a_replacement_character, "test_each_byte_of_a_surrogate_becomes_a_replacement_character", 52);
-  run_test(test_a_full_line_stops_before_a_character_that_does_not_fit, "test_a_full_line_stops_before_a_character_that_does_not_fit", 62);
-  run_test(test_a_full_line_stops_before_a_replacement_that_does_not_fit, "test_a_full_line_stops_before_a_replacement_that_does_not_fit", 71);
-  run_test(test_a_full_line_saves_a_character_that_fits_complete, "test_a_full_line_saves_a_character_that_fits_complete", 80);
+  run_test(test_a_bad_byte_past_a_run_of_whole_words_of_ascii_is_found, "test_a_bad_byte_past_a_run_of_whole_words_of_ascii_is_found", 35);
+  run_test(test_two_three_and_four_byte_sequences_pass_through, "test_two_three_and_four_byte_sequences_pass_through", 46);
+  run_test(test_an_invalid_prefix_byte_and_a_truncated_sequence_become_replacement_characters, "test_an_invalid_prefix_byte_and_a_truncated_sequence_become_replacement_characters", 53);
+  run_test(test_each_byte_of_a_surrogate_becomes_a_replacement_character, "test_each_byte_of_a_surrogate_becomes_a_replacement_character", 63);
+  run_test(test_a_full_line_stops_before_a_character_that_does_not_fit, "test_a_full_line_stops_before_a_character_that_does_not_fit", 73);
+  run_test(test_a_full_line_stops_before_a_replacement_that_does_not_fit, "test_a_full_line_stops_before_a_replacement_that_does_not_fit", 82);
+  run_test(test_a_full_line_saves_a_character_that_fits_complete, "test_a_full_line_saves_a_character_that_fits_complete", 91);
 
   return UNITY_END();
 }
