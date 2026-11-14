@@ -10,6 +10,7 @@
 #include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/command_line/command_line.h"
 #include "../../cli/src/editor/document.h"
+#include "../../cli/src/text/text.h"
 #include "explorer.h"
 
 #define CHANGES_PLACEHOLDER "Commit message"
@@ -302,11 +303,9 @@ EMBED_INLINE void changes_noticed(const ChangesCtx *args)
     }
     char refusal[CLI_CHANGES_REFUSAL_MAX];
     const unsigned long long length = EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal);
-    unsigned long long first = 0ULL;
-    while ((first < length) && (refusal[first] != '\n'))
-    {
-        first += 1ULL;
-    }
+    // the refusal's first line, to its newline found a word at a time
+    const unsigned long long first = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                .text = refusal, .at = 0ULL, .size = length, .set = "\n");
     char line_text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line = {line_text, sizeof(line_text), 0ULL};
     mmgr_line_put_n(&line, refusal, first);
