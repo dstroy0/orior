@@ -13,6 +13,9 @@
 // in the folder the settings name with the defaults written there, and the rows standing at the end written through
 // to its file; and the panel's menu, Split Terminal shown on while a shell stands beside the one shown, opened where
 // it was asked for
+#if !defined(_WIN32)
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/pages.h"
@@ -24,6 +27,13 @@
 #include "ui/cli/src/terminal/terminal_tabs.h"
 #include "ui/cli/src/terminal/xterm.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
+#if !defined(_WIN32)
+#include <errno.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+int cli_spawn_probe_read(char *out, int capacity);
+#endif
 
 static CliTerminalXterm s_xterm;
 static char s_text[1024];
@@ -533,7 +543,38 @@ static int shell_run(const char *const *words, const char *typed)
                          .now_ms = cli_clock_milliseconds());
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_pause, .milliseconds_u64 = 5ULL);
     }
-    TEST_ASSERT_EQUAL_INT_MESSAGE(CLI_TERMINAL_SHELL_EXITED, s_shell.state, "the shell hung up on ends within ten seconds");
+    if (s_shell.state != CLI_TERMINAL_SHELL_EXITED)
+    {
+        char diag[512];
+        VerbaLinea diag_line = {diag, sizeof(diag), 0ULL};
+        mmgr_line_put(&diag_line, "the shell hung up on ends within ten seconds; PROBE letters=");
+#if !defined(_WIN32)
+        char letters[64];
+        const int got = cli_spawn_probe_read(letters, (int)sizeof(letters) - 1);
+        letters[(got > 0) ? got : 0] = '\0';
+        mmgr_line_put(&diag_line, letters);
+        errno = 0;
+        const int killed = kill((pid_t)s_shell.spawned.process, SIGKILL);
+        mmgr_line_put(&diag_line, " kill=");
+        mmgr_line_decimal(&diag_line, (unsigned long long)(long long)killed, 1u);
+        mmgr_line_put(&diag_line, " errno=");
+        mmgr_line_decimal(&diag_line, (unsigned long long)errno, 1u);
+        usleep(200000u);
+        int status = 0;
+        errno = 0;
+        const pid_t waited = waitpid((pid_t)s_shell.spawned.process, &status, WNOHANG);
+        mmgr_line_put(&diag_line, " waitpid=");
+        mmgr_line_decimal(&diag_line, (unsigned long long)(long long)waited, 1u);
+        mmgr_line_put(&diag_line, " errno=");
+        mmgr_line_decimal(&diag_line, (unsigned long long)errno, 1u);
+        mmgr_line_put(&diag_line, " pid=");
+        mmgr_line_decimal(&diag_line, s_shell.spawned.process, 1u);
+        mmgr_line_put(&diag_line, " self=");
+        mmgr_line_decimal(&diag_line, (unsigned long long)getpid(), 1u);
+#endif
+        (void)mmgr_line_finish(&diag_line);
+        TEST_FAIL_MESSAGE(diag);
+    }
     return ended;
 }
 

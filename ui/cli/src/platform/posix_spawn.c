@@ -272,8 +272,31 @@ EMBED_INLINE unsigned short cli_terminal_extent(const PosixSpawnCtx *args)
     return (unsigned short)((args->count < 2u) ? 2u : bounded);
 }
 
+// PROBE: the child's progress letters, read by the terminal suite
+static int s_probe[2] = {-1, -1};
+int cli_spawn_probe_read(char *out, int capacity)
+{
+    if (s_probe[0] < 0)
+    {
+        return 0;
+    }
+    const ssize_t got = read(s_probe[0], out, (size_t)capacity);
+    return (got > 0) ? (int)got : 0;
+}
+static void probe_wrote(char letter)
+{
+    if (s_probe[1] >= 0)
+    {
+        (void)write(s_probe[1], &letter, 1u);
+    }
+}
 int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
 {
+    if (s_probe[0] < 0)
+    {
+        (void)pipe(s_probe);
+        (void)fcntl(s_probe[0], F_SETFL, O_NONBLOCK);
+    }
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
     // the system makes the pair and sizes the follower, as its own terminals do
     struct winsize size = {EMBED_CALL(cli_terminal_extent, PosixSpawnCtx, .count = args->rows),
@@ -306,20 +329,26 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     }
     if (child == 0)
     {
+        probe_wrote('a');
         // a session of its own, whose controlling terminal the follower is, on its standard descriptors
         if (login_tty(follower) != 0)
         {
+            probe_wrote('L');
             _exit(127);
         }
+        probe_wrote('b');
         EMBED_CALL(cli_spawn_settings, PosixSpawnCtx, .settings = args->settings, .count = args->count);
         if ((args->folder != NULL) && (chdir(args->folder) != 0))
         {
             _exit(127);
         }
+        probe_wrote('c');
         // exec takes its words as it was declared; it writes to none of them
         execvp(args->words[0], (char *const *)(embed_word)args->words);
+        probe_wrote('X');
         _exit(127);
     }
+    probe_wrote('P');
     // the follower is the child's alone: a leader read sees its end once every holder of the follower ends
     close(follower);
     // a process number and descriptors are not negative here, stored one past so 0 stands for none
