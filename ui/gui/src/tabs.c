@@ -230,8 +230,10 @@ EMBED_INLINE unsigned int tabs_beads_draw(const TabsCtx *args)
             continue;
         }
         baked_now = baked_now || !baked;
+        // the beads fade with the row's share as the claim lifts it away; a share is within GUI_FIXED_ONE
         EMBED_CALL(gui_buttons_draw_table.draw, GuiButtonsDrawCfg, .buttons = drawn->buttons, .raster = drawn->raster,
-                   .tool = at, .x = placed[at].x, .y = placed[at].y, .time_ms = drawn->time_ms, .clip = frame->tabs);
+                   .tool = at, .x = placed[at].x, .y = placed[at].y, .time_ms = drawn->time_ms, .clip = frame->tabs,
+                   .fade = (unsigned int)(255 - ((255 * frame->tabs_share) / GUI_FIXED_ONE)));
     }
     return waiting;
 }
@@ -242,8 +244,13 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
     GuiGlyphs *glyphs = args->glyphs;
     const int scale = args->frame->scale;
     const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
-    // the row's colors at the share of it displayed, the claim fading the row as it lifts it away
+    // the row's colors at the share of it displayed, the claim fading the row as it lifts it away; the row away has
+    // nothing to draw, as its beads, cut to a row of no height, would draw whole
     const int share = args->frame->tabs_share;
+    if (share <= 0)
+    {
+        return 0u;
+    }
     const GuiColor line_color = GUI_FRAME_FADED(args->palette->line, share);
     const GuiColor displayed_line = GUI_FRAME_FADED(args->palette->tab_line, share);
     const GuiColor box_line = GUI_FRAME_FADED(args->palette->widget_line, share);
