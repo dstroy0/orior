@@ -25,12 +25,14 @@ typedef struct CliReachCfg CliReachCfg;
 
 // The fields before a command's words. Then the first byte of an answer: the command ran, it did not, or the window
 // holds its answer until a person answers in the window. A held command sends the held byte first and its answer
-// after it. Last, what `run` returns for a command whose answer the window holds
+// after it. Last, what `run` returns for a command whose answer the window holds, and for a command that is none of
+// the window's
 #define CLI_REACH_HEAD_FIELDS 3u
 #define CLI_REACH_DONE '1'
 #define CLI_REACH_REFUSED '0'
 #define CLI_REACH_HELD '2'
 #define CLI_REACH_HOLD 2
+#define CLI_REACH_NONE (-1)
 
 // What the window answered: whether the command ran, and what it reported
 typedef struct
@@ -51,8 +53,9 @@ void cli_reach_forget(void);
 // texts places in that body, pushed on the waiting with a compare and swap, and `woken` called; that thread sleeps on
 // the command's address until the window has run it, and the body stands as it was until then. On the window's thread,
 // every command waiting run by `run` in the order it came, its name, words and their count handed on, answered on the
-// command's own channel as `run` returns, 1 where it ran, and its door's thread woken: 1 where any came. And the door
-// closed: every command waiting woken unrun, and the door's key let go
+// command's own channel as `run` returns, 1 where it ran, 0 where the window refused it and CLI_REACH_NONE where the
+// command is none of the window's, and its door's thread woken: 1 where any came. And the door closed: every command
+// waiting woken unrun, and the door's key let go
 int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg);
 int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count));
 void cli_reach_close(void);

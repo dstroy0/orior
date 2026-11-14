@@ -884,6 +884,11 @@ static void file_checked(void)
               "auto-save on shows checked");
     cli_check(!asked("auto-save-after", NULL) && (s_window.autosave_ms == GUI_WINDOW_AUTOSAVE_DEFAULT_MS),
               "auto-save-after without the seconds is refused and the rest stands");
+    cli_check(same(s_ask.answer.text, "the window refused auto-save-after"),
+              "a command of the window's that refuses its words is answered as refused");
+    cli_check(!asked("no-such-command", NULL) &&
+                  same(s_ask.answer.text, "no-such-command is not a command of the window's"),
+              "a command the window has none of is answered as none of its");
     cli_check(asked("auto-save-after", "3") && (s_window.autosave_ms == 3000ULL),
               "auto-save-after sets the rest in seconds");
     tabs_closed("kept.txt", "alpha\n", NULL, NULL);

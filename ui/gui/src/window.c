@@ -4925,7 +4925,8 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
 }
 
 // a command the command line asks for, through the door or as the window started: the file a path names opened, or a
-// command of the menus, the window's or the view's run: 1, or 0 where it is none of them
+// command of the menus, the window's or the view's run: 1, 0 where its part refused it, and CLI_REACH_NONE where it is
+// none of them
 static int window_command_named(const char *command, const char *const *words, unsigned int count)
 {
     GuiWindow *const window = s_window;
@@ -4966,8 +4967,12 @@ static int window_command_named(const char *command, const char *const *words, u
                       EMBED_CALL(window_name_among, GuiWindowCtx, .name = command, .words = s_view_commands,
                                  .count = sizeof(s_view_commands) / sizeof(s_view_commands[0]));
     // a command of the menus the window runs no part for is refused, the door answering that it is none of the window's
-    return known && EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = command,
-                               .value = keyed ? item.keys : NULL, .words = words, .count = count);
+    if (!known)
+    {
+        return CLI_REACH_NONE;
+    }
+    return EMBED_CALL(window_command_run, GuiWindowCtx, .window = window, .name = command,
+                      .value = keyed ? item.keys : NULL, .words = words, .count = count);
 }
 
 // the bar's tool `at` pressed: Notifications presses the notice the status bar shows, as the page's bell opened the

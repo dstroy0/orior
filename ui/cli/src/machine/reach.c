@@ -570,18 +570,27 @@ static void reach_answer_text(const char *id, char mark, const char *text)
                      .err_msg = &err_msg);
 }
 
-// what a command came to, sent on its own channel: `1` where it ran, else `0` and why
-static void reach_answer(const CliReachCommand *command, int ran)
+// what a command came to, sent on its own channel: `1` where it ran, else `0` and why: the window has no such command,
+// or the window refused it
+static void reach_answer(const CliReachCommand *command)
 {
-    if (ran)
+    if (command->ran == 1)
     {
         reach_answer_text(command->id, CLI_REACH_DONE, NULL);
         return;
     }
     char why[CLI_NAME_MAX_LEN + 64u];
     VerbaLinea line = {why, sizeof(why), 0ULL};
-    mmgr_line_put(&line, command->command);
-    mmgr_line_put(&line, " is not a command of the window's");
+    if (command->ran == CLI_REACH_NONE)
+    {
+        mmgr_line_put(&line, command->command);
+        mmgr_line_put(&line, " is not a command of the window's");
+    }
+    else
+    {
+        mmgr_line_put(&line, "the window refused ");
+        mmgr_line_put(&line, command->command);
+    }
     (void)mmgr_line_finish(&line);
     reach_answer_text(command->id, CLI_REACH_REFUSED, why);
 }
@@ -610,7 +619,7 @@ int cli_reach_take(int (*run)(const char *command, const char *const *words, uns
         }
         else
         {
-            reach_answer(command, command->ran == 1);
+            reach_answer(command);
         }
         reach_released(stamp);
         reach_wake(command);
