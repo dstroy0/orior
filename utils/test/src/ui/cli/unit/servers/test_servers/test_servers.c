@@ -551,14 +551,26 @@ static void jobs_counted(const CliServersJobCfg *args)
     (void)atomic_fetch_add(&s_jobs_run, 1u);
 }
 
-// a thread that hands JOBS_EACH jobs over, each a value of its own, and counts the hand-overs refused
+// a thread that hands JOBS_EACH jobs over, each a value of its own, and counts the hand-overs refused. The four threads
+// hand as many jobs as the ring holds: a ring full answers a hand-over with a refusal until the runner takes one. The
+// hand-over goes again after a yield, and counts as refused only where ten seconds pass without room
 static void jobs_handed(void *context)
 {
     const unsigned int first = *(const unsigned int *)context;
     for (unsigned int at = 0u; at < JOBS_EACH; at += 1u)
     {
         unsigned int value = first + at;
-        if (!EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = jobs_counted, .job = &value, .size = sizeof(value)))
+        const unsigned long long until = cli_clock_milliseconds() + 10000ull;
+        int handed = 0;
+        while (!handed && (cli_clock_milliseconds() < until))
+        {
+            handed = EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = jobs_counted, .job = &value, .size = sizeof(value));
+            if (!handed)
+            {
+                cli_thread_yield();
+            }
+        }
+        if (!handed)
         {
             (void)atomic_fetch_add(&s_jobs_refused, 1u);
         }

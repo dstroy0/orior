@@ -20,6 +20,12 @@
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+#include <util.h>
+#else
+#include <pty.h>
+#include <utmp.h>
+#endif
 
 typedef struct
 {
@@ -266,68 +272,44 @@ EMBED_INLINE unsigned short cli_terminal_extent(const PosixSpawnCtx *args)
     return (unsigned short)((args->count < 2u) ? 2u : bounded);
 }
 
-// the name of the terminal the pseudo-terminal `leader` leads into `name`, sized for `capacity`: 1, or 0 where the
-// system names none; ptsname's own capacity is shared, and read under a lock where ptsname_r is not the system's
-EMBED_INLINE int cli_terminal_by_name(const PosixSpawnCtx *args)
-{
-#if defined(__linux__)
-    return ptsname_r(args->leader, args->name, args->capacity) == 0;
-#else
-    const char *const named = ptsname(args->leader);
-    VerbaLinea line = {args->name, args->capacity, 0ULL};
-    mmgr_line_put(&line, (named != NULL) ? named : "");
-    const int whole = (named != NULL) && (mmgr_line_finish(&line) != 0ULL);
-    return whole;
-#endif
-}
-
 int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
-    char follower[CLI_PATH_MAX_LEN];
-    const int leader = posix_openpt(O_RDWR | O_NOCTTY);
-    const int opened = (leader >= 0) && (grantpt(leader) == 0) && (unlockpt(leader) == 0) &&
-                       EMBED_CALL(cli_terminal_by_name, PosixSpawnCtx, .leader = leader, .name = follower,
-                                  .capacity = sizeof(follower));
-    const int written = opened ? dup(leader) : -1;
-    if (!opened || (written < 0))
+    // the system makes the pair and sizes the follower, as its own terminals do
+    struct winsize size = {EMBED_CALL(cli_terminal_extent, PosixSpawnCtx, .count = args->rows),
+                           EMBED_CALL(cli_terminal_extent, PosixSpawnCtx, .count = args->cols), 0u, 0u};
+    int leader = -1;
+    int follower = -1;
+    if (openpty(&leader, &follower, NULL, NULL, &size) != 0)
     {
-        if (leader >= 0)
-        {
-            close(leader);
-        }
+        mmgr_line_put(args->err_msg, "no pseudo-terminal could be made");
+        return 0;
+    }
+    const int written = dup(leader);
+    if (written < 0)
+    {
+        close(leader);
+        close(follower);
         mmgr_line_put(args->err_msg, "no pseudo-terminal could be made");
         return 0;
     }
     (void)fcntl(leader, F_SETFD, FD_CLOEXEC);
     (void)fcntl(written, F_SETFD, FD_CLOEXEC);
-    const struct winsize size = {EMBED_CALL(cli_terminal_extent, PosixSpawnCtx, .count = args->rows),
-                                 EMBED_CALL(cli_terminal_extent, PosixSpawnCtx, .count = args->cols), 0u, 0u};
-    (void)ioctl(leader, TIOCSWINSZ, &size);
     const pid_t child = fork();
     if (child < 0)
     {
         close(leader);
         close(written);
+        close(follower);
         mmgr_line_put(args->err_msg, "no process could be made");
         return 0;
     }
     if (child == 0)
     {
-        // a session of its own, whose controlling terminal the pseudo-terminal's follower is
-        setsid();
-        const int terminal = open(follower, O_RDWR);
-        if (terminal < 0)
+        // a session of its own, whose controlling terminal the follower is, on its standard descriptors
+        if (login_tty(follower) != 0)
         {
             _exit(127);
-        }
-        (void)ioctl(terminal, TIOCSCTTY, 0);
-        dup2(terminal, 0);
-        dup2(terminal, 1);
-        dup2(terminal, 2);
-        if (terminal > 2)
-        {
-            close(terminal);
         }
         EMBED_CALL(cli_spawn_settings, PosixSpawnCtx, .settings = args->settings, .count = args->count);
         if ((args->folder != NULL) && (chdir(args->folder) != 0))
@@ -338,6 +320,8 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
         execvp(args->words[0], (char *const *)(embed_word)args->words);
         _exit(127);
     }
+    // the follower is the child's alone: a leader read sees its end once every holder of the follower ends
+    close(follower);
     // a process number and descriptors are not negative here, stored one past so 0 stands for none
     args->spawned->process = (unsigned long long)child;
     args->spawned->id = (unsigned long long)child;
