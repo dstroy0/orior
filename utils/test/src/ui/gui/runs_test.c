@@ -98,7 +98,7 @@ int main(void)
     record_appended(&run, "conference_why_it_failed", "alpha: because\n\noverseer: ruled so\n", QRY_ORDINARY);
     record_appended(&run, "panic", "boom\nline two\n", QRY_PANIC);
     file_written(s_root, "runs/a.qry", qry, run.at);
-    const char *const lessons = "lesson cause_a * are_a\nnot a lesson\nlesson cause_b carrier_b are_b\n";
+    const char *const lessons = "lesson cause_a * alias_a\nnot a lesson\nlesson cause_b carrier_b alias_b\n";
     file_written(s_root, "runs/overseer.txt", lessons,
                  cellul.len(&(CatenaFinitaCfg){.src = lessons, .cap = CLI_POOL_BYTES}));
 
@@ -121,7 +121,7 @@ int main(void)
     cli_check(row_is(2u, CLI_RUNS_ROW_LESSONS, NULL, &row), "the lessons' head follows the runs");
     cli_check(row_is(3u, CLI_RUNS_ROW_LESSON, "cause_a", &row) && second_is(&row, "*") &&
                   (row.third_length == 7ULL) &&
-                  (memor.cmp(&(MemoriaCfg){.src = row.third, .other = "are_a", .bytes = 7u}) == 0),
+                  (memor.cmp(&(MemoriaCfg){.src = row.third, .other = "alias_a", .bytes = 7u}) == 0),
               "a lesson's row carries its cause, its carrier and its stand-in");
     cli_check(row_is(4u, CLI_RUNS_ROW_LESSON, "cause_b", &row) && second_is(&row, "carrier_b"),
               "a line that is no lesson is passed over and the next lesson follows");

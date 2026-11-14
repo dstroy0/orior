@@ -522,6 +522,13 @@ static void released_with(int x, int y, unsigned int button)
     stepped();
 }
 
+// the caret's left pixel as a drawn frame places it
+static int caret_x(void)
+{
+    EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
+    return s_window.editor.caret_rect.x;
+}
+
 static void table_checked(void)
 {
     tabs_closed("grid.tsv", "a\tbb\tc\nxxxx\ty\tz\n", NULL, NULL);
@@ -530,16 +537,16 @@ static void table_checked(void)
     cli_check((frame != NULL) && (frame->table == '\t') && (frame->table_quote == 0u) && (frame->column_count == 3u) &&
                   (frame->column_offset[1] == 5ULL) && (frame->column_offset[2] == 8ULL),
               "the frame carries the tab delimiter and three column offsets, the second at cell 5 and the third at 8");
-    const int first_x = s_window.editor.caret_rect.x;
+    const int first_x = caret_x();
     key_pressed("Right");
-    const int tab_x = s_window.editor.caret_rect.x;
+    const int tab_x = caret_x();
     key_pressed("Right");
-    const int second_x = s_window.editor.caret_rect.x;
+    const int second_x = caret_x();
     const int cell = tab_x - first_x;
     cli_check((cell > 0) && (second_x - first_x == 5 * cell),
               "the caret at the second field's first character is five cells right of the line's start");
     key_pressed("End");
-    cli_check(s_window.editor.caret_rect.x - first_x == 9 * cell, "the caret at the line's end is at cell 9");
+    cli_check(caret_x() - first_x == 9 * cell, "the caret at the line's end is at cell 9");
     cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->column_offset[3] == 10ULL),
               "the offset past the last column is at cell 10");
     // the second column's line, at cell 8, dragged to cell 10 widens the second column from 2 cells to 5
