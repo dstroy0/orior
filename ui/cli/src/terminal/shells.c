@@ -245,9 +245,6 @@ EMBED_INLINE int shells_pipe_read(const ShellsCtx *args)
 EMBED_INLINE void shells_exited(const ShellsCtx *args)
 {
     CliTerminalShell *const shell = args->shell;
-    // a pseudo-console's last output comes once it is let go, and its pipe ends after it
-    EMBED_CALL(cli_spawned_internal.spawn_terminal_close, CliSpawnedCtx, .spawned = &shell->spawned);
-    (void)EMBED_CALL(shells_pipe_read, ShellsCtx, .shell = shell, .xterm = args->xterm);
     if (args->xterm != NULL)
     {
         char text[48];
@@ -301,10 +298,27 @@ int cli_terminal_shell_drain(const CliTerminalShellCfg *args)
         shell->killed = 1;
     }
     long long code = 0LL;
-    if (EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &shell->spawned, .code = &code))
+    if (!shell->ended && EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &shell->spawned,
+                                    .code = &code))
     {
-        EMBED_CALL(shells_exited, ShellsCtx, .shell = shell, .xterm = args->xterm, .code = code);
+        // the process has ended, and the pseudo-console sends its last output once it is let go: the pipe is read on
+        // until it is quiet
+        shell->ended = 1;
+        shell->code = code;
+        shell->ended_ms = args->now_ms;
+        shell->quiet_ms = args->now_ms;
+        EMBED_CALL(cli_spawned_internal.spawn_terminal_close, CliSpawnedCtx, .spawned = &shell->spawned);
         return 1;
+    }
+    if (shell->ended)
+    {
+        shell->quiet_ms = received ? args->now_ms : shell->quiet_ms;
+        if ((args->now_ms >= (shell->quiet_ms + CLI_TERMINAL_EXIT_QUIET_MS)) ||
+            (args->now_ms >= (shell->ended_ms + CLI_TERMINAL_EXIT_MOST_MS)))
+        {
+            EMBED_CALL(shells_exited, ShellsCtx, .shell = shell, .xterm = args->xterm, .code = shell->code);
+            return 1;
+        }
     }
     return received;
 }

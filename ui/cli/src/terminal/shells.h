@@ -4,8 +4,10 @@
 // written to it, and on its owner's thread what it wrote and waits in its pipe read onto the xterm, never more than
 // waits so no read waits. The xterm's answers go back to it as they come; text typed while it starts waits until it
 // has written and then been quiet CLI_TERMINAL_SETTLE_MS, as the system's terminal reads its first input as the answer
-// to where the cursor is and the shell takes keys once its prompt is up. A shell that ends prints `[exited CODE]` on
-// its xterm; a shell hung up on and still going CLI_TERMINAL_HANG_UP_MS later is killed (shells.c)
+// to where the cursor is and the shell takes keys once its prompt is up. A shell whose process has ended is read on
+// until its pipe is quiet CLI_TERMINAL_EXIT_QUIET_MS, as a pseudo-console sends its last output after the process,
+// and then prints `[exited CODE]` on its xterm; a shell hung up on and still going CLI_TERMINAL_HANG_UP_MS later is
+// killed (shells.c)
 #ifndef CLI_TERMINAL_SHELLS_H
 #define CLI_TERMINAL_SHELLS_H
 #include "../command_line/cli_internal.h"
@@ -16,10 +18,13 @@
 typedef struct CliTerminalShellCfg CliTerminalShellCfg;
 
 // how long a shell starting is quiet before the text typed while it started goes to it; how long a shell hung up on
-// goes on before it is killed; and how often a running shell's pipe is looked at
+// goes on before it is killed; how often a running shell's pipe is looked at; how long an ended shell's pipe is quiet
+// before its end is printed, and the most its last output is waited for
 #define CLI_TERMINAL_SETTLE_MS 300ULL
 #define CLI_TERMINAL_HANG_UP_MS 1000ULL
 #define CLI_TERMINAL_LOOK_MS 16ULL
+#define CLI_TERMINAL_EXIT_QUIET_MS 100ULL
+#define CLI_TERMINAL_EXIT_MOST_MS 2000ULL
 // the bytes typed while a shell starts that wait for it
 #define CLI_TERMINAL_WAITING_MAX 4096u
 
@@ -28,8 +33,9 @@ typedef struct CliTerminalShellCfg CliTerminalShellCfg;
 #define CLI_TERMINAL_SHELL_RUNNING 1u
 #define CLI_TERMINAL_SHELL_EXITED 2u
 
-// One shell: the process; where it stands; whether it was hung up on and when, and whether it was killed; whether typed
-// text goes straight to it, whether it has written and when it last did; and the text typed while it started
+// One shell: the process; where it stands; whether it was hung up on and when, and whether it was killed; whether its
+// process has ended, with its code, when it ended and when its pipe last gave bytes after it; whether typed text goes
+// straight to it, whether it has written and when it last did; and the text typed while it started
 typedef struct
 {
     CliSpawned spawned;
@@ -37,6 +43,10 @@ typedef struct
     int hung_up;
     unsigned long long hung_up_ms;
     int killed;
+    int ended;
+    long long code;
+    unsigned long long ended_ms;
+    unsigned long long quiet_ms;
     int ready;
     int written;
     unsigned long long written_ms;
