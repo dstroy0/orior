@@ -1,58 +1,22 @@
 # Contributing
 
-**Purpose:** Know what a contribution here looks like and what the checks are.
-**Scope:** the whole repository
+**Code is not accepted.**
 
-## What a contribution is
-
-This is a research body with code attached. Three types of change are useful:
+## This is a research body with code attached. Three types of change are useful:
 
 **A measurement.** A number with its conditions attached: what corpus, what length, what it was measured against, and what the floor was. A ratio with no denominator is not a result. Every figure in `theory/workbooks/orior` names the tool that produced it, and a new one does the same.
 
-**A correction.** The ledger retains its own corrections and it is the max valuable thing in the repository. A claim that turns out to be wrong stays on the page beside the measurement that killed it. If you find a figure that does not reproduce, the contribution is the run that shows it, added beside the figure instead of an edit that removes it.
+**A correction.** The ledger retains its own corrections and it is the most valuable thing in the repository. A claim that turns out to be wrong stays on the page beside the measurement that killed it. If you find a figure that does not reproduce, the contribution is the run that shows it, added beside the figure instead of an edit that removes it.
 
 **A precedent.** Several results here are rediscoveries of published work. This repository has been wrong about priority before, at Montemurro and Zanette, and the entry says so. If you know the prior art for something claimed here, that is worth more than a patch.
 
 ## What is not in the repository
 
-The 20 hand extraction tables under `theory/theory/Salishan/` are not carried in git. Every row is a form transcribed out of a published paper. The tables are those papers' text and not this work's to redistribute. `refs.md` gives the address of every source paper, and the tables go to anyone who has the papers and asks.
-
-The derivations built on them are here in full: the ledger, the bound, the checks and the code.
-
 The corpora, page renders and audio under `build/` are also absent and run to about 1.9 GB. `utils/maint/data/salishan/get_papers.py` fetches the papers and the tools rebuild the rest.
 
 ## Checks
 
-**Prose.** The writing standard is checked instead of remembered:
-
-```sh
-python utils/maint/prose/docs_check docs
-python utils/maint/prose/docs_check docs --strict
-```
-
-Breaking findings are an empty table, an em dash, and a link to a file that is not there. Those stop a commit. Prose findings are printed and let through, because the prose backlog predates the check.
-
-Turn the hook on once per clone:
-
-```sh
-git config core.hooksPath .githooks
-```
-
-**A contribution's own prose.**
-
-```sh
-python utils/maint/prose/submission_check.py <path to the contribution>
-```
-
-It reads the prose of a submission and reports two things. Any model vendor named in it, which catches only the careless case. And how often it reaches for the 285 phrases `docs_check` bans, as a rate per hundred thousand words, against the rate a human research writer carries for the same list. That baseline is 387.9, counted over 759,815 words of the papers under `build/papers`, and it is summed from the same table the findings come from so the two cannot disagree.
-
-Two poles calibrate it. A page written deliberately in the machine register measures 12.5 times the human rate. Three Salishan papers measure 0.5, 0.6 and 0.9.
-
-Read the word count before the ratio. The denominator is the prose left after code, math and markup come out, and a submission that is mostly a word list or interlinear glosses will count high and rate low.
-
-It reports and it does not decide. Nothing in it prints a verdict. A low number is not evidence of anything either: the rates are a floor, and anyone who knows the list can write around it.
-
-**The kernel.** C11 alone, with no Python and no device toolchain:
+**The kernel.**:
 
 ```sh
 utils/maint/engine/build_engine.sh
@@ -64,9 +28,7 @@ Every arm has to agree with `orior_naive` on every row. A row printing `DIFFER` 
 
 ## Writing
 
-Prose here is plain. One fact per sentence, subject and verb and object, no em dashes, American definitions. `theory/workbooks/orior` says which words are the field's and which this work minted, and the field's word wins wherever one exists.
-
-`theory/theory/Salishan` is generated from `paper_config.py` by `pure_corpus_index.py`, which retains a speaker's name typed in exactly one place. Do not edit it by hand.
+ASD-STE100 for all technical documents and code documentation. 
 
 ## Licensing
 
