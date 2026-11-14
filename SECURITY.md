@@ -1,11 +1,19 @@
 # Security
 
-**Purpose:** Know what this repository is responsible for, what it is not, and where to report something.
-**Scope:** `src/cu/engine/`, `src/cu/transpiler/`, `src/cu/`, `archive/src/python/`, `utils/maint/`, and the ports under `src/engine/`
+## The CLI IDE
 
-## What is here
+**Impero** `imp` The CLI.
+- brain in the split-brain, GUI LTO builds this binary into itself
+- uses the network (if enabled)
+- calls lsp that use the network (if enabled)
+- calls various other services that use the network (if enabled)
+- manipulates the filesystem
 
-A search kernel in C11, a driver that times it, Python tools that fetch and read published papers, and two ports of one statistic. The new parts are an engine that never leaves exact integers, from the first read to the last bit written. When every step is exact, a chain of steps composes into one program and runs on the device as one. The emitter writes such a program to PTX, C or SASS with each target's rules held as data, and where a rule is not known it asks the part and retains the answer. Nothing here serves, listens on a network, retains state between runs or runs unattended.
+## The GUI IDE
+
+**TABVLA** `tab` The GUI.
+- you drive, keyboard and mouse in the window itself, a separate terminal calling tab <thread>, xterm to one or many.
+- 1:1 capabilities:features with Impero
 
 ## The kernel
 
