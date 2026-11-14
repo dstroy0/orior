@@ -96,6 +96,9 @@ MMGR_HIGH_WATER=-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
 # the mover's readings for the window: a reading every 10 ms, two quiet in a row before a sort, since the frame loop
 # leaves gaps of that order and none of 100 ms
 MMGR_MOVER_WORDS=(-DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u)
+# the program lays its owner table in pool.c, and MMgr's weak defaults for the table stay out of its build: a compiler
+# can fold a read of a weak const object to the default's own value, and that fold refuses every take
+MMGR_OWNERS_WORD=-DMMGR_OWNERS_IN_THIS_UNIT=1
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$EMBEDDED_TYPES/include" -DMMGR_ENABLE_DMA=0
     -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER" "${MMGR_MOVER_WORDS[@]}"
     -DMMGR_CARCER_OWNERS=1024u)
@@ -184,7 +187,7 @@ mmgr_built() {
     fi
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
         -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER ${MMGR_MOVER_WORDS[*]} ${VECTOR_WORDS[*]:-} ${LTO_WORDS[*]:-} ${SANITIZE_WORDS[*]:-}" \
+        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER $MMGR_OWNERS_WORD ${MMGR_MOVER_WORDS[*]} ${VECTOR_WORDS[*]:-} ${LTO_WORDS[*]:-} ${SANITIZE_WORDS[*]:-}" \
         && cmake --build "$into" --target orior_mmgr; } > "$into.log" 2>&1 || {
         echo "  build failed: MMgr did not build for $target"
         tail -20 "$into.log"

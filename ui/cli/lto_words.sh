@@ -25,17 +25,8 @@ case "$CC" in
                   if [ -n "$found" ]; then lld="$found"; break; fi
               done
               if [ -n "$lld" ]; then
-                  # lld before 15 resolves a weak definition over the strong one across thin LTO's modules, so MMgr's weak
-                  # owner table defaults would win over the program's table; that lld links the whole program as one
-                  # module instead, which resolves the two as the language says
-                  lld_major="$("$lld" --version 2>/dev/null | sed -n 's/.*LLD \([0-9][0-9]*\)\..*/\1/p' | head -1)"
-                  if [ -n "$lld_major" ] && [ "$lld_major" -lt 15 ]; then
-                      LTO_WORDS=(-flto)
-                      LINK_WORDS=(-flto "-fuse-ld=$lld")
-                  else
-                      LINK_WORDS+=("-fuse-ld=$lld" "-Wl,--thinlto-cache-dir=$LTO_CACHE"
-                          "-Wl,--thinlto-cache-policy=cache_size_bytes=8g")
-                  fi
+                  LINK_WORDS+=("-fuse-ld=$lld" "-Wl,--thinlto-cache-dir=$LTO_CACHE"
+                      "-Wl,--thinlto-cache-policy=cache_size_bytes=8g")
               fi ;;
        esac ;;
 esac
