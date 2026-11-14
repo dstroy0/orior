@@ -4,7 +4,6 @@
 // between two of as few going to the nearer, and the point placed where its writer places it
 #include "json_tree.h"
 #include "text.h"
-#include <stdlib.h>
 
 // the 32-bit words of the largest whole number a float's exact digits are read from, its mantissa times five to 1074;
 // the most digits that number writes; and the most digits a float needs to read back as itself
@@ -200,7 +199,7 @@ EMBED_INLINE int cli_reads_back(const JsonNumberCtx *args)
     mmgr_line_ch(&line, 'e');
     mmgr_line_decimal_signed(&line, (long long)args->point_value - 1LL);
     mmgr_line_finish(&line);
-    return strtod(text, NULL) == args->value;
+    return cellul.to_double(&(TransfiguroCfg){.src = text}) == args->value;
 }
 
 void cli_json_double(const CliJsonTreeOutValueCfg *args)

@@ -28,11 +28,13 @@ typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
 #define CLI_KERNEL_IOPUB_CAPACITY (1u << 22u)
 #define CLI_KERNEL_REPLY_CAPACITY (1u << 19u)
 #define CLI_KERNEL_LINE (1u << 16u)
+// the bytes a kernel's shell queue holds, the requests queued behind the one in flight
+#define CLI_KERNEL_QUEUE_CAPACITY (16ULL << 20u)
 #define CLI_KERNEL_FRAMES 64u
 #define CLI_KERNEL_HEADER_NODES 512u
 #define CLI_KERNEL_HEADER_TEXT (1u << 14u)
 
-// the most bytes of content a request orior_cli makes carries, and how long a kernel's readers are waited for as it is
+// the most bytes of content a request impero makes carries, and how long a kernel's readers are waited for as it is
 // let go, in milliseconds
 #define CLI_KERNEL_CONTENT (1u << 20u)
 #define CLI_KERNEL_READERS_WAIT 5000ull
@@ -113,8 +115,8 @@ struct CliKernel
     unsigned char *err_capacity;
 };
 
-// the lock a kernel's references are counted under; each kernel is a cell of its own, taken as it starts and given back
-// as it is let go (jupyter.c)
+// the lock a kernel's references are counted under; each kernel is one of CLI_KERNELS_MAX fixed places with its wire
+// buffers and its shell queue, taken as it starts and made free as it is let go (jupyter.c)
 
 // a text of a spec by its place, "" for none (jupyter_specs.c)
 const char *cli_kernel_text(const CliJupyterSpecCtx *args);

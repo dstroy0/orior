@@ -224,7 +224,7 @@ void test_paths_input_the_compilers_use_forward_slashes(void)
     char source[QUERY_PATH_MAX_LEN];
     char objects[QUERY_PATH_MAX_LEN];
     char object[QUERY_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "src/cu/includes/file_defs/kfile_lines/kfile_lines.c", .joined = source);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "includes/file_defs/kfile_lines/kfile_lines.c", .joined = source);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/objects", .joined = objects);
     EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = s_root, .objects = objects, .source_text = source, .object_capacity = object);
     TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = source, .cap = CLI_POOL_BYTES, .byte = '\\'}));

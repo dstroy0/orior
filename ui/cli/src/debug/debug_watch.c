@@ -152,22 +152,33 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
     const int capacity = (session->data_count < session->data_capacity);
     if (capacity)
     {
-        memor.cpy(
-            &(MemoriaCfg){.dst = session->data[session->data_count],
-                          .src = args->data,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->data, .cap = CLI_POOL_BYTES}) + 1u});
+        // the breakpoint's text with its end written into its place of the data cell, cut to the place
+        char placed[CLI_NAME_MAX_LEN];
+        VerbaLinea line = {placed, sizeof(placed), 0ULL};
+        mmgr_line_put_most(&line, args->data, CLI_NAME_MAX_LEN - 1u);
+        (void)mmgr_line_finish(&line);
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = session->data_cell,
+                                .offset = (unsigned long long)session->data_count * CLI_NAME_MAX_LEN,
+                                .src = placed,
+                                .bytes = CLI_NAME_MAX_LEN});
         session->data_count += 1u;
     }
-    mmgr_line_put(&answer->args, "{\"breakpoints\":[");
+    mmgr_line_put(&answer->args.line, "{\"breakpoints\":[");
     for (unsigned int at = 0u; at < session->data_count; at += 1u)
     {
-        mmgr_line_put(&answer->args, (at > 0u) ? ",{\"dataId\":" : "{\"dataId\":");
-        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
-                   .text_bytes = (const unsigned char *)session->data[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = session->data[at], .cap = CLI_POOL_BYTES}));
-        mmgr_line_put(&answer->args, ",\"accessType\":\"write\"}");
+        char placed[CLI_NAME_MAX_LEN];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = session->data_cell,
+                                                                .offset = (unsigned long long)at * CLI_NAME_MAX_LEN,
+                                                                .dst = placed,
+                                                                .bytes = CLI_NAME_MAX_LEN});
+        mmgr_line_put(&answer->args.line, (at > 0u) ? ",{\"dataId\":" : "{\"dataId\":");
+        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
+                   .text_bytes = (const unsigned char *)placed,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = placed, .cap = CLI_NAME_MAX_LEN}));
+        mmgr_line_put(&answer->args.line, ",\"accessType\":\"write\"}");
     }
-    mmgr_line_put(&answer->args, "]}");
+    mmgr_line_put(&answer->args.line, "]}");
     if (!capacity)
     {
         EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
@@ -190,21 +201,21 @@ int cli_debug_watch_data(const CliDebugOutCfg *args)
         return 0;
     }
     CliDebugAnswer *const answer = cli_debug_answer_alloc();
-    mmgr_line_put(&answer->args, "{\"name\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    mmgr_line_put(&answer->args.line, "{\"name\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)args->name,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}));
     if (args->has_reference)
     {
-        mmgr_line_put(&answer->args, ",\"variablesReference\":");
-        mmgr_line_decimal_signed(&answer->args, args->reference);
+        mmgr_line_put(&answer->args.line, ",\"variablesReference\":");
+        mmgr_line_decimal_signed(&answer->args.line, args->reference);
     }
     if (args->has_bytes)
     {
-        mmgr_line_put(&answer->args, ",\"asAddress\":true,\"bytes\":");
-        mmgr_line_decimal(&answer->args, args->bytes, 1u);
+        mmgr_line_put(&answer->args.line, ",\"asAddress\":true,\"bytes\":");
+        mmgr_line_decimal(&answer->args.line, args->bytes, 1u);
     }
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = session,
                     .command = "dataBreakpointInfo", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
                     .err_msg = args->err_msg))

@@ -23,7 +23,7 @@ typedef struct
     unsigned int count;
 } WrappedLines;
 
-static const char s_usage[] = "orior_cli file new-plugin <name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] "
+static const char s_usage[] = "imp file new-plugin <name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] "
                               "[--keywords <a,b>]";
 
 static WrappedLines s_lines;
@@ -226,7 +226,7 @@ void test_the_help_names_every_command_of_every_menu(void)
         {
             char usage[CLI_LABEL_MAX_LEN * 2u + 16u];
             VerbaLinea line = {usage, sizeof(usage), 0ull};
-            mmgr_line_put(&line, "orior_cli ");
+            mmgr_line_put(&line, "imp ");
             mmgr_line_put(&line, word);
             mmgr_line_ch(&line, ' ');
             mmgr_line_put(&line, s_items[at].command);

@@ -5,9 +5,10 @@
 // x, a press finds the crumb under it and none in a gap; the row cut short leaves out the crumbs that do not fit
 // whole; a folder's crumb lists its entries, each opening its path, and a declaration's its neighbors, each going to
 // its line; and with the setting off nothing is laid
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
-#include "../../../../../ui/cli/src/view/frame.h"
-#include "../../../../../ui/cli/src/view/parts/crumbs.h"
+#include "../../../../../includes/window/frame.h"
+#include "../../../../../ui/gui/src/crumbs.h"
 #include "../cli/cli_check.h"
 
 static const char s_key[] = "crumbs_check";
@@ -43,16 +44,19 @@ static int crumb_is(unsigned int at, unsigned int type, const char *text)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     static char s_root[CLI_PATH_MAX_LEN];
     cli_check_folder("crumbs_tree", s_root);
     char folder[CLI_PATH_MAX_LEN];
@@ -76,7 +80,7 @@ int main(void)
               "the folders, the file and the declarations stand in order with the CLI's texts");
 
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 900u, .height = 40u),
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 900u, .height = 40u),
               "the raster is taken");
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 12,
                                                        .scale = 100);
@@ -147,5 +151,6 @@ int main(void)
     EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg, .on = 1);
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .path = NULL);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

@@ -198,7 +198,7 @@ EMBED_INLINE int code_word_is(const ValidateCodeCtx *args)
 
 void cli_validate_theorems_in(void)
 {
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     const CliCodeWord *const words = g_cli_validate->words;
     const unsigned int count = g_cli_validate->word_count;
     // the open namespaces and sections, each a word of the code, or none for a section
@@ -281,7 +281,7 @@ EMBED_INLINE int code_flag_hit(const ValidateCodeCtx *args)
 
 void cli_validate_flags_in(void)
 {
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     const CliJson *const json = &g_cli_validate->json;
     for (unsigned int at = 0u; at < g_cli_validate->word_count; at += 1u)
     {

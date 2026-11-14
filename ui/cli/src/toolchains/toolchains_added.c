@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "toolchains_internal.h"
 
-// The reader's file read with orior's own tools beside it, under the lock: 1, or 0 with why given where orior_cli has
+// The reader's file read with orior's own tools beside it, under the lock: 1, or 0 with why given where impero has
 // no folder of its own
 typedef struct
 {
@@ -19,7 +19,7 @@ typedef struct
     unsigned int added_tools;
 } CliAdded;
 
-// the file `name` in orior's own folder into `path`: 1, or 0 where orior_cli has no folder of its own
+// the file `name` in orior's own folder into `path`: 1, or 0 where impero has no folder of its own
 int cli_toolchains_file(const CliToolchainsCtx *args)
 {
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = args->path))
@@ -304,7 +304,7 @@ EMBED_INLINE void cli_id_get(const ToolchainsAddedCtx *args)
                        .size = whole, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "");
         const unsigned long long fits = CLI_NAME_MAX_LEN - 1ULL - length;
         const unsigned long long take = ((stop - at) < fits) ? (stop - at) : fits;
-        memor.cpy(&(MemoriaCfg){.dst = args->id + length, .src = args->name + at, .bytes = (size_t)take});
+        memor.cpy(&(MemoriaCfg){.dst = args->id + length, .src = args->name + at, .bytes = (embed_word)take});
         EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->id + length, .size = take);
         length += take;
         if ((stop < whole) && (length != 0ULL) && (args->id[length - 1u] != '-') &&
@@ -449,7 +449,7 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
     char path[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "user_toolchains.json", .path = path))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store toolchains in");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own to store toolchains in");
         return 0;
     }
     char name[CLI_NAME_MAX_LEN];
@@ -517,7 +517,8 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
         g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(bundled.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), bundled.node));
+        g_cli_guard->persistent_buf_release(bundled.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), bundled.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&bundled),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(args->err_msg, (refused[0] == '\0') ? "there is a toolchain " : name);
@@ -560,7 +561,7 @@ EMBED_INLINE int cli_added_read(const ToolchainsAddedCtx *args)
     if (!EMBED_CALL(cli_toolchains_internal.file, CliToolchainsCtx, .name = "user_toolchains.json",
                     .path = args->read->path))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store toolchains in");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own to store toolchains in");
         return 0;
     }
     // the two lists made where the file has none, and a group put, take three nodes and their texts
@@ -647,7 +648,8 @@ int cli_toolchains_add_group(const CliToolchainsErrMsgNameCfg *args)
         done = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &s_read.json,
                           .node = s_read.added, .path_read = s_read.path, .sorted = 0, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(s_read.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_cli_guard->persistent_buf_release(s_read.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release(s_read.bundled.node,
@@ -675,7 +677,8 @@ int cli_toolchains_remove(const CliToolchainsIdErrMsgCfg *args)
         done = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &s_read.json,
                           .node = s_read.added, .path_read = s_read.path, .sorted = 0, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(s_read.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_cli_guard->persistent_buf_release(s_read.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release(s_read.bundled.node,
@@ -710,7 +713,8 @@ int cli_toolchains_remove_group(const CliToolchainsErrMsgNameCfg *args)
         done = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &s_read.json,
                           .node = s_read.added, .path_read = s_read.path, .sorted = 0, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(s_read.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_cli_guard->persistent_buf_release(s_read.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release(s_read.bundled.node,
@@ -728,7 +732,8 @@ int cli_toolchains_on_add(const CliToolchainsIdFolderCfg *args)
     const int added = EMBED_CALL(cli_added_read, ToolchainsAddedCtx, .read = &s_read, .err_msg = &err_msg) &&
                       EMBED_CALL(cli_list_contains, ToolchainsAddedCtx, .json_read = &s_read.json,
                                  .list = s_read.added_tools, .key = "id", .text = args->id);
-    g_cli_guard->persistent_buf_release(s_read.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_cli_guard->persistent_buf_release(s_read.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release(s_read.bundled.node,

@@ -9,7 +9,7 @@
 #define _POSIX_C_SOURCE 200809L
 #define _DARWIN_C_SOURCE
 #endif
-#include "../../../../src/cu/includes/parsers/line_read.h"
+#include "../../../../includes/parsers/line_read.h"
 #include "../command_line/callback_cfg.h"
 #include "../comms/container.h"
 
@@ -78,7 +78,7 @@ int cli_started_outside(const CliWordsIdCtx *args)
             (void)close(none);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
+        execvp(args->words[0], (char *const *)(embed_word)args->words);
         _exit(127);
     }
     // a process number from fork is positive, and an unsigned int stores it
@@ -234,8 +234,8 @@ int cli_program_own(const CliPathCapacityCtx *args)
     memor.set(&(MemoriaCfg){.dst = args->path_out, .val = 0, .bytes = args->capacity_bytes});
     return readlink("/proc/self/exe", args->path_out, args->capacity_bytes - 1u) > 0;
 #elif defined(__APPLE__)
-    // a capacity is far below what a uint32_t counts
-    uint32_t size = (uint32_t)args->capacity_bytes;
+    // a capacity is far below what a embed_u32 counts
+    embed_u32 size = (embed_u32)args->capacity_bytes;
     return _NSGetExecutablePath(args->path_out, &size) == 0;
 #else
     return 0;
@@ -274,7 +274,7 @@ EMBED_INLINE unsigned int cli_arguments_own(const PosixCtx *args)
     while ((file >= 0) && (used + 1ULL < sizeof(s_text)))
     {
         const unsigned long long capacity = sizeof(s_text) - 1u - used;
-        const ssize_t count = read(file, s_text + used, (size_t)capacity);
+        const ssize_t count = read(file, s_text + used, (embed_word)capacity);
         // a count that is positive fits an unsigned long long
         if ((count <= 0) || ((unsigned long long)count > capacity))
         {
@@ -378,7 +378,7 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
         {
             const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                        .text = paths[path], .at = at, .size = whole, .set = "'\"");
-            mmgr_line_put_n(&script, paths[path] + at, (size_t)(stop - at));
+            mmgr_line_put_n(&script, paths[path] + at, (embed_word)(stop - at));
             if (stop < whole)
             {
                 mmgr_line_put(&script, (paths[path][stop] == '\'') ? "'\\\\''" : "\\\"");
@@ -480,7 +480,7 @@ int cli_socket_write(const CliBytesSizeCtx *args)
     unsigned long long put = 0ULL;
     while (put < args->size)
     {
-        const ssize_t sent = send(fd, (const char *)args->bytes + put, (size_t)(args->size - put), 0);
+        const ssize_t sent = send(fd, (const char *)args->bytes + put, (embed_word)(args->size - put), 0);
         if (sent <= 0)
         {
             return 0;
@@ -496,7 +496,7 @@ int cli_socket_read(const CliSizeBytesCtx *args)
     unsigned long long got = 0ULL;
     while (got < args->size)
     {
-        const ssize_t read = recv(fd, (char *)args->bytes_out + got, (size_t)(args->size - got), 0);
+        const ssize_t read = recv(fd, (char *)args->bytes_out + got, (embed_word)(args->size - got), 0);
         if (read <= 0)
         {
             return 0;
@@ -508,7 +508,7 @@ int cli_socket_read(const CliSizeBytesCtx *args)
 
 long long cli_socket_some(const CliCapacityCtx *args)
 {
-    const ssize_t read = recv((int)(args->sock->handle - 1ULL), (char *)args->bytes_out, (size_t)args->capacity, 0);
+    const ssize_t read = recv((int)(args->sock->handle - 1ULL), (char *)args->bytes_out, (embed_word)args->capacity, 0);
     if (read > 0)
     {
         return (long long)read;

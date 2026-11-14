@@ -89,6 +89,22 @@ void test_a_tree_with_no_answer_has_none(void)
     TEST_ASSERT_EQUAL_INT(-1, tree_answer());
 }
 
+void test_an_answer_set_is_read_back_and_the_last_answer_stands(void)
+{
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_folder.answer_set, CliTrustFolderCfg, .folder = s_tree, .trusted_value = 1,
+                                .path = s_answers, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_INT(1, tree_answer());
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_folder.answer_set, CliTrustFolderCfg, .folder = s_tree, .trusted_value = 0,
+                                .path = s_answers, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_INT(0, tree_answer());
+    // the folder stands in one list alone after the answers change
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_folder.answer_set, CliTrustFolderCfg, .folder = s_tree, .trusted_value = 1,
+                                .path = s_answers, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_INT(1, tree_answer());
+}
+
 void test_git_in_an_untrusted_tree_runs_no_hook(void)
 {
     char path[CLI_PATH_MAX_LEN];

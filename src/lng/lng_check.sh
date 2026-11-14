@@ -9,7 +9,7 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../.." && pwd)"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/lng"
 mkdir -p "$OUT"
 BINARY="$OUT/lng_check"
@@ -18,8 +18,8 @@ built="$BINARY"
 [ -f "$built.exe" ] && built="$built.exe"
 stale=0
 [ -f "$built" ] || stale=1
-for source in "${SOURCES[@]}" "$HERE/lng.h" "$TOP/src/cu/includes/file_defs/klang/klang.h" "$TOP/src/cu/includes/file_defs/kfile_lines/kfile_lines.h" \
-    "$TOP/src/cu/includes/file_defs/qry/writer/qry_member.h"; do
+for source in "${SOURCES[@]}" "$HERE/lng.h" "$TOP/includes/file_defs/klang/klang.h" "$TOP/includes/file_defs/kfile_lines/kfile_lines.h" \
+    "$TOP/includes/file_defs/qry/writer/qry_member.h"; do
     [ "$source" -nt "$built" ] && stale=1
 done
 if [ "$stale" -eq 1 ]; then

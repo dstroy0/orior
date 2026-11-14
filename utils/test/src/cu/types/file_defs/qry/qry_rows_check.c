@@ -11,7 +11,7 @@
 //     qry_rows_check
 //
 // It runs in a query run (qry_run.sh).
-#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include <stdio.h>

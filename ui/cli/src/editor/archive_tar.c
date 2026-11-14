@@ -197,7 +197,7 @@ int cli_tar_with(const CliArchiveBytesSizeCtx *args)
     const unsigned long long rest = (after < args->size) ? (args->size - after) : 0ULL;
     if (((args->target->at + 512ULL) > args->size) || ((args->target->at + 512ULL + padded + rest) > args->capacity))
     {
-        mmgr_line_put(args->err_msg, "the tar is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the tar is larger than impero supports");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = args->out, .src = bytes, .bytes = args->target->at});

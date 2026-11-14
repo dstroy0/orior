@@ -188,7 +188,7 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
     if (!mmgr_line_ok(&code) || !mmgr_line_ok(&content_line))
     {
         mmgr_line_put(err_msg, args->file);
-        mmgr_line_put(err_msg, " is a longer path than orior_cli supports");
+        mmgr_line_put(err_msg, " is a longer path than impero supports");
         return 0;
     }
     VerbaLinea reply = {kernel->debug_reply, CLI_KERNEL_REPLY_CAPACITY, 0ULL};

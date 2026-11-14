@@ -15,7 +15,6 @@
 #define DOCUMENT_H
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
-#include "../text/sift.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliDocumentKeyCfg CliDocumentKeyCfg;
@@ -92,8 +91,7 @@ typedef struct
 #define CLI_DOC_NO_RUNS 0xffffffffu
 
 // A text's lines of UTF-16 units: each where it starts in the units and how many it contains, in storage the holder
-// gives; the census of the units' bytes as the sift reads them, each unit its low byte then its high, counted as the
-// units are put and stored with the text, the census a search plans from with no count over the text; and for a text
+// gives; and for a text
 // that is colored, the state each line was colored from and the state it ends in, CLI_DOC_UNCOLORED for a line not
 // colored, the regions its grammar's roles open and close on it as it was colored (document_internal.h), and the place
 // among the text's saved runs of the runs the walk found on it, CLI_DOC_NO_RUNS where it saves none, NULL for a text
@@ -109,25 +107,11 @@ typedef struct
     unsigned int lines;
     int full;
     int crlf;
-    CliHistogram histogram;
     unsigned int *begun;
     unsigned int *ended;
     unsigned int *regions;
     unsigned int *runs;
 } CliLines;
-
-// the two bytes of a unit counted into a text's census as the unit is put
-typedef struct
-{
-    CliLines *lines;
-    unsigned short unit;
-} CliLinesHistogramAppendCfg;
-static inline void cli_lines_histogram_append(const CliLinesHistogramAppendCfg *args)
-{
-    args->lines->histogram.occurrences[args->unit & 0xffu] += 1ULL;
-    args->lines->histogram.occurrences[args->unit >> 8u] += 1ULL;
-    args->lines->histogram.total += 2ULL;
-}
 
 // a text's lines, `size` bytes of UTF-8, split as the page splits a file it reads, into `lines`; its shape; and the
 // matches find gives for lines, each `[line, from col, to col]`, lines searched until `most` are found, each line
@@ -158,20 +142,19 @@ void cli_document_release(const CliDocumentCfg *args);
 // whether the text stored under `key` was read with its lines ending in a carriage return and a newline
 int cli_document_crlf(const CliDocumentCfg *args);
 int cli_document_shape(const CliDocumentTextCfg *args);
-// the census stored with the text stored under `key`, into `histogram`: 1, or 0 where none is stored under the key
-int cli_document_histogram(const CliDocumentCfg *args);
 int cli_document_edit(const CliDocumentErrMsgCfg *args);
-// the units of the line `line` of the text read whole stored under `key`, where they stand, their count into `count`:
-// NULL where no such text or line is stored. They stand until the text is next edited, stored again or let go
-const unsigned short *cli_document_line_units(const CliDocumentLineUnitsCfg *args);
+// the units of the line `line` of the text read whole stored under `key` copied into `dst`, `capacity` of them at the
+// most, the line's count into `count`: 1, or 0 with `count` 0 where no such text or line is stored
+unsigned long long cli_document_line_units(const CliDocumentLineUnitsCfg *args);
 int cli_document_has_head(const CliDocumentCfg *args);
 // the changes of the text read whole stored under `key` against its file as the last commit has it, each handed to
 // `each` with `context` in order: where `head_given`, `head`, `head_size` bytes, is stored beside the text as that
 // file first, NULL for a file the last commit does not contain; 1, or 0 where no such text is stored, the last commit's
 // file is not known or is none, or the texts are too far apart (document_store.c, diff.c); and the units of the line
-// `line` of that file, where they stand, their count into `count`: NULL where no such text, file or line is stored
+// `line` of that file copied into `dst`, `capacity` at the most, the line's count into `count`: 1, or 0 with `count` 0
+// where no such text, file or line is stored
 int cli_document_changes(const CliDocumentOutKeyHeadInputCfg *args);
-const unsigned short *cli_document_head_line_units(const CliDocumentLineUnitsCfg *args);
+unsigned long long cli_document_head_line_units(const CliDocumentLineUnitsCfg *args);
 // the changes between the lines of `then` and the lines of `now`, each handed to `each` with `context` in order, the
 // lines the two share at their start and end set aside first and Myers' shortest edit run on what is left, each line
 // read as its hash and checked against the other's where the hashes agree: 1, or 0 where the edit takes more than
@@ -416,6 +399,8 @@ struct CliDocumentLineUnitsCfg
     const char *key;
     unsigned long long line;
     unsigned long long *count;
+    unsigned short *dst;
+    unsigned long long capacity;
 };
 
 struct CliDocumentUnitsCfg
@@ -479,7 +464,6 @@ struct CliDocumentUnitsCountCfg
 struct CliDocumentCfg
 {
     const char *key;
-    CliHistogram *histogram;
 };
 
 struct CliDocumentColoredCfg
@@ -562,8 +546,8 @@ EMBED_TABLE_STORAGE CliDocumentTextNs cli_document_text EMBED_UNUSED = {
 
 typedef struct
 {
-    const unsigned short *(*line_units)(const CliDocumentLineUnitsCfg *args);
-    const unsigned short *(*head_line_units)(const CliDocumentLineUnitsCfg *args);
+    unsigned long long (*line_units)(const CliDocumentLineUnitsCfg *args);
+    unsigned long long (*head_line_units)(const CliDocumentLineUnitsCfg *args);
 } CliDocumentLineUnitsNs;
 EMBED_TABLE_LAYOUT(CliDocumentLineUnitsNs, line_units, head_line_units);
 EMBED_TABLE_STORAGE CliDocumentLineUnitsNs cli_document_line EMBED_UNUSED = {
@@ -593,14 +577,12 @@ typedef struct
 {
     void (*release)(const CliDocumentCfg *args);
     int (*crlf)(const CliDocumentCfg *args);
-    int (*histogram)(const CliDocumentCfg *args);
     int (*has_head)(const CliDocumentCfg *args);
 } CliDocumentNs;
-EMBED_TABLE_LAYOUT(CliDocumentNs, release, crlf, histogram, has_head);
+EMBED_TABLE_LAYOUT(CliDocumentNs, release, crlf, has_head);
 EMBED_TABLE_STORAGE CliDocumentNs cli_document EMBED_UNUSED = {
     .release = cli_document_release,
     .crlf = cli_document_crlf,
-    .histogram = cli_document_histogram,
     .has_head = cli_document_has_head,
 };
 

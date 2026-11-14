@@ -60,7 +60,7 @@ void cli_servers_tree_path(const CliServersPathErrMsgCtx *args)
                                        .full = full_tree, .capacity = sizeof(full_tree))
                                 ? full_tree
                                 : args->tree;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_POOL_BYTES});
     const int under =
         EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = integer, .other_pointer = top, .size = length) &&
         ((integer[length] == '\0') || (integer[length] == '/') || (integer[length] == '\\'));
@@ -72,7 +72,7 @@ void cli_servers_tree_path(const CliServersPathErrMsgCtx *args)
     int mounted = 0;
     for (unsigned int at = 0u; !under && (at < mounts); at += 1u)
     {
-        const size_t base = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_POOL_BYTES});
+        const embed_word base = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_POOL_BYTES});
         mounted |= EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = integer, .other_pointer = paths[at],
                               .size = base) &&
                    ((integer[base] == '\0') || (integer[base] == '/') || (integer[base] == '\\'));
@@ -92,16 +92,16 @@ typedef struct
     const CliJson *json;
     unsigned int item;
     unsigned long long *size_pointer;
-    const char *names;
+    CliKeyedEntry entry;
+    CliKeyedEntry *entry_out;
+    unsigned long long at;
     unsigned long long size;
     const char *required;
     unsigned long long length;
     const char *also;
     unsigned long long also_length;
-    const char *supplied;
     const char *key;
     const char *uri;
-    const char **names_pointer;
     const CliKeyed *keyed;
     unsigned int hash;
     CliKeyed *keyed_out;
@@ -129,23 +129,52 @@ EMBED_INLINE const char *emit_message_get(const ServersEmitCtx *args)
                             .length_pointer = args->size_pointer);
 }
 
-// whether `size` bytes of `names`, one to a line, contain the line `size` bytes of `required` and then `also`, where it
-// is given
+// the bytes of a text stored as an entry read at a time, as its lines are looked through
+#define SERVERS_EMIT_WINDOW 256u
+
+// the end of the line from `at` of the text stored as `entry`: where its break stands, or the text's end
+EMBED_INLINE unsigned long long emit_line_end(const ServersEmitCtx *args)
+{
+    unsigned long long at = args->at;
+    while (at < args->entry.text_size)
+    {
+        char window[SERVERS_EMIT_WINDOW];
+        const unsigned long long left = args->entry.text_size - at;
+        const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                .offset = (embed_word)(args->entry.text_at + at),
+                                                                .dst = window,
+                                                                .bytes = (embed_word)bytes});
+        const char *const found =
+            memor.chr(&(MemoriaCfg){.src = window, .bytes = (embed_word)bytes, .val = (unsigned char)'\n'});
+        if (found != NULL)
+        {
+            return at + (unsigned long long)(found - window);
+        }
+        at += bytes;
+    }
+    return args->entry.text_size;
+}
+
+// whether the text stored as `entry`, names one to a line, contains the line `length` bytes of `required` and then
+// `also`, where it is given, read in its cell
 EMBED_INLINE int emit_has_line(const ServersEmitCtx *args)
 {
-    unsigned long long size = args->size;
     unsigned long long at = 0ULL;
-    while (at < size)
+    while (at < args->entry.text_size)
     {
-        unsigned long long end = at;
-        end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->names, .at = end,
-                         .size = size, .set = "\n");
+        const unsigned long long end = EMBED_CALL(emit_line_end, ServersEmitCtx, .entry = args->entry, .at = at);
+        const unsigned long long start = args->entry.text_at + at;
         if ((end - at == args->length + args->also_length) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = args->names + at, .other = args->required, .bytes = (size_t)args->length}) == 0) &&
-            ((args->also_length == 0ULL) || (memor.cmp(&(MemoriaCfg){.src = args->names + at + args->length,
-                                                                     .other = args->also,
-                                                                     .bytes = (size_t)args->also_length}) == 0)))
+            (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                  .offset = (embed_word)start,
+                                                                  .src = args->required,
+                                                                  .bytes = (embed_word)args->length}) == 0) &&
+            ((args->also_length == 0ULL) ||
+             (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                   .offset = (embed_word)(start + args->length),
+                                                                   .src = args->also,
+                                                                   .bytes = (embed_word)args->also_length}) == 0)))
         {
             return 1;
         }
@@ -220,17 +249,15 @@ EMBED_INLINE int emit_supplied(const ServersEmitCtx *args)
         return 0;
     }
     s_attribute[0] = ' ';
-    memor.cpy(&(MemoriaCfg){.dst = s_attribute + 1u, .src = name, .bytes = (size_t)name_size});
-    return EMBED_CALL(emit_has_line, ServersEmitCtx, .names = args->supplied, .size = args->size,
-                      .required = class_name, .length = class_size, .also = s_attribute,
-                      .also_length = name_size + 1ULL);
+    memor.cpy(&(MemoriaCfg){.dst = s_attribute + 1u, .src = name, .bytes = (embed_word)name_size});
+    return EMBED_CALL(emit_has_line, ServersEmitCtx, .entry = args->entry, .required = class_name, .length = class_size,
+                      .also = s_attribute, .also_length = name_size + 1ULL);
 }
 
 // whether a server's report that a name is undefined names one of `names`, as pyright writes it: `"name" is not
 // defined`
 EMBED_INLINE int emit_free(const ServersEmitCtx *args)
 {
-    unsigned long long size = args->size;
     unsigned long long length = 0ULL;
     const char *const message =
         EMBED_CALL(emit_message_get, ServersEmitCtx, .json = args->json, .item = args->item, .size_pointer = &length);
@@ -240,7 +267,7 @@ EMBED_INLINE int emit_free(const ServersEmitCtx *args)
     {
         return 0;
     }
-    return EMBED_CALL(emit_has_line, ServersEmitCtx, .names = args->names, .size = size, .required = message + 1u,
+    return EMBED_CALL(emit_has_line, ServersEmitCtx, .entry = args->entry, .required = message + 1u,
                       .length = length - sizeof(s_tail), .also = "", .also_length = 0ULL);
 }
 
@@ -253,14 +280,13 @@ static void emit_name_append(const CliEachNameSizeCfg *args)
 }
 
 // the names a build tool gives the file of `key` and `uri`, recorded as its text was checked or read from the disk for
-// a file the editor does not have open, one to a line: 1 with them into `names`, or 0 for a file of no build tool that
-// gives names; under the checks' lock
+// a file the editor does not have open, one to a line: 1 with their entry into `entry_out`, or 0 for a file of no build
+// tool that gives names; under the checks' lock
 EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
 {
     const char *key = args->key;
     const char *uri = args->uri;
-    const char **names = args->names_pointer;
-    unsigned long long *size = args->size_pointer;
+    CliKeyedEntry *const entry = args->entry_out;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES});
     static const char s_construct[] = "/sconstruct";
     static const char s_script[] = "/sconscript";
@@ -290,11 +316,11 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     {
         return 0;
     }
-    const char *adjacent = NULL;
-    *names = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_input, .key = key,
-                        .adjacent = &adjacent, .size = size);
-    if (*names != NULL)
+    const unsigned int stored =
+        EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_input, .key = key);
+    if (stored != CLI_KEYED_NONE)
     {
+        *entry = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_input, .at = stored);
         return 1;
     }
     char path[CLI_PATH_MAX_LEN];
@@ -315,15 +341,20 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     VerbaLinea supplied = mmgr_line_over(joined, capacity);
     EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = path, .text = (const char *)build,
                .size = build_size, .each = emit_name_append, .context = &supplied);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)build, (g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)build, (g_cli_servers_owner));
     const int integer = mmgr_line_ok(&supplied);
-    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_input, .key = key,
-                     .adjacent_value = "", .text = integer ? supplied.out : "",
-                     .size_value = integer ? supplied.at : 0ULL);
+    const int put = EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_input,
+                               .key = key, .adjacent_value = "", .text = integer ? supplied.out : "",
+                               .size_value = integer ? supplied.at : 0ULL);
     g_cli_guard->persistent_buf_release(joined, g_cli_servers_owner);
-    *names = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_input, .key = key,
-                        .adjacent = &adjacent, .size = size);
-    return *names != NULL;
+    const unsigned int placed =
+        put ? EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_input, .key = key)
+            : CLI_KEYED_NONE;
+    if (placed != CLI_KEYED_NONE)
+    {
+        *entry = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_input, .at = placed);
+    }
+    return placed != CLI_KEYED_NONE;
 }
 
 // the diagnostics of an array of `json` at `array`: its count, 0 where it is no array
@@ -341,6 +372,20 @@ EMBED_INLINE void emit_items_lay(const ServersEmitCtx *args)
 {
     const char *key = args->key;
     const CliJson *const json = args->json;
+    // where the filter asks, the entries of the names supplied for the file and of those its build tool gives, read in
+    // their cells
+    CliKeyedEntry supplied = {0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+    CliKeyedEntry names = {0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+    if (args->filtered)
+    {
+        const unsigned int place = EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg,
+                                              .keyed = &g_cli_servers_supplied, .key = key);
+        if (place != CLI_KEYED_NONE)
+        {
+            supplied = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_supplied, .at = place);
+        }
+        (void)EMBED_CALL(emit_input_names, ServersEmitCtx, .key = key, .uri = args->uri, .entry_out = &names);
+    }
     for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                         .node = args->array, .type = CFG_JSON_ARRAY)
                                  ? json->node[args->array].first
@@ -349,18 +394,10 @@ EMBED_INLINE void emit_items_lay(const ServersEmitCtx *args)
     {
         if (args->filtered)
         {
-            const char *adjacent = NULL;
-            unsigned long long size = 0ULL;
-            const char *const supplied =
-                EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_supplied,
-                           .key = key, .adjacent = &adjacent, .size = &size);
-            int dropped = (supplied != NULL) && EMBED_CALL(emit_supplied, ServersEmitCtx, .json = json, .item = item,
-                                                           .supplied = supplied, .size = size);
-            const char *names = NULL;
+            int dropped = supplied.used &&
+                          EMBED_CALL(emit_supplied, ServersEmitCtx, .json = json, .item = item, .entry = supplied);
             dropped = dropped ||
-                      (EMBED_CALL(emit_input_names, ServersEmitCtx, .key = key, .uri = args->uri,
-                                  .names_pointer = &names, .size_pointer = &size) &&
-                       EMBED_CALL(emit_free, ServersEmitCtx, .json = json, .item = item, .names = names, .size = size));
+                      (names.used && EMBED_CALL(emit_free, ServersEmitCtx, .json = json, .item = item, .entry = names));
             if (dropped)
             {
                 continue;
@@ -395,7 +432,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     // are read into takes, a node for each token and the bytes of each text, as a tree read whole takes
     CliKeyed *const stores[SERVERS_EMIT_STORES] = {&g_cli_servers_published, &g_cli_servers_inspected,
                                                    &g_cli_servers_checked};
-    const char *stored[SERVERS_EMIT_STORES];
+    char *stored[SERVERS_EMIT_STORES];
     unsigned long long sizes[SERVERS_EMIT_STORES];
     unsigned int tokens[SERVERS_EMIT_STORES];
     unsigned int nodes = 0u;
@@ -403,10 +440,23 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     unsigned long long bytes = 0ULL;
     for (unsigned int store = 0u; store < SERVERS_EMIT_STORES; store += 1u)
     {
-        const char *adjacent = NULL;
         sizes[store] = 0ULL;
-        stored[store] = EMBED_CALL(cli_keyed_key.get_hash, CliKeyedKeyCfg, .keyed = stores[store], .key = args->key,
-                                   .hash = hash, .adjacent = &adjacent, .size = &sizes[store]);
+        // each text stored read out of its cell into the JSON reader's own cell for this call
+        const unsigned int place =
+            EMBED_CALL(cli_keyed_key.find_hash, CliKeyedKeyCfg, .keyed = stores[store], .key = args->key, .hash = hash);
+        const CliKeyedEntry one = (place != CLI_KEYED_NONE) ? EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg,
+                                                                         .keyed = stores[store], .at = place)
+                                                            : (CliKeyedEntry){0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+        sizes[store] = one.used ? one.text_size : 0ULL;
+        stored[store] =
+            (sizes[store] > 0ULL) ? g_cli_guard->temporary_buf_alloc(sizes[store], g_cli_servers_owner) : NULL;
+        if (stored[store] != NULL)
+        {
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one.cell,
+                                                                    .offset = (embed_word)one.text_at,
+                                                                    .dst = stored[store],
+                                                                    .bytes = (embed_word)sizes[store]});
+        }
         tokens[store] = ((stored[store] != NULL) && (sizes[store] > 0ULL))
                             ? (EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
                                           .text = stored[store], .size = sizes[store]) +
@@ -440,6 +490,10 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                            : CLI_JSON_NONE;
     }
     g_cli_guard->persistent_buf_release(scanned, g_cli_servers_owner);
+    for (unsigned int store = 0u; store < SERVERS_EMIT_STORES; store += 1u)
+    {
+        g_cli_guard->persistent_buf_release(stored[store], g_cli_servers_owner);
+    }
     if (!reserved || (displayed_length == 0ULL))
     {
         if (json.node != NULL)
@@ -461,78 +515,117 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     {
         most += EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = id);
     }
-    // the report's cell: its head, its diagnostics laid where they are read, and its path after them
-    CliServerReport *const report = g_cli_guard->persistent_buf_alloc(
-        sizeof(CliServerReport) + ((unsigned long long)most * sizeof(CliServerDiagnostic)) + displayed_length + 1ULL,
-        g_cli_servers_owner);
-    if (report == NULL)
-    {
-        if (json.node != NULL)
-        {
-            g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
-            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
-                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        }
-        return;
-    }
-    report->json = json;
-    char *const report_path = (char *)(void *)(report->item + most);
-    VerbaLinea placed = {report_path, displayed_length + 1ULL, 0ULL};
-    mmgr_line_put_n(&placed, displayed, displayed_length);
-    (void)mmgr_line_finish(&placed);
-    report->path = report_path;
+    // the diagnostics laid in a cell of this call, their messages in the tree's texts
+    CliServerDiagnostic *const items =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)most * sizeof(CliServerDiagnostic), g_cli_servers_owner);
     unsigned int laid = 0u;
-    EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = roots[0], .filtered = 1,
-               .key = args->key, .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
-    EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = roots[1], .filtered = 0,
-               .key = args->key, .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
-    for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = report->json.node[id].next)
+    if (items != NULL)
     {
-        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &report->json, .array = id, .filtered = 0, .key = args->key,
-                   .uri = uri, .items = report->item, .capacity = most, .laid = &laid);
+        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &json, .array = roots[0], .filtered = 1, .key = args->key,
+                   .uri = uri, .items = items, .capacity = most, .laid = &laid);
+        EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &json, .array = roots[1], .filtered = 0, .key = args->key,
+                   .uri = uri, .items = items, .capacity = most, .laid = &laid);
+        for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)
+        {
+            EMBED_CALL(emit_items_lay, ServersEmitCtx, .json = &json, .array = id, .filtered = 0, .key = args->key,
+                       .uri = uri, .items = items, .capacity = most, .laid = &laid);
+        }
     }
-    report->count = laid;
-    int taken = 0;
-    EMBED_CALL(args->sink->diagnostics, CliServerDiagnosticsCfg, .context = args->sink->context, .path = report->path,
-               .item = report->item, .count = laid, .report = report, .taken = &taken);
-    if (!taken)
+    // the report's cell: its head, its diagnostics with their messages' places, its path, then the messages
+    unsigned long long message_bytes = 0ULL;
+    for (unsigned int at = 0u; at < laid; at += 1u)
     {
-        cli_servers_report_release(report);
+        message_bytes += items[at].message_length + 1ULL;
+    }
+    const unsigned long long path_at = CLI_SERVER_REPORT_ITEM_AT(laid);
+    const unsigned long long messages_at = path_at + displayed_length + 1ULL;
+    const CarcerMovableEntry *const report =
+        (items != NULL) ? g_cli_guard->movable_buf_alloc(messages_at + message_bytes, g_cli_servers_owner) : NULL;
+    if (report != NULL)
+    {
+        const CliServerReportHead head = {laid, path_at};
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = report, .offset = path_at, .src = displayed, .bytes = displayed_length + 1ULL});
+        unsigned long long message_at = messages_at;
+        for (unsigned int at = 0u; at < laid; at += 1u)
+        {
+            const CliServerStoredDiagnostic stored = {items[at].from_line,     items[at].from_col, items[at].to_line,
+                                                      items[at].to_col,        items[at].severity, message_at,
+                                                      items[at].message_length};
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .src = &stored, .bytes = sizeof(stored)});
+            const char zero = '\0';
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = report, .offset = message_at, .src = items[at].message, .bytes = items[at].message_length});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = report, .offset = message_at + items[at].message_length, .src = &zero, .bytes = 1ULL});
+            message_at += items[at].message_length + 1ULL;
+        }
+    }
+    if (report != NULL)
+    {
+        int taken = 0;
+        EMBED_CALL(args->sink->diagnostics, CliServerDiagnosticsCfg, .context = args->sink->context, .path = displayed,
+                   .item = items, .count = laid, .report = report, .taken = &taken);
+        if (!taken)
+        {
+            cli_servers_report_release(report);
+        }
+    }
+    g_cli_guard->persistent_buf_release(items, g_cli_servers_owner);
+    if (json.node != NULL)
+    {
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
 }
 
-void cli_servers_report_release(CliServerReport *report)
+void cli_servers_report_release(const CarcerMovableEntry *report)
 {
-    if (report == NULL)
+    if (report != NULL)
     {
-        return;
+        (void)g_cli_guard->movable_buf_release(report, g_cli_servers_owner);
     }
-    if (report->json.node != NULL)
-    {
-        g_cli_guard->persistent_buf_release(report->json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), report->json.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&report->json),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    }
-    g_cli_guard->persistent_buf_release(report, g_cli_servers_owner);
 }
 
 // a file recorded among those whose server reports an attribute, where it does, put on the line that is `context`: its
 // key then its URI, each ended by a 0
-static void emit_reporting(const CliEachKeyAdjacentTextSizeCfg *args)
+static void emit_reporting(const CliEachKeyedEntryCfg *args)
 {
-    const char *text = args->text;
-    unsigned long long size = args->size;
     VerbaLinea *const reporting = args->context;
     static const char s_report[] = "Cannot access attribute \\\"";
-    unsigned long long at = 0ULL;
-    if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text, .length_value = size, .required = s_report,
-                   .size = sizeof(s_report) - 1u, .at_pointer = &at))
+    const unsigned long long needle = sizeof(s_report) - 1u;
+    // the report looked for at each place of the text, in its cell
+    int found = 0;
+    for (unsigned long long at = 0ULL; !found && (at + needle <= args->entry.text_size); at += 1ULL)
     {
-        mmgr_line_put_n(reporting, args->key,
-                        cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES}) + 1u);
-        mmgr_line_put_n(reporting, args->adjacent,
-                        cellul.len(&(CatenaFinitaCfg){.src = args->adjacent, .cap = CLI_POOL_BYTES}) + 1u);
+        found = g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                     .offset = (embed_word)(args->entry.text_at + at),
+                                                                     .src = s_report,
+                                                                     .bytes = (embed_word)needle}) == 0;
+    }
+    if (found)
+    {
+        // the key and the URI beside it, each a path's length at most, read out of the cell with their 0
+        char key[CLI_PATH_MAX_LEN];
+        char uri[CLI_PATH_MAX_LEN];
+        const unsigned long long key_bytes =
+            (args->entry.key_size < sizeof(key)) ? (args->entry.key_size + 1ULL) : sizeof(key);
+        const unsigned long long uri_bytes =
+            (args->entry.adjacent_size < sizeof(uri)) ? (args->entry.adjacent_size + 1ULL) : sizeof(uri);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = args->entry.cell, .offset = 0u, .dst = key, .bytes = (embed_word)key_bytes});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                .offset = (embed_word)args->entry.key_size + 1u,
+                                                                .dst = uri,
+                                                                .bytes = (embed_word)uri_bytes});
+        key[key_bytes - 1ULL] = '\0';
+        uri[uri_bytes - 1ULL] = '\0';
+        mmgr_line_put_n(reporting, key, key_bytes);
+        mmgr_line_put_n(reporting, uri, uri_bytes);
     }
 }
 

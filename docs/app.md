@@ -4,13 +4,16 @@
 
 ## Get started
 
-1. **Install orior.** [The latest release](https://github.com/dstroy0/orior/releases/latest) has an installer for each system: the `setup.exe` or the `.msi` on Windows, the `.dmg` on macOS, and the `.deb`, the `.rpm` or the `.AppImage` on Linux. With Rust 1.85 or later, one command builds and installs it instead:
+1. **Install orior.** [The latest release](https://github.com/dstroy0/orior/releases/latest) has one archive for each system, holding impero (`imp`), tabvla (`tab`) and the license texts. Unpack it anywhere, open a terminal in the folder and run the install:
 
     ```sh
-    cargo install --git https://github.com/dstroy0/orior orior_gui --locked
+    ./imp file install          # Linux and macOS
+    imp.exe file install        # Windows
     ```
 
-    The installers are not signed. Windows warns before the first run; choose More info, then Run anyway. On macOS, right-click the app and choose Open the first time.
+    It shows the license and asks you to accept it, copies the programs into your programs folder (`~/.local/orior`, or `%LOCALAPPDATA%\Programs\orior` on Windows) or the folder you name after `install`, and puts `imp` and `tab` on your PATH: links in `~/.local/bin`, or shims in the install folder's `bin` on Windows. A name that already answers to another program is left to that program and said so; `--no-imp` and `--no-tab` leave a name out by choice, `--aliases` writes shell aliases in place of links, `--accept` and `--yes` answer the questions on the command line, and `--debug-port <port|off>` sets the window's debugging port. `imp file uninstall` takes everything the install made out again, and `--files` removes your settings, themes and terminal logs too. From a clone, `python utils/test/harness.py package` builds the archive.
+
+    The programs are not signed. Windows warns before the first run; choose More info, then Run anyway. On macOS, right-click the program and choose Open the first time.
 
 2. **Open it and clone orior.** Started outside a tree, orior offers Open and Clone Repository. Clone Repository already holds orior's own address: choose the folder the clone goes in and press Clone. The window opens on the tree when the clone is done. It needs [git](https://git-scm.com/downloads), and on Windows, Git for Windows, whose bash the jobs run in.
 

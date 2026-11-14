@@ -116,7 +116,7 @@ EMBED_INLINE int run_positions(const DeployRunCtx *args)
                               .size = ((unsigned long long)run->deployment.excludes + 1u) * sizeof(run->pattern[0]));
     if (run->pool.refused)
     {
-        mmgr_line_put(err_msg, "deploy.json: to names more than orior_cli supports");
+        mmgr_line_put(err_msg, "deploy.json: to names more than impero supports");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = run->changed_list, .bytes = tos * sizeof(run->changed_list[0]), .val = 0u});
@@ -361,22 +361,13 @@ EMBED_INLINE int run_turn(const DeployRunCtx *args)
 static void run_free(void)
 {
     CliDeployRun *const run = &g_cli_deploy;
-    while (run->pool.page != NULL)
-    {
-        CliDeployPage *const before = run->pool.page->before;
-        g_cli_guard->persistent_buf_release(run->pool.page, g_cli_deploy_owner);
-        run->pool.page = before;
-    }
+    run->pool.used = 0ULL;
     run->pool.refused = 0;
-    g_cli_guard->persistent_buf_release(s_tree.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_tree.json.node));
+    g_cli_guard->persistent_buf_release(s_tree.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_tree.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_tree.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    while (s_tree.pool.page != NULL)
-    {
-        CliDeployPage *const before = s_tree.pool.page->before;
-        g_cli_guard->persistent_buf_release(s_tree.pool.page, g_cli_deploy_owner);
-        s_tree.pool.page = before;
-    }
+    s_tree.pool.used = 0ULL;
     s_tree.pool.refused = 0;
     cli_deploy_there_free();
     run->place = NULL;

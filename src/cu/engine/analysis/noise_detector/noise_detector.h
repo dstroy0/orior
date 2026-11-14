@@ -4,7 +4,7 @@
 #define NOISE_DETECTOR_H
 
 #include "../../engine_config.h"
-#include "../../../includes/types/integers/exact_integer.h"
+#include "../../../../../includes/exact_types/integers/exact_integer.h"
 
 #ifdef __cplusplus
 extern "C"

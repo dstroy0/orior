@@ -308,6 +308,6 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
                           .err_msg = &unread);
     }
     g_cli_guard->persistent_buf_release(tokens, g_cli_compile_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_compile_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_compile_owner));
     return root;
 }

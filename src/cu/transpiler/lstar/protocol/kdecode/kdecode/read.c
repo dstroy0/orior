@@ -3,8 +3,8 @@
 // read.c: what is read: the text handed to the run, the records and the numbers and fields of a row, an oracle parsed
 // and emptied, a code named and its family given, the blobs of a run retained where they stand, and the oracle read
 // from the run
-#include "../../../../../includes/parsers/line_read.h"
-#include "../../../../../includes/parsers/who.h"
+#include "../../../../../../../includes/parsers/line_read.h"
+#include "../../../../../../../includes/parsers/who.h"
 #include "../../table_text.h"
 #include "kdecode_internal.h"
 #include "verba_scribo/verba_scribo.h"

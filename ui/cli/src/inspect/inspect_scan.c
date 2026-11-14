@@ -205,7 +205,7 @@ void cli_inspect_set_layout(const CliInspectPartitionSetCtx *args)
     if (args->set->at != NULL)
     {
         memor.set(
-            &(MemoriaCfg){.dst = (void *)args->set->at, .val = 0, .bytes = (size_t)buckets * sizeof(const char *)});
+            &(MemoriaCfg){.dst = (void *)args->set->at, .val = 0, .bytes = (embed_word)buckets * sizeof(const char *)});
     }
 }
 

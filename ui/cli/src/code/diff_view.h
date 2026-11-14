@@ -48,9 +48,12 @@ typedef struct CliDiffViewAtRowLengthCfg CliDiffViewAtRowLengthCfg;
 #define CLI_DIFF_VIEW_ADDED ((unsigned int)CLI_RENAMED + 1u)
 #define CLI_DIFF_VIEW_REMOVED ((unsigned int)CLI_RENAMED + 2u)
 
-// A row: what it is; on each side whether a line stands there, the line's number from 0, its units where they stand
-// in the view's cell and how many; the first of its token marks and how many, and how many review comments stand under
-// it, each none in this view
+// the most units of a row's line on one side
+#define CLI_DIFF_VIEW_ROW_UNITS 2048u
+
+// A row: what it is; on each side whether a line stands there, the line's number from 0, its units copied into the
+// row's own units and how many, cut to CLI_DIFF_VIEW_ROW_UNITS; the first of its token marks and how many, and how many
+// review comments stand under it, each none in this view
 typedef struct
 {
     unsigned int type;
@@ -65,6 +68,8 @@ typedef struct
     unsigned int marks_first;
     unsigned int marks_count;
     unsigned int comments;
+    unsigned short left_units_copied[CLI_DIFF_VIEW_ROW_UNITS];
+    unsigned short right_units_copied[CLI_DIFF_VIEW_ROW_UNITS];
 } CliDiffViewRow;
 
 // A token mark: the side it stands on, 1 for the right, its first unit and the unit after its last, and what it is

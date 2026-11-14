@@ -85,7 +85,8 @@ typedef struct
 
 // A file of requests read: its requests in order, the variables it sets, the pool of their texts, and 1 in `full`
 // where a line, a request, a header, a variable or a text did not fit. The requests are a cell of the count of the
-// file's parts and the pool a cell sized to the file, each released through persistent_buf_release
+// file's parts and the pool a cell sized to the file, each of the call that reads the file and released through
+// persistent_buf_release as it ends
 typedef struct
 {
     CliRequest *requests;
@@ -100,8 +101,9 @@ typedef struct
     int full;
 } CliRequestsParsed;
 
-// The values a request's variables are filled from, a name to one value, and the pool of their texts, a cell at their
-// most, to CLI_REQUESTS_TEXT at the most, released through persistent_buf_release
+// The values a request's variables are filled from, a name to one value, and the pool of their texts, a cell of the
+// call that fills them, taken from the temporary tier at CLI_REQUESTS_TEXT as the first value comes, released through
+// persistent_buf_release as the call ends
 typedef struct
 {
     CliRequestsText name[CLI_REQUESTS_VALUES];
@@ -185,9 +187,9 @@ typedef struct
 #define CLI_REQUESTS_HEAD_CAPACITY (1ull << 20u)
 
 // The work state a request is sent in: the request as it was made ready and its body, a line, the request as it goes on
-// each hop and its address taken apart, its answer, the answer's body as read, a line, and as undone, a cell of
-// `unpacked_capacity` taken as it is undone, and the bytes read from the connection not yet taken, from `start` to
-// `end`
+// each hop and its address taken apart, its answer, the answer's body as read, a line, and as undone,
+// `unpacked_capacity` bytes of the work state's own, and the bytes read from the connection not yet taken, from `start`
+// to `end`
 typedef struct
 {
     CliRequestsSent sent;

@@ -5,11 +5,10 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/digest.h"
+#include "../text/sort.h"
 #include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
-
-#include <stdlib.h>
 
 // A folder still to read, stored above the ones before it
 typedef struct CliDeployFolderStruct
@@ -150,8 +149,8 @@ EMBED_INLINE void walk_from(const DeployWalkCtx *args)
     VerbaLinea line = {s_from, sizeof(s_from), 0ULL};
     for (const char *part = args->from; *part != '\0';)
     {
-        size_t length = 0u;
-        length = (size_t)EMBED_CALL(
+        embed_word length = 0u;
+        length = (embed_word)EMBED_CALL(
             cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = part, .at = length,
             .size = length + cellul.len(&(CatenaFinitaCfg){.src = part + length, .cap = CLI_POOL_BYTES}), .set = "/\\");
         if ((length > 0u) && !((length == 1u) && (part[0] == '.')))
@@ -198,12 +197,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         return 0;
     }
     EMBED_CALL(walk_from, DeployWalkCtx, .from = run->deployment.from);
-    while (s_pool.page != NULL)
-    {
-        CliDeployPage *const before = s_pool.page->before;
-        g_cli_guard->persistent_buf_release(s_pool.page, g_cli_deploy_owner);
-        s_pool.page = before;
-    }
+    s_pool.used = 0ULL;
     s_pool.refused = 0;
     s_folder_patterns = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &s_pool,
                                    .size = (unsigned long long)run->patterns * sizeof(s_folder_patterns[0]));
@@ -263,12 +257,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         run->out[at] = s_outs->pair;
     }
     const int overflowed = s_overflowed || s_pool.refused || run->pool.refused;
-    while (s_pool.page != NULL)
-    {
-        CliDeployPage *const before = s_pool.page->before;
-        g_cli_guard->persistent_buf_release(s_pool.page, g_cli_deploy_owner);
-        s_pool.page = before;
-    }
+    s_pool.used = 0ULL;
     s_pool.refused = 0;
     s_folder_patterns = NULL;
     s_sents = NULL;
@@ -278,11 +267,13 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         run->sents = 0u;
         run->outs = 0u;
         mmgr_line_put(args->err_msg, run->deployment.name);
-        mmgr_line_put(args->err_msg, " sends more files than orior_cli supports");
+        mmgr_line_put(args->err_msg, " sends more files than impero supports");
         return 0;
     }
-    qsort(run->sent, run->sents, sizeof(run->sent[0]), walk_sent_order);
-    qsort(run->out, run->outs, sizeof(run->out[0]), walk_out_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = run->sent, .count = run->sents, .size = sizeof(run->sent[0]),
+               .order = walk_sent_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = run->out, .count = run->outs, .size = sizeof(run->out[0]),
+               .order = walk_out_order);
     for (unsigned int at = 0u; at < run->sents; at += 1u)
     {
         char full[(2u * CLI_PATH_MAX_LEN) + 2u];
@@ -298,7 +289,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
             VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ULL};
             EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &hash);
             mmgr_line_finish(&hash);
-            g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
         }
     }
     return 1;

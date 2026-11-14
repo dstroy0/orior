@@ -117,9 +117,11 @@ EMBED_INLINE void bar_refused(const DebugPaneBarCtx *args)
 EMBED_INLINE int bar_python(const DebugPaneBarCtx *args)
 {
     (void)args;
-    return (g_cli_debug_pane.session_texts != NULL) &&
-           cellul.eq(&(CatenaFinitaCfg){
-               .src = g_cli_debug_pane.session_texts + g_cli_debug_pane.language_at, .other = "python", .cap = 16ULL});
+    return (g_cli_debug_pane.session_texts != NULL) && (g_cli_debug_pane.language_length == 6ULL) &&
+           (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = g_cli_debug_pane.session_texts,
+                                                                 .offset = g_cli_debug_pane.language_at,
+                                                                 .src = "python",
+                                                                 .bytes = 7ULL}) == 0);
 }
 
 int cli_debug_pane_run(const CliDebugPaneBarCfg *args)
@@ -156,8 +158,8 @@ int cli_debug_pane_run(const CliDebugPaneBarCfg *args)
              g_cli_debug_pane.requests->threads(&(CliDebugOutErrMsgIdStepCfg){
                  .out = &threads_out, .err_msg = &err_msg, .id = g_cli_debug_pane.session}) &&
              mmgr_line_ok(&threads_out))
-                ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
-                             .json = &json, .text = scratch, .size = threads_out.at, .err_msg = &err_msg,
+                ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                             .text = scratch, .size = threads_out.at, .err_msg = &err_msg,
                              .owner = g_cli_debug_pane_owner)
                 : CLI_JSON_NONE;
         long long thread = 0LL;
@@ -209,8 +211,8 @@ int cli_debug_pane_run(const CliDebugPaneBarCfg *args)
 
 void cli_debug_pane_status(const CliDebugPaneBarCfg *args)
 {
-    *args->status_out = (CliDebugPaneStatus){(g_cli_debug_pane.status != NULL) ? g_cli_debug_pane.status : "",
-                                             g_cli_debug_pane.status_length, g_cli_debug_pane.status_failed};
+    *args->status_out =
+        (CliDebugPaneStatus){g_cli_debug_pane.status, g_cli_debug_pane.status_length, g_cli_debug_pane.status_failed};
 }
 
 // the field's text of the view shown, NULL where the view has no field
@@ -234,9 +236,17 @@ void cli_debug_pane_field(const CliDebugPaneInputCfg *args)
     const char *const placeholder = (g_cli_debug_pane.view == CLI_DEBUG_VIEW_VARIABLES) ? BAR_WATCH
                                     : (typed != NULL)                                   ? BAR_EVALUATE
                                                                                         : "";
-    *args->field_out = (CliDebugPaneField){
-        ((typed != NULL) && (typed->bytes != NULL)) ? typed->bytes : "", (typed != NULL) ? typed->length : 0ULL,
-        placeholder, cellul.len(&(CatenaFinitaCfg){.src = placeholder, .cap = 64ULL}), typed != NULL};
+    // the field's text copied out of the typed text's cell into the bar's own buffer, which the caller reads before the
+    // next field read
+    static char s_field_text[CLI_DEBUG_FIELD_MAX];
+    const unsigned long long length = (typed != NULL)
+                                          ? EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed_read = typed,
+                                                       .dst = s_field_text, .capacity = sizeof(s_field_text))
+                                          : 0ULL;
+    s_field_text[length] = '\0';
+    *args->field_out =
+        (CliDebugPaneField){s_field_text, length, placeholder,
+                            cellul.len(&(CatenaFinitaCfg){.src = placeholder, .cap = 64ULL}), typed != NULL};
 }
 
 void cli_debug_pane_type(const CliDebugPaneInputCfg *args)
@@ -267,7 +277,7 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
                    .length = sizeof(BAR_NONE) - 1ULL, .type = CLI_DEBUG_LINE_STDERR);
         return;
     }
-    const CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
+    CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
     const int framed = g_cli_debug_pane.paused && (g_cli_debug_pane.frame_at < frames->count);
     char *const scratch = g_cli_guard->temporary_buf_alloc(BAR_ANSWER, g_cli_debug_pane_owner);
     if (scratch == NULL)
@@ -277,20 +287,26 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
     VerbaLinea out = {scratch, BAR_ANSWER, 0ULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const int evaluated = g_cli_debug_pane.requests->evaluate(
-        &(CliDebugOutErrMsgCfg){.out = &out,
-                                .err_msg = &err_msg,
-                                .id = g_cli_debug_pane.session,
-                                .frame = framed ? frames->entry[g_cli_debug_pane.frame_at].reference : 0LL,
-                                .expression = args->text,
-                                .has_frame = framed,
-                                .context_text = "repl"});
+    CliDebugPaneEntry chosen = {0};
+    if (framed)
+    {
+        EMBED_CALL(cli_debug_pane_internal.entry_read, CliDebugPaneCtx, .store = frames,
+                   .at = g_cli_debug_pane.frame_at, .entry_out = &chosen);
+    }
+    const int evaluated =
+        g_cli_debug_pane.requests->evaluate(&(CliDebugOutErrMsgCfg){.out = &out,
+                                                                    .err_msg = &err_msg,
+                                                                    .id = g_cli_debug_pane.session,
+                                                                    .frame = framed ? chosen.reference : 0LL,
+                                                                    .expression = args->text,
+                                                                    .has_frame = framed,
+                                                                    .context_text = "repl"});
     CliJson json = {0};
-    const unsigned int root = (evaluated && mmgr_line_ok(&out))
-                                  ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary,
-                                               CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = scratch,
-                                               .size = out.at, .err_msg = &err_msg, .owner = g_cli_debug_pane_owner)
-                                  : CLI_JSON_NONE;
+    const unsigned int root =
+        (evaluated && mmgr_line_ok(&out))
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                         .text = scratch, .size = out.at, .err_msg = &err_msg, .owner = g_cli_debug_pane_owner)
+            : CLI_JSON_NONE;
     unsigned long long value_length = 0ULL;
     const char *const value =
         (root != CLI_JSON_NONE)
@@ -322,8 +338,8 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
 EMBED_INLINE void bar_watched(const DebugPaneBarCtx *args)
 {
     CliDebugPaneStore *const watches = &g_cli_debug_pane.watches;
-    CliDebugPaneEntry *const entry = EMBED_CALL(cli_debug_pane_internal.entry_put, CliDebugPaneCtx, .store = watches);
-    if (entry == NULL)
+    const unsigned int at = EMBED_CALL(cli_debug_pane_internal.entry_put, CliDebugPaneCtx, .store = watches);
+    if (at == CLI_DEBUG_PANE_NO_ENTRY)
     {
         return;
     }
@@ -334,9 +350,11 @@ EMBED_INLINE void bar_watched(const DebugPaneBarCtx *args)
         watches->count -= 1u;
         return;
     }
-    entry->type = CLI_DEBUG_ROW_WATCH;
-    entry->text = text;
-    entry->text_length = args->length;
+    CliDebugPaneEntry entry = {0};
+    entry.type = CLI_DEBUG_ROW_WATCH;
+    entry.text = text;
+    entry.text_length = args->length;
+    EMBED_CALL(cli_debug_pane_internal.entry_written, CliDebugPaneCtx, .store = watches, .at = at, .entry = &entry);
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
 }
 
@@ -356,10 +374,11 @@ int cli_debug_pane_key(const CliDebugPaneInputCfg *args)
     {
         return 0;
     }
-    // the text with its blanks at either end let go, and its end after it
-    const char *const bytes = (typed->bytes != NULL) ? typed->bytes : "";
+    // the text copied out of the typed text's cell, with its blanks at either end let go, and its end after it
+    char bytes[CLI_DEBUG_FIELD_MAX];
     unsigned long long first = 0ULL;
-    unsigned long long last = typed->length;
+    unsigned long long last =
+        EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = typed, .dst = bytes, .capacity = sizeof(bytes));
     while ((first < last) && ((bytes[first] == ' ') || (bytes[first] == '\t')))
     {
         first += 1ULL;
@@ -376,8 +395,7 @@ int cli_debug_pane_key(const CliDebugPaneInputCfg *args)
     const unsigned long long length = last - first;
     memor.cpy(&(MemoriaCfg){.dst = expression, .src = bytes + first, .bytes = length});
     expression[length] = '\0';
-    g_cli_guard->persistent_buf_release(typed->bytes, g_cli_debug_pane_owner);
-    *typed = (CliTyped){NULL, 0ULL};
+    EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = typed, .owner = g_cli_debug_pane_owner);
     if (g_cli_debug_pane.view == CLI_DEBUG_VIEW_VARIABLES)
     {
         EMBED_CALL(bar_watched, DebugPaneBarCtx, .text = expression, .length = length, .root = args->root);

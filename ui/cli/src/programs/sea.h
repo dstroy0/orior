@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sea.h: Node's single executable: a script built into a copy of node (sea.c, sea_build.c). From Node 25.5,
-// `node --build-sea` makes it. Before that, orior_cli takes Node's documented steps itself, with no package fetched to
+// `node --build-sea` makes it. Before that, impero takes Node's documented steps itself, with no package fetched to
 // take them: `node --experimental-sea-config` makes the script's blob, node is copied, the copy's signature is taken
 // off, the blob is added to it as the resource NODE_SEA_BLOB on Windows or as the note of that name in a segment of its
 // own on Linux, and the fuse is turned from 0 to 1.

@@ -4,8 +4,9 @@
 // table in the side; its rows are drawn inside the panel and nowhere in the side; a pixel in the panel hits its row and
 // one in the side does not; the wheel scrolls its rows no further than the last fills the panel; and its text is faded
 // by the panel's share
-#include "../../../../../ui/cli/src/view/parts/explorer.h"
-#include "../../../../../ui/cli/src/view/parts/pane.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../ui/gui/src/explorer.h"
+#include "../../../../../ui/gui/src/pane.h"
 #include "../cli/cli_check.h"
 
 #define FOOT_ROWS 40u
@@ -64,25 +65,28 @@ static int rect_touched(const GuiRaster *raster, GuiRect rect, GuiColor ground)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = FOOT_HEIGHT, .away = 0);
     GuiIcons icons;
-    EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &icons);
+    EMBED_CALL(gui_icons.init, GuiIconsCfg, .icons = &icons);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
 
     const GuiRect foot = EMBED_CALL(gui_pane.region, GuiPaneCfg, .table = &s_foot_table, .frame = &frame);
@@ -134,10 +138,10 @@ int main(void)
     cli_check(EMBED_CALL(gui_pane_part.share, GuiPanePartCfg, .pane = &sided) == frame.side_share,
               "a side table's text fades with the side's share");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

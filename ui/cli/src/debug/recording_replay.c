@@ -28,8 +28,8 @@ void cli_replay_full(const CliRecordingRelativeCtx *args)
     for (const char *part = args->relative; *part != '\0';)
     {
         const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = '/'});
-        const size_t length = (slash != NULL) ? (size_t)(slash - part)
-                                              : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
+        const embed_word length = (slash != NULL) ? (embed_word)(slash - part)
+                                                  : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         if (length > 0u)
         {
             char one[CLI_PATH_MAX_LEN];
@@ -43,24 +43,37 @@ void cli_replay_full(const CliRecordingRelativeCtx *args)
     }
 }
 
-// the tree path of the file a frame's lines are in, "" where the recording names none
+// the tree path of the file a frame's lines are in into `path_out`, "" where the recording names none
 const char *cli_replay_file_get(const CliRecordingSerialStepCtx *args)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    const CliRecordedFrame *const frame =
-        (args->serial < recording->frame_max) ? &recording->frames[args->serial] : NULL;
-    return ((frame != NULL) && frame->seen && (frame->file < recording->file_count))
-               ? EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
-                            .at = recording->files[frame->file])
-               : "";
+    char *const out = args->path_out;
+    out[0] = '\0';
+    if (args->serial >= recording->frame_max)
+    {
+        return out;
+    }
+    const CliRecordedFrame frame =
+        EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = args->serial);
+    if (frame.seen && (frame.file < recording->file_count))
+    {
+        (void)EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
+                         .at = EMBED_CALL(cli_recording_index_internal.file, CliRecordingIndexCtx, .index = frame.file),
+                         .name_out = out, .name_capacity = CLI_PATH_MAX_LEN);
+    }
+    return out;
 }
 
 // the thread a step's frame ran on, 0 where the recording names none
 unsigned int cli_replay_thread_get(const CliRecordingSerialStepCtx *args)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    const unsigned int serial = recording->steps[args->step].frame;
-    return ((serial < recording->frame_max) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
+    const unsigned int serial =
+        EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = args->step).frame;
+    const CliRecordedFrame frame = (serial < recording->frame_max) ? EMBED_CALL(cli_recording_index_internal.frame,
+                                                                                CliRecordingIndexCtx, .index = serial)
+                                                                   : (CliRecordedFrame){0u, 0u, 0u, 0u, 0u, 0u, 0u, 0};
+    return frame.seen ? frame.thread : 0u;
 }
 
 // the thread the replay stands on
@@ -74,17 +87,23 @@ unsigned int cli_replay_thread(void)
 unsigned int cli_recording_last_get(const CliRecordingAtCtx *args)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    if ((args->serial >= recording->frame_max) || (recording->frames[args->serial].count == 0u))
+    if (args->serial >= recording->frame_max)
     {
         return CLI_RECORDING_NO_STEP;
     }
-    const CliRecordedFrame *const frame = &recording->frames[args->serial];
+    const CliRecordedFrame frame =
+        EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = args->serial);
+    if (frame.count == 0u)
+    {
+        return CLI_RECORDING_NO_STEP;
+    }
     unsigned int low = 0u;
-    unsigned int high = frame->count;
+    unsigned int high = frame.count;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (recording->by_frame[frame->first + middle] <= args->at)
+        if (EMBED_CALL(cli_recording_index_internal.by_frame, CliRecordingIndexCtx, .index = frame.first + middle) <=
+            args->at)
         {
             low = middle + 1u;
         }
@@ -93,16 +112,21 @@ unsigned int cli_recording_last_get(const CliRecordingAtCtx *args)
             high = middle;
         }
     }
-    return (low == 0u) ? CLI_RECORDING_NO_STEP : recording->by_frame[frame->first + low - 1u];
+    return (low == 0u) ? CLI_RECORDING_NO_STEP
+                       : EMBED_CALL(cli_recording_index_internal.by_frame, CliRecordingIndexCtx,
+                                    .index = frame.first + low - 1u);
 }
 
 int cli_replay_at_breakpoint(const CliRecordingSerialStepCtx *args)
 {
     char full[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
+    const CliRecordedStep step =
+        EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = args->step);
     EMBED_CALL(cli_recording_relative_internal.replay_full, CliRecordingRelativeCtx,
                .relative = EMBED_CALL(cli_recording_serial_step_internal.replay_file_get, CliRecordingSerialStepCtx,
-                                      .serial = g_cli_replay->recording.steps[args->step].frame),
+                                      .serial = step.frame, .path_out = file),
                .full = full);
     EMBED_CALL(cli_recording_path_internal.replay_key, CliRecordingPathCtx, .path = full, .key = key);
     for (unsigned int file = 0u; file < g_cli_replay->break_file_count; file += 1u)
@@ -113,7 +137,7 @@ int cli_replay_at_breakpoint(const CliRecordingSerialStepCtx *args)
         }
         for (unsigned int at = 0u; at < g_cli_replay->break_count[file]; at += 1u)
         {
-            if (g_cli_replay->break_lines[file][at] == g_cli_replay->recording.steps[args->step].line)
+            if (g_cli_replay->break_lines[file][at] == step.line)
             {
                 return 1;
             }
@@ -126,7 +150,7 @@ int cli_replay_at_raise(const CliRecordingSerialStepCtx *args)
 {
     for (unsigned int at = 0u; g_cli_replay->on_raised && (at < g_cli_replay->recording.raised_count); at += 1u)
     {
-        if (g_cli_replay->recording.raised[at].step == args->step)
+        if (EMBED_CALL(cli_recording_index_internal.raise, CliRecordingIndexCtx, .index = at).step == args->step)
         {
             return 1;
         }
@@ -161,12 +185,11 @@ EMBED_INLINE const char *replay_reason(const RecordingReplayCtx *args)
 const char *cli_replay_go(const CliRecordingHowCtx *args)
 {
     unsigned int *step = args->step_pointer;
-    const CliRecordedStep *const steps = g_cli_replay->recording.steps;
     const unsigned int last = g_cli_replay->recording.step_count - 1u;
     const unsigned int here = g_cli_replay->at;
     const unsigned int thread =
         EMBED_CALL(cli_recording_serial_step_internal.replay_thread_get, CliRecordingSerialStepCtx, .step = here);
-    const unsigned int depth = steps[here].depth;
+    const unsigned int depth = EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = here).depth;
     const int forward = (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "continue", .cap = CLI_POOL_BYTES})) ||
                         (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_POOL_BYTES})) ||
                         (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_POOL_BYTES})) ||
@@ -188,6 +211,8 @@ const char *cli_replay_go(const CliRecordingHowCtx *args)
         const unsigned int at = forward ? one : one - 1u;
         const int same = (EMBED_CALL(cli_recording_serial_step_internal.replay_thread_get, CliRecordingSerialStepCtx,
                                      .step = at) == thread);
+        const unsigned int at_depth =
+            EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = at).depth;
         int hit;
         if (continues)
         {
@@ -195,7 +220,7 @@ const char *cli_replay_go(const CliRecordingHowCtx *args)
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_POOL_BYTES}))
         {
-            hit = same && (steps[at].depth <= depth);
+            hit = same && (at_depth <= depth);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_POOL_BYTES}))
         {
@@ -203,11 +228,11 @@ const char *cli_replay_go(const CliRecordingHowCtx *args)
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_POOL_BYTES}))
         {
-            hit = same && (steps[at].depth < depth);
+            hit = same && (at_depth < depth);
         }
         else
         {
-            hit = same && (steps[at].depth <= depth);
+            hit = same && (at_depth <= depth);
         }
         if (hit)
         {
@@ -254,18 +279,26 @@ void cli_replay_stopped_send(const CliRecordingDapReasonCtx *args)
 void cli_replay_frame_write(const CliRecordingSerialStepCtx *args)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    const CliRecordedFrame *const frame = &recording->frames[args->serial];
+    const CliRecordedFrame frame =
+        EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = args->serial);
     char full[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
+    char name[CLI_RECORDING_NAME_BYTES];
+    file[0] = '\0';
+    name[0] = '\0';
     // a frame the recording did not see reads as one of file 0, as a frame made empty does
-    EMBED_CALL(cli_recording_relative_internal.replay_full, CliRecordingRelativeCtx,
-               .relative = (frame->file < recording->file_count)
-                               ? EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
-                                            .at = recording->files[frame->file])
-                               : "",
-               .full = full);
-    const char *const name =
-        frame->seen ? EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx, .at = frame->name)
-                    : "";
+    if (frame.file < recording->file_count)
+    {
+        (void)EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
+                         .at = EMBED_CALL(cli_recording_index_internal.file, CliRecordingIndexCtx, .index = frame.file),
+                         .name_out = file, .name_capacity = sizeof(file));
+    }
+    EMBED_CALL(cli_recording_relative_internal.replay_full, CliRecordingRelativeCtx, .relative = file, .full = full);
+    if (frame.seen)
+    {
+        (void)EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx, .at = frame.name,
+                         .name_out = name, .name_capacity = sizeof(name));
+    }
     mmgr_line_put(args->out, "{\"id\":");
     mmgr_line_decimal(args->out, args->serial, 1u);
     mmgr_line_put(args->out, ",\"name\":");
@@ -273,12 +306,13 @@ void cli_replay_frame_write(const CliRecordingSerialStepCtx *args)
                .text_bytes = (const unsigned char *)name,
                .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"line\":");
-    mmgr_line_decimal(args->out, recording->steps[args->step].line, 1u);
+    mmgr_line_decimal(
+        args->out, EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = args->step).line, 1u);
     mmgr_line_put(args->out, ",\"column\":1,\"source\":{\"name\":");
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES});
-    size_t start = end;
-    start = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full, .at = start,
-                               .set = "/\\");
+    embed_word end = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_POOL_BYTES});
+    embed_word start = end;
+    start = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
+                                   .at = start, .set = "/\\");
     if (start == end)
     {
         mmgr_line_put(args->out, "null");

@@ -96,7 +96,8 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
     CliUserPlugins user = {NULL, 0u, 0u};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = dir, .each = cli_user_count,
                .context_bytess = &user);
-    user.name = (user.capacity != 0u) ? g_cli_guard->persistent_buf_alloc(
+    // the names live for this call alone: a cell of the temporary tier
+    user.name = (user.capacity != 0u) ? g_cli_guard->temporary_buf_alloc(
                                             (unsigned long long)user.capacity * CLI_NAME_MAX_LEN, g_cli_plugins_owner)
                                       : NULL;
     user.capacity = (user.name != NULL) ? user.capacity : 0u;
@@ -132,7 +133,7 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
         // a plugin's bytes are its JSON's text
         const CliPlugin plugin = {user.name[at], "user", folder, (const char *)bytes, size};
         EMBED_CALL(args->each, CliEachPluginCfg, .context = args->context, .plugin = &plugin);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_plugins_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_plugins_owner));
     }
     g_cli_guard->persistent_buf_release(user.name, g_cli_plugins_owner);
 }
@@ -257,7 +258,7 @@ static void cli_language_each(const CliEachPluginCfg *args)
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &err_msg, .owner = g_cli_plugins_owner);
     const char *const type =
@@ -356,8 +357,9 @@ static void cli_language_each(const CliEachPluginCfg *args)
 void cli_plugins_languages(const CliPluginsCfg *args)
 {
     CliLanguages *languages = args->languages;
+    // the pairs live for the walk or the batch that reads them: a cell of the temporary tier
     CliLanguagePair *const pair =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(*pair), g_cli_plugins_owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(*pair), g_cli_plugins_owner);
     *languages = (CliLanguages){pair, 0u, (pair != NULL) ? CLI_LANGUAGE_PAIRS : 0u};
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_language_each, .context = languages);
 }
@@ -503,12 +505,12 @@ static void plugins_code_each(const CliEachPluginCfg *args)
                             .src = folder,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
     g_cli_guard->persistent_buf_release(code->text, g_cli_plugins_owner);
-    code->text = g_cli_guard->persistent_buf_alloc(args->plugin->size + 1ULL, g_cli_plugins_owner);
+    code->text = g_cli_guard->temporary_buf_alloc(args->plugin->size + 1ULL, g_cli_plugins_owner);
     code->size = (code->text != NULL) ? args->plugin->size : 0ULL;
     if (code->text != NULL)
     {
-        // a plugin.json's size fits a size_t, as it was read whole
-        memor.cpy(&(MemoriaCfg){.dst = code->text, .src = args->plugin->text, .bytes = (size_t)args->plugin->size});
+        // a plugin.json's size fits a embed_word, as it was read whole
+        memor.cpy(&(MemoriaCfg){.dst = code->text, .src = args->plugin->text, .bytes = (embed_word)args->plugin->size});
         code->text[args->plugin->size] = '\0';
     }
 }

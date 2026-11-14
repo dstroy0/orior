@@ -21,10 +21,10 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 CUB="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INT="$TOP/src/cu/transpiler/lstar/interface"
-KRS="$TOP/src/cu/includes/parsers"
+KRS="$TOP/includes/parsers"
 OUT="$TOP/build/fields"
 CUDA="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
 case "$(uname -s)" in

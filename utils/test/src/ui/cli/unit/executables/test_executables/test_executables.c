@@ -20,7 +20,7 @@ static const char s_meson_build[] = "project('me', 'c')\n# executable('commented
 static const char s_dotnet_project[] = "app/Hello.csproj";
 
 static CliNames s_names;
-static CliLines s_lines;
+static CliRunLines s_lines;
 static CliJob s_jobs[256];
 static CliParam s_params[1024];
 static CliStep s_steps[256];

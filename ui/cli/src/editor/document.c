@@ -9,7 +9,6 @@
 #include "../text/regexp.h"
 #include "../text/sift.h"
 #include "../text/text.h"
-#include "../text/vector.h"
 
 // A text's lines joined, each ended by "\n", and the unit each starts at, the units' count last, in a cell sized to
 // them
@@ -50,9 +49,32 @@ typedef struct
     void *context;
     VerbaLinea *err_msg;
     CliFindWorkState *work_state;
-    const CliHistogram *histogram;
     unsigned long long size;
 } DocumentCtx;
+
+// the two units outside ASCII that a search without case folds into it: the long s and the Kelvin sign
+#define CLI_LONG_S 0x017fu
+#define CLI_KELVIN 0x212au
+
+// `unit` as a search without case reads it: a capital to its small letter, the long s to s, the Kelvin sign to k, and
+// every other unit itself
+EMBED_INLINE unsigned short cli_unit_folded(const DocumentCtx *args)
+{
+    if ((args->unit >= 0x41u) && (args->unit <= 0x5au))
+    {
+        // a capital and its small letter differ in the one bit 0x20
+        return (unsigned short)(args->unit | 0x20u);
+    }
+    if (args->unit == CLI_LONG_S)
+    {
+        return (unsigned short)'s';
+    }
+    if (args->unit == CLI_KELVIN)
+    {
+        return (unsigned short)'k';
+    }
+    return args->unit;
+}
 
 // a letter put after the lines' units, as UTF-16
 EMBED_INLINE void cli_unit_append(const DocumentCtx *args)
@@ -69,16 +91,12 @@ EMBED_INLINE void cli_unit_append(const DocumentCtx *args)
         // each half of a pair of surrogates is below 2^16
         args->lines_out->unit[args->lines_out->used] = (unsigned short)(0xd800u + (rest >> 10u));
         args->lines_out->unit[args->lines_out->used + 1ULL] = (unsigned short)(0xdc00u + (rest & 0x3ffu));
-        EMBED_CALL(cli_lines_histogram_append, CliLinesHistogramAppendCfg, .lines = args->lines_out,
-                   .unit = args->lines_out->unit[args->lines_out->used + 1ULL]);
     }
     else
     {
         // a letter of the basic plane is below 2^16
         args->lines_out->unit[args->lines_out->used] = (unsigned short)args->letter;
     }
-    EMBED_CALL(cli_lines_histogram_append, CliLinesHistogramAppendCfg, .lines = args->lines_out,
-               .unit = args->lines_out->unit[args->lines_out->used]);
     args->lines_out->used += need;
 }
 
@@ -89,7 +107,6 @@ void cli_document_lines_get(const CliDocumentTextSizeCfg *args)
     lines->lines = 0u;
     lines->full = 0;
     lines->crlf = 0;
-    memor.set(&(MemoriaCfg){.dst = &lines->histogram, .val = 0, .bytes = sizeof(lines->histogram)});
     unsigned long long at = 0ULL;
     for (;;)
     {
@@ -208,7 +225,7 @@ EMBED_INLINE int cli_joined_get(const DocumentCtx *args)
     }
     // the units' bytes rounded up to a boundary of the starts after them
     const unsigned long long unit_bytes = ((units * sizeof(unsigned short)) + 7ULL) & ~7ULL;
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
         unit_bytes + (((unsigned long long)lines->lines + 1ULL) * sizeof(unsigned long long)), g_cli_editor_owner);
     *joined = (CliJoined){(unsigned short *)(void *)cell, 0ULL, (unsigned long long *)(void *)(cell + unit_bytes), 0u};
     if (cell == NULL)
@@ -444,18 +461,6 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     {
         newline = newline || (work_state.required[at] == '\n');
     }
-    // the search reads the text's stored census, with the newline the join puts after each line, and folded as the
-    // search folds where it runs without case
-    CliHistogram histogram = args->lines->histogram;
-    histogram.occurrences['\n'] += args->lines->lines;
-    histogram.occurrences[0] += args->lines->lines;
-    histogram.total += 2ULL * args->lines->lines;
-    if (!args->needle->match_case)
-    {
-        CliHistogram folded;
-        EMBED_CALL(cli_sift.histogram_fold, CliSiftCfg, .exact = &histogram, .folded = &folded);
-        histogram = folded;
-    }
     const int needle_any = (size != 0ULL) && !newline;
     const int joined =
         needle_any && EMBED_CALL(cli_joined_get, DocumentCtx, .lines = args->lines, .joined = &work_state.joined);
@@ -463,8 +468,8 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     {
         const unsigned long long fit = (work_state.joined.used / size) + 1ULL;
         work_state.match_capacity = (fit < CLI_FIND_MATCHES) ? fit : CLI_FIND_MATCHES;
-        work_state.match = g_cli_guard->temporary_buf_alloc(work_state.match_capacity * sizeof(*work_state.match),
-                                                            g_cli_editor_owner);
+        work_state.match =
+            g_cli_guard->temporary_buf_alloc(work_state.match_capacity * sizeof(*work_state.match), g_cli_editor_owner);
     }
     const int with_capacity = !needle_any || (joined && (work_state.match != NULL));
     if (!with_capacity)
@@ -474,8 +479,8 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     const int done =
         with_capacity &&
         (!needle_any || EMBED_CALL(cli_found_each, DocumentCtx, .work_state = &work_state, .lines = args->lines,
-                                   .histogram = &histogram, .size = size, .needle = args->needle, .most = args->most,
-                                   .each = args->each, .context = args->context, .err_msg = args->err_msg));
+                                   .size = size, .needle = args->needle, .most = args->most, .each = args->each,
+                                   .context = args->context, .err_msg = args->err_msg));
     g_cli_guard->persistent_buf_release(work_state.match, g_cli_editor_owner);
     EMBED_CALL(cli_joined_let_go, DocumentCtx, .joined = &work_state.joined);
     g_cli_guard->persistent_buf_release(work_state.required, g_cli_editor_owner);
@@ -562,20 +567,19 @@ EMBED_INLINE int cli_found_each(const DocumentCtx *args)
         for (unsigned long long at = 0ULL; at < args->work_state->joined.used; at += 1ULL)
         {
             args->work_state->joined.unit[at] =
-                EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->work_state->joined.unit[at]);
+                EMBED_CALL(cli_unit_folded, DocumentCtx, .unit = args->work_state->joined.unit[at]);
         }
         for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
         {
             args->work_state->required[at] =
-                EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->work_state->required[at]);
+                EMBED_CALL(cli_unit_folded, DocumentCtx, .unit = args->work_state->required[at]);
         }
     }
     CliFindWalk walk = {args->work_state, args->needle, args->size, args->most, 0ULL, 0u, 0xffffffffu, 0ULL, 0, 0};
-    (void)EMBED_CALL(cli_sift_length_fold.find_all_with, CliSiftLengthFoldCfg, .histogram_read = args->histogram,
-                     .text = (const unsigned char *)args->work_state->joined.unit,
-                     .length = args->work_state->joined.used * 2ULL,
-                     .needle = (const unsigned char *)args->work_state->required, .needle_length = args->size * 2ULL,
-                     .fold = 0, .found = cli_found_at, .context = &walk);
+    (void)EMBED_CALL(
+        cli_sift_length.find_all, CliSiftLengthCfg, .text = (const unsigned char *)args->work_state->joined.unit,
+        .length = args->work_state->joined.used * 2ULL, .needle = (const unsigned char *)args->work_state->required,
+        .needle_length = args->size * 2ULL, .fold = 0, .found = cli_found_at, .context = &walk);
     if (walk.patterned)
     {
         return cli_found_pattern(args);

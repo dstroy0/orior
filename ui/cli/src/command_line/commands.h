@@ -30,8 +30,9 @@ typedef struct CliCommandsItemCfg CliCommandsItemCfg;
 // it shows on or off, empty where it is neither, 1 where the command line runs it in the terminal, 1 where it is a
 // setting whose key is its chain of commands after its menu's word, joined by dots, 1 where every key its chain starts,
 // a dot after it, is its own, 1 where its key stays on this machine and is never carried, 1 where only the reader's own
-// settings.json sets it and a tree's never does, 1 where the command line runs it in a terminal where no window is open,
-// whether it is a line, hidden, or filled in as its menu opens, and the list of the rows under it, 0 where it has none
+// settings.json sets it and a tree's never does, 1 where the command line runs it in a terminal where no window is
+// open, whether it is a line, hidden, or filled in as its menu opens, and the list of the rows under it, 0 where it has
+// none
 typedef struct
 {
     const char *label;
@@ -123,12 +124,16 @@ void cli_menus_row_open(unsigned int level, unsigned int at, int marked);
 void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int place, int x, int y);
 // a part's own rows, built as its menu is asked for and standing while it is open: begun empty; `item` added after
 // them, its texts the part's own, standing while the menu is open; a line added; the catalog's item whose command is
-// `command` added with `args`: 1, or 0 where the catalog has none; the rows, their count into `count_out`; and the
-// word a chosen row's `args` runs with, NULL where the args are a catalog item's pattern or empty
+// `command` added with `args`: 1, or 0 where the catalog has none; the rows of the popup menu titled `title` added,
+// each item's args `args`, its lines kept: 1, or 0 where the list has no such popup; the label of the row `at` written
+// anew; the rows, their count into `count_out`; and the word a chosen row's `args` runs with, NULL where the args are a
+// catalog item's pattern or empty
 void cli_menus_own_begin(void);
 void cli_menus_own_row(const CliItem *item);
 void cli_menus_own_line(void);
 int cli_menus_own_named(const char *command, const char *args);
+int cli_menus_popup(const char *title, const char *args);
+void cli_menus_own_relabel(unsigned int at, const char *label);
 const CliItem *cli_menus_own_rows(unsigned int *count_out);
 const char *cli_menus_own_word(const char *args);
 // a press on the title `at`, its menu closed where it is open and else opened; a press on the row `at` of the menu at

@@ -21,7 +21,7 @@
 // paid on this host against arithmetic every system that computes agrees about. A target is queried only on the cases
 // the descent placed.
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
-#include "../../../../../../../src/cu/includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../includes/file_defs/kdm/kdm.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 #include "verba_scribo/verba_scribo.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"

@@ -42,21 +42,23 @@ typedef struct
     unsigned long long body_length;
 } CommsMessage;
 
-// The Channels view: its one cell and, in it, the items, the row each item's row stands at with one more than the
-// items, the messages and the texts; how many items and messages; the summary's offset and bytes; a byte a channel, 1
-// where it is open; the channel last opened or closed and the row it stands at, -1 for none; the stamp the layer had
-// as it was last listed and whether it was; the millisecond the layer was last looked at; and the view shown
+// The Channels view: its one movable cell and, in it, the places of the items, of the row each item's row stands at
+// with one more than the items, of the messages and of the texts, each read out by copy; how many items and messages;
+// the summary's offset and bytes, and the summary in the pane's own bytes; a byte a channel, 1 where it is open; the
+// channel last opened or closed and the row it stands at, -1 for none; the stamp the layer had as it was last listed
+// and whether it was; the millisecond the layer was last looked at; and the view shown
 typedef struct
 {
-    unsigned char *cell;
-    CommsItem *item;
-    unsigned int *first_row;
-    CommsMessage *message;
-    char *text;
+    const CarcerMovableEntry *cell;
+    unsigned long long item_at;
+    unsigned long long first_row_at;
+    unsigned long long message_at;
+    unsigned long long text_at;
     unsigned int items;
     unsigned int messages;
     unsigned long long summary;
     unsigned long long summary_length;
+    char summary_text[CLI_ERR_MSG_MAX_LEN];
     unsigned char open[CLI_COMMS_CHANNELS];
     unsigned int current;
     int current_row;
@@ -80,15 +82,17 @@ typedef struct
     unsigned int *messages_out;
     unsigned long long count;
     const char *word;
-    const char (*grants)[CLI_NAME_MAX_LEN];
+    const CliCommsPart *part;
+    unsigned int grants_from;
     unsigned int grants_count;
     const char *channel;
     unsigned int at;
     unsigned int key;
+    char *name_out;
 } CommsViewCtx;
 
 // a counting line's bytes taken and let go, its flushed count the bytes of every text written to it
-static int comms_counted(void *context, const char *bytes, size_t size)
+static int comms_counted(void *context, const char *bytes, embed_word size)
 {
     (void)context;
     (void)bytes;
@@ -114,7 +118,8 @@ EMBED_INLINE void comms_plural(const CommsViewCtx *args)
     }
 }
 
-// the grants written joined by a comma, the word nothing where there are none
+// `part`'s grants from `grants_from`, `grants_count` of them, written joined by a comma, the word nothing where there
+// are none
 EMBED_INLINE void comms_grants_put(const CommsViewCtx *args)
 {
     if (args->grants_count == 0u)
@@ -124,8 +129,18 @@ EMBED_INLINE void comms_grants_put(const CommsViewCtx *args)
     }
     for (unsigned int at = 0u; at < args->grants_count; at += 1u)
     {
+        char grant[CLI_NAME_MAX_LEN];
+        grant[0] = '\0';
+        if ((args->part->grants != NULL) && ((args->grants_from + at) < args->part->listens + args->part->send_grants))
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = args->part->grants,
+                                    .offset = (unsigned long long)(args->grants_from + at) * CLI_NAME_MAX_LEN,
+                                    .dst = grant,
+                                    .bytes = CLI_NAME_MAX_LEN});
+        }
         mmgr_line_put(args->line, (at != 0u) ? ", " : "");
-        mmgr_line_put(args->line, args->grants[at]);
+        mmgr_line_put(args->line, grant);
     }
 }
 
@@ -135,26 +150,42 @@ EMBED_INLINE void comms_listeners_put(const CommsViewCtx *args)
     unsigned int written = 0u;
     for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
     {
-        const CliCommsListener *const listener = &g_cli_comms.listeners[one];
-        if (!listener->reserved || (listener->part >= g_cli_comms.parts_capacity) ||
-            !EMBED_CALL(cli_comms_grant.grants, CliCommsGrantCfg, .grant = listener->pattern, .channel = args->channel))
+        CliCommsListener listener = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                .offset = COMMS_LISTENERS_AT + ((unsigned long long)one * sizeof(listener)),
+                                .dst = &listener,
+                                .bytes = sizeof(listener)});
+        if (!listener.reserved || (listener.part >= g_cli_comms.parts_capacity) ||
+            !EMBED_CALL(cli_comms_grant.grants, CliCommsGrantCfg, .grant = listener.pattern, .channel = args->channel))
         {
             continue;
         }
         int before = 0;
         for (unsigned int earlier = 0u; (earlier < one) && !before; earlier += 1u)
         {
-            const CliCommsListener *const other = &g_cli_comms.listeners[earlier];
+            CliCommsListener other = {0};
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                    .offset = COMMS_LISTENERS_AT + ((unsigned long long)earlier * sizeof(other)),
+                                    .dst = &other,
+                                    .bytes = sizeof(other)});
             before =
-                other->reserved && (other->part == listener->part) &&
-                EMBED_CALL(cli_comms_grant.grants, CliCommsGrantCfg, .grant = other->pattern, .channel = args->channel);
+                other.reserved && (other.part == listener.part) &&
+                EMBED_CALL(cli_comms_grant.grants, CliCommsGrantCfg, .grant = other.pattern, .channel = args->channel);
         }
         if (before)
         {
             continue;
         }
+        CliCommsPart part = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                .offset = COMMS_PARTS_AT + ((unsigned long long)listener.part * sizeof(part)),
+                                .dst = &part,
+                                .bytes = sizeof(part)});
         mmgr_line_put(args->line, (written != 0u) ? ", " : "");
-        mmgr_line_put(args->line, g_cli_comms.parts[listener->part].name);
+        mmgr_line_put(args->line, part.name);
         written += 1u;
     }
     if (written == 0u)
@@ -163,11 +194,30 @@ EMBED_INLINE void comms_listeners_put(const CommsViewCtx *args)
     }
 }
 
-// the name of the table place `at`: a part's where `key` is 1, else a channel's. Each name stands in an array of
-// CLI_NAME_MAX_LEN bytes cleared as it was registered, so two compare whole
-EMBED_INLINE const char *comms_name_of(const CommsViewCtx *args)
+// the name of the table place `at` read into `name_out`: a part's where `key` is 1, else a channel's. Each name stands
+// in an array of CLI_NAME_MAX_LEN bytes cleared as it was registered, so two compare whole
+EMBED_INLINE void comms_name_of(const CommsViewCtx *args)
 {
-    return (args->key != 0u) ? g_cli_comms.parts[args->at].name : g_cli_comms.traffic[args->at].name;
+    if (args->key != 0u)
+    {
+        CliCommsPart part = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                .offset = COMMS_PARTS_AT + ((unsigned long long)args->at * sizeof(part)),
+                                .dst = &part,
+                                .bytes = sizeof(part)});
+        memor.cpy(&(MemoriaCfg){.dst = args->name_out, .src = part.name, .bytes = CLI_NAME_MAX_LEN});
+    }
+    else
+    {
+        CliCommsTraffic traffic = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                .offset = COMMS_TRAFFIC_AT + ((unsigned long long)args->at * sizeof(traffic)),
+                                .dst = &traffic,
+                                .bytes = sizeof(traffic)});
+        memor.cpy(&(MemoriaCfg){.dst = args->name_out, .src = traffic.name, .bytes = CLI_NAME_MAX_LEN});
+    }
 }
 
 // the places from `at` to before `count` of the order put in order of their names, parts where `key` is 1, as each
@@ -179,12 +229,14 @@ EMBED_INLINE void comms_order_sorted(const CommsViewCtx *args)
     for (unsigned int next = args->at + 1u; next < end; next += 1u)
     {
         const unsigned int moving = args->order[next];
-        const char *const name = EMBED_CALL(comms_name_of, CommsViewCtx, .at = moving, .key = args->key);
+        char name[CLI_NAME_MAX_LEN];
+        EMBED_CALL(comms_name_of, CommsViewCtx, .at = moving, .key = args->key, .name_out = name);
         unsigned int place = next;
         while (place > args->at)
         {
-            const char *const before =
-                EMBED_CALL(comms_name_of, CommsViewCtx, .at = args->order[place - 1u], .key = args->key);
+            char before[CLI_NAME_MAX_LEN];
+            EMBED_CALL(comms_name_of, CommsViewCtx, .at = args->order[place - 1u], .key = args->key,
+                       .name_out = before);
             if (memor.cmp(&(MemoriaCfg){.src = before, .other = name, .bytes = CLI_NAME_MAX_LEN}) <= 0)
             {
                 break;
@@ -227,66 +279,82 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
         }
         else if (laid.type == CLI_COMMS_ROW_PART)
         {
-            const CliCommsPart *const part = &g_cli_comms.parts[laid.index];
-            mmgr_line_put(line, part->name);
+            CliCommsPart part = {0};
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                    .offset = COMMS_PARTS_AT + ((unsigned long long)laid.index * sizeof(part)),
+                                    .dst = &part,
+                                    .bytes = sizeof(part)});
+            mmgr_line_put(line, part.name);
             laid.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.name;
             laid.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-            mmgr_line_decimal(line, part->sent_count, 1u);
+            mmgr_line_decimal(line, part.sent_count, 1u);
             mmgr_line_put(line, " sent");
-            if (part->refused != 0ULL)
+            if (part.refused != 0ULL)
             {
                 mmgr_line_put(line, ", ");
-                mmgr_line_decimal(line, part->refused, 1u);
+                mmgr_line_decimal(line, part.refused, 1u);
                 mmgr_line_put(line, " refused");
             }
             laid.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.status;
             laid.detail = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-            if (part->has_process)
+            if (part.has_process)
             {
                 mmgr_line_put(line, "process ");
-                mmgr_line_decimal(line, part->process, 1u);
+                mmgr_line_decimal(line, part.process, 1u);
             }
             else
             {
                 mmgr_line_put(line, "in orior");
             }
             mmgr_line_put(line, "; listens on ");
-            EMBED_CALL(comms_grants_put, CommsViewCtx, .line = line,
-                       .grants = (const char (*)[CLI_NAME_MAX_LEN])part->listen, .grants_count = part->listens);
+            EMBED_CALL(comms_grants_put, CommsViewCtx, .line = line, .part = &part, .grants_from = 0u,
+                       .grants_count = part.listens);
             mmgr_line_put(line, "; speaks on ");
-            EMBED_CALL(comms_grants_put, CommsViewCtx, .line = line,
-                       .grants = (const char (*)[CLI_NAME_MAX_LEN])part->send_grant, .grants_count = part->send_grants);
+            EMBED_CALL(comms_grants_put, CommsViewCtx, .line = line, .part = &part, .grants_from = part.listens,
+                       .grants_count = part.send_grants);
             laid.detail_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.detail;
-            laid.refused = part->refused != 0ULL;
+            laid.refused = part.refused != 0ULL;
         }
         else
         {
-            const CliCommsTraffic *const traffic = &g_cli_comms.traffic[laid.index];
-            mmgr_line_put(line, traffic->name);
+            CliCommsTraffic traffic = {0};
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                    .offset = COMMS_TRAFFIC_AT + ((unsigned long long)laid.index * sizeof(traffic)),
+                                    .dst = &traffic,
+                                    .bytes = sizeof(traffic)});
+            mmgr_line_put(line, traffic.name);
             laid.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.name;
             laid.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-            EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic->messages, .word = "message");
-            if (traffic->refused != 0ULL)
+            EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic.messages, .word = "message");
+            if (traffic.refused != 0ULL)
             {
                 mmgr_line_put(line, ", ");
-                mmgr_line_decimal(line, traffic->refused, 1u);
+                mmgr_line_decimal(line, traffic.refused, 1u);
                 mmgr_line_put(line, " refused");
             }
             laid.status_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.status;
             laid.detail = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-            EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic->bytes, .word = "byte");
-            if (traffic->transferred != 0ULL)
+            EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic.bytes, .word = "byte");
+            if (traffic.transferred != 0ULL)
             {
                 mmgr_line_put(line, ", ");
-                EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic->transferred, .word = "byte");
+                EMBED_CALL(comms_plural, CommsViewCtx, .line = line, .count = traffic.transferred, .word = "byte");
                 mmgr_line_put(line, " of them through the transfer layer");
             }
             mmgr_line_put(line, "; heard by ");
-            EMBED_CALL(comms_listeners_put, CommsViewCtx, .line = line, .channel = traffic->name);
+            EMBED_CALL(comms_listeners_put, CommsViewCtx, .line = line, .channel = traffic.name);
             laid.detail_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - laid.detail;
-            laid.refused = traffic->refused != 0ULL;
-            // the messages stored under a channel opened, the oldest first, no more than the cell was sized for
-            const unsigned int stored = s_pane.open[laid.index] ? traffic->count : 0u;
+            laid.refused = traffic.refused != 0ULL;
+            // the messages stored under a channel opened, the oldest first, no more than the cell was sized for, each
+            // read out of its cell into a temporary cell
+            CliCommsStored *const ring = &g_cli_comms.stored[laid.index];
+            size_t front = 0u;
+            (void)anularis.seg_front(&(AnularisCfg){.ring = &ring->ring, .out_index = &front});
+            // the messages stored are at most CLI_COMMS_STORED_MAX, inside an unsigned int
+            const unsigned int stored =
+                s_pane.open[laid.index] ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &ring->ring}) : 0u;
             for (unsigned int one = 0u; one < stored; one += 1u)
             {
                 if ((args->item != NULL) && (messages >= args->messages_most))
@@ -294,16 +362,29 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
                     break;
                 }
                 const CliCommsStoredMsg *const stored_msg =
-                    &traffic->last[(traffic->first + one) % CLI_COMMS_STORED_MAX];
+                    &ring->last[MMGR_RING_WRAP(front + one, CLI_COMMS_STORED_RING)];
+                const unsigned long long bytes = stored_msg->from_size + stored_msg->size;
+                char *const text = (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_comms_owner) : NULL;
+                unsigned long long read = 0ULL;
+                if ((text != NULL) && (stored_msg->cell != NULL))
+                {
+                    (void)g_cli_guard->movable_buf_read(
+                        &(CarcerMovableCfg){.cell = stored_msg->cell, .offset = 0ULL, .dst = text, .bytes = bytes});
+                    read = bytes;
+                }
                 CommsMessage written = {0};
                 written.from = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-                mmgr_line_put(line, (stored_msg->from != NULL) ? stored_msg->from : "");
+                if (read >= stored_msg->from_size)
+                {
+                    mmgr_line_put_n(line, text, stored_msg->from_size - 1ULL);
+                }
                 written.from_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - written.from;
                 written.body = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
-                if (stored_msg->body != NULL)
+                if (read == bytes)
                 {
-                    (void)mmgr_line_put_n(line, stored_msg->body, stored_msg->size);
+                    (void)mmgr_line_put_n(line, text + stored_msg->from_size, stored_msg->size);
                 }
+                g_cli_guard->persistent_buf_release(text, g_cli_comms_owner);
                 written.body_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - written.body;
                 if (args->message != NULL)
                 {
@@ -333,11 +414,18 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     (void)args;
     const unsigned int stamp = EMBED_ATOMIC_LOAD(&g_cli_comms.stamp);
     unsigned int parts = 0u;
-    for (unsigned int at = 0u; (g_cli_comms.parts != NULL) && (at < g_cli_comms.parts_capacity); at += 1u)
+    for (unsigned int at = 0u; (g_cli_comms.tables != NULL) && (at < g_cli_comms.parts_capacity); at += 1u)
     {
-        parts += g_cli_comms.parts[at].reserved ? 1u : 0u;
+        CliCommsPart part_1 = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part_1)),
+                                .dst = &part_1,
+                                .bytes = sizeof(part_1)});
+
+        parts += part_1.reserved ? 1u : 0u;
     }
-    const unsigned int channels = (g_cli_comms.traffic != NULL) ? g_cli_comms.channels : 0u;
+    const unsigned int channels = (g_cli_comms.tables != NULL) ? g_cli_comms.channels : 0u;
     // the parts' places then the channels', each put in order of their names, for this listing alone
     unsigned int *const order =
         g_cli_guard->temporary_buf_alloc((parts + channels + 1ULL) * sizeof(unsigned int), g_cli_comms_owner);
@@ -346,10 +434,17 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
         return;
     }
     unsigned int put = 0u;
-    for (unsigned int at = 0u; (g_cli_comms.parts != NULL) && (at < g_cli_comms.parts_capacity) && (put < parts);
+    for (unsigned int at = 0u; (g_cli_comms.tables != NULL) && (at < g_cli_comms.parts_capacity) && (put < parts);
          at += 1u)
     {
-        if (g_cli_comms.parts[at].reserved)
+        CliCommsPart part_2 = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part_2)),
+                                .dst = &part_2,
+                                .bytes = sizeof(part_2)});
+
+        if (part_2.reserved)
         {
             order[put] = at;
             put += 1u;
@@ -373,10 +468,14 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     const unsigned long long item_bytes = (unsigned long long)items * sizeof(CommsItem);
     const unsigned long long row_bytes = (((items + 1ULL) * sizeof(unsigned int)) + 7ULL) & ~7ULL;
     const unsigned long long message_bytes = (unsigned long long)messages * sizeof(CommsMessage);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
-        item_bytes + row_bytes + message_bytes + text_bytes + 1ULL, g_cli_comms_owner);
-    if (cell == NULL)
+    // the whole laid in a cell of this call, then written once into a movable cell of its size
+    const unsigned long long bytes = item_bytes + row_bytes + message_bytes + text_bytes + 1ULL;
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_comms_owner);
+    const CarcerMovableEntry *const stored =
+        (cell != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_comms_owner) : NULL;
+    if (stored == NULL)
     {
+        g_cli_guard->persistent_buf_release(cell, g_cli_comms_owner);
         g_cli_guard->persistent_buf_release(order, g_cli_comms_owner);
         return;
     }
@@ -400,16 +499,80 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
                                  ? (int)first_row[at]
                                  : s_pane.current_row;
     }
-    g_cli_guard->persistent_buf_release(s_pane.cell, g_cli_comms_owner);
-    s_pane.cell = cell;
-    s_pane.item = item;
-    s_pane.first_row = first_row;
-    s_pane.message = message;
-    s_pane.text = text;
+    // the summary, cut to the pane's bytes, read off the laid text
+    const unsigned long long summary_length = (s_pane.summary_length < sizeof(s_pane.summary_text))
+                                                  ? s_pane.summary_length
+                                                  : (sizeof(s_pane.summary_text) - 1ULL);
+    if (summary_length != 0ULL)
+    {
+        memor.cpy(&(MemoriaCfg){
+            .dst = s_pane.summary_text, .src = text + s_pane.summary, .bytes = (embed_word)summary_length});
+    }
+    s_pane.summary_text[summary_length] = '\0';
+    s_pane.summary_length = summary_length;
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .src = cell, .bytes = bytes});
+    g_cli_guard->persistent_buf_release(cell, g_cli_comms_owner);
+    if (s_pane.cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_pane.cell, g_cli_comms_owner);
+    }
+    s_pane.cell = stored;
+    s_pane.item_at = 0ULL;
+    s_pane.first_row_at = item_bytes;
+    s_pane.message_at = item_bytes + row_bytes;
+    s_pane.text_at = item_bytes + row_bytes + message_bytes;
     s_pane.items = items;
     s_pane.messages = laid_messages;
     s_pane.stamp = stamp;
     s_pane.listed = 1;
+}
+
+// the first row of the item `at`, read out of the cell
+EMBED_INLINE unsigned int comms_first_row(const CommsViewCtx *args)
+{
+    unsigned int row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.first_row_at + ((unsigned long long)args->at * sizeof(row)),
+                            .dst = &row,
+                            .bytes = sizeof(row)});
+    return row;
+}
+
+// the item `at` read out of the cell into `item`
+EMBED_INLINE void comms_item_read(const CommsViewCtx *args)
+{
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.item_at + ((unsigned long long)args->at * sizeof(CommsItem)),
+                            .dst = args->item,
+                            .bytes = sizeof(CommsItem)});
+}
+
+// the message `at` read out of the cell into `message`
+EMBED_INLINE void comms_message_read(const CommsViewCtx *args)
+{
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.message_at + ((unsigned long long)args->at * sizeof(CommsMessage)),
+                            .dst = args->message,
+                            .bytes = sizeof(CommsMessage)});
+}
+
+// `count` bytes of the text at `key` copied into `name_out`, a buffer of CLI_COMMS_ROW_TEXT bytes, with an end, cut to
+// the buffer: the bytes copied
+EMBED_INLINE unsigned long long comms_text_read(const CommsViewCtx *args)
+{
+    const unsigned long long copied =
+        (args->count < CLI_COMMS_ROW_TEXT) ? args->count : (unsigned long long)(CLI_COMMS_ROW_TEXT - 1u);
+    if (copied != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_pane.cell, .offset = s_pane.text_at + args->key, .dst = args->name_out, .bytes = copied});
+    }
+    args->name_out[copied] = '\0';
+    return copied;
 }
 
 // the item a row stands under: the last whose first row is at most `at`, among `key` items
@@ -420,7 +583,7 @@ EMBED_INLINE unsigned int comms_item_under(const CommsViewCtx *args)
     while ((high - low) > 1u)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (s_pane.first_row[middle] <= args->at)
+        if (EMBED_CALL(comms_first_row, CommsViewCtx, .at = middle) <= args->at)
         {
             low = middle;
         }
@@ -464,58 +627,63 @@ unsigned long long cli_comms_pane_deadline_ms(const CliCommsPaneCfg *args)
 unsigned int cli_comms_pane_rows(const CliCommsPaneCfg *args)
 {
     (void)args;
-    return (s_pane.cell != NULL) ? s_pane.first_row[s_pane.items] : 0u;
+    return (s_pane.cell != NULL) ? EMBED_CALL(comms_first_row, CommsViewCtx, .at = s_pane.items) : 0u;
 }
 
 int cli_comms_pane_row(const CliCommsPaneCfg *args)
 {
-    if ((s_pane.cell == NULL) || (args->at >= s_pane.first_row[s_pane.items]))
+    if ((s_pane.cell == NULL) || (args->at >= EMBED_CALL(comms_first_row, CommsViewCtx, .at = s_pane.items)))
     {
         return 0;
     }
     const unsigned int place = EMBED_CALL(comms_item_under, CommsViewCtx, .at = args->at, .key = s_pane.items);
-    const CommsItem *const item = &s_pane.item[place];
-    const unsigned int inner = args->at - s_pane.first_row[place];
+    CommsItem item;
+    EMBED_CALL(comms_item_read, CommsViewCtx, .at = place, .item = &item);
+    const unsigned int inner = args->at - EMBED_CALL(comms_first_row, CommsViewCtx, .at = place);
     CliCommsRow *const row = args->row;
     *row = (CliCommsRow){0};
+    row->name = row->name_copied;
+    row->status = row->status_copied;
+    row->detail = row->detail_copied;
     if (inner != 0u)
     {
-        const CommsMessage *const message = &s_pane.message[item->message_first + inner - 1u];
+        CommsMessage message;
+        EMBED_CALL(comms_message_read, CommsViewCtx, .at = item.message_first + inner - 1u, .message = &message);
         row->type = CLI_COMMS_ROW_MESSAGE;
-        row->name = s_pane.text + message->from;
-        row->name_length = message->from_length;
-        row->status = s_pane.text + message->body;
-        row->status_length = message->body_length;
-        row->detail = row->status + row->status_length;
+        row->name_length = EMBED_CALL(comms_text_read, CommsViewCtx, .key = message.from, .count = message.from_length,
+                                      .name_out = row->name_copied);
+        row->status_length = EMBED_CALL(comms_text_read, CommsViewCtx, .key = message.body,
+                                        .count = message.body_length, .name_out = row->status_copied);
         return 1;
     }
-    row->type = item->type;
-    row->name = s_pane.text + item->name;
-    row->name_length = item->name_length;
-    row->status = s_pane.text + item->status;
-    row->status_length = item->status_length;
-    row->detail = s_pane.text + item->detail;
-    row->detail_length = item->detail_length;
-    row->refused = item->refused;
-    row->open = (item->type == CLI_COMMS_ROW_CHANNEL) && s_pane.open[item->index];
-    row->current = (item->type == CLI_COMMS_ROW_CHANNEL) && (item->index == s_pane.current);
+    row->type = item.type;
+    row->name_length = EMBED_CALL(comms_text_read, CommsViewCtx, .key = item.name, .count = item.name_length,
+                                  .name_out = row->name_copied);
+    row->status_length = EMBED_CALL(comms_text_read, CommsViewCtx, .key = item.status, .count = item.status_length,
+                                    .name_out = row->status_copied);
+    row->detail_length = EMBED_CALL(comms_text_read, CommsViewCtx, .key = item.detail, .count = item.detail_length,
+                                    .name_out = row->detail_copied);
+    row->refused = item.refused;
+    row->open = (item.type == CLI_COMMS_ROW_CHANNEL) && s_pane.open[item.index];
+    row->current = (item.type == CLI_COMMS_ROW_CHANNEL) && (item.index == s_pane.current);
     return 1;
 }
 
 void cli_comms_pane_toggle(const CliCommsPaneCfg *args)
 {
-    if ((s_pane.cell == NULL) || (args->at >= s_pane.first_row[s_pane.items]))
+    if ((s_pane.cell == NULL) || (args->at >= EMBED_CALL(comms_first_row, CommsViewCtx, .at = s_pane.items)))
     {
         return;
     }
     const unsigned int place = EMBED_CALL(comms_item_under, CommsViewCtx, .at = args->at, .key = s_pane.items);
-    const CommsItem *const item = &s_pane.item[place];
-    if ((item->type != CLI_COMMS_ROW_CHANNEL) || (args->at != s_pane.first_row[place]))
+    CommsItem item;
+    EMBED_CALL(comms_item_read, CommsViewCtx, .at = place, .item = &item);
+    if ((item.type != CLI_COMMS_ROW_CHANNEL) || (args->at != EMBED_CALL(comms_first_row, CommsViewCtx, .at = place)))
     {
         return;
     }
-    s_pane.open[item->index] ^= 1u;
-    s_pane.current = item->index;
+    s_pane.open[item.index] ^= 1u;
+    s_pane.current = item.index;
     EMBED_CALL(comms_listed, CommsViewCtx, .at = 0u);
 }
 
@@ -539,10 +707,19 @@ void cli_comms_pane_choose(const CliCommsPaneCfg *args)
     }
 }
 
+void cli_comms_pane_end(void)
+{
+    if (s_pane.cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_pane.cell, g_cli_comms_owner);
+    }
+    s_pane = (CommsPane){.current = COMMS_NONE, .current_row = -1};
+}
+
 const char *cli_comms_pane_summary(const CliCommsPaneCfg *args)
 {
     *args->length_out = (s_pane.cell != NULL) ? s_pane.summary_length : 0ULL;
-    return (s_pane.cell != NULL) ? s_pane.text + s_pane.summary : "";
+    return (s_pane.cell != NULL) ? s_pane.summary_text : "";
 }
 
 const char *cli_comms_pane_label(const CliCommsPaneCfg *args)

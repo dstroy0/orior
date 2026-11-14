@@ -6,7 +6,6 @@
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 // the most attributes a tag of the report contains, and the most bytes their values and a failure's text take
 #define CLI_REPORT_ATTRIBUTES 32u
@@ -112,7 +111,7 @@ static void report_attributes(const TestReportsCtx *args)
     if (args->tag->capacity < capacity)
     {
         g_cli_guard->persistent_buf_release(args->tag->values, g_cli_test_report_owner);
-        args->tag->values = g_cli_guard->persistent_buf_alloc(capacity, g_cli_test_report_owner);
+        args->tag->values = g_cli_guard->temporary_buf_alloc(capacity, g_cli_test_report_owner);
         args->tag->capacity = (args->tag->values != NULL) ? capacity : 0ULL;
     }
     if (args->tag->values == NULL)
@@ -333,8 +332,8 @@ EMBED_INLINE void report_case_named(const TestReportsCtx *args)
     char module[CLI_PATH_MAX_LEN];
     VerbaLinea requested_line = {required, CLI_PATH_MAX_LEN, 0ULL};
     VerbaLinea module_line = {module, sizeof(module), 0ULL};
-    size_t file_size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES});
-    for (size_t at = 0u; at < file_size; at += 1u)
+    embed_word file_size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES});
+    for (embed_word at = 0u; at < file_size; at += 1u)
     {
         mmgr_line_ch(&requested_line, (file[at] == '\\') ? '/' : file[at]);
     }
@@ -344,7 +343,7 @@ EMBED_INLINE void report_case_named(const TestReportsCtx *args)
     {
         file_size -= 3u;
     }
-    for (size_t at = 0u; at < file_size; at += 1u)
+    for (embed_word at = 0u; at < file_size; at += 1u)
     {
         mmgr_line_ch(&module_line, ((file[at] == '/') || (file[at] == '\\')) ? '.' : file[at]);
     }
@@ -438,8 +437,8 @@ EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
                .classname = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "classname"),
                .required_out = required, .id_out = id);
     const char *const time = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "time");
-    char *ended = NULL;
-    const double seconds = (time != NULL) ? strtod(time, &ended) : 0.0;
+    const char *ended = NULL;
+    const double seconds = (time != NULL) ? cellul.to_double(&(TransfiguroCfg){.src = time, .end = &ended}) : 0.0;
     long long own_line = -1LL;
     const char *const line_text = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "line");
     if ((line_text == NULL) ||

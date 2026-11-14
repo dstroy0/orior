@@ -179,7 +179,13 @@ void cli_vim_parse(const CliVimCtx *args)
     }
     const unsigned int name = tokens.token[tokens.at];
     tokens.at += 1u;
-    const unsigned int mode = g_cli_vim_state.view[args->at].mode;
+    CliVimView view;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view,
+                            .bytes = sizeof(CliVimView)});
+    const unsigned int mode = view.mode;
     const int visual = (mode == CLI_VIM_VISUAL) || (mode == CLI_VIM_LINE);
     if (visual && (EMBED_CALL(parse_operator, VimParseCtx, .letter = name) ||
                    EMBED_CALL(parse_among, VimParseCtx, .letter = name, .among = s_chosen,

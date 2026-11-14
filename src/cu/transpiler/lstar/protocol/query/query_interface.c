@@ -3,7 +3,7 @@
 // query_interface.c: a walk of queries put from inside the interface, every ending recorded as the answer of the
 // address that caused it
 #include "query_interface.h"
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 #include <string.h>

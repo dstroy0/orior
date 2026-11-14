@@ -193,7 +193,7 @@ int cli_resource_add(const CliPathErrMsgCtx *args)
     }
     // the blob's size is below 4 GB, as checked above, which a DWORD counts; the RCDATA type's number stands for a
     // name, as Windows takes it
-    if (!UpdateResourceW(update, MAKEINTRESOURCEW(10u), named, 0u, (LPVOID)(uintptr_t)args->data, (DWORD)args->size))
+    if (!UpdateResourceW(update, MAKEINTRESOURCEW(10u), named, 0u, (LPVOID)(embed_word)args->data, (DWORD)args->size))
     {
         const DWORD error = GetLastError();
         EndUpdateResourceW(update, TRUE);
@@ -243,14 +243,14 @@ int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
                     CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
     // a handle is a pointer's width, which an unsigned long long stores
     args->file_temporary_file_pointer->handle =
-        (made != INVALID_HANDLE_VALUE) ? (unsigned long long)(uintptr_t)made : 0ull;
+        (made != INVALID_HANDLE_VALUE) ? (unsigned long long)(embed_word)made : 0ull;
     return made != INVALID_HANDLE_VALUE;
 }
 
 int cli_temporary_file_write(const CliBytesCtx *args)
 {
     const void *bytes = args->bytes;
-    const HANDLE handle = (HANDLE)(uintptr_t)args->file_temporary_file_pointer_other->handle;
+    const HANDLE handle = (HANDLE)(embed_word)args->file_temporary_file_pointer_other->handle;
     const unsigned char *const from = (const unsigned char *)bytes;
     unsigned long long done = 0ull;
     int written = 1;
@@ -274,7 +274,7 @@ int cli_temporary_file_read(const CliSizeCtx *args)
 {
     unsigned long long got = 0ull;
     EMBED_CALL(file_read_from, WindowsFilesCtx,
-               .file = (HANDLE)(uintptr_t)args->file_temporary_file_pointer_other->handle, .from = args->at,
+               .file = (HANDLE)(embed_word)args->file_temporary_file_pointer_other->handle, .from = args->at,
                .bytes = (unsigned char *)args->bytes_out, .count = args->size, .got = &got);
     return got == args->size;
 }
@@ -283,7 +283,7 @@ void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args)
 {
     if (args->file_temporary_file_pointer->handle != 0ull)
     {
-        CloseHandle((HANDLE)(uintptr_t)args->file_temporary_file_pointer->handle);
+        CloseHandle((HANDLE)(embed_word)args->file_temporary_file_pointer->handle);
     }
     args->file_temporary_file_pointer->handle = 0ull;
 }

@@ -8,10 +8,9 @@
 #include "jupyter_internal.h"
 
 // the mark between a message's routing frames and its own, and the frames of its own: the signature, the header, the
-// parent's header, the metadata and the content; and the bytes the shell's queue is written in
+// parent's header, the metadata and the content
 #define CLI_KERNEL_MARK "<IDS|MSG>"
 #define CLI_KERNEL_PARTS 5u
-#define CLI_KERNEL_QUEUE_CAPACITY (16ULL << 20u)
 
 static unsigned long long s_next = 1ULL;
 
@@ -156,19 +155,14 @@ static void jupyter_sign(const JupyterWireCtx *args)
 // 0 where the cells cannot meet it
 EMBED_INLINE int jupyter_shell_queue(const JupyterWireCtx *args)
 {
-    if (args->kernel->shell_queue.out == NULL)
-    {
-        char *const queue_cell = g_cli_guard->persistent_buf_alloc(CLI_KERNEL_QUEUE_CAPACITY, g_cli_notebook_owner);
-        args->kernel->shell_queue = mmgr_line_over(queue_cell, CLI_KERNEL_QUEUE_CAPACITY);
-    }
     char named[CLI_KERNEL_ID];
     memor.set(&(MemoriaCfg){.dst = named, .val = 0, .bytes = sizeof(named)});
     VerbaLinea name = {named, sizeof(named), 0ULL};
     mmgr_line_put(&name, args->id);
     mmgr_line_put_n(&args->kernel->shell_queue, named, sizeof(named));
     mmgr_line_put_n(&args->kernel->shell_queue, (const char *)&args->size, sizeof(args->size));
-    // a message is below the cells' pool, which a size_t counts
-    mmgr_line_put_n(&args->kernel->shell_queue, (const char *)args->message, (size_t)args->size);
+    // a message is below the cells' pool, which a embed_word counts
+    mmgr_line_put_n(&args->kernel->shell_queue, (const char *)args->message, (embed_word)args->size);
     return mmgr_line_ok(&args->kernel->shell_queue);
 }
 

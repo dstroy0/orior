@@ -47,7 +47,7 @@ unsigned int cli_plugin_catalog_tree(const CliPluginCatalogCtx *args)
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_catalog->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_catalog->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                       .json = &g_cli_catalog->json, .text = args->text, .size = args->size_value, .nodes_more = 0u,
                       .text_more = 0ull, .err_msg = args->err_msg, .owner = g_cli_plugins_owner);
 }

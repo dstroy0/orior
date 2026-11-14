@@ -15,7 +15,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <stddef.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -77,7 +76,7 @@ typedef struct
     CliDbusMessage *message_dbus_message_pointer;
     const CliDbusMessage *message_dbus_message_pointer_other;
     char *text_out;
-    size_t capacity_bytes;
+    embed_word capacity_bytes;
     const char *uri;
     char *path;
 #endif
@@ -134,7 +133,7 @@ EMBED_INLINE int dbus_send(const PosixPickerCtx *args)
     const unsigned char *at = (const unsigned char *)args->bytes_bytess;
     while (size > 0ULL)
     {
-        const ssize_t wrote = write(args->socket, at, (size_t)size);
+        const ssize_t wrote = write(args->socket, at, (embed_word)size);
         if ((wrote < 0) && (errno == EINTR))
         {
             continue;
@@ -157,7 +156,7 @@ EMBED_INLINE int dbus_receive(const PosixPickerCtx *args)
     unsigned char *at = (unsigned char *)args->bytes_bytess_other;
     while (size > 0ULL)
     {
-        const ssize_t got = read(args->socket, at, (size_t)size);
+        const ssize_t got = read(args->socket, at, (embed_word)size);
         if ((got < 0) && (errno == EINTR))
         {
             continue;
@@ -220,7 +219,7 @@ EMBED_INLINE void dbus_u32_at(const PosixPickerCtx *args)
 // a string or an object path put: its length, its bytes, and a 0
 EMBED_INLINE void dbus_string(const PosixPickerCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_DBUS_MESSAGE_MAX});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_DBUS_MESSAGE_MAX});
     // a string a message holds is below its capacity, which 32 bits count
     EMBED_CALL(dbus_u32, PosixPickerCtx, .message = args->message, .value = (unsigned int)length);
     EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = args->text, .size = length + 1u);
@@ -229,7 +228,7 @@ EMBED_INLINE void dbus_string(const PosixPickerCtx *args)
 // a signature put: its length in one byte, its letters, and a 0
 EMBED_INLINE void dbus_signature(const PosixPickerCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->signature, .cap = 255u});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->signature, .cap = 255u});
     // a signature's length is below 256
     const unsigned char counted = (unsigned char)length;
     EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = &counted, .size = 1ULL);
@@ -476,7 +475,7 @@ static int dbus_message_read(const PosixPickerCtx *args)
         if (((code == CLI_DBUS_PATH) || (code == CLI_DBUS_MEMBER)) && ((type[0] == 'o') || (type[0] == 's')))
         {
             char *const into = (code == CLI_DBUS_PATH) ? message->path : message->member;
-            const size_t into_capacity = (code == CLI_DBUS_PATH) ? sizeof(message->path) : sizeof(message->member);
+            const embed_word into_capacity = (code == CLI_DBUS_PATH) ? sizeof(message->path) : sizeof(message->member);
             VerbaLinea copied = {into, into_capacity, 0ULL};
             mmgr_line_put_n(&copied, (const char *)args->bytes + string_at + 4ULL,
                             EMBED_CALL(dbus_u32_get, PosixPickerCtx, .bytes_read = args->bytes, .at = string_at));
@@ -566,11 +565,11 @@ static int dbus_connect(void)
         abstract = (at_path == NULL) && (at_abstract != NULL);
         if (from != NULL)
         {
-            mmgr_line_put_n(
-                &named, from,
-                (size_t)EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
-                                   .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}),
-                                   .set = ",;"));
+            mmgr_line_put_n(&named, from,
+                            (embed_word)EMBED_CALL(
+                                cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
+                                .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES}),
+                                .set = ",;"));
         }
     }
     if (named.at == 0ULL)

@@ -5,12 +5,11 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/digest.h"
+#include "../text/sort.h"
 #include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
-
-#include <stdlib.h>
 
 // the files a place has and their hashes, by path, sorted, and those last sent there and theirs, each list in the
 // place's pool at its count; the pool, which contains the texts the walk of a folder here finds and each pair as it is
@@ -22,7 +21,7 @@ CliDeployPair *g_cli_deploy_last;
 unsigned int g_cli_deploy_last_count;
 static CliDeployPool s_pool;
 static CliDeployPairNode *s_pairs;
-static char *s_listing;
+static CliGrownLine s_listing;
 static CliJson s_record;
 static const char *s_walk_top;
 static int s_walk_full;
@@ -34,15 +33,9 @@ void cli_deploy_there_free(void)
     g_cli_deploy_last = NULL;
     g_cli_deploy_last_count = 0u;
     s_pairs = NULL;
-    while (s_pool.page != NULL)
-    {
-        CliDeployPage *const before = s_pool.page->before;
-        g_cli_guard->persistent_buf_release(s_pool.page, g_cli_deploy_owner);
-        s_pool.page = before;
-    }
+    s_pool.used = 0ULL;
     s_pool.refused = 0;
-    g_cli_guard->persistent_buf_release(s_listing, g_cli_deploy_owner);
-    s_listing = NULL;
+    cli_grown_end(&s_listing);
     g_cli_guard->persistent_buf_release(s_record.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_record.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_record),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -200,7 +193,7 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
                                               .json_read = &s_record, .node = member, .length_pointer = NULL)};
         at += 1u;
     }
-    qsort(last, members, sizeof(last[0]), there_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = last, .count = members, .size = sizeof(last[0]), .order = there_order);
     g_cli_deploy_last = last;
     g_cli_deploy_last_count = members;
 }
@@ -244,7 +237,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
     char digest[65];
     VerbaLinea digest_line = {digest, sizeof(digest), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
     EMBED_CALL(there_pair_append, DeployThereCtx,
                .path = EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &s_pool, .text = path,
                                   .size = path_line.at),
@@ -274,30 +267,29 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}), .out = &command);
         mmgr_line_put(&command, " 2>/dev/null || exit 0; find . -type f -exec sha256sum {} + 2>/dev/null; true");
         mmgr_line_finish(&command);
-        s_listing = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_HASHES, g_cli_deploy_owner);
-        VerbaLinea listing = mmgr_line_over(s_listing, CLI_DEPLOY_HASHES);
+        cli_grown_begin(&s_listing, CLI_DEPLOY_HASHES, g_cli_deploy_owner);
         const int run_result =
             EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
-                       .input = NULL, .size = 0ULL, .out = &listing, .err_msg = args->err_msg);
+                       .input = NULL, .size = 0ULL, .out = &s_listing.line, .err_msg = args->err_msg);
         if (!run_result)
         {
             return 0;
         }
-        s_walk_full = !mmgr_line_ok(&listing);
-        const unsigned long long size = s_walk_full ? 0ULL : listing.at;
+        s_walk_full = !mmgr_line_ok(&s_listing.line);
+        const unsigned long long size = s_walk_full ? 0ULL : cli_grown_size(&s_listing);
         static const char s_split[] = "  ";
         // a line is ended by a 0 from its first write, and a line with none holds nothing to walk
-        for (char *at = (size > 0ULL) ? s_listing : NULL; (at != NULL) && (*at != '\0');)
+        for (char *at = (size > 0ULL) ? s_listing.cell : NULL; (at != NULL) && (*at != '\0');)
         {
-            const char *const newline = memor.chr(
-                &(MemoriaCfg){.src = at, .bytes = (size_t)(size - (unsigned long long)(at - s_listing)), .val = '\n'});
-            char *const end = (newline != NULL) ? (at + (newline - at)) : (s_listing + size);
+            const char *const newline = memor.chr(&(MemoriaCfg){
+                .src = at, .bytes = (embed_word)(size - (unsigned long long)(at - s_listing.cell)), .val = '\n'});
+            char *const end = (newline != NULL) ? (at + (newline - at)) : (s_listing.cell + size);
             const int more = (newline != NULL);
             *end = '\0';
             char *const entry = at;
             at = more ? (end + 1) : end;
             const char *const split_read = cellul.find(&(CatenaFinitaCfg){
-                .src = entry, .cap = (size_t)(end - entry) + 1u, .other = s_split, .other_cap = sizeof(s_split)});
+                .src = entry, .cap = (embed_word)(end - entry) + 1u, .other = s_split, .other_cap = sizeof(s_split)});
             if (split_read == NULL)
             {
                 continue;
@@ -323,7 +315,7 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
     if (s_walk_full || s_pool.refused)
     {
         cli_deploy_there_free();
-        mmgr_line_put(args->err_msg, "it has more files than orior_cli supports");
+        mmgr_line_put(args->err_msg, "it has more files than impero supports");
         return 0;
     }
     for (unsigned int at = g_cli_deploy_there_count; (there != NULL) && (s_pairs != NULL); s_pairs = s_pairs->before)
@@ -334,7 +326,8 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
     // no pairs is no array to order, and qsort takes no null
     if (there != NULL)
     {
-        qsort(there, g_cli_deploy_there_count, sizeof(there[0]), there_order);
+        EMBED_CALL(cli_sort, CliSortCfg, .base = there, .count = g_cli_deploy_there_count, .size = sizeof(there[0]),
+                   .order = there_order);
     }
     g_cli_deploy_there = there;
     return 1;

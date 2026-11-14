@@ -24,10 +24,10 @@ fi
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-KRS_C="$TOP/src/cu/includes/parsers"
+KRS_C="$TOP/includes/parsers"
 OUT="$TOP/build/unprinted"
 mkdir -p "$OUT"
 

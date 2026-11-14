@@ -394,7 +394,7 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
 
 int cli_bridge_words(const CliCommandLineWordCtx *args)
 {
-    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
+    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
     if (s_work_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,

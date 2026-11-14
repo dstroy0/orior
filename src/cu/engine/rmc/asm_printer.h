@@ -15,7 +15,7 @@
 // (asm_printer_host): the two lay out them from one source
 
 #include "codegen_core.h"
-#include "../../includes/file_defs/krs/ruleset_core_words.h"
+#include "../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "target.h"
 
 #include <string>

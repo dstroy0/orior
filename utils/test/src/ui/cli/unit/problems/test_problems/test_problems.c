@@ -31,26 +31,25 @@ void tearDown(void)
 // a report of `count` diagnostics for `path`, each with `message`, its severity 2 then 1 by turns and its line its place,
 // the path and the message laid in the report's cell after its diagnostics, as the servers lay a report: NULL where the
 // cell could not be taken, which the counts then fail on, since a writer's thread cannot fail a test itself
-static CliServerReport *report_laid(const char *path, unsigned int count, const char *message)
+static const CarcerMovableEntry *report_laid(const char *path, unsigned int count, const char *message)
 {
     const size_t path_bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u;
     const size_t message_bytes = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}) + 1u;
-    CliServerReport *const report = g_cli_guard->persistent_buf_alloc(
-        sizeof(*report) + (count * sizeof(CliServerDiagnostic)) + path_bytes + message_bytes, g_cli_servers_owner);
+    const unsigned long long path_at = CLI_SERVER_REPORT_ITEM_AT(count);
+    const unsigned long long message_at = path_at + path_bytes;
+    const CarcerMovableEntry *const report = g_cli_guard->movable_buf_alloc(message_at + message_bytes, g_cli_servers_owner);
     if (report == NULL)
     {
         return NULL;
     }
-    memor.set(&(MemoriaCfg){.dst = &report->json, .val = 0, .bytes = sizeof(report->json)});
-    char *const text = (char *)(void *)(report->item + count);
-    memor.cpy(&(MemoriaCfg){.dst = text, .src = path, .bytes = path_bytes});
-    memor.cpy(&(MemoriaCfg){.dst = text + path_bytes, .src = message, .bytes = message_bytes});
-    report->path = text;
-    report->count = count;
+    const CliServerReportHead head = {count, path_at};
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = report, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = report, .offset = path_at, .src = path, .bytes = path_bytes});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = report, .offset = message_at, .src = message, .bytes = message_bytes});
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        report->item[at] = (CliServerDiagnostic){at, 0ULL, at, 4ULL, ((at % 2u) == 0u) ? 2u : 1u, text + path_bytes,
-                                                 message_bytes - 1u};
+        const CliServerStoredDiagnostic item = {at, 0ULL, at, 4ULL, ((at % 2u) == 0u) ? 2u : 1u, message_at, message_bytes - 1u};
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .src = &item, .bytes = sizeof(item)});
     }
     return report;
 }
@@ -59,14 +58,13 @@ static CliServerReport *report_laid(const char *path, unsigned int count, const 
 static void reported(const char *path, unsigned int count, const char *message)
 {
     const CliServersSink sink = cli_servers_problems_sink("");
-    CliServerReport *const report = report_laid(path, count, message);
+    const CarcerMovableEntry *const report = report_laid(path, count, message);
     if (report == NULL)
     {
         return;
     }
     int taken = 0;
-    sink.diagnostics(&(CliServerDiagnosticsCfg){.path = report->path, .item = report->item, .count = report->count,
-                                                .report = report, .taken = &taken});
+    sink.diagnostics(&(CliServerDiagnosticsCfg){.path = path, .item = NULL, .count = count, .report = report, .taken = &taken});
     if (!taken)
     {
         cli_servers_report_release(report);

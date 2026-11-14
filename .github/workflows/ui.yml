@@ -75,6 +75,9 @@ jobs:
       - name: The command line's checks
         run: python utils/test/harness.py cli test
 
+      - name: The install bundle, installed and removed
+        run: python utils/test/harness.py package --check
+
   window:
     strategy:
       fail-fast: false

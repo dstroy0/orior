@@ -6,6 +6,7 @@
 // servers, sessions and processes ended as the window ends. A batch the watch takes is noted among the tree's runs,
 // walked into the tree's branches and handed to the servers on the watch's own thread, which takes the next batch once
 // they are done. A file git leaves out, as a build's output is, is shown in the tree and not checked
+#include "../text/sort.h"
 #include "command_line.h"
 
 #include "../code/git.h"
@@ -22,13 +23,12 @@
 #include "../toolchains/toolchains.h"
 #include "pool.h"
 
-#include <stdlib.h>
-
-// The window's command line: what the words came to, and the tree open, in a cell of its own, NULL for none
+// The window's command line: what the words came to, whether a tree is open, and its path
 typedef struct
 {
     CliOutcome outcome;
-    char *root;
+    int rooted;
+    char root[CLI_PATH_MAX_LEN];
 } CliCommandLineWindow;
 
 static CliCommandLineWindow s_window;
@@ -54,6 +54,7 @@ int cli_command_line_window(int *window)
 {
     // the window runs no main of orior's and enters here first: the pool every later call takes from starts here
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_command_line_catalog_alloc();
     static const char *s_words[CLI_LAUNCH_ARGS];
     const unsigned int count = EMBED_CALL(cli_capacity_count_internal.arguments, CliCapacityCountCtx, .count_i32 = 0,
                                           .supplied = NULL, .words_read = s_words, .capacity_u32 = CLI_LAUNCH_ARGS);
@@ -113,7 +114,7 @@ static void window_watch_take(const CliWatchBatchCfg *args)
     {
         path[at] = EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->files, .index = at);
     }
-    qsort(path, files, sizeof(path[0]), window_path_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = path, .count = files, .size = sizeof(path[0]), .order = window_path_order);
     unsigned int unique = 0u;
     for (unsigned int at = 0u; at < files; at += 1u)
     {
@@ -159,19 +160,19 @@ void cli_command_line_tree_begin(void (*woken)(void))
     }
     const unsigned long long size =
         (root != NULL) ? (cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}) + 1ULL) : 0ULL;
-    s_window.root = (root != NULL) ? g_cli_guard->persistent_buf_alloc(size, g_cli_command_line_owner) : NULL;
-    if (s_window.root != NULL)
+    s_window.rooted = (root != NULL) && (size <= sizeof(s_window.root));
+    if (s_window.rooted)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_window.root, .src = root, .bytes = size});
         EMBED_CALL(cli_toolchains_root.set_tree, CliToolchainsRootCfg, .root = s_window.root);
         EMBED_CALL(cli_plugins_root.set_tree, CliPluginsRootCfg, .root = s_window.root);
     }
     err_msg.at = 0ULL;
-    if (!cli_reach_open(s_window.root, woken, &err_msg))
+    if (!cli_reach_open(cli_command_line_root(), woken, &err_msg))
     {
         EMBED_CALL(window_err, CliCommandLineWindowCtx, .err_msg = &err_msg);
     }
-    if (s_window.root != NULL)
+    if (s_window.rooted)
     {
         EMBED_CALL(cli_watch.start, CliWatchCfg, .root = s_window.root, .take = window_watch_take, .context = NULL);
     }
@@ -180,24 +181,24 @@ void cli_command_line_tree_begin(void (*woken)(void))
 void cli_command_line_tree_end(void)
 {
     cli_watch_stop();
-    // a language server orior_cli started ends with it: on Windows a child outlives its parent
+    // a language server impero started ends with it: on Windows a child outlives its parent
     cli_reach_forget();
     cli_servers_stop_all();
     cli_debug_stop_all();
     cli_container_members_end();
     cli_reach_close();
-    g_cli_guard->persistent_buf_release(s_window.root, g_cli_command_line_owner);
-    s_window.root = NULL;
+    s_window.rooted = 0;
+    s_window.root[0] = '\0';
 }
 
 const char *cli_command_line_root(void)
 {
-    return s_window.root;
+    return s_window.rooted ? s_window.root : NULL;
 }
 
 const char *cli_command_line_tree_name(void)
 {
-    if (s_window.root == NULL)
+    if (!s_window.rooted)
     {
         return "";
     }

@@ -137,8 +137,9 @@ EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
         EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = bytes, .length = args->size);
         return;
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = args->transport->pending + args->transport->pending_size, .src = bytes, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = args->transport->pending + args->transport->pending_size,
+                            .src = bytes,
+                            .bytes = (embed_word)args->size});
     EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = args->transport->pending,
                .length = args->transport->pending_size + args->size);
     args->transport->pending_size = 0ULL;
@@ -175,7 +176,7 @@ EMBED_INLINE void cli_stream_lines_print(const RunnerLinesCtx *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = args->transport->pending + args->transport->pending_size,
                                     .src = piece + from,
-                                    .bytes = (size_t)(got - from)});
+                                    .bytes = (embed_word)(got - from)});
             args->transport->pending_size += got - from;
         }
         else if (got > from)
@@ -305,16 +306,23 @@ static void cli_page_each(const CliEachNameIsFolderCfg *args)
 unsigned int cli_run_pages(const CliRunnerRootCtx *args)
 {
     const char *root = args->root;
-    const CliLines *lines = args->lines;
+    const CliRunLines *lines = args->lines;
     char (*views)[CLI_PATH_MAX_LEN] = args->views;
     unsigned int count = 0u;
     CliPageWalk walk = {root, args->view_out, views, &count};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->view_out,
                .each = cli_page_each, .context_bytess = &walk);
-    for (unsigned int index = 0u; index < lines->count; index += 1u)
+    const unsigned int lines_count =
+        EMBED_CALL(cli_runner_lines_index.lines_count, CliRunnerLinesIndexCfg, .lines_read = lines);
+    const unsigned long long longest =
+        EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
+    // each line read out of the run's rings into one temporary cell sized for the longest
+    char *const read = (lines_count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_runs_owner) : NULL;
+    for (unsigned int index = 0u; (read != NULL) && (index < lines_count); index += 1u)
     {
-        const char *at =
-            EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg, .lines_read = lines, .index = index);
+        (void)EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines, .index = index,
+                         .out = read, .capacity = longest + 1ULL);
+        const char *at = read;
         while (at[0] != '\0')
         {
             at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
@@ -366,5 +374,6 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = root, .path = path, .views = views, .count = &count);
         }
     }
+    g_cli_guard->persistent_buf_release(read, g_cli_runs_owner);
     return count;
 }

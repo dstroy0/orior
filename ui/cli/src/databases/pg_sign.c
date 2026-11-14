@@ -34,12 +34,12 @@ typedef struct
 // a value of the server's first SCRAM message, `name` with its '=', into `out`: 1, or 0 where it gave none
 EMBED_INLINE int sign_field(const PgSignCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     for (const char *part = args->server_first; part != NULL;)
     {
         const char *const comma = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = ','});
-        const size_t size = (comma != NULL) ? (size_t)(comma - part)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
+        const embed_word size = (comma != NULL) ? (embed_word)(comma - part)
+                                                : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         if ((size >= length) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = part,
                                            .other_pointer = args->name, .size = length))
         {
@@ -181,7 +181,7 @@ EMBED_INLINE int sign_startup(const PgSignCtx *args)
     if (!mmgr_line_ok(&body))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "the user's and the database's names are longer than orior_cli sends");
+                   .message = "the user's and the database's names are longer than impero sends");
         return 0;
     }
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
@@ -231,7 +231,7 @@ EMBED_INLINE int sign_scram_offered(const PgSignCtx *args)
     while (at < size)
     {
         const unsigned char *const nul =
-            memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (size_t)(size - at)});
+            memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (embed_word)(size - at)});
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - body) : size;
         if (end > at)
         {
@@ -260,7 +260,7 @@ EMBED_INLINE int sign_scram_first(const PgSignCtx *args)
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         mmgr_line_put(&err_msg, "the server signs in only by ");
         mmgr_line_put_n(&err_msg, offered.out, offered.at);
-        mmgr_line_put(&err_msg, ", which orior_cli does not support");
+        mmgr_line_put(&err_msg, ", which impero does not support");
         mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure, .message = why);
         return 0;
@@ -349,7 +349,7 @@ EMBED_INLINE int sign_scram_proved(const PgSignCtx *args)
         end -= 1ULL;
     }
     const char *const signature = *args->begun ? args->signature : "";
-    const size_t expected = cellul.len(&(CatenaFinitaCfg){.src = signature, .cap = CLI_POOL_BYTES});
+    const embed_word expected = cellul.len(&(CatenaFinitaCfg){.src = signature, .cap = CLI_POOL_BYTES});
     const int proved =
         (end - start == expected + 2u) &&
         (memor.cmp(&(MemoriaCfg){.src = line.out + start, .other = "v=", .bytes = 2u}) == 0) &&
@@ -399,7 +399,7 @@ EMBED_INLINE int sign_answer(const PgSignCtx *args)
     }
     char text[CLI_PG_SIGN_TEXT * 2u];
     VerbaLinea line = {text, sizeof(text), 0ULL};
-    mmgr_line_put(&line, "the server requests a sign-in orior_cli does not support (");
+    mmgr_line_put(&line, "the server requests a sign-in impero does not support (");
     mmgr_line_decimal(&line, code, 1u);
     mmgr_line_put(&line, "): SCRAM-SHA-256, md5 and a password in the clear are supported");
     mmgr_line_finish(&line);
@@ -475,10 +475,10 @@ int cli_pg_signed_in(const CliPgFailurePasswordCtx *args)
             {
                 memor.cpy(&(MemoriaCfg){
                     .dst = args->failure->hint,
-                    .src = "The server takes only encrypted connections; orior_cli reaches such a server "
+                    .src = "The server takes only encrypted connections; impero reaches such a server "
                            "through an ssh tunnel to a machine beside it.",
                     .bytes = cellul.len(&(CatenaFinitaCfg){
-                                 .src = "The server takes only encrypted connections; orior_cli reaches such a server "
+                                 .src = "The server takes only encrypted connections; impero reaches such a server "
                                         "through an ssh tunnel to a machine beside it.",
                                  .cap = CLI_POOL_BYTES}) +
                              1u});

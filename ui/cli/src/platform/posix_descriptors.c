@@ -50,7 +50,7 @@ long long cli_socket_receive(const CliTransferSocketCfg *args)
         struct cmsghdr header;
         unsigned char capacity[CMSG_SPACE(sizeof(int) * CLI_DESCRIPTORS_READ)];
     } control;
-    struct iovec piece = {args->buffer, (size_t)capacity};
+    struct iovec piece = {args->buffer, (embed_word)capacity};
     struct msghdr message;
     ssize_t got = -1;
     for (;;)
@@ -80,8 +80,8 @@ long long cli_socket_receive(const CliTransferSocketCfg *args)
         {
             continue;
         }
-        const size_t count = (header->cmsg_len - CMSG_LEN(0)) / sizeof(int);
-        for (size_t one = 0u; one < count; one += 1u)
+        const embed_word count = (header->cmsg_len - CMSG_LEN(0)) / sizeof(int);
+        for (embed_word one = 0u; one < count; one += 1u)
         {
             int fd = -1;
             memor.cpy(&(MemoriaCfg){.dst = &fd, .src = CMSG_DATA(header) + (one * sizeof(int)), .bytes = sizeof(int)});

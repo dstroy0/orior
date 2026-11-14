@@ -112,6 +112,9 @@ unsigned long long cli_text_end_class(const CliTextAtSizeClassesCfg *args);
 unsigned long long cli_text_back_end_class(const CliTextAtSizeClassesCfg *args);
 unsigned long long cli_text_to_pair(const CliTextAtSizeFirstCfg *args);
 unsigned long long cli_text_number(const CliTextAtSizeCfg *args);
+// the number the hex digits from `at` below `size` write, in either case, all ones where they are more than 16, the
+// place past them into `end` where it is not NULL
+unsigned long long cli_text_hex(const CliTextAtSizeCfg *args);
 
 // the bytes of `size` bytes of `text` its whitespace at the start takes; and the length of the text with its
 // whitespace at the end taken off
@@ -146,8 +149,10 @@ int cli_text_find_last(const CliTextSizeAtCfg *args);
 // into `end`, or 0 where no quote starts at `at`
 int cli_text_quoted_end(const CliTextAtSizeCfg *args);
 
-// the last place of `byte` in `length` bytes of `text`, or NULL where it is not there
+// the last place of `byte` in `length` bytes of `text`, or NULL where it is not there; and the value of the hex digit
+// `byte`, 16 where it is none
 const char *cli_text_last(const CliTextByteCfg *args);
+unsigned int cli_text_hex_digit(const CliTextByteCfg *args);
 
 // the order of the texts `one` and `other`, byte by byte as unsigned through `one`'s terminator: below 0 where `one`
 // comes first, 0 where they are the same, above 0 where `other` comes first
@@ -155,8 +160,12 @@ int cli_text_order(const CliTextSizeOneCfg *args);
 // `count` paths put in the order cli_text_order gives their bytes (text.c)
 void cli_paths_sort(const CliTextPathsCfg *args);
 
-// whether the first `size` bytes of `one` and `other` are the same bytes
+// whether the first `size` bytes of `one` and `other` are the same bytes; whether `size` bytes of `one` are the
+// terminated word `other`, ASCII's case aside; and whether the text `one` sorts before the text `other`, ASCII's case
+// aside
 int cli_text_same(const CliTextSizeOneCfg *args);
+int cli_text_same_folded(const CliTextSizeOneCfg *args);
+int cli_text_before_folded(const CliTextSizeOneCfg *args);
 
 // the bytes of the text `text` before the first that the text `set` contains, or before its terminator; and the bytes
 // at its start that `set` contains
@@ -536,11 +545,13 @@ typedef struct
 {
     unsigned long long (*number)(const CliTextAtSizeCfg *args);
     int (*quoted_end)(const CliTextAtSizeCfg *args);
+    unsigned long long (*hex)(const CliTextAtSizeCfg *args);
 } CliTextAtSizeNs;
-EMBED_TABLE_LAYOUT(CliTextAtSizeNs, number, quoted_end);
+EMBED_TABLE_LAYOUT(CliTextAtSizeNs, number, quoted_end, hex);
 EMBED_TABLE_STORAGE CliTextAtSizeNs cli_text_at_size EMBED_UNUSED = {
     .number = cli_text_number,
     .quoted_end = cli_text_quoted_end,
+    .hex = cli_text_hex,
 };
 
 typedef struct
@@ -604,21 +615,27 @@ EMBED_TABLE_STORAGE CliTextSizeAtNs cli_text_size_at EMBED_UNUSED = {
 typedef struct
 {
     const char *(*last)(const CliTextByteCfg *args);
+    unsigned int (*hex_digit)(const CliTextByteCfg *args);
 } CliTextByteNs;
-EMBED_TABLE_LAYOUT(CliTextByteNs, last);
+EMBED_TABLE_LAYOUT(CliTextByteNs, last, hex_digit);
 EMBED_TABLE_STORAGE CliTextByteNs cli_text_byte EMBED_UNUSED = {
     .last = cli_text_last,
+    .hex_digit = cli_text_hex_digit,
 };
 
 typedef struct
 {
     int (*order)(const CliTextSizeOneCfg *args);
     int (*same)(const CliTextSizeOneCfg *args);
+    int (*same_folded)(const CliTextSizeOneCfg *args);
+    int (*before_folded)(const CliTextSizeOneCfg *args);
 } CliTextSizeOneNs;
-EMBED_TABLE_LAYOUT(CliTextSizeOneNs, order, same);
+EMBED_TABLE_LAYOUT(CliTextSizeOneNs, order, same, same_folded, before_folded);
 EMBED_TABLE_STORAGE CliTextSizeOneNs cli_text_size_one EMBED_UNUSED = {
     .order = cli_text_order,
     .same = cli_text_same,
+    .same_folded = cli_text_same_folded,
+    .before_folded = cli_text_before_folded,
 };
 
 typedef struct

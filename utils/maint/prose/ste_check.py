@@ -27,7 +27,7 @@ The rules checked, with their numbers in ASD-STE100 Issue 9:
                given; a technical name is a word in code, a capitalized word or one with a digit or an underscore
 
 The words a rule allows are technical names to that rule, and each repository lists them in ste_names.txt beside
-its ratchet: a name like `string` is a technical name, which Rule 3.6 lets keep its -ing.
+this file and its ratchet: a name like `string` is a technical name, which Rule 3.6 lets keep its -ing.
 """
 
 import os
@@ -225,7 +225,9 @@ def main(argv):
         approved |= word_list(args[at + 1])
         del args[at:at + 2]
     paths = args or ["."]
-    base = os.path.dirname(ratchet or write or "") or "."
+    # The names file sits beside the ratchet, and the ratchet sits beside this file. A run with no ratchet reads
+    # the same names: a listed finding is a finding the ratchet counts.
+    base = os.path.dirname(os.path.abspath(ratchet or write or __file__))
     names_file = os.path.join(base, "ste_names.txt")
     names = word_list(names_file) if os.path.isfile(names_file) else set()
     counts = {}

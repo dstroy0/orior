@@ -37,7 +37,7 @@ typedef struct
     unsigned long long time;
 } CliStamped;
 
-// What a look reads: the tree's own database, where it has one, or each build orior_cli configured, in a cell at their
+// What a look reads: the tree's own database, where it has one, or each build impero configured, in a cell at their
 // most, released through persistent_buf_release
 typedef struct
 {
@@ -106,9 +106,8 @@ typedef struct
     char id[CLI_NAME_MAX_LEN];
 } CliCompilerOf;
 
-// The gathering: the entries tree, in a cell of its own, the projects, a compile group's flags, their text a line, each
-// one after another with its zero after it, and a fragment of a compile command decoded, a line, taken for one
-// gathering and given back as it ends
+// The gathering: the entries tree, in a cell of its own, the projects, and a compile group's flags, their text a line
+// grown to them, each one after another with its zero after it, begun for one gathering and ended as it ends
 typedef struct
 {
     CliJson json;
@@ -116,10 +115,9 @@ typedef struct
     unsigned int projects;
     CliCompilerOf compiler[CLI_GATHER_LANGUAGES];
     unsigned int compilers;
-    VerbaLinea flags_text;
+    CliGrownLine flags_text;
     unsigned int flag[CLI_GATHER_FLAGS];
     unsigned int flags;
-    VerbaLinea fragment_text;
 } CliGathering;
 
 extern CliGathering g_cli_gather;

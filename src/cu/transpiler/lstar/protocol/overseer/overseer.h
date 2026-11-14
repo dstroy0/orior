@@ -67,7 +67,7 @@
 // encoding a lesson admits past rule 3 (orior_cubin_run --lessons), and a query the gate blocked under the rule is
 // queried again, since the part never saw it.
 
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include <stddef.h>
 

@@ -194,7 +194,7 @@ EMBED_INLINE DocPart doc_physical(const InspectPyDocCtx *args)
     {
         const char *const newline =
             (at < args->size)
-                ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (size_t)(args->size - at)})
+                ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (embed_word)(args->size - at)})
                 : NULL;
         if (newline == NULL)
         {
@@ -203,8 +203,9 @@ EMBED_INLINE DocPart doc_physical(const InspectPyDocCtx *args)
         at = (unsigned long long)(newline - src) + 1u;
     }
     const char *const newline =
-        (at < args->size) ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (size_t)(args->size - at)})
-                          : NULL;
+        (at < args->size)
+            ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (embed_word)(args->size - at)})
+            : NULL;
     return (DocPart){at, (newline != NULL) ? (unsigned long long)(newline - src) : args->size};
 }
 
@@ -235,7 +236,8 @@ EMBED_INLINE void doc_period(const InspectPyDocCtx *args)
     const unsigned long long length = args->summary.end - args->summary.start;
     for (unsigned long long at = text.start; at + length <= text.end; at += 1u)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = src + at, .other = src + args->summary.start, .bytes = (size_t)length}) == 0)
+        if (memor.cmp(
+                &(MemoriaCfg){.src = src + at, .other = src + args->summary.start, .bytes = (embed_word)length}) == 0)
         {
             const CliInspectPosition place = {args->tok->from.line + first_line,
                                               EMBED_CALL(doc_units, InspectPyDocCtx, .text_text = src + text.start,
@@ -313,7 +315,7 @@ static void doc_check(const InspectPyDocCtx *args)
     {
         const int broken =
             (memor.chr(&(MemoriaCfg){
-                 .src = src + inner.start, .val = '\n', .bytes = (size_t)(inner.end - inner.start)}) != NULL);
+                 .src = src + inner.start, .val = '\n', .bytes = (embed_word)(inner.end - inner.start)}) != NULL);
         const int spaced = (inner.start != trimmed.start) || (inner.end != trimmed.end);
         fixed.at = 0ULL;
         mmgr_line_put_n(&fixed, whole, prefix);

@@ -478,13 +478,38 @@ void test_a_views_name_is_the_last_part_of_its_files_path(void)
 {
     fresh_named("a", "check/sub\\named.txt");
     unsigned int at = 0u;
-    while ((at < cli_view_count()) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = cli_view_key(at), .other = s_key, .cap = CLI_NAME_MAX_LEN}))
+    char key[CLI_NAME_MAX_LEN];
+    while ((at < cli_view_count()) && cli_view_key(at, key) &&
+           !cellul.eq(&(CatenaFinitaCfg){.src = key, .other = s_key, .cap = CLI_NAME_MAX_LEN}))
     {
         at += 1u;
     }
-    TEST_ASSERT_EQUAL_STRING("named.txt", cli_view_name_at(at));
-    TEST_ASSERT_NULL(cli_view_name_at(cli_view_count()));
+    char path[CLI_PATH_MAX_LEN];
+    TEST_ASSERT_EQUAL_STRING("named.txt", cli_view_name_at(at, path));
+    TEST_ASSERT_NULL(cli_view_name_at(cli_view_count(), path));
+}
+
+void test_a_view_opened_with_no_path_is_a_panes_and_stands_among_no_tabs(void)
+{
+    fresh_named("a", "check/named.txt");
+    const unsigned int before = cli_view_count();
+    CliShape shape;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key2, .text = "pane", .size = 4u,
+                                .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key2, .path = ""));
+    TEST_ASSERT_EQUAL_UINT(before, cli_view_count());
+    char key[CLI_NAME_MAX_LEN];
+    for (unsigned int at = 0u; at < cli_view_count(); at += 1u)
+    {
+        TEST_ASSERT_TRUE(cli_view_key(at, key));
+        TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = key, .other = s_key2, .cap = CLI_NAME_MAX_LEN}));
+    }
+    cli_view_show(before - 1u);
+    TEST_ASSERT_EQUAL_INT((int)before - 1, cli_view_shown());
+    TEST_ASSERT_TRUE(cli_view_key((unsigned int)cli_view_shown(), key));
+    TEST_ASSERT_TRUE(cellul.eq(&(CatenaFinitaCfg){.src = key, .other = s_key, .cap = CLI_NAME_MAX_LEN}));
+    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
 }
 
 void test_a_view_does_not_open_on_a_text_not_stored(void)

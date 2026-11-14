@@ -165,7 +165,7 @@ EMBED_INLINE int dap_response(const DapCtx *args)
                       .error = error);
 }
 
-// a request of the adapter's own refused, as orior_cli runs the program through the adapter
+// a request of the adapter's own refused, as impero runs the program through the adapter
 EMBED_INLINE void dap_reject(const DapCtx *args)
 {
     unsigned long long size = args->size;
@@ -188,7 +188,7 @@ EMBED_INLINE void dap_reject(const DapCtx *args)
         {has_seq ? args->message_read + at : "null", has_seq ? length : 4ULL, 0},
         CLI_LSP_RAW(",\"success\":false,\"command\":"),
         {has_command ? args->message_read + command : "null", has_command ? command_size : 4ULL, 0},
-        CLI_LSP_RAW(",\"message\":\"orior_cli runs the program through the adapter\"}"),
+        CLI_LSP_RAW(",\"message\":\"impero runs the program through the adapter\"}"),
     };
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unsent = {why, sizeof(why), 0ULL};
@@ -294,41 +294,20 @@ EMBED_INLINE void dap_complaint_store(const DapCtx *args)
     }
 }
 
+// a line the pipe's reader cut from the program adapter's errors, stored
+static void dap_complaint_each(void *context, char *line, unsigned long long used)
+{
+    EMBED_CALL(dap_complaint_store, DapCtx, .dap = (CliDap *)context, .line = line, .used = used);
+}
+
 // what the program adapter writes to its errors read until it ends, line by line, a line longer than the capacity
 // stored in pieces of the capacity's length
 static void dap_complaints_read(void *context)
 {
     CliDap *const dap = (CliDap *)context;
     char line[CLI_DAP_COMPLAINT];
-    unsigned long long used = 0ULL;
-    char piece[4096];
-    for (;;)
-    {
-        const unsigned long long count =
-            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
-                       .pipe_handle = dap->spawned.err, .piece = piece, .capacity = sizeof(piece));
-        if (count == 0ULL)
-        {
-            break;
-        }
-        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
-        {
-            if ((piece[at] == '\n') || (used == sizeof(line)))
-            {
-                EMBED_CALL(dap_complaint_store, DapCtx, .dap = dap, .line = line, .used = used);
-                used = 0ULL;
-            }
-            if (piece[at] != '\n')
-            {
-                line[used] = piece[at];
-                used += 1ULL;
-            }
-        }
-    }
-    if (used > 0ULL)
-    {
-        EMBED_CALL(dap_complaint_store, DapCtx, .dap = dap, .line = line, .used = used);
-    }
+    EMBED_CALL(cli_spawn_lines_internal.read, CliSpawnLinesCtx, .pipe_handle = dap->spawned.err, .line = line,
+               .capacity = sizeof(line), .each = dap_complaint_each, .context = dap);
     dap->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
 }

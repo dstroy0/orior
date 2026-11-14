@@ -117,7 +117,7 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args);
 // `length_out`; whether the filter is the field that takes the keys; and the keys moved to the filter
 void cli_job_runs_type(const CliJobRunsFieldCfg *args);
 int cli_job_runs_key(const CliJobRunsFieldCfg *args);
-const char *cli_job_runs_filter(const CliJobRunsFieldCfg *args);
+unsigned long long cli_job_runs_filter(const CliJobRunsFieldCfg *args);
 int cli_job_runs_filter_focused(const CliJobRunsFieldCfg *args);
 void cli_job_runs_filter_focus(const CliJobRunsFieldCfg *args);
 // the scroll top that brings the last row into view for a pane `capacity` rows tall scrolled to `scroll_top`, where it
@@ -167,6 +167,7 @@ struct CliJobRunsFieldCfg
     unsigned long long length;
     const char *key_name;
     unsigned long long *length_out;
+    char *text_out;
 };
 
 struct CliJobRunsScrollCfg
@@ -231,7 +232,7 @@ typedef struct
 {
     void (*type)(const CliJobRunsFieldCfg *args);
     int (*key)(const CliJobRunsFieldCfg *args);
-    const char *(*filter)(const CliJobRunsFieldCfg *args);
+    unsigned long long (*filter)(const CliJobRunsFieldCfg *args);
     int (*focused)(const CliJobRunsFieldCfg *args);
     void (*filter_focus)(const CliJobRunsFieldCfg *args);
 } CliJobRunsFieldNs;

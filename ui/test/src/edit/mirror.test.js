@@ -72,7 +72,7 @@ async function measured() {
   // first touched, which is no growth
   const part = (name) => read.parts.find((one) => one.name === name)?.commit ?? 0;
   // the page's own script heap beside them, to tell its growth from the web view's beneath it
-  return { own: part("orior_gui"), view: part("web view"), all: read.commit, heap: performance.memory?.usedJSHeapSize ?? 0 };
+  return { own: part("tabvla"), view: part("web view"), all: read.commit, heap: performance.memory?.usedJSHeapSize ?? 0 };
 }
 
 test("a ten-megabyte file opened, pasted into, undone and closed ten times leaves the window holding no more than once", async () => {

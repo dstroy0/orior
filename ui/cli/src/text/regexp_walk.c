@@ -422,7 +422,7 @@ int cli_regexp_match_into(const CliRegexpTextU32sCfg *args)
                         args->groups,
                         0ULL,
                         0ULL,
-                        (uintptr_t)&mark,
+                        (embed_word)&mark,
                         ends,
                         0ULL,
                         CLI_REGEXP_ENDS_STACKED,

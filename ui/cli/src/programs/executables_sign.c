@@ -199,7 +199,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
             const unsigned long long stop =
                 EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = certificate, .at = at,
                            .size = whole, .classes = CLI_TEXT_DIGITS, .set = "abcdefABCDEF");
-            mmgr_line_put_n(&printed, certificate + at, (size_t)(stop - at));
+            mmgr_line_put_n(&printed, certificate + at, (embed_word)(stop - at));
             at = stop + 1ULL;
         }
         mmgr_line_finish(&printed);

@@ -13,12 +13,12 @@
 // name is the operation's, one the disassembler refuses is an encoding the part lacks, and one that changes nothing in
 // the text is either control (the stall, yield and barriers the scheduler sets) or unused. Every process is run through
 // the interface, whose runner loses nothing when the disassembler fails
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../lstar/interface/interface.h"
 #include "../sass_machine.h"
 
 #include <stdio.h>
-#include "../../../../includes/parsers/who.h"
+#include "../../../../../../includes/parsers/who.h"
 
 // the longest instruction text stored, and the most instructions a listing contains
 #define SASS_TEXT 192u

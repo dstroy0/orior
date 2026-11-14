@@ -9,7 +9,7 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
+CODEGEN_CU_2="$TOP/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp web_check
 

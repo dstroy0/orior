@@ -60,11 +60,11 @@
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
 
-for one in "$TOP/src/cu/includes/file_defs/kdm/kdm_write.c" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/chain_check.c"; do
+for one in "$TOP/includes/file_defs/kdm/kdm_write.c" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/chain_check.c"; do
     name="$(basename "$one" .c)"
     cc -std=c11 -O2 -Wall -Wextra -o "$OUT/$name" "$one" \
         "$TOP/src/cu/transpiler/lstar/protocol/gate/chain_build.c" "${FILE_DEFS[@]}" || exit 1
@@ -72,7 +72,7 @@ done
 
 # the descent is orior's own, and orior reads exact integers
 SIFT="$TOP/src/cu/engine/nbody/orior"
-EXACT="$TOP/src/cu/includes/types/integers"
+EXACT="$TOP/includes/exact_types/integers"
 cc -std=c11 -O2 -Wall -Wextra -I"$SIFT" -I"$EXACT" -o "$OUT/gate_descent" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$TOP/src/cu/transpiler/lstar/protocol/gate/chain_build.c" \
     "$SIFT/orior_core.c" "$SIFT/orior_field.c" "$SIFT/orior_steer.c" \
@@ -93,13 +93,13 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/tr
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/standing.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_funnel_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" "$TOP/src/cu/includes/parsers/line_read.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" "$TOP/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/includes/parsers/line_read.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/constant_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/includes/parsers/line_read.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
-    "$TOP/src/cu/includes/file_defs/khw/khw_machine_write/pieces.c" \
+    "$TOP/includes/file_defs/khw/khw_machine_write/pieces.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" \
@@ -120,11 +120,11 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ksc_check" "$TOP/utils/test/src/cu/types/
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/krf_check" "$TOP/utils/test/src/cu/types/file_defs/krf/krf_check.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/frame_check.c" \
-    "$TOP/src/cu/includes/file_defs/krs/krs_write/head.c" \
-    "$TOP/src/cu/includes/file_defs/krs/krs_write/fixed.c" \
-    "$TOP/src/cu/includes/file_defs/krs/krs_write/frame.c" \
-    "$TOP/src/cu/includes/file_defs/krs/krs_write/words.c" \
-    "$TOP/src/cu/includes/file_defs/khw/khw_machine_write/opening.c" \
+    "$TOP/includes/file_defs/krs/krs_write/head.c" \
+    "$TOP/includes/file_defs/krs/krs_write/fixed.c" \
+    "$TOP/includes/file_defs/krs/krs_write/frame_forms.c" \
+    "$TOP/includes/file_defs/krs/krs_write/words.c" \
+    "$TOP/includes/file_defs/khw/khw_machine_write/opening.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/kdm_check" "$TOP/utils/test/src/cu/types/file_defs/kdm/kdm_check.c" \
     "${FILE_DEFS[@]}" || exit 1

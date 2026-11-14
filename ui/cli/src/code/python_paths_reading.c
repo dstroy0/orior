@@ -67,7 +67,8 @@ int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
     at += text_max;
     const unsigned long long line_text_at = at;
     at += line_text;
-    s_read_state = g_cli_guard->persistent_buf_alloc(at, g_cli_python_owner);
+    // the reading lives for the one script: a cell of the temporary tier
+    s_read_state = g_cli_guard->temporary_buf_alloc(at, g_cli_python_owner);
     if (s_read_state == NULL)
     {
         return 0;

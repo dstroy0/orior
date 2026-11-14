@@ -50,7 +50,7 @@ int cli_page_lines_reserve(const CliPagesLinesLinesFirstCtx *args)
         (args->text_first < 1ULL)
             ? 1ULL
             : EMBED_CALL(lines_bound, PagesLinesCtx, .required = args->text_first, .most = CLI_PAGE_READ_TEXT);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
         EMBED_CALL(lines_heads, PagesLinesCtx, .lines_max = lines_max) + text_max, g_cli_editor_owner);
     if (cell == NULL)
     {

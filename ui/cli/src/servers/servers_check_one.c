@@ -25,11 +25,12 @@ typedef struct
     const CliServersSink *sink;
     int supplied;
     int stopped;
-    VerbaLinea all;
+    CliGrownLine all;
     int written;
 } CliServersCheckSliced;
 // the most files open for the check and let go by it at once; the most servers that refuse to be queried for a file's
-// diagnostics; and the bytes a sliced file's diagnostics are written in
+// diagnostics; and the bytes a sliced file's diagnostics are written in: the server's reader writes the gathered line
+// while the checker copies it, so its cell is one that does not move, and the window's own line grows to its data
 #define CLI_SERVERS_CHECK_OPEN_MAX (1u << 16u)
 #define CLI_SERVERS_REFUSED 64u
 #define CLI_SERVERS_GATHERED_CAPACITY (4ULL << 20u)
@@ -57,10 +58,8 @@ static unsigned int s_refusing;
 
 int cli_servers_check_open(const CliServersUriCtx *args)
 {
-    const char *adjacent = NULL;
-    unsigned long long size = 0ULL;
-    return EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_check_open, .key = args->uri,
-                      .adjacent = &adjacent, .size = &size) != NULL;
+    return EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_check_open, .key = args->uri) !=
+           CLI_KEYED_NONE;
 }
 
 void cli_servers_check_open_set(const CliServersUriCtx *args)
@@ -130,7 +129,7 @@ int cli_servers_gather(const CliServersSizeKeyCtx *args)
         {
             s_wait[at].gathered.at = 0u;
             // the diagnostics of one slice are below 2^32 bytes
-            mmgr_line_put_n(&s_wait[at].gathered, args->all, (size_t)args->size);
+            mmgr_line_put_n(&s_wait[at].gathered, args->all, (embed_word)args->size);
             s_wait[at].signals += 1u;
             EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wait[at].wake);
             gathered = 1;
@@ -152,10 +151,8 @@ void cli_servers_gathering_end(const CliServersKeyCheckerCtx *args)
 
 int cli_servers_letting_go(const CliServersKeyCheckerCtx *args)
 {
-    const char *adjacent = NULL;
-    unsigned long long size = 0ULL;
-    const int letting = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_letting,
-                                   .key = args->key, .adjacent = &adjacent, .size = &size) != NULL;
+    const int letting = EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_letting,
+                                   .key = args->key) != CLI_KEYED_NONE;
     EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &s_letting, .key = args->key);
     return letting;
 }
@@ -395,9 +392,9 @@ EMBED_INLINE void check_one_window_save(const ServersCheckOneCtx *args)
         {
             continue;
         }
-        mmgr_line_put(&args->sliced->all, args->sliced->written ? "," : "");
+        mmgr_line_put(&args->sliced->all.line, args->sliced->written ? "," : "");
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = one,
-                   .out = &args->sliced->all, .indent = 0u, .sorted = 0);
+                   .out = &args->sliced->all.line, .indent = 0u, .sorted = 0);
         args->sliced->written = 1;
     }
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
@@ -452,7 +449,7 @@ static int check_one_window(const CliServersWindowCfg *args)
     char *const gathered = (size > 0ULL) ? g_cli_guard->temporary_buf_alloc(size, g_cli_servers_owner) : NULL;
     if (gathered != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = gathered, .src = s_wait[checker].gathered.out, .bytes = (size_t)size});
+        memor.cpy(&(MemoriaCfg){.dst = gathered, .src = s_wait[checker].gathered.out, .bytes = (embed_word)size});
     }
     if (gathered != NULL)
     {
@@ -473,17 +470,24 @@ EMBED_INLINE void check_one_slice(const ServersCheckOneCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     const CliServersSink *sink = args->sink;
-    CliServersCheckSliced sliced = {
-        args->checker, path, uri, key, args->one, sink, 0, 0, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL}, 0};
+    CliServersCheckSliced sliced = {args->checker,
+                                    path,
+                                    uri,
+                                    key,
+                                    args->one,
+                                    sink,
+                                    0,
+                                    0,
+                                    {NULL, 0ULL, 0ULL, NULL, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL}},
+                                    0};
     s_wait[args->checker].gathering = 0;
     char *const gathered_cell = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_GATHERED_CAPACITY, g_cli_servers_owner);
     s_wait[args->checker].gathered = mmgr_line_over(gathered_cell, CLI_SERVERS_GATHERED_CAPACITY);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
-    char *const all_cell = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_GATHERED_CAPACITY, g_cli_servers_owner);
-    sliced.all = mmgr_line_over(all_cell, CLI_SERVERS_GATHERED_CAPACITY);
-    const int made = (gathered_cell != NULL) && (all_cell != NULL);
-    mmgr_line_ch(&sliced.all, '[');
+    cli_grown_begin(&sliced.all, CLI_SERVERS_GATHERED_CAPACITY, g_cli_servers_owner);
+    const int made = (gathered_cell != NULL) && (sliced.all.cell != NULL);
+    mmgr_line_ch(&sliced.all.line, '[');
     // the server waited on while the file is sliced, from its first window to its letting go
     EMBED_CALL(cli_servers_internal.request_begin, CliServersCtx, .server_read = args->one->server);
     const int cut =
@@ -509,16 +513,17 @@ EMBED_INLINE void check_one_slice(const ServersCheckOneCtx *args)
     }
     s_wait[args->checker].gathering = 0;
     EMBED_CALL(cli_servers_internal.request_end, CliServersCtx, .server_read = args->one->server);
-    mmgr_line_ch(&sliced.all, ']');
-    if (cut && !sliced.stopped && !editors && mmgr_line_ok(&sliced.all))
+    mmgr_line_ch(&sliced.all.line, ']');
+    if (cut && !sliced.stopped && !editors && mmgr_line_ok(&sliced.all.line))
     {
         (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_published,
-                         .key = key, .adjacent_value = uri, .text = sliced.all.out, .size_value = sliced.all.at);
+                         .key = key, .adjacent_value = uri, .text = sliced.all.cell,
+                         .size_value = cli_grown_size(&sliced.all));
         EMBED_CALL(cli_servers_sink_key_internal.emit_file, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
     }
-    g_cli_guard->persistent_buf_release(sliced.all.out, g_cli_servers_owner);
+    cli_grown_end(&sliced.all);
     g_cli_guard->persistent_buf_release(s_wait[args->checker].gathered.out, g_cli_servers_owner);
-    s_wait[args->checker].gathered = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+    s_wait[args->checker].gathered = mmgr_line_over(NULL, 0u);
 }
 
 // one file checked by the checker `checker`, its `size` bytes of `text` as the disk stores them; NULL where it is not
@@ -583,5 +588,5 @@ void cli_servers_check_one(const CliServersPathSinkCtx *args)
     EMBED_CALL(check_one_run, ServersCheckOneCtx, .checker = args->checker, .path = args->path,
                .text = (const char *)mapped, .size = size, .one = args->one_servers_waiting_pointer,
                .sink = args->sink);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
 }

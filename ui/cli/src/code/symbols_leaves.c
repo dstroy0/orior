@@ -250,7 +250,7 @@ EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
     }
     if (read->count != 0u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = read->leaf, .bytes = (size_t)read->count * sizeof(CliLeaf)});
+        memor.cpy(&(MemoriaCfg){.dst = grown, .src = read->leaf, .bytes = (embed_word)read->count * sizeof(CliLeaf)});
     }
     g_cli_guard->persistent_buf_release(read->leaf, g_cli_leaves_owner);
     read->leaf = grown;

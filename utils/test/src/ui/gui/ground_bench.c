@@ -5,7 +5,8 @@
 // draw that moves a pixel changes the hash. It also draws each step again with the float dot below, and counts the
 // pixels where the two disagree and by how many levels of 255
 #include "../../../../../ui/cli/src/command_line/cli_internal.h"
-#include "../../../../../ui/cli/src/view/ground.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/ground.h"
 #include "test_clock.h"
 
 #include <math.h>
@@ -17,9 +18,9 @@
 #define BENCH_STEP_MS 250ull
 #define BENCH_LOOP_MS 200000ull
 // the most pixels a row of the reference raster holds, past any pitch of the bench's width
-#define BENCH_PITCH_MOST 2048u
+#define BENCH_PITCH_MAX 2048u
 
-static GuiColor s_reference[BENCH_PITCH_MOST * BENCH_HEIGHT];
+static GuiColor s_reference[BENCH_PITCH_MAX * BENCH_HEIGHT];
 // the pixels whose largest channel gap is each count of levels, from 0 to 255
 static unsigned long long s_gaps[256];
 
@@ -113,16 +114,16 @@ static void rasters_compared(const GuiRaster *raster, unsigned long long *differ
 
 int main(void)
 {
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiBackground background_fill;
     g_test_clock_ms = 1000ull;
     GuiRaster raster;
-    if (!EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &background_fill) ||
-        !EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster,
+    if (!EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &background_fill, .now_ms = cli_clock_milliseconds()) ||
+        !EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster,
                     .width = EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = BENCH_WIDTH),
                     .height = BENCH_HEIGHT) ||
-        (raster.width > BENCH_PITCH_MOST) ||
-        !EMBED_CALL(gui_background_raster.layout, GuiBackgroundRasterCfg, .background_fill = &background_fill,
+        (raster.width > BENCH_PITCH_MAX) ||
+        !EMBED_CALL(gui_background_raster.layout, GuiBackgroundRasterCfg, .now_ms = cli_clock_milliseconds(), .background_fill = &background_fill,
                     .raster = &raster, .width = BENCH_WIDTH, .height = BENCH_HEIGHT, .scale = GUI_SCALE_ONE,
                     .palette = palette))
     {
@@ -132,18 +133,18 @@ int main(void)
     const unsigned int pitch = background_fill.raster.width;
     unsigned long long hash = 0xcbf29ce484222325ull;
     unsigned long long total_us = 0ull;
-    unsigned long long most_us = 0ull;
+    unsigned long long max_us = 0ull;
     unsigned long long differ = 0ull;
-    unsigned int most_levels = 0u;
+    unsigned int max_levels = 0u;
     unsigned int draws = 0u;
     for (unsigned long long at = 0ull; at < BENCH_LOOP_MS; at += BENCH_STEP_MS)
     {
         g_test_clock_ms = 1000ull + at;
         const unsigned long long before = cli_clock_microseconds();
-        gui_background_raster.draw(&(GuiBackgroundRasterCfg){.background_fill = &background_fill, .palette = palette});
+        gui_background_raster.draw(&(GuiBackgroundRasterCfg){.now_ms = cli_clock_milliseconds(), .background_fill = &background_fill, .palette = palette});
         const unsigned long long spent = cli_clock_microseconds() - before;
         total_us += spent;
-        most_us = (spent > most_us) ? spent : most_us;
+        max_us = (spent > max_us) ? spent : max_us;
         draws += 1u;
         hash = raster_hashed(&background_fill.raster, BENCH_WIDTH, hash);
         // the reference: the deep color, then every dot the lattice holds now drawn with the float dot
@@ -167,15 +168,15 @@ int main(void)
         }
         if (dotted != 0u)
         {
-            rasters_compared(&background_fill.raster, &differ, &most_levels);
+            rasters_compared(&background_fill.raster, &differ, &max_levels);
         }
     }
     (void)printf("ground %ux%u dots %u draws %u total %llu us mean %llu us most %llu us hash %016llx\n", BENCH_WIDTH,
                  BENCH_HEIGHT, lattice_slot(background_fill.lattice_index)->count, draws, total_us,
-                 total_us / draws, most_us, hash);
+                 total_us / draws, max_us, hash);
     (void)printf("against the float dot: %llu pixels differ over %u draws, the most by %u levels of 255\n", differ,
-                 draws, most_levels);
-    for (unsigned int gap = 1u; gap <= most_levels; gap += 1u)
+                 draws, max_levels);
+    for (unsigned int gap = 1u; gap <= max_levels; gap += 1u)
     {
         (void)printf("  %u levels: %llu pixels\n", gap, s_gaps[gap]);
     }

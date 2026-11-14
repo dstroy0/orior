@@ -3,25 +3,26 @@
 // test_coverage.c: the one rasterizer fills paths in 16.16 into a scene and renders the scene once into a target: whole
 // pixels inside, shares on the edges, gaps between strips filled by the winding, later paths over earlier ones, and
 // nothing written outside the clip
-#include "ui/cli/src/coverage/coverage.h"
+#include "includes/coverage/coverage.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 #define TEST_WIDTH 300u
 #define TEST_HEIGHT 12u
 #define TEST_ONE 65536
 
-static CliCoverageScene s_scene;
+static CoverageScene s_scene;
+static unsigned char s_block[(1u << 14u) * COVERAGE_SCENE_BYTES_A_CAPACITY];
 static unsigned int s_target[TEST_WIDTH * TEST_HEIGHT];
 
 // the rectangle from left, top to right, foot in pixels filled in `color`
 static void rect_filled(float left, float top, float right, float foot, unsigned int color)
 {
-    const CliCoveragePoint corner[4] = {{(int)(left * TEST_ONE), (int)(top * TEST_ONE)},
+    const CoveragePoint corner[4] = {{(int)(left * TEST_ONE), (int)(top * TEST_ONE)},
                                         {(int)(right * TEST_ONE), (int)(top * TEST_ONE)},
                                         {(int)(right * TEST_ONE), (int)(foot * TEST_ONE)},
                                         {(int)(left * TEST_ONE), (int)(foot * TEST_ONE)}};
     const unsigned int end = 4u;
-    EMBED_CALL(cli_coverage_scene.fill, CliCoverageSceneCfg, .scene = &s_scene, .point = corner, .end = &end,
+    EMBED_CALL(coverage_scene.fill, CoverageSceneCfg, .scene = &s_scene, .point = corner, .end = &end,
                .contours = 1u, .color = color);
 }
 
@@ -32,15 +33,16 @@ static unsigned int red_at(unsigned int x, unsigned int y)
 
 static void rendered(int x, int y, int width, int height)
 {
-    EMBED_CALL(cli_coverage_scene.render, CliCoverageSceneCfg, .scene = &s_scene, .target = s_target,
+    EMBED_CALL(coverage_scene.render, CoverageSceneCfg, .scene = &s_scene, .target = s_target,
                .pitch = TEST_WIDTH, .clip_x = x, .clip_y = y, .clip_width = width, .clip_height = height);
 }
 
 void setUp(void)
 {
     cli_unity_begun();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_coverage_scene.init, CliCoverageSceneCfg, .scene = &s_scene,
-                                .width = TEST_WIDTH, .height = TEST_HEIGHT, .capacity = 1u << 14u));
+    TEST_ASSERT_TRUE(EMBED_CALL(coverage_scene.init, CoverageSceneCfg, .scene = &s_scene,
+                                .width = TEST_WIDTH, .height = TEST_HEIGHT, .capacity = 1u << 14u, .block = s_block,
+                                .block_bytes = sizeof(s_block)));
     for (unsigned int at = 0u; at < TEST_WIDTH * TEST_HEIGHT; at += 1u)
     {
         s_target[at] = 0xff000000u;
@@ -49,7 +51,7 @@ void setUp(void)
 
 void tearDown(void)
 {
-    EMBED_CALL(cli_coverage_scene.free, CliCoverageSceneCfg, .scene = &s_scene);
+    EMBED_CALL(coverage_scene.free, CoverageSceneCfg, .scene = &s_scene);
 }
 
 void test_a_pixel_inside_a_rectangle_takes_the_color_whole(void)
@@ -79,9 +81,9 @@ void test_a_pixel_an_edge_halves_takes_half_the_color(void)
 void test_a_slope_covers_each_pixel_by_its_area(void)
 {
     // the triangle (0, 2), (4, 2), (0, 0) with y down: its slope x = 2y crosses two pixels of each row
-    const CliCoveragePoint corner[3] = {{0, 2 * TEST_ONE}, {4 * TEST_ONE, 2 * TEST_ONE}, {0, 0}};
+    const CoveragePoint corner[3] = {{0, 2 * TEST_ONE}, {4 * TEST_ONE, 2 * TEST_ONE}, {0, 0}};
     const unsigned int end = 3u;
-    EMBED_CALL(cli_coverage_scene.fill, CliCoverageSceneCfg, .scene = &s_scene, .point = corner, .end = &end,
+    EMBED_CALL(coverage_scene.fill, CoverageSceneCfg, .scene = &s_scene, .point = corner, .end = &end,
                .contours = 1u, .color = 0xffffffffu);
     rendered(0, 0, TEST_WIDTH, TEST_HEIGHT);
     TEST_ASSERT_UINT_WITHIN(2u, 255u, red_at(1u, 1u));
@@ -129,7 +131,7 @@ void test_a_render_writes_nothing_outside_its_clip(void)
 void test_a_cleared_scene_draws_nothing(void)
 {
     rect_filled(0.0f, 0.0f, 8.0f, 8.0f, 0xffffffffu);
-    EMBED_CALL(cli_coverage_scene.clear, CliCoverageSceneCfg, .scene = &s_scene);
+    EMBED_CALL(coverage_scene.clear, CoverageSceneCfg, .scene = &s_scene);
     rendered(0, 0, TEST_WIDTH, TEST_HEIGHT);
     TEST_ASSERT_EQUAL_HEX32(0xff000000u, s_target[(3u * TEST_WIDTH) + 3u]);
 }
@@ -138,11 +140,11 @@ void test_a_ring_leaves_its_hole_unfilled(void)
 {
     // two contours wound the same way, nested, under nonzero: the hole has winding 2 and fills; wound against each
     // other the hole has winding 0 and stays clear
-    const CliCoveragePoint corner[8] = {{0, 0}, {12 * TEST_ONE, 0}, {12 * TEST_ONE, 8 * TEST_ONE}, {0, 8 * TEST_ONE},
+    const CoveragePoint corner[8] = {{0, 0}, {12 * TEST_ONE, 0}, {12 * TEST_ONE, 8 * TEST_ONE}, {0, 8 * TEST_ONE},
                                         {4 * TEST_ONE, 2 * TEST_ONE}, {4 * TEST_ONE, 6 * TEST_ONE},
                                         {8 * TEST_ONE, 6 * TEST_ONE}, {8 * TEST_ONE, 2 * TEST_ONE}};
     const unsigned int end[2] = {4u, 8u};
-    EMBED_CALL(cli_coverage_scene.fill, CliCoverageSceneCfg, .scene = &s_scene, .point = corner, .end = end,
+    EMBED_CALL(coverage_scene.fill, CoverageSceneCfg, .scene = &s_scene, .point = corner, .end = end,
                .contours = 2u, .color = 0xffffffffu);
     rendered(0, 0, TEST_WIDTH, TEST_HEIGHT);
     TEST_ASSERT_EQUAL_HEX32(0xffffffffu, s_target[(1u * TEST_WIDTH) + 1u]);

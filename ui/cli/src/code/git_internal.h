@@ -20,10 +20,10 @@ typedef struct CliGitFromCtx CliGitFromCtx;
 typedef struct CliGitCtx CliGitCtx;
 typedef struct CliGitFoundCtx CliGitFoundCtx;
 
-// the most bytes of what git writes that are stored, the bytes each read past them takes and lets go, and the most
+// the most bytes of what git writes that are stored, the bytes one read of its pipe takes, and the most
 // bytes of what it reports went wrong
 #define CLI_GIT_OUT (1u << 24u)
-#define CLI_GIT_READ 4096ull
+#define CLI_GIT_READ 65536ull
 #define CLI_GIT_ERR (1u << 16u)
 
 // how git is started: with no optional lock taken, as a question that changes nothing runs it; with no terminal prompt
@@ -44,8 +44,8 @@ typedef struct
     int ok;
 } CliGitResult;
 
-// what one run of git gave, in a cell taken for the run, and given back; where the cells cannot meet a run, an empty
-// one every run of git refuses
+// what one run of git gave, in a cell of the temporary tier taken for the run and given back by the function that
+// took it; where the cells cannot meet a run, an empty one every run of git refuses
 CliGitResult *cli_git_alloc(void);
 void cli_git_free(const CliGitResultCtx *args);
 // git at `root` started with the words trust gives, then `args`, `count` of them, as `how` specifies, with

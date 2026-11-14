@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // protocol.h: the query's face on the command line: the programs the query needs found through the toolchains,
-// every command of the query a job of the Protocol menu (catalog.h), and the words of `orior_cli protocol` run by the
+// every command of the query a job of the Protocol menu (catalog.h), and the words of `imp protocol` run by the
 // query.
 //
 // Nothing here stores a list of languages or parts. Each is the files of the bridge's folder that name it: a language
@@ -20,7 +20,7 @@ typedef struct CliProtocolCfg CliProtocolCfg;
 // File, Toolchains opens its install page or takes its folder
 QueryPrograms cli_protocol_programs(void);
 
-// `orior_cli protocol <words>`, `count` of them, run on the tree at `root`, each line printed through `sink`: the code
+// `imp protocol <words>`, `count` of them, run on the tree at `root`, each line printed through `sink`: the code
 // to exit with, or -1 with why the words could not be run printed through `sink`
 int cli_protocol_run(const CliProtocolCfg *args);
 

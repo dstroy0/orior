@@ -29,6 +29,7 @@
 #ifndef INSPECT_H
 #define INSPECT_H
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliInspectFactsCfg CliInspectFactsCfg;
@@ -195,6 +196,44 @@ typedef struct
     int counting;
 } CliFacts;
 
+// What a file's facts stand in once worked out: one movable cell its holder owns, each list at its place in it and
+// the texts at `text_at`, with the count of each. A reader reaches the cell's bytes only through the guard's movable
+// reads and compares, by the token `cell`
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned long long import_at;
+    unsigned long long class_at;
+    unsigned long long function_at;
+    unsigned long long finding_at;
+    unsigned long long fix_at;
+    unsigned long long edit_at;
+    unsigned long long name_at;
+    unsigned long long text_at;
+    unsigned int imports;
+    unsigned int classes;
+    unsigned int functions;
+    unsigned int findings;
+    unsigned int fixes;
+    unsigned int edits;
+    unsigned int names;
+    unsigned int used;
+} CliFactsCell;
+
+// where the record at `index_` of each list of the facts cell `facts_` stands, and where the text at `at_` does
+#define CLI_FACTS_IMPORT_AT(facts_, index_)                                                                            \
+    ((facts_)->import_at + ((unsigned long long)(index_) * sizeof(CliInspectImport)))
+#define CLI_FACTS_CLASS_AT(facts_, index_)                                                                             \
+    ((facts_)->class_at + ((unsigned long long)(index_) * sizeof(CliInspectClass)))
+#define CLI_FACTS_FUNCTION_AT(facts_, index_)                                                                          \
+    ((facts_)->function_at + ((unsigned long long)(index_) * sizeof(CliInspectFunction)))
+#define CLI_FACTS_FINDING_AT(facts_, index_)                                                                           \
+    ((facts_)->finding_at + ((unsigned long long)(index_) * sizeof(CliInspectFinding)))
+#define CLI_FACTS_FIX_AT(facts_, index_) ((facts_)->fix_at + ((unsigned long long)(index_) * sizeof(CliInspectFix)))
+#define CLI_FACTS_EDIT_AT(facts_, index_) ((facts_)->edit_at + ((unsigned long long)(index_) * sizeof(CliInspectEdit)))
+#define CLI_FACTS_NAME_AT(facts_, index_) ((facts_)->name_at + ((unsigned long long)(index_) * sizeof(CliInspectName)))
+#define CLI_FACTS_TEXT_AT(facts_, at_) ((facts_)->text_at + (unsigned long long)(at_))
+
 // A span: from where to where
 typedef struct
 {
@@ -351,7 +390,7 @@ struct CliInspectLanguageTextCfg
 
 struct CliInspectFactsFindingCfg
 {
-    const CliFacts *facts_read;
+    const CliFactsCell *facts_read;
     unsigned int finding;
     VerbaLinea *out;
 };

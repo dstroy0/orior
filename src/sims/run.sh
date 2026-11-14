@@ -21,8 +21,8 @@ if [ "${1:-}" = "--" ]; then
     SIM_ARGUMENTS=("$@")
 fi
 
-source "$TOP/cu/includes/file_defs/file_defs.sh"
-NO_ROUNDING="$TOP/cu/includes/types/integers"
+source "$TOP/../includes/file_defs/file_defs.sh"
+NO_ROUNDING="$TOP/../includes/exact_types/integers"
 PERIOD="$TOP/cu/engine/analysis/period"
 PERIOD_CU="$TOP/cu/engine/analysis/period"
 TOWER="$TOP/cu/engine/analysis/tower"
@@ -35,7 +35,7 @@ CYCLE="$TOP/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/cu/engine/analysis/cycle"
 CODEGEN="$TOP/cu/engine/rmc"
 CODEGEN_CU="$TOP/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/cu/includes/parsers"
+CODEGEN_CU_2="$TOP/../includes/parsers"
 KEYMATH="$TOP/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/cu/engine/analysis/key_schedule"
@@ -129,7 +129,7 @@ OBSIGNATIO_CU="$TOP/cu/engine/runtime/obsignatio"
 INCLUDES=(-I "$TOP/cu/engine" -I "$SIMS" -I "$SIMS_CU" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$NO_ROUNDING" -I "$PERIOD" -I "$PERIOD_CU" -I "$TOWER" -I "$TOWER_CU" -I "$DEVICE_POOL"
           -I "$COMPRESSION" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$DAEMON_DIRECTORY" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
 if [ "$SIM" = "knf_identity" ]; then
-    INCLUDES+=(-I "$TOP/cu/includes/codecs/crc" -I "$TOP/cu/includes/codecs/crc" -I "$ENTROPY_HISTORY")
+    INCLUDES+=(-I "$TOP/../includes/codecs/crc" -I "$TOP/../includes/codecs/crc" -I "$ENTROPY_HISTORY")
 fi
 if [ "$SIM" = "noise_terms" ] || [ "$SIM" = "noise_root" ] || [ "$SIM" = "noise_floor" ]; then
     INCLUDES+=(-I "$NOISE_DETECTOR" -I "$NOISE_DETECTOR_CU")

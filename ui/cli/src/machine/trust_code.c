@@ -22,24 +22,35 @@ static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint
 #define CLI_TRUST_TREES 8u
 #define CLI_TRUST_PATHS_CAPACITY (1ULL << 20u)
 
-// The code found in a tree looked through, and when
+// The code found in a tree looked through, and when: its paths in a movable cell of their bytes, how many bytes and
+// how many paths
 typedef struct
 {
     char tree[CLI_PATH_MAX_LEN];
     unsigned long long when;
-    CliTrustCode code;
+    const CarcerMovableEntry *paths;
+    unsigned long long size;
+    unsigned int count;
     int has;
 } CliTrustFound;
 
 static CliTrustFound s_found[CLI_TRUST_TREES];
+
+// the cached paths of `one` let go
+static void trust_found_let(CliTrustFound *one)
+{
+    (void)g_cli_guard->movable_buf_release(one->paths, g_cli_trust_owner);
+    one->paths = NULL;
+    one->size = 0ULL;
+    one->count = 0u;
+}
 
 void cli_trust_forget(void)
 {
     for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
     {
         s_found[at].has = 0;
-        g_cli_guard->persistent_buf_release((&s_found[at].code)->paths, g_cli_trust_owner);
-        *(&s_found[at].code) = (CliTrustCode){NULL, 0ULL, 0u};
+        trust_found_let(&s_found[at]);
     }
 }
 
@@ -58,8 +69,8 @@ typedef struct
     const char *name;
     const char *const *names;
 } TrustCodeCtx;
-// `count` paths, `size` bytes of them at `paths`, copied into `code`, a cell of their own where there are any: 1, or 0
-// with none into `code` where the cellblock could not meet them
+// `count` paths, `size` bytes of them at `paths`, copied into `code`, a cell of the temporary tier where there are
+// any, the caller's for its one call: 1, or 0 with none into `code` where the cellblock could not meet them
 EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
 {
     const char *paths = args->paths;
@@ -71,12 +82,12 @@ EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
     {
         return 1;
     }
-    code->paths = g_cli_guard->persistent_buf_alloc(size, g_cli_trust_owner);
+    code->paths = g_cli_guard->temporary_buf_alloc(size, g_cli_trust_owner);
     if (code->paths == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = code->paths, .src = paths, .bytes = (size_t)size});
+    memor.cpy(&(MemoriaCfg){.dst = code->paths, .src = paths, .bytes = (embed_word)size});
     code->size = size;
     code->count = count;
     return 1;
@@ -193,13 +204,13 @@ EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = g_cli_trust_owner)
                                            : NULL;
-    char *const text = (bytes != NULL) ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_trust_owner) : NULL;
+    char *const text = (bytes != NULL) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_trust_owner) : NULL;
     if (text != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
+        memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (embed_word)size});
         text[size] = '\0';
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_trust_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_trust_owner));
     return text;
 }
 
@@ -225,7 +236,7 @@ EMBED_INLINE int cli_proc_macro(const TrustCodeCtx *args)
                                                       .text = at, .at = piece, .size = stop, .set = " ");
             const unsigned long long fits = sizeof(name_buf) - 1u - count;
             const unsigned long long take = ((end - piece) < fits) ? (end - piece) : fits;
-            memor.cpy(&(MemoriaCfg){.dst = name_buf + count, .src = at + piece, .bytes = (size_t)take});
+            memor.cpy(&(MemoriaCfg){.dst = name_buf + count, .src = at + piece, .bytes = (embed_word)take});
             // no more than fit in the name's capacity, which an unsigned int stores
             count += (unsigned int)take;
             longer = longer || (take < (end - piece));
@@ -263,8 +274,8 @@ EMBED_INLINE int cli_by_name(const TrustCodeCtx *args)
 
 int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
 {
-    char *const paths_cell = g_cli_guard->temporary_buf_alloc(CLI_TRUST_PATHS_CAPACITY, g_cli_trust_owner);
-    VerbaLinea paths = mmgr_line_over(paths_cell, CLI_TRUST_PATHS_CAPACITY);
+    CliGrownLine paths;
+    cli_grown_begin(&paths, CLI_TRUST_PATHS_CAPACITY, g_cli_trust_owner);
     const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->tree);
     unsigned int found = 0u;
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
@@ -297,7 +308,7 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         }
         if (is_code)
         {
-            mmgr_line_put_n(&paths, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u);
+            mmgr_line_put_n(&paths.line, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}) + 1u);
             found += 1u;
         }
     }
@@ -305,13 +316,14 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
     char *const config = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = args->tree, .name = ".git/config");
     if ((config != NULL) && EMBED_CALL(cli_trust_table.names_a_hook, CliTrustCfg, .config = config))
     {
-        mmgr_line_put_n(&paths, ".git/config", sizeof(".git/config"));
+        mmgr_line_put_n(&paths.line, ".git/config", sizeof(".git/config"));
         found += 1u;
     }
     g_cli_guard->persistent_buf_release(config, g_cli_trust_owner);
-    const int done = mmgr_line_ok(&paths) && EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = paths.out,
-                                                        .size = paths.at, .count = found, .code = args->code);
-    g_cli_guard->persistent_buf_release(paths.out, g_cli_trust_owner);
+    const int done =
+        mmgr_line_ok(&paths.line) && EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = paths.cell,
+                                                .size = cli_grown_size(&paths), .count = found, .code = args->code);
+    cli_grown_end(&paths);
     return done;
 }
 
@@ -325,9 +337,22 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
         if (one->has && (cellul.eq(&(CatenaFinitaCfg){.src = one->tree, .other = args->tree, .cap = CLI_POOL_BYTES})) &&
             ((now - one->when) < CLI_TRUST_FOUND_FOR))
         {
-            const int copied = EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = one->code.paths, .size = one->code.size,
-                                          .count = one->code.count, .code = code);
-            return copied;
+            // the cached paths read off their movable cell into a cell of the caller's call
+            *code = (CliTrustCode){NULL, 0ULL, 0u};
+            if (one->count == 0u)
+            {
+                return 1;
+            }
+            code->paths = g_cli_guard->temporary_buf_alloc(one->size, g_cli_trust_owner);
+            if (code->paths == NULL)
+            {
+                return 0;
+            }
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = one->paths, .dst = code->paths, .bytes = (embed_word)one->size});
+            code->size = one->size;
+            code->count = one->count;
+            return 1;
         }
     }
     // a tree whose code the cellblock could not meet is not cached, and it is looked through again when next requested
@@ -373,12 +398,20 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_POOL_BYTES}) + 1u});
     one->when = cli_clock_milliseconds();
     one->has = 1;
-    g_cli_guard->persistent_buf_release(one->code.paths, g_cli_trust_owner);
-    *(&one->code) = (CliTrustCode){NULL, 0ULL, 0u};
-    one->code = looked;
-    const int copied = EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = looked.paths, .size = looked.size,
-                                  .count = looked.count, .code = code);
-    return copied;
+    trust_found_let(one);
+    // the paths cached in a movable cell of their bytes; a tree the cells cannot cache is looked through again
+    one->paths = (looked.count != 0u) ? g_cli_guard->movable_buf_alloc(looked.size, g_cli_trust_owner) : NULL;
+    one->has = (one->paths != NULL) || (looked.count == 0u);
+    if (one->paths != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = one->paths, .src = looked.paths, .bytes = (embed_word)looked.size});
+        one->size = looked.size;
+        one->count = looked.count;
+    }
+    // the looked-for paths, a cell of this call, are the caller's answer
+    *code = looked;
+    return 1;
 }
 
 int cli_trust_block(const CliTrustTreeWordsCfg *args)

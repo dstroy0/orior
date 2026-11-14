@@ -114,8 +114,10 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
 // "arguments": [{"text", "type"}], "declarations": [{"path", "line", "label", "params": [[from, to]], "types",
 // "count", "variadic", "differs"}], "reading"}`, the declarations every one of the call's name in the tree in order of
 // fit, or as `null` where the cursor stands in no call or the file's language is none read here: 1, or 0 with why
-// given where the cells cannot meet it (symbols_signature.c)
-CliSignaturePanel *cli_symbols_signature_alloc(const CliSymbolsPathTextSizeOutCfg *args);
+// given where the cells cannot meet it; and the first declaration the call may be of written into `store` as a panel
+// with the call's parameter and those the arguments differ from: 1, or 0 where the cursor stands in no call, no
+// declaration is known or the cells cannot meet the reading, with why given (symbols_signature.c)
+int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args);
 // the line of no branch, a bracket the slice closes; what each line of a slice is handed to: the path of the branch it
 // came from, NULL for none, its line there, CLI_SLICE_NOWHERE for none, and its text, `length` bytes; and the same
 // slice handed to `each` a line at a time in place of being written (symbols_slice.c)
@@ -311,6 +313,7 @@ struct CliSymbolsPathTextSizeOutCfg
     unsigned int line;
     unsigned int col;
     VerbaLinea *err_msg;
+    CliSignatureStore *store;
 };
 
 struct CliSymbolsPathTextSizeContextErrMsgCfg
@@ -520,11 +523,11 @@ EMBED_TABLE_STORAGE CliSymbolsQueryMaxNs cli_symbols_query_max EMBED_UNUSED = {
 
 typedef struct
 {
-    CliSignaturePanel *(*signature_alloc)(const CliSymbolsPathTextSizeOutCfg *args);
+    int (*signature_read)(const CliSymbolsPathTextSizeOutCfg *args);
 } CliSymbolsPathTextSizeOutNs;
-EMBED_TABLE_LAYOUT(CliSymbolsPathTextSizeOutNs, signature_alloc);
+EMBED_TABLE_LAYOUT(CliSymbolsPathTextSizeOutNs, signature_read);
 EMBED_TABLE_STORAGE CliSymbolsPathTextSizeOutNs cli_symbols_path_text_size_out EMBED_UNUSED = {
-    .signature_alloc = cli_symbols_signature_alloc,
+    .signature_read = cli_symbols_signature_read,
 };
 
 typedef struct
@@ -606,9 +609,9 @@ EMBED_TABLE_STORAGE CliSymbolsPathTextSizeStateNs cli_symbols_path_text_size_sta
 #define CLI_OUTLINE_LINES_MOST 50000ULL
 typedef struct
 {
-    const char *name;
+    char name[CLI_PATH_MAX_LEN];
     unsigned long long length;
-    const char *type;
+    char type[CLI_NAME_MAX_LEN];
     unsigned long long line;
     unsigned int depth;
 } CliOutlineRow;

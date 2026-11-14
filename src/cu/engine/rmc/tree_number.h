@@ -27,7 +27,7 @@
 // as does the compiler reading its own trees.
 // Past 13 places the number outgrows an unsigned long long, and the container changes where the encoding does not.
 // The engine already supports an exact integer of any width - OriorExactInteger in
-// src/cu/includes/types/integers/exact_integer_api.h, limbs least significant first with the sign stored apart -
+// includes/exact_types/integers/exact_integer_api.h, limbs least significant first with the sign stored apart -
 // and a tree's number in base TREE_SYMBOLS is written into one the same way it is written into a word here.
 //
 // Nothing reaches for it yet, and this is the size where that stops being true: a fixed-arity tree never passes 5

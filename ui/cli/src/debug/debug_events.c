@@ -17,7 +17,7 @@ static void step_across_clear(void *context)
     if (native != NULL)
     {
         CliDebugAnswer *const answer = cli_debug_answer_alloc();
-        mmgr_line_put(&answer->args,
+        mmgr_line_put(&answer->args.line,
                       "{\"expression\":\"`breakpoint delete --force " CLI_DEBUG_ACROSS "\",\"context\":\"repl\"}");
         (void)EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = native,
                          .command = "evaluate", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
@@ -29,17 +29,8 @@ static void step_across_clear(void *context)
     session->users -= 1u;
     if (!session->list_entries && session->adapter_ended && (session->users == 0u))
     {
-        g_cli_guard->persistent_buf_release(session->positioned, g_cli_debug_owner);
-        session->data = NULL;
-        session->data_count = 0u;
-        session->data_capacity = 0u;
-        session->positioned = NULL;
-        session->positioned_count = 0u;
-        session->positioned_capacity = 0u;
-        g_cli_guard->persistent_buf_release(session->start.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), session->start.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&session->start),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = session);
+        cli_json_stored_release(&session->start);
         session->reserved = 0;
     }
 }
@@ -88,9 +79,14 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
             continue;
         }
         any = 1;
-        for (unsigned int one = 0u; one < args->session->positioned_count; one += 1u)
+        for (unsigned int one = 0u; !positioned && (one < args->session->positioned_count); one += 1u)
         {
-            positioned = positioned || (args->session->positioned[one] == number);
+            long long placed = 0LL;
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->session->positioned_cell,
+                                                                    .offset = (unsigned long long)one * sizeof(placed),
+                                                                    .dst = &placed,
+                                                                    .bytes = sizeof(placed)});
+            positioned = placed == number;
         }
     }
     if (!any || positioned)
@@ -194,17 +190,8 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         session->adapter_ended = 1;
         if (!session->list_entries && (session->users == 0u))
         {
-            g_cli_guard->persistent_buf_release(session->positioned, g_cli_debug_owner);
-            session->data = NULL;
-            session->data_count = 0u;
-            session->data_capacity = 0u;
-            session->positioned = NULL;
-            session->positioned_count = 0u;
-            session->positioned_capacity = 0u;
-            g_cli_guard->persistent_buf_release(session->start.node,
-                                                mmgr_owner_of_buf(cli_pool_series_cellularum(), session->start.node));
-            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&session->start),
-                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+            EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = session);
+            cli_json_stored_release(&session->start);
             session->reserved = 0;
         }
     }

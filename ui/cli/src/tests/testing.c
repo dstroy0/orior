@@ -61,8 +61,8 @@ EMBED_INLINE void testing_value_append(const TestingCtx *args)
     }
     args->rule->value[args->rule->count] = args->rules->used;
     args->rule->count += 1u;
-    memor.cpy(
-        &(MemoriaCfg){.dst = args->rules->text + args->rules->used, .src = args->value, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){
+        .dst = args->rules->text + args->rules->used, .src = args->value, .bytes = (embed_word)args->size});
     args->rules->used += (unsigned int)args->size;
     args->rules->text[args->rules->used] = '\0';
     args->rules->used += 1u;
@@ -136,7 +136,7 @@ EMBED_INLINE void testing_set(const TestingCtx *args)
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_keys[at], .cap = CLI_POOL_BYTES}) == args->key_size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_keys[at], .other = args->key, .bytes = (size_t)args->key_size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_keys[at], .other = args->key, .bytes = (embed_word)args->key_size}) == 0))
         {
             EMBED_CALL(testing_values_get, TestingCtx, .rules = args->rules, .rule = rule[at], .raw = args->value,
                        .size = args->size);
@@ -197,7 +197,8 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
             }
             inside =
                 (trimmed_size == section_size) &&
-                (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = args->section, .bytes = (size_t)section_size}) == 0);
+                (memor.cmp(&(MemoriaCfg){.src = trimmed, .other = args->section, .bytes = (embed_word)section_size}) ==
+                 0);
             found |= inside;
             continue;
         }
@@ -217,7 +218,8 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
                        .value = s_value, .size = value.at);
             keyed = 0;
         }
-        const char *const equals = memor.chr(&(MemoriaCfg){.src = trimmed, .val = '=', .bytes = (size_t)trimmed_size});
+        const char *const equals =
+            memor.chr(&(MemoriaCfg){.src = trimmed, .val = '=', .bytes = (embed_word)trimmed_size});
         if (equals != NULL)
         {
             const unsigned long long name_size = (unsigned long long)(equals - trimmed);
@@ -230,7 +232,7 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
             EMBED_CALL(testing_trim, TestingCtx, .text = equals + 1, .size = trimmed_size - name_size - 1u,
                        .from = &remainder_from, .to = &remainder_to);
             key_size = (name_to - name_from < sizeof(s_key)) ? name_to - name_from : 0ULL;
-            memor.cpy(&(MemoriaCfg){.dst = s_key, .src = trimmed + name_from, .bytes = (size_t)key_size});
+            memor.cpy(&(MemoriaCfg){.dst = s_key, .src = trimmed + name_from, .bytes = (embed_word)key_size});
             value.at = 0ULL;
             mmgr_line_put_n(&value, equals + 1 + remainder_from, remainder_to - remainder_from);
             keyed = 1;
@@ -263,7 +265,7 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
         const int read = EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = size) &&
                          EMBED_CALL(cli_testing_rules.test_rules_in, CliTestingRulesCfg, .text = text, .size = size,
                                     .section = s_sections[at], .rules = args->rules);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_tests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_tests_owner));
         if (read)
         {
             return;
@@ -314,7 +316,7 @@ int cli_test_glob(const CliTestingSizeCfg *args)
         if ((matched < length) && ((args->pattern[matched] == '?') ||
                                    ((own == letter) && (memor.cmp(&(MemoriaCfg){.src = args->pattern + matched,
                                                                                 .other = args->name + at,
-                                                                                .bytes = (size_t)own}) == 0))))
+                                                                                .bytes = (embed_word)own}) == 0))))
         {
             matched += (args->pattern[matched] == '?') ? 1u : own;
             at += letter;

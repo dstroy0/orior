@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_qry.c: a finished run is read whole and then from where a read stopped, a run's bytes open as its names each joined, a tree's
 // runs are listed, and a lesson line is read and any other skipped
-#include "src/cu/includes/file_defs/qry/qry.h"
-#include "src/cu/includes/file_defs/qry/qry_read.h"
+#include "includes/file_defs/qry/qry.h"
+#include "includes/file_defs/qry/qry_read.h"
 #include "ui/cli/src/runs/qry.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 

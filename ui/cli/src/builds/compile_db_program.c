@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// compile_db_program.c: the program a CMake or Meson build orior_cli configured makes from a source, read from CMake's
+// compile_db_program.c: the program a CMake or Meson build impero configured makes from a source, read from CMake's
 // file API reply and from Meson's intro-targets.json, each file mapped and walked by key in one pass
 #include "../text/text.h"
 #include "compile_db_internal.h"

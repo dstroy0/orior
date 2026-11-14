@@ -89,25 +89,25 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\inspect_tree\\test_inspect_tree\\test_inspect_tree.c");
-  run_test(test_a_function_is_found_by_the_line_of_its_name, "test_a_function_is_found_by_the_line_of_its_name", 196);
-  run_test(test_a_function_is_found_by_a_line_it_contains, "test_a_function_is_found_by_a_line_it_contains", 204);
-  run_test(test_a_functions_callers_are_found, "test_a_functions_callers_are_found", 212);
-  run_test(test_a_functions_callees_count_both_calls_and_not_the_one_inner_makes, "test_a_functions_callees_count_both_calls_and_not_the_one_inner_makes", 220);
-  run_test(test_a_caller_in_another_file_is_found, "test_a_caller_in_another_file_is_found", 229);
-  run_test(test_a_methods_callees_include_its_own_classes, "test_a_methods_callees_include_its_own_classes", 237);
-  run_test(test_a_javascript_functions_callers_are_found, "test_a_javascript_functions_callers_are_found", 245);
-  run_test(test_a_javascript_methods_callees_are_found, "test_a_javascript_methods_callees_are_found", 253);
-  run_test(test_an_import_cycle_names_the_files_it_passes_through, "test_an_import_cycle_names_the_files_it_passes_through", 261);
-  run_test(test_an_import_cycle_is_reported_once_in_its_other_file, "test_an_import_cycle_is_reported_once_in_its_other_file", 268);
-  run_test(test_an_import_inside_a_function_is_not_a_cycle, "test_an_import_inside_a_function_is_not_a_cycle", 276);
-  run_test(test_an_import_only_a_type_checker_makes_is_not_a_cycle, "test_an_import_only_a_type_checker_makes_is_not_a_cycle", 283);
-  run_test(test_a_javascript_cycle_includes_a_reexport, "test_a_javascript_cycle_includes_a_reexport", 290);
-  run_test(test_a_file_that_only_reaches_a_cycle_is_not_in_it, "test_a_file_that_only_reaches_a_cycle_is_not_in_it", 297);
-  run_test(test_the_class_a_mixin_is_mixed_into_supplies_its_method, "test_the_class_a_mixin_is_mixed_into_supplies_its_method", 304);
-  run_test(test_a_method_no_class_sets_is_not_supplied, "test_a_method_no_class_sets_is_not_supplied", 312);
-  run_test(test_an_attribute_no_class_of_a_mixins_family_sets_is_found, "test_an_attribute_no_class_of_a_mixins_family_sets_is_found", 320);
-  run_test(test_an_attribute_of_the_class_a_mixin_is_mixed_into_is_found, "test_an_attribute_of_the_class_a_mixin_is_mixed_into_is_found", 327);
-  run_test(test_a_class_whose_family_is_outside_the_tree_reports_nothing, "test_a_class_whose_family_is_outside_the_tree_reports_nothing", 334);
+  run_test(test_a_function_is_found_by_the_line_of_its_name, "test_a_function_is_found_by_the_line_of_its_name", 200);
+  run_test(test_a_function_is_found_by_a_line_it_contains, "test_a_function_is_found_by_a_line_it_contains", 208);
+  run_test(test_a_functions_callers_are_found, "test_a_functions_callers_are_found", 216);
+  run_test(test_a_functions_callees_count_both_calls_and_not_the_one_inner_makes, "test_a_functions_callees_count_both_calls_and_not_the_one_inner_makes", 224);
+  run_test(test_a_caller_in_another_file_is_found, "test_a_caller_in_another_file_is_found", 233);
+  run_test(test_a_methods_callees_include_its_own_classes, "test_a_methods_callees_include_its_own_classes", 241);
+  run_test(test_a_javascript_functions_callers_are_found, "test_a_javascript_functions_callers_are_found", 249);
+  run_test(test_a_javascript_methods_callees_are_found, "test_a_javascript_methods_callees_are_found", 257);
+  run_test(test_an_import_cycle_names_the_files_it_passes_through, "test_an_import_cycle_names_the_files_it_passes_through", 265);
+  run_test(test_an_import_cycle_is_reported_once_in_its_other_file, "test_an_import_cycle_is_reported_once_in_its_other_file", 272);
+  run_test(test_an_import_inside_a_function_is_not_a_cycle, "test_an_import_inside_a_function_is_not_a_cycle", 280);
+  run_test(test_an_import_only_a_type_checker_makes_is_not_a_cycle, "test_an_import_only_a_type_checker_makes_is_not_a_cycle", 287);
+  run_test(test_a_javascript_cycle_includes_a_reexport, "test_a_javascript_cycle_includes_a_reexport", 294);
+  run_test(test_a_file_that_only_reaches_a_cycle_is_not_in_it, "test_a_file_that_only_reaches_a_cycle_is_not_in_it", 301);
+  run_test(test_the_class_a_mixin_is_mixed_into_supplies_its_method, "test_the_class_a_mixin_is_mixed_into_supplies_its_method", 308);
+  run_test(test_a_method_no_class_sets_is_not_supplied, "test_a_method_no_class_sets_is_not_supplied", 316);
+  run_test(test_an_attribute_no_class_of_a_mixins_family_sets_is_found, "test_an_attribute_no_class_of_a_mixins_family_sets_is_found", 324);
+  run_test(test_an_attribute_of_the_class_a_mixin_is_mixed_into_is_found, "test_an_attribute_of_the_class_a_mixin_is_mixed_into_is_found", 331);
+  run_test(test_a_class_whose_family_is_outside_the_tree_reports_nothing, "test_a_class_whose_family_is_outside_the_tree_reports_nothing", 338);
 
   return UNITY_END();
 }

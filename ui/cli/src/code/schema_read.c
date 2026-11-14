@@ -7,8 +7,6 @@
 #include "../text/text.h"
 #include "schema_internal.h"
 
-#include <stdlib.h>
-
 // A reader of a JSON file: the read it fills, the byte it stands at, and how deep it is
 typedef struct
 {
@@ -54,7 +52,7 @@ EMBED_INLINE unsigned int read_store(const SchemaReadCtx *args)
         return CLI_SCHEMA_POOL;
     }
     const unsigned int at = args->read->used;
-    memor.cpy(&(MemoriaCfg){.dst = args->read->pool + at, .src = bytes, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = args->read->pool + at, .src = bytes, .bytes = (embed_word)args->size});
     args->read->pool[at + args->size] = '\0';
     args->read->used += (unsigned int)args->size + 1u;
     return at;
@@ -176,13 +174,12 @@ static void read_string(const SchemaReadCtx *args)
         }
         else if (next == 'u')
         {
-            char hex[5] = {0};
             const unsigned long long left = (args->reader->at + 4u <= size) ? 4u : size - args->reader->at;
-            memor.cpy(&(MemoriaCfg){.dst = hex, .src = text + args->reader->at, .bytes = (size_t)left});
-            char *end = NULL;
-            const unsigned long value = strtoul(hex, &end, 16);
-            const int spaced = (hex[0] == ' ') || ((hex[0] >= '\t') && (hex[0] <= '\r')) || (hex[0] == '-');
-            if (!spaced && (left == 4u) && (end == hex + 4) && ((value < 0xd800u) || (value > 0xdfffu)))
+            unsigned long long end = 0ULL;
+            const unsigned long long value =
+                EMBED_CALL(cli_text_at_size.hex, CliTextAtSizeCfg, .text = text, .at = args->reader->at,
+                           .size = args->reader->at + left, .end = &end);
+            if ((left == 4u) && (end == args->reader->at + 4ULL) && ((value < 0xd800ULL) || (value > 0xdfffULL)))
             {
                 EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out,
                            .letter = (unsigned int)value);
@@ -293,7 +290,7 @@ static unsigned int read_members(const SchemaReadCtx *args)
                                                            .read = read, .at = one->key_at),
                                          .other = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
                                                              .read = read, .at = key_at),
-                                         .bytes = (size_t)key_size}) == 0))
+                                         .bytes = (embed_word)key_size}) == 0))
             {
                 EMBED_CALL(read_error, SchemaReadCtx, .reader = args->reader, .from = from, .to = to, .before = "",
                            .middle = text + one->from, .size = one->to - one->from,
@@ -460,10 +457,10 @@ EMBED_INLINE unsigned int read_number(const SchemaReadCtx *args)
     int read = (size > 0u) && (size < sizeof(raw));
     if (read)
     {
-        memor.cpy(&(MemoriaCfg){.dst = raw, .src = text + args->from, .bytes = (size_t)size});
+        memor.cpy(&(MemoriaCfg){.dst = raw, .src = text + args->from, .bytes = (embed_word)size});
         raw[size] = '\0';
-        char *end = NULL;
-        value = strtod(raw, &end);
+        const char *end = NULL;
+        value = cellul.to_double(&(TransfiguroCfg){.src = raw, .end = &end});
         read = (end == raw + size);
     }
     if (!read)

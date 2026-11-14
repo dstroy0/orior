@@ -705,9 +705,13 @@ EMBED_TABLE_STORAGE CliFilesRootErrMsgNs cli_files_root_err_msg EMBED_UNUSED = {
 #define CLI_SEARCH_REGEX 4u
 #define CLI_SEARCH_SET 5u
 
+// the most bytes of a line row's text with its end
+#define CLI_SEARCH_ROW_TEXT 1024u
+
 // A row of the pane: its type; the file's path from the top of the tree; a file row's name with its bytes and the
 // bytes of its folder before the name, its count of lines found and whether its lines show; a line row's line and
-// column counted from 1, its text with the text's bytes, and the match's place and bytes in the text
+// column counted from 1, its text with the text's bytes, and the match's place and bytes in the text; the text and
+// the path copied into the row's own bytes
 typedef struct
 {
     unsigned int type;
@@ -723,6 +727,8 @@ typedef struct
     unsigned long long text_length;
     unsigned long long match_at;
     unsigned long long match_length;
+    char text_copied[CLI_SEARCH_ROW_TEXT];
+    char path_copied[CLI_PATH_MAX_LEN];
 } CliSearchRow;
 
 typedef struct CliSearchPaneCfg CliSearchPaneCfg;
@@ -739,7 +745,7 @@ void cli_search_pane_option(const CliSearchPaneCfg *args);
 // whether the choice `which` is on; the query with its bytes into `length_out`; and the set chosen's name, Whole tree
 // where none is, with its bytes into `length_out` and how many sets Preferences lists into `count_out`
 int cli_search_pane_on(const CliSearchPaneCfg *args);
-const char *cli_search_pane_query(const CliSearchPaneCfg *args);
+unsigned long long cli_search_pane_query(const CliSearchPaneCfg *args);
 const char *cli_search_pane_set(const CliSearchPaneCfg *args);
 // one step of the window at `now_ms` for the tree at `root`: the tree searched where a change waited its rest, where a
 // key asked for it, or where the watch marked the search stale: 1 where the rows changed; when the next search falls,
@@ -768,6 +774,7 @@ struct CliSearchPaneCfg
     CliSearchRow *row;
     unsigned long long *length_out;
     unsigned int *count_out;
+    char *text_out;
 };
 
 typedef struct
@@ -777,7 +784,7 @@ typedef struct
     int (*key)(const CliSearchPaneCfg *args);
     void (*option)(const CliSearchPaneCfg *args);
     int (*on)(const CliSearchPaneCfg *args);
-    const char *(*query)(const CliSearchPaneCfg *args);
+    unsigned long long (*query)(const CliSearchPaneCfg *args);
     const char *(*set)(const CliSearchPaneCfg *args);
     int (*step)(const CliSearchPaneCfg *args);
     unsigned long long (*deadline_ms)(const CliSearchPaneCfg *args);

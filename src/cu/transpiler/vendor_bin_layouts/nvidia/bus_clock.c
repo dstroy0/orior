@@ -13,10 +13,10 @@
 // plan handed first, `clock <words>`. The first register that advances is written to the .ksc as `run answers <offset>
 // clock bus`, in place of the row before it, and the row let go recorded in the .krf beside it. Exit 0 where a clock
 // was found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
-#include "../../../includes/file_defs/krf/krf.h"
-#include "../../../includes/file_defs/ksc/ksc.h"
-#include "../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../includes/parsers/who.h"
+#include "../../../../../includes/file_defs/krf/krf.h"
+#include "../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../includes/parsers/who.h"
 #include "../../lstar/protocol/query/query_put.h"
 #include <stdio.h>
 #include <stdlib.h>

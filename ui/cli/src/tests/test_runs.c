@@ -229,7 +229,6 @@ static void test_end(void *context)
     }
     s_runs[run->place] = NULL;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_runs_wake);
-    g_cli_guard->persistent_buf_release(run, g_cli_tests_owner);
 }
 
 void cli_test_runs_stop(void)
@@ -264,11 +263,10 @@ static CliTestRun *test_run_alloc(void)
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_runs_wake);
         }
     }
-    run = g_cli_guard->persistent_buf_alloc(sizeof(CliTestRun), g_cli_tests_owner);
-    if (run == NULL)
-    {
-        return NULL;
-    }
+    // a run's record holds the wake its workers wait on, so the records stand fixed outside the pool, one for each
+    // run place, where they punch no hole in the persistent tier
+    static CliTestRun s_places[CLI_TEST_RUNS];
+    run = &s_places[at];
     run->place = at;
     s_runs[at] = run;
     s_last += 1ULL;

@@ -8,9 +8,9 @@
 #ifndef GUI_SYSTEM_H
 #define GUI_SYSTEM_H
 #include "../../cli/src/command_line/callback_cfg.h"
-#include "../../cli/src/view/view.h"
 #include "embed_dispatch_layout.h"
 #include "input_event.h"
+#include "thread.h"
 
 typedef struct GuiSystemPositionTitleCfg GuiSystemPositionTitleCfg;
 typedef struct GuiSystemTitleIconCfg GuiSystemTitleIconCfg;
@@ -32,7 +32,7 @@ typedef struct
 
 // Where the system hands its events, each with the context given at the opening: the client sized, with the scale the
 // system draws at and the milliseconds of one refresh of its monitor; an input; the thread woken by another; the system
-// asking to close; where the pointer on the input stands, as view.h names the places, for the system's own drag and
+// asking to close; where the pointer on the input stands, as thread.h names the places, for the system's own drag and
 // resize; the window gone off the screen, minimized or unmapped, `displayed` 0, or back on it, 1; and the system's wish
 // for less motion changed
 typedef struct
@@ -83,7 +83,7 @@ void gui_system_act(const GuiSystemCfg *args);
 // their own alpha, straight, the system copying them: the title's and the taskbar's icon on Windows, _NET_WM_ICON on
 // X11
 void gui_system_icon(const GuiSystemTitleIconCfg *args);
-// the pointer's shape over the window's client set to `cursor`, GUI_CURSOR_ARROW or GUI_CURSOR_SCROLL as view.h names
+// the pointer's shape over the window's client set to `cursor`, GUI_CURSOR_ARROW or GUI_CURSOR_SCROLL as thread.h names
 // them, and kept until the next call
 void gui_system_cursor_show(const GuiSystemCursorCfg *args);
 // where the window stands, in the system's own pixels, and whether it fills its monitor; and the scale the system

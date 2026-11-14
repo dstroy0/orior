@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query_loops.h: the loops of `orior_cli protocol`, each run under a context with its words, the context's calls they
+// query_loops.h: the loops of `imp protocol`, each run under a context with its words, the context's calls they
 // share (commands.c), and the dispatch (commands_list.c). A loop gives its exit code, or -1 with why it could not run
 // written into `err_msg`
 #ifndef QUERY_LOOPS_H
@@ -33,7 +33,7 @@ typedef struct QueryLoopsWordsWordsTextCfg QueryLoopsWordsWordsTextCfg;
 typedef struct QueryLoopsCfg QueryLoopsCfg;
 
 #define QUERY_USAGE                                                                                                    \
-    "orior_cli protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, retention, "    \
+    "imp protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, retention, "          \
     "sweep"
 
 // the folder the bridge, the rulesets and the part's files stand in

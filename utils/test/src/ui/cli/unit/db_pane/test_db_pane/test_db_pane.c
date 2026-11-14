@@ -71,12 +71,12 @@ static void ran(const char *statement)
     TEST_ASSERT_TRUE(run_ended());
 }
 
-// the row `at` into `row`
-static CliDbPaneRow row_at(unsigned int at)
+// the row `at` read into the one row kept here, whose texts stand in its own bytes: the row
+static CliDbPaneRow s_row;
+static const CliDbPaneRow *row_at(unsigned int at)
 {
-    CliDbPaneRow row;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane.row, CliDbPaneCfg, .at = at, .row = &row));
-    return row;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane.row, CliDbPaneCfg, .at = at, .row = &s_row));
+    return &s_row;
 }
 
 // the row whose text is `text`, CLI_DB_PANE_NONE where none is
@@ -85,9 +85,9 @@ static unsigned int row_of(const char *text)
     const unsigned int rows = EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u);
     for (unsigned int at = 0u; at < rows; at += 1u)
     {
-        const CliDbPaneRow row = row_at(at);
-        if ((row.text != NULL) && (row.text_length == CLI_UNITY_LENGTH(text)) &&
-            (memor.cmp(&(MemoriaCfg){.src = row.text, .other = text, .bytes = row.text_length}) == 0))
+        const CliDbPaneRow *const row = row_at(at);
+        if ((row->text != NULL) && (row->text_length == CLI_UNITY_LENGTH(text)) &&
+            (memor.cmp(&(MemoriaCfg){.src = row->text, .other = text, .bytes = row->text_length}) == 0))
         {
             return at;
         }
@@ -134,9 +134,9 @@ void test_the_connections_read_with_none_chosen_stand_as_one_sentence(void)
 {
     tree_ready();
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u));
-    const CliDbPaneRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row.type);
-    CLI_TEST_ASSERT_TEXT("No connection", row.text, row.text_length);
+    const CliDbPaneRow *const row = row_at(0u);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row->type);
+    CLI_TEST_ASSERT_TEXT("No connection", row->text, row->text_length);
     TEST_ASSERT_TRUE(tool_enabled(CLI_DB_PANE_PICK));
     TEST_ASSERT_FALSE(tool_enabled(CLI_DB_PANE_CONNECT));
 }
@@ -148,18 +148,18 @@ void test_the_chosen_connection_is_not_connected_until_connect_opens_its_schema(
     unsigned long long length = 0ULL;
     const char *const title = EMBED_CALL(cli_db_pane.title, CliDbPaneCfg, .length_out = &length);
     CLI_TEST_ASSERT_TEXT("lite (sqlite)", title, length);
-    CliDbPaneRow row = row_at(0u);
-    CLI_TEST_ASSERT_TEXT("lite is not connected: Connect reads its schema.", row.text, row.text_length);
+    const CliDbPaneRow *row = row_at(0u);
+    CLI_TEST_ASSERT_TEXT("lite is not connected: Connect reads its schema.", row->text, row->text_length);
     const char *label = tool_label(CLI_DB_PANE_CONNECT, &length);
     CLI_TEST_ASSERT_TEXT("Connect", label, length);
     EMBED_CALL(cli_db_pane_head.action, CliDbPaneHeadCfg, .which = CLI_DB_PANE_CONNECT, .root = s_root);
     label = tool_label(CLI_DB_PANE_CONNECT, &length);
     CLI_TEST_ASSERT_TEXT("Disconnect", label, length);
     row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row.type);
-    CLI_TEST_ASSERT_TEXT("main", row.text, row.text_length);
-    TEST_ASSERT_TRUE(row.opens);
-    TEST_ASSERT_FALSE(row.open);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row->type);
+    CLI_TEST_ASSERT_TEXT("main", row->text, row->text_length);
+    TEST_ASSERT_TRUE(row->opens);
+    TEST_ASSERT_FALSE(row->open);
     CLI_TEST_ASSERT_CONTAINS("\xE2\x97\x8F", EMBED_CALL(cli_db_pane.title, CliDbPaneCfg, .length_out = &length));
 }
 
@@ -174,13 +174,13 @@ void test_a_node_pressed_reads_its_level_once_and_a_second_press_closes_it(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = main_row, .root = s_root));
     const unsigned int table_row = row_of("t");
     TEST_ASSERT_NOT_EQUAL_UINT(CLI_DB_PANE_NONE, table_row);
-    TEST_ASSERT_EQUAL_UINT(1u, row_at(table_row).depth);
+    TEST_ASSERT_EQUAL_UINT(1u, row_at(table_row)->depth);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = table_row, .root = s_root));
     const unsigned int column_row = row_of("name");
     TEST_ASSERT_NOT_EQUAL_UINT(CLI_DB_PANE_NONE, column_row);
-    const CliDbPaneRow column = row_at(column_row);
-    CLI_TEST_ASSERT_CONTAINS("TEXT", column.detail);
-    TEST_ASSERT_FALSE(column.opens);
+    const CliDbPaneRow *const column = row_at(column_row);
+    CLI_TEST_ASSERT_CONTAINS("TEXT", column->detail);
+    TEST_ASSERT_FALSE(column->opens);
     const unsigned int open_rows = EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u);
     // the level stands stored: opened again it is read from the store, no cell taken for it, the owner's bytes in use
     // back where the first open left them
@@ -212,17 +212,17 @@ void test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it(void)
 {
     tree_ready();
     ran("DELETE FROM t");
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_PROMPT, row_at(0u).type);
-    CliDbPaneRow sentence = row_at(0u);
-    CLI_TEST_ASSERT_TEXT("This DELETE reaches every row on lite: 3 rows.", sentence.prompt.text,
-                         sentence.prompt.length);
-    const CliDbPaneRow statement = row_at(1u);
-    CLI_TEST_ASSERT_TEXT("DELETE FROM t", statement.prompt.text, statement.prompt.length);
-    const CliDbPaneRow buttons = row_at(2u);
-    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, buttons.prompt.type);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_PROMPT, row_at(0u)->type);
+    const CliDbPaneRow *sentence = row_at(0u);
+    CLI_TEST_ASSERT_TEXT("This DELETE reaches every row on lite: 3 rows.", sentence->prompt.text,
+                         sentence->prompt.length);
+    const CliDbPaneRow *const statement = row_at(1u);
+    CLI_TEST_ASSERT_TEXT("DELETE FROM t", statement->prompt.text, statement->prompt.length);
+    const CliDbPaneRow *const buttons = row_at(2u);
+    TEST_ASSERT_EQUAL_UINT(CLI_PROMPT_ROW_BUTTONS, buttons->prompt.type);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 2u, .choice = 1u, .root = s_root));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane.running, CliDbPaneCfg, .at = 0u));
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row_at(0u).type);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NODE, row_at(0u)->type);
     ran("DELETE FROM t");
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 2u, .choice = 0u, .root = s_root));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane.running, CliDbPaneCfg, .at = 0u));
@@ -239,10 +239,10 @@ void test_a_refused_connection_stands_as_its_failure(void)
     tree_ready();
     chosen("broken");
     EMBED_CALL(cli_db_pane_head.action, CliDbPaneHeadCfg, .which = CLI_DB_PANE_CONNECT, .root = s_root);
-    const CliDbPaneRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row.type);
-    TEST_ASSERT_TRUE(row.failed);
-    TEST_ASSERT_NOT_EQUAL_UINT64(0ULL, row.text_length);
+    const CliDbPaneRow *const row = row_at(0u);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row->type);
+    TEST_ASSERT_TRUE(row->failed);
+    TEST_ASSERT_NOT_EQUAL_UINT64(0ULL, row->text_length);
     chosen("lite");
 }
 
@@ -288,21 +288,21 @@ void test_the_form_adds_a_connection_and_removes_it(void)
 {
     tree_ready();
     EMBED_CALL(cli_db_pane_head.action, CliDbPaneHeadCfg, .which = CLI_DB_PANE_NEW, .root = s_root);
-    CliDbPaneRow row = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_FIELD, row.type);
-    TEST_ASSERT_TRUE(row.focused);
+    const CliDbPaneRow *row = row_at(0u);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_FIELD, row->type);
+    TEST_ASSERT_TRUE(row->focused);
     EMBED_CALL(cli_db_pane_input.type, CliDbPaneInputCfg, .text = "second", .size = 6ULL);
     // the type stepped from PostgreSQL to SQLite, and the file typed into its field
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 1u, .root = s_root);
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 1u, .root = s_root);
     row = row_at(1u);
-    CLI_TEST_ASSERT_TEXT("SQLite", row.detail, row.detail_length);
+    CLI_TEST_ASSERT_TEXT("SQLite", row->detail, row->detail_length);
     row = row_at(2u);
-    CLI_TEST_ASSERT_TEXT("File", row.text, row.text_length);
+    CLI_TEST_ASSERT_TEXT("File", row->text, row->text_length);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = 2u, .root = s_root));
     EMBED_CALL(cli_db_pane_input.type, CliDbPaneInputCfg, .text = "two.db", .size = 6ULL);
     const unsigned int rows = EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_BUTTONS, row_at(rows - 1u).type);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_BUTTONS, row_at(rows - 1u)->type);
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = rows - 1u, .choice = 0u, .root = s_root);
     unsigned long long length = 0ULL;
     // the title read before the assertion, which reads the length first
@@ -316,9 +316,9 @@ void test_the_form_adds_a_connection_and_removes_it(void)
     TEST_ASSERT_EQUAL_STRING("two.db", found.file);
     EMBED_CALL(cli_db_pane_head.action, CliDbPaneHeadCfg, .which = CLI_DB_PANE_EDIT, .root = s_root);
     const unsigned int edit_rows = EMBED_CALL(cli_db_pane.rows, CliDbPaneCfg, .at = 0u);
-    const CliDbPaneRow buttons = row_at(edit_rows - 1u);
-    TEST_ASSERT_EQUAL_UINT(2u, buttons.prompt.choices);
-    CLI_TEST_ASSERT_TEXT("Remove", buttons.prompt.choice[1], buttons.prompt.choice_length[1]);
+    const CliDbPaneRow *const buttons = row_at(edit_rows - 1u);
+    TEST_ASSERT_EQUAL_UINT(2u, buttons->prompt.choices);
+    CLI_TEST_ASSERT_TEXT("Remove", buttons->prompt.choice[1], buttons->prompt.choice_length[1]);
     (void)EMBED_CALL(cli_db_pane_tree.press, CliDbPaneTreeCfg, .at = edit_rows - 1u, .choice = 1u, .root = s_root);
     err_msg.at = 0ULL;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_root_name.by_name, CliDbRootNameCfg, .root = s_root, .name = "second",
@@ -340,5 +340,5 @@ void test_disconnect_closes_the_connection_and_lets_its_result_go(void)
     TEST_ASSERT_NULL(EMBED_CALL(cli_db_grid.open, CliDbGridCfg, .at = 0ULL));
     label = tool_label(CLI_DB_PANE_CONNECT, &length);
     CLI_TEST_ASSERT_TEXT("Connect", label, length);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row_at(0u).type);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_PANE_ROW_NOTE, row_at(0u)->type);
 }

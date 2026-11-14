@@ -5,22 +5,21 @@
 // runs, or into its folder itself; to a folder here each file copied into it. And a machine's `current` turned to a
 // release, its old releases let go of, and each place turned back to the release before the one it runs
 #include "../command_line/pool.h"
+#include "../text/sort.h"
 #include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
-
-#include <stdlib.h>
 
 // a machine's releases, oldest first, in a cell of the count of the lines of its listing, which is in a cell of its
 // size, each given back as the next machine's are read and as their reader ends
 static const char **s_releases;
 static unsigned int s_release_count;
-static char *s_releases_listing;
+static CliGrownLine s_releases_listing;
 
 typedef struct
 {
     const CliDeployPosition *place;
-    const VerbaLinea *line;
+    const CliGrownLine *line;
     const char *longer;
     VerbaLinea *err_msg;
     VerbaLinea *out;
@@ -40,15 +39,15 @@ typedef struct
 EMBED_INLINE int send_line_run(const DeploySendCtx *args)
 {
     const CliDeployPosition *place = args->place;
-    const VerbaLinea *line = args->line;
+    const CliGrownLine *line = args->line;
     VerbaLinea *err_msg = args->err_msg;
-    if (!mmgr_line_ok(line))
+    if (!mmgr_line_ok(&line->line))
     {
         mmgr_line_put(err_msg, args->longer);
         return 0;
     }
     VerbaLinea nothing = {NULL, 0ULL, 0ULL};
-    return EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line->out,
+    return EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line->cell,
                       .input = NULL, .size = 0ULL, .out = &nothing, .err_msg = err_msg);
 }
 
@@ -139,8 +138,9 @@ EMBED_INLINE int send_retained_files(const DeploySendCtx *args)
     {
         return 1;
     }
-    char *const line_text = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_LINE, g_cli_deploy_owner);
-    VerbaLinea line = mmgr_line_over(line_text, CLI_DEPLOY_LINE);
+    CliGrownLine line_grown;
+    cli_grown_begin(&line_grown, CLI_DEPLOY_LINE, g_cli_deploy_owner);
+    VerbaLinea *const line = &line_grown.line;
     char current[CLI_PATH_MAX_LEN + 16u];
     VerbaLinea current_line = {current, sizeof(current), 0ULL};
     mmgr_line_put(&current_line,
@@ -162,17 +162,17 @@ EMBED_INLINE int send_retained_files(const DeploySendCtx *args)
         const unsigned long long end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = to, .at = slash, .set = "/");
         slash = (end != 0ULL) ? (end - 1ULL) : 0ULL;
-        mmgr_line_put(&line, (at > 0u) ? " && mkdir -p " : "mkdir -p ");
-        EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = to, .size = slash, .out = &line);
-        mmgr_line_put(&line, " && cp -p ");
-        EMBED_CALL(send_quote, DeploySendCtx, .out = &line, .text = current, .path = path);
-        mmgr_line_ch(&line, ' ');
-        EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = to, .size = to_line.at, .out = &line);
+        mmgr_line_put(line, (at > 0u) ? " && mkdir -p " : "mkdir -p ");
+        EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = to, .size = slash, .out = line);
+        mmgr_line_put(line, " && cp -p ");
+        EMBED_CALL(send_quote, DeploySendCtx, .out = line, .text = current, .path = path);
+        mmgr_line_ch(line, ' ');
+        EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = to, .size = to_line.at, .out = line);
     }
-    const int run_result = EMBED_CALL(send_line_run, DeploySendCtx, .place = place, .line = &line,
-                                      .longer = "the line that copies the files retained is longer than orior_cli runs",
+    const int run_result = EMBED_CALL(send_line_run, DeploySendCtx, .place = place, .line = &line_grown,
+                                      .longer = "the line that copies the files retained is longer than impero runs",
                                       .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(line_text, g_cli_deploy_owner);
+    cli_grown_end(&line_grown);
     return run_result;
 }
 
@@ -233,7 +233,7 @@ int cli_deploy_send_to(const CliDeployErrMsgCtx *args)
     }
     else
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
     }
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = tar);
     return sent &&
@@ -259,8 +259,7 @@ static int send_releases(const DeploySendCtx *args)
     g_cli_guard->persistent_buf_release((void *)s_releases, g_cli_deploy_owner);
     s_releases = NULL;
     s_release_count = 0u;
-    g_cli_guard->persistent_buf_release(s_releases_listing, g_cli_deploy_owner);
-    s_releases_listing = NULL;
+    cli_grown_end(&s_releases_listing);
     *current = NULL;
     char line[CLI_PATH_MAX_LEN + 160u];
     VerbaLinea command = {line, sizeof(line), 0ULL};
@@ -271,35 +270,32 @@ static int send_releases(const DeploySendCtx *args)
     mmgr_line_put(&command, " 2>/dev/null || exit 0; ls -1 releases 2>/dev/null; echo '<current>'; readlink current "
                             "2>/dev/null; true");
     mmgr_line_finish(&command);
-    s_releases_listing = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_LINE, g_cli_deploy_owner);
-    VerbaLinea listing = mmgr_line_over(s_releases_listing, CLI_DEPLOY_LINE);
+    cli_grown_begin(&s_releases_listing, CLI_DEPLOY_LINE, g_cli_deploy_owner);
     const int run_result =
         EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
-                   .input = NULL, .size = 0ULL, .out = &listing, .err_msg = err_msg);
-    const unsigned long long size = listing.at;
+                   .input = NULL, .size = 0ULL, .out = &s_releases_listing.line, .err_msg = err_msg);
+    const unsigned long long size = cli_grown_size(&s_releases_listing);
     if (!run_result)
     {
         g_cli_guard->persistent_buf_release((void *)s_releases, g_cli_deploy_owner);
         s_releases = NULL;
         s_release_count = 0u;
-        g_cli_guard->persistent_buf_release(s_releases_listing, g_cli_deploy_owner);
-        s_releases_listing = NULL;
+        cli_grown_end(&s_releases_listing);
         return 0;
     }
-    if (!mmgr_line_ok(&listing))
+    if (!mmgr_line_ok(&s_releases_listing.line))
     {
         g_cli_guard->persistent_buf_release((void *)s_releases, g_cli_deploy_owner);
         s_releases = NULL;
         s_release_count = 0u;
-        g_cli_guard->persistent_buf_release(s_releases_listing, g_cli_deploy_owner);
-        s_releases_listing = NULL;
-        mmgr_line_put(err_msg, "it has more files than orior_cli supports");
+        cli_grown_end(&s_releases_listing);
+        mmgr_line_put(err_msg, "it has more files than impero supports");
         return 0;
     }
     static const char s_mark[] = "<current>";
-    const char *const mark_read = cellul.find(
-        &(CatenaFinitaCfg){.src = s_releases_listing, .cap = size + 1u, .other = s_mark, .other_cap = sizeof(s_mark)});
-    char *const mark = (mark_read != NULL) ? (s_releases_listing + (mark_read - s_releases_listing)) : NULL;
+    const char *const mark_read = cellul.find(&(CatenaFinitaCfg){
+        .src = s_releases_listing.cell, .cap = size + 1u, .other = s_mark, .other_cap = sizeof(s_mark)});
+    char *const mark = (mark_read != NULL) ? (s_releases_listing.cell + (mark_read - s_releases_listing.cell)) : NULL;
     char *after = (mark != NULL) ? (mark + 9) : NULL;
     if (mark != NULL)
     {
@@ -307,8 +303,8 @@ static int send_releases(const DeploySendCtx *args)
     }
     unsigned int lines = 1u;
     lines += (unsigned int)EMBED_CALL(
-        cli_text_size_byte.count, CliTextSizeByteCfg, .text = s_releases_listing,
-        .size = cellul.len(&(CatenaFinitaCfg){.src = s_releases_listing, .cap = CLI_POOL_BYTES}), .byte = '\n');
+        cli_text_size_byte.count, CliTextSizeByteCfg, .text = s_releases_listing.cell,
+        .size = cellul.len(&(CatenaFinitaCfg){.src = s_releases_listing.cell, .cap = CLI_POOL_BYTES}), .byte = '\n');
     s_releases =
         g_cli_guard->temporary_buf_alloc((unsigned long long)lines * sizeof(s_releases[0]), g_cli_deploy_owner);
     if (s_releases == NULL)
@@ -316,12 +312,11 @@ static int send_releases(const DeploySendCtx *args)
         g_cli_guard->persistent_buf_release((void *)s_releases, g_cli_deploy_owner);
         s_releases = NULL;
         s_release_count = 0u;
-        g_cli_guard->persistent_buf_release(s_releases_listing, g_cli_deploy_owner);
-        s_releases_listing = NULL;
-        mmgr_line_put(err_msg, "it has more files than orior_cli supports");
+        cli_grown_end(&s_releases_listing);
+        mmgr_line_put(err_msg, "it has more files than impero supports");
         return 0;
     }
-    for (char *at = s_releases_listing; (*at != '\0') && (s_release_count < lines);)
+    for (char *at = s_releases_listing.cell; (*at != '\0') && (s_release_count < lines);)
     {
         char *end = at;
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
@@ -340,7 +335,8 @@ static int send_releases(const DeploySendCtx *args)
         }
         at = more ? (end + 1) : end;
     }
-    qsort((void *)s_releases, s_release_count, sizeof(s_releases[0]), send_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = (void *)s_releases, .count = s_release_count,
+               .size = sizeof(s_releases[0]), .order = send_order);
     while ((after != NULL) && cellul.ws(&(CatenaFinitaCfg){.src = after}))
     {
         after += 1;
@@ -370,11 +366,12 @@ void cli_deploy_prune(const CliDeployIndexCtx *args)
         return;
     }
     const unsigned long long newest = (args->retain > 1u) ? args->retain : 1u;
-    char *const line_text = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_LINE, g_cli_deploy_owner);
-    VerbaLinea line = mmgr_line_over(line_text, CLI_DEPLOY_LINE);
-    mmgr_line_put(&line, "cd ");
-    EMBED_CALL(send_quote, DeploySendCtx, .out = &line, .text = place->address.folder, .path = "/releases");
-    mmgr_line_put(&line, " && rm -rf --");
+    CliGrownLine line_grown;
+    cli_grown_begin(&line_grown, CLI_DEPLOY_LINE, g_cli_deploy_owner);
+    VerbaLinea *const line = &line_grown.line;
+    mmgr_line_put(line, "cd ");
+    EMBED_CALL(send_quote, DeploySendCtx, .out = line, .text = place->address.folder, .path = "/releases");
+    mmgr_line_put(line, " && rm -rf --");
     unsigned int old = 0u;
     for (unsigned int at = s_release_count; at > 0u; at -= 1u)
     {
@@ -382,20 +379,19 @@ void cli_deploy_prune(const CliDeployIndexCtx *args)
         if (((unsigned long long)(s_release_count - at) >= newest) &&
             ((current == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = current, .other = name, .cap = CLI_POOL_BYTES})))
         {
-            mmgr_line_ch(&line, ' ');
+            mmgr_line_ch(line, ' ');
             EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = name,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .out = &line);
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .out = line);
             old += 1u;
         }
     }
     g_cli_guard->persistent_buf_release((void *)s_releases, g_cli_deploy_owner);
     s_releases = NULL;
     s_release_count = 0u;
-    g_cli_guard->persistent_buf_release(s_releases_listing, g_cli_deploy_owner);
-    s_releases_listing = NULL;
-    const int run_result = (old != 0u) && EMBED_CALL(send_line_run, DeploySendCtx, .place = place, .line = &line,
+    cli_grown_end(&s_releases_listing);
+    const int run_result = (old != 0u) && EMBED_CALL(send_line_run, DeploySendCtx, .place = place, .line = &line_grown,
                                                      .longer = "", .err_msg = &none);
-    g_cli_guard->persistent_buf_release(line_text, g_cli_deploy_owner);
+    cli_grown_end(&line_grown);
     if (!run_result)
     {
         return;
@@ -452,8 +448,7 @@ int cli_deploy_roll_back(const CliDeployTextCtx *args)
             g_cli_guard->persistent_buf_release((void *)s_releases, g_cli_deploy_owner);
             s_releases = NULL;
             s_release_count = 0u;
-            g_cli_guard->persistent_buf_release(s_releases_listing, g_cli_deploy_owner);
-            s_releases_listing = NULL;
+            cli_grown_end(&s_releases_listing);
             EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = place, .out = args->err_msg);
             mmgr_line_put(args->err_msg, " has no release before the one it runs: no place was rolled back");
             return 0;
@@ -464,8 +459,7 @@ int cli_deploy_roll_back(const CliDeployTextCtx *args)
         g_cli_guard->persistent_buf_release((void *)s_releases, g_cli_deploy_owner);
         s_releases = NULL;
         s_release_count = 0u;
-        g_cli_guard->persistent_buf_release(s_releases_listing, g_cli_deploy_owner);
-        s_releases_listing = NULL;
+        cli_grown_end(&s_releases_listing);
     }
     for (unsigned int index = 0u; index < run->positions; index += 1u)
     {
@@ -526,24 +520,25 @@ int cli_deploy_remove(const CliDeployErrMsgIndexCtx *args)
     }
     else
     {
-        char *const line_text = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_LINE, g_cli_deploy_owner);
-        VerbaLinea line = mmgr_line_over(line_text, CLI_DEPLOY_LINE);
-        mmgr_line_put(&line, "cd ");
+        CliGrownLine line_grown;
+        cli_grown_begin(&line_grown, CLI_DEPLOY_LINE, g_cli_deploy_owner);
+        VerbaLinea *const line = &line_grown.line;
+        mmgr_line_put(line, "cd ");
         EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = place->address.folder,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = place->address.folder, .cap = CLI_POOL_BYTES}),
-                   .out = &line);
-        mmgr_line_put(&line, " && rm -f --");
+                   .out = line);
+        mmgr_line_put(line, " && rm -f --");
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            mmgr_line_ch(&line, ' ');
+            mmgr_line_ch(line, ' ');
             EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = deleted[at].path,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = deleted[at].path, .cap = CLI_POOL_BYTES}),
-                       .out = &line);
+                       .out = line);
         }
-        const int run_result = EMBED_CALL(
-            send_line_run, DeploySendCtx, .place = place, .line = &line,
-            .longer = "the line that deletes the files gone is longer than orior_cli runs", .err_msg = args->err_msg);
-        g_cli_guard->persistent_buf_release(line_text, g_cli_deploy_owner);
+        const int run_result = EMBED_CALL(send_line_run, DeploySendCtx, .place = place, .line = &line_grown,
+                                          .longer = "the line that deletes the files gone is longer than impero runs",
+                                          .err_msg = args->err_msg);
+        cli_grown_end(&line_grown);
         if (!run_result)
         {
             return 0;

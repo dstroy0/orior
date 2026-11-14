@@ -16,7 +16,7 @@
 // form's fields. Matching an operand to a field by the value the base happens to contain there is not enough, because a
 // field the operation does not use contains 0 and a register or predicate numbered 0 matches it.
 //
-// A part's own file is <part>.khw beside its rulesets (src/cu/includes/file_defs/khw). Its first line is `forms 2`,
+// A part's own file is <part>.khw beside its rulesets (includes/file_defs/khw). Its first line is `forms 2`,
 // then `part <name>`, then a line a form:
 //
 //     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>

@@ -65,7 +65,7 @@ EMBED_INLINE unsigned int read_text_store(const VersionCatalogReadCtx *args)
         return CLI_VERSIONS_POOL;
     }
     const unsigned int at = parsed->used;
-    memor.cpy(&(MemoriaCfg){.dst = parsed->pool + at, .src = bytes, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = parsed->pool + at, .src = bytes, .bytes = (embed_word)args->size});
     parsed->pool[at + args->size] = '\0';
     parsed->used += (unsigned int)args->size + 1u;
     return at;
@@ -498,6 +498,52 @@ EMBED_INLINE void read_section(const VersionCatalogReadCtx *args)
     EMBED_CALL(read_error_text, VersionCatalogReadCtx, .from = args->read->at, .to = end,
                .message = "A section's name is closed with `]`");
     args->read->at = end;
+}
+
+void cli_versions_free(void)
+{
+    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
+    g_cli_versions_libraries.at = NULL;
+    g_cli_versions_libraries.size = NULL;
+    g_cli_versions_libraries.text = NULL;
+    g_cli_versions_libraries.count = 0u;
+    g_cli_versions_libraries.most = 0u;
+    g_cli_versions_libraries.used = 0u;
+    g_cli_versions_libraries.capacity = 0u;
+    g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
+    g_cli_versions_known.at = NULL;
+    g_cli_versions_known.size = NULL;
+    g_cli_versions_known.text = NULL;
+    g_cli_versions_known.count = 0u;
+    g_cli_versions_known.most = 0u;
+    g_cli_versions_known.used = 0u;
+    g_cli_versions_known.capacity = 0u;
+    CliVersionsParsed *const parsed = &g_cli_versions;
+    g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
+    g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
+    parsed->line = NULL;
+    parsed->pool = NULL;
+    parsed->error = NULL;
+    parsed->item = NULL;
+    parsed->field = NULL;
+    parsed->section = NULL;
+    parsed->sections = 0u;
+    parsed->sections_capacity = 0u;
+    parsed->fields = 0u;
+    parsed->fields_capacity = 0u;
+    parsed->items = 0u;
+    parsed->items_capacity = 0u;
+    parsed->errors = 0u;
+    parsed->errors_capacity = 0u;
+    parsed->used = 0u;
+    parsed->pool_capacity = 0u;
+    parsed->longest = 0ULL;
 }
 
 int cli_versions_parse(const CliVersionCatalogTextCtx *args)

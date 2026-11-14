@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// change_peek_test.c: the change peek's check: a view with one line changed shows its change under the line, the head
-// reading the CLI's sentence, a removed row with its minus in the first mark's color and an added row with its plus
-// in the second's; a press lands on the box and on each control; the revert puts the last commit's text back and one
-// undo brings the change again; with two changes the next wraps from the second to the first and the previous from
-// the first to the last; Escape closes the peek, after which no box is drawn or pressed; and a change just shown has
-// not settled against a scroll
-#include "../../../../../ui/cli/src/editor/hunks.h"
+// change_peek_test.c: the change peek's check: a view with one line changed shows its change under the line, a removed
+// row with its minus in the first mark's color and an added row with its plus in the second's; a press lands on the box
+// and on each control; the revert puts the last commit's text back and one undo brings the change again; with two
+// changes the next wraps from the second to the first and the previous from the first to the last; Escape closes the
+// peek, after which no box is drawn or pressed; and a change just shown has not settled against a scroll
+#include "../../../../../includes/window/block.h"
+#include "../../../../../ui/cli/src/editor/document_changes.h"
 #include "../../../../../ui/cli/src/editor/view_edits.h"
-#include "../../../../../ui/cli/src/view/frame.h"
-#include "../../../../../ui/cli/src/view/parts/change_peek.h"
+#include "../../../../../includes/window/frame.h"
+#include "../../../../../ui/gui/src/change_peek.h"
 #include "../cli/cli_check.h"
 
 static const char s_key[] = "change_peek_check";
@@ -41,10 +41,17 @@ static int colored(const GuiRaster *raster, GuiRect rect, GuiColor color, GuiCol
     return 0;
 }
 
-// `now` stored with a view open on it, sized, its changes read against the head text, and the editor's frame taken
+// the store told nothing of a change: the head alone is stored by the call
+static void head_stored_each(const CliEachHunkCfg *args)
+{
+    (void)args;
+}
+
+// `now` stored with a view open on it, sized, the head text stored beside it, and the editor's frame taken
 static void opened(const char *now, GuiEditor *editor)
 {
     CliShape shape;
+    EMBED_CALL(gui_change_peek.close, GuiChangePeekCfg, .key = s_key);
     cli_view_frame_release((CliViewFrame *)editor->frame);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
@@ -57,8 +64,9 @@ static void opened(const char *now, GuiEditor *editor)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 20u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &err_msg);
-    EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = NULL);
-    EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = s_key, .text = s_head, .size = sizeof(s_head) - 1u);
+    (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = s_key,
+                     .head_given = 1, .head = s_head, .head_size = sizeof(s_head) - 1u, .each = head_stored_each,
+                     .context = NULL);
     editor->frame = cli_view_frame_alloc(s_key);
 }
 
@@ -74,30 +82,32 @@ static int text_is(const char *required)
     return same;
 }
 
-// the title the CLI answers is `required`
-static int title_is(const char *required)
+// how many changes the text stored under the key has against its last commit's file
+static unsigned int changes_count(void)
 {
-    unsigned long long length = 0ULL;
-    const char *const title = EMBED_CALL(cli_hunks.title, CliHunksCfg, .length_out = &length);
-    return (length == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
-           (memor.cmp(&(MemoriaCfg){.src = title, .other = required, .bytes = length}) == 0);
+    unsigned int count = 0u;
+    (void)EMBED_CALL(cli_document_change.find, CliChangeCfg, .key = s_key, .at = 0u, .count_out = &count);
+    return count;
 }
 
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 800u, .height = 400u),
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 800u, .height = 400u),
               "the raster is taken");
     const GuiRect place = {0, 0, 800, 400};
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
@@ -106,11 +116,13 @@ int main(void)
     GuiEditor editor;
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &editor);
 
-    // one line changed: the peek under it, its sentence and its two rows
+    // one line changed: the peek under it and its two rows
     opened("one\nTWO\nthree\nfour\nfive\n", &editor);
-    cli_check(EMBED_CALL(cli_hunks.show, CliHunksCfg, .line = 1ULL), "the changed line's change is shown");
-    cli_check(!EMBED_CALL(cli_hunks.settled, CliHunksCfg, .at = 0u), "a change just shown has not settled");
-    cli_check(title_is("Change 1 of 1"), "the head reads the CLI's sentence");
+    cli_check(changes_count() == 1u, "the text has one change");
+    cli_check(EMBED_CALL(gui_change_peek.show, GuiChangePeekCfg, .key = s_key, .line = 1ULL),
+              "the changed line's change is shown");
+    cli_check(!EMBED_CALL(gui_change_peek.settled, GuiChangePeekCfg, .key = s_key),
+              "a change just shown has not settled");
     EMBED_CALL(gui_change_peek.draw, GuiChangePeekCfg, .raster = &raster, .glyphs = &glyphs, .palette = palette,
                .editor_read = &editor, .place = place, .bounds = place, .cell = cell, .scale = 100);
     const GuiRect box = EMBED_CALL(gui_change_peek.box, GuiChangePeekCfg, .scale = 100);
@@ -145,13 +157,16 @@ int main(void)
 
     // the revert puts the last commit's text back as one step
     CliEdit edit;
-    unsigned int count = 0u;
     char edit_why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea edit_err = {edit_why, sizeof(edit_why), 0ULL};
-    cli_check(EMBED_CALL(cli_hunks.revert, CliHunksCfg, .edit_out = &edit, .edit_count = &count, .err_msg = &edit_err) &&
-                  EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = s_key, .edit = &edit, .count = count,
-                             .err_msg = &edit_err),
-              "the revert's edits are written into the view");
+    const int reverted = EMBED_CALL(gui_change_peek.revert, GuiChangePeekCfg, .edit_out = &edit, .err_msg = &edit_err);
+    cli_check(reverted && EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = s_key, .edit = &edit, .count = 1u,
+                                     .err_msg = &edit_err),
+              "the revert's edit is written into the view");
+    if (reverted)
+    {
+        EMBED_CALL(gui_change_peek.revert_end, GuiChangePeekCfg, .edit_out = &edit);
+    }
     cli_check(text_is(s_head), "the view's text is the last commit's again");
     const CliViewInput undo = {.type = CLI_VIEW_KEY, .name = "Mod+Z"};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &undo, .err_msg = &edit_err);
@@ -160,18 +175,21 @@ int main(void)
     // two changes: the next wraps from the second to the first, the previous from the first to the last
     opened("ONE\ntwo\nthree\nfour\nFIVE\n", &editor);
     unsigned long long line = 99ULL;
-    cli_check(EMBED_CALL(cli_hunks.show, CliHunksCfg, .line = 4ULL) && title_is("Change 2 of 2"),
-              "the second change is shown as the second of two");
-    cli_check(EMBED_CALL(cli_hunks.step, CliHunksCfg, .by = 1, .line_out = &line) && (line == 0ULL) &&
-                  title_is("Change 1 of 2"),
+    cli_check(changes_count() == 2u, "the text has two changes");
+    cli_check(EMBED_CALL(gui_change_peek.show, GuiChangePeekCfg, .key = s_key, .line = 4ULL),
+              "the second change is shown");
+    cli_check(EMBED_CALL(gui_change_peek.step, GuiChangePeekCfg, .key = s_key, .by = 1, .line_out = &line) &&
+                  (line == 0ULL),
               "the next from the last wraps to the first");
-    cli_check(EMBED_CALL(cli_hunks.step, CliHunksCfg, .by = -1, .line_out = &line) && (line == 4ULL) &&
-                  title_is("Change 2 of 2"),
+    cli_check(EMBED_CALL(gui_change_peek.step, GuiChangePeekCfg, .key = s_key, .by = -1, .line_out = &line) &&
+                  (line == 4ULL),
               "the previous from the first wraps to the last");
 
     // Escape closes the peek: no box drawn and none pressed
-    cli_check(EMBED_CALL(cli_hunks.key, CliHunksCfg, .name = "Escape"), "Escape is taken while the peek stands");
-    cli_check(!EMBED_CALL(cli_hunks.key, CliHunksCfg, .name = "Escape"), "Escape is not taken once it is closed");
+    cli_check(EMBED_CALL(gui_change_peek.key, GuiChangePeekCfg, .name = "Escape"),
+              "Escape is taken while the peek stands");
+    cli_check(!EMBED_CALL(gui_change_peek.key, GuiChangePeekCfg, .name = "Escape"),
+              "Escape is not taken once it is closed");
     cli_check(!EMBED_CALL(gui_change_peek.hit, GuiChangePeekCfg, .x = box.x + 4, .y = added_row.y + 4,
                           .action_out = &action),
               "a closed peek takes no press where its box stood");
@@ -179,11 +197,12 @@ int main(void)
                .editor_read = &editor, .place = place, .bounds = place, .cell = cell, .scale = 100);
     const GuiRect closed = EMBED_CALL(gui_change_peek.box, GuiChangePeekCfg, .scale = 100);
     cli_check(closed.width == 0, "a closed peek draws no box");
-    cli_check(EMBED_CALL(cli_hunks.settled, CliHunksCfg, .at = 0u), "with no change shown a scroll moves the view");
+    cli_check(EMBED_CALL(gui_change_peek.settled, GuiChangePeekCfg, .key = s_key),
+              "with no change shown a scroll moves the view");
 
     cli_view_frame_release((CliViewFrame *)editor.frame);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
-    EMBED_CALL(cli_hunks.read, CliHunksCfg, .key = NULL);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

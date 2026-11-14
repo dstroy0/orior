@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_console.c: the commands the command line runs itself, in the terminal: the keys, what orior_cli is and
+// command_line_console.c: the commands the command line runs itself, in the terminal: the keys, what impero is and
 // its tree, errors filed on their own turned on or off, the bug report page opened, a search of the tree, the plugins,
 // the reader's stylesheet, the toolchains, a clone, the tree's dev container brought up and a window opened on it,
 // files formatted, run and validated; the tree's jobs listed, shown and run, its tests and its bridge listed, and the
-// words of `orior_cli protocol` sent to a window open on the tree or run here. And a word that names a file of the tree
+// words of `imp protocol` sent to a window open on the tree or run here. And a word that names a file of the tree
 #include "../deploy/devcontainer.h"
 #include "../editor/files.h"
+#include "../machine/install.h"
 #include "../machine/reach.h"
 #include "../machine/report.h"
 #include "../programs/disasm_verify.h"
@@ -41,7 +42,7 @@ EMBED_INLINE void console_err_print(const CommandLineConsoleCtx *args)
                .size = mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ULL);
 }
 
-// `orior_cli help auto-report [on|off]`: errors filing on their own turned on or off, or which reported
+// `imp help auto-report [on|off]`: errors filing on their own turned on or off, or which reported
 EMBED_INLINE int console_auto_report(const CommandLineConsoleCtx *args)
 {
     if (args->word_text == NULL)
@@ -70,7 +71,7 @@ EMBED_INLINE int console_auto_report(const CommandLineConsoleCtx *args)
     return 0;
 }
 
-// `orior_cli help report [category] [title]`: the bug report page opened with what was given filled in
+// `imp help report [category] [title]`: the bug report page opened with what was given filled in
 EMBED_INLINE int console_report_page(const CommandLineConsoleCtx *args)
 {
     const char *named = args->named;
@@ -147,7 +148,7 @@ EMBED_INLINE int console_dev_container(const CommandLineConsoleCtx *args)
     return 0;
 }
 
-// a line of `orior_cli protocol` written to the output
+// a line of `imp protocol` written to the output
 static void console_protocol_line(const CliEachLineSizeCfg *args)
 {
     const char *text = args->line;
@@ -155,7 +156,7 @@ static void console_protocol_line(const CliEachLineSizeCfg *args)
                .size = args->size);
 }
 
-// the words of `orior_cli protocol`: sent to a window open on the tree, which runs the protocol command as its job and
+// the words of `imp protocol`: sent to a window open on the tree, which runs the protocol command as its job and
 // shows the run in its protocol panel; with none open run here, and so does the job's own command, which carries the
 // window's door in its environment and must not reach the window again. A reading, `decode` and the two readings of a
 // pulled table, prints here and is no job of the window's
@@ -212,7 +213,7 @@ EMBED_INLINE int console_protocol(const CommandLineConsoleCtx *args)
     return (code < 0) ? CLI_WRONG : code;
 }
 
-// `orior_cli file user-css`: the stylesheet the window lays over its own named, made empty but for a note where it is
+// `imp file user-css`: the stylesheet the window lays over its own named, made empty but for a note where it is
 // not there yet
 static int console_user_css(void)
 {
@@ -225,6 +226,53 @@ static int console_user_css(void)
         return CLI_NO_CODE;
     }
     EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = path);
+    return 0;
+}
+
+// a line of the install's account printed
+static void console_install_said(void *context, const char *text)
+{
+    (void)context;
+    EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = text);
+}
+
+// a question of the install printed and the reader's line read from the terminal: 1 where it begins with y; 0 where
+// it does not, or where no terminal is there to answer
+static int console_install_asked(void *context, const char *question)
+{
+    (void)context;
+    EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = question);
+    if (!query_terminal_is())
+    {
+        return 0;
+    }
+    char answer[64];
+    const unsigned long long read = EMBED_CALL(query_capacity_line_internal.terminal_line_read, QueryCapacityLineCtx,
+                                               .line = answer, .capacity = sizeof(answer));
+    return (read != QRY_MEMBER_UNREAD) && ((answer[0] == 'y') || (answer[0] == 'Y'));
+}
+
+// `imp file install [folder] [--accept] [--yes] [--no-imp] [--no-tab] [--aliases] [--debug-port <port|off>]` and
+// `imp file uninstall [--files] [--yes]`: the code to exit with
+EMBED_INLINE int console_install(const CommandLineConsoleCtx *args)
+{
+    CliInstallOptions options;
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
+    const int uninstall =
+        cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "uninstall", .cap = CLI_POOL_BYTES});
+    int done = EMBED_CALL(cli_install.options, CliInstallCfg, .words = args->words, .count = args->count,
+                          .options = &options, .err_msg = &err_msg);
+    if (done)
+    {
+        const CliInstallCfg run = {
+            .options = &options, .err_msg = &err_msg, .say = console_install_said, .asked = console_install_asked};
+        done = uninstall ? cli_install.uninstall(&run) : cli_install.install(&run);
+    }
+    if (!done)
+    {
+        EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+        return CLI_NO_CODE;
+    }
     return 0;
 }
 
@@ -245,7 +293,7 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "about", .cap = CLI_POOL_BYTES}))
     {
-        EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "orior_cli " CLI_VERSION);
+        EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "imp " CLI_VERSION);
         VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
         if (EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
                        .err_msg = &err_msg))
@@ -280,6 +328,12 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
     {
         *code = EMBED_CALL(cli_command_line_words_count_internal.toolchains_words, CliCommandLineWordsCountCtx,
                            .words = words, .count = count);
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "install", .cap = CLI_POOL_BYTES}) ||
+             cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "uninstall", .cap = CLI_POOL_BYTES}))
+    {
+        *code = EMBED_CALL(console_install, CommandLineConsoleCtx, .command = args->command, .words = words,
+                           .count = count);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "clone", .cap = CLI_POOL_BYTES}))
     {
@@ -344,8 +398,8 @@ EMBED_INLINE int console_setting_value(const CommandLineConsoleCtx *args)
         return mmgr_line_finish(value) != 0ULL;
     }
     const unsigned long long takes_size = cellul.len(&(CatenaFinitaCfg){.src = takes, .cap = CLI_POOL_BYTES});
-    const int lines = (takes_size >= 3ULL) && cellul.eq(&(CatenaFinitaCfg){
-                                                  .src = takes + takes_size - 3ULL, .other = "...", .cap = 4ULL});
+    const int lines = (takes_size >= 3ULL) &&
+                      cellul.eq(&(CatenaFinitaCfg){.src = takes + takes_size - 3ULL, .other = "...", .cap = 4ULL});
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         if (at > 0u)
@@ -362,20 +416,26 @@ int cli_console_setting(const CliCommandLineWordsCountCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
-        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "orior_cli finds no folder of its own");
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "impero finds no folder of its own");
         return CLI_NO_CODE;
     }
     const char *const key = args->command;
     if (args->count == 0u)
     {
-        CliStateEntries *const entries =
+        CliStateEntries entries =
             cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_command_line_owner});
-        const char *const standing = (entries != NULL) ? cli_state_entry_value(entries, key) : NULL;
+        // the text read out of the entries' cell into a cell of this call
+        const unsigned long long size = cli_state_entry_size(&entries, key);
+        char *const standing_text =
+            (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner) : NULL;
+        const char *const standing =
+            (standing_text != NULL) ? cli_state_entry_value(&entries, key, standing_text, size + 1ULL) : NULL;
         if (standing != NULL)
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = standing);
         }
-        g_cli_guard->persistent_buf_release(entries, g_cli_command_line_owner);
+        g_cli_guard->persistent_buf_release(standing_text, g_cli_command_line_owner);
+        cli_state_entries_release(&entries);
         return (standing != NULL) ? 0 : CLI_WRONG;
     }
     VerbaLinea value = {s_line, sizeof(s_line), 0ULL};
@@ -391,10 +451,9 @@ int cli_console_setting(const CliCommandLineWordsCountCtx *args)
         return CLI_WRONG;
     }
     static char s_found[CLI_PATH_MAX_LEN];
-    const int found = (args->named != NULL)
-                          ? EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = args->named,
-                                       .root = s_found, .err_msg = &err_msg)
-                          : EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = s_found);
+    const int found = (args->named != NULL) ? EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg,
+                                                         .named = args->named, .root = s_found, .err_msg = &err_msg)
+                                            : EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = s_found);
     err_msg.at = 0ULL;
     static CliReachAnswer s_answer;
     const char *const sent[2] = {key, s_line};
@@ -461,7 +520,7 @@ int cli_console(const CliCommandLineWordsCountCtx *args)
     {
         VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
         mmgr_line_put(&line, args->command);
-        mmgr_line_put(&line, " needs a job: orior_cli run list names them");
+        mmgr_line_put(&line, " needs a job: imp run list names them");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         return CLI_WRONG;
@@ -493,15 +552,15 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     // the path is the word before a line and a column, each a colon and digits, that follow it
-    size_t path = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
+    embed_word path = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
     for (unsigned int part = 0u; part < 2u; part += 1u)
     {
-        size_t colon = path;
-        colon = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->word_text,
-                                   .at = colon, .set = ":");
+        embed_word colon = path;
+        colon = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                       .text = args->word_text, .at = colon, .set = ":");
         int digits = (colon > 0u) && (colon < path);
         {
-            size_t at = colon;
+            embed_word at = colon;
             while ((at < path) && digits)
             {
                 digits = (args->word_text[at] >= '0') && (args->word_text[at] <= '9');
@@ -533,7 +592,7 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     {
         return 0;
     }
-    const size_t root = cellul.len(&(CatenaFinitaCfg){.src = s_root, .cap = CLI_POOL_BYTES});
+    const embed_word root = cellul.len(&(CatenaFinitaCfg){.src = s_root, .cap = CLI_POOL_BYTES});
     const int separated = (root > 0u) && ((s_root[root - 1u] == '/') || (s_root[root - 1u] == '\\'));
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = full, .other_pointer = s_root, .size = root) ||
         (!separated && (full[root] != '/') && (full[root] != '\\') && (full[root] != '\0')))

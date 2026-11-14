@@ -23,7 +23,7 @@
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. There
  * is no tolerance, no reordering that changes an answer, and no fast path that is right most of the
  * time: the value is an integer count of alignments and the two arms agree exactly or one is wrong.
- * That is the contract src/cu/includes/types/integers/arm.h states for the exact arms and it is retained here for the
+ * That is the contract includes/exact_types/integers/arm.h states for the exact arms and it is retained here for the
  * same reason.
  *
  * @note Queries the processor at run time and not the build. A binary compiled with AVX2 available

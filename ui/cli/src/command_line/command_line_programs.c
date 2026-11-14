@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_programs.c: the command line's words that are programs of their own: `write-raised` copies a file
-// orior_cli staged over the file the reader gave the rights to write; `deploy` previews, sends or rolls back a
+// impero staged over the file the reader gave the rights to write; `deploy` previews, sends or rolls back a
 // deployment the tree names; `libraries` reports what a program loads and from where; and `sea` builds a script into
 // Node's single executable
 #include "../deploy/deploy.h"
@@ -57,7 +57,7 @@ EMBED_INLINE int programs_fail(const CommandLineProgramsCtx *args)
     return args->code;
 }
 
-// `orior_cli deploy <name> <do> <changed> <gone>`, the tree the one --root names or the folder it runs in
+// `imp deploy <name> <do> <changed> <gone>`, the tree the one --root names or the folder it runs in
 EMBED_INLINE int programs_deploy(const CommandLineProgramsCtx *args)
 {
     const char *named = args->named;
@@ -81,7 +81,7 @@ EMBED_INLINE int programs_deploy(const CommandLineProgramsCtx *args)
     {
         if (named == NULL)
         {
-            mmgr_line_put(&err_msg, "orior_cli finds no folder to run in");
+            mmgr_line_put(&err_msg, "impero finds no folder to run in");
         }
         return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_NO_CODE);
     }
@@ -99,7 +99,7 @@ EMBED_INLINE int programs_deploy(const CommandLineProgramsCtx *args)
     return 0;
 }
 
-// `orior_cli libraries <program>`: each library the program loads, where it is found and the file found, then what the
+// `imp libraries <program>`: each library the program loads, where it is found and the file found, then what the
 // report reports about the program
 EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
 {
@@ -136,8 +136,8 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     for (const char *part = read_state->path; (folder != NULL) && (part != NULL) && (folders < most);)
     {
         const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = between});
-        const size_t size =
-            (end != NULL) ? (size_t)(end - part) : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
+        const embed_word size = (end != NULL) ? (embed_word)(end - part)
+                                              : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         if ((size > 0u) && (size < CLI_PATH_MAX_LEN))
         {
             memor.cpy(&(MemoriaCfg){.dst = folder[folders], .src = part, .bytes = size});
@@ -175,7 +175,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     return 0;
 }
 
-// `orior_cli sea <script> <program> [module]`: the script built into Node's single executable
+// `imp sea <script> <program> [module]`: the script built into Node's single executable
 EMBED_INLINE int programs_sea(const CommandLineProgramsCtx *args)
 {
     if (args->count < 3u)

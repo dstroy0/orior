@@ -4,7 +4,7 @@
  * @file casmi_config.h
  * @brief The one configuration every CASMI module reaches: bounds, gates, entry shape and shared types.
  *
- * The byte decoders are orior's own, src/cu/includes/codecs, and their request type comes through
+ * The byte decoders are orior's own, includes/codecs, and their request type comes through
  * engine_config.h.
  */
 #ifndef CASMI_CONFIG_H

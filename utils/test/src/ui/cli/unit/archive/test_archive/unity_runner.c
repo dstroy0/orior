@@ -2,8 +2,8 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "src/cu/includes/file_defs/qry/qry.h"
-#include "src/cu/includes/file_defs/qry/qry_read.h"
+#include "includes/file_defs/qry/qry.h"
+#include "includes/file_defs/qry/qry_read.h"
 #include "ui/cli/src/editor/archive.h"
 #include "ui/cli/src/runs/runner.h"
 

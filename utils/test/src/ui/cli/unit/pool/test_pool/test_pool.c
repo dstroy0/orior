@@ -148,23 +148,11 @@ void test_a_walks_paths_are_in_the_temporary_tier(void)
     TEST_ASSERT_NOT_EQUAL(0ull, s_temporary);
 }
 
-void test_a_list_is_in_the_persistent_tier(void)
-{
-    CliFiles files;
-    pool_created_anew();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_bytes_internal.init, CliFilesBytesCtx, .files = &files, .count = 2ull, .bytes = 8ull));
-    (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "b", .length = 1ull);
-    (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "a", .length = 1ull);
-    peaks_read();
-    EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &files);
-    TEST_ASSERT_NOT_EQUAL(0ull, s_persistent);
-}
-
 void test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier(void)
 {
     CliFiles files;
     pool_created_anew();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_bytes_internal.init, CliFilesBytesCtx, .files = &files, .count = 2ull, .bytes = 8ull));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_bytes_internal.work_init, CliFilesBytesCtx, .files = &files, .count = 2ull, .bytes = 8ull));
     (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "b", .length = 1ull);
     (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "a", .length = 1ull);
     peaks_read();
@@ -191,7 +179,7 @@ void test_the_languages_for_a_call_stay_out_of_the_persistent_tier(void)
     TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
 }
 
-void test_the_languages_that_outlive_a_call_are_in_the_persistent_tier(void)
+void test_the_languages_a_walk_or_a_batch_holds_stay_out_of_the_persistent_tier(void)
 {
     CliLanguages languages;
     pool_created_anew();
@@ -201,7 +189,7 @@ void test_the_languages_that_outlive_a_call_are_in_the_persistent_tier(void)
     g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     *(&languages) = (CliLanguages){NULL, 0u, 0u};
     TEST_ASSERT_TRUE(reserved);
-    TEST_ASSERT_GREATER_THAN_UINT64(0ull, s_persistent);
+    TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
 }
 
 void test_the_languages_a_call_reads_stay_out_of_the_persistent_tier(void)
@@ -305,6 +293,56 @@ void test_a_file_of_two_pages_ends_where_the_file_ends(void)
     assert_full_text_pages("two.txt", 2u);
 }
 
+void test_a_grown_line_holds_a_long_text_whole(void)
+{
+    enum
+    {
+        PIECE = 1000,
+        PIECES = 300
+    };
+    static char s_piece[PIECE];
+    for (unsigned int at = 0u; at < PIECE; at += 1u)
+    {
+        // a byte of the pattern, a letter of the alphabet
+        s_piece[at] = (char)('a' + (at % 26u));
+    }
+    CliGrownLine grown;
+    cli_grown_begin(&grown, ((unsigned long long)PIECE * PIECES) + 1ULL, g_checks_owner);
+    for (unsigned int piece = 0u; piece < PIECES; piece += 1u)
+    {
+        mmgr_line_put_n(&grown.line, s_piece, PIECE);
+    }
+    TEST_ASSERT_TRUE(mmgr_line_ok(&grown.line));
+    TEST_ASSERT_EQUAL_UINT64((unsigned long long)PIECE * PIECES, cli_grown_size(&grown));
+    TEST_ASSERT_EQUAL_CHAR('\0', grown.cell[cli_grown_size(&grown)]);
+    for (unsigned int piece = 0u; piece < PIECES; piece += 1u)
+    {
+        TEST_ASSERT_EQUAL_MEMORY(s_piece, grown.cell + ((unsigned long long)piece * PIECE), PIECE);
+    }
+    cli_grown_end(&grown);
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
+}
+
+void test_a_grown_line_fills_at_the_most_it_is_given(void)
+{
+    enum
+    {
+        PIECE = 65536
+    };
+    static char s_piece[PIECE];
+    CliGrownLine grown;
+    cli_grown_begin(&grown, 3ull * PIECE, g_checks_owner);
+    for (unsigned int piece = 0u; piece < 4u; piece += 1u)
+    {
+        mmgr_line_put_n(&grown.line, s_piece, sizeof(s_piece));
+    }
+    TEST_ASSERT_FALSE(mmgr_line_ok(&grown.line));
+    TEST_ASSERT_EQUAL_UINT64((3ull * PIECE) - 1ull, cli_grown_size(&grown));
+    TEST_ASSERT_EQUAL_CHAR('\0', grown.cell[cli_grown_size(&grown)]);
+    cli_grown_end(&grown);
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
+}
+
 void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
 {
     enum
@@ -340,5 +378,9 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
     TEST_ASSERT_EQUAL_MEMORY(s_written, s_read, CELL_BYTES);
     TEST_ASSERT_TRUE(g_cli_guard->movable_buf_release(cell, g_checks_owner));
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
-    TEST_ASSERT_FALSE_MESSAGE(cli_pool_made(CLI_POOL_BYTES), "the pool made anew with the mover reading it");
+    // the pool made anew ends the mover first and starts it again: a movable cell is taken after as before
+    TEST_ASSERT_TRUE_MESSAGE(cli_pool_made(CLI_POOL_BYTES), "the pool made anew with the mover running");
+    const CarcerMovableEntry *const again = g_cli_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
+    TEST_ASSERT_NOT_NULL_MESSAGE(again, "a movable cell taken from the pool made anew");
+    TEST_ASSERT_TRUE(g_cli_guard->movable_buf_release(again, g_checks_owner));
 }

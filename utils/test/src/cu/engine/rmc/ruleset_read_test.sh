@@ -11,9 +11,9 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$TEST/../../../../../.." && pwd)"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
+CODEGEN_CU_2="$TOP/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 build_stamp ruleset_read_test
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" "${FILE_DEFS_MMGR_FLAGS[@]}")

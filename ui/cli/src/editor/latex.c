@@ -8,14 +8,6 @@
 #include "archive.h"
 #include "latex_internal.h"
 
-CliLatexWorkState *g_cli_latex;
-
-int cli_latex_lock(void)
-{
-    g_cli_latex = g_cli_guard->persistent_buf_alloc(sizeof(*g_cli_latex), g_cli_editor_owner);
-    return g_cli_latex != NULL;
-}
-
 typedef struct
 {
     const char *path;

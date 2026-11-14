@@ -1,15 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// settings_sync.h: the reader's settings synced to another machine: settings.json, without its part for this machine alone and
-// the settings that name this machine's own; the themes; the reader's plugins, and each plugin's own settings; the
-// menus and toolbar, menus.json; the stylesheet, user.css; and the reader's language files. They go as one file, a JSON
-// object of each file's text by its place in orior's own folder, or into a folder of the reader's laid out as orior's
-// own folder lays them, which, where it is a repository, is committed and pushed, and pulled before it is read.
+// settings_sync.h: the reader's settings synced to another machine: settings.json, without its part for this machine
+// alone and the settings that name this machine's own; the themes; the reader's plugins, and each plugin's own
+// settings; the menus and toolbar, menus.json; the stylesheet, user.css; and the reader's language files. They go as
+// one file, a JSON object of each file's text by its place in orior's own folder, or into a folder of the reader's laid
+// out as orior's own folder lays them, which, where it is a repository, is committed and pushed, and pulled before it
+// is read.
 //
 // Taking them in writes nothing until the reader has seen the differences and chosen what to take: each file chosen,
-// and in settings.json each setting chosen, the settings of this machine alone retained as they are. Each file an import
-// writes over is saved as it was in `synced/`, a folder for each import, and undoing the import writes them back and
-// takes out the files it made (settings_sync.c, settings_sync_export.c, settings_sync_import.c, settings_sync_undo.c)
+// and in settings.json each setting chosen, the settings of this machine alone retained as they are. Each file an
+// import writes over is saved as it was in `synced/`, a folder for each import, and undoing the import writes them back
+// and takes out the files it made (settings_sync.c, settings_sync_export.c, settings_sync_import.c,
+// settings_sync_undo.c)
 #ifndef CARRY_H
 #define CARRY_H
 #include "../command_line/cli_internal.h"

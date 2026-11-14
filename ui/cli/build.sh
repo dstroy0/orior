@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# build.sh: orior_cli built from the tree's C for the target given, the machine's own where none is, into
-# build/cli/<target>/orior_cli. The bundler is built for this machine first and writes plugins_bundled.c from the
+# build.sh: impero built from the tree's C for the target given, the machine's own where none is, into
+# build/cli/<target>/imp. The bundler is built for this machine first and writes plugins_bundled.c from the
 # plugins, toolchains.json and commands.json; then every source is compiled for the target, 16 at once, each only
 # where it changed since its object was made. The compiler is CC where it is set, else clang; a musl target is linked
 # whole, with no library left to load. `build.sh library [target]` archives the same objects, but the program's entry,
@@ -90,12 +90,18 @@ fi
 # reaching a module header sees the layouts the module was compiled to; each cellblock keeps its high-water mark, in
 # the CLI's objects and in MMgr's alike, since the mark is a member of every cellblock's state, and the owner queue
 # has the room src/cu/CMakeLists.txt builds MMgr with
-MMGR="$TOP/src/cu/includes/mmgr"
-EMBEDDED_TYPES="$TOP/src/cu/includes/embedded_types"
+MMGR="$TOP/includes/mmgr"
+EMBEDDED_TYPES="$TOP/includes/embedded_types"
 MMGR_HIGH_WATER=-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
+# the mover's readings for the window: a reading every 10 ms, two quiet in a row before a sort, since the frame loop
+# leaves gaps of that order and none of 100 ms
+MMGR_MOVER_WORDS=(-DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u)
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$EMBEDDED_TYPES/include" -DMMGR_ENABLE_DMA=0
-    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER"
+    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER" "${MMGR_MOVER_WORDS[@]}"
     -DMMGR_CARCER_OWNERS=1024u)
+# the window block's parts of the program's own, after the toolkit's: the tab beads, Preferences' tabs' and the
+# editor's tabs', a segment each
+WINDOW_WORDS=('-DGUI_BLOCK_PARTS_OWN(part_)=part_(TAB_BEADS,2u)')
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc" ;;
@@ -118,20 +124,21 @@ SOURCES=()
 while IFS= read -r source; do
     # the program's own source is compiled apart, for the program alone, not into the library
     case "$source" in
-        */command_line/orior_cli.c) ;;
+        */command_line/impero.c) ;;
         *) SOURCES+=("$source") ;;
     esac
-done < <(find "$TOP/ui/cli/src" "$TOP/ui/query/src" -name '*.c' -not -path '*/bundle/*' | sort)
+done < <(find "$TOP/ui/cli/src" "$TOP/ui/query/src" "$TOP/includes/arith" "$TOP/includes/utf8" "$TOP/includes/coverage" "$TOP/includes/font" "$TOP/includes/raster" "$TOP/includes/frame_buffer" \
+              "$TOP/includes/glass" "$TOP/includes/window" -name '*.c' -not -path '*/bundle/*' | sort)
 # the one input's dispatch, which the window and the view's thread share
 SOURCES+=("$TOP/ui/gui/src/input_event.c")
-for folder in src/cu/includes/file_defs/qry/writer src/cu/includes/file_defs/qry/writer/platform; do
+for folder in includes/file_defs/qry/writer includes/file_defs/qry/writer/platform; do
     for source in "$TOP/$folder"/*.c; do
         [[ -f "$source" ]] && SOURCES+=("$source")
     done
 done
-SOURCES+=("$TOP/src/cu/includes/file_defs/qry/qry_read.c" "$TOP/src/cu/includes/formats/cfg_json/cfg_json.c"
-          "$TOP/src/cu/includes/parsers/line_read.c" "$TOP/src/cu/includes/file_defs/ksg/ksg_seal.c"
-          "$TOP/src/cu/includes/file_defs/ksg/ksg_writing.c")
+SOURCES+=("$TOP/includes/file_defs/qry/qry_read.c" "$TOP/includes/formats/cfg_json/cfg_json.c"
+          "$TOP/includes/parsers/line_read.c" "$TOP/includes/file_defs/ksg/ksg_seal.c"
+          "$TOP/includes/file_defs/ksg/ksg_writing.c")
 
 # the libraries a target's program links, and the name its program takes
 # the vector unit the target's code is built for, into VECTOR_WORDS: ORIOR_VECTOR names one, `avx2` on x86_64, or
@@ -156,7 +163,7 @@ words_of() {
         *) SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
     esac
     vector_words_of "$target"
-    WORDS=("$CC" "--target=$target" -std=c11 "$OPTIMIZE_WORD" -g -c "${MMGR_WORDS[@]}" ${VECTOR_WORDS[@]+"${VECTOR_WORDS[@]}"} "${LTO_WORDS[@]}"
+    WORDS=("$CC" "--target=$target" -std=c11 "$OPTIMIZE_WORD" -g -c "${MMGR_WORDS[@]}" "${WINDOW_WORDS[@]}" ${VECTOR_WORDS[@]+"${VECTOR_WORDS[@]}"} "${LTO_WORDS[@]}"
            ${SANITIZE_WORDS[@]+"${SANITIZE_WORDS[@]}"} ${COVERAGE_WORDS[@]+"${COVERAGE_WORDS[@]}"})
 }
 
@@ -177,7 +184,7 @@ mmgr_built() {
     fi
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
         -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER ${VECTOR_WORDS[*]:-} ${LTO_WORDS[*]:-} ${SANITIZE_WORDS[*]:-}" \
+        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER ${MMGR_MOVER_WORDS[*]} ${VECTOR_WORDS[*]:-} ${LTO_WORDS[*]:-} ${SANITIZE_WORDS[*]:-}" \
         && cmake --build "$into" --target orior_mmgr; } > "$into.log" 2>&1 || {
         echo "  build failed: MMgr did not build for $target"
         tail -20 "$into.log"
@@ -197,7 +204,7 @@ compiled() {
     words_of "$target"
     mkdir -p "$objects"
     local newest
-    newest="$(find "$TOP/ui" "$TOP/src/cu/includes" -name '*.h' \
+    newest="$(find "$TOP/ui" "$TOP/includes" -name '*.h' \
               -newer "$objects" 2>/dev/null | head -1)"
     if [[ "${BASH_SOURCE[0]}" -nt "$objects" ]]; then
         newest="${BASH_SOURCE[0]}"
@@ -277,7 +284,7 @@ else
     TARGET_OBJECTS=("${OBJECTS[@]}" "${MMGR_OBJECTS[@]}")
 fi
 words_of "$TARGET"
-for source in "$OUT/plugins_bundled.c" "$HERE/src/command_line/orior_cli.c"; do
+for source in "$OUT/plugins_bundled.c" "$HERE/src/command_line/impero.c"; do
     name="$(basename "$source" .c)"
     "${WORDS[@]}" -I "$HERE/src" -o "$OUT/$name.o" "$source" || { echo "  build failed: $name.c did not compile"; exit 1; }
 done
@@ -323,7 +330,7 @@ if [[ "$WINDOW" = 1 ]]; then
     echo "  built ${OUT#"$TOP/"}/$GUI_NAME$SUFFIX"
     exit 0
 fi
-listed_into "$OUT/$CLI_NAME.objects" "$OUT/orior_cli.o" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}"
+listed_into "$OUT/$CLI_NAME.objects" "$OUT/impero.o" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}"
 ( cd "$TOP" && "$CC" "--target=$TARGET" "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$CLI_NAME$SUFFIX" "@${OUT#"$TOP/"}/$CLI_NAME.objects" \
     "${LIBRARIES[@]}" ) || { echo "  build failed: $CLI_NAME did not link"; exit 1; }
 echo "  built ${OUT#"$TOP/"}/$CLI_NAME$SUFFIX"

@@ -8,8 +8,8 @@ void cli_executables_order(const CliExecutablesFoundCtx *args)
 {
     g_cli_guard->persistent_buf_release(args->found->order, g_cli_executables_owner);
     args->found->order = (args->found->count != 0u)
-                             ? g_cli_guard->persistent_buf_alloc(args->found->count * sizeof(*args->found->order),
-                                                                 g_cli_executables_owner)
+                             ? g_cli_guard->temporary_buf_alloc(args->found->count * sizeof(*args->found->order),
+                                                                g_cli_executables_owner)
                              : NULL;
     if (args->found->order == NULL)
     {

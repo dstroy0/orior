@@ -224,7 +224,7 @@ EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
     const int middle = most + 1;
     memor.set(&(MemoriaCfg){.dst = g_cli_structure->frontier,
                             .val = 0,
-                            .bytes = sizeof(g_cli_structure->frontier[0]) * (size_t)((2 * most) + 3)});
+                            .bytes = sizeof(g_cli_structure->frontier[0]) * (embed_word)((2 * most) + 3)});
     int found = -1;
     {
         int d = 0;
@@ -233,7 +233,7 @@ EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
             // the frontier before this edit stored, d squared on, the band from middle - d to middle + d
             memor.cpy(&(MemoriaCfg){.dst = g_cli_structure->trace + (d * d),
                                     .src = g_cli_structure->frontier + (middle - d),
-                                    .bytes = sizeof(int) * (size_t)((2 * d) + 1)});
+                                    .bytes = sizeof(int) * (embed_word)((2 * d) + 1)});
             int k = -d;
             while ((found < 0) && (k <= d))
             {

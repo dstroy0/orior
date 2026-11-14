@@ -551,7 +551,7 @@ EMBED_INLINE void cli_tests(const CatalogJobsCtx *args)
 
 void cli_catalog_read(const CliCatalogRootCfg *args)
 {
-    s_jobs = g_cli_guard->persistent_buf_alloc(sizeof(*s_jobs), g_cli_catalog_owner);
+    s_jobs = g_cli_guard->temporary_buf_alloc(sizeof(*s_jobs), g_cli_catalog_owner);
     if (s_jobs == NULL)
     {
         return;

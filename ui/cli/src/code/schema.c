@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema.c: a JSON file checked: what prevented it from reading, then its root against the schema it names or is known
-// by; a schema it names by a URL that orior_cli stores nowhere noted, with the line that fetches it to orior's own
+// by; a schema it names by a URL that impero stores nowhere noted, with the line that fetches it to orior's own
 // folder. A file larger than CLI_SCHEMA_LARGEST is not checked. One check or completion runs at a time
 #include "../command_line/pool.h"
 #include "schema_internal.h"
@@ -16,8 +16,9 @@ CliSchemaStore *g_cli_schema_store;
 
 int cli_schema_lock(void)
 {
-    g_cli_schema_read = g_cli_guard->persistent_buf_alloc(sizeof(*g_cli_schema_read), g_cli_code_owner);
-    g_cli_schema_store = g_cli_guard->persistent_buf_alloc(sizeof(*g_cli_schema_store), g_cli_code_owner);
+    // the two live from the lock to its unlock within one call: cells of the temporary tier
+    g_cli_schema_read = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_schema_read), g_cli_code_owner);
+    g_cli_schema_store = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_schema_store), g_cli_code_owner);
     if (g_cli_schema_read != NULL)
     {
         g_cli_schema_read->node = NULL;
@@ -27,40 +28,46 @@ int cli_schema_lock(void)
         g_cli_schema_read->members_max = 0u;
         g_cli_schema_read->pool_max = 0u;
     }
-    const int grown = (g_cli_schema_store != NULL) &&
-                      EMBED_CALL(cli_json_tree_nodes_max.json_reserved_temporary, CliJsonTreeNodesMaxCfg,
-                                 .json = &g_cli_schema_store->json, .nodes_max = CLI_SCHEMA_STORE_NODES_CAPACITY,
-                                 .text_max = CLI_SCHEMA_STORE_TEXT_CAPACITY, .what = "the schemas reached",
-                                 .owner = g_cli_code_owner);
+    const int grown =
+        (g_cli_schema_store != NULL) &&
+        EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &g_cli_schema_store->json,
+                   .nodes_max = CLI_SCHEMA_STORE_NODES_CAPACITY, .text_max = CLI_SCHEMA_STORE_TEXT_CAPACITY,
+                   .what = "the schemas reached", .owner = g_cli_code_owner);
     if ((g_cli_schema_read == NULL) || !grown)
     {
-        if (g_cli_schema_read != NULL)
-        {
-            g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
-            g_cli_schema_read->node = NULL;
-            g_cli_schema_read->member = NULL;
-            g_cli_schema_read->pool = NULL;
-            g_cli_schema_read->nodes_max = 0u;
-            g_cli_schema_read->members_max = 0u;
-            g_cli_schema_read->pool_max = 0u;
-        }
-        if (g_cli_schema_store != NULL)
-        {
-            g_cli_guard->persistent_buf_release(g_cli_schema_store->json.node,
-                                                mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
-            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
-                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        }
-        g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
-        g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
-        g_cli_schema_store = NULL;
-        g_cli_schema_read = NULL;
+        cli_schema_free();
         return 0;
     }
     return 1;
 }
 
 static CliBuildFindings s_found;
+
+void cli_schema_free(void)
+{
+    if (g_cli_schema_read != NULL)
+    {
+        g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
+        g_cli_schema_read->node = NULL;
+        g_cli_schema_read->member = NULL;
+        g_cli_schema_read->pool = NULL;
+        g_cli_schema_read->nodes_max = 0u;
+        g_cli_schema_read->members_max = 0u;
+        g_cli_schema_read->pool_max = 0u;
+    }
+    if (g_cli_schema_store != NULL)
+    {
+        g_cli_guard->persistent_buf_release(
+            g_cli_schema_store->json.node,
+            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    }
+    g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
+    g_cli_schema_store = NULL;
+    g_cli_schema_read = NULL;
+}
 
 int cli_schema_reads(const CliSchemaCfg *args)
 {
@@ -79,12 +86,12 @@ int cli_schema_reads(const CliSchemaCfg *args)
         return 0;
     }
     char lower[8] = {0};
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = dot + 1, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = dot + 1, .cap = CLI_POOL_BYTES});
     if (length >= sizeof(lower))
     {
         return 0;
     }
-    for (size_t at = 0u; at < length; at += 1u)
+    for (embed_word at = 0u; at < length; at += 1u)
     {
         lower[at] = ((dot[1 + at] >= 'A') && (dot[1 + at] <= 'Z')) ? (char)(dot[1 + at] - 'A' + 'a') : dot[1 + at];
     }
@@ -110,7 +117,7 @@ EMBED_INLINE void schema_missing(const SchemaCtx *args)
     unsigned long long to = args->to;
     const CliBuildLines *lines = args->lines;
     VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = &s_found);
-    mmgr_line_put(&msg, "orior_cli stores no schema at ");
+    mmgr_line_put(&msg, "impero stores no schema at ");
     mmgr_line_put_n(&msg, text + from, to - from);
     const unsigned int finding =
         EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = &s_found, .message = &msg,
@@ -198,25 +205,5 @@ void cli_schema_check(const CliSchemaCfg *args)
     g_cli_guard->persistent_buf_release(s_found.finding, g_cli_build_owner);
     *(&s_found) = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
     g_cli_guard->persistent_buf_release(starts, g_cli_build_owner);
-    if (g_cli_schema_read != NULL)
-    {
-        g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
-        g_cli_schema_read->node = NULL;
-        g_cli_schema_read->member = NULL;
-        g_cli_schema_read->pool = NULL;
-        g_cli_schema_read->nodes_max = 0u;
-        g_cli_schema_read->members_max = 0u;
-        g_cli_schema_read->pool_max = 0u;
-    }
-    if (g_cli_schema_store != NULL)
-    {
-        g_cli_guard->persistent_buf_release(g_cli_schema_store->json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    }
-    g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
-    g_cli_schema_store = NULL;
-    g_cli_schema_read = NULL;
+    cli_schema_free();
 }

@@ -175,6 +175,10 @@ struct CliCommsInnerCfg
 #define CLI_COMMS_ROW_PART 1u
 #define CLI_COMMS_ROW_CHANNEL 2u
 #define CLI_COMMS_ROW_MESSAGE 3u
+// the most bytes of a row's text with its end
+#define CLI_COMMS_ROW_TEXT 4096u
+// A row: its type; its name, status and detail with their bytes, each copied into the row's own bytes; whether it was
+// refused, whether a channel's is open and whether it is the current one
 typedef struct
 {
     unsigned int type;
@@ -187,6 +191,9 @@ typedef struct
     int refused;
     int open;
     int current;
+    char name_copied[CLI_COMMS_ROW_TEXT];
+    char status_copied[CLI_COMMS_ROW_TEXT];
+    char detail_copied[CLI_COMMS_ROW_TEXT];
 } CliCommsRow;
 
 // the pane begun, `woken` waking the view's thread as the Requests view's answer comes in; and while the pane is
@@ -227,6 +234,11 @@ struct CliCommsPaneCfg
 // clipboard writes it into `clipboard`; one that opens a file writes its path in the tree into `open_out`. The run
 // answers 1 where `name` is one of them, else 0 and nothing written
 int cli_comms_command_run(const CliCommsCommandCfg *args);
+
+// the layer's cells let go at the end: every part's grants, every channel's stored messages, the stored rings and the
+// tables; and the pane's own cell (comms_view.c)
+void cli_comms_end(void);
+void cli_comms_pane_end(void);
 struct CliCommsCommandCfg
 {
     const char *name;

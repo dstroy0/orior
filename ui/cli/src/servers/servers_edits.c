@@ -4,9 +4,8 @@
 // edits before they are read. An edit of a file given its server as a slice is an edit of the file its lines came from,
 // and one on a bracket the slice closes is none
 #include "../command_line/pool.h"
+#include "../text/sort.h"
 #include "servers_internal.h"
-
-#include <stdlib.h>
 
 // One edit of a workspace edit: the file it changes, its span, the node of its text, and its place among the edits
 typedef struct
@@ -269,7 +268,8 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
         editing.edit = (CliServersEdit *)(void *)cell;
         editing.edited = (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + edit_bytes);
         EMBED_CALL(edits_walk, ServersEditsCtx, .editing = &editing, .json = args->json, .edit = edit);
-        qsort(editing.edit, editing.edits, sizeof(editing.edit[0]), edits_order);
+        EMBED_CALL(cli_sort, CliSortCfg, .base = editing.edit, .count = editing.edits, .size = sizeof(editing.edit[0]),
+                   .order = edits_order);
     }
     mmgr_line_ch(args->out, '[');
     unsigned int at = 0u;

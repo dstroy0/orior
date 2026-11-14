@@ -6,9 +6,10 @@
 // the file's worst outcome and its counts, the summary of the run's end and the coverage's rows; the pane's table draws
 // the bar with its actions and the rows under the Tests group's title, a press on Run All lands on the action and a
 // press on a row lands on it; and no tree leaves no rows
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/tests/testing.h"
 #include "../../../../../ui/cli/src/text/text.h"
-#include "../../../../../ui/cli/src/view/parts/tests.h"
+#include "../../../../../ui/gui/src/tests.h"
 #include "../cli/cli_check.h"
 
 // the file `relative` of the tree at `root` written with `text`, its folder put in place first
@@ -49,16 +50,19 @@ static int row_is(unsigned int at, unsigned int type, const char *name, CliTests
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
@@ -144,22 +148,22 @@ int main(void)
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_TESTS_BAR +
                               GUI_TESTS_SAID,
               "the rows stand under the pane's head, the bar and the summary");
-    const int bar_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_TESTS_BAR / 2);
+    const int top_menu_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_TESTS_BAR / 2);
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
-                         .glyphs = &glyphs, .x = frame.side.x + GUI_TESTS_ACTION_PAD + 4, .y = bar_y) == CLI_TESTS_RUN,
+                         .glyphs = &glyphs, .x = frame.side.x + GUI_TESTS_ACTION_PAD + 4, .y = top_menu_y) == CLI_TESTS_RUN,
               "a press at the bar's left lands on Run All");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = frame.side.x + frame.side.width - GUI_TESTS_ACTION_PAD - 4,
-                         .y = bar_y) == CLI_TESTS_PARALLEL,
+                         .y = top_menu_y) == CLI_TESTS_PARALLEL,
               "a press at the bar's right lands on the Parallel choice");
     cli_check(EMBED_CALL(gui_pane.move, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .glyphs = &glyphs,
-                         .x = frame.side.x + GUI_TESTS_ACTION_PAD + 4, .y = bar_y) &&
+                         .x = frame.side.x + GUI_TESTS_ACTION_PAD + 4, .y = top_menu_y) &&
                   (pane.action == CLI_TESTS_RUN) && (pane.pointed == GUI_PANE_NONE),
               "the pointer on Run All marks the action and no row");
     const GuiRect first =
@@ -195,10 +199,10 @@ int main(void)
     cli_check(EMBED_CALL(cli_tests_pane.rows, CliTestsPaneCfg, .at = 0u) == 2u,
               "no tree leaves no files, the coverage standing");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

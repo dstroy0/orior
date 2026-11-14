@@ -60,20 +60,12 @@ EMBED_INLINE int messages_line(const ValidateMessagesCtx *args)
 // `length` bytes from `start` trimmed of ASCII whitespace, as their start and length
 EMBED_INLINE void messages_trim(const ValidateMessagesCtx *args)
 {
-    unsigned long long *start = args->start;
-    unsigned long long *length = args->length_pointer;
-    while ((*length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                    .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start]}) != NULL))
-    {
-        *start += 1ULL;
-        *length -= 1ULL;
-    }
-    while ((*length > 0ULL) &&
-           (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start + *length - 1ULL]}) != NULL))
-    {
-        *length -= 1ULL;
-    }
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->text + *args->start,
+               .size = *args->length_pointer, .from_u64s = &from, .to_u64s = &to);
+    *args->start += from;
+    *args->length_pointer = to - from;
 }
 
 // the whole number `part` of the member `key` of `object`, as serde reads a u64: 1, or 0 where there is none
@@ -272,7 +264,7 @@ EMBED_INLINE int messages_any_in(const ValidateMessagesCtx *args)
 int cli_validate_barrier_get(const CliValidateMessagesCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     const char *const text = args->messages_read->text + args->message->text;
     for (unsigned int at = 0u; at < tool->barrier_count; at += 1u)
     {
@@ -426,7 +418,7 @@ unsigned long long cli_validate_copy_get(const CliValidateTextSizeCtx *args)
     {
         mmgr_line_ch(&out, '\n');
     }
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     for (unsigned int theorem = 0u; tool->audited && (theorem < g_cli_validate->theorem_count); theorem += 1u)
     {
         const char *const name = g_cli_validate->names + g_cli_validate->theorems[theorem];

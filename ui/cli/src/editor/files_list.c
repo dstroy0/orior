@@ -96,22 +96,6 @@ EMBED_INLINE void cli_entry_append(const FilesListCtx *args)
     s_listing->count += 1u;
 }
 
-// whether a name sorts before another, ASCII's case aside
-EMBED_INLINE int cli_before(const FilesListCtx *args)
-{
-    const char *one = args->one;
-    const char *other = args->other;
-    for (;; one += 1, other += 1)
-    {
-        const char left = ((one[0] >= 'A') && (one[0] <= 'Z')) ? (char)(one[0] + 32) : one[0];
-        const char right = ((other[0] >= 'A') && (other[0] <= 'Z')) ? (char)(other[0] + 32) : other[0];
-        if ((left != right) || (left == '\0'))
-        {
-            return (unsigned char)left < (unsigned char)right;
-        }
-    }
-}
-
 // the entries in the order the explorer shows them: folders first, then by name, case aside
 EMBED_INLINE void cli_entries_sort(const FilesListCtx *args)
 {
@@ -125,8 +109,9 @@ EMBED_INLINE void cli_entries_sort(const FilesListCtx *args)
             const CliEntry *const before = &s_listing->item[place - 1u];
             const int first =
                 (swap.dir && !before->dir) ||
-                ((swap.dir == before->dir) && EMBED_CALL(cli_before, FilesListCtx, .one = s_listing->text + swap.name,
-                                                         .other = s_listing->text + before->name));
+                ((swap.dir == before->dir) &&
+                 EMBED_CALL(cli_text_size_one.before_folded, CliTextSizeOneCfg, .one = s_listing->text + swap.name,
+                            .other_pointer = s_listing->text + before->name));
             if (!first)
             {
                 break;
@@ -148,7 +133,8 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
         bytes += cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_POOL_BYTES}) +
                  cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_POOL_BYTES}) + 2ULL;
     }
-    CliFileEntries *const entries = g_cli_guard->persistent_buf_alloc(
+    // the caller gives the entries back within its call: a cell of the temporary tier
+    CliFileEntries *const entries = g_cli_guard->temporary_buf_alloc(
         sizeof(*entries) + (s_listing->count * sizeof(CliFileEntry)) + bytes, args->owner);
     if (entries == NULL)
     {
@@ -296,7 +282,8 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
 {
     const char *root = args->root;
     VerbaLinea *err_msg = args->err_msg;
-    s_listing = g_cli_guard->persistent_buf_alloc(sizeof(*s_listing), g_cli_editor_owner);
+    // the listing lives for the one call that reads a folder: a cell of the temporary tier
+    s_listing = g_cli_guard->temporary_buf_alloc(sizeof(*s_listing), g_cli_editor_owner);
     if (s_listing == NULL)
     {
         mmgr_line_put(err_msg, "a folder's listing could not be taken");
@@ -559,16 +546,19 @@ int cli_files_explorer_menu(unsigned int at)
     CliExplorerRow row;
     if (!cli_files_explorer_row(at, &row))
     {
-        cli_menus_own_row(&(CliItem){"Refresh Explorer", "explorer-refresh", "", "", "", "", 0, 0, 0, 0, 0u});
-        cli_menus_own_row(
-            &(CliItem){"Collapse Folders in Explorer", "explorer-collapse", "", "", "", "", 0, 0, 0, 0, 0u});
-        return 1;
+        // off the rows the pane's own, the list's Explorer popup
+        return cli_menus_popup("Explorer", "");
     }
-    // the rows run with the row's path, which stands in the listing while the menu is open
-    cli_menus_own_row(
-        &(CliItem){(row.dir && row.open) ? "Close" : "Open", "file-open", "", row.path, "", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_line();
-    cli_menus_own_row(&(CliItem){"Copy path", "file-copy-path", "", row.path, "", "", 0, 0, 0, 0, 0u});
+    // the rows the list's Files popup gives, each run with the row's path, which stands in the listing while the menu
+    // is open; an open folder's first row closes it
+    if (!cli_menus_popup("Files", row.path))
+    {
+        return 0;
+    }
+    if (row.dir && row.open)
+    {
+        cli_menus_own_relabel(0u, "Close");
+    }
     return 1;
 }
 

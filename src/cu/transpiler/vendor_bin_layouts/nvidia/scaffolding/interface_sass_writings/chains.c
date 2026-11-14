@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chains.c: the chains: a chain read, a form put at a link, the chains written for each relation and read back
 #include "writings_internal.h"
-#include "../../../../../includes/parsers/line_read.h"
+#include "../../../../../../../includes/parsers/line_read.h"
 
 // one node of a chain: its precept, and the register text of each operand, a leaf's or an earlier node's
 typedef struct

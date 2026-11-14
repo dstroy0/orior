@@ -83,7 +83,7 @@ EMBED_INLINE int offers_param_span(const ServersOffersCtx *args)
                        .node = second, .otherwise = none) != none);
 }
 
-CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
+int cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
 {
     const unsigned int all = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                         .object = args->help, .name = "signatures");
@@ -107,7 +107,7 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
                    .length_pointer = &size);
     if (label == NULL)
     {
-        return NULL;
+        return 0;
     }
     const unsigned int parameters = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = args->json, .object = one, .name = "parameters");
@@ -115,11 +115,6 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
                                           .json_read = args->json, .node = parameters, .type = CFG_JSON_ARRAY)
                                    ? args->json->node[parameters].first
                                    : CLI_JSON_NONE;
-    unsigned int most = 0u;
-    for (unsigned int param = first; param != CLI_JSON_NONE; param = args->json->node[param].next)
-    {
-        most += 1u;
-    }
     char doc_text[1u << 16u];
     VerbaLinea doc = {doc_text, sizeof(doc_text), 0ULL};
     EMBED_CALL(offers_documentation_get, ServersOffersCtx, .json = args->json,
@@ -127,32 +122,40 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
                                    .object = one, .name = "documentation"),
                .out = &doc);
     const unsigned long long doc_size = mmgr_line_ok(&doc) ? doc.at : 0ULL;
-    CliSignaturePanel *const panel = g_cli_guard->persistent_buf_alloc(
-        sizeof(*panel) + (most * sizeof(CliSignatureParameter)) + size + doc_size + 2ULL, args->owner);
-    if (panel == NULL)
-    {
-        return NULL;
-    }
+    // the panel written into the store, its label and documentation cut to the store's bytes and its parameters to
+    // the store's count
+    CliSignatureStore *const store = args->store;
+    CliSignaturePanel *const panel = &store->panel;
+    const unsigned long long label_kept = (size < CLI_SIGNATURE_LABEL) ? size : CLI_SIGNATURE_LABEL - 1ULL;
+    const unsigned long long doc_kept = (doc_size < CLI_SIGNATURE_DOC) ? doc_size : CLI_SIGNATURE_DOC - 1ULL;
     memor.set(&(MemoriaCfg){.dst = panel, .val = 0, .bytes = sizeof(*panel)});
-    panel->parameter = (CliSignatureParameter *)(void *)(panel + 1);
-    char *const text = (char *)(void *)(panel->parameter + most);
-    memor.cpy(&(MemoriaCfg){.dst = text, .src = label, .bytes = size});
-    text[size] = '\0';
-    memor.cpy(&(MemoriaCfg){.dst = text + size + 1ULL, .src = doc_text, .bytes = doc_size});
-    text[size + 1ULL + doc_size] = '\0';
-    panel->label = text;
-    panel->length = size;
-    panel->doc = text + size + 1ULL;
-    panel->doc_length = doc_size;
-    for (unsigned int param = first; param != CLI_JSON_NONE; param = args->json->node[param].next)
+    if (label_kept != 0ULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = store->label, .src = label, .bytes = label_kept});
+    }
+    store->label[label_kept] = '\0';
+    if (doc_kept != 0ULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = store->doc, .src = doc_text, .bytes = doc_kept});
+    }
+    store->doc[doc_kept] = '\0';
+    panel->label = store->label;
+    panel->length = label_kept;
+    panel->doc = store->doc;
+    panel->doc_length = doc_kept;
+    panel->parameter = store->parameter;
+    panel->differs = store->differs;
+    for (unsigned int param = first; (param != CLI_JSON_NONE) && (panel->parameters < CLI_SIGNATURE_PARAMETERS);
+         param = args->json->node[param].next)
     {
         unsigned long long from = 0ULL;
         unsigned long long to = 0ULL;
         if (EMBED_CALL(offers_param_span, ServersOffersCtx, .json = args->json, .param = param, .label = label,
-                       .size = size, .from = &from, .to = &to))
+                       .size = size, .from = &from, .to = &to) &&
+            (to <= label_kept))
         {
             // a span within a label is far inside what an unsigned int represents
-            panel->parameter[panel->parameters] = (CliSignatureParameter){(unsigned int)from, (unsigned int)to};
+            store->parameter[panel->parameters] = (CliSignatureParameter){(unsigned int)from, (unsigned int)to};
             panel->parameters += 1u;
         }
     }
@@ -172,7 +175,7 @@ CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *arg
                          .otherwise = none);
     // a parameter's place is far inside what an int represents
     panel->active = (active < panel->parameters) ? (int)active : -1;
-    return panel;
+    return 1;
 }
 
 // whether the place `one` stands before `other`

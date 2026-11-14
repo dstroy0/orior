@@ -10,8 +10,8 @@ An IDE, a transpiler and a search engine, written in C and CUDA. Every number in
 
 ### 1. IDE (C)
 
-- **orior_cli** ([`ui/cli/`](ui/cli)) is the command-line IDE and the library the GUI links. It is standalone and vectorized, and targets Windows, macOS, Linux and other POSIX systems, including AArch64 with NEON. Memory and CPU use: measurement pending.
-- **tabula** ([`ui/gui/src/`](ui/gui/src)) is the GUI: a native window in C on Windows and on Linux under X11. Its program hands the system's events to orior_cli, does what orior_cli orders and shows the frames orior_cli hands it. The CLI holds every command, all state and all memory and draws each frame on a thread of its own ([`ui/cli/src/view/`](ui/cli/src/view)), so the GUI is optional and all development can be done from the CLI. The editor is the center of the window. The Rust and JavaScript under [`ui/gui/`](ui/gui) stay until tabula matches them 1:1.
+- **impero** ([`ui/cli/`](ui/cli)) is the command-line IDE and the library the GUI links. It is standalone and vectorized, and targets Windows, macOS, Linux and other POSIX systems, including AArch64 with NEON. Memory and CPU use: measurement pending.
+- **tabvla** ([`ui/gui/src/`](ui/gui/src)) is the GUI: a native window in C on Windows and on Linux under X11. Its program hands the system's events to impero, does what impero orders and shows the frames impero hands it. The CLI holds every command, all state and all memory and draws each frame on a thread of its own ([`ui/cli/src/view/`](ui/cli/src/view)), so the GUI is optional and all development can be done from the CLI. The editor is the center of the window. The Rust and JavaScript under [`ui/gui/`](ui/gui) stay until tabvla matches them 1:1.
 
 Build and verification:
 
@@ -29,7 +29,7 @@ Performance against other IDEs, Vim and Neovim (highlighting time, copy and past
 
 ### 2. Transpiler (C, CUDA, C++)
 
-Depends on orior_cli.
+Depends on impero.
 
 - **Zero-trust sealing**, for data integrity:
   1. The whole codebase can be sealed with a BLAKE3 hash per line, accumulated into a 32-word Merkle DAG root.
@@ -70,16 +70,16 @@ What the work claims, what it does not claim, and the results are on the [home p
 
 ## Build
 
-You need CMake and Ninja, a C11 compiler for the engine, and Clang for the CLI and tabula, with `llvm-rc` on Windows and the X11 headers on Linux. [Setup](docs/setup.md) has the details.
+You need CMake and Ninja, a C11 compiler for the engine, and Clang for the CLI and tabvla, with `llvm-rc` on Windows and the X11 headers on Linux. [Setup](docs/setup.md) has the details.
 
 ```sh
 git clone --recurse-submodules https://github.com/dstroy0/orior.git && cd orior
 utils/maint/engine/build_engine.sh  # the C engine: configure, build, run the graders
-ui/cli/build.sh                     # orior_cli, into build/cli/<target>/
-ui/cli/build.sh window              # tabula, into build/cli/<target>/
+ui/cli/build.sh                     # impero, into build/cli/<target>/
+ui/cli/build.sh window              # tabvla, into build/cli/<target>/
 ```
 
-On Windows PowerShell, the engine builds with `utils/maint/engine/build_engine.ps1`, and the CLI and tabula build under Git's bash. [The app](docs/app.md) covers using the IDE.
+On Windows PowerShell, the engine builds with `utils/maint/engine/build_engine.ps1`, and the CLI and tabvla build under Git's bash. [The app](docs/app.md) covers using the IDE.
 
 ## Documentation
 

@@ -438,7 +438,7 @@ export async function loadRun() {
   drawStage();
 }
 
-// A job started from a command line's words, `orior_gui protocol learn costs --leave all` as the window hears it: the words
+// A job started from a command line's words, `tab protocol learn costs --leave all` as the window hears it: the words
 // read into the job's values as its fields would hold them, the job shown and started.
 export async function startJobWords(id, words) {
   const job = state.jobs.find((one) => one.id === id);

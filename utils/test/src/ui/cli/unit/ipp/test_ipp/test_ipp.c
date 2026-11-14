@@ -267,7 +267,7 @@ void test_a_job_is_accepted_and_its_state_reported(void)
 {
     printer_found();
     document_created();
-    CliIppJob job = {"orior_cli ipp test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
+    CliIppJob job = {"impero ipp test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
     int id = 0;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_ipp_size_err_msg.print, CliIppSizeErrMsgCfg, .uri = s_uri, .job = &job, .document = (const unsigned char *)s_pdf, .size = s_pdf_size, .id_pointer = &id, .err_msg = &s_err_msg));
     TEST_ASSERT_GREATER_THAN_INT(0, id);
@@ -283,7 +283,7 @@ void test_a_canceled_job_ended(void)
 {
     printer_found();
     document_created();
-    CliIppJob job = {"orior_cli cancel test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
+    CliIppJob job = {"impero cancel test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
     int id = 0;
     (void)EMBED_CALL(cli_ipp_size_err_msg.print, CliIppSizeErrMsgCfg, .uri = s_uri, .job = &job, .document = (const unsigned char *)s_pdf, .size = s_pdf_size, .id_pointer = &id, .err_msg = &s_err_msg);
     (void)EMBED_CALL(cli_ipp_err_msg_uri.cancel, CliIppErrMsgUriCfg, .uri = s_uri, .id = id, .err_msg = &s_err_msg);
@@ -297,7 +297,7 @@ void test_a_canceled_job_ended(void)
 void test_a_format_the_printer_does_not_accept_is_refused(void)
 {
     printer_found();
-    CliIppJob job = {"orior_cli format test", "application/x-orior-none", 1u, 0, 1, "iso_a4_210x297mm"};
+    CliIppJob job = {"impero format test", "application/x-orior-none", 1u, 0, 1, "iso_a4_210x297mm"};
     int id = 0;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_ipp_size_err_msg.print, CliIppSizeErrMsgCfg, .uri = s_uri, .job = &job, .document = (const unsigned char *)"x", .size = 1ull, .id_pointer = &id, .err_msg = &s_err_msg));
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, mmgr_line_finish(&s_err_msg));

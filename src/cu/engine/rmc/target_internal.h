@@ -4,8 +4,8 @@
 #ifndef TARGET_INTERNAL_H
 #define TARGET_INTERNAL_H
 
-#include "../../includes/file_defs/krs/ruleset_flat.h"
-#include "../../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../../includes/file_defs/krs/ruleset_flat.h"
+#include "../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "target.h"
 
 #include <stddef.h>

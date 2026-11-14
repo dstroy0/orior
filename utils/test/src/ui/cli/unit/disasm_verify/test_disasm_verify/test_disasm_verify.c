@@ -22,7 +22,7 @@ static const char s_symbols[] = "0000000000401000 T main\n"
                                 "0000000000401100 t cells_taken.llvm.1234567\n"
                                 "0000000000401200 T cells_release\n";
 
-static const char s_objdump[] = "\n/top/orior_cli:\tfile format elf64-x86-64\n\nDisassembly of section .text:\n\n"
+static const char s_objdump[] = "\n/top/imp:\tfile format elf64-x86-64\n\nDisassembly of section .text:\n\n"
                                 "0000000000401200 <cells_release>:\n"
                                 "  401200: 55                           \tpush\trbp\n"
                                 "  401201: 48 89 e5                     \tmov\trbp, rsp\n"

@@ -3,7 +3,7 @@
 // table_text.c: a text numbered by its hash, its row appended to the table of texts once a process
 #include "table_text.h"
 
-#include "../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include <string.h>
 

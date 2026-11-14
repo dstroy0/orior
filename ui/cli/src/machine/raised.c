@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raised.c: writing a file the system refuses to write for the reader, once the system has prompted the reader for the
 // rights the write needs. The text is put in a file of orior's own first, and copied over the file with the rights:
-// on Windows by orior's own program run again as `orior_cli write-raised`, raised by the system's prompt, which writes
+// on Windows by orior's own program run again as `imp write-raised`, raised by the system's prompt, which writes
 // that one file and ends; on Linux by cp run through pkexec; on macOS by cp run with the system's authorization. A
 // reader who declines the prompt leaves the file as it was
 #include "raised.h"
@@ -14,9 +14,9 @@ int cli_raised_is_reject(const CliRaisedCfg *args)
     static const char *const s_parts[6] = {"access is denied", "permission denied", "operation not permitted",
                                            "os error 5)",      "os error 13)",      "os error 1)"};
     char lower[CLI_ERR_MSG_MAX_LEN];
-    size_t length = 0u;
-    length = (size_t)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = lower,
-                                .capacity = sizeof(lower), .text = args->err_text);
+    embed_word length = 0u;
+    length = (embed_word)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = lower,
+                                    .capacity = sizeof(lower), .text = args->err_text);
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {

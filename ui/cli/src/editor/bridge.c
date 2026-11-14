@@ -785,7 +785,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
                        .value = EMBED_CALL(cli_bridge_path.ruleset, CliBridgePathCfg, .json = args->json,
                                            .path = relative, .text = text_of, .size = one->size));
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)one->bytes, (g_cli_editor_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)one->bytes, (g_cli_editor_owner));
     }
     g_cli_guard->persistent_buf_release(files.file, g_cli_editor_owner);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = bridge,

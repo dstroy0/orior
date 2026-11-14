@@ -140,14 +140,13 @@ void test_the_setting_off_lists_none_and_stands_across_the_save_and_read(void)
     EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg, .on = 0);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u));
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u));
-    CliStateEntries *const entries =
-        cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_checks_owner});
-    TEST_ASSERT_NOT_NULL(entries);
-    EMBED_CALL(cli_crumbs.begin, CliCrumbsCfg, .entries = entries);
+    CliStateEntries entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_checks_owner});
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    EMBED_CALL(cli_crumbs.begin, CliCrumbsCfg, .entries = &entries);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u));
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u));
-    g_cli_guard->persistent_buf_release(entries, g_checks_owner);
+    cli_state_entries_release(&entries);
     EMBED_CALL(cli_crumbs.shown_set, CliCrumbsCfg, .on = 1);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.shown, CliCrumbsCfg, .at = 0u));
 }

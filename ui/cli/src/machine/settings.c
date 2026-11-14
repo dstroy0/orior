@@ -33,7 +33,6 @@ static const char s_machine[] = "machine";
 
 static const char *const s_systems[3] = {"windows", "linux", "macos"};
 
-
 // the most bytes of a settings file read
 #define CLI_SETTINGS_FILE (1u << 20u)
 
@@ -80,7 +79,7 @@ int cli_settings_is_file_key(const CliSettingsKeyCfg *args)
 }
 
 // whether `key` is a setting a tree's file does not set, its node in commands.json marked `reader`: a setting that runs
-// a program, names the reader's own, lets orior_cli or a plugin reach out or takes the reader's machine, which a tree
+// a program, names the reader's own, lets impero or a plugin reach out or takes the reader's machine, which a tree
 // cloned from anywhere would otherwise set
 int cli_settings_tree_scope(const CliSettingsKeyCtx *args)
 {
@@ -385,7 +384,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
                                                   .size_pointer = &size, .owner = g_cli_settings_owner);
     if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_settings_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_settings_owner));
         const int is_file = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next);
         if (!*args->first || is_file)
         {
@@ -395,13 +394,14 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
         return 0;
     }
     *args->first = 0;
-    // a file's text with its comments taken out is no longer than the file
-    char *const plain_text = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_settings_owner);
+    // a file's text with its comments taken out is no longer than the file; it stands for the walk's one call, as the
+    // walk does
+    char *const plain_text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_settings_owner);
     VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
     // the file's bytes are its text
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_settings_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_settings_owner));
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ULL};
     CliJson own;

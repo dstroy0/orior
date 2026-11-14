@@ -6,6 +6,7 @@
 // entry, as each push changes it (recent.c)
 #ifndef RECENT_H
 #define RECENT_H
+#include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliRecentCfg CliRecentCfg;
@@ -18,8 +19,9 @@ typedef struct CliRecentCfg CliRecentCfg;
 
 // `entry` put first in the list `list`, out of the place it stood where it stood in it already, the oldest past
 // CLI_RECENT_MOST let go, and the list stored; an entry empty or with a line end in it changes nothing. And the list
-// `list`, at most `most` of its entries, newest first, into `rows_out`, sized for `most`: how many, each standing until
-// the next push to the list
+// `list`, at most `most` of its entries, newest first, into `rows_out`, sized for `most`: how many, each standing in
+// the temporary cell of `owner` written into `cell_out`, which the caller gives back with
+// g_cli_guard->persistent_buf_release
 void cli_recent_push(const CliRecentCfg *args);
 unsigned int cli_recent_list(const CliRecentCfg *args);
 struct CliRecentCfg
@@ -28,6 +30,8 @@ struct CliRecentCfg
     const char *entry;
     unsigned int most;
     const char **rows_out;
+    char **cell_out;
+    const CellOwner *owner;
 };
 
 typedef struct

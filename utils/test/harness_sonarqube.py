@@ -39,7 +39,7 @@ PROJECT = "orior-sonarqube-test"
 ADMIN = "admin:admin"
 SCANNER_IMAGE = "sonarsource/sonar-scanner-cli"
 SCANNER_CACHE = "orior-sonar-scanner-cache"
-EXCLUSIONS = "**/node_modules/**,**/target/**,**/build/**,**/dist/**,**/*.min.js,**/vendor/**,**/runs/**"
+EXCLUSIONS = "**/node_modules/**,**/target/**,**/build/**,**/build-*/**,**/_deps/**,**/dist/**,**/*.min.js,**/vendor/**,**/runs/**"
 PAGE = 500
 CLOUD_SERVER = "https://sonarcloud.io"
 CLOUD_PROJECT = "dstroy0_orior"
@@ -151,16 +151,21 @@ def cmd_scan(a):
         "docker", "run", "--rm", "--add-host", "host.docker.internal:host-gateway",
         "-e", "SONAR_HOST_URL=http://host.docker.internal:9000", "-e", "SONAR_TOKEN=" + token_read(),
         "-v", top + ":/usr/src", "-v", SCANNER_CACHE + ":/opt/sonar-scanner/.sonar/cache",
+        # the scanner walks the whole tree: an empty folder stands over build/, whose objects come and go under a
+        # build and whose test homes it cannot open, with the reports it reads mounted back in
+        "--tmpfs", "/usr/src/build", "-v", top + "/build/sonarqube:/usr/src/build/sonarqube",
         SCANNER_IMAGE,
         "-Dsonar.projectKey=" + PROJECT, "-Dsonar.projectName=" + PROJECT,
         "-Dsonar.sources=" + ",".join(a.sources), "-Dsonar.sourceEncoding=UTF-8", "-Dsonar.scm.disabled=true",
         "-Dsonar.exclusions=" + EXCLUSIONS, "-Dsonar.cpd.exclusions=",
         # sonar-project.properties has SonarCloud's settings, the coverage report among them; the folders it names as tests overlap these sources
         "-Dsonar.tests=utils/test/src", "-Dsonar.test.inclusions=utils/test/src/**",
+        # the coverage report is SonarCloud's: this scan reads none
+        "-Dsonar.coverageReportPaths=",
         # the C sources, read by the sonar-cxx plugin where the server holds it, and the reports `source tidy` wrote
         "-Dsonar.cxx.file.suffixes=.c,.h,.cu,.cuh",
-        "-Dsonar.cxx.includeDirectories=src/cu/includes/mmgr/include,src/cu/includes/mmgr/src,src/cu/includes/embedded_types/include,src/cu/includes,ui/cli/src,ui/query/src",
-        "-Dsonar.cxx.defines=MMGR_ENABLE_DMA 0\\nMMGR_ENABLE_EXTRAM 0\\nMMGR_ALIGN_BYTES 32\\nMMGR_ENABLE_HW_MEM_CAPACITY_CB 1\\nMMGR_CARCER_OWNERS 1024u",
+        "-Dsonar.cxx.includeDirectories=includes/mmgr/include,includes/mmgr/src,includes/embedded_types/include,includes,ui/cli/src,ui/query/src",
+        "-Dsonar.cxx.defines=MMGR_ENABLE_DMA 0\\nMMGR_ENABLE_EXTRAM 0\\nMMGR_ALIGN_BYTES 32\\nMMGR_ENABLE_HW_MEM_CAPACITY_CB 1\\nMMGR_MOVABLE_READ_MS 10u\\nMMGR_MOVABLE_QUIET_READINGS 2u\\nMMGR_CARCER_OWNERS 1024u",
         "-Dsonar.cxx.clangtidy.reportPaths=build/sonarqube/clang-tidy.txt",
         "-Dsonar.cxx.cppcheck.reportPaths=build/sonarqube/cppcheck.xml",
     ]

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// disasm_verify.c: `orior_cli run disasm-verify <module.c> [--function <name>]... [--toolchain llvm|gcc|apple]
+// disasm_verify.c: `imp run disasm-verify <module.c> [--function <name>]... [--toolchain llvm|gcc|apple]
 // [--target <triple>]`: the loop of disasm_verify.h run over one module through the toolchain named, LLVM's where none
 // is, its steps those of disasm_verify_steps.c. Each program is found as the toolchains window finds it: Ghidra's
 // analyzer through the toolchain ghidra, the compiler through its own toolchain, and the lifter, the lister and the
@@ -157,7 +157,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
         }
         at = end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)text, (g_cli_programs_owner));
     return found;
 }
 
@@ -446,10 +446,10 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                          .err_msg = &err_msg)
             : NULL;
     CliDisasmReadState one = {
-        g_cli_guard->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
+        g_cli_guard->temporary_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
         0u, 0};
     CliDisasmReadState other = {
-        g_cli_guard->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
+        g_cli_guard->temporary_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
         0u, 0};
     int code = CLI_NO_CODE;
     if ((ghidra == NULL) || (one.instruction == NULL) || (other.instruction == NULL))
@@ -467,7 +467,7 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     }
     g_cli_guard->persistent_buf_release(one.instruction, g_cli_programs_owner);
     g_cli_guard->persistent_buf_release(other.instruction, g_cli_programs_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)ghidra, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)ghidra, (g_cli_programs_owner));
     if (disassembled != NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = disassembled);

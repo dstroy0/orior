@@ -37,14 +37,14 @@ typedef struct
 {
     void *context;
     const char *path;
-    const CliFacts *facts;
+    const CliFactsCell *facts;
     unsigned int function;
     const CliInspectSpan *sites;
     unsigned int count;
 } CliInspectReachedCfg;
 
-// A function the call hierarchy reaches: the path of its file, that file's facts and its place among their functions,
-// and the spans of the calls that lead there, `count` of them
+// A function the call hierarchy reaches: the path of its file, that file's facts cell and its place among their
+// functions, and the spans of the calls that lead there, `count` of them. The path and the facts stand for the call
 typedef void (*CliInspectReached)(const CliInspectReachedCfg *args);
 
 // the function at `at` of the file at `path` handed to `each` with no calls, under the tree's lock: 1, or 0 where the

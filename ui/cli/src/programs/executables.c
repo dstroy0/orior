@@ -197,18 +197,25 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
 // with why given
 int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
 {
-    const CliLines *lines = args->lines;
+    const CliRunLines *lines = args->lines;
     char mark[CLI_NAME_MAX_LEN + 4u];
     VerbaLinea marked = {mark, sizeof(mark), 0ULL};
     mmgr_line_put(&marked, args->name);
     mmgr_line_put(&marked, " -> ");
     mmgr_line_finish(&marked);
     const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_POOL_BYTES});
-    for (unsigned int index = lines->count; index > 0u; index -= 1u)
+    const unsigned int count =
+        EMBED_CALL(cli_runner_lines_index.lines_count, CliRunnerLinesIndexCfg, .lines_read = lines);
+    const unsigned long long longest =
+        EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
+    // each line read out of the run's rings into one temporary cell sized for the longest, the newest first
+    char *const read = (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+    for (unsigned int index = (read != NULL) ? count : 0u; index > 0u; index -= 1u)
     {
-        const char *from = EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg, .lines_read = lines,
-                                      .index = index - 1u);
-        unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
+        unsigned long long length =
+            EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines,
+                       .index = index - 1u, .out = read, .capacity = longest + 1ULL);
+        const char *from = read;
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
                    .length_pointer = &length);
         if ((length < mark_length) || (memor.cmp(&(MemoriaCfg){.src = from, .other = mark, .bytes = mark_length}) != 0))
@@ -254,8 +261,10 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
             mmgr_line_put(&joined, file);
             mmgr_line_finish(&joined);
         }
+        g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
         return 1;
     }
+    g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
     mmgr_line_put(args->err_msg, "dotnet named no file for ");
     mmgr_line_put(args->err_msg, args->name);
     return 0;

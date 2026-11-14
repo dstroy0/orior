@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // runner_run.c: a job's steps run one after another on a thread of their own, each step's process started, its lines
 // carried and its exit read; the program a build made found, signed and run; and a run stopped with all it started
+#include "../../../../includes/arith/arith.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../programs/binary.h"
@@ -10,7 +11,6 @@
 #include "runner_internal.h"
 
 #include "../text/text.h"
-#include <math.h>
 
 // The program the build made, found once from the lines the steps before printed, and what it loads and how it compares
 // reported as it is found: 1, its path in `file`, or 0 with why given into `why`
@@ -91,18 +91,24 @@ EMBED_INLINE void cli_run_print_text(const RunnerRunCtx *args)
 
 static int cli_find_init(const RunnerRunCtx *args)
 {
-    const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &args->run->catalog,
-                                      .text_u32 = args->run->catalog.job[0].id);
     const QuerySink sink = {cli_run_print, args->run};
     if (args->made->looked)
     {
         return args->made->found;
     }
     args->made->looked = 1;
+    // the job read out of the run's cell for the look
+    CliRunPinned pinned;
+    if (!EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = args->run, .pinned = &pinned))
+    {
+        return 0;
+    }
+    const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &pinned.catalog,
+                                      .text_u32 = pinned.catalog.job[0].id);
     VerbaLinea why = {args->made->why, sizeof(args->made->why), 0ULL};
     args->made->found =
         EMBED_CALL(cli_executables_path.init, CliExecutablesPathCfg, .root = args->run->root, .id = id,
-                   .values = args->run->values, .lines = args->run->lines, .path = args->made->file, .err_msg = &why);
+                   .values = pinned.values, .lines = args->run->lines, .path = args->made->file, .err_msg = &why);
     mmgr_line_finish(&why);
     if (args->made->found)
     {
@@ -142,6 +148,7 @@ static int cli_find_init(const RunnerRunCtx *args)
     {
         EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = args->run, .text = args->made->why);
     }
+    EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
     return args->made->found;
 }
 
@@ -169,7 +176,16 @@ static int cli_step(const RunnerRunCtx *args)
                               NULL,
                               EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run)};
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &line);
-    if (cellul.eq(&(CatenaFinitaCfg){.src = run->catalog.job[0].opens, .other = "views", .cap = CLI_POOL_BYTES}))
+    // the job read out of the run's cell for what it opens
+    CliRunPinned pinned;
+    const int opens_views =
+        EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = run, .pinned = &pinned) &&
+        cellul.eq(&(CatenaFinitaCfg){.src = pinned.catalog.job[0].opens, .other = "views", .cap = CLI_POOL_BYTES});
+    if (pinned.cell != NULL)
+    {
+        EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
+    }
+    if (opens_views)
     {
         EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->view_out);
         EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "VIEW_OUT",
@@ -253,17 +269,23 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
     int has_code = args->has_code_value;
     long long code = args->code_value;
     int *built = args->built;
-    const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &args->run->catalog,
-                                      .text_u32 = args->run->catalog.job[0].id);
     if (args->created_step)
     {
+        // the job read out of the run's cell for the advice
+        CliRunPinned pinned;
+        if (!EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = args->run, .pinned = &pinned))
+        {
+            return has_code && (code == 0LL);
+        }
+        const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &pinned.catalog,
+                                          .text_u32 = pinned.catalog.job[0].id);
         if (args->run->has_first)
         {
             char line[96];
             VerbaLinea line_out = {line, sizeof(line), 0ULL};
             mmgr_line_put(&line_out, "the program wrote its first line ");
             const double after = args->run->first - args->step_began_value;
-            mmgr_line_decimal_signed(&line_out, llround(after));
+            mmgr_line_decimal_signed(&line_out, arith_round_whole(after));
             mmgr_line_put(&line_out, " ms after it started");
             mmgr_line_finish(&line_out);
             EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = args->run, .text = line);
@@ -271,6 +293,7 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
         const QuerySink sink = {cli_run_print, args->run};
         EMBED_CALL(cli_executables_root.run_result_advice, CliExecutablesRootCfg, .root = args->run->root, .id = id,
                    .has_code = has_code, .code = code, .lines = args->run->lines, .sink = sink);
+        EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
     }
     else if (!has_code || (code != 0LL))
     {
@@ -352,8 +375,10 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
                              args->created_text,
                              EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run)};
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &end);
-    g_cli_guard->persistent_buf_release(run->job_cell, g_cli_runs_owner);
-    g_cli_guard->persistent_buf_release(run->lines, g_cli_runs_owner);
+    if (run->job_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(run->job_cell, g_cli_runs_owner);
+    }
     run->job_cell = NULL;
     run->lines = NULL;
     run->ended = 1;
@@ -365,7 +390,13 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
 // many
 EMBED_INLINE unsigned int cli_steps_ready(const RunnerRunCtx *args)
 {
-    const CliCatalog *const catalog = &args->run->catalog;
+    // the job read out of the run's cell for the steps' choice
+    CliRunPinned pinned;
+    if (!EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = args->run, .pinned = &pinned))
+    {
+        return 0u;
+    }
+    const CliCatalog *const catalog = &pinned.catalog;
     const CliJob *const job = &catalog->job[0];
     unsigned int (*const ready)[2] = args->ready;
     unsigned int count = 0u;
@@ -373,7 +404,7 @@ EMBED_INLINE unsigned int cli_steps_ready(const RunnerRunCtx *args)
     {
         const CliStep *const step = &catalog->step[job->step_first + at];
         if (EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = catalog, .step = step,
-                       .values = args->run->values))
+                       .values = pinned.values))
         {
             ready[count][0] = (step->program == CLI_PROGRAM_CREATED) ? CLI_READY_CREATED : CLI_READY_NOW;
             ready[count][1] = job->step_first + at;
@@ -395,6 +426,7 @@ EMBED_INLINE unsigned int cli_steps_ready(const RunnerRunCtx *args)
         ready[place][0] = CLI_READY_SIGN;
         count += 1u;
     }
+    EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
     return count;
 }
 
@@ -404,32 +436,44 @@ EMBED_INLINE unsigned int cli_steps_ready(const RunnerRunCtx *args)
 EMBED_INLINE int cli_job_step(const RunnerRunCtx *args)
 {
     CliRun *const run = args->run;
-    const CliStep *const step = &run->catalog.step[args->step];
     VerbaLinea displayed = {args->displayed_out, CLI_COMMAND_TEXT, 0ULL};
+    // the job read out of the run's cell while the step's command is made
+    CliRunPinned pinned;
+    if (!EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = run, .pinned = &pinned))
+    {
+        *args->has_code = 0;
+        return 0;
+    }
+    const CliStep *const step = &pinned.catalog.step[args->step];
+    int made = 1;
     if (args->created_step)
     {
-        if (!EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = args->made))
+        made = EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = args->made);
+        if (made)
         {
-            *args->has_code = 0;
-            return 0;
+            EMBED_CALL(cli_executables_values.run_command, CliExecutablesValuesCfg, .root = run->root,
+                       .file = args->made->file, .values = pinned.values, .system = step->system,
+                       .command = args->command, .displayed_verba_linea_pointer = &displayed);
         }
-        EMBED_CALL(cli_executables_values.run_command, CliExecutablesValuesCfg, .root = run->root,
-                   .file = args->made->file, .values = run->values, .system = step->system, .command = args->command,
-                   .displayed_verba_linea_pointer = &displayed);
     }
     else
     {
         char why[CLI_PATH_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-        if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = run->root,
-                        .catalog = &run->catalog, .step = step, .values = run->values, .command = args->command,
-                        .displayed = &displayed, .err_msg = &err_msg))
+        made = EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = run->root,
+                          .catalog = &pinned.catalog, .step = step, .values = pinned.values, .command = args->command,
+                          .displayed = &displayed, .err_msg = &err_msg);
+        if (!made)
         {
             mmgr_line_finish(&err_msg);
             EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = why);
-            *args->has_code = 0;
-            return 0;
         }
+    }
+    EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
+    if (!made)
+    {
+        *args->has_code = 0;
+        return 0;
     }
     mmgr_line_finish(&displayed);
     double began = 0.0;
@@ -468,8 +512,15 @@ EMBED_INLINE void cli_created_written(const RunnerRunCtx *args)
 void cli_run_steps(void *context)
 {
     CliRun *const run = (CliRun *)context;
-    const CliCatalog *const catalog = &run->catalog;
-    const CliJob *const job = &catalog->job[0];
+    // the job read out of the run's cell for what it opens
+    char opens[CLI_NAME_MAX_LEN];
+    opens[0] = '\0';
+    CliRunPinned pinned;
+    if (EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = run, .pinned = &pinned))
+    {
+        (void)cellul.copy(&(CatenaFinitaCfg){.dst = opens, .src = pinned.catalog.job[0].opens, .cap = sizeof(opens)});
+        EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
+    }
     // the command a step runs and the line it is shown as, a cell of the run's allocated while it runs; and the pages
     // it wrote, a cell taken as it ends
     typedef struct
@@ -494,8 +545,8 @@ void cli_run_steps(void *context)
     mmgr_line_ch(&named, '-');
     mmgr_line_decimal(&named, run->run, 1u);
     mmgr_line_finish(&named);
-    const int views = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "views", .cap = CLI_POOL_BYTES});
-    const int program = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "program", .cap = CLI_POOL_BYTES});
+    const int views = cellul.eq(&(CatenaFinitaCfg){.src = opens, .other = "views", .cap = sizeof(opens)});
+    const int program = cellul.eq(&(CatenaFinitaCfg){.src = opens, .other = "program", .cap = sizeof(opens)});
     if (views)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = view_out);
@@ -533,20 +584,23 @@ void cli_run_steps(void *context)
     }
     g_cli_guard->persistent_buf_release(run_command, g_cli_runs_owner);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =
-        views
-            ? g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, g_cli_runs_owner)
-            : NULL;
+        views ? g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, g_cli_runs_owner)
+              : NULL;
     const unsigned int pages = (pages_found != NULL)
                                    ? EMBED_CALL(cli_runner_root_internal.run_pages, CliRunnerRootCtx, .root = run->root,
                                                 .view_out = view_out, .lines = run->lines, .views = pages_found)
                                    : 0u;
     const int stopped = EMBED_CALL(cli_stopping, RunnerRunCtx, .run_read = run);
-    const char *const id =
-        EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog, .text_u32 = job->id);
-    if (program && !built && !stopped)
+    if (program && !built && !stopped &&
+        EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = run, .pinned = &pinned))
     {
+        // the job read out of the run's cell for the advice
         const QuerySink sink = {cli_run_print, run};
-        EMBED_CALL(cli_executables_root.advice, CliExecutablesRootCfg, .id = id, .lines = run->lines, .sink = sink);
+        EMBED_CALL(cli_executables_root.advice, CliExecutablesRootCfg,
+                   .id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &pinned.catalog,
+                                    .text_u32 = pinned.catalog.job[0].id),
+                   .lines = run->lines, .sink = sink);
+        EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
     }
     char created_text[CLI_PATH_MAX_LEN];
     const int has_created =

@@ -30,6 +30,7 @@ EMBED_INLINE void objects_word(const CliVimCtx *args)
                                                    .line = args->from.line, .length_out = &length);
     if ((units == NULL) || (length == 0ULL))
     {
+        EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
         return;
     }
     const unsigned long long at = (args->from.col < length - 1ULL) ? args->from.col : length - 1ULL;
@@ -66,6 +67,7 @@ EMBED_INLINE void objects_word(const CliVimCtx *args)
             }
         }
     }
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
     *args->span = (CliVimSpan){1, {args->from.line, start}, {args->from.line, end}, 0};
 }
 
@@ -97,7 +99,7 @@ EMBED_INLINE void objects_quoted(const CliVimCtx *args)
         if (args->how == 'i')
         {
             *args->span = (CliVimSpan){1, {args->from.line, open + 1ULL}, {args->from.line, at}, 0};
-            return;
+            break;
         }
         unsigned long long start = open;
         unsigned long long end = at + 1ULL;
@@ -113,8 +115,9 @@ EMBED_INLINE void objects_quoted(const CliVimCtx *args)
             }
         }
         *args->span = (CliVimSpan){1, {args->from.line, start}, {args->from.line, end}, 0};
-        return;
+        break;
     }
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
 }
 
 // the opener `letter` that holds `place`, the one at it where it stands there and `on`, a closer `how` at `place`

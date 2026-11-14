@@ -22,14 +22,15 @@ typedef struct CliNotebookKernelStopCfg CliNotebookKernelStopCfg;
 #define CLI_NOTEBOOK_TOOL_RESTART 8u
 #define CLI_NOTEBOOK_TOOL_STOP 16u
 
-// A kernel the machine has: its name, the text it is shown by, its language, and the line that installs what it
-// lacks, NULL where it lacks nothing; each standing in the kernels' cell
+// A kernel the machine has, a row of the kernels' movable cell read out by copy: its name, the text it is shown by,
+// its language, whether it lacks what it runs on, and the line that installs that where it lacks it, empty where not
 typedef struct
 {
-    const char *name;
-    const char *display;
-    const char *language;
-    const char *install;
+    char name[CLI_NAME_MAX_LEN];
+    char display[CLI_NAME_MAX_LEN];
+    char language[CLI_NAME_MAX_LEN];
+    int lacks;
+    char install[CLI_PATH_MAX_LEN];
 } CliNotebookKernelRow;
 
 // the text the kernel box of the notebook under `key` shows, the running kernel's display text or `no kernel`, its

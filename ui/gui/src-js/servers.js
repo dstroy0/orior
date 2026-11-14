@@ -350,7 +350,7 @@ export function serveAgain() {
 }
 
 // Gives a served tab's language the server's hover and completion, over the language's own, and the
-// tab of a file orior_gui reads itself, a build file or JSON, the completions orior_gui gives it. A language
+// tab of a file tabvla reads itself, a build file or JSON, the completions tabvla gives it. A language
 // set again, as a plugin read again sets it, is given them again.
 // What the tree's declarations say of a word: each declaration of that name, its type and
 // where it is, as a hover's parts; none where the word is not declared in the tree.

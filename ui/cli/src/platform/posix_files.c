@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // posix_files.c: the command line's file sizes, moves and writes, and the wall clock on Linux and macOS
 #if !defined(_WIN32)
-// clock_gettime is POSIX, outside strict C11
-#define _POSIX_C_SOURCE 200809L
+// clock_gettime is POSIX and syscall is the C library's own, both outside strict C11
+#define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/cli_internal.h"
@@ -11,8 +11,8 @@
 #if !defined(_WIN32)
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -31,15 +31,42 @@ typedef struct
 
 // The errno values a file, a folder, a pipe or a process call reports, each by its standard name
 static const PosixErrorName s_error_names[] = {
-    {EPERM, "EPERM"},     {ENOENT, "ENOENT"},   {ESRCH, "ESRCH"},       {EINTR, "EINTR"},
-    {EIO, "EIO"},         {ENXIO, "ENXIO"},     {E2BIG, "E2BIG"},       {ENOEXEC, "ENOEXEC"},
-    {EBADF, "EBADF"},     {ECHILD, "ECHILD"},   {EAGAIN, "EAGAIN"},     {ENOMEM, "ENOMEM"},
-    {EACCES, "EACCES"},   {EFAULT, "EFAULT"},   {EBUSY, "EBUSY"},       {EEXIST, "EEXIST"},
-    {EXDEV, "EXDEV"},     {ENODEV, "ENODEV"},   {ENOTDIR, "ENOTDIR"},   {EISDIR, "EISDIR"},
-    {EINVAL, "EINVAL"},   {ENFILE, "ENFILE"},   {EMFILE, "EMFILE"},     {ETXTBSY, "ETXTBSY"},
-    {EFBIG, "EFBIG"},     {ENOSPC, "ENOSPC"},   {ESPIPE, "ESPIPE"},     {EROFS, "EROFS"},
-    {EMLINK, "EMLINK"},   {EPIPE, "EPIPE"},     {ERANGE, "ERANGE"},     {ENAMETOOLONG, "ENAMETOOLONG"},
-    {ENOTEMPTY, "ENOTEMPTY"}, {ELOOP, "ELOOP"}, {ETIMEDOUT, "ETIMEDOUT"}, {ECONNREFUSED, "ECONNREFUSED"},
+    {EPERM, "EPERM"},
+    {ENOENT, "ENOENT"},
+    {ESRCH, "ESRCH"},
+    {EINTR, "EINTR"},
+    {EIO, "EIO"},
+    {ENXIO, "ENXIO"},
+    {E2BIG, "E2BIG"},
+    {ENOEXEC, "ENOEXEC"},
+    {EBADF, "EBADF"},
+    {ECHILD, "ECHILD"},
+    {EAGAIN, "EAGAIN"},
+    {ENOMEM, "ENOMEM"},
+    {EACCES, "EACCES"},
+    {EFAULT, "EFAULT"},
+    {EBUSY, "EBUSY"},
+    {EEXIST, "EEXIST"},
+    {EXDEV, "EXDEV"},
+    {ENODEV, "ENODEV"},
+    {ENOTDIR, "ENOTDIR"},
+    {EISDIR, "EISDIR"},
+    {EINVAL, "EINVAL"},
+    {ENFILE, "ENFILE"},
+    {EMFILE, "EMFILE"},
+    {ETXTBSY, "ETXTBSY"},
+    {EFBIG, "EFBIG"},
+    {ENOSPC, "ENOSPC"},
+    {ESPIPE, "ESPIPE"},
+    {EROFS, "EROFS"},
+    {EMLINK, "EMLINK"},
+    {EPIPE, "EPIPE"},
+    {ERANGE, "ERANGE"},
+    {ENAMETOOLONG, "ENAMETOOLONG"},
+    {ENOTEMPTY, "ENOTEMPTY"},
+    {ELOOP, "ELOOP"},
+    {ETIMEDOUT, "ETIMEDOUT"},
+    {ECONNREFUSED, "ECONNREFUSED"},
 };
 
 void cli_system_reason(const CliErrorCtx *args)
@@ -92,7 +119,7 @@ EMBED_INLINE void file_read_from(const PosixFilesCtx *args)
     {
         // a read's count and its place are what the system's types represent
         const ssize_t read_now =
-            pread(args->file, args->bytes + *got, (size_t)(args->count - *got), (off_t)(args->from + *got));
+            pread(args->file, args->bytes + *got, (embed_word)(args->count - *got), (off_t)(args->from + *got));
         read_state = read_now > 0;
         // a count read is not negative where reading goes on
         *got += read_state ? (unsigned long long)read_now : 0ULL;
@@ -145,7 +172,7 @@ unsigned long long cli_wall_milliseconds(void)
 
 int cli_move(const CliErrMsgFromCtx *args)
 {
-    if (rename(args->from_text, args->to) == 0)
+    if (syscall(SYS_renameat, AT_FDCWD, args->from_text, AT_FDCWD, args->to) == 0)
     {
         return CLI_MOVE_DONE;
     }
@@ -164,8 +191,8 @@ int cli_file_append(const CliPathBytesCtx *args)
     int written = 1;
     while (written && (left > 0ULL))
     {
-        // a piece is at most a gibibyte, which a size_t counts
-        const ssize_t done = write(file, at, (size_t)((left < (1ULL << 30u)) ? left : (1ULL << 30u)));
+        // a piece is at most a gibibyte, which a embed_word counts
+        const ssize_t done = write(file, at, (embed_word)((left < (1ULL << 30u)) ? left : (1ULL << 30u)));
         written = done > 0;
         // a count written is positive here
         const unsigned long long wrote = written ? (unsigned long long)done : 0ULL;
@@ -227,7 +254,7 @@ int cli_temporary_file_write(const CliBytesCtx *args)
     {
         // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
         const ssize_t wrote = pwrite((int)args->file_temporary_file_pointer_other->handle, from + done,
-                                     (size_t)(args->size - done), (off_t)(args->at + done));
+                                     (embed_word)(args->size - done), (off_t)(args->at + done));
         if (wrote <= 0)
         {
             return 0;
@@ -245,7 +272,7 @@ int cli_temporary_file_read(const CliSizeCtx *args)
     {
         // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
         const ssize_t got = pread((int)args->file_temporary_file_pointer_other->handle, into + done,
-                                  (size_t)(args->size - done), (off_t)(args->at + done));
+                                  (embed_word)(args->size - done), (off_t)(args->at + done));
         if (got <= 0)
         {
             return 0;

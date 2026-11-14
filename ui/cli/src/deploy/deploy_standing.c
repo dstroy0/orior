@@ -52,7 +52,7 @@ EMBED_INLINE unsigned int existing_lines(const DeployStandingCtx *args)
     for (unsigned long long at = 0ULL; at < args->size;)
     {
         const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = text + at, .bytes = (size_t)(args->size - at), .val = (uint8_t)'\n'});
+            memor.chr(&(MemoriaCfg){.src = text + at, .bytes = (embed_word)(args->size - at), .val = (embed_u8)'\n'});
         unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : args->size;
         if (count == args->most)
         {
@@ -78,7 +78,7 @@ EMBED_INLINE int existing_same(const DeployStandingCtx *args)
     return (args->old->size[args->one] == args->new_lines->size[other]) &&
            (memor.cmp(&(MemoriaCfg){.src = args->old->text + args->old->start[args->one],
                                     .other = args->new_lines->text + args->new_lines->start[other],
-                                    .bytes = (size_t)args->old->size[args->one]}) == 0);
+                                    .bytes = (embed_word)args->old->size[args->one]}) == 0);
 }
 
 // a line printed, two spaces, a mark and a space before `size` bytes of `text`
@@ -105,7 +105,7 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
         return;
     }
     // each line's start and length, the old text's then the new's, in one cell of their count
-    unsigned long long *const counted = g_cli_guard->persistent_buf_alloc(
+    unsigned long long *const counted = g_cli_guard->temporary_buf_alloc(
         2ULL * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), g_cli_deploy_owner);
     if (counted == NULL)
     {
@@ -171,7 +171,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text, .text_bytes = bytes,
                        .length = mapped);
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
     }
     else
     {
@@ -188,7 +188,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
     }
     *size = text.at;
     if (!read || !mmgr_line_ok(&text) || (*size > CLI_DEPLOY_COMPARED) ||
-        (memor.chr(&(MemoriaCfg){.src = theirs, .bytes = (size_t)*size, .val = 0u}) != NULL))
+        (memor.chr(&(MemoriaCfg){.src = theirs, .bytes = (embed_word)*size, .val = 0u}) != NULL))
     {
         g_cli_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
         return NULL;
@@ -242,7 +242,7 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
             EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = theirs, .old_size = theirs_size,
                        .new_text = (const char *)ours_index, .new_size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)ours_index, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)ours_index, (g_cli_deploy_owner));
         break;
     }
     g_cli_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
@@ -335,7 +335,7 @@ int cli_deploy_existing(const CliDeployErrMsgIndexCtx *args)
     {
         run->changed[args->index] = 0u;
         run->deleted[args->index] = 0u;
-        mmgr_line_put(args->err_msg, "it has more files than orior_cli supports");
+        mmgr_line_put(args->err_msg, "it has more files than impero supports");
         return 0;
     }
     const int releases = !run->deployment.in_position && !run->place[args->index].here;
@@ -378,9 +378,10 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
     const CliDeployPair *const preserved = args->replace ? NULL : run->changed_list[args->index];
     const unsigned int preserved_count = args->replace ? 0u : run->changed[args->index];
     // the record holds a path and a hash for each file, as a place's hashes do
-    char *const record_text = g_cli_guard->temporary_buf_alloc(CLI_DEPLOY_HASHES, g_cli_deploy_owner);
-    VerbaLinea record = mmgr_line_over(record_text, CLI_DEPLOY_HASHES);
-    mmgr_line_ch(&record, '{');
+    CliGrownLine record_grown;
+    cli_grown_begin(&record_grown, CLI_DEPLOY_HASHES, g_cli_deploy_owner);
+    VerbaLinea *const record_line = &record_grown.line;
+    mmgr_line_ch(record_line, '{');
     unsigned int sent = 0u;
     unsigned int other = 0u;
     int first = 1;
@@ -402,16 +403,17 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
         }
         const char *const name = (order <= 0) ? run->sent[sent].path : preserved[other].path;
         const char *const hash = (order < 0) ? run->sent[sent].hash : preserved[other].text;
-        EMBED_CALL(existing_member, DeployStandingCtx, .path = name, .hash = hash, .first = first, .record = &record);
+        EMBED_CALL(existing_member, DeployStandingCtx, .path = name, .hash = hash, .first = first,
+                   .record = record_line);
         first = 0;
         sent += (order <= 0) ? 1u : 0u;
         other += (order >= 0) ? 1u : 0u;
     }
-    mmgr_line_put(&record, first ? "}" : "\n}");
-    if (mmgr_line_ok(&record))
+    mmgr_line_put(record_line, first ? "}" : "\n}");
+    if (mmgr_line_ok(record_line))
     {
-        (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = record.out,
-                         .size = record.at, .fresh = 1);
+        (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = record_grown.cell,
+                         .size = cli_grown_size(&record_grown), .fresh = 1);
     }
-    g_cli_guard->persistent_buf_release(record_text, g_cli_deploy_owner);
+    cli_grown_end(&record_grown);
 }

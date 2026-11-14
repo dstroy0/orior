@@ -4,7 +4,7 @@
 // uses, with its include folders and its defines, and no file of settings is written by hand.
 //
 // A tree that has its own database uses it: a compile_commands.json at its top or in its build/ folder, or the
-// folder a .clangd at its top names. Otherwise each CMake project orior_cli configured gives its targets' sources from
+// folder a .clangd at its top names. Otherwise each CMake project impero configured gives its targets' sources from
 // CMake's file API, which answers for every generator, Visual Studio's among them, from the configuration configured
 // last; and each Meson build gives the compile_commands.json Meson writes. They are written together to
 // build/orior/compile_commands.json.
@@ -42,7 +42,7 @@ typedef struct
     int msvc;
 } CliDatabase;
 
-// A program a CMake or Meson build orior_cli configured makes from a source: the build tool, cmake or meson, the
+// A program a CMake or Meson build impero configured makes from a source: the build tool, cmake or meson, the
 // build's folder, the target's name, the configuration, the program's path, and the source's compiler as GNU, Clang or
 // MSVC
 typedef struct
@@ -72,7 +72,7 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args);
 int cli_compile_db_is_cl(const CliCompileDbCfg *args);
 void cli_compile_db_words(const CliCompileDbDatabaseCfg *args);
 
-// the program a CMake or Meson build orior_cli configured makes from `file`, where one does, into `program`: from a
+// the program a CMake or Meson build impero configured makes from `file`, where one does, into `program`: from a
 // configuration with debugging information, Debug or RelWithDebInfo, or Meson's debug or debugoptimized, where one is
 // configured, and from the one configured last where not. 1, or 0 where none does (compile_db_program.c)
 int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args);

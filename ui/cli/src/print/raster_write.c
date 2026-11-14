@@ -3,9 +3,8 @@
 // raster_write.c: pages of pixels written as PWG raster, which every IPP Everywhere printer takes, or Apple's raster,
 // which AirPrint printers take. Each line of pixels is written with the count of the lines like it that follow, and
 // each run of one pixel or of different ones with its length
+#include "../../../../includes/arith/arith.h"
 #include "print.h"
-
-#include <math.h>
 
 // the bytes of a PWG page's head
 #define CLI_PWG_HEAD 1796u
@@ -122,9 +121,10 @@ void cli_print_pwg_page(const CliPrintLayoutCfg *args)
     EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 340u,
                .value = (args->layout->copies > 1u) ? args->layout->copies : 1u);
     // a paper's size in points, rounded, is whole and small
-    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 352u, .value = (unsigned long long)roundf(width_points));
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 352u,
+               .value = (unsigned long long)arith_round_f32(width_points));
     EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 356u,
-               .value = (unsigned long long)roundf(height_points));
+               .value = (unsigned long long)arith_round_f32(height_points));
     EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 372u, .value = args->page->width);
     EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 376u, .value = args->page->height);
     EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 384u, .value = 8u);

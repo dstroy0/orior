@@ -15,7 +15,7 @@
 //
 // The dry channel appends every question to the run (qry_member.h); the check runs in a run of its own, QRY naming
 // it, and reads the round back from it
-#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h"
 

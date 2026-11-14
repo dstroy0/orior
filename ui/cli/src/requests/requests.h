@@ -15,7 +15,7 @@
 // http-client.env.json and the reader's own http-client.private.env.json, each the nearest beside the file or in a
 // folder above it within the tree, the private values over the shared ones and `$shared` giving values to every
 // environment; or it is one of `{{$uuid}}`, `{{$timestamp}}`, `{{$isoTimestamp}}` and `{{$randomInt}}`. The private
-// file is the reader's alone: orior_cli adds its name to the tree's .gitignore as it makes it.
+// file is the reader's alone: impero adds its name to the tree's .gitignore as it makes it.
 //
 // A request goes out over HTTP/1.1 from this process, through the system's TLS for https (tls.h), and its answer is
 // read whole: chunked, gzip and deflate are undone, and a redirect is followed up to ten times. Each request's last
@@ -122,7 +122,8 @@ EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
 // or not text; and with two answers or more a group row Last answers, a row each answer with its box lit where it is
 // checked and the one shown marked, and a Compare row inert unless two are checked, the two compared after it a row a
 // line with a sign: a space for a line both have, a minus for one only the older has, a plus for one only the newer
-// has. With no answer, one row reads so. Every text is a pointer and a length into a cell of the pane's own
+// has. With no answer, one row reads so. Every text is copied into the row's own bytes with its length, cut to
+// CLI_REQUESTS_ROW_TEXT
 #define CLI_REQUESTS_ROW_REFUSAL 0u
 #define CLI_REQUESTS_ROW_STATUS 1u
 #define CLI_REQUESTS_ROW_TIMES 2u
@@ -149,8 +150,9 @@ EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
 #define CLI_REQUESTS_CHOICE_SEND 0u
 #define CLI_REQUESTS_CHOICE_CURL 1u
 #define CLI_REQUESTS_CHOICE_ENV 2u
-// the most answers the view lists and checks, a bit of a word each
+// the most answers the view lists and checks, a bit of a word each; and the most bytes of a row's text with its end
 #define CLI_REQUESTS_ANSWERS_MAX 32u
+#define CLI_REQUESTS_ROW_TEXT 2048u
 typedef struct
 {
     unsigned int type;
@@ -164,6 +166,7 @@ typedef struct
     int checked;
     int inert;
     int shown;
+    char text_copied[CLI_REQUESTS_ROW_TEXT];
 } CliRequestsRow;
 
 typedef struct CliRequestsPaneCfg CliRequestsPaneCfg;

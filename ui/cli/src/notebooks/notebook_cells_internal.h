@@ -76,29 +76,43 @@ typedef struct
     unsigned int last_run;
 } CliNotebookGone;
 
+// the most bytes of the sentence last asked of a model, with its end
+#define CLI_NOTEBOOK_SENTENCE 4096u
+
+// the least bytes the ring of a model's kernel messages holds once a message comes
+#define CLI_NOTEBOOK_RING_LEAST 16384u
+
+// the notebooks open as models at once, at the most, and the place in the models' cell of the model `at_`
+#define CLI_NOTEBOOK_MODELS_MOST 64u
+#define CLI_NOTEBOOK_MODEL_AT(at_) ((unsigned long long)(at_) * sizeof(CliNotebookModel *))
+
 // A notebook open as a model, in one cell of its own with its key and its path after it, its place fixed while it
 // stands open, which the kernel's receiver is handed as its context. The tree its file was read into and the root of
-// it; the cells and the row each starts at, one more than the cells, in one cell; the outputs, in the order of their
-// cells, and their JSON texts, each in a cell sized to them; the cells deleted after they ran; the next serial, the
-// clock its edits and runs count by; the top row, the rows the work shows; the cell being edited and the cell its menu
-// was built for, CLI_NOTEBOOK_NONE for none; whether it changed since it was saved; its kernel, the kernel's state,
-// and the kernel's name, display text and language each with its end in one cell; the sentence last asked of it with
-// its bytes; and the ring its kernel's messages wait in, a word locking it, its cell, the bytes the messages pending
-// take and the bytes it has
+// it; the cells and the row each starts at, one more than the cells, in one movable cell, the rows' starts from
+// `first_row_at`; the outputs, in the order of their cells, in a movable cell, and their JSON texts in another; the
+// cells deleted after they ran, in a movable cell; each movable cell read by copy and written in place. The next
+// serial, the clock its edits and runs count by; the top row, the rows the work shows; the cell being edited and the
+// cell its menu was built for, CLI_NOTEBOOK_NONE for none; whether it changed since it was saved; its kernel, the
+// kernel's state, and the kernel's name, display text and language each in the model's own bytes; the sentence last
+// asked of it in the model's own bytes with its bytes; and the ring its kernel's messages wait in, a word locking it,
+// its cell, the bytes the messages pending take and the bytes it has
 typedef struct
 {
+    int reserved;
+    char key_text[CLI_PATH_MAX_LEN];
+    char path_text[CLI_PATH_MAX_LEN];
     const char *key;
     const char *path;
     CliJson json;
     unsigned int root;
-    CliNotebookCell *cell;
-    unsigned int *first_row;
+    const CarcerMovableEntry *cells_cell;
+    unsigned long long first_row_at;
     unsigned int cells;
-    CliNotebookOutput *output;
+    const CarcerMovableEntry *outputs_cell;
     unsigned int outputs;
-    char *output_text;
+    const CarcerMovableEntry *text_cell;
     unsigned long long output_used;
-    CliNotebookGone *gone;
+    const CarcerMovableEntry *gone_cell;
     unsigned int gone_count;
     unsigned int next_serial;
     unsigned int clock;
@@ -109,17 +123,24 @@ typedef struct
     int dirty;
     CliKernel *kernel;
     unsigned int state;
-    char *kernel_text;
-    const char *kernel_name;
-    const char *kernel_display;
-    const char *kernel_language;
-    char *sentence;
+    char kernel_name[CLI_NAME_MAX_LEN];
+    char kernel_display[CLI_NAME_MAX_LEN];
+    char kernel_language[CLI_NAME_MAX_LEN];
+    char sentence[CLI_NOTEBOOK_SENTENCE];
     unsigned long long sentence_length;
-    embed_atomic_u32 ring_lock;
-    unsigned char *ring;
+    CliGate ring_lock;
+    const CarcerMovableEntry *ring_cell;
     unsigned long long ring_used;
     unsigned long long ring_capacity;
 } CliNotebookModel;
+
+// the places in the model's movable cells of the cell `at_`, of the row the cell `at_` starts at, of the output `at_`
+// and of the gone cell `at_`
+#define CLI_NOTEBOOK_CELL_AT(at_) ((unsigned long long)(at_) * sizeof(CliNotebookCell))
+#define CLI_NOTEBOOK_FIRST_ROW_AT(model_, at_)                                                                         \
+    ((model_)->first_row_at + ((unsigned long long)(at_) * sizeof(unsigned int)))
+#define CLI_NOTEBOOK_OUTPUT_AT(at_) ((unsigned long long)(at_) * sizeof(CliNotebookOutput))
+#define CLI_NOTEBOOK_GONE_AT(at_) ((unsigned long long)(at_) * sizeof(CliNotebookGone))
 
 // the model open under `key`, NULL for none; the model a model's place stands for, NULL past the last, for the step
 // and the kernels; the key of the cell `cell`'s document, or of its output `output` where that is not
@@ -127,6 +148,15 @@ typedef struct
 CliNotebookModel *cli_notebook_model_of(const CliNotebookModelCtx *args);
 CliNotebookModel *cli_notebook_model_at(const CliNotebookModelCtx *args);
 void cli_notebook_model_key(const CliNotebookModelCtx *args);
+// the cell `cell` read out of the model's cells into `cell_out`, and `cell_read` written as the cell `cell`; the output
+// `output` read into `output_out`, and `output_read` written as the output `output`; the row the cell `cell` starts at;
+// and the gone cell `at` read into `gone_out`
+void cli_notebook_model_cell_read(const CliNotebookModelCtx *args);
+void cli_notebook_model_cell_written(const CliNotebookModelCtx *args);
+void cli_notebook_model_output_read(const CliNotebookModelCtx *args);
+void cli_notebook_model_output_written(const CliNotebookModelCtx *args);
+unsigned int cli_notebook_model_first_row(const CliNotebookModelCtx *args);
+void cli_notebook_model_gone_read(const CliNotebookModelCtx *args);
 // the rows each cell starts at settled after a cell's rows changed, from the cell `cell` on; and every cell's out of
 // date mark settled after a run, an edit or a deletion
 void cli_notebook_model_rows_settled(const CliNotebookModelCtx *args);
@@ -166,6 +196,11 @@ struct CliNotebookModelCtx
     const char *text;
     unsigned long long size;
     char *out;
+    CliNotebookCell *cell_out;
+    const CliNotebookCell *cell_read;
+    CliNotebookOutput *output_out;
+    const CliNotebookOutput *output_read;
+    CliNotebookGone *gone_out;
 };
 
 typedef struct
@@ -173,6 +208,12 @@ typedef struct
     CliNotebookModel *(*of)(const CliNotebookModelCtx *args);
     CliNotebookModel *(*at)(const CliNotebookModelCtx *args);
     void (*key)(const CliNotebookModelCtx *args);
+    void (*cell_read)(const CliNotebookModelCtx *args);
+    void (*cell_written)(const CliNotebookModelCtx *args);
+    void (*output_read)(const CliNotebookModelCtx *args);
+    void (*output_written)(const CliNotebookModelCtx *args);
+    unsigned int (*first_row)(const CliNotebookModelCtx *args);
+    void (*gone_read)(const CliNotebookModelCtx *args);
     void (*rows_settled)(const CliNotebookModelCtx *args);
     void (*stale_settled)(const CliNotebookModelCtx *args);
     void (*lines_read)(const CliNotebookModelCtx *args);
@@ -184,12 +225,19 @@ typedef struct
     int (*cells_laid)(const CliNotebookModelCtx *args);
     void (*bound)(const CliNotebookModelCtx *args);
 } CliNotebookModelNs;
-EMBED_TABLE_LAYOUT(CliNotebookModelNs, of, at, key, rows_settled, stale_settled, lines_read, outputs_released,
-                   outputs_settled, kernel_laid, ring_cleared, source_stored, cells_laid, bound);
+EMBED_TABLE_LAYOUT(CliNotebookModelNs, of, at, key, cell_read, cell_written, output_read, output_written, first_row,
+                   gone_read, rows_settled, stale_settled, lines_read, outputs_released, outputs_settled, kernel_laid,
+                   ring_cleared, source_stored, cells_laid, bound);
 EMBED_TABLE_STORAGE CliNotebookModelNs cli_notebook_model_internal EMBED_UNUSED = {
     .of = cli_notebook_model_of,
     .at = cli_notebook_model_at,
     .key = cli_notebook_model_key,
+    .cell_read = cli_notebook_model_cell_read,
+    .cell_written = cli_notebook_model_cell_written,
+    .output_read = cli_notebook_model_output_read,
+    .output_written = cli_notebook_model_output_written,
+    .first_row = cli_notebook_model_first_row,
+    .gone_read = cli_notebook_model_gone_read,
     .rows_settled = cli_notebook_model_rows_settled,
     .stale_settled = cli_notebook_model_stale_settled,
     .lines_read = cli_notebook_model_lines_read,

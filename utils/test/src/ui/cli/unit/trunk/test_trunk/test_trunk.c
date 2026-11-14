@@ -178,8 +178,12 @@ void test_a_file_addeds_closest_parent_is_its_folder_which_counts_it(void)
     file_written(NULL, "src/new.c", "n");
     path_mirrored("src/new.c");
     const unsigned int parent = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src");
-    TEST_ASSERT_EQUAL_UINT(parent, g_cli_branches[EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c")].parent);
-    TEST_ASSERT_EQUAL_UINT(2u, g_cli_branches[parent].below);
+    CliTreeBranch added;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"), .branch_out = &added);
+    CliTreeBranch folder;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = parent, .branch_out = &folder);
+    TEST_ASSERT_EQUAL_UINT(parent, added.parent);
+    TEST_ASSERT_EQUAL_UINT(2u, folder.below);
 }
 
 void test_a_file_git_ignores_does_not_join(void)
@@ -219,7 +223,9 @@ void test_a_file_that_joined_already_joins_once(void)
     file_written(NULL, "src/new.c", "n");
     path_mirrored("src/new.c");
     path_mirrored("src/new.c");
-    TEST_ASSERT_EQUAL_UINT(2u, g_cli_branches[EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src")].below);
+    CliTreeBranch folder;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src"), .branch_out = &folder);
+    TEST_ASSERT_EQUAL_UINT(2u, folder.below);
 }
 
 void test_a_removed_file_leaves_with_the_folder_it_left_empty(void)
@@ -257,7 +263,9 @@ void test_a_branch_left_is_reused(void)
     path_mirrored("lone/two.c");
     file_written(NULL, "src/after.c", "a");
     path_mirrored("src/after.c");
-    TEST_ASSERT_TRUE(!g_cli_branches[place].used || (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") == place) || (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") < g_cli_branch_count));
+    CliTreeBranch left;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = place, .branch_out = &left);
+    TEST_ASSERT_TRUE(!left.used || (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") == place) || (EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/after.c") < g_cli_branch_count));
 }
 
 void test_a_removed_folder_allocs_all_under_it_and_the_tree_is_not_listing(void)
@@ -286,11 +294,14 @@ void test_changed_rules_leave_what_remains_in_its_cell(void)
 {
     repository_listing("trunk_relisted");
     const unsigned int branch = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c");
-    const CarcerMovableEntry *const cell = g_cli_branches[branch].cell;
+    CliTreeBranch before;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = branch, .branch_out = &before);
     file_written(NULL, ".gitignore", "*.o\nout/\nsrc/\n");
     EMBED_CALL(cli_symbols_context.tree_relist, CliSymbolsContextCfg, .root = s_root, .emit = NULL, .context = NULL);
     TEST_ASSERT_EQUAL_UINT(branch, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "lib/b.c"));
-    TEST_ASSERT_EQUAL_PTR(cell, g_cli_branches[branch].cell);
+    CliTreeBranch after;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = branch, .branch_out = &after);
+    TEST_ASSERT_EQUAL_PTR(before.cell, after.cell);
 }
 
 void test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips(void)

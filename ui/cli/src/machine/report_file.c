@@ -24,7 +24,7 @@ typedef struct
     unsigned long long capacity;
     const char *text;
     const char *root;
-    VerbaLinea *into;
+    CliGrownLine *into;
     const CliReport *report;
     const char *print;
     CliFiled *filed;
@@ -94,7 +94,7 @@ int cli_report_open_url(const CliReportErrMsgCfg *args)
 #else
     const char *const words[3] = {"xdg-open", args->url, NULL};
 #endif
-    // the browser is the reader's, and stays as orior_cli ends
+    // the browser is the reader's, and stays as impero ends
     unsigned int id = 0u;
     if (!EMBED_CALL(cli_words_id_internal.started_outside, CliWordsIdCtx, .words = words, .id = &id))
     {
@@ -107,21 +107,20 @@ int cli_report_open_url(const CliReportErrMsgCfg *args)
 
 // the lock a report is struck and filed under, one at a time
 
-// a field of a report struck into `into`, a line begun here and given back with
-// g_cli_guard->persistent_buf_release(into->out, g_cli_machine_owner): the field, "" where its cells are refused
+// a field of a report struck into `into`, a line begun here, grown to the field, and ended with cli_grown_end: the
+// field, "" where its cells are refused
 EMBED_INLINE const char *cli_on_strike(const ReportFileCtx *args)
 {
     const char *text = args->text;
     const char *root = args->root;
-    VerbaLinea *into = args->into;
-    char *const cell = g_cli_guard->temporary_buf_alloc(CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
-    *into = mmgr_line_over(cell, CLI_REPORT_FIELD_CAPACITY);
-    if (cell == NULL)
+    CliGrownLine *into = args->into;
+    cli_grown_begin(into, CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
+    if (into->cell == NULL)
     {
         return "";
     }
-    EMBED_CALL(cli_report_text.scrub, CliReportTextCfg, .text = text, .root = root, .out = into);
-    return (mmgr_line_finish(into) != 0ULL) ? into->out : "";
+    EMBED_CALL(cli_report_text.scrub, CliReportTextCfg, .text = text, .root = root, .out = &into->line);
+    return (mmgr_line_finish(&into->line) != 0ULL) ? into->cell : "";
 }
 
 // the report struck as `report` filed through the reporter's GitHub CLI, as nothing where its error is already an
@@ -210,7 +209,7 @@ EMBED_INLINE int cli_file_by_gh(const ReportFileCtx *args)
 static void cli_file_as(const ReportFileCtx *args)
 {
     const char *root = args->root;
-    VerbaLinea field[4];
+    CliGrownLine field[4];
     const CliReport report = {
         EMBED_CALL(cli_report_internal.category_get, CliReportCtx, .report = args->supplied),
         EMBED_CALL(cli_on_strike, ReportFileCtx, .text = args->supplied->title, .root = root, .into = &field[0]),
@@ -218,16 +217,16 @@ static void cli_file_as(const ReportFileCtx *args)
         EMBED_CALL(cli_on_strike, ReportFileCtx, .text = args->supplied->steps, .root = root, .into = &field[2]),
         EMBED_CALL(cli_on_strike, ReportFileCtx, .text = args->supplied->logs, .root = root, .into = &field[3])};
     char print[17];
-    char *const joined_cell = g_cli_guard->temporary_buf_alloc(2ULL * CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
-    VerbaLinea joined = mmgr_line_over(joined_cell, 2ULL * CLI_REPORT_FIELD_CAPACITY);
-    if (joined_cell != NULL)
+    CliGrownLine joined;
+    cli_grown_begin(&joined, 2ULL * CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
+    if (joined.cell != NULL)
     {
-        mmgr_line_put(&joined, report.title);
-        mmgr_line_ch(&joined, '\n');
-        mmgr_line_put(&joined, report.logs);
+        mmgr_line_put(&joined.line, report.title);
+        mmgr_line_ch(&joined.line, '\n');
+        mmgr_line_put(&joined.line, report.logs);
         EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = report.category,
-                   .text = (mmgr_line_finish(&joined) != 0ULL) ? joined.out : "", .out_capacity = print);
-        g_cli_guard->persistent_buf_release(joined.out, g_cli_machine_owner);
+                   .text = (mmgr_line_finish(&joined.line) != 0ULL) ? joined.cell : "", .out_capacity = print);
+        cli_grown_end(&joined);
     }
     else
     {
@@ -245,7 +244,7 @@ static void cli_file_as(const ReportFileCtx *args)
     }
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(field[at].out, g_cli_machine_owner);
+        cli_grown_end(&field[at]);
     }
     if (!by_gh && args->open)
     {
@@ -264,16 +263,16 @@ void cli_report_file(const CliReportRootCfg *args)
 int cli_report_error(const CliReportCategoryCfg *args)
 {
     static char s_scrubbed[CLI_NAME_MAX_LEN * 2u];
-    char *const report_cell = g_cli_guard->temporary_buf_alloc(2ULL * CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
-    VerbaLinea report_line = mmgr_line_over(report_cell, 2ULL * CLI_REPORT_FIELD_CAPACITY);
-    mmgr_line_put(&report_line, args->message);
-    mmgr_line_ch(&report_line, '\n');
-    mmgr_line_put(&report_line, args->detail);
-    if (mmgr_line_finish(&report_line) != 0ULL)
+    CliGrownLine report_line;
+    cli_grown_begin(&report_line, 2ULL * CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
+    mmgr_line_put(&report_line.line, args->message);
+    mmgr_line_ch(&report_line.line, '\n');
+    mmgr_line_put(&report_line.line, args->detail);
+    if (mmgr_line_finish(&report_line.line) != 0ULL)
     {
-        EMBED_CALL(cli_report_text.save, CliReportTextCfg, .text = report_line.out, .root = args->root);
+        EMBED_CALL(cli_report_text.save, CliReportTextCfg, .text = report_line.cell, .root = args->root);
     }
-    g_cli_guard->persistent_buf_release(report_line.out, g_cli_machine_owner);
+    cli_grown_end(&report_line);
     if (!cli_report_auto() || cli_net_is_disable())
     {
         return 0;
@@ -341,17 +340,17 @@ int cli_report_error(const CliReportCategoryCfg *args)
     {
         return 0;
     }
-    char *const what_cell = g_cli_guard->temporary_buf_alloc(CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
-    VerbaLinea what = mmgr_line_over(what_cell, CLI_REPORT_FIELD_CAPACITY);
+    CliGrownLine what;
+    cli_grown_begin(&what, CLI_REPORT_FIELD_CAPACITY, g_cli_machine_owner);
     const char *err_text = "";
-    if (what_cell != NULL)
+    if (what.cell != NULL)
     {
-        mmgr_line_put(&what, "orior_cli reported this error on its own.\n\n");
-        mmgr_line_put(&what, args->message);
-        err_text = (mmgr_line_finish(&what) != 0ULL) ? what.out : "";
+        mmgr_line_put(&what.line, "impero reported this error on its own.\n\n");
+        mmgr_line_put(&what.line, args->message);
+        err_text = (mmgr_line_finish(&what.line) != 0ULL) ? what.cell : "";
     }
     const CliReport report = {args->category, title, err_text, "", args->detail};
     EMBED_CALL(cli_file_as, ReportFileCtx, .supplied = &report, .root = args->root, .open = 0, .filed = args->filed);
-    g_cli_guard->persistent_buf_release(what.out, g_cli_machine_owner);
+    cli_grown_end(&what);
     return 1;
 }

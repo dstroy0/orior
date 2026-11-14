@@ -34,11 +34,11 @@ static char *hints_open_text(const CliOpenTextCfg *args)
     {
         return NULL;
     }
-    char *const open_text = g_cli_guard->persistent_buf_alloc(hints->size + 1ULL, g_cli_code_owner);
+    char *const open_text = g_cli_guard->temporary_buf_alloc(hints->size + 1ULL, g_cli_code_owner);
     if (open_text != NULL)
     {
-        // a text the editor holds fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = open_text, .src = hints->text, .bytes = (size_t)hints->size});
+        // a text the editor holds fits a embed_word
+        memor.cpy(&(MemoriaCfg){.dst = open_text, .src = hints->text, .bytes = (embed_word)hints->size});
         open_text[hints->size] = '\0';
         *size = hints->size;
     }

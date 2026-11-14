@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // vim_internal.h: what Vim's files share: the state, the views with Vim's keys as rows of one cell in the order of
-// their keys, every text as a part of one text cell, the command parsed from the keys typed, where a motion goes and
-// the span an object or a selection takes, and the steps each file lends the others (vim.c, vim_parse.c,
-// vim_motions.c, vim_objects.c, vim_commands.c, vim_visual.c)
+// their keys, every text a part in a movable cell of its own bytes, the command parsed from the keys typed, where a
+// motion goes and the span an object or a selection takes, and the steps each file lends the others (vim.c,
+// vim_parse.c, vim_motions.c, vim_objects.c, vim_commands.c, vim_visual.c)
 #ifndef VIM_INTERNAL_H
 #define VIM_INTERNAL_H
+
 #include "../command_line/pool.h"
 #include "view.h"
 #include "vim.h"
@@ -46,10 +47,10 @@ typedef struct CliVimCtx CliVimCtx;
 // the most bytes the keys of one command take, past which they are dropped
 #define CLI_VIM_TYPED_MOST 64ULL
 
-// A text of the text cell: where it starts and its bytes. The parts stand in the cell in their order, end to end
+// A text: its movable cell, sized to its bytes, NULL where it is empty; and its bytes
 typedef struct
 {
-    unsigned long long at;
+    const CarcerMovableEntry *cell;
     unsigned long long length;
 } CliVimPart;
 
@@ -76,19 +77,27 @@ typedef struct
     int replaying;
 } CliVimView;
 
-// The module's state: the text cell and its bytes; the parts, the registers' then each view's; the views, in the order
-// of their keys, and how many; each register's whether it takes whole lines; the setting; and the shape the window
-// reads
+// the state's mosts, each the size of one movable cell taken once as Vim begins: the views with Vim's keys, and the
+// parts, the registers' and every view's; and the bytes the shape's label and prompt take with their ends
+#define CLI_VIM_VIEWS 64u
+#define CLI_VIM_PARTS (CLI_VIM_REGISTERS + (CLI_VIM_VIEWS * CLI_VIM_VIEW_PARTS))
+#define CLI_VIM_LABEL_MAX 96u
+#define CLI_VIM_PROMPT_MAX 256u
+
+// The module's state: the parts' cell and how many parts stand, the registers' then each view's, each part's text a
+// cell of its own; the views' cell, in the order of their keys, and how many; each register's whether it
+// takes whole lines; the setting; the label's and the prompt's bytes the shape points into; and the shape the window
+// reads. A view or a part is read whole into a copy and a field written back alone; a text is copied out
 typedef struct
 {
-    char *text;
-    unsigned long long bytes;
-    CliVimPart *part;
+    const CarcerMovableEntry *part;
     unsigned int parts;
-    CliVimView *view;
+    const CarcerMovableEntry *view;
     unsigned int views;
     unsigned char register_lines[CLI_VIM_REGISTERS];
     int on;
+    char label_text[CLI_VIM_LABEL_MAX];
+    char prompt_text[CLI_VIM_PROMPT_MAX];
     CliVimShape shape;
 } CliVimState;
 
@@ -174,15 +183,20 @@ struct CliVimCtx
     CliVimSpan *span;
     const CliVimSpan *span_read;
     VerbaLinea *err_msg;
+    const unsigned short *units;
 };
 
-// the text cell (vim.c): the part `part` written anew with `length` bytes of `text`, which may stand in the cell, the
-// cell taken anew at the size of every part: 1, or 0 where the cells cannot meet it, the part as it was; the bytes of
-// the part `part`, their count into `length_out`; the view `at`'s part `part`'s place among the parts; the view `at`'s
-// mode set to `mode`, the label following; the label written anew from the mode and the keys typed; and the code point
-// `letter` written as UTF-8 into `bytes_out`, four bytes at the most: how many
+// the texts (vim.c): the part `part` written anew with `length` bytes of `text` in a cell of its own, its old cell
+// given back: 1, or 0 where the cells cannot meet the text, the part as it was; the bytes of the part `part`; the
+// part's bytes copied out into `bytes_out` of `length` bytes with their end: how many were copied; the part's bytes
+// copied out whole with their end into a cell of the temporary tier, their count into `length_out`, which the caller
+// gives back: the cell, or NULL where the cells cannot meet it; the view `at`'s part `part`'s place among the parts;
+// the view `at`'s mode set to `mode`, the label following; the label written anew from the mode and the keys typed; and
+// the code point `letter` written as UTF-8 into `bytes_out`, four bytes at the most: how many
 int cli_vim_part_put(const CliVimCtx *args);
-const char *cli_vim_part_text(const CliVimCtx *args);
+unsigned long long cli_vim_part_length(const CliVimCtx *args);
+unsigned long long cli_vim_part_copy(const CliVimCtx *args);
+char *cli_vim_part_alloc(const CliVimCtx *args);
 unsigned int cli_vim_part_of(const CliVimCtx *args);
 void cli_vim_mode_set(const CliVimCtx *args);
 void cli_vim_label_settled(const CliVimCtx *args);
@@ -200,6 +214,7 @@ void cli_vim_parse(const CliVimCtx *args);
 // moved by it
 unsigned long long cli_vim_lines(const CliVimCtx *args);
 const unsigned short *cli_vim_line(const CliVimCtx *args);
+void cli_vim_line_end(const CliVimCtx *args);
 unsigned int cli_vim_letter_at(const CliVimCtx *args);
 int cli_vim_forward(const CliVimCtx *args);
 int cli_vim_backward(const CliVimCtx *args);
@@ -240,17 +255,22 @@ void cli_vim_chosen_run(const CliVimCtx *args);
 typedef struct
 {
     int (*part_put)(const CliVimCtx *args);
-    const char *(*part_text)(const CliVimCtx *args);
+    unsigned long long (*part_length)(const CliVimCtx *args);
+    unsigned long long (*part_copy)(const CliVimCtx *args);
+    char *(*part_alloc)(const CliVimCtx *args);
     unsigned int (*part_of)(const CliVimCtx *args);
     void (*mode_set)(const CliVimCtx *args);
     void (*label_settled)(const CliVimCtx *args);
     unsigned long long (*letter_written)(const CliVimCtx *args);
     void (*parse)(const CliVimCtx *args);
 } CliVimNsInternal;
-EMBED_TABLE_LAYOUT(CliVimNsInternal, part_put, part_text, part_of, mode_set, label_settled, letter_written, parse);
+EMBED_TABLE_LAYOUT(CliVimNsInternal, part_put, part_length, part_copy, part_alloc, part_of, mode_set, label_settled,
+                   letter_written, parse);
 EMBED_TABLE_STORAGE CliVimNsInternal cli_vim_internal EMBED_UNUSED = {
     .part_put = cli_vim_part_put,
-    .part_text = cli_vim_part_text,
+    .part_length = cli_vim_part_length,
+    .part_copy = cli_vim_part_copy,
+    .part_alloc = cli_vim_part_alloc,
     .part_of = cli_vim_part_of,
     .mode_set = cli_vim_mode_set,
     .label_settled = cli_vim_label_settled,
@@ -263,6 +283,7 @@ typedef struct
 {
     unsigned long long (*lines)(const CliVimCtx *args);
     const unsigned short *(*line)(const CliVimCtx *args);
+    void (*line_end)(const CliVimCtx *args);
     unsigned int (*letter_at)(const CliVimCtx *args);
     int (*forward)(const CliVimCtx *args);
     int (*backward)(const CliVimCtx *args);
@@ -275,11 +296,12 @@ typedef struct
     void (*move_by)(const CliVimCtx *args);
     void (*object)(const CliVimCtx *args);
 } CliVimMotionsNsInternal;
-EMBED_TABLE_LAYOUT(CliVimMotionsNsInternal, lines, line, letter_at, forward, backward, type, first_letter, last_col,
-                   head, put, motion, move_by, object);
+EMBED_TABLE_LAYOUT(CliVimMotionsNsInternal, lines, line, line_end, letter_at, forward, backward, type, first_letter,
+                   last_col, head, put, motion, move_by, object);
 EMBED_TABLE_STORAGE CliVimMotionsNsInternal cli_vim_motions_internal EMBED_UNUSED = {
     .lines = cli_vim_lines,
     .line = cli_vim_line,
+    .line_end = cli_vim_line_end,
     .letter_at = cli_vim_letter_at,
     .forward = cli_vim_forward,
     .backward = cli_vim_backward,

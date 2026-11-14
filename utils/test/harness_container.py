@@ -18,7 +18,7 @@ the same on arm64; rpi, Debian bookworm on arm64, as Raspberry Pi OS is; windows
 
 A Linux container reads the tree at /host, read-only, and keeps its copy on a volume at /top, its builds on a second
 at /top/build, and its crates on the volume the window's suite keeps them on. The tree's parts the window's build reads
-are copied in with rsync, each file where its bytes differ: ui, utils, src/cu and bin_names.tsv. An arm64 container
+are copied in with rsync, each file where its bytes differ: ui, utils, src/cu, includes, the license texts and bin_names.tsv. An arm64 container
 runs under Docker's emulation, at a fraction of the machine's speed. The Windows container is the same at C:\\host and
 C:\\top, copied with robocopy, and runs only while Docker's engine is Windows', which `engine` switches to and back.
 
@@ -186,6 +186,9 @@ def linux_sync():
         "%s %s /host/ui/ /top/ui/" % (copied, kept),
         "%s /host/utils/ /top/utils/" % copied,
         "%s /host/src/cu/ /top/src/cu/" % copied,
+        "%s /host/includes/ /top/includes/" % copied,
+        "%s /host/LICENSES/ /top/LICENSES/" % copied,
+        "cp /host/LICENSE /top/LICENSE",
         "cp /host/bin_names.tsv /top/bin_names.tsv",
     ])
 
@@ -199,7 +202,8 @@ def windows_sync():
         for one in kept:
             left_out += ["C:\\host\\%s\\%s" % (part, one.replace("/", "\\")), "C:\\top\\%s\\%s" % (part, one.replace("/", "\\"))]
         lines.append("robocopy C:\\host\\%s C:\\top\\%s /MIR /XD %s /NFL /NDL /NJH /NJS /NP | Out-Null; if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }" % (part, part, " ".join(left_out)))
-    lines.append("Copy-Item C:\\host\\bin_names.tsv C:\\top\\bin_names.tsv; exit 0")
+    lines.append("robocopy C:\\host\\LICENSES C:\\top\\LICENSES /MIR /NFL /NDL /NJH /NJS /NP | Out-Null; if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE }")
+    lines.append("Copy-Item C:\\host\\LICENSE C:\\top\\LICENSE; Copy-Item C:\\host\\bin_names.tsv C:\\top\\bin_names.tsv; exit 0")
     return "; ".join(lines)
 
 

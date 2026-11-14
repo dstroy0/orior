@@ -10,8 +10,6 @@
 #include "../text/text.h"
 #include "gradle_internal.h"
 
-#include <stdlib.h>
-
 CliGradleScript g_cli_gradle;
 
 const char *const g_cli_gradle_configurations[30] = {"implementation",
@@ -120,8 +118,8 @@ const char *const *cli_gradle_block_words(const CliGradleSizeCtx *args)
     for (unsigned int at = 0u; at < sizeof(s_block_words) / sizeof(s_block_words[0]); at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_block_words[at][0], .cap = CLI_POOL_BYTES}) == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_block_words[at][0], .other = args->name, .bytes = (size_t)args->size}) ==
-             0))
+            (memor.cmp(&(MemoriaCfg){
+                 .src = s_block_words[at][0], .other = args->name, .bytes = (embed_word)args->size}) == 0))
         {
             unsigned int words = 0u;
             while ((words < 13u) && (s_block_words[at][words + 1u] != NULL))
@@ -138,7 +136,7 @@ const char *const *cli_gradle_block_words(const CliGradleSizeCtx *args)
 
 void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = args->class_of, .val = CLI_GRADLE_CODE, .bytes = (size_t)args->size});
+    memor.set(&(MemoriaCfg){.dst = args->class_of, .val = CLI_GRADLE_CODE, .bytes = (embed_word)args->size});
     for (unsigned long long at = 0ULL; at < args->size;)
     {
         const char *const rest = args->text + at;
@@ -173,7 +171,7 @@ void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
             at += 1u;
             continue;
         }
-        memor.set(&(MemoriaCfg){.dst = args->class_of + at, .val = type, .bytes = (size_t)(end - at)});
+        memor.set(&(MemoriaCfg){.dst = args->class_of + at, .val = type, .bytes = (embed_word)(end - at)});
         at = end;
     }
 }
@@ -253,7 +251,7 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     script->declares = 0u;
     // a byte past the text, so a script of no bytes is a cell too
     script->class_of =
-        (size <= CLI_GRADLE_TEXT) ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_gradle_owner) : NULL;
+        (size <= CLI_GRADLE_TEXT) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_gradle_owner) : NULL;
     if (script->class_of == NULL)
     {
         return 0;
@@ -270,8 +268,8 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     }
     opens = (opens < CLI_GRADLE_BLOCKS) ? opens : CLI_GRADLE_BLOCKS;
     closes = (closes < CLI_GRADLE_BLOCKS) ? closes : CLI_GRADLE_BLOCKS;
-    script->block = g_cli_guard->persistent_buf_alloc((opens + 1ULL) * sizeof(CliGradleBlock), g_cli_gradle_owner);
-    script->stray = g_cli_guard->persistent_buf_alloc((closes + 1ULL) * sizeof(unsigned long long), g_cli_gradle_owner);
+    script->block = g_cli_guard->temporary_buf_alloc((opens + 1ULL) * sizeof(CliGradleBlock), g_cli_gradle_owner);
+    script->stray = g_cli_guard->temporary_buf_alloc((closes + 1ULL) * sizeof(unsigned long long), g_cli_gradle_owner);
     unsigned int *const opened =
         g_cli_guard->temporary_buf_alloc((opens + 1ULL) * sizeof(unsigned int), g_cli_gradle_owner);
     if ((script->block == NULL) || (script->stray == NULL) || (opened == NULL))
@@ -339,7 +337,7 @@ int cli_gradle_block_by_name(const CliGradleCtx *args)
     return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) == args->block->name_size) &&
            (memor.cmp(&(MemoriaCfg){.src = g_cli_gradle.text + args->block->name,
                                     .other = args->name,
-                                    .bytes = (size_t)args->block->name_size}) == 0);
+                                    .bytes = (embed_word)args->block->name_size}) == 0);
 }
 
 void cli_gradle_statements(const CliGradleLinesCtx *args)
@@ -419,7 +417,7 @@ static void gradle_declared_statement(const CliGradleStatementCfg *args)
         if ((cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_POOL_BYTES}) == args->word_size) &&
             (memor.cmp(&(MemoriaCfg){.src = words[at],
                                      .other = g_cli_gradle.text + args->word_text,
-                                     .bytes = (size_t)args->word_size}) == 0))
+                                     .bytes = (embed_word)args->word_size}) == 0))
         {
             return;
         }

@@ -64,7 +64,7 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXA
 
 DEFINES=(-DBODY_OVERLAP_BUILD_DLL=1 -DHEAVIEST_MATCHING_BUILD_DLL=1
          -DSHIFT_AGREEMENT_BUILD_DLL=1)
-MODULES=(cu/includes/formats/stack cu/includes/file_defs/krep
+MODULES=(../includes/formats/stack ../includes/file_defs/krep
          cu/engine/analysis/compression cu/engine/analysis/tower
          cu/engine/runtime/device_pool
          cu/engine/analysis/entropy_history cu/engine/analysis/keymath
@@ -73,16 +73,16 @@ MODULES=(cu/includes/formats/stack cu/includes/file_defs/krep
          cu/engine/runtime/obsignatio
          cu/engine/analysis/residual cu/engine/nbody/max_tree
          cu/engine/nbody/flatten cu/engine/nbody/grow
-         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double
+         ../includes/exact_types/integerfloats/double_fields ../includes/exact_types/integerfloats/decimal_double
          cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching
          cu/engine/analysis/shift_agreement cu/engine/analysis/period
          )
-INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate cu/includes/codecs/deflate
-        cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc cu/includes/formats/tiff cu/includes/formats/hdf5
-        cu/includes/codecs/zip cu/includes/formats/dicom cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti
-        cu/includes/formats/parquet)
+INGEST=(../includes/formats/cfg_json ../includes/formats/zarr ../includes/codecs/zstd ../includes/codecs/inflate ../includes/codecs/deflate
+        ../includes/codecs/lz4 ../includes/codecs/snappy ../includes/codecs/blosc ../includes/formats/tiff ../includes/formats/hdf5
+        ../includes/codecs/zip ../includes/formats/dicom ../includes/formats/npy ../includes/formats/nrrd ../includes/formats/nifti
+        ../includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
-MODULE_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/../../cu/includes/codecs/crc")
+MODULE_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/../../../includes/codecs/crc")
 MODULE_SOURCES=("$ENGINE/../../cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
     folder="$(build_path "$module")"
@@ -96,8 +96,8 @@ source "$ENGINE/../includes/file_defs/file_defs.sh"
 MODULE_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 PORTABLE_SOURCES=()
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
-                cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/includes/types/integerfloats/double_fields \
-                cu/includes/types/integerfloats/decimal_double cu/includes/types/integers/exact_record \
+                cu/engine/nbody/max_tree cu/engine/analysis/cycle ../includes/exact_types/integerfloats/double_fields \
+                ../includes/exact_types/integerfloats/decimal_double ../includes/exact_types/integers/exact_record \
                 "${INGEST[@]}"; do
     PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
 done

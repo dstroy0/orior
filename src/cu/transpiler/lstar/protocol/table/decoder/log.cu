@@ -4,7 +4,7 @@
 // product and identity decoded off its puts
 #include "decoder_internal.h"
 
-#include "../../../../../includes/file_defs/qry/qry_read.h"
+#include "../../../../../../../includes/file_defs/qry/qry_read.h"
 
 // the log, every record of it joined in the writer's order
 static unsigned char s_log[QRY_WRITER_RING_BYTES / 2ull];

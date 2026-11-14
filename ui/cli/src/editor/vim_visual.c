@@ -7,15 +7,22 @@
 
 void cli_vim_visual_span(const CliVimCtx *args)
 {
-    const CliVimView *const view = &g_cli_vim_state.view[args->at];
+    CliVimView view_copy;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view_copy,
+                            .bytes = sizeof(CliVimView)});
+    const CliVimView *const view = &view_copy;
     const CliPosition anchor = view->visual_anchor;
     const CliPosition head = view->visual_head;
     const int ahead = (anchor.line < head.line) || ((anchor.line == head.line) && (anchor.col <= head.col));
     const CliPosition first = ahead ? anchor : head;
     const CliPosition second = ahead ? head : anchor;
     unsigned long long length = 0ULL;
-    (void)EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key, .line = second.line,
-                     .length_out = &length);
+    const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
+                                                   .line = second.line, .length_out = &length);
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
     if (view->mode == CLI_VIM_LINE)
     {
         *args->span = (CliVimSpan){1, {first.line, 0ULL}, {second.line, length}, 1};
@@ -26,7 +33,13 @@ void cli_vim_visual_span(const CliVimCtx *args)
 
 void cli_vim_chosen_drawn(const CliVimCtx *args)
 {
-    const CliVimView *const view = &g_cli_vim_state.view[args->at];
+    CliVimView view_copy;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view_copy,
+                            .bytes = sizeof(CliVimView)});
+    const CliVimView *const view = &view_copy;
     CliVimSpan span;
     EMBED_CALL(cli_vim_commands_internal.visual_span, CliVimCtx, .at = args->at, .key = args->key, .span = &span);
     const int ahead =
@@ -53,27 +66,22 @@ EMBED_INLINE void visual_pasted(const CliVimCtx *args)
     at = (name == '0') ? CLI_VIM_REGISTER_YANKED : at;
     at = ((name >= 'a') && (name <= 'z')) ? CLI_VIM_REGISTER_LETTERS + (name - 'a') : at;
     at = ((name >= 'A') && (name <= 'Z')) ? CLI_VIM_REGISTER_LETTERS + (name - 'A') : at;
-    unsigned long long kept_length = 0ULL;
-    if (at < CLI_VIM_REGISTERS)
-    {
-        (void)EMBED_CALL(cli_vim_internal.part_text, CliVimCtx, .part = at, .length_out = &kept_length);
-    }
+    const unsigned long long kept_length =
+        (at < CLI_VIM_REGISTERS) ? EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = at) : 0ULL;
     if (kept_length == 0ULL)
     {
         return;
     }
     const unsigned long long bytes =
         EMBED_CALL(cli_view_vim.span_bytes, CliViewVimCfg, .key = args->key, .from = span->start, .to = span->end);
-    // the register's text and the selection's, side by side, read out of the text cell before the store writes it
+    // the register's text and the selection's, side by side, copied out of the text cell before the store writes it
     char *const cell = g_cli_guard->temporary_buf_alloc(kept_length + bytes + 2ULL, g_cli_vim_owner);
     if (cell == NULL)
     {
         return;
     }
-    memor.cpy(
-        &(MemoriaCfg){.dst = cell,
-                      .src = EMBED_CALL(cli_vim_internal.part_text, CliVimCtx, .part = at, .length_out = &kept_length),
-                      .bytes = kept_length});
+    (void)EMBED_CALL(cli_vim_internal.part_copy, CliVimCtx, .part = at, .bytes_out = cell,
+                     .length = kept_length + 1ULL);
     VerbaLinea out = {cell + kept_length, bytes + 1ULL, 0ULL};
     EMBED_CALL(cli_view_vim.span, CliViewVimCfg, .key = args->key, .from = span->start, .to = span->end, .out = &out);
     const unsigned long long chosen = mmgr_line_finish(&out);
@@ -87,32 +95,53 @@ EMBED_INLINE void visual_pasted(const CliVimCtx *args)
 
 void cli_vim_chosen_run(const CliVimCtx *args)
 {
-    CliVimView *const view = &g_cli_vim_state.view[args->at];
+    CliVimView view;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view,
+                            .bytes = sizeof(CliVimView)});
     const CliVimCommand *const command = args->command;
     if (command->object_type != 0u)
     {
         CliVimSpan object;
-        EMBED_CALL(cli_vim_motions_internal.object, CliVimCtx, .key = args->key, .from = view->visual_head,
+        EMBED_CALL(cli_vim_motions_internal.object, CliVimCtx, .key = args->key, .from = view.visual_head,
                    .how = command->object_type, .letter = command->object_of, .count = command->count,
                    .counted = command->counted, .span = &object);
         if (!object.found)
         {
             return;
         }
-        view->visual_anchor = object.start;
         CliPosition back = object.start;
-        view->visual_head = EMBED_CALL(cli_vim_motions_internal.backward, CliVimCtx, .key = args->key,
-                                       .place = object.end, .place_out = &back)
-                                ? back
-                                : object.start;
+        const CliPosition head = EMBED_CALL(cli_vim_motions_internal.backward, CliVimCtx, .key = args->key,
+                                            .place = object.end, .place_out = &back)
+                                     ? back
+                                     : object.start;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_anchor),
+            .src = &(CliPosition){(object.start).line, (object.start).col},
+            .bytes = sizeof(CliPosition)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_head),
+            .src = &(CliPosition){(head).line, (head).col},
+            .bytes = sizeof(CliPosition)});
         EMBED_CALL(cli_vim_commands_internal.chosen_drawn, CliVimCtx, .at = args->at, .key = args->key);
         return;
     }
     if (command->name == 'o')
     {
-        const CliPosition anchor = view->visual_anchor;
-        view->visual_anchor = view->visual_head;
-        view->visual_head = anchor;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_anchor),
+            .src = &(CliPosition){(view.visual_head).line, (view.visual_head).col},
+            .bytes = sizeof(CliPosition)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_head),
+            .src = &(CliPosition){(view.visual_anchor).line, (view.visual_anchor).col},
+            .bytes = sizeof(CliPosition)});
         EMBED_CALL(cli_vim_commands_internal.chosen_drawn, CliVimCtx, .at = args->at, .key = args->key);
         return;
     }

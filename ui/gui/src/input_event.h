@@ -59,7 +59,7 @@ typedef struct
 #define GUI_DOWN_INPUT(x_, y_, mods_) (&(GuiInput){.type = GUI_INPUT_DOWN, .x = (x_), .y = (y_), .mods = (mods_)})
 #define GUI_UP_INPUT(x_, y_) (&(GuiInput){.type = GUI_INPUT_UP, .x = (x_), .y = (y_)})
 #define GUI_LEFT_INPUT() (&(GuiInput){.type = GUI_INPUT_LEFT})
-#define GUI_WHEEL_INPUT(x_, y_, rows_, down_, across_)                                                                  \
+#define GUI_WHEEL_INPUT(x_, y_, rows_, down_, across_)                                                                 \
     (&(GuiInput){.type = GUI_INPUT_WHEEL,                                                                              \
                  .x = (x_),                                                                                            \
                  .y = (y_),                                                                                            \

@@ -25,10 +25,10 @@ typedef struct
     const char *env;
     CliRequestsSent *sent;
 } RequestsReadyCtx;
-// the reason a request did not fit what orior_cli supports
+// the reason a request did not fit what impero supports
 EMBED_INLINE void ready_full_err(const RequestsReadyCtx *args)
 {
-    mmgr_line_put(args->err_msg, "the request is larger than orior_cli supports");
+    mmgr_line_put(args->err_msg, "the request is larger than impero supports");
 }
 
 // a text of the parse filled into `out`, sized for `capacity`, its end closed: 1, or 0 with why given
@@ -92,7 +92,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     {
         *size = length;
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
     if (!whole)
     {
         mmgr_line_put(err_msg, args->name);
@@ -101,7 +101,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     else if (!fits)
     {
         mmgr_line_put(err_msg, args->name);
-        mmgr_line_put(err_msg, " is larger than orior_cli supports");
+        mmgr_line_put(err_msg, " is larger than impero supports");
     }
     return fits;
 }
@@ -143,18 +143,18 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = args->sent->method,
                             .src = args->parsed->text + args->request->method.at,
-                            .bytes = (size_t)args->request->method.size + 1u});
+                            .bytes = (embed_word)args->request->method.size + 1u});
     if (cellul.find(&(CatenaFinitaCfg){
             .src = args->sent->url, .cap = CLI_POOL_BYTES, .other = "://", .other_cap = CLI_POOL_BYTES}) == NULL)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_POOL_BYTES});
+        const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->sent->url, .cap = CLI_POOL_BYTES});
         // a program on this machine is reached in the clear, and any other over TLS
         const int here =
             cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "localhost", .cap = CLI_POOL_BYTES}) ||
             cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "127.", .cap = CLI_POOL_BYTES}) ||
             cellul.starts(&(CatenaFinitaCfg){.src = args->sent->url, .other = "[::1]", .cap = CLI_POOL_BYTES});
         const char *const scheme = here ? "http://" : "https://"; // NOSONAR
-        const size_t scheme_size = cellul.len(&(CatenaFinitaCfg){.src = scheme, .cap = CLI_POOL_BYTES});
+        const embed_word scheme_size = cellul.len(&(CatenaFinitaCfg){.src = scheme, .cap = CLI_POOL_BYTES});
         if (length + scheme_size + 1u > sizeof(args->sent->url))
         {
             EMBED_CALL(ready_full_err, RequestsReadyCtx, .err_msg = err_msg);

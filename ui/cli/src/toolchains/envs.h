@@ -10,7 +10,7 @@
 // requires are read, and an environment chosen reports which of them it has not installed.
 //
 // The environment chosen is the toolchains' own while it stands: its folders come first on the PATH of everything
-// orior_cli starts, and its Python is the tree's Python (envs.c, envs_find.c, envs_resolve.c)
+// impero starts, and its Python is the tree's Python (envs.c, envs_find.c, envs_resolve.c)
 #ifndef ENVS_H
 #define ENVS_H
 #include "embed_dispatch_layout.h"

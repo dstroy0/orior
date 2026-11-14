@@ -8,8 +8,6 @@
 #define NOMINMAX
 #include <windows.h>
 
-#include <stdint.h>
-
 typedef struct
 {
 #if (defined(_WIN32))
@@ -57,9 +55,9 @@ int cli_region_with(const CliTransferRegionBytesCfg *args)
         CloseHandle(section);
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = view, .src = bytes, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = view, .src = bytes, .bytes = (embed_word)args->size});
     // the handle's value stored as a number, as the frame carries it
-    args->region->section = (unsigned long long)(uintptr_t)section;
+    args->region->section = (unsigned long long)(embed_word)section;
     args->region->view = view;
     args->region->length = args->size;
     args->region->mapped = 1;
@@ -83,7 +81,7 @@ int cli_region_free(const CliTransferCfg *args)
         return 0;
     }
     HANDLE made = NULL;
-    const BOOL supplied = DuplicateHandle(GetCurrentProcess(), (HANDLE)(uintptr_t)args->region_read->section, target,
+    const BOOL supplied = DuplicateHandle(GetCurrentProcess(), (HANDLE)(embed_word)args->region_read->section, target,
                                           &made, FILE_MAP_READ, FALSE, 0u);
     const DWORD error = GetLastError();
     CloseHandle(target);
@@ -95,7 +93,7 @@ int cli_region_free(const CliTransferCfg *args)
         mmgr_line_decimal(err_msg, error, 1u);
         return 0;
     }
-    *theirs = (unsigned long long)(uintptr_t)made;
+    *theirs = (unsigned long long)(embed_word)made;
     return 1;
 }
 
@@ -126,7 +124,7 @@ EMBED_INLINE int transfer_map(const WindowsTransferCtx *args)
         mmgr_line_decimal(args->err_msg, error, 1u);
         return 0;
     }
-    args->region->section = (unsigned long long)(uintptr_t)section;
+    args->region->section = (unsigned long long)(embed_word)section;
     args->region->view = view;
     args->region->length = length;
     args->region->mapped = 1;
@@ -153,7 +151,7 @@ int cli_region_alloc(const CliTransferRegionCfg *args)
     }
     HANDLE own = NULL;
     const BOOL reserved =
-        DuplicateHandle(source, (HANDLE)(uintptr_t)args->handle, GetCurrentProcess(), &own, FILE_MAP_READ, FALSE, 0u);
+        DuplicateHandle(source, (HANDLE)(embed_word)args->handle, GetCurrentProcess(), &own, FILE_MAP_READ, FALSE, 0u);
     const DWORD error = GetLastError();
     CloseHandle(source);
     if (!reserved)
@@ -171,7 +169,7 @@ int cli_region_alloc(const CliTransferRegionCfg *args)
 int cli_region_receive(const CliTransferRegionCfg *args)
 {
     return EMBED_CALL(transfer_map, WindowsTransferCtx, .region = args->region,
-                      .section = (HANDLE)(uintptr_t)args->handle, .length = args->length, .err_msg = args->err_msg);
+                      .section = (HANDLE)(embed_word)args->handle, .length = args->length, .err_msg = args->err_msg);
 }
 
 void cli_region_close(const CliTransferRegionBytesCfg *args)
@@ -179,7 +177,7 @@ void cli_region_close(const CliTransferRegionBytesCfg *args)
     if (args->region->mapped)
     {
         UnmapViewOfFile(args->region->view);
-        CloseHandle((HANDLE)(uintptr_t)args->region->section);
+        CloseHandle((HANDLE)(embed_word)args->region->section);
     }
     memor.set(&(MemoriaCfg){.dst = args->region, .val = 0, .bytes = sizeof(*args->region)});
 }

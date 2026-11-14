@@ -202,7 +202,7 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
         cli_py_read_state_free();
         cli_seen_count();
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_python_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_python_owner));
 }
 
 unsigned int cli_python_paths(const CliPythonPathsCfg *args)

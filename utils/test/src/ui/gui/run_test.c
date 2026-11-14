@@ -7,8 +7,9 @@
 // filter, which the CLI applies; Start with a required value missing draws the refusal and no run; Stop with no run
 // going does nothing; a run's lines are drawn in their spans' colors with the escape bytes gone, its end last; the pane
 // follows its last row as lines arrive; and the wheel scrolls no further than the last row fills the panel
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/runs/job_runs.h"
-#include "../../../../../ui/cli/src/view/parts/run.h"
+#include "../../../../../ui/gui/src/run.h"
 #include "../cli/cli_check.h"
 
 #define RUN_HEIGHT 260
@@ -107,24 +108,27 @@ static int rect_reddened(const GuiRaster *raster, GuiRect rect)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = RUN_HEIGHT, .away = 0);
     GuiIcons icons;
-    EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &icons);
+    EMBED_CALL(gui_icons.init, GuiIconsCfg, .icons = &icons);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     const GuiColor ground = 0xFF102030u;
     const GuiPaneTable *const table = &gui_run_table;
@@ -285,10 +289,10 @@ int main(void)
 
     EMBED_CALL(cli_job_runs_woken.end, CliJobRunsWokenCfg, .woken = NULL);
     cli_check(mmgr_owner_in_use(g_cli_job_runs_owner) == 0u, "the store lets every cell go as it ends");
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

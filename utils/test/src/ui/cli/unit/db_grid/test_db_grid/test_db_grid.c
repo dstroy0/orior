@@ -68,12 +68,12 @@ static void lite_ready(void)
     TEST_ASSERT_NOT_NULL(s_lite);
 }
 
-// the column `at` into a column
-static CliDbGridColumn column_at(unsigned int at)
+// the column `at`, in a column of the suite's own whose texts stand until the next is read
+static const CliDbGridColumn *column_at(unsigned int at)
 {
-    CliDbGridColumn column;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.column, CliDbGridCfg, .column_at = at, .column = &column));
-    return column;
+    static CliDbGridColumn s_column;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.column, CliDbGridCfg, .column_at = at, .column = &s_column));
+    return &s_column;
 }
 
 // the step taken with the view reaching `first` to `last`
@@ -97,8 +97,8 @@ void test_an_answer_adopted_stores_its_columns_its_first_page_and_its_end(void)
     lite_ready();
     adopted("SELECT n, word, note FROM t ORDER BY n");
     TEST_ASSERT_EQUAL_UINT(3u, EMBED_CALL(cli_db_grid.columns, CliDbGridCfg, .at = 0ULL));
-    const CliDbGridColumn word = column_at(1u);
-    CLI_TEST_ASSERT_TEXT("word", word.label, word.label_length);
+    const CliDbGridColumn *const word = column_at(1u);
+    CLI_TEST_ASSERT_TEXT("word", word->label, word->label_length);
     TEST_ASSERT_EQUAL_UINT64(CLI_DB_GRID_PAGE + 1ULL, EMBED_CALL(cli_db_grid.rows, CliDbGridCfg, .at = 0ULL));
     CliDbGridRow row;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.row, CliDbGridCfg, .at = CLI_DB_GRID_PAGE, .row = &row));
@@ -116,14 +116,14 @@ void test_each_width_is_the_longest_of_its_label_and_first_rows_cut_to_the_most(
     lite_ready();
     adopted("SELECT n, word, note FROM t ORDER BY n");
     // n's longest of its first fifty rows is "50", shorter than nothing but its two digits, with the gap after
-    TEST_ASSERT_EQUAL_UINT(2u + CLI_DB_GRID_WIDTH_GAP, column_at(0u).width);
-    TEST_ASSERT_EQUAL_UINT(4u + CLI_DB_GRID_WIDTH_GAP, column_at(1u).width);
-    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_WIDTH_MOST + CLI_DB_GRID_WIDTH_GAP, column_at(2u).width);
-    TEST_ASSERT_EQUAL_INT64(0LL, column_at(0u).start);
-    TEST_ASSERT_EQUAL_INT64((long long)(column_at(0u).width + column_at(1u).width), column_at(2u).start);
+    TEST_ASSERT_EQUAL_UINT(2u + CLI_DB_GRID_WIDTH_GAP, column_at(0u)->width);
+    TEST_ASSERT_EQUAL_UINT(4u + CLI_DB_GRID_WIDTH_GAP, column_at(1u)->width);
+    TEST_ASSERT_EQUAL_UINT(CLI_DB_GRID_WIDTH_MOST + CLI_DB_GRID_WIDTH_GAP, column_at(2u)->width);
+    TEST_ASSERT_EQUAL_INT64(0LL, column_at(0u)->start);
+    TEST_ASSERT_EQUAL_INT64((long long)(column_at(0u)->width + column_at(1u)->width), column_at(2u)->start);
     // a step reads rows and lays no width again
     (void)stepped(300ULL, 320ULL, 1000ULL);
-    TEST_ASSERT_EQUAL_UINT(2u + CLI_DB_GRID_WIDTH_GAP, column_at(0u).width);
+    TEST_ASSERT_EQUAL_UINT(2u + CLI_DB_GRID_WIDTH_GAP, column_at(0u)->width);
 }
 
 void test_the_step_reads_what_the_view_heads_into_and_lets_go_the_rows_behind(void)
@@ -170,8 +170,8 @@ void test_a_null_cell_has_its_flag_and_a_numbers_column_its_own(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid.cell, CliDbGridCfg, .at = 0ULL, .column_at = 0u, .cell = &cell));
     TEST_ASSERT_FALSE(cell.null);
     TEST_ASSERT_TRUE(cell.numeric);
-    TEST_ASSERT_TRUE(column_at(0u).numeric);
-    TEST_ASSERT_FALSE(column_at(1u).numeric);
+    TEST_ASSERT_TRUE(column_at(0u)->numeric);
+    TEST_ASSERT_FALSE(column_at(1u)->numeric);
 }
 
 void test_the_pan_stays_inside_the_columns(void)
@@ -180,12 +180,12 @@ void test_the_pan_stays_inside_the_columns(void)
     adopted("SELECT n, word, note FROM t ORDER BY n");
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_grid_step.pan, CliDbGridStepCfg, .columns = -1));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid_step.key, CliDbGridStepCfg, .name = "Right"));
-    TEST_ASSERT_EQUAL_INT64(0LL, column_at(1u).start);
+    TEST_ASSERT_EQUAL_INT64(0LL, column_at(1u)->start);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid_step.pan, CliDbGridStepCfg, .columns = 10));
-    TEST_ASSERT_EQUAL_INT64(0LL, column_at(2u).start);
+    TEST_ASSERT_EQUAL_INT64(0LL, column_at(2u)->start);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_grid_step.pan, CliDbGridStepCfg, .columns = 1));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_grid_step.key, CliDbGridStepCfg, .name = "Home"));
-    TEST_ASSERT_EQUAL_INT64(0LL, column_at(0u).start);
+    TEST_ASSERT_EQUAL_INT64(0LL, column_at(0u)->start);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_grid_step.key, CliDbGridStepCfg, .name = "PageDown"));
 }
 

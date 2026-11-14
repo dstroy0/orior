@@ -45,7 +45,7 @@ EMBED_INLINE int offer_has_key(const SchemaOfferCtx *args)
         if ((g_cli_schema_key_to[at] - g_cli_schema_key_from[at] == args->size) &&
             (memor.cmp(&(MemoriaCfg){.src = args->text + g_cli_schema_key_from[at],
                                      .other = args->name,
-                                     .bytes = (size_t)args->size}) == 0))
+                                     .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
@@ -86,7 +86,7 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             }
             if (seen || (offered == CLI_SCHEMA_OFFERED) || (size < base - args->token) ||
                 (memor.cmp(&(MemoriaCfg){
-                     .src = name, .other = text + args->token, .bytes = (size_t)(base - args->token)}) != 0))
+                     .src = name, .other = text + args->token, .bytes = (embed_word)(base - args->token)}) != 0))
             {
                 continue;
             }
@@ -199,8 +199,8 @@ static void offer_value(const SchemaOfferCtx *args)
     s_values.used += (unsigned int)line.at;
     s_values.detail_at[s_values.count] = s_values.used;
     s_values.detail_size[s_values.count] = (unsigned int)args->detail_size;
-    memor.cpy(
-        &(MemoriaCfg){.dst = s_values.text + s_values.used, .src = args->detail, .bytes = (size_t)args->detail_size});
+    memor.cpy(&(MemoriaCfg){
+        .dst = s_values.text + s_values.used, .src = args->detail, .bytes = (embed_word)args->detail_size});
     s_values.used += (unsigned int)args->detail_size;
     s_values.count += 1u;
 }
@@ -218,7 +218,7 @@ EMBED_INLINE int offer_type(const SchemaOfferCtx *args)
     if (single != NULL)
     {
         return (cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}) == size) &&
-               (memor.cmp(&(MemoriaCfg){.src = single, .other = type, .bytes = (size_t)size}) == 0);
+               (memor.cmp(&(MemoriaCfg){.src = single, .other = type, .bytes = (embed_word)size}) == 0);
     }
     for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                        .node = types, .type = CFG_JSON_ARRAY)
@@ -229,7 +229,7 @@ EMBED_INLINE int offer_type(const SchemaOfferCtx *args)
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = one, .length_pointer = &size);
         if ((text != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}) == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = text, .other = type, .bytes = (size_t)size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = text, .other = type, .bytes = (embed_word)size}) == 0))
         {
             return 1;
         }
@@ -327,27 +327,7 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
     }
     if (!EMBED_CALL(cli_schema_read_text_internal.spot, CliSchemaReadTextCtx, .text = text, .size = at))
     {
-        if (g_cli_schema_read != NULL)
-        {
-            g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
-            g_cli_schema_read->node = NULL;
-            g_cli_schema_read->member = NULL;
-            g_cli_schema_read->pool = NULL;
-            g_cli_schema_read->nodes_max = 0u;
-            g_cli_schema_read->members_max = 0u;
-            g_cli_schema_read->pool_max = 0u;
-        }
-        if (g_cli_schema_store != NULL)
-        {
-            g_cli_guard->persistent_buf_release(g_cli_schema_store->json.node,
-                                                mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
-            EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
-                       .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        }
-        g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
-        g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
-        g_cli_schema_store = NULL;
-        g_cli_schema_read = NULL;
+        cli_schema_free();
         return;
     }
     EMBED_CALL(cli_schema_read_text_internal.read, CliSchemaReadTextCtx, .text = text, .size = size,
@@ -379,25 +359,5 @@ void cli_schema_complete(const CliSchemaLineCfg *args)
             }
         }
     }
-    if (g_cli_schema_read != NULL)
-    {
-        g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
-        g_cli_schema_read->node = NULL;
-        g_cli_schema_read->member = NULL;
-        g_cli_schema_read->pool = NULL;
-        g_cli_schema_read->nodes_max = 0u;
-        g_cli_schema_read->members_max = 0u;
-        g_cli_schema_read->pool_max = 0u;
-    }
-    if (g_cli_schema_store != NULL)
-    {
-        g_cli_guard->persistent_buf_release(g_cli_schema_store->json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    }
-    g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
-    g_cli_schema_store = NULL;
-    g_cli_schema_read = NULL;
+    cli_schema_free();
 }

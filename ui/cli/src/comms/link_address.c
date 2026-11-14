@@ -86,7 +86,7 @@ EMBED_INLINE int address_field_set(const LinkAddressCtx *args)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = args->field, .src = args->text, .bytes = (size_t)args->size_value});
+    memor.cpy(&(MemoriaCfg){.dst = args->field, .src = args->text, .bytes = (embed_word)args->size_value});
     args->field[args->size_value] = '\0';
     return 1;
 }
@@ -97,7 +97,7 @@ int cli_link_address_parse(const CliLinkTextCfg *args)
     unsigned long long size = 0ULL;
     EMBED_CALL(address_trim, LinkAddressCtx, .text = args->text, .start = &start, .size = &size);
     const char *const trimmed = args->text + start;
-    const char *const first = memor.chr(&(MemoriaCfg){.src = trimmed, .val = ':', .bytes = (size_t)size});
+    const char *const first = memor.chr(&(MemoriaCfg){.src = trimmed, .val = ':', .bytes = (embed_word)size});
     int read = first != NULL;
     if (read)
     {
@@ -111,7 +111,7 @@ int cli_link_address_parse(const CliLinkTextCfg *args)
         if (docker || wsl)
         {
             const char *const second =
-                memor.chr(&(MemoriaCfg){.src = rest, .val = ':', .bytes = (size_t)remainder_size});
+                memor.chr(&(MemoriaCfg){.src = rest, .val = ':', .bytes = (embed_word)remainder_size});
             read = second != NULL;
             if (read)
             {
@@ -246,7 +246,7 @@ int cli_link_remote_run(const CliLinkSizeCfg *args)
                                                   .run_result = run_result, .err_msg = args->err_msg);
     if (words.full)
     {
-        mmgr_line_put(args->err_msg, "the line is longer than orior_cli runs");
+        mmgr_line_put(args->err_msg, "the line is longer than impero runs");
     }
     const int done = started && (run_result->code == 0);
     if (started && !done)

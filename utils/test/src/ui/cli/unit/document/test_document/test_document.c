@@ -243,20 +243,6 @@ void test_edits_are_written_from_the_last_to_the_first_with_the_texts_shape_afte
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "edits");
 }
 
-void test_the_histogram_stored_with_the_text_counts_its_units_bytes_as_the_edits_leave_them(void)
-{
-    CliShape shape;
-    CliHistogram histogram;
-    edits_written(&shape);
-    // 28 units of ASCII, each a letter low and a zero high, four of them `n`
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document.histogram, CliDocumentCfg, .key = "edits", .histogram = &histogram));
-    TEST_ASSERT_EQUAL_UINT64(56ull, histogram.total);
-    TEST_ASSERT_EQUAL_UINT64(28ull, histogram.occurrences[0]);
-    TEST_ASSERT_EQUAL_UINT64(4ull, histogram.occurrences['n']);
-    TEST_ASSERT_EQUAL_UINT64(1ull, histogram.occurrences['1']);
-    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "edits");
-}
-
 void test_an_edit_end_the_text_is_refused_and_the_text_released(void)
 {
     static const CliEdit s_end[1] = {{{9u, 0u}, {9u, 0u}, "x", 1u}};

@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// diff_view_open.c: the view opened from its source. The sources are copied into a cell of their own with the bar's
-// label, the sides sentence and the sentence for two texts that do not differ; each side's text is read, a file's from
-// the open view on it or else from the file stored under a key of the view's own for the read alone, a commit's, the
-// last commit's or a snapshot's from git or the history into a cell of the read alone, and laid as lines of units in
-// one cell sized to the two; the lines are compared, with white space set aside where the option is on, the changes
-// handed by the diff laid into a cell of the read alone, and the rows laid from them into one cell sized to the rows
-// with the changes' first rows after them
+// diff_view_open.c: the view opened from its source. The sources are copied into the view's own bytes with the bar's
+// label, the sides sentence and the sentence for two texts that do not differ, the clipboard's text into a movable
+// cell; each side's text is read, a file's from the open view on it or else from the file stored under a key of the
+// view's own for the read alone, a commit's, the last commit's or a snapshot's from git or the history into a cell of
+// the read alone, and laid as lines of units in a cell of the read alone; the lines are compared, with white space set
+// aside where the option is on, the changes handed by the diff laid into a cell of the read alone, and the rows laid
+// from them into a cell of the read alone with the changes' first rows after them; the lines and the rows are then each
+// written once into a movable cell of the view
 #include "../command_line/pool.h"
 #include "../editor/document.h"
 #include "../editor/files.h"
@@ -72,15 +73,29 @@ typedef struct
     unsigned char **cell_out;
     unsigned int file;
     int on;
+    char *dst;
+    unsigned long long capacity;
+    CliDiffViewSide *side_out;
+    unsigned long long *offset;
+    const CarcerMovableEntry *cell;
 } DiffViewCtx;
+
+// the movable cell `cell` of the view released where one stands
+EMBED_INLINE void cell_released(const DiffViewCtx *args)
+{
+    if (args->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(args->cell, g_cli_diff_view_owner);
+    }
+}
 
 // every cell of the open view released, none open
 EMBED_INLINE void view_released(const DiffViewCtx *args)
 {
     (void)args;
-    g_cli_guard->persistent_buf_release(g_cli_diff_view.sources, g_cli_diff_view_owner);
-    g_cli_guard->persistent_buf_release(g_cli_diff_view.lines_cell, g_cli_diff_view_owner);
-    g_cli_guard->persistent_buf_release(g_cli_diff_view.rows_cell, g_cli_diff_view_owner);
+    EMBED_CALL(cell_released, DiffViewCtx, .cell = g_cli_diff_view.text_cell);
+    EMBED_CALL(cell_released, DiffViewCtx, .cell = g_cli_diff_view.lines_cell);
+    EMBED_CALL(cell_released, DiffViewCtx, .cell = g_cli_diff_view.rows_cell);
     const int space = g_cli_diff_view.space;
     const int structure = g_cli_diff_view.structure;
     memor.set(&(MemoriaCfg){.dst = &g_cli_diff_view, .val = 0, .bytes = sizeof(g_cli_diff_view)});
@@ -92,6 +107,22 @@ EMBED_INLINE void view_released(const DiffViewCtx *args)
 EMBED_INLINE unsigned long long text_bytes(const DiffViewCtx *args)
 {
     return (args->path != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) : 0ULL;
+}
+
+// the text `path` kept in `dst` of `capacity` bytes with its end, cut to fit, empty for NULL: its bytes kept
+EMBED_INLINE unsigned long long text_kept(const DiffViewCtx *args)
+{
+    VerbaLinea line = {args->dst, args->capacity, 0ULL};
+    if (args->path != NULL)
+    {
+        mmgr_line_put(&line, args->path);
+    }
+    if (!mmgr_line_ok(&line))
+    {
+        line.at = args->capacity - 1ULL;
+    }
+    args->dst[line.at] = '\0';
+    return line.at;
 }
 
 // a commit `id` as the bar shows it after `out`: its short id, and who made it where git reads it
@@ -243,62 +274,47 @@ EMBED_INLINE void sentences_written(const DiffViewCtx *args)
     mmgr_line_ch(out, '\0');
 }
 
-// the sources of `source` with the file `path` copied into a cell of their own with the sentences written into
-// `out`, `out->at` bytes, the view's pointers set into it: 1, or 0 where the cells cannot meet it
+// the sources of `source` with the file `path` copied into the view's own bytes with the sentences written into
+// `out`, `out->at` bytes, and the clipboard's text into a movable cell of the view: 1, or 0 where the cells cannot
+// meet it
 EMBED_INLINE int sources_copied(const DiffViewCtx *args)
 {
     const CliDiffViewSourceErrMsgCfg *const source = args->source;
-    const char *const texts[5] = {source->root, args->path, source->other_path, source->id, source->other_id};
-    unsigned long long bytes = args->out->at + source->size + 1ULL;
-    for (unsigned int at = 0u; at < 5u; at += 1u)
-    {
-        bytes += EMBED_CALL(text_bytes, DiffViewCtx, .path = texts[at]) + 1ULL;
-    }
-    char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_diff_view_owner);
-    if (cell == NULL)
-    {
-        return 0;
-    }
-    const char *placed[5];
-    unsigned long long used = 0ULL;
-    for (unsigned int at = 0u; at < 5u; at += 1u)
-    {
-        const unsigned long long length = EMBED_CALL(text_bytes, DiffViewCtx, .path = texts[at]);
-        placed[at] = (texts[at] != NULL) ? cell + used : NULL;
-        if (length != 0ULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = cell + used, .src = texts[at], .bytes = length});
-        }
-        cell[used + length] = '\0';
-        used += length + 1ULL;
-    }
-    const char *const clipboard = cell + used;
-    if (source->size != 0ULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = cell + used, .src = source->text, .bytes = source->size});
-    }
-    cell[used + source->size] = '\0';
-    used += source->size + 1ULL;
-    memor.cpy(&(MemoriaCfg){.dst = cell + used, .src = args->out->out, .bytes = args->out->at});
-    // the view open before goes once its sources are copied, those of a view laid again among them
+    // the view open before goes before its sources are copied; a view laid again hands copies of its own
     EMBED_CALL(view_released, DiffViewCtx, .on = 0);
     CliDiffView *const view = &g_cli_diff_view;
-    view->sources = (unsigned char *)cell;
+    if (source->size != 0ULL)
+    {
+        view->text_cell = g_cli_guard->movable_buf_alloc(source->size, g_cli_diff_view_owner);
+        if (view->text_cell == NULL)
+        {
+            return 0;
+        }
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = view->text_cell, .offset = 0ULL, .src = source->text, .bytes = source->size});
+    }
     view->source = source->source;
-    view->root = placed[0];
-    view->path = placed[1];
-    view->other_path = placed[2];
-    view->id = placed[3];
-    view->other_id = placed[4];
-    view->text = clipboard;
     view->size = source->size;
     view->at_ms = source->at_ms;
-    view->label = cell + used;
-    view->label_length = EMBED_CALL(text_bytes, DiffViewCtx, .path = view->label);
-    view->sides = view->label + view->label_length + 1ULL;
-    view->sides_length = EMBED_CALL(text_bytes, DiffViewCtx, .path = view->sides);
-    view->same = view->sides + view->sides_length + 1ULL;
-    view->same_length = EMBED_CALL(text_bytes, DiffViewCtx, .path = view->same);
+    (void)EMBED_CALL(text_kept, DiffViewCtx, .dst = view->root, .capacity = sizeof(view->root), .path = source->root);
+    (void)EMBED_CALL(text_kept, DiffViewCtx, .dst = view->path, .capacity = sizeof(view->path), .path = args->path);
+    (void)EMBED_CALL(text_kept, DiffViewCtx, .dst = view->other_path, .capacity = sizeof(view->other_path),
+                     .path = source->other_path);
+    view->has_other_path = source->other_path != NULL;
+    (void)EMBED_CALL(text_kept, DiffViewCtx, .dst = view->id, .capacity = sizeof(view->id), .path = source->id);
+    view->has_id = source->id != NULL;
+    (void)EMBED_CALL(text_kept, DiffViewCtx, .dst = view->other_id, .capacity = sizeof(view->other_id),
+                     .path = source->other_id);
+    view->has_other_id = source->other_id != NULL;
+    const char *sentence = args->out->out;
+    view->label_length =
+        EMBED_CALL(text_kept, DiffViewCtx, .dst = view->label, .capacity = sizeof(view->label), .path = sentence);
+    sentence += EMBED_CALL(text_bytes, DiffViewCtx, .path = sentence) + 1ULL;
+    view->sides_length =
+        EMBED_CALL(text_kept, DiffViewCtx, .dst = view->sides, .capacity = sizeof(view->sides), .path = sentence);
+    sentence += EMBED_CALL(text_bytes, DiffViewCtx, .path = sentence) + 1ULL;
+    view->same_length =
+        EMBED_CALL(text_kept, DiffViewCtx, .dst = view->same, .capacity = sizeof(view->same), .path = sentence);
     return 1;
 }
 
@@ -308,13 +324,15 @@ EMBED_INLINE void file_side(const DiffViewCtx *args)
 {
     DiffViewSide *const side = args->side;
     const unsigned int views = cli_view_count();
+    char open[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; (side->key == NULL) && (at < views); at += 1u)
     {
-        const char *const open = cli_view_path_at(at);
-        side->key =
-            ((open != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = open, .other = args->path, .cap = CLI_PATH_MAX_LEN}))
-                ? cli_view_key(at)
-                : NULL;
+        // the open view's key copied into the side's own buffer
+        side->key = (cli_view_path_at(at, open) &&
+                     cellul.eq(&(CatenaFinitaCfg){.src = open, .other = args->path, .cap = CLI_PATH_MAX_LEN}) &&
+                     cli_view_key(at, side->keyed))
+                        ? side->keyed
+                        : NULL;
     }
     if (side->key != NULL)
     {
@@ -383,6 +401,28 @@ EMBED_INLINE int read_side(const DiffViewCtx *args)
     return 1;
 }
 
+// the clipboard's side: the view's text read out of its movable cell into a cell of the read alone
+EMBED_INLINE void clipboard_side(const DiffViewCtx *args)
+{
+    DiffViewSide *const side = args->side;
+    const CliDiffView *const view = &g_cli_diff_view;
+    side->scratch = g_cli_guard->temporary_buf_alloc(view->size + 1ULL, g_cli_diff_view_owner);
+    if (side->scratch == NULL)
+    {
+        side->text = "";
+        side->size = 0ULL;
+        return;
+    }
+    if (view->size != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = view->text_cell, .offset = 0ULL, .dst = side->scratch, .bytes = view->size});
+    }
+    side->scratch[view->size] = '\0';
+    side->text = side->scratch;
+    side->size = view->size;
+}
+
 // the side laid as lines of units into a cell of the read alone, into `lines` with the cell into `cell_out`: 1, or 0
 // where the cells cannot meet it; an absent side has no line and no cell
 EMBED_INLINE int side_laid(const DiffViewCtx *args)
@@ -443,47 +483,49 @@ EMBED_INLINE int side_laid(const DiffViewCtx *args)
     }
     for (unsigned int line = 0u; line < lines->lines_max; line += 1u)
     {
+        // the line's units copied into the view's units after those used, where they fit
         unsigned long long length = 0ULL;
-        const unsigned short *const from = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg,
-                                                      .key = side->key, .line = line, .count = &length);
+        (void)EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = side->key, .line = line,
+                         .count = &length, .dst = lines->unit + lines->used, .capacity = units - lines->used);
         const unsigned long long fits = (lines->used + length <= units) ? length : 0ULL;
         lines->start[line] = lines->used;
         lines->length[line] = fits;
-        if ((from != NULL) && (fits != 0ULL))
-        {
-            memor.cpy(&(MemoriaCfg){.dst = lines->unit + lines->used, .src = from, .bytes = 2ULL * fits});
-        }
         lines->used += fits;
         lines->lines += 1u;
     }
     return 1;
 }
 
-// the side's lines `lines_read` copied into the view's lines `lines` from `cell_out`'s start, its starts and lengths
-// then its units, the place after them into `cell_out`
-EMBED_INLINE void side_copied(const DiffViewCtx *args)
+// the side's lines `lines_read` written into the view's lines cell from `offset`, its starts and lengths then its
+// units, their places into `side_out` and the place after them into `offset`
+EMBED_INLINE void side_written(const DiffViewCtx *args)
 {
     const CliLines *const from = args->lines_read;
-    CliLines *const to = args->lines;
-    unsigned char *const at = *args->cell_out;
-    *to = (CliLines){0};
-    to->start = (unsigned long long *)(void *)at;
-    to->length = to->start + from->lines;
-    to->unit = (unsigned short *)(void *)(to->length + from->lines);
-    to->lines = from->lines;
-    to->lines_max = from->lines;
-    to->used = from->used;
-    to->units_max = from->used;
+    CliDiffViewSide *const side = args->side_out;
+    unsigned long long at = *args->offset;
+    side->lines = from->lines;
+    side->used = from->used;
+    side->start_at = at;
     if (from->lines != 0u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = to->start, .src = from->start, .bytes = 8ULL * from->lines});
-        memor.cpy(&(MemoriaCfg){.dst = to->length, .src = from->length, .bytes = 8ULL * from->lines});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.lines_cell, .offset = at, .src = from->start, .bytes = 8ULL * from->lines});
     }
+    at += 8ULL * from->lines;
+    side->length_at = at;
+    if (from->lines != 0u)
+    {
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.lines_cell, .offset = at, .src = from->length, .bytes = 8ULL * from->lines});
+    }
+    at += 8ULL * from->lines;
+    side->unit_at = at;
     if (from->used != 0ULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = to->unit, .src = from->unit, .bytes = 2ULL * from->used});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.lines_cell, .offset = at, .src = from->unit, .bytes = 2ULL * from->used});
     }
-    *args->cell_out = at + (16ULL * from->lines) + (((2ULL * from->used) + 7ULL) & ~7ULL);
+    *args->offset = at + (((2ULL * from->used) + 7ULL) & ~7ULL);
 }
 
 // the two sides read for the view's source: the older into `side[0]` and the newer into `side[1]`, `on` where the
@@ -523,8 +565,7 @@ EMBED_INLINE int sides_read(const DiffViewCtx *args)
         }
         return 1;
     case CLI_DIFF_VIEW_CLIPBOARD:
-        older->text = view->text;
-        older->size = view->size;
+        EMBED_CALL(clipboard_side, DiffViewCtx, .side = older);
         EMBED_CALL(file_side, DiffViewCtx, .side = newer, .root = view->root, .path = view->path);
         return 1;
     case CLI_DIFF_VIEW_FILES:
@@ -554,43 +595,49 @@ EMBED_INLINE void sides_released(const DiffViewCtx *args)
     }
 }
 
-// the two sides read and laid into the view's lines cell, sized to the two: 1, or 0 with why in `err_msg`
+// the two sides read and laid as lines into two cells of the read alone, the older into `lines[0]` from `cell_out[0]`
+// and the newer into `lines[1]` from `cell_out[1]`, and the view's sides' counts set: 1, or 0 with why in `err_msg`
 EMBED_INLINE int lines_laid(const DiffViewCtx *args)
 {
     DiffViewSide sides[2];
     memor.set(&(MemoriaCfg){.dst = sides, .val = 0, .bytes = sizeof(sides)});
     const int read = EMBED_CALL(sides_read, DiffViewCtx, .side = sides, .err_msg = args->err_msg, .on = args->on);
-    CliLines laid[2];
-    unsigned char *cells[2] = {NULL, NULL};
     int fits = read;
     for (unsigned int at = 0u; fits && (at < 2u); at += 1u)
     {
-        fits = EMBED_CALL(side_laid, DiffViewCtx, .side = &sides[at], .lines = &laid[at], .cell_out = &cells[at]);
+        fits = EMBED_CALL(side_laid, DiffViewCtx, .side = &sides[at], .lines = &args->lines[at],
+                          .cell_out = &args->cell_out[at]);
     }
     EMBED_CALL(sides_released, DiffViewCtx, .side = sides);
-    unsigned char *cell = NULL;
-    if (fits)
-    {
-        const unsigned long long bytes = (16ULL * ((unsigned long long)laid[0].lines + laid[1].lines)) +
-                                         (((2ULL * laid[0].used) + 7ULL) & ~7ULL) +
-                                         (((2ULL * laid[1].used) + 7ULL) & ~7ULL) + 8ULL;
-        cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_diff_view_owner);
-    }
-    if (cell != NULL)
-    {
-        g_cli_diff_view.lines_cell = cell;
-        unsigned char *at = cell;
-        EMBED_CALL(side_copied, DiffViewCtx, .lines_read = &laid[0], .lines = &g_cli_diff_view.left, .cell_out = &at);
-        EMBED_CALL(side_copied, DiffViewCtx, .lines_read = &laid[1], .lines = &g_cli_diff_view.right, .cell_out = &at);
-    }
-    g_cli_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
-    g_cli_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
-    if (read && (cell == NULL))
+    if (read && !fits)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the two texts of ");
         mmgr_line_put(args->err_msg, g_cli_diff_view.path);
     }
-    return cell != NULL;
+    g_cli_diff_view.left.lines = args->lines[0].lines;
+    g_cli_diff_view.left.used = args->lines[0].used;
+    g_cli_diff_view.right.lines = args->lines[1].lines;
+    g_cli_diff_view.right.used = args->lines[1].used;
+    return fits;
+}
+
+// the two sides' lines `lines`, the older then the newer, written once into the view's lines cell, sized to the two,
+// each side's starts and lengths then its units: 1, or 0 where the cells cannot meet it
+EMBED_INLINE int lines_stored(const DiffViewCtx *args)
+{
+    const CliLines *const laid = args->lines;
+    const unsigned long long bytes = (16ULL * ((unsigned long long)laid[0].lines + laid[1].lines)) +
+                                     (((2ULL * laid[0].used) + 7ULL) & ~7ULL) +
+                                     (((2ULL * laid[1].used) + 7ULL) & ~7ULL) + 8ULL;
+    g_cli_diff_view.lines_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_diff_view_owner);
+    if (g_cli_diff_view.lines_cell == NULL)
+    {
+        return 0;
+    }
+    unsigned long long at = 0ULL;
+    EMBED_CALL(side_written, DiffViewCtx, .lines_read = &laid[0], .side_out = &g_cli_diff_view.left, .offset = &at);
+    EMBED_CALL(side_written, DiffViewCtx, .lines_read = &laid[1], .side_out = &g_cli_diff_view.right, .offset = &at);
+    return 1;
 }
 
 // the lines `lines_read` with white space set aside into `lines` from a cell of the read alone, into `cell_out`: each
@@ -659,7 +706,8 @@ static void hunk_found(const CliEachHunkCfg *args)
 }
 
 // the rows laid from the changes `found` handed, the lines both sides share level, each change's lines paired, its
-// first row among the changes' first rows, into a cell sized to them: 1, or 0 where the cells cannot meet it
+// first row among the changes' first rows, in a cell of the read alone and then written once into the view's rows
+// cell sized to them: 1, or 0 where the cells cannot meet it
 EMBED_INLINE int rows_laid(const DiffViewCtx *args)
 {
     const DiffViewHunks *const found = (const DiffViewHunks *)(const void *)args->lines_read;
@@ -682,16 +730,14 @@ EMBED_INLINE int rows_laid(const DiffViewCtx *args)
     const unsigned int *const last = found->hunk + (4u * (found->hunks - 1u));
     const unsigned int left_after = last[3] + (view->right.lines - last[1]);
     rows += (view->left.lines > left_after) ? view->left.lines - left_after : 0u;
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
-        ((unsigned long long)rows * sizeof(CliDiffViewLaid)) + (4ULL * found->hunks), g_cli_diff_view_owner);
+    const unsigned long long bytes = CLI_DIFF_VIEW_ROW_AT(rows) + (4ULL * found->hunks);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_diff_view_owner);
     if (cell == NULL)
     {
         return 0;
     }
-    view->rows_cell = cell;
-    view->row = (CliDiffViewLaid *)(void *)cell;
-    view->change_row = (unsigned int *)(void *)(cell + ((unsigned long long)rows * sizeof(CliDiffViewLaid)));
-    view->changes = found->hunks;
+    CliDiffViewLaid *const row = (CliDiffViewLaid *)(void *)cell;
+    unsigned int *const change_row = (unsigned int *)(void *)(cell + CLI_DIFF_VIEW_ROW_AT(rows));
     unsigned int laid = 0u;
     unsigned int left = 0u;
     right = 0u;
@@ -701,7 +747,7 @@ EMBED_INLINE int rows_laid(const DiffViewCtx *args)
         const unsigned int to = (hunk != NULL) ? hunk[0] : view->right.lines;
         while (right < to)
         {
-            view->row[laid] = (CliDiffViewLaid){left, right, CLI_SAME, right};
+            row[laid] = (CliDiffViewLaid){left, right, CLI_SAME, right};
             laid += 1u;
             left += 1u;
             right += 1u;
@@ -710,7 +756,7 @@ EMBED_INLINE int rows_laid(const DiffViewCtx *args)
         {
             break;
         }
-        view->change_row[at] = laid;
+        change_row[at] = laid;
         const unsigned int gone = hunk[3] - hunk[2];
         const unsigned int come = hunk[1] - hunk[0];
         for (unsigned int line = 0u; line < ((gone > come) ? gone : come); line += 1u)
@@ -720,7 +766,7 @@ EMBED_INLINE int rows_laid(const DiffViewCtx *args)
             const unsigned int type = ((from != CLI_DIFF_VIEW_NONE) && (into != CLI_DIFF_VIEW_NONE)) ? CLI_CHANGED
                                       : (from == CLI_DIFF_VIEW_NONE) ? CLI_DIFF_VIEW_ADDED
                                                                      : CLI_DIFF_VIEW_REMOVED;
-            view->row[laid] = (CliDiffViewLaid){from, into, type, right + ((line < come) ? line : come)};
+            row[laid] = (CliDiffViewLaid){from, into, type, right + ((line < come) ? line : come)};
             laid += 1u;
         }
         left += gone;
@@ -728,28 +774,38 @@ EMBED_INLINE int rows_laid(const DiffViewCtx *args)
     }
     while ((left < view->left.lines) && (laid < rows))
     {
-        view->row[laid] = (CliDiffViewLaid){left, CLI_DIFF_VIEW_NONE, CLI_DIFF_VIEW_REMOVED, right};
+        row[laid] = (CliDiffViewLaid){left, CLI_DIFF_VIEW_NONE, CLI_DIFF_VIEW_REMOVED, right};
         laid += 1u;
         left += 1u;
     }
-    view->rows = laid;
-    return 1;
+    view->rows_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_diff_view_owner);
+    if (view->rows_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = view->rows_cell, .offset = 0ULL, .src = cell, .bytes = bytes});
+        view->change_row_at = CLI_DIFF_VIEW_ROW_AT(rows);
+        view->changes = found->hunks;
+        view->rows = laid;
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_diff_view_owner);
+    return view->rows_cell != NULL;
 }
 
-// the view's lines compared, white space set aside where the option is on, and the rows laid from the changes: 1, or
-// 0 where the cells cannot meet it; texts too far apart lay no row and mark the view refused
+// the two sides' lines `lines` compared, white space set aside where the option is on, and the rows laid from the
+// changes: 1, or 0 where the cells cannot meet it; texts too far apart lay no row and mark the view refused
 EMBED_INLINE int compared(const DiffViewCtx *args)
 {
     CliDiffView *const view = &g_cli_diff_view;
+    const CliLines *const laid_lines = args->lines;
     CliLines loose[2];
     unsigned char *cells[2] = {NULL, NULL};
     const int space = view->space && !view->structure;
     int ready = 1;
     if (space)
     {
-        ready = EMBED_CALL(lines_loosened, DiffViewCtx, .lines_read = &view->left, .lines = &loose[0],
+        ready = EMBED_CALL(lines_loosened, DiffViewCtx, .lines_read = &laid_lines[0], .lines = &loose[0],
                            .cell_out = &cells[0]) &&
-                EMBED_CALL(lines_loosened, DiffViewCtx, .lines_read = &view->right, .lines = &loose[1],
+                EMBED_CALL(lines_loosened, DiffViewCtx, .lines_read = &laid_lines[1], .lines = &loose[1],
                            .cell_out = &cells[1]);
     }
     const unsigned long long capacity = (unsigned long long)view->left.lines + view->right.lines + 1ULL;
@@ -760,16 +816,15 @@ EMBED_INLINE int compared(const DiffViewCtx *args)
     int laid = 0;
     if (found.hunk != NULL)
     {
-        const int changed = EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg,
-                                       .then = space ? &loose[0] : &view->left, .now = space ? &loose[1] : &view->right,
-                                       .each = hunk_found, .context = &found);
+        const int changed = EMBED_CALL(
+            cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = space ? &loose[0] : &laid_lines[0],
+            .now = space ? &loose[1] : &laid_lines[1], .each = hunk_found, .context = &found);
         view->refused = !changed;
         laid = !changed || EMBED_CALL(rows_laid, DiffViewCtx, .lines_read = (const CliLines *)(const void *)&found);
     }
     g_cli_guard->persistent_buf_release(found.hunk, g_cli_diff_view_owner);
     g_cli_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
     g_cli_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
-    (void)args;
     return laid;
 }
 
@@ -777,9 +832,10 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
 {
     // the file: the one asked for, else the shown view's
     const int shown = cli_view_shown();
-    // the view shown is among the views
-    const char *const path =
-        (args->path != NULL) ? args->path : ((shown >= 0) ? cli_view_path_at((unsigned int)shown) : NULL);
+    // the view shown is among the views; its path is copied out of the views table
+    char shown_path[CLI_PATH_MAX_LEN];
+    const int shown_named = (args->path == NULL) && (shown >= 0) && cli_view_path_at((unsigned int)shown, shown_path);
+    const char *const path = (args->path != NULL) ? args->path : (shown_named ? shown_path : NULL);
     if ((args->root == NULL) || (path == NULL) ||
         ((args->source == CLI_DIFF_VIEW_FILES) && (args->other_path == NULL)) ||
         (((args->source == CLI_DIFF_VIEW_COMMIT) || (args->source == CLI_DIFF_VIEW_COMMITS) ||
@@ -805,8 +861,17 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     const int copied = mmgr_line_ok(&sentences) &&
                        EMBED_CALL(sources_copied, DiffViewCtx, .source = args, .path = path, .out = &sentences);
     g_cli_guard->persistent_buf_release(scratch, g_cli_diff_view_owner);
-    if (!copied || !EMBED_CALL(lines_laid, DiffViewCtx, .err_msg = args->err_msg, .on = on) ||
-        !EMBED_CALL(compared, DiffViewCtx, .on = on))
+    // the two sides' lines in cells of this call, compared, then kept in the view's lines cell
+    CliLines laid[2];
+    unsigned char *cells[2] = {NULL, NULL};
+    const int opened =
+        copied &&
+        EMBED_CALL(lines_laid, DiffViewCtx, .err_msg = args->err_msg, .on = on, .lines = laid, .cell_out = cells) &&
+        EMBED_CALL(compared, DiffViewCtx, .on = on, .lines = laid) &&
+        EMBED_CALL(lines_stored, DiffViewCtx, .lines = laid);
+    g_cli_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
+    g_cli_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
+    if (!opened)
     {
         if (copied && (args->err_msg->at == 0ULL))
         {
@@ -819,8 +884,9 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     // a file the last commit does not contain has no line on the left, and the sides sentence for such a file
     if ((g_cli_diff_view.source == CLI_DIFF_VIEW_HEAD) && (g_cli_diff_view.left.lines == 0u))
     {
-        g_cli_diff_view.sides = DIFF_VIEW_UNTRACKED_SIDES;
-        g_cli_diff_view.sides_length = sizeof(DIFF_VIEW_UNTRACKED_SIDES) - 1ULL;
+        g_cli_diff_view.sides_length =
+            EMBED_CALL(text_kept, DiffViewCtx, .dst = g_cli_diff_view.sides, .capacity = sizeof(g_cli_diff_view.sides),
+                       .path = DIFF_VIEW_UNTRACKED_SIDES);
     }
     g_cli_diff_view.open = 1;
     g_cli_diff_view.change_at = 0u;

@@ -143,7 +143,14 @@ def dead_links(path, lines):
     """
     here = os.path.dirname(path)
     found = []
+    fenced = False
     for at, line in enumerate(lines):
+        # a fenced code block is code, not prose: a bracket pair in it is no link
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
         line = CODE_SPAN.sub(lambda span: " " * len(span.group(0)), line)
         for hit in LINK.finditer(line):
             target = hit.group(1).split("#")[0].strip()

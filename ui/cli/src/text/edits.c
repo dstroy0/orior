@@ -6,8 +6,7 @@
 #include "edits.h"
 #include "../command_line/pool.h"
 #include "json_tree.h"
-
-#include <stdlib.h>
+#include "sort.h"
 
 // the places of the edits being written, each edit's from and then its to; their bytes; the order they are taken in,
 // one cell of twice the edits' count; and the lock they are guarded by, which the sorts read them through
@@ -128,7 +127,8 @@ EMBED_INLINE void edits_bytes(const EditsCtx *args)
     {
         s_order[at] = at;
     }
-    qsort(s_order, args->count, sizeof(s_order[0]), edits_by_line);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_order, .count = args->count, .size = sizeof(s_order[0]),
+               .order = edits_by_line);
     unsigned int line = 0u;
     unsigned long long start = 0ULL;
     int beyond = 0;
@@ -138,9 +138,9 @@ EMBED_INLINE void edits_bytes(const EditsCtx *args)
         while (!beyond && (line < place.line))
         {
             const char *const newline =
-                (start < size)
-                    ? memor.chr(&(MemoriaCfg){.src = args->text + start, .val = '\n', .bytes = (size_t)(size - start)})
-                    : NULL;
+                (start < size) ? memor.chr(&(MemoriaCfg){
+                                     .src = args->text + start, .val = '\n', .bytes = (embed_word)(size - start)})
+                               : NULL;
             beyond = (newline == NULL);
             start = beyond ? size : (unsigned long long)(newline - args->text) + 1u;
             line += 1u;
@@ -152,7 +152,7 @@ EMBED_INLINE void edits_bytes(const EditsCtx *args)
         }
         const char *const newline =
             (start < size)
-                ? memor.chr(&(MemoriaCfg){.src = args->text + start, .val = '\n', .bytes = (size_t)(size - start)})
+                ? memor.chr(&(MemoriaCfg){.src = args->text + start, .val = '\n', .bytes = (embed_word)(size - start)})
                 : NULL;
         unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - args->text) : size;
         if ((end > start) && (args->text[end - 1u] == '\r'))
@@ -191,7 +191,8 @@ int cli_text_apply(const CliEditsOutCfg *args)
     {
         s_order[at] = at;
     }
-    qsort(s_order, args->count, sizeof(s_order[0]), edits_by_span);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_order, .count = args->count, .size = sizeof(s_order[0]),
+               .order = edits_by_span);
     unsigned long long cursor = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {

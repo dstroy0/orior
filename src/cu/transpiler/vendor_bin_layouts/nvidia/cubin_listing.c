@@ -21,7 +21,7 @@
 #include "cubin_listing.h"
 #include "cubin_write.h"
 
-#include "../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../lstar/interface/interface.h"
 
 #include <stdio.h>

@@ -233,12 +233,13 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
                .word_text = tsv);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                .word_text = "--");
-    whole = whole &&
-            EMBED_CALL(query_pairs_part_context_dry_internal.tools_words, QueryPairsPartContextDryCtx, .context = context,
-                       .part = args->mode->part, .dry = args->mode->dry, .words = &s_words, .err_msg = err_msg) &&
-            EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity,
-                       .words_letters = s_words.word_text, .count = s_words.count, .code = &code, .err_msg = err_msg);
+    whole =
+        whole &&
+        EMBED_CALL(query_pairs_part_context_dry_internal.tools_words, QueryPairsPartContextDryCtx, .context = context,
+                   .part = args->mode->part, .dry = args->mode->dry, .words = &s_words, .err_msg = err_msg) &&
+        EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
+                   .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_words.word_text,
+                   .count = s_words.count, .code = &code, .err_msg = err_msg);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||
         !whole)

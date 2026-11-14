@@ -77,7 +77,8 @@ typedef struct
 EMBED_INLINE int curl_is(const RequestsCurlCtx *args)
 {
     return (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) == args->size) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->text, .other = args->word_text, .bytes = (size_t)args->size}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = args->text, .other = args->word_text, .bytes = (embed_word)args->size}) ==
+            0);
 }
 
 // whether the line's headers name `lower`, ASCII case aside
@@ -166,7 +167,7 @@ EMBED_INLINE int curl_header_line(const RequestsCurlCtx *args)
 {
     const char *const colon =
         (args->value != NULL)
-            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = ':', .bytes = (size_t)args->value_size})
+            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = ':', .bytes = (embed_word)args->value_size})
             : NULL;
     if (colon == NULL)
     {
@@ -218,7 +219,7 @@ EMBED_INLINE void curl_urlencoded_put(const RequestsCurlCtx *args)
         return;
     }
     const char *const equals =
-        memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (size_t)args->value_size});
+        memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (embed_word)args->value_size});
     const unsigned long long lead = (equals != NULL) ? ((unsigned long long)(equals - args->value) + 1u) : 0ULL;
     mmgr_line_put_n(&s_curl->body_line, args->value, lead);
     EMBED_CALL(curl_encode, RequestsCurlCtx, .text = args->value + lead, .size = args->value_size - lead,
@@ -231,7 +232,7 @@ EMBED_INLINE int curl_form_put(const RequestsCurlCtx *args)
 {
     const char *const equals =
         (args->value != NULL)
-            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (size_t)args->value_size})
+            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (embed_word)args->value_size})
             : NULL;
     if (equals == NULL)
     {
@@ -402,7 +403,7 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
                                 .value = value.at, .value_size = value.size, .valued = takes_value);
     if (!fits)
     {
-        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than impero supports");
     }
     return fits;
 }
@@ -499,7 +500,7 @@ EMBED_INLINE void curl_write(const RequestsCurlCtx *args)
     {
         mmgr_line_ch(args->out,
                      (memor.chr(&(MemoriaCfg){
-                          .src = args->read->url.at, .val = '?', .bytes = (size_t)args->read->url.size}) != NULL)
+                          .src = args->read->url.at, .val = '?', .bytes = (embed_word)args->read->url.size}) != NULL)
                          ? '&'
                          : '?');
         mmgr_line_put_n(args->out, s_curl->body, s_curl->body_line.at);
@@ -553,7 +554,7 @@ EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
         const CurlText word_text = {s_curl->words.text + s_curl->words.word_text[at].at,
                                     s_curl->words.word_text[at].size};
         const char *const equals =
-            memor.chr(&(MemoriaCfg){.src = word_text.at, .val = '=', .bytes = (size_t)word_text.size});
+            memor.chr(&(MemoriaCfg){.src = word_text.at, .val = '=', .bytes = (embed_word)word_text.size});
         const int split =
             (word_text.size >= 2u) && (word_text.at[0] == '-') && (word_text.at[1] == '-') && (equals != NULL);
         const CurlText flag = split ? (CurlText){word_text.at, (unsigned long long)(equals - word_text.at)} : word_text;
@@ -568,7 +569,7 @@ EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
     }
     if (!mmgr_line_ok(&s_curl->created_line) || !mmgr_line_ok(&s_curl->body_line))
     {
-        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than impero supports");
         return 0;
     }
     if (s_curl->read.url.at == NULL)
@@ -587,7 +588,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
                .end = &end);
     const char *text = args->line_text + start;
     unsigned long long length = end - start;
-    s_curl = g_cli_guard->persistent_buf_alloc(sizeof(*s_curl), g_cli_requests_owner);
+    s_curl = g_cli_guard->temporary_buf_alloc(sizeof(*s_curl), g_cli_requests_owner);
     if (s_curl == NULL)
     {
         mmgr_line_put(args->err_msg, "a curl line's reading could not be taken");
@@ -612,7 +613,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
                           .words = &s_curl->words, .err_msg = args->err_msg);
     if (cmd && !mmgr_line_ok(&uncareted))
     {
-        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than impero supports");
     }
     if (read && ((s_curl->words.count == 0u) ||
                  !EMBED_CALL(curl_is, RequestsCurlCtx, .text = s_curl->words.text + s_curl->words.word_text[0].at,
@@ -629,7 +630,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
         read = mmgr_line_ok(&written);
         if (!read)
         {
-            mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
+            mmgr_line_put(args->err_msg, "the curl line is larger than impero supports");
         }
     }
     if (read)

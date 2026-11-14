@@ -136,9 +136,8 @@ static void each_sift(const BenchEachCfg *args)
     (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = args->bytes, .length = args->size, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = context);
 }
 
-// the corpus joined into one text of `whole` bytes and sifted for the needle twice over, `s_repeat` times each, the
-// least time of each recorded: once with each window counted for its plan, and once planned from the text's census,
-// counted once as a text stored in lines stores it. The rows "sift whole" and "sift stored"
+// the corpus joined into one text of `whole` bytes and sifted for the needle `s_repeat` times, the least time recorded:
+// the row "sift whole"
 static void bench_sift_file(unsigned long long whole)
 {
     unsigned char *const text = g_cli_guard->persistent_buf_alloc(whole + 1ull, g_checks_owner);
@@ -155,26 +154,17 @@ static void bench_sift_file(unsigned long long whole)
             used += s_corpus[at].size;
         }
     }
-    CliHistogram histogram;
-    memor.set(&(MemoriaCfg){.dst = &histogram, .val = 0, .bytes = sizeof(histogram)});
-    EMBED_CALL(cli_sift_length_histogram.histogram_count, CliSiftLengthHistogramCfg, .histogram = &histogram, .bytes = text, .length = used);
     BenchMeasure counted = {used, ~0ull};
-    BenchMeasure stored = {used, ~0ull};
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
     {
         unsigned long long sum = 0ull;
-        unsigned long long began = cli_clock_microseconds();
+        const unsigned long long began = cli_clock_microseconds();
         (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = text, .length = used, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = &sum);
-        unsigned long long consumed = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         counted.min = (consumed < counted.min) ? consumed : counted.min;
-        began = cli_clock_microseconds();
-        (void)EMBED_CALL(cli_sift_length_fold.find_all_with, CliSiftLengthFoldCfg, .histogram_read = &histogram, .text = text, .length = used, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = &sum);
-        consumed = cli_clock_microseconds() - began;
-        stored.min = (consumed < stored.min) ? consumed : stored.min;
     }
     g_cli_guard->persistent_buf_release(text, g_checks_owner);
     bench_row("sift whole", counted);
-    bench_row("sift stored", stored);
 }
 
 static void each_facts(const BenchEachCfg *args)

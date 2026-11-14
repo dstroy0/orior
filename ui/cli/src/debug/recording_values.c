@@ -19,9 +19,13 @@ typedef struct
 EMBED_INLINE void read_changes(const RecordingValuesCtx *args)
 {
     unsigned int record = CLI_JSON_NONE;
-    const CliJson *const json =
-        EMBED_CALL(cli_recording_internal.record, CliRecordingCtx,
-                   .at_u64 = g_cli_replay->recording.steps[args->step].record, .record = &record);
+    // the step's line record in a tree of this call, given back as the changes are handed on
+    CliJson tree;
+    EMBED_CALL(cli_recording_internal.record, CliRecordingCtx,
+               .at_u64 =
+                   EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = args->step).record,
+               .record = &record, .json = &tree);
+    const CliJson *const json = &tree;
     const unsigned int changed = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                             .json_read = json, .array = record, .index = 3u);
     for (unsigned int member = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
@@ -51,6 +55,7 @@ EMBED_INLINE void read_changes(const RecordingValuesCtx *args)
             EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = name, .value = NULL);
         }
     }
+    g_cli_guard->persistent_buf_release(tree.node, g_cli_debug_owner);
 }
 
 // The values stored as the steps of a frame are read: a cell of `capacity` of them for `owner`, and how many there are
@@ -104,14 +109,19 @@ unsigned int cli_recording_values(const CliRecordingAtCtx *args)
         return 0u;
     }
     CliRecordedValue *const cell =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliRecordedValue), args->owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)args->most * sizeof(CliRecordedValue), args->owner);
     CliRecordedValues recorded = {cell, (cell != NULL) ? args->most : 0u, 0u, args->owner};
-    const CliRecordedFrame *const frame = &recording->frames[args->serial];
-    for (unsigned int index = 0u; (index < frame->count) && (recording->by_frame[frame->first + index] <= args->at);
-         index += 1u)
+    const CliRecordedFrame frame =
+        EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = args->serial);
+    for (unsigned int index = 0u; index < frame.count; index += 1u)
     {
-        EMBED_CALL(read_changes, RecordingValuesCtx, .step = recording->by_frame[frame->first + index],
-                   .each = read_value_append, .context = &recorded);
+        const unsigned int step =
+            EMBED_CALL(cli_recording_index_internal.by_frame, CliRecordingIndexCtx, .index = frame.first + index);
+        if (step > args->at)
+        {
+            break;
+        }
+        EMBED_CALL(read_changes, RecordingValuesCtx, .step = step, .each = read_value_append, .context = &recorded);
     }
     // by name, as a stable sort leaves them
     CliRecordedValue *const values = recorded.values;
@@ -136,7 +146,7 @@ unsigned int cli_recording_stack(const CliRecordingAtFramesCtx *args)
     unsigned int at = args->at;
     const CliRecording *const recording = &g_cli_replay->recording;
     unsigned int count = 0u;
-    unsigned int serial = recording->steps[at].frame;
+    unsigned int serial = EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = at).frame;
     while ((serial != 0u) && (count < 512u) && (count < args->capacity))
     {
         const unsigned int step =
@@ -148,8 +158,11 @@ unsigned int cli_recording_stack(const CliRecordingAtFramesCtx *args)
         args->frames[count][0] = serial;
         args->frames[count][1] = step;
         count += 1u;
-        serial =
-            ((serial < recording->frame_max) && recording->frames[serial].seen) ? recording->frames[serial].parent : 0u;
+        const CliRecordedFrame frame =
+            (serial < recording->frame_max)
+                ? EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = serial)
+                : (CliRecordedFrame){0u, 0u, 0u, 0u, 0u, 0u, 0u, 0};
+        serial = frame.seen ? frame.parent : 0u;
     }
     return count;
 }
@@ -185,11 +198,14 @@ void cli_recording_history(const CliRecordingSerialCtx *args)
     {
         return;
     }
-    const CliRecordedFrame *const frame = &recording->frames[args->serial];
-    for (unsigned int index = 0u; index < frame->count; index += 1u)
+    const CliRecordedFrame frame =
+        EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = args->serial);
+    for (unsigned int index = 0u; index < frame.count; index += 1u)
     {
         CliRecordedNeedle needle = {args->name, 0, "", 0};
-        EMBED_CALL(read_changes, RecordingValuesCtx, .step = recording->by_frame[frame->first + index],
+        EMBED_CALL(read_changes, RecordingValuesCtx,
+                   .step = EMBED_CALL(cli_recording_index_internal.by_frame, CliRecordingIndexCtx,
+                                      .index = frame.first + index),
                    .each = read_on_find, .context = &needle);
         if (!needle.found)
         {
@@ -197,8 +213,10 @@ void cli_recording_history(const CliRecordingSerialCtx *args)
         }
         // a value seen first at a line was given by the frame's line before it, or by the call, for an argument,
         // where the line is the frame's first
-        const unsigned int by = recording->by_frame[frame->first + ((index > 0u) ? index - 1u : index)];
-        EMBED_CALL(each, CliEachStepLineValueCfg, .context = context, .step = by, .line = recording->steps[by].line,
+        const unsigned int by = EMBED_CALL(cli_recording_index_internal.by_frame, CliRecordingIndexCtx,
+                                           .index = frame.first + ((index > 0u) ? index - 1u : index));
+        EMBED_CALL(each, CliEachStepLineValueCfg, .context = context, .step = by,
+                   .line = EMBED_CALL(cli_recording_index_internal.step, CliRecordingIndexCtx, .index = by).line,
                    .value = needle.has ? needle.value : NULL);
     }
 }

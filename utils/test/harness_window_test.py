@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """harness.py window test: the window's suite. On Windows the window is the released window in C and is driven as the
 command line drives it, --driver cli: ui/test/cli_sweep.py starts it on a tree and a home of its own on the display
---monitor numbers, DISPLAY1 where none is, and sends it every command and option of orior_cli, each command that acts
+--monitor numbers, DISPLAY1 where none is, and sends it every command and option of impero, each command that acts
 in the window given its settle and pictured; --only keeps the forms holding its text. The run fails where the window
 ends under a form, a form crashes, or one does not end in its time.
 
@@ -222,7 +222,7 @@ def bench_placed(tree):
 def qry_writer_built():
     """The query run's writer built with the system's C compiler where its sources are newer, for the tests of runs to
     start runs with apart from the window; None where its sources or a compiler are missing."""
-    defs = findroot.at("src", "cu", "includes", "file_defs")
+    defs = findroot.at("includes", "file_defs")
     qry = os.path.join(defs, "qry")
     writer = os.path.join(qry, "writer")
     if not os.path.isfile(os.path.join(qry, "qry_writer.c")):
@@ -448,7 +448,7 @@ def inside_container(passed):
     inch, at which WebKitWebDriver puts each press where it is sent."""
     words = " ".join("'%s'" % word.replace("'", "'\\''") for word in passed if word != "--docker")
     sync = "rsync -a --checksum --no-times --delete --exclude /test/runs --exclude /cli/target --exclude /gui/src-tauri/target --exclude __pycache__ /host/ui/ /top/ui/"
-    sync += " && rsync -a --checksum --no-times --delete --exclude __pycache__ /host/utils/ /top/utils/ && mkdir -p /top/src && rsync -a --checksum --no-times --delete /host/src/cu/ /top/src/cu/ && cp /host/bin_names.tsv /top/bin_names.tsv"
+    sync += " && rsync -a --checksum --no-times --delete --exclude __pycache__ /host/utils/ /top/utils/ && mkdir -p /top/src && rsync -a --checksum --no-times --delete /host/src/cu/ /top/src/cu/ && rsync -a --checksum --no-times --delete /host/includes/ /top/includes/ && cp /host/bin_names.tsv /top/bin_names.tsv"
     # the run's folder is the host's, reached over the share Docker mounts it through; the tree the window works on lies
     # on the volume, where a file's open is the image's own system's
     run = "dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' orior-watch python3 /top/utils/test/harness.py window test --driver webdriver --no-servers --trees /top/build/ui_test/trees %s" % words
@@ -466,7 +466,7 @@ def docker_words(passed, env, keys):
         words += ["--security-opt", "seccomp=unconfined"]
     for key, value in env:
         words += ["-e", "%s=%s" % (key, value)]
-    mounts = [(findroot.at("ui"), "/host/ui", True), (findroot.at("utils"), "/host/utils", True), (findroot.at("src", "cu"), "/host/src/cu", True), (findroot.at("bin_names.tsv"), "/host/bin_names.tsv", True), (RUNS, "/top/build/ui_test/runs", False)]
+    mounts = [(findroot.at("ui"), "/host/ui", True), (findroot.at("utils"), "/host/utils", True), (findroot.at("src", "cu"), "/host/src/cu", True), (findroot.at("includes"), "/host/includes", True), (findroot.at("bin_names.tsv"), "/host/bin_names.tsv", True), (RUNS, "/top/build/ui_test/runs", False)]
     if keys:
         mounts.append((keys, "/host/ssh", True))
     for source, target, read_only in mounts:

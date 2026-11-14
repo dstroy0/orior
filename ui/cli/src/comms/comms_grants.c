@@ -12,14 +12,14 @@ int cli_comms_grants(const CliCommsGrantCfg *args)
     {
         return 1;
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->grant, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->grant, .cap = CLI_POOL_BYTES});
     // a grant ending in a slash and a star names every channel under the name before it
     if ((length < 2u) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = args->grant + length - 2u, .other = "/*", .cap = CLI_POOL_BYTES})))
     {
         return 0;
     }
-    const size_t under = length - 2u;
+    const embed_word under = length - 2u;
     return EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->channel, .other_pointer = args->grant,
                       .size = under) &&
            (args->channel[under] == '/');
@@ -37,8 +37,8 @@ int cli_comms_within(const CliCommsInnerCfg *args)
     }
     char inner_under[CLI_NAME_MAX_LEN];
     char outer_under[CLI_NAME_MAX_LEN];
-    const size_t inner_length = cellul.len(&(CatenaFinitaCfg){.src = args->inner, .cap = CLI_POOL_BYTES});
-    const size_t outer_length = cellul.len(&(CatenaFinitaCfg){.src = args->outer, .cap = CLI_POOL_BYTES});
+    const embed_word inner_length = cellul.len(&(CatenaFinitaCfg){.src = args->inner, .cap = CLI_POOL_BYTES});
+    const embed_word outer_length = cellul.len(&(CatenaFinitaCfg){.src = args->outer, .cap = CLI_POOL_BYTES});
     const int inner_all =
         (inner_length >= 2u) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = args->inner + inner_length - 2u, .other = "/*", .cap = CLI_POOL_BYTES}));

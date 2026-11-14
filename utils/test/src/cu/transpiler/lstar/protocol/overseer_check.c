@@ -39,7 +39,7 @@
 // setenv and unsetenv are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/overseer/overseer.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
 

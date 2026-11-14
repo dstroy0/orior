@@ -1,26 +1,24 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // job_runs.c: the Run pane's store (job_runs.h): the catalog listed by group, the job chosen, the runs the pane starts
-// and stops, and the sink their threads report to. A report is put in the inbox, one cell of reports each a record and
-// its text, under the lock, and the view's thread woken; the step takes the inbox whole under the lock and reads it on
-// the view's thread into the runs: a run's start a record, a line its plain text and its spans read once through the
-// xterm, an end its state, the oldest lines past CLI_LINES_MAX and the oldest ended runs past CLI_JOB_RUNS_RETAINED
-// released with their cells
+// and stops, and the sink their threads report to. A report is a movable cell of its record and its text, its token
+// pushed on the reports' ticket ring under a ticket of the run's thread, which waits where the ring is a lap behind,
+// and the view's thread woken; the step pops the reports in ticket order on the view's thread and reads them into the
+// runs: a run's start a record, a line its plain text and its spans read once through the xterm into the run's three
+// rings, the oldest lines released as a new one needs the room, an end its state, and the oldest ended runs past
+// CLI_JOB_RUNS_RETAINED released with their cells
 #include "job_runs_internal.h"
 
 #include "../command_line/command_line_internal.h"
 #include "embed_atomic.h"
 
-// the bytes a report's record and its text are aligned to in the inbox, the spans one line carries at most, the
-// sentence a start with no job chosen is refused with, and the most bytes of a run's state
-#define JOB_RUNS_ALIGN 8ULL
-#define JOB_RUNS_LINE_SPANS 64u
+// the sentence a start with no job chosen is refused with
 #define JOB_RUNS_NONE_CHOSEN "No job is chosen."
 
 CliJobRunsStore g_cli_job_runs_store = {.chosen = CLI_CATALOG_NONE, .focus = CLI_JOB_RUNS_FILTER};
 
-// A report in the inbox: its type, its run, its line's stream, its text's bytes, which follow the record, and for an
-// end its code where it has one and whether the run was stopped
+// A report on its way: its type, its run, its line's stream, its text's bytes, which follow the record in the
+// report's movable cell, and for an end its code where it has one and whether the run was stopped
 typedef struct
 {
     unsigned int type;
@@ -32,12 +30,21 @@ typedef struct
     int stopped;
 } JobRunsReport;
 
-// the inbox, its cell, the bytes in use and those it can take, standing under the lock; the lock; and the wake of the
-// view's thread
-static unsigned char *s_inbox;
-static unsigned long long s_inbox_used;
-static unsigned long long s_inbox_capacity;
-static embed_atomic_u32 s_lock;
+// A group as it stood before the catalog was read again: its name and whether it was open
+typedef struct
+{
+    char name[CLI_NAME_MAX_LEN];
+    int open;
+} JobRunsGroupWas;
+
+// The reports' ticket ring, its slots the reports' part of the rings block, laid as the pane begins; its turnstiles,
+// zeros at rest; the next ticket a run's thread takes and the next the view's thread pops, which that thread alone
+// touches; the wake a run's thread sleeps on while every slot is in flight; and the wake of the view's thread
+static EmbedTicketRing s_reports = {.mask = (1u << CLI_JOB_RUNS_REPORTS_SHIFT) - 1u};
+static EmbedTurnstiles s_turnstiles;
+static embed_atomic_u32 s_ticket;
+static embed_u32 s_taken;
+static CliWake s_room = CLI_WAKE_INIT;
 static void (*s_woken)(void);
 
 typedef struct
@@ -46,32 +53,83 @@ typedef struct
     const char *text;
     unsigned int at;
     unsigned long long run;
+    CliJobRunsRun *copy;
+    CliJobRunsRings *rings;
+    JobRunsReport *popped;
 } JobRunsCtx;
 
-// the lock taken, the thread yielding while another has it
-EMBED_INLINE void lock_taken(const JobRunsCtx *args)
+void cli_job_runs_group_read(const CliJobRunsCellCfg *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_job_runs_store.group[args->at],
+                                                            .offset = 0ULL,
+                                                            .dst = args->group,
+                                                            .bytes = sizeof(*args->group)});
+}
+
+int cli_job_runs_group_write(const CliJobRunsCellCfg *args)
+{
+    const CarcerMovableEntry **const cell = &g_cli_job_runs_store.group[args->at];
+    *cell = (*cell != NULL) ? *cell : g_cli_guard->movable_buf_alloc(sizeof(*args->group), g_cli_job_runs_owner);
+    return (*cell != NULL) && g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                                  .cell = *cell, .offset = 0ULL, .src = args->group, .bytes = sizeof(*args->group)});
+}
+
+void cli_job_runs_run_read(const CliJobRunsCellCfg *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = args->run, .bytes = sizeof(*args->run)});
+}
+
+int cli_job_runs_run_write(const CliJobRunsCellCfg *args)
+{
+    const CarcerMovableEntry **const cell = &g_cli_job_runs_store.run[args->at];
+    *cell = (*cell != NULL) ? *cell : g_cli_guard->movable_buf_alloc(sizeof(*args->run), g_cli_job_runs_owner);
+    return (*cell != NULL) && g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                                  .cell = *cell, .offset = 0ULL, .src = args->run, .bytes = sizeof(*args->run)});
+}
+
+void cli_job_runs_section_read(const CliJobRunsCellCfg *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_job_runs_store.section[args->at],
+                                                            .offset = 0ULL,
+                                                            .dst = args->section,
+                                                            .bytes = sizeof(*args->section)});
+}
+
+int cli_job_runs_section_write(const CliJobRunsCellCfg *args)
+{
+    const CarcerMovableEntry **const cell = &g_cli_job_runs_store.section[args->at];
+    *cell = (*cell != NULL) ? *cell : g_cli_guard->movable_buf_alloc(sizeof(*args->section), g_cli_job_runs_owner);
+    return (*cell != NULL) &&
+           g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+               .cell = *cell, .offset = 0ULL, .src = args->section, .bytes = sizeof(*args->section)});
+}
+
+// every group's cell given back, the groups none
+EMBED_INLINE void groups_released(const JobRunsCtx *args)
 {
     (void)args;
-    while (EMBED_ATOMIC_EXCHANGE_32(&s_lock, 1u) != 0u)
+    CliJobRunsStore *const store = &g_cli_job_runs_store;
+    for (unsigned int at = 0u; at < store->groups; at += 1u)
     {
-        cli_thread_yield();
+        (void)g_cli_guard->movable_buf_release(store->group[at], g_cli_job_runs_owner);
+        store->group[at] = NULL;
     }
+    store->groups = 0u;
 }
 
-// the lock let go
-EMBED_INLINE void lock_left(const JobRunsCtx *args)
-{
-    (void)args;
-    EMBED_ATOMIC_STORE(&s_lock, 0u);
-}
-
-// the place of the run numbered `run` among the store's runs, `runs` where none is
+// the place of the run numbered `run` among the store's runs, `runs` where none is: each record's number read alone
 EMBED_INLINE unsigned int run_place(const JobRunsCtx *args)
 {
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
     for (unsigned int at = store->runs; at > 0u; at -= 1u)
     {
-        if (store->run[at - 1u].run == args->run)
+        unsigned long long number = 0ULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[(at - 1u)],
+                                                                .offset = offsetof(CliJobRunsRun, run),
+                                                                .dst = &number,
+                                                                .bytes = sizeof(number)});
+        if (number == args->run)
         {
             return at - 1u;
         }
@@ -79,11 +137,11 @@ EMBED_INLINE unsigned int run_place(const JobRunsCtx *args)
     return store->runs;
 }
 
-// the run `at`'s state written anew from what it reports: `#n running`, `#n stopped`, `#n exit N` or `#n ended`, the
-// place of the word after the number standing beside it
+// the copy's state written anew from what the run reports: `#n running`, `#n stopped`, `#n exit N` or `#n ended`,
+// the place of the word after the number standing beside it
 EMBED_INLINE void state_written(const JobRunsCtx *args)
 {
-    CliJobRunsRun *const run = &g_cli_job_runs_store.run[args->at];
+    CliJobRunsRun *const run = args->copy;
     VerbaLinea line = {run->state, sizeof(run->state), 0ULL};
     mmgr_line_ch(&line, '#');
     mmgr_line_decimal(&line, run->run, 1u);
@@ -113,226 +171,234 @@ EMBED_INLINE void state_written(const JobRunsCtx *args)
     run->state_length = mmgr_line_ok(&line) ? (unsigned int)line.at : 0u;
 }
 
-// the run `at` released: its cells let go, the runs after it moved up, the runs in a cell sized to those left, and the
-// run shown let go where it was this one
+// the copy's cells let go: its id, and its set of rings made free where it took one
+EMBED_INLINE void run_cells_released(const JobRunsCtx *args)
+{
+    (void)g_cli_guard->movable_buf_release(args->copy->job_id, g_cli_job_runs_owner);
+    if (args->copy->rings_taken != NULL)
+    {
+        *args->copy->rings_taken = 0u;
+    }
+}
+
+// the run `at` released: its cells let go, its own with them, the runs after it moved up a place each, and the run
+// shown let go where it was this one
 EMBED_INLINE void run_released(const JobRunsCtx *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
-    CliJobRunsRun *const run = &store->run[args->at];
-    store->shown = (store->shown == run->run) ? 0ULL : store->shown;
-    g_cli_guard->persistent_buf_release(run->job_id, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(run->text, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(run->line, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(run->span, g_cli_job_runs_owner);
+    CliJobRunsRun run;
+    EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = args->at, .run = &run);
+    store->shown = (store->shown == run.run) ? 0ULL : store->shown;
+    EMBED_CALL(run_cells_released, JobRunsCtx, .copy = &run);
+    (void)g_cli_guard->movable_buf_release(store->run[args->at], g_cli_job_runs_owner);
     for (unsigned int from = args->at + 1u; from < store->runs; from += 1u)
     {
         store->run[from - 1u] = store->run[from];
     }
-    const unsigned int left = store->runs - 1u;
-    CliJobRunsRun *const fewer =
-        (left != 0u) ? g_cli_guard->persistent_buf_alloc(left * sizeof(CliJobRunsRun), g_cli_job_runs_owner) : NULL;
-    if (fewer != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = fewer, .src = store->run, .bytes = left * sizeof(CliJobRunsRun)});
-    }
-    if ((left == 0u) || (fewer != NULL))
-    {
-        g_cli_guard->persistent_buf_release(store->run, g_cli_job_runs_owner);
-        store->run = fewer;
-    }
-    store->runs = left;
+    store->run[store->runs - 1u] = NULL;
+    store->runs -= 1u;
 }
 
-// a run's start read: a record put after the runs in a cell sized to them, its job's id with its end in a cell of its
-// own, its job found in the catalog listed, and the run shown where its job is the one chosen
+// a run's start read: where the runs stand at their most, the oldest ended one released, the start dropped where
+// none has ended; the record put after the runs in a cell of its own, its job's id with its bytes in a cell of its own,
+// its job found in the catalog listed, and the run shown where its job is the one chosen
 EMBED_INLINE void start_read(const JobRunsCtx *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
-    CliJobRunsRun *const grown =
-        g_cli_guard->persistent_buf_alloc((store->runs + 1ULL) * sizeof(CliJobRunsRun), g_cli_job_runs_owner);
-    char *const job_id = g_cli_guard->persistent_buf_alloc(args->report->length + 1ULL, g_cli_job_runs_owner);
-    if ((grown == NULL) || (job_id == NULL))
+    if (store->runs == CLI_JOB_RUNS_MAX)
     {
-        g_cli_guard->persistent_buf_release(grown, g_cli_job_runs_owner);
-        g_cli_guard->persistent_buf_release(job_id, g_cli_job_runs_owner);
+        unsigned int oldest = 0u;
+        int live = 1;
+        while ((oldest < store->runs) && live)
+        {
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[oldest],
+                                                                    .offset = offsetof(CliJobRunsRun, live),
+                                                                    .dst = &live,
+                                                                    .bytes = sizeof(live)});
+            oldest += live ? 1u : 0u;
+        }
+        if (oldest == store->runs)
+        {
+            return;
+        }
+        EMBED_CALL(run_released, JobRunsCtx, .at = oldest);
+    }
+    // the id with its end, cut to the path bound, as the catalog's find reads it
+    char id[CLI_PATH_MAX_LEN];
+    const unsigned long long length =
+        (args->report->length < CLI_PATH_MAX_LEN) ? args->report->length : CLI_PATH_MAX_LEN - 1ULL;
+    if (length != 0ULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = id, .src = args->text, .bytes = length});
+    }
+    id[length] = '\0';
+    CliJobRunsRun run = {0};
+    run.run = args->report->run;
+    run.live = 1;
+    run.job_id = g_cli_guard->movable_buf_alloc(length + 1ULL, g_cli_job_runs_owner);
+    run.job_id_length = length;
+    // the rings lie over the pane's part of the rings block, one set's span for each run the pane holds; a free set
+    // taken for this run
+    static CliJobRunsRings s_rings[CLI_JOB_RUNS_MAX];
+    static unsigned char s_rings_taken[CLI_JOB_RUNS_MAX];
+    for (unsigned int set = 0u; (run.rings == NULL) && (set < CLI_JOB_RUNS_MAX); set += 1u)
+    {
+        if (s_rings_taken[set] == 0u)
+        {
+            s_rings_taken[set] = 1u;
+            run.rings = &s_rings[set];
+            run.rings_taken = &s_rings_taken[set];
+            unsigned char *const span = EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_JOB_RUNS) +
+                                        ((unsigned long long)set * CLI_JOB_RUNS_SET_BYTES);
+            run.rings->text_bytes = span + CLI_JOB_RUNS_SET_TEXT_AT;
+            run.rings->line_bytes = (CliJobRunsLine *)(void *)(span + CLI_JOB_RUNS_SET_LINE_AT);
+            run.rings->span_bytes = (CliTerminalXtermSpan *)(void *)(span + CLI_JOB_RUNS_SET_SPAN_AT);
+        }
+    }
+    if ((run.job_id == NULL) || (run.rings == NULL))
+    {
+        EMBED_CALL(run_cells_released, JobRunsCtx, .copy = &run);
         return;
     }
-    if (store->runs != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = store->run, .bytes = store->runs * sizeof(CliJobRunsRun)});
-    }
-    g_cli_guard->persistent_buf_release(store->run, g_cli_job_runs_owner);
-    store->run = grown;
-    memor.cpy(&(MemoriaCfg){.dst = job_id, .src = args->text, .bytes = args->report->length});
-    job_id[args->report->length] = '\0';
-    CliJobRunsRun *const run = &grown[store->runs];
-    *run = (CliJobRunsRun){0};
-    run->run = args->report->run;
-    run->job_id = job_id;
-    run->live = 1;
-    run->job = (store->catalog != NULL)
-                   ? EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = store->catalog, .id = job_id)
-                   : CLI_CATALOG_NONE;
+    CliJobRunsRings *const rings = run.rings;
+    rings->text_put = 0u;
+    rings->text_taken = 0u;
+    (void)anularis.init(&(AnularisCfg){
+        .ring = &rings->text, .buf = rings->text_bytes, .capacity = CLI_JOB_RUNS_TEXT_MAX, .segment_count = 1u});
+    (void)anularis.init(&(AnularisCfg){.ring = &rings->line,
+                                       .buf = (embed_u8 *)(void *)rings->line_bytes,
+                                       .capacity = (unsigned long long)CLI_LINES_MAX * sizeof(CliJobRunsLine),
+                                       .segment_count = CLI_LINES_MAX,
+                                       .segment_bytes = sizeof(CliJobRunsLine)});
+    (void)anularis.init(
+        &(AnularisCfg){.ring = &rings->span,
+                       .buf = (embed_u8 *)(void *)rings->span_bytes,
+                       .capacity = (unsigned long long)CLI_JOB_RUNS_SPANS_MAX * sizeof(CliTerminalXtermSpan),
+                       .segment_count = CLI_JOB_RUNS_SPANS_MAX,
+                       .segment_bytes = sizeof(CliTerminalXtermSpan)});
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = run.job_id, .offset = 0ULL, .src = id, .bytes = length + 1ULL});
+    run.job = (store->catalog != NULL)
+                  ? EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = store->catalog, .id = id)
+                  : CLI_CATALOG_NONE;
+    EMBED_CALL(state_written, JobRunsCtx, .copy = &run);
+    (void)EMBED_CALL(cli_job_runs_cells.run_write, CliJobRunsCellCfg, .at = store->runs, .run = &run);
     store->runs += 1u;
-    EMBED_CALL(state_written, JobRunsCtx, .at = store->runs - 1u);
-    store->shown = ((run->job != CLI_CATALOG_NONE) && (run->job == store->chosen)) ? run->run : store->shown;
+    store->shown = ((run.job != CLI_CATALOG_NONE) && (run.job == store->chosen)) ? run.run : store->shown;
 }
 
-// a line of the run `at` read: its plain text put after the run's in its cell and its spans after the run's, each cell
-// taken anew half again as large where the line outgrows it, the line's record after the run's lines the same
+// the rings' oldest line released: its bytes consumed from the text ring, its spans' segments and its record's
+// released
+EMBED_INLINE void oldest_released(const JobRunsCtx *args)
+{
+    CliJobRunsRings *const rings = args->rings;
+    size_t front = 0u;
+    if (!anularis.seg_front(&(AnularisCfg){.ring = &rings->line, .out_index = &front}))
+    {
+        return;
+    }
+    // a segment of the line ring is one line record, laid at the record's alignment
+    const CliJobRunsLine *const line =
+        (const CliJobRunsLine *)(const void *)anularis.seg_at(&(AnularisCfg){.ring = &rings->line, .index = front});
+    anularis.consume(&(AnularisCfg){.ring = &rings->text, .bytes = line->length});
+    rings->text_taken += line->length;
+    for (unsigned int at = 0u; at < line->spans; at += 1u)
+    {
+        anularis.seg_release(&(AnularisCfg){.ring = &rings->span});
+    }
+    anularis.seg_release(&(AnularisCfg){.ring = &rings->line});
+}
+
+// a line of the run `at` read: its text cut to CLI_JOB_RUNS_LINE_MAX bytes and read through the xterm into its plain
+// bytes and its spans, the run's oldest lines released until the rings have the room, the plain bytes put in the text
+// ring, each span published as a segment of the spans ring, and the line's record as a segment of the line ring
 EMBED_INLINE void line_read(const JobRunsCtx *args)
 {
-    CliJobRunsRun *const run = &g_cli_job_runs_store.run[args->at];
-    const unsigned long long length = args->report->length;
-    if (run->text_used + length > run->text_capacity)
-    {
-        const unsigned long long needed = run->text_used + length;
-        const unsigned long long capacity = needed + (needed / 2ULL) + 1ULL;
-        char *const grown = g_cli_guard->persistent_buf_alloc(capacity, g_cli_job_runs_owner);
-        if (grown == NULL)
-        {
-            return;
-        }
-        if (run->text_used != 0ULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = run->text, .bytes = run->text_used});
-        }
-        g_cli_guard->persistent_buf_release(run->text, g_cli_job_runs_owner);
-        run->text = grown;
-        run->text_capacity = capacity;
-    }
-    if (run->lines == run->lines_capacity)
-    {
-        const unsigned int capacity = run->lines + (run->lines / 2u) + 1u;
-        CliJobRunsLine *const grown =
-            g_cli_guard->persistent_buf_alloc(capacity * sizeof(CliJobRunsLine), g_cli_job_runs_owner);
-        if (grown == NULL)
-        {
-            return;
-        }
-        if (run->lines != 0u)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = run->line, .bytes = run->lines * sizeof(CliJobRunsLine)});
-        }
-        g_cli_guard->persistent_buf_release(run->line, g_cli_job_runs_owner);
-        run->line = grown;
-        run->lines_capacity = capacity;
-    }
-    CliTerminalXtermSpan spans[JOB_RUNS_LINE_SPANS];
-    unsigned long long plain = 0ULL;
+    CliJobRunsRun run;
+    EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = args->at, .run = &run);
+    CliJobRunsRings *const rings = run.rings;
+    const unsigned long long size =
+        (args->report->length < CLI_JOB_RUNS_LINE_MAX) ? args->report->length : CLI_JOB_RUNS_LINE_MAX;
+    char plain[CLI_JOB_RUNS_LINE_MAX];
+    CliTerminalXtermSpan spans[CLI_JOB_RUNS_LINE_SPANS];
+    unsigned long long plain_size = 0ULL;
     const unsigned int count =
-        EMBED_CALL(cli_terminal_xterm_spans_table.spans, CliTerminalXtermSpansCfg, .text = args->text, .size = length,
-                   .plain_out = run->text + run->text_used, .plain_capacity = length, .plain_size_out = &plain,
-                   .spans_out = spans, .spans_capacity = JOB_RUNS_LINE_SPANS);
-    if (run->spans + count > run->spans_capacity)
+        EMBED_CALL(cli_terminal_xterm_spans_table.spans, CliTerminalXtermSpansCfg, .text = args->text, .size = size,
+                   .plain_out = plain, .plain_capacity = sizeof(plain), .plain_size_out = &plain_size,
+                   .spans_out = spans, .spans_capacity = CLI_JOB_RUNS_LINE_SPANS);
+    while ((anularis.seg_inflight(&(AnularisCfg){.ring = &rings->line}) != 0u) &&
+           ((anularis.seg_inflight(&(AnularisCfg){.ring = &rings->line}) == CLI_LINES_MAX) ||
+            (anularis.vacant(&(AnularisCfg){.ring = &rings->text}) < plain_size) ||
+            (anularis.seg_inflight(&(AnularisCfg){.ring = &rings->span}) + count > CLI_JOB_RUNS_SPANS_MAX)))
     {
-        const unsigned int needed = run->spans + count;
-        const unsigned int capacity = needed + (needed / 2u);
-        CliTerminalXtermSpan *const grown =
-            g_cli_guard->persistent_buf_alloc(capacity * sizeof(CliTerminalXtermSpan), g_cli_job_runs_owner);
-        if (grown == NULL)
-        {
-            return;
-        }
-        if (run->spans != 0u)
-        {
-            memor.cpy(
-                &(MemoriaCfg){.dst = grown, .src = run->span, .bytes = run->spans * sizeof(CliTerminalXtermSpan)});
-        }
-        g_cli_guard->persistent_buf_release(run->span, g_cli_job_runs_owner);
-        run->span = grown;
-        run->spans_capacity = capacity;
+        EMBED_CALL(oldest_released, JobRunsCtx, .rings = rings);
     }
-    if (count != 0u)
+    const unsigned int start = rings->text_put;
+    (void)anularis.put(
+        &(AnularisCfg){.ring = &rings->text, .src = (const embed_u8 *)(const void *)plain, .bytes = plain_size});
+    // the plain bytes are at most the line bound, inside an unsigned int
+    rings->text_put += (unsigned int)plain_size;
+    size_t span_first = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
-        memor.cpy(
-            &(MemoriaCfg){.dst = run->span + run->spans, .src = spans, .bytes = count * sizeof(CliTerminalXtermSpan)});
+        size_t segment = 0u;
+        (void)anularis.seg_next(&(AnularisCfg){.ring = &rings->span, .out_index = &segment});
+        span_first = (at == 0u) ? segment : span_first;
+        memor.cpy(&(MemoriaCfg){.dst = anularis.seg_at(&(AnularisCfg){.ring = &rings->span, .index = segment}),
+                                .src = &spans[at],
+                                .bytes = sizeof(spans[0])});
+        anularis.seg_publish(&(AnularisCfg){.ring = &rings->span});
     }
-    // a run's text is far below CLI_LINES_TEXT's reach of an unsigned int, its lines bounded by CLI_LINES_MAX
-    run->line[run->lines] =
-        (CliJobRunsLine){(unsigned int)run->text_used, (unsigned int)plain, args->report->stream, run->spans, count};
-    run->text_used += plain;
-    run->spans += count;
-    run->lines += 1u;
-}
-
-// the oldest lines of the run `at` past CLI_LINES_MAX released: the lines left, their text and their spans each moved
-// into a cell of its own sized to them, their places counted from the first left
-EMBED_INLINE void lines_bounded(const JobRunsCtx *args)
-{
-    CliJobRunsRun *const run = &g_cli_job_runs_store.run[args->at];
-    if (run->lines <= CLI_LINES_MAX)
-    {
-        return;
-    }
-    const unsigned int dropped = run->lines - CLI_LINES_MAX;
-    const unsigned int text_from = run->line[dropped].start;
-    const unsigned int span_from = run->line[dropped].span_first;
-    const unsigned long long text_left = run->text_used - text_from;
-    const unsigned int spans_left = run->spans - span_from;
-    char *const text = g_cli_guard->persistent_buf_alloc(text_left + 1ULL, g_cli_job_runs_owner);
-    CliJobRunsLine *const line =
-        g_cli_guard->persistent_buf_alloc(CLI_LINES_MAX * sizeof(CliJobRunsLine), g_cli_job_runs_owner);
-    CliTerminalXtermSpan *const span =
-        (spans_left != 0u)
-            ? g_cli_guard->persistent_buf_alloc(spans_left * sizeof(CliTerminalXtermSpan), g_cli_job_runs_owner)
-            : NULL;
-    if ((text == NULL) || (line == NULL) || ((spans_left != 0u) && (span == NULL)))
-    {
-        g_cli_guard->persistent_buf_release(text, g_cli_job_runs_owner);
-        g_cli_guard->persistent_buf_release(line, g_cli_job_runs_owner);
-        g_cli_guard->persistent_buf_release(span, g_cli_job_runs_owner);
-        return;
-    }
-    if (text_left != 0ULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = text, .src = run->text + text_from, .bytes = text_left});
-    }
-    if (spans_left != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){
-            .dst = span, .src = run->span + span_from, .bytes = spans_left * sizeof(CliTerminalXtermSpan)});
-    }
-    for (unsigned int at = 0u; at < CLI_LINES_MAX; at += 1u)
-    {
-        line[at] = run->line[dropped + at];
-        line[at].start -= text_from;
-        line[at].span_first -= span_from;
-    }
-    g_cli_guard->persistent_buf_release(run->text, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(run->line, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(run->span, g_cli_job_runs_owner);
-    run->text = text;
-    run->text_used = text_left;
-    run->text_capacity = text_left + 1ULL;
-    run->line = line;
-    run->lines = CLI_LINES_MAX;
-    run->lines_capacity = CLI_LINES_MAX;
-    run->span = span;
-    run->spans = spans_left;
-    run->spans_capacity = spans_left;
+    size_t segment = 0u;
+    (void)anularis.seg_next(&(AnularisCfg){.ring = &rings->line, .out_index = &segment});
+    // the span's segment is inside the spans ring's count, an unsigned int
+    const CliJobRunsLine line = {start, (unsigned int)plain_size, args->report->stream, (unsigned int)span_first,
+                                 count};
+    memor.cpy(&(MemoriaCfg){.dst = anularis.seg_at(&(AnularisCfg){.ring = &rings->line, .index = segment}),
+                            .src = &line,
+                            .bytes = sizeof(line)});
+    anularis.seg_publish(&(AnularisCfg){.ring = &rings->line});
 }
 
 // the ended runs of the job of the run `at` past CLI_JOB_RUNS_RETAINED released, the oldest first; a run that goes
-// is never released
+// is never released, and the run that ended stands
 EMBED_INLINE void runs_retained(const JobRunsCtx *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
-    const char *const job_id = store->run[args->at].job_id;
+    CliJobRunsRun ended_run;
+    EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = args->at, .run = &ended_run);
+    char job_id[CLI_PATH_MAX_LEN];
+    const unsigned long long job_id_length =
+        (ended_run.job_id_length < CLI_PATH_MAX_LEN) ? ended_run.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = ended_run.job_id, .offset = 0ULL, .dst = job_id, .bytes = job_id_length});
+    job_id[job_id_length] = '\0';
+    char other_id[CLI_PATH_MAX_LEN];
     unsigned int ended = 0u;
     for (unsigned int at = 0u; at < store->runs; at += 1u)
     {
-        ended += (!store->run[at].live &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = store->run[at].job_id, .other = job_id, .cap = CLI_PATH_MAX_LEN}))
+        CliJobRunsRun one;
+        EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = at, .run = &one);
+        const unsigned long long other_length =
+            (one.job_id_length < CLI_PATH_MAX_LEN) ? one.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = one.job_id, .offset = 0ULL, .dst = other_id, .bytes = other_length});
+        other_id[other_length] = '\0';
+        ended += (!one.live && cellul.eq(&(CatenaFinitaCfg){.src = other_id, .other = job_id, .cap = CLI_PATH_MAX_LEN}))
                      ? 1u
                      : 0u;
     }
-    // the run that ended stands, its id's cell with it, while the older ones before it go
     for (unsigned int at = 0u; (ended > CLI_JOB_RUNS_RETAINED) && (at < store->runs);)
     {
-        const CliJobRunsRun *const one = &store->run[at];
-        if (!one->live && (one->job_id != job_id) &&
-            cellul.eq(&(CatenaFinitaCfg){.src = one->job_id, .other = job_id, .cap = CLI_PATH_MAX_LEN}))
+        CliJobRunsRun one;
+        EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = at, .run = &one);
+        const unsigned long long other_length =
+            (one.job_id_length < CLI_PATH_MAX_LEN) ? one.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = one.job_id, .offset = 0ULL, .dst = other_id, .bytes = other_length});
+        other_id[other_length] = '\0';
+        if (!one.live && (one.run != ended_run.run) &&
+            cellul.eq(&(CatenaFinitaCfg){.src = other_id, .other = job_id, .cap = CLI_PATH_MAX_LEN}))
         {
             EMBED_CALL(run_released, JobRunsCtx, .at = at);
             ended -= 1u;
@@ -345,18 +411,30 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
 // a run's end read: its state, its code where it has one and whether it was stopped, the job's ended runs retained
 EMBED_INLINE void end_read(const JobRunsCtx *args)
 {
-    CliJobRunsRun *const run = &g_cli_job_runs_store.run[args->at];
-    run->live = 0;
-    run->stopped = args->report->stopped;
-    run->has_code = args->report->has_code;
-    run->code = args->report->code;
-    EMBED_CALL(state_written, JobRunsCtx, .at = args->at);
+    CliJobRunsRun run;
+    EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = args->at, .run = &run);
+    run.live = 0;
+    run.stopped = args->report->stopped;
+    run.has_code = args->report->has_code;
+    run.code = args->report->code;
+    EMBED_CALL(state_written, JobRunsCtx, .copy = &run);
+    (void)EMBED_CALL(cli_job_runs_cells.run_write, CliJobRunsCellCfg, .at = args->at, .run = &run);
     EMBED_CALL(runs_retained, JobRunsCtx, .at = args->at);
 }
 
 void cli_job_runs_begin(const CliJobRunsWokenCfg *args)
 {
     s_woken = args->woken;
+    // the reports ring laid over its slots, the reports' part of the rings block, before any run's thread reports
+    s_reports.slots =
+        (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_JOB_RUNS_REPORTS);
+    // the store's own catalog cell taken as the window starts and kept until it ends, the tree's jobs read into it
+    // again on each refresh
+    if (g_cli_job_runs_store.own.job == NULL)
+    {
+        EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &g_cli_job_runs_store.own,
+                   .cells = g_cli_job_runs_owner, .jobs_max = CLI_LINE_JOBS);
+    }
 }
 
 // what a run the pane starts reports, on the run's thread, stored as the store's report: its type and its stream read
@@ -387,87 +465,120 @@ void cli_job_runs_reported(const CliJobRunsReportCfg *args)
                                                                   : NULL;
     const unsigned long long length =
         (text != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_LINES_TEXT}) : 0ULL;
-    const unsigned long long record = (sizeof(JobRunsReport) + JOB_RUNS_ALIGN - 1ULL) & ~(JOB_RUNS_ALIGN - 1ULL);
-    const unsigned long long bytes = record + ((length + JOB_RUNS_ALIGN - 1ULL) & ~(JOB_RUNS_ALIGN - 1ULL));
     const JobRunsReport report = {args->type, args->stream,   args->run,    length,
                                   args->code, args->has_code, args->stopped};
-    EMBED_CALL(lock_taken, JobRunsCtx, .at = 0u);
-    if (s_inbox_used + bytes > s_inbox_capacity)
+    // the report in a movable cell of its own, its text after its record; one the cells cannot meet is dropped
+    const CarcerMovableEntry *const cell =
+        (s_reports.slots != NULL) ? g_cli_guard->movable_buf_alloc(sizeof(report) + length, g_cli_job_runs_owner)
+                                  : NULL;
+    if (cell == NULL)
     {
-        // the inbox taken anew half again as large as it has to be, the reports in it moved over
-        const unsigned long long needed = s_inbox_used + bytes;
-        const unsigned long long capacity = needed + (needed / 2ULL);
-        unsigned char *const grown = g_cli_guard->persistent_buf_alloc(capacity, g_cli_job_runs_owner);
-        if (grown == NULL)
-        {
-            EMBED_CALL(lock_left, JobRunsCtx, .at = 0u);
-            return;
-        }
-        if (s_inbox_used != 0ULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_inbox, .bytes = s_inbox_used});
-        }
-        g_cli_guard->persistent_buf_release(s_inbox, g_cli_job_runs_owner);
-        s_inbox = grown;
-        s_inbox_capacity = capacity;
+        return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_inbox + s_inbox_used, .src = &report, .bytes = sizeof(report)});
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &report, .bytes = sizeof(report)});
     if (length != 0ULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_inbox + s_inbox_used + record, .src = text, .bytes = length});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = sizeof(report), .src = text, .bytes = length});
     }
-    s_inbox_used += bytes;
-    EMBED_CALL(lock_left, JobRunsCtx, .at = 0u);
+    // a ticket taken, its slot waited for where the ring is a lap behind, the cell's token pushed under it; the view's
+    // thread pops in ticket order
+    const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_ticket, 1u);
+    for (;;)
+    {
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_room);
+        if (cli_ticket_room(&s_reports, ticket))
+        {
+            break;
+        }
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_room, .seen = seen);
+    }
+    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
+    embed_u64 seen_word = 0u;
+    (void)embed_ticket_ring_granted(&s_turnstiles, address, &s_reports, stamp, &seen_word);
+    (void)embed_ticket_ring_pushed(&s_turnstiles, address, &s_reports, stamp, (void *)(embed_word)cell, &seen_word);
     if (s_woken != NULL)
     {
         s_woken();
     }
 }
 
+// the next report popped off the ring into `report`, its text into a cell of the temporary tier with its end: the
+// text's cell, or NULL where no report waits or the cells cannot meet the text, the report's own cell given back and
+// its slot released either way once it is read
+EMBED_INLINE char *report_popped(const JobRunsCtx *args)
+{
+    JobRunsReport *const report = args->popped;
+    embed_u64 stamp = 0u;
+    if (!cli_ticket_pushed(&s_reports, s_taken, &stamp))
+    {
+        return NULL;
+    }
+    // Explicit cast carries the pop's place as the pass's entry
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_taken;
+    void *popped = NULL;
+    embed_u64 seen_word = 0u;
+    (void)embed_ticket_ring_popped(&s_turnstiles, address, &s_reports, stamp, &popped, &seen_word);
+    const CarcerMovableEntry *const cell = popped;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = report, .bytes = sizeof(*report)});
+    char *const text = g_cli_guard->temporary_buf_alloc(report->length + 1ULL, g_cli_job_runs_owner);
+    if (text != NULL)
+    {
+        if (report->length != 0ULL)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = cell, .offset = sizeof(*report), .dst = text, .bytes = report->length});
+        }
+        text[report->length] = '\0';
+    }
+    (void)g_cli_guard->movable_buf_release(cell, g_cli_job_runs_owner);
+    (void)embed_ticket_ring_released(&s_turnstiles, &s_reports, stamp, &seen_word);
+    s_taken += 1u;
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_room);
+    return text;
+}
+
 int cli_job_runs_step(const CliJobRunsWokenCfg *args)
 {
     (void)args;
-    EMBED_CALL(lock_taken, JobRunsCtx, .at = 0u);
-    unsigned char *const inbox = s_inbox;
-    const unsigned long long used = s_inbox_used;
-    s_inbox = NULL;
-    s_inbox_used = 0ULL;
-    s_inbox_capacity = 0ULL;
-    EMBED_CALL(lock_left, JobRunsCtx, .at = 0u);
-    if (inbox == NULL)
-    {
-        return 0;
-    }
-    const unsigned long long record = (sizeof(JobRunsReport) + JOB_RUNS_ALIGN - 1ULL) & ~(JOB_RUNS_ALIGN - 1ULL);
-    for (unsigned long long at = 0ULL; at < used;)
+    int read = 0;
+    for (;;)
     {
         JobRunsReport report;
-        memor.cpy(&(MemoriaCfg){.dst = &report, .src = inbox + at, .bytes = sizeof(report)});
-        const char *const text = (const char *)(inbox + at + record);
-        at += record + ((report.length + JOB_RUNS_ALIGN - 1ULL) & ~(JOB_RUNS_ALIGN - 1ULL));
+        char *const text = EMBED_CALL(report_popped, JobRunsCtx, .popped = &report);
+        if (text == NULL)
+        {
+            break;
+        }
+        read = 1;
         if (report.type == CLI_JOB_RUNS_STARTED)
         {
             EMBED_CALL(start_read, JobRunsCtx, .report = &report, .text = text);
-            continue;
-        }
-        const unsigned int place = EMBED_CALL(run_place, JobRunsCtx, .run = report.run);
-        if (place == g_cli_job_runs_store.runs)
-        {
-            continue;
-        }
-        if (report.type == CLI_JOB_RUNS_LINE)
-        {
-            EMBED_CALL(line_read, JobRunsCtx, .report = &report, .text = text, .at = place);
         }
         else
         {
-            EMBED_CALL(end_read, JobRunsCtx, .report = &report, .at = place);
+            const unsigned int place = EMBED_CALL(run_place, JobRunsCtx, .run = report.run);
+            if (place != g_cli_job_runs_store.runs)
+            {
+                if (report.type == CLI_JOB_RUNS_LINE)
+                {
+                    EMBED_CALL(line_read, JobRunsCtx, .report = &report, .text = text, .at = place);
+                }
+                else
+                {
+                    EMBED_CALL(end_read, JobRunsCtx, .report = &report, .at = place);
+                }
+            }
         }
+        g_cli_guard->persistent_buf_release(text, g_cli_job_runs_owner);
     }
-    g_cli_guard->persistent_buf_release(inbox, g_cli_job_runs_owner);
-    for (unsigned int at = 0u; at < g_cli_job_runs_store.runs; at += 1u)
+    if (!read)
     {
-        EMBED_CALL(lines_bounded, JobRunsCtx, .at = at);
+        return 0;
     }
     EMBED_CALL(cli_job_runs_internal.sections_settle, CliJobRunsCtx, .values = NULL);
     return 1;
@@ -476,104 +587,103 @@ int cli_job_runs_step(const CliJobRunsWokenCfg *args)
 void cli_job_runs_read(const CliJobRunsRootCfg *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
-    // the groups' open flags read by name before the groups go: a group's name is the catalog's own text
-    CliJobRunsGroup *const was = store->group;
+    // the groups' names and open flags copied out before the groups go, in a cell of the call's own: a group's name
+    // is the catalog's own text, which goes with it
     const unsigned int was_groups = store->groups;
-    store->group = NULL;
-    store->groups = 0u;
-    if (store->own.cells != NULL)
+    JobRunsGroupWas *const was =
+        (was_groups != 0u)
+            ? g_cli_guard->temporary_buf_alloc(was_groups * sizeof(JobRunsGroupWas), g_cli_job_runs_owner)
+            : NULL;
+    for (unsigned int old = 0u; (was != NULL) && (old < was_groups); old += 1u)
     {
-        g_cli_guard->persistent_buf_release(store->own.job, store->own.cells);
-        store->own = (CliCatalog){0};
+        CliJobRunsGroup one;
+        EMBED_CALL(cli_job_runs_cells.group_read, CliJobRunsCellCfg, .at = old, .group = &one);
+        const unsigned long long length =
+            cellul.len(&(CatenaFinitaCfg){.src = one.name, .cap = CLI_NAME_MAX_LEN - 1ULL});
+        memor.cpy(&(MemoriaCfg){.dst = was[old].name, .src = one.name, .bytes = length});
+        was[old].name[length] = '\0';
+        was[old].open = one.open;
     }
+    EMBED_CALL(groups_released, JobRunsCtx, .at = 0u);
     store->catalog = args->catalog;
-    if ((args->catalog == NULL) && (args->root != NULL))
+    if ((args->catalog == NULL) && (args->root != NULL) && (store->own.job != NULL))
     {
-        EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &store->own, .cells = g_cli_job_runs_owner,
-                   .jobs_max = CLI_LINE_JOBS);
+        // the store's own catalog emptied and the tree's jobs read into it again
+        EMBED_CALL(cli_catalog_cells.emptied, CliCatalogCellsCfg, .catalog = &store->own);
         EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = args->root, .catalog = &store->own);
-        store->catalog = (store->own.job != NULL) ? &store->own : NULL;
+        store->catalog = &store->own;
     }
     const CliCatalog *const catalog = store->catalog;
-    const unsigned int jobs = (catalog != NULL) ? catalog->jobs : 0u;
-    // the groups in the order their first jobs come, each counted, in a cell sized to them
-    unsigned int groups = 0u;
-    for (unsigned int job = 0u; job < jobs; job += 1u)
+    const unsigned int listed = (catalog != NULL) ? catalog->jobs : 0u;
+    unsigned int jobs = (listed <= CLI_LINE_JOBS) ? listed : CLI_LINE_JOBS;
+    // the jobs' order and their passes, cells of the jobs listed taken anew for this read, none where the cells cannot
+    // meet them
+    (void)g_cli_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
+    (void)g_cli_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
+    store->order = (jobs != 0u) ? g_cli_guard->movable_buf_alloc((unsigned long long)jobs * sizeof(unsigned int),
+                                                                 g_cli_job_runs_owner)
+                                : NULL;
+    store->passes = (jobs != 0u) ? g_cli_guard->movable_buf_alloc(jobs, g_cli_job_runs_owner) : NULL;
+    if ((store->order == NULL) || (store->passes == NULL))
     {
-        unsigned int before = 0u;
-        while ((before < job) &&
-               !cellul.eq(&(CatenaFinitaCfg){
-                   .src = catalog->job[before].group, .other = catalog->job[job].group, .cap = CLI_NAME_MAX_LEN}))
-        {
-            before += 1u;
-        }
-        groups += (before == job) ? 1u : 0u;
-    }
-    g_cli_guard->persistent_buf_release(store->order, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->passes, g_cli_job_runs_owner);
-    store->order =
-        (jobs != 0u) ? g_cli_guard->persistent_buf_alloc(jobs * sizeof(unsigned int), g_cli_job_runs_owner) : NULL;
-    store->passes = (jobs != 0u) ? g_cli_guard->persistent_buf_alloc(jobs, g_cli_job_runs_owner) : NULL;
-    store->group = (groups != 0u)
-                       ? g_cli_guard->persistent_buf_alloc(groups * sizeof(CliJobRunsGroup), g_cli_job_runs_owner)
-                       : NULL;
-    if ((jobs != 0u) && ((store->order == NULL) || (store->passes == NULL) || (store->group == NULL)))
-    {
-        g_cli_guard->persistent_buf_release(store->order, g_cli_job_runs_owner);
-        g_cli_guard->persistent_buf_release(store->passes, g_cli_job_runs_owner);
-        g_cli_guard->persistent_buf_release(store->group, g_cli_job_runs_owner);
+        (void)g_cli_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
+        (void)g_cli_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
         store->order = NULL;
         store->passes = NULL;
-        store->group = NULL;
-        groups = 0u;
+        jobs = 0u;
     }
+    // the groups in the order their first jobs come, each with its jobs in the catalog's order after the groups before
+    // it, its open flag the one its name had
     unsigned int placed = 0u;
-    for (unsigned int job = 0u; (store->group != NULL) && (job < jobs); job += 1u)
+    for (unsigned int job = 0u; job < jobs; job += 1u)
     {
         unsigned int group = 0u;
-        while ((group < store->groups) &&
-               !cellul.eq(&(CatenaFinitaCfg){
-                   .src = store->group[group].name, .other = catalog->job[job].group, .cap = CLI_NAME_MAX_LEN}))
+        CliJobRunsGroup one;
+        while (group < store->groups)
         {
+            EMBED_CALL(cli_job_runs_cells.group_read, CliJobRunsCellCfg, .at = group, .group = &one);
+            if (cellul.eq(
+                    &(CatenaFinitaCfg){.src = one.name, .other = catalog->job[job].group, .cap = CLI_NAME_MAX_LEN}))
+            {
+                break;
+            }
             group += 1u;
         }
         if (group < store->groups)
         {
             continue;
         }
-        // a group new to the list: its jobs in the catalog's order after the groups before it, its open flag the
-        // one its name had
-        CliJobRunsGroup *const one = &store->group[store->groups];
-        *one = (CliJobRunsGroup){.name = catalog->job[job].group, .first = placed};
-        for (unsigned int old = 0u; old < was_groups; old += 1u)
+        one = (CliJobRunsGroup){.name = catalog->job[job].group, .first = placed};
+        for (unsigned int old = 0u; (was != NULL) && (old < was_groups); old += 1u)
         {
-            one->open = cellul.eq(&(CatenaFinitaCfg){.src = was[old].name, .other = one->name, .cap = CLI_NAME_MAX_LEN})
-                            ? was[old].open
-                            : one->open;
+            one.open = cellul.eq(&(CatenaFinitaCfg){.src = was[old].name, .other = one.name, .cap = CLI_NAME_MAX_LEN})
+                           ? was[old].open
+                           : one.open;
         }
         for (unsigned int member = job; member < jobs; member += 1u)
         {
             if (cellul.eq(
-                    &(CatenaFinitaCfg){.src = catalog->job[member].group, .other = one->name, .cap = CLI_NAME_MAX_LEN}))
+                    &(CatenaFinitaCfg){.src = catalog->job[member].group, .other = one.name, .cap = CLI_NAME_MAX_LEN}))
             {
-                store->order[placed] = member;
+                (void)g_cli_guard->movable_buf_write(
+                    &(CarcerMovableCfg){.cell = store->order,
+                                        .offset = (unsigned long long)placed * sizeof(member),
+                                        .src = &member,
+                                        .bytes = sizeof(member)});
                 placed += 1u;
-                one->count += 1u;
+                one.count += 1u;
             }
         }
+        (void)EMBED_CALL(cli_job_runs_cells.group_write, CliJobRunsCellCfg, .at = store->groups, .group = &one);
         store->groups += 1u;
     }
     g_cli_guard->persistent_buf_release(was, g_cli_job_runs_owner);
     // the job chosen followed by its id, its form standing where it is still listed, and each run's job found again
     const unsigned int chosen =
-        ((store->chosen_id != NULL) && (catalog != NULL))
+        ((store->chosen_id[0] != '\0') && (catalog != NULL))
             ? EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = catalog, .id = store->chosen_id)
             : CLI_CATALOG_NONE;
-    if (chosen == CLI_CATALOG_NONE)
-    {
-        g_cli_guard->persistent_buf_release(store->chosen_id, g_cli_job_runs_owner);
-        store->chosen_id = NULL;
-    }
+    store->chosen_id[0] = (chosen == CLI_CATALOG_NONE) ? '\0' : store->chosen_id[0];
     const int form_stands = (chosen != CLI_CATALOG_NONE) && (catalog->job[chosen].params == store->form_params);
     store->chosen = chosen;
     if (!form_stands)
@@ -582,9 +692,18 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
     }
     for (unsigned int at = 0u; at < store->runs; at += 1u)
     {
-        store->run[at].job = (catalog != NULL) ? EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg,
-                                                            .catalog_read = catalog, .id = store->run[at].job_id)
-                                               : CLI_CATALOG_NONE;
+        CliJobRunsRun run;
+        EMBED_CALL(cli_job_runs_cells.run_read, CliJobRunsCellCfg, .at = at, .run = &run);
+        char id[CLI_PATH_MAX_LEN];
+        const unsigned long long id_length =
+            (run.job_id_length < CLI_PATH_MAX_LEN) ? run.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = run.job_id, .offset = 0ULL, .dst = id, .bytes = id_length});
+        id[id_length] = '\0';
+        run.job = (catalog != NULL)
+                      ? EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = catalog, .id = id)
+                      : CLI_CATALOG_NONE;
+        (void)EMBED_CALL(cli_job_runs_cells.run_write, CliJobRunsCellCfg, .at = at, .run = &run);
     }
     EMBED_CALL(cli_job_runs_internal.filter_apply, CliJobRunsCtx, .values = NULL);
 }
@@ -592,8 +711,7 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
 int cli_job_runs_start(const CliJobRunsRunCfg *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
-    g_cli_guard->persistent_buf_release(store->refusal, g_cli_job_runs_owner);
-    store->refusal = NULL;
+    store->refusal[0] = '\0';
     store->refusal_length = 0ULL;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -615,19 +733,18 @@ int cli_job_runs_start(const CliJobRunsRunCfg *args)
         store->shown = run;
         return 1;
     }
-    // the refusal in a cell sized to it with its end: the runner's, or why nothing could start
+    // the refusal with its end: the runner's, or why nothing could start
     if (store->chosen == CLI_CATALOG_NONE)
     {
         mmgr_line_put(&err_msg, JOB_RUNS_NONE_CHOSEN);
     }
     const unsigned long long refused = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL;
-    store->refusal = (refused != 0ULL) ? g_cli_guard->persistent_buf_alloc(refused + 1ULL, g_cli_job_runs_owner) : NULL;
-    if (store->refusal != NULL)
+    if (refused != 0ULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = store->refusal, .src = why, .bytes = refused});
-        store->refusal[refused] = '\0';
-        store->refusal_length = refused;
     }
+    store->refusal[refused] = '\0';
+    store->refusal_length = refused;
     return 0;
 }
 
@@ -636,7 +753,14 @@ int cli_job_runs_live(const CliJobRunsRunCfg *args)
     (void)args;
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
     const unsigned int place = EMBED_CALL(run_place, JobRunsCtx, .run = store->shown);
-    return (store->shown != 0ULL) && (place < store->runs) && store->run[place].live;
+    if ((store->shown == 0ULL) || (place >= store->runs))
+    {
+        return 0;
+    }
+    int live = 0;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = store->run[place], .offset = offsetof(CliJobRunsRun, live), .dst = &live, .bytes = sizeof(live)});
+    return live;
 }
 
 int cli_job_runs_stop(const CliJobRunsRunCfg *args)
@@ -654,19 +778,24 @@ int cli_job_runs_stop(const CliJobRunsRunCfg *args)
 const char *cli_job_runs_refusal(const CliJobRunsRunCfg *args)
 {
     *args->length_out = g_cli_job_runs_store.refusal_length;
-    return (g_cli_job_runs_store.refusal != NULL) ? g_cli_job_runs_store.refusal : "";
+    return g_cli_job_runs_store.refusal;
 }
 
 void cli_job_runs_end(const CliJobRunsWokenCfg *args)
 {
     (void)args;
     CliJobRunsStore *const store = &g_cli_job_runs_store;
-    EMBED_CALL(lock_taken, JobRunsCtx, .at = 0u);
-    g_cli_guard->persistent_buf_release(s_inbox, g_cli_job_runs_owner);
-    s_inbox = NULL;
-    s_inbox_used = 0ULL;
-    s_inbox_capacity = 0ULL;
-    EMBED_CALL(lock_left, JobRunsCtx, .at = 0u);
+    // the reports still on the ring read off it and let go, their runs ended before this
+    for (;;)
+    {
+        JobRunsReport report;
+        char *const text = EMBED_CALL(report_popped, JobRunsCtx, .popped = &report);
+        if (text == NULL)
+        {
+            break;
+        }
+        g_cli_guard->persistent_buf_release(text, g_cli_job_runs_owner);
+    }
     while (store->runs != 0u)
     {
         EMBED_CALL(run_released, JobRunsCtx, .at = store->runs - 1u);
@@ -675,14 +804,15 @@ void cli_job_runs_end(const CliJobRunsWokenCfg *args)
     {
         g_cli_guard->persistent_buf_release(store->own.job, store->own.cells);
     }
-    g_cli_guard->persistent_buf_release(store->group, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->order, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->passes, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->chosen_id, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->section, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->form, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->refusal, g_cli_job_runs_owner);
-    g_cli_guard->persistent_buf_release(store->filter.bytes, g_cli_job_runs_owner);
+    EMBED_CALL(groups_released, JobRunsCtx, .at = 0u);
+    (void)g_cli_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
+    (void)g_cli_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
+    for (unsigned int at = 0u; at < CLI_JOB_RUNS_SECTIONS_MAX; at += 1u)
+    {
+        (void)g_cli_guard->movable_buf_release(store->section[at], g_cli_job_runs_owner);
+    }
+    (void)g_cli_guard->movable_buf_release(store->form, g_cli_job_runs_owner);
+    EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &store->filter, .owner = g_cli_job_runs_owner);
     *store = (CliJobRunsStore){.chosen = CLI_CATALOG_NONE, .focus = CLI_JOB_RUNS_FILTER};
     s_woken = NULL;
 }

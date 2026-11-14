@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_tools.c: `orior_cli file plugins`, every plugin with its id, where it comes from, its name and the
-// extensions it opens, one of the reader's that stands in for one that comes with orior_cli marked so; `orior_cli file
-// new-plugin`, a language plugin written to the reader's plugins folder; and the toolchain `orior_cli file toolchains
+// command_line_tools.c: `imp file plugins`, every plugin with its id, where it comes from, its name and the
+// extensions it opens, one of the reader's that stands in for one that comes with impero marked so; `imp file
+// new-plugin`, a language plugin written to the reader's plugins folder; and the toolchain `imp file toolchains
 // add` describes, its name, then each flag and its value, added
 #include "../plugins/plugins.h"
 #include "../text/text.h"
@@ -355,7 +355,7 @@ EMBED_INLINE void tools_flag_refused(const CommandLineToolsCtx *args)
     VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_put(&line, "new-plugin takes no ");
     mmgr_line_put(&line, args->name);
-    mmgr_line_put(&line, ": orior_cli help names what it takes");
+    mmgr_line_put(&line, ": imp help names what it takes");
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
                .size = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
@@ -521,6 +521,6 @@ int cli_toolchain_add(const CliCommandLineOutErrMsgCtx *args)
     }
     mmgr_line_put(args->out, "added ");
     mmgr_line_put(args->out, id);
-    mmgr_line_put(args->out, ": orior_cli file toolchains lists it");
+    mmgr_line_put(args->out, ": imp file toolchains lists it");
     return 1;
 }

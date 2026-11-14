@@ -11,7 +11,7 @@
 // counted as not supported instead of passed or failed. Where a construction set is given, each program's lane is
 // refined by it (engine_table M23): split at the budgets the loop proposes, each schedule checked against the host, and
 // the least cost among those that pass retained.
-#include "../includes/file_defs/krep/krep.h"
+#include "../../../includes/file_defs/krep/krep.h"
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_image.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"

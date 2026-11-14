@@ -28,7 +28,7 @@ EMBED_INLINE unsigned int completions_text_store(const CompletionsCtx *args)
         return CLI_COMPLETIONS_TEXT;
     }
     const unsigned int at = args->items->used;
-    memor.cpy(&(MemoriaCfg){.dst = args->items->text + at, .src = bytes, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = args->items->text + at, .src = bytes, .bytes = (embed_word)args->size});
     args->items->text[at + args->size] = '\0';
     args->items->used += (unsigned int)args->size + 1u;
     return at;

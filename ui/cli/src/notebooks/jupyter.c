@@ -64,8 +64,7 @@ EMBED_INLINE void jupyter_let_go(const JupyterCtx *args)
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->control);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->iopub);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &kernel->spawned);
-    g_cli_guard->persistent_buf_release(kernel->shell_queue.out, g_cli_notebook_owner);
-    g_cli_guard->persistent_buf_release(kernel, g_cli_notebook_owner);
+    kernel->reserved = 0;
 }
 
 void cli_jupyter_ref(const CliJupyterErrMsgKernelFileCfg *args)
@@ -83,19 +82,29 @@ void cli_jupyter_free(const CliJupyterErrMsgKernelFileCfg *args)
     }
 }
 
-// a kernel's cell taken, referenced once and made empty: the kernel, or NULL where the cells cannot meet it
+// the bytes of one kernel's wire buffers
+#define JUPYTER_KERNEL_BYTES                                                                                           \
+    ((unsigned long long)CLI_KERNEL_CONTENT + (3ULL * CLI_KERNEL_REPLY_CAPACITY) + CLI_KERNEL_IOPUB_CAPACITY +         \
+     (2ULL * CLI_KERNEL_LINE * 8ULL))
+
+// a free kernel place taken, referenced once and made empty: the kernel, or NULL where every place is taken. The
+// places and their wire buffers stand fixed, outside the pool, where they punch no hole in the persistent tier
 static CliKernel *jupyter_position_alloc(void)
 {
-    // a kernel's buffers stand in its cell, after it
-    CliKernel *const kernel = g_cli_guard->persistent_buf_alloc(
-        sizeof(*kernel) + (unsigned long long)CLI_KERNEL_CONTENT + (3ULL * CLI_KERNEL_REPLY_CAPACITY) +
-            CLI_KERNEL_IOPUB_CAPACITY + (2ULL * CLI_KERNEL_LINE * 8ULL),
-        g_cli_notebook_owner);
-    if (kernel == NULL)
+    static CliKernel s_kernels[CLI_KERNELS_MAX];
+    static char s_kernel_bytes[CLI_KERNELS_MAX][JUPYTER_KERNEL_BYTES];
+    static char s_shell_queue[CLI_KERNELS_MAX][CLI_KERNEL_QUEUE_CAPACITY];
+    unsigned int place = 0u;
+    while ((place < CLI_KERNELS_MAX) && s_kernels[place].reserved)
+    {
+        place += 1u;
+    }
+    if (place == CLI_KERNELS_MAX)
     {
         return NULL;
     }
-    kernel->content = (char *)(void *)(kernel + 1);
+    CliKernel *const kernel = &s_kernels[place];
+    kernel->content = s_kernel_bytes[place];
     kernel->debug_reply = kernel->content + CLI_KERNEL_CONTENT;
     kernel->iopub_capacity = (unsigned char *)(kernel->debug_reply + CLI_KERNEL_REPLY_CAPACITY);
     kernel->shell_capacity = kernel->iopub_capacity + CLI_KERNEL_IOPUB_CAPACITY;
@@ -111,7 +120,7 @@ static CliKernel *jupyter_position_alloc(void)
     kernel->control.handle = 0ULL;
     kernel->iopub.handle = 0ULL;
     kernel->shell_flight[0] = '\0';
-    kernel->shell_queue = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+    kernel->shell_queue = mmgr_line_over(s_shell_queue[place], CLI_KERNEL_QUEUE_CAPACITY);
     kernel->shell_queue_from = 0ULL;
     kernel->wake = (CliWake)CLI_WAKE_INIT;
     memor.set(&(MemoriaCfg){.dst = kernel->waiters, .val = 0, .bytes = sizeof(kernel->waiters)});
@@ -465,8 +474,7 @@ CliKernel *cli_jupyter_start(const CliJupyterSpecCfg *args)
                     .err_msg = args->err_msg))
     {
         EMBED_CALL(cli_jupyter_at_internal.kernel_forgotten, CliJupyterAtCtx, .kernel = kernel);
-        g_cli_guard->persistent_buf_release(kernel->shell_queue.out, g_cli_notebook_owner);
-        g_cli_guard->persistent_buf_release(kernel, g_cli_notebook_owner);
+        kernel->reserved = 0;
         return NULL;
     }
     const unsigned long long until = cli_clock_milliseconds() + CLI_KERNEL_START;

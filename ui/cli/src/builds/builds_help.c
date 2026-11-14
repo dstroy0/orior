@@ -15,9 +15,9 @@ unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args)
     {
         count += (args->text[at] == '\n') ? 1ULL : 0ULL;
     }
-    unsigned int *const starts =
-        (count <= 0xffffffffULL) ? g_cli_guard->persistent_buf_alloc(count * sizeof(unsigned int), g_cli_build_owner)
-                                 : NULL;
+    unsigned int *const starts = (count <= 0xffffffffULL)
+                                     ? g_cli_guard->temporary_buf_alloc(count * sizeof(unsigned int), g_cli_build_owner)
+                                     : NULL;
     // a count no more than 0xffffffff where the cell is taken, which an unsigned int stores
     EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = args->text, .size = args->size,
                .starts = starts, .most = (starts != NULL) ? (unsigned int)count : 0u, .lines_out = args->lines_out);
@@ -41,7 +41,7 @@ void cli_build_lines_get(const CliBuildsTextSizeCfg *args)
     for (unsigned long long at = 0ULL; (at < size) && (args->lines_out->count < args->most);)
     {
         const char *const newline =
-            memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (size_t)(size - at)});
+            memor.chr(&(MemoriaCfg){.src = text + at, .val = '\n', .bytes = (embed_word)(size - at)});
         if (newline == NULL)
         {
             break;
@@ -97,7 +97,7 @@ unsigned long long cli_build_line_start(const CliBuildsLineCfg *args)
         const char *const newline =
             (at < args->lines->size)
                 ? memor.chr(&(MemoriaCfg){
-                      .src = args->lines->text + at, .val = '\n', .bytes = (size_t)(args->lines->size - at)})
+                      .src = args->lines->text + at, .val = '\n', .bytes = (embed_word)(args->lines->size - at)})
                 : NULL;
         if (newline == NULL)
         {
@@ -114,7 +114,7 @@ void cli_build_findings_begin(const CliBuildsLinesCfg *args)
     *args->found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
     const unsigned long long finding_bytes = (unsigned long long)CLI_BUILD_FINDINGS * sizeof(CliBuildFinding);
     const unsigned long long fix_bytes = (unsigned long long)CLI_BUILD_FIXES * sizeof(CliBuildFix);
-    char *const cell = g_cli_guard->persistent_buf_alloc(finding_bytes + fix_bytes + CLI_BUILD_TEXT, g_cli_build_owner);
+    char *const cell = g_cli_guard->temporary_buf_alloc(finding_bytes + fix_bytes + CLI_BUILD_TEXT, g_cli_build_owner);
     if (cell == NULL)
     {
         args->found->full = 1;
@@ -163,7 +163,7 @@ EMBED_INLINE unsigned int help_text_store(const BuildsHelpCtx *args)
     const unsigned int at = args->found->used;
     if (!in_position)
     {
-        memor.move_down(&(MemoriaCfg){.dst = args->found->text + at, .src = bytes, .bytes = (size_t)args->size});
+        memor.move_down(&(MemoriaCfg){.dst = args->found->text + at, .src = bytes, .bytes = (embed_word)args->size});
     }
     args->found->text[at + args->size] = '\0';
     args->found->used += (unsigned int)args->size + 1u;
@@ -372,9 +372,10 @@ unsigned long long cli_build_byte_at(const CliBuildsPathCfg *args)
     for (unsigned int walk = 0u; walk < args->line; walk += 1u)
     {
         const char *const newline =
-            (start < args->size) ? memor.chr(&(MemoriaCfg){
-                                       .src = args->text + start, .val = '\n', .bytes = (size_t)(args->size - start)})
-                                 : NULL;
+            (start < args->size)
+                ? memor.chr(
+                      &(MemoriaCfg){.src = args->text + start, .val = '\n', .bytes = (embed_word)(args->size - start)})
+                : NULL;
         if (newline == NULL)
         {
             return args->size;
@@ -382,9 +383,9 @@ unsigned long long cli_build_byte_at(const CliBuildsPathCfg *args)
         start = (unsigned long long)(newline - args->text) + 1u;
     }
     const char *const newline =
-        (start < args->size)
-            ? memor.chr(&(MemoriaCfg){.src = args->text + start, .val = '\n', .bytes = (size_t)(args->size - start)})
-            : NULL;
+        (start < args->size) ? memor.chr(&(MemoriaCfg){
+                                   .src = args->text + start, .val = '\n', .bytes = (embed_word)(args->size - start)})
+                             : NULL;
     const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - args->text) : args->size;
     return start + EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = args->text + start,
                               .size = end - start, .col = args->col);
@@ -425,7 +426,7 @@ void cli_build_relative(const CliBuildsItemsCfg *args)
         EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = args->token, .at = args->token_size,
                    .of = cli_build_word_letter);
     if ((args->value_size <= base) ||
-        (memor.cmp(&(MemoriaCfg){.src = args->value, .other = args->token, .bytes = (size_t)base}) != 0))
+        (memor.cmp(&(MemoriaCfg){.src = args->value, .other = args->token, .bytes = (embed_word)base}) != 0))
     {
         return;
     }
@@ -457,7 +458,7 @@ void cli_build_items(const CliBuildsItemsTypeCfg *args)
 void cli_build_inside(const CliBuildsRootCfg *args)
 {
     VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ULL};
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     const char after = args->folder[length];
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
                     .size = length) ||

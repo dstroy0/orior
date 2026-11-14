@@ -141,9 +141,9 @@ int query_learn_files_add(const QueryLearnErrMsgCtx *args)
     char crystal[QUERY_PATH_MAX_LEN];
     const int has_crystal = EMBED_CALL(query_capacity_root_internal.crystal, QueryCapacityRootCtx,
                                        .root = context->root, .program = crystal, .capacity = sizeof(crystal));
-    return EMBED_CALL(query_count_folder_internal.run_output_relay, QueryCountFolderCtx, .run = run,
-                      .folder = folder, .files = files, .count = args->lessons ? 4u : 3u,
-                      .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
+    return EMBED_CALL(query_count_folder_internal.run_output_relay, QueryCountFolderCtx, .run = run, .folder = folder,
+                      .files = files, .count = args->lessons ? 4u : 3u, .crystal = has_crystal ? crystal : NULL,
+                      .err_msg = err_msg);
 }
 
 void query_teacher_words(const QueryLearnWordsWordsCtx *args)

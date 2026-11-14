@@ -74,10 +74,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notebook_kernel\\test_notebook_kernel\\test_notebook_kernel.c");
-  run_test(test_the_tools_and_the_kernel_box_with_no_kernel, "test_the_tools_and_the_kernel_box_with_no_kernel", 117);
-  run_test(test_the_kernels_the_machine_has_are_a_row_each, "test_the_kernels_the_machine_has_are_a_row_each", 136);
-  run_test(test_a_code_cell_runs_on_a_kernel_started_for_it, "test_a_code_cell_runs_on_a_kernel_started_for_it", 157);
-  run_test(test_restart_and_stop_leave_no_cell_running, "test_restart_and_stop_leave_no_cell_running", 182);
+  run_test(test_the_tools_and_the_kernel_box_with_no_kernel, "test_the_tools_and_the_kernel_box_with_no_kernel", 118);
+  run_test(test_the_kernels_the_machine_has_are_a_row_each, "test_the_kernels_the_machine_has_are_a_row_each", 137);
+  run_test(test_a_code_cell_runs_on_a_kernel_started_for_it, "test_a_code_cell_runs_on_a_kernel_started_for_it", 158);
+  run_test(test_restart_and_stop_leave_no_cell_running, "test_restart_and_stop_leave_no_cell_running", 183);
 
   return UNITY_END();
 }

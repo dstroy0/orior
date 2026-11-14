@@ -270,13 +270,13 @@ char *cli_catalog_script_alloc(const CliCatalogPathOutCtx *args)
     {
         return NULL;
     }
-    char *const text = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_catalog_owner);
+    char *const text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_catalog_owner);
     if (text != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
+        memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (embed_word)size});
         text[size] = '\0';
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_catalog_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_catalog_owner));
     return text;
 }
 

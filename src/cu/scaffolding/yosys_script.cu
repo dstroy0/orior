@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "yosys_script.h"
 
-#include "../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../includes/file_defs/krs/ruleset_reader.h"
 
 // the script's forms, by their places in the schema
 enum YosysForm

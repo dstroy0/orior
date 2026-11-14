@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // File, Toolchains: every toolchain toolchains.json lists, a group at a time, each with what it is
-// for, where orior_gui found its program and the version it says, and what can be done about it. One
+// for, where tabvla found its program and the version it says, and what can be done about it. One
 // not found opens its install page, for the reader to install it from its own makers, or takes a
-// folder the reader picks. One installed and not on the PATH goes on it, or orior_gui runs it from
-// there. Above them, whether orior_gui itself is on the PATH, which `orior_gui` needs to work in any terminal.
+// folder the reader picks. One installed and not on the PATH goes on it, or tabvla runs it from
+// there. Above them, whether tabvla itself is on the PATH, which `tab` needs to work in any terminal.
 //
 // Add Toolchain adds one of the reader's own to a group, a new one or one there already, by its name,
 // what it is for, the programs that name it, the words that make it say its version and its install
@@ -13,7 +13,7 @@
 // is taken out from its row, and an empty group from its heading.
 //
 // orior's own runs and terminals read the PATH anew, and a change here reaches them at once; a
-// terminal opened outside orior_gui before the change does not have it.
+// terminal opened outside tabvla before the change does not have it.
 
 import { invoke, pick } from "./bridge.js";
 import { runInTerminal } from "./terminal.js";
@@ -62,7 +62,7 @@ export async function showToolchains(sheet) {
   const choose = async (tool) => {
     const folder = await pick("dir");
     if (typeof folder === "string") {
-      await act(() => invoke("toolchain_use", { id: tool.id, folder }), (program) => `orior_gui runs ${program}.`);
+      await act(() => invoke("toolchain_use", { id: tool.id, folder }), (program) => `tabvla runs ${program}.`);
     }
   };
 
@@ -70,10 +70,10 @@ export async function showToolchains(sheet) {
     const made = [];
     if (tool.state === "found") {
       made.push(button("Add to PATH", () => act(() => invoke("toolchain_add_path", { what: tool.id }), (folder) => `${folder} is on your PATH for orior's runs and every terminal opened from now.`)));
-      made.push(button("Use This Folder", () => act(() => invoke("toolchain_use", { id: tool.id, folder: tool.folder }), (program) => `orior_gui runs ${program}.`)));
+      made.push(button("Use This Folder", () => act(() => invoke("toolchain_use", { id: tool.id, folder: tool.folder }), (program) => `tabvla runs ${program}.`)));
     }
     if (tool.chosen) {
-      made.push(button("Forget Folder", () => act(() => invoke("toolchain_forget", { id: tool.id }), () => `orior_gui looks for ${tool.name} on the PATH again.`), { title: tool.chosen }));
+      made.push(button("Forget Folder", () => act(() => invoke("toolchain_forget", { id: tool.id }), () => `tabvla looks for ${tool.name} on the PATH again.`), { title: tool.chosen }));
     } else if (tool.state !== "found") {
       made.push(button("Choose Folder…", () => choose(tool)));
     }
@@ -137,12 +137,12 @@ export async function showToolchains(sheet) {
         ? element("span", {
             className: mine.on_path ? "on" : "off",
             title: mine.folder,
-            textContent: mine.on_path ? "orior_gui is on your PATH: `orior_gui` works in any terminal." : "orior_gui is not on your PATH: `orior_gui` works only from its own folder.",
+            textContent: mine.on_path ? "tabvla is on your PATH: `tab` works in any terminal." : "tabvla is not on your PATH: `tab` works only from its own folder.",
           })
-        : element("span", { textContent: "orior_gui could not find its own folder." }),
+        : element("span", { textContent: "tabvla could not find its own folder." }),
     ];
     if (mine && !mine.on_path) {
-      parts.push(button("Add orior_gui to PATH", () => act(() => invoke("toolchain_add_path", { what: "orior" }), (folder) => `${folder} is on your PATH for every terminal opened from now.`), { className: "prefs-button tools-go", title: mine.folder }));
+      parts.push(button("Add tabvla to PATH", () => act(() => invoke("toolchain_add_path", { what: "orior" }), (folder) => `${folder} is on your PATH for every terminal opened from now.`), { className: "prefs-button tools-go", title: mine.folder }));
     }
     own.replaceChildren(...parts);
   }
@@ -240,7 +240,7 @@ async function install(tool) {
 }
 
 // `toolchains` as the menus and the palette give it words: none shows the sheet, and the rest act
-// as `orior_gui file toolchains` does.
+// as `tab file toolchains` does.
 export async function runToolchains(sheet, args = []) {
   const [word, first, second] = args;
   if (word === "install" && first) {

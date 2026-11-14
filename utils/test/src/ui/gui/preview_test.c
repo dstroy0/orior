@@ -6,8 +6,9 @@
 // the last item fills the rectangle; nothing is drawn outside the rectangle, the draw starting at the item the CLI
 // finds for the top; a press on a link hands the CLI's answer on and a press elsewhere does nothing; the cursor's line
 // draws its block's mark; and a scroll of the editor moves the preview's top with no scroll going back to the editor
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/editor/view.h"
-#include "../../../../../ui/cli/src/view/parts/preview.h"
+#include "../../../../../ui/gui/src/preview.h"
 #include "../cli/cli_check.h"
 
 static char s_root[CLI_PATH_MAX_LEN];
@@ -83,25 +84,29 @@ static void view_input(const char *key, const CliViewInput *input)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     const GuiRect whole = frame.editor;
-    // the editor's scrollbar takes its room from the rectangle the editor and the preview share
-    const int bar = frame.editor_bar.width;
-    const int shared = whole.width + bar;
+    // the editor's scrollbar and its standoff take their room from the rectangle the editor and the preview share,
+    // whose right end the map starts at
+    const int between = frame.map.x - frame.editor.x - whole.width;
+    const int shared = whole.width + between;
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
 
     cli_check_folder("preview_tree", s_root);
@@ -123,7 +128,8 @@ int main(void)
     const int place = cli_view_file_open(s_root, "notes/readme.md", 40u, 120u, NULL, &why);
     cli_check(place >= 0, "the notes open as a view");
     // the view's place is not negative, as checked
-    const char *const key = (place >= 0) ? cli_view_key((unsigned int)place) : NULL;
+    char key_text[CLI_NAME_MAX_LEN];
+    const char *const key = ((place >= 0) && cli_view_key((unsigned int)place, key_text)) ? key_text : NULL;
     unsigned long long now_ms = 1000ULL;
 
     // off: no rectangle, nothing drawn
@@ -145,8 +151,8 @@ int main(void)
     cli_check(run_reading("Notes") < EMBED_CALL(cli_preview_item.count, CliPreviewItemCfg, .at = 0u),
               "the heading is among the items");
     drawn(&raster, &glyphs, palette, &frame);
-    cli_check((frame.editor.width + bar == shared - (shared / 2)) && (frame.preview.width == shared / 2) &&
-                  (frame.preview.x == frame.editor.x + frame.editor.width + bar),
+    cli_check((frame.editor.width + between == shared - (shared / 2)) && (frame.preview.width == shared / 2) &&
+                  (frame.preview.x == frame.editor.x + frame.editor.width + between),
               "beside, the preview stands in the editor's right half, the editor's scrollbar between them");
     cli_check((drawn_in(&raster, frame.preview) != 0u) && (drawn_in(&raster, frame.editor) == 0u),
               "the items are drawn in the right half and the left half is left to the text");
@@ -183,8 +189,8 @@ int main(void)
               "a wheel past the end moves nothing");
     const int top = EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0);
     const unsigned int first = EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = top);
-    const CliPreviewItem *const started = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = first);
-    cli_check((started->type == CLI_PREVIEW_ITEM_BLOCK) && (started->y <= top) && (first > 0u),
+    const CliPreviewItem started = *EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = first);
+    cli_check((started.type == CLI_PREVIEW_ITEM_BLOCK) && (started.y <= top) && (first > 0u),
               "the draw starts at the block standing at the top, past the items above it");
     drawn(&raster, &glyphs, palette, &frame);
     cli_check((drawn_in(&raster, over) == 0u) && (drawn_in(&raster, under) == 0u) &&
@@ -193,12 +199,14 @@ int main(void)
 
     // a press on the link opens the file it names; one elsewhere does nothing
     (void)EMBED_CALL(gui_preview.wheel, GuiPreviewCfg, .frame = &frame, .rows = -100000);
-    const CliPreviewItem *const link =
+    // the rows handed out are copies the next row read replaces, so each is copied before the next read
+    const CliPreviewItem *const link_row =
         EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = run_reading("next"));
+    const CliPreviewItem link = (link_row != NULL) ? *link_row : (CliPreviewItem){0};
     CliPreviewOpen open;
-    cli_check((link != NULL) &&
-                  (EMBED_CALL(gui_preview.press, GuiPreviewCfg, .frame = &frame, .x = frame.preview.x + link->x + 1,
-                              .y = frame.preview.y + link->y + 1, .open_out = &open) == CLI_PREVIEW_OPEN_FILE) &&
+    cli_check((link_row != NULL) &&
+                  (EMBED_CALL(gui_preview.press, GuiPreviewCfg, .frame = &frame, .x = frame.preview.x + link.x + 1,
+                              .y = frame.preview.y + link.y + 1, .open_out = &open) == CLI_PREVIEW_OPEN_FILE) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = open.path, .other = "notes/other.md", .cap = CLI_PATH_MAX_LEN}),
               "a press on the link answers the file of the tree it goes to");
     cli_check(EMBED_CALL(gui_preview.press, GuiPreviewCfg, .frame = &frame, .x = frame.preview.x + 2,
@@ -219,14 +227,15 @@ int main(void)
         const CliPreviewItem *const item = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = at);
         marked = ((item->flags & CLI_PREVIEW_HERE) != 0u) ? at : marked;
     }
-    const CliPreviewItem *const mark = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = marked);
-    cli_check((mark != NULL) && (mark->type == CLI_PREVIEW_ITEM_BLOCK) && (mark->line == 2u),
+    const CliPreviewItem *const mark_row = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = marked);
+    const CliPreviewItem mark = (mark_row != NULL) ? *mark_row : (CliPreviewItem){0};
+    cli_check((mark_row != NULL) && (mark.type == CLI_PREVIEW_ITEM_BLOCK) && (mark.line == 2u),
               "the block of the cursor's line is marked");
     drawn(&raster, &glyphs, palette, &frame);
     const int top_now = EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0);
     // the mark stands inside the raster, at the block's left less its reach
-    const unsigned int edge_x = (unsigned int)(frame.preview.x + mark->x - GUI_PREVIEW_MARK_OUT);
-    const unsigned int edge_y = (unsigned int)(frame.preview.y + mark->y - top_now + (mark->height / 2));
+    const unsigned int edge_x = (unsigned int)(frame.preview.x + mark.x - GUI_PREVIEW_MARK_OUT);
+    const unsigned int edge_y = (unsigned int)(frame.preview.y + mark.y - top_now + (mark.height / 2));
     cli_check(raster.pixels[(edge_y * raster.width) + edge_x] !=
                   raster.pixels[(edge_y * raster.width) + edge_x - 2u],
               "the mark is drawn in the signal beside the block");
@@ -243,8 +252,8 @@ int main(void)
     (void)stepped(key, &frame, now_ms);
     cli_check(cli_view_top(key) == 30ULL, "and no scroll goes back to the editor");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

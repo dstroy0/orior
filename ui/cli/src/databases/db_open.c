@@ -102,16 +102,20 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
     {
         entry_at += 1u;
     }
+    // a connection's record holds its link and its password, so the records stand fixed outside the pool, one for each
+    // connection open at once, where they punch no hole in the persistent tier
+    static CliDbOpen s_places[CLI_DB_OPENS];
     if (entry_at < CLI_DB_OPENS)
     {
-        open = g_cli_guard->persistent_buf_alloc(sizeof(CliDbOpen), g_cli_db_owner);
+        open = &s_places[entry_at];
+        memor.set(&(MemoriaCfg){.dst = open, .val = 0, .bytes = sizeof(*open)});
         s_opens[entry_at] = open;
     }
     if (open == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
                    .message = (entry_at < CLI_DB_OPENS) ? "no capacity is left to open a database connection in"
-                                                        : "orior_cli has as many database connections open as it can");
+                                                        : "impero has as many database connections open as it can");
         return NULL;
     }
     open->config = *config;
@@ -191,9 +195,8 @@ void cli_db_close(const CliDbErrMsgCfg *args)
     {
         s_opens[entry_at] = (s_opens[entry_at] == args->open) ? NULL : s_opens[entry_at];
     }
-    // the connection's password lies in its cell, which the pool leaves as it is
+    // the connection's password lies in its record, zeroed as it closes
     mmgr_zero_buf(args->open, sizeof(*args->open));
-    g_cli_guard->persistent_buf_release(args->open, g_cli_db_owner);
 }
 
 // a link acquired and handed to `work`, made first where it is none, and let go where its connection broke, the next

@@ -2,18 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // envs.c: the packages the files of a folder require, read from its `setup.cfg`, Pipfile and `requirements.txt`, by
 // name, each once
+#include "../code/purpose_lines.h"
 #include "../command_line/pool.h"
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "envs_internal.h"
-
-// A span of a text: where it starts and its bytes
-typedef struct
-{
-    const char *at;
-    unsigned long long length;
-} CliSpan;
 
 typedef struct
 {
@@ -29,27 +23,6 @@ typedef struct
     unsigned long long *at;
     CliSpan *line;
 } EnvsCtx;
-// the span with the whitespace at either end left off
-EMBED_INLINE CliSpan cli_trim(const EnvsCtx *args)
-{
-    unsigned long long start = args->span.length;
-    unsigned long long end = 0ULL;
-    unsigned long long at = 0ULL;
-    while (at < args->span.length)
-    {
-        unsigned int letter = 0u;
-        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                                   .text_bytes = (const unsigned char *)args->span.at,
-                                                   .length = args->span.length, .at = at, .letter = &letter);
-        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
-        {
-            start = (start == args->span.length) ? at : start;
-            end = at + step;
-        }
-        at += step;
-    }
-    return (start < end) ? (CliSpan){args->span.at + start, end - start} : (CliSpan){args->span.at, 0ULL};
-}
 
 // whether the span starts with `text`, and whether it is `text`
 EMBED_INLINE int cli_starts(const EnvsCtx *args)
@@ -191,7 +164,7 @@ EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
     int allocating = 0;
     while (EMBED_CALL(cli_next_line, EnvsCtx, .bytes = args->bytes, .size = args->size, .at = &at, .line = &line))
     {
-        const CliSpan trimmed = EMBED_CALL(cli_trim, EnvsCtx, .span = line);
+        const CliSpan trimmed = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = line);
         if (EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "["))
         {
             options = EMBED_CALL(cli_is, EnvsCtx, .span = trimmed, .text = "[options]");
@@ -239,7 +212,7 @@ EMBED_INLINE void cli_pipfile_read(const EnvsCtx *args)
     int packages = 0;
     while (EMBED_CALL(cli_next_line, EnvsCtx, .bytes = bytes, .size = size, .at = &at, .line = &line))
     {
-        const CliSpan trimmed = EMBED_CALL(cli_trim, EnvsCtx, .span = line);
+        const CliSpan trimmed = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = line);
         if (EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "["))
         {
             packages = EMBED_CALL(cli_is, EnvsCtx, .span = trimmed, .text = "[packages]");
@@ -250,8 +223,8 @@ EMBED_INLINE void cli_pipfile_read(const EnvsCtx *args)
         if (equals != NULL)
         {
             // the name before the equals sign, trimmed and with its quotes left off
-            CliSpan name =
-                EMBED_CALL(cli_trim, EnvsCtx, .span = (CliSpan){trimmed.at, (unsigned long long)(equals - trimmed.at)});
+            CliSpan name = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
+                                      .span = (CliSpan){trimmed.at, (unsigned long long)(equals - trimmed.at)});
             const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                        .text = name.at, .at = 0ULL, .size = name.length, .set = "\"");
             name = (CliSpan){name.at + lead, name.length - lead};
@@ -268,7 +241,7 @@ EMBED_INLINE void cli_requirements_read(const EnvsCtx *args)
     unsigned long long at = 0ULL;
     while (EMBED_CALL(cli_next_line, EnvsCtx, .bytes = args->bytes, .size = args->size, .at = &at, .line = &line))
     {
-        const CliSpan trimmed = EMBED_CALL(cli_trim, EnvsCtx, .span = line);
+        const CliSpan trimmed = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = line);
         if ((trimmed.length > 0ULL) && !EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "#") &&
             !EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "-"))
         {
@@ -303,6 +276,6 @@ void cli_required_in(const CliEnvsCtx *args)
         {
             EMBED_CALL(cli_requirements_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_envs_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_envs_owner));
     }
 }

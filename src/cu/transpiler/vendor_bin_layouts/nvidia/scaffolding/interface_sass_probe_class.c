@@ -6,16 +6,16 @@
 // into <part>.kdm
 #include "interface_sass_probe.h"
 
-#include "../../../../includes/file_defs/kdm/kdm.h"
-#include "../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../../includes/file_defs/ksc/ksc.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "verba_scribo/verba_scribo.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../../../../includes/parsers/who.h"
-#include "../../../../includes/parsers/line_read.h"
+#include "../../../../../../includes/parsers/who.h"
+#include "../../../../../../includes/parsers/line_read.h"
 
 // the most questions stored whole. The decode channel puts one for every bit of every form, far past this, and is
 // counted in place of being stored

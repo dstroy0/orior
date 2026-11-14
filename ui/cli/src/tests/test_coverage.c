@@ -5,10 +5,10 @@
 // reported
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
+#include "../text/sort.h"
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 // The counts a coverage file's bytes give before it is read: its quotes, two to each key, its runs of digits, one to
 // each line marked, and its bytes
@@ -161,7 +161,7 @@ EMBED_INLINE int cover_work_state_alloc(const TestCoverageCtx *args)
     const unsigned long long lines = args->counts_read->numbers + 1ULL;
     const unsigned long long bytes = (files * (sizeof(unsigned long long) + sizeof(unsigned int))) +
                                      (lines * sizeof(CliCoverLine)) + args->counts_read->bytes + 1ULL + (4ULL * 8ULL);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_tests_owner);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
     if (cell == NULL)
     {
         return 0;
@@ -564,12 +564,14 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     if (out_cell != NULL)
     {
-        qsort(s_cover->lines, s_cover->line_count, sizeof(s_cover->lines[0]), cover_line_order);
+        EMBED_CALL(cli_sort, CliSortCfg, .base = s_cover->lines, .count = s_cover->line_count,
+                   .size = sizeof(s_cover->lines[0]), .order = cover_line_order);
         for (unsigned int file = 0u; file < s_cover->files; file += 1u)
         {
             s_cover->order[file] = file;
         }
-        qsort(s_cover->order, s_cover->files, sizeof(s_cover->order[0]), cover_file_order);
+        EMBED_CALL(cli_sort, CliSortCfg, .base = s_cover->order, .count = s_cover->files,
+                   .size = sizeof(s_cover->order[0]), .order = cover_file_order);
         mmgr_line_put(&out, "{\"kind\":\"coverage\",\"run\":");
         mmgr_line_decimal(&out, args->run->number, 1u);
         mmgr_line_put(&out, ",\"files\":[");

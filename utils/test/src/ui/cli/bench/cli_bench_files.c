@@ -105,7 +105,7 @@ BenchMeasure bench_picked(const BenchCorpus *corpus)
         {
             cli_tree_forgotten();
         }
-        CliPicked picked = {NULL, 0u};
+        CliPicked picked = {NULL, 0u, 0ULL};
         const unsigned long long began = cli_clock_microseconds();
         (void)EMBED_CALL(cli_files_picked_internal.pick, CliFilesPickedCtx, .picked = &picked, .root = under, .filter = picked_include, .context = NULL);
         const unsigned long long consumed = cli_clock_microseconds() - began;

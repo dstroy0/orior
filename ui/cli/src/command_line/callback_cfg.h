@@ -6,10 +6,7 @@
 #ifndef CALLBACK_CFG_H
 #define CALLBACK_CFG_H
 
-#include <stddef.h>
-#include <stdint.h>
-
-#include "../../../../src/cu/includes/mmgr/src/verba_scribo/verba_linea.h"
+#include "../../../../includes/mmgr/src/verba_scribo/verba_linea.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct
@@ -145,15 +142,6 @@ typedef struct
     const char *json;
     unsigned long long size;
 } CliEachJsonSizeCfg;
-
-typedef struct
-{
-    void *context;
-    const char *key;
-    const char *adjacent;
-    const char *text;
-    unsigned long long size;
-} CliEachKeyAdjacentTextSizeCfg;
 
 typedef struct
 {

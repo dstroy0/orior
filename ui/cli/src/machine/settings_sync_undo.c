@@ -63,7 +63,7 @@ static int undo_lock(void)
 {
     // the imports' names and the import read stand in one cell for as long as the work runs
     s_allocations.name =
-        g_cli_guard->persistent_buf_alloc((CLI_ALLOCATIONS * 64ULL) + CLI_ALLOCATING_BYTES, g_cli_machine_owner);
+        g_cli_guard->temporary_buf_alloc((CLI_ALLOCATIONS * 64ULL) + CLI_ALLOCATING_BYTES, g_cli_machine_owner);
     if (s_allocations.name == NULL)
     {
         return 0;
@@ -103,7 +103,7 @@ static int cli_allocating_read(const SettingsSyncUndoCtx *args)
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                          .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_machine_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
     const char *const id =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -243,7 +243,8 @@ void cli_settings_sync_allocations(const CliSettingsSyncHomeToCfg *args)
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < s_allocations.count; at += 1u)
     {
-        if (EMBED_CALL(cli_allocating_get, SettingsSyncUndoCtx, .transferred_read = synced, .name = s_allocations.name[at]))
+        if (EMBED_CALL(cli_allocating_get, SettingsSyncUndoCtx, .transferred_read = synced,
+                       .name = s_allocations.name[at]))
         {
             mmgr_line_put(args->out, (written != 0u) ? "," : "");
             EMBED_CALL(cli_settings_sync_out_internal.allocating_write, CliSettingsSyncOutCtx,
@@ -252,8 +253,9 @@ void cli_settings_sync_allocations(const CliSettingsSyncHomeToCfg *args)
         }
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_guard->persistent_buf_release(s_allocations.work_state.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
+    g_cli_guard->persistent_buf_release(
+        s_allocations.work_state.json.node,
+        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_allocations.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);
@@ -272,10 +274,10 @@ int cli_settings_sync_undo(const CliSettingsSyncHomeOutCfg *args)
     int found = 0;
     for (unsigned int at = 0u; !found && (at < s_allocations.count); at += 1u)
     {
-        found =
-            EMBED_CALL(cli_allocating_get, SettingsSyncUndoCtx, .transferred_read = synced, .name = s_allocations.name[at]) &&
-            (cellul.eq(
-                &(CatenaFinitaCfg){.src = s_allocations.allocating.id, .other = args->id, .cap = CLI_POOL_BYTES}));
+        found = EMBED_CALL(cli_allocating_get, SettingsSyncUndoCtx, .transferred_read = synced,
+                           .name = s_allocations.name[at]) &&
+                (cellul.eq(
+                    &(CatenaFinitaCfg){.src = s_allocations.allocating.id, .other = args->id, .cap = CLI_POOL_BYTES}));
     }
     if (!found)
     {
@@ -310,7 +312,7 @@ int cli_settings_sync_undo(const CliSettingsSyncHomeOutCfg *args)
             const int back =
                 (bytes != NULL) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                               .path = path, .bytes = bytes, .size = size);
-            g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
             if (!back)
             {
                 mmgr_line_put(args->err_msg, (bytes == NULL) ? saved : path);
@@ -357,8 +359,9 @@ int cli_settings_sync_undo(const CliSettingsSyncHomeOutCfg *args)
     }
     EMBED_CALL(cli_settings_sync_out_internal.allocating_write, CliSettingsSyncOutCtx, .allocating = allocating,
                .pretty = 0, .out = args->out);
-    g_cli_guard->persistent_buf_release(s_allocations.work_state.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
+    g_cli_guard->persistent_buf_release(
+        s_allocations.work_state.json.node,
+        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_allocations.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_allocations.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     g_cli_guard->persistent_buf_release(s_allocations.name, g_cli_machine_owner);

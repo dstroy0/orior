@@ -306,7 +306,7 @@ void test_a_file_that_transfers_no_settings_is_refused(void)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "other.json", .joined = s_file);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_settings_sync_from.read, CliSettingsSyncFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
     (void)mmgr_line_finish(&s_err_msg);
-    CLI_TEST_ASSERT_CONTAINS("no settings orior_cli synced", s_error);
+    CLI_TEST_ASSERT_CONTAINS("no settings impero synced", s_error);
 }
 
 void test_settings_are_sent_to_a_repository_and_committed(void)

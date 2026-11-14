@@ -6,8 +6,6 @@
 #include "settings_internal.h"
 #include "state.h"
 
-#include <stddef.h>
-
 // A setting as every part sets it, the last standing: its key, and the chain and the node of its value
 typedef struct
 {
@@ -46,10 +44,11 @@ unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
     {
         return 0u;
     }
+    // the texts in a grown line of the settings owner, taken small and grown to what they hold up to CLI_SETTINGS_TEXT
     if (args->layers->capacity == 0ULL)
     {
-        args->layers->text = g_cli_guard->persistent_buf_alloc(CLI_SETTINGS_TEXT, g_cli_settings_owner);
-        if (args->layers->text == NULL)
+        cli_grown_begin(&args->layers->grown, CLI_SETTINGS_TEXT, g_cli_settings_owner);
+        if (args->layers->grown.cell == NULL)
         {
             return 0u;
         }
@@ -57,8 +56,13 @@ unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
     }
     // a place is below CLI_SETTINGS_TEXT, which an unsigned int stores
     const unsigned int at = (unsigned int)args->layers->used;
-    memor.cpy(&(MemoriaCfg){.dst = args->layers->text + at, .src = text, .bytes = args->length});
-    args->layers->text[at + args->length] = '\0';
+    mmgr_line_put_n(&args->layers->grown.line, text, args->length);
+    mmgr_line_ch(&args->layers->grown.line, '\0');
+    if (!mmgr_line_ok(&args->layers->grown.line))
+    {
+        return 0u;
+    }
+    args->layers->text = args->layers->grown.cell;
     args->layers->used += args->length + 1ULL;
     return at;
 }

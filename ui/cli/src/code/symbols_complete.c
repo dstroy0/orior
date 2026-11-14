@@ -17,11 +17,11 @@ typedef struct
 {
     const char *typed;
     unsigned long long length;
-    VerbaLinea transferred;
+    CliGrownLine transferred;
     CliDeclared each;
     void *context;
 } CliComplete;
-// the bytes the names handed on are written in
+// the most bytes the names handed on grow to
 #define CLI_COMPLETE_CAPACITY (1ULL << 20u)
 
 typedef struct
@@ -47,12 +47,12 @@ EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
     {
         return;
     }
-    const int saved = mmgr_line_ok(&args->complete->transferred);
-    for (unsigned long long at = 0ULL; saved && (at < args->complete->transferred.at);
+    const int saved = mmgr_line_ok(&args->complete->transferred.line);
+    for (unsigned long long at = 0ULL; saved && (at < cli_grown_size(&args->complete->transferred));
          at +=
-         cellul.len(&(CatenaFinitaCfg){.src = args->complete->transferred.out + at, .cap = CLI_POOL_BYTES}) + 1ULL)
+         cellul.len(&(CatenaFinitaCfg){.src = args->complete->transferred.cell + at, .cap = CLI_POOL_BYTES}) + 1ULL)
     {
-        const char *const one = args->complete->transferred.out + at;
+        const char *const one = args->complete->transferred.cell + at;
         if ((cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES}) == args->length) &&
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = one, .other_pointer = args->name,
                        .size = args->length))
@@ -61,8 +61,8 @@ EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
         }
     }
     // a name is below 2^32 bytes
-    mmgr_line_put_n(&args->complete->transferred, args->name, (size_t)args->length);
-    mmgr_line_ch(&args->complete->transferred, '\0');
+    mmgr_line_put_n(&args->complete->transferred.line, args->name, (embed_word)args->length);
+    mmgr_line_ch(&args->complete->transferred.line, '\0');
     EMBED_CALL(args->complete->each, CliDeclaredCfg, .context = args->complete->context, .name = args->name,
                .length = args->length, .type = args->type, .line = args->line);
 }
@@ -74,7 +74,12 @@ EMBED_INLINE void complete_type_declare(const SymbolsCompleteCtx *args)
     const char *path = args->path;
     args->type_out[0] = '\0';
     const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path);
-    const CliTreeBranch *const branch = (file < CLI_BRANCHES_MAX) ? &g_cli_branches[file] : NULL;
+    CliTreeBranch read = {0};
+    if (file < CLI_BRANCHES_MAX)
+    {
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &read);
+    }
+    const CliTreeBranch *const branch = (file < CLI_BRANCHES_MAX) ? &read : NULL;
     char *const scratch = ((branch != NULL) && branch->used) ? cli_branch_copy_alloc() : NULL;
     if (scratch != NULL)
     {
@@ -227,11 +232,13 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     const unsigned long long words = CLI_LEAF_COMMENT | CLI_LEAF_STRING;
     const int named = leaved && (place < read.count) && (read.leaf[place].from < at) &&
                       ((read.leaf[place].is & CLI_LEAF_NAME) != 0u) && ((read.leaf[place].is & words) == 0u);
-    char *const transferred_cell = g_cli_guard->temporary_buf_alloc(CLI_COMPLETE_CAPACITY, g_cli_code_owner);
-    CliComplete complete = {named ? args->text + read.leaf[place].from : "", named ? at - read.leaf[place].from : 0ULL,
-                            mmgr_line_over(transferred_cell, CLI_COMPLETE_CAPACITY), args->each_declared,
+    CliComplete complete = {named ? args->text + read.leaf[place].from : "",
+                            named ? at - read.leaf[place].from : 0ULL,
+                            {NULL, 0ULL, 0ULL, NULL, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL}},
+                            args->each_declared,
                             args->context};
-    int done = transferred_cell != NULL;
+    cli_grown_begin(&complete.transferred, CLI_COMPLETE_CAPACITY, g_cli_code_owner);
+    int done = complete.transferred.cell != NULL;
     CliEffect *const effect = done ? EMBED_CALL(cli_symbols_path_name_internal.effect_init, CliSymbolsPathNameCtx,
                                                 .path = args->path, .name = "", .slicing = 1, .err_msg = args->err_msg)
                                    : NULL;
@@ -270,6 +277,6 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
         *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(complete.transferred.out, g_cli_code_owner);
+    cli_grown_end(&complete.transferred);
     return done;
 }

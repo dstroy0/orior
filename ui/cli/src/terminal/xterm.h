@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // xterm.h: a shell's output read as an xterm reads it into the text a terminal's pane shows. The text, stored under
 // `key`, is the only store: each of the screen's rows a line of it, the lines above the main screen's first the
-// history. Printed letters are written into the row at the cursor from the output's bytes where they lie, in place of
+// history. A paged text's lines stand in its file and the pages, each edit written through them, so the pane scrolls
+// the file; a text read whole stands in the document. Printed letters are written into the row at the cursor from
+// the output's bytes where they lie, in place of
 // the letters they cover, the SGR of the style of the moment put before them where the line's style there is another
 // and the style that stood after them put back where letters follow; the xterm grammar plugin colors the text by those
 // sequences. The control letters and the other escape sequences move the cursor, erase, insert and delete, scroll a
@@ -15,6 +17,8 @@
 #include "embed_dispatch_layout.h"
 
 typedef struct CliTerminalXtermSizeCfg CliTerminalXtermSizeCfg;
+typedef struct CliTerminalXtermKeepCfg CliTerminalXtermKeepCfg;
+typedef struct CliTerminalXtermLineCfg CliTerminalXtermLineCfg;
 typedef struct CliTerminalXtermCfg CliTerminalXtermCfg;
 typedef struct CliTerminalXtermBytesCfg CliTerminalXtermBytesCfg;
 typedef struct CliTerminalXtermSpansCfg CliTerminalXtermSpansCfg;
@@ -55,25 +59,27 @@ typedef struct
     int wrap_pending;
 } CliTerminalCursor;
 
-// An xterm: its size; the key of the text it writes into, NULL before the text is stored, the main screen's first line,
-// the history the lines above it, and the first line of the screen drawn on, the main screen's or the second's after
-// it; the one cell the command being read and the answer for the shell lie in; the folder the path of a folder the
-// shell reports is written into, NULL for none, and its bytes, whether a folder was reported since the terminal last
-// read it and whether one ever was; the cursor, the region that scrolls and the cursor saved; the modes; where the
-// reading of the output stands and the bytes of a letter cut across two writes; whether the text or the cursor moved
-// since the drawing last read them; and whether the text refused an edit, after which nothing more is written into it
+// An xterm: its size; the key of the text it writes into, NULL before the text is stored, whether that text is paged,
+// its edits since its file was last written through, the main screen's first line, the history the lines above it,
+// and the first line of the screen drawn on, the main screen's or the second's after it; the command being read and
+// the answer for the shell, each in its own bytes; the folder the path of a folder the shell reports is written into,
+// NULL for none, and its bytes, whether a folder was reported since the terminal last read it and whether one ever
+// was; the cursor, the region that scrolls and the cursor saved; the modes; where the reading of the output stands and
+// the bytes of a letter cut across two writes; whether the text or the cursor moved since the drawing last read them;
+// and whether the text refused an edit, after which nothing more is written into it
 typedef struct
 {
     unsigned int columns;
     unsigned int rows;
     const char *key;
+    int paged;
+    unsigned long long edits;
     unsigned long long history;
     unsigned long long base;
     int second;
-    unsigned char *cell;
-    unsigned char *command;
+    unsigned char command[CLI_TERMINAL_COMMAND_MAX];
     unsigned int command_size;
-    unsigned char *answer;
+    unsigned char answer[CLI_TERMINAL_ANSWER_MAX];
     unsigned int answer_size;
     char *folder;
     unsigned long long folder_size;
@@ -97,14 +103,21 @@ typedef struct
     int refused;
 } CliTerminalXterm;
 
-// An xterm `columns` wide and `rows` tall, its cursor home, writing into the text under `key` whose main screen starts
-// at the line `history`, the text holding that many lines and the screen's rows after them, and the path of a folder
-// the shell reports into the `folder_size` bytes at `folder`: 1, or 0 where its cell is not had. The xterm resized, the
-// text's rows with it: the rows a shorter main screen loses from its top while the cursor would fall off its foot
-// joining the history, the rest let go from its foot, and a taller screen's rows put at its foot: 1, or 0 where the
-// text refused. And its cell released
+// An xterm `columns` wide and `rows` tall, its cursor home, writing into the text under `key`, paged where `paged`,
+// whose main screen starts at the line `history`, the text holding that many lines and the screen's rows after them,
+// and the path of a folder the shell reports into the `folder_size` bytes at `folder`: 1, or 0 where its cell is not
+// had. The xterm resized, the text's rows with it: the rows a shorter main screen loses from its top while the cursor
+// would fall off its foot joining the history, the rest let go from its foot, and a taller screen's rows put at its
+// foot: 1, or 0 where the text refused. And its cell released
 int cli_terminal_xterm_init(const CliTerminalXtermSizeCfg *args);
 int cli_terminal_xterm_resize(const CliTerminalXtermSizeCfg *args);
+// the history's lines beyond its last `keep` taken out of the text from its first line, the screen standing where it
+// stood among the rest: how many were taken out
+unsigned long long cli_terminal_xterm_trim(const CliTerminalXtermKeepCfg *args);
+// the units of the text's line `line`, a paged text's read through the pages, in a cell of the temporary tier given
+// back with persistent_buf_release, their count into `count`: the cell, or NULL with the count 0 where the line has no
+// units or the cells cannot meet them
+unsigned short *cli_terminal_xterm_line_units_alloc(const CliTerminalXtermLineCfg *args);
 // `size` bytes of a shell's output read into the text, a letter or a sequence cut by the end read on with the next
 void cli_terminal_xterm_write(const CliTerminalXtermBytesCfg *args);
 // the place among a row's `count` units at `units` where the letter of column `column` starts, the sequences before it
@@ -147,9 +160,23 @@ struct CliTerminalXtermSizeCfg
     unsigned int columns;
     unsigned int rows;
     const char *key;
+    int paged;
     unsigned long long history;
     char *folder;
     unsigned long long folder_size;
+};
+
+struct CliTerminalXtermKeepCfg
+{
+    CliTerminalXterm *xterm;
+    unsigned long long keep;
+};
+
+struct CliTerminalXtermLineCfg
+{
+    const CliTerminalXterm *xterm_read;
+    unsigned long long line;
+    unsigned long long *count;
 };
 
 struct CliTerminalXtermCfg
@@ -173,6 +200,24 @@ struct CliTerminalXtermSpansCfg
     unsigned long long *plain_size_out;
     CliTerminalXtermSpan *spans_out;
     unsigned int spans_capacity;
+};
+
+typedef struct
+{
+    unsigned short *(*units_alloc)(const CliTerminalXtermLineCfg *args);
+} CliTerminalXtermLineNs;
+EMBED_TABLE_LAYOUT(CliTerminalXtermLineNs, units_alloc);
+EMBED_TABLE_STORAGE CliTerminalXtermLineNs cli_terminal_xterm_line EMBED_UNUSED = {
+    .units_alloc = cli_terminal_xterm_line_units_alloc,
+};
+
+typedef struct
+{
+    unsigned long long (*trim)(const CliTerminalXtermKeepCfg *args);
+} CliTerminalXtermKeepNs;
+EMBED_TABLE_LAYOUT(CliTerminalXtermKeepNs, trim);
+EMBED_TABLE_STORAGE CliTerminalXtermKeepNs cli_terminal_xterm_keep EMBED_UNUSED = {
+    .trim = cli_terminal_xterm_trim,
 };
 
 typedef struct

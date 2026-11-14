@@ -1,0 +1,1000 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// editor.c: the editor part. It draws the view's frame as the window took it of the view, reading its rows, runs, folds
+// and matches where they stand in the frame's cell; a run's column counts the units the view counts, so a letter past
+// the basic plane counts two
+#include "editor.h"
+#include "../../../includes/arith/arith.h"
+
+#include "../../../includes/window/frame.h"
+#include "../../cli/src/command_line/pool.h"
+#include "../../cli/src/editor/document_changes.h"
+#include "../../cli/src/text/text.h"
+#include "gutter.h"
+
+void gui_editor_init(const GuiEditorCfg *args)
+{
+    memor.set(&(MemoriaCfg){.dst = args->editor, .val = 0, .bytes = sizeof(*args->editor)});
+    args->editor->caret_color = 255u;
+}
+
+typedef struct
+{
+    unsigned long long lines_u64;
+    const GuiEditor *editor;
+    const CliViewFrameRow *line_line_pointer;
+    unsigned long long col;
+    const GuiPalette *palette;
+    unsigned int text_color;
+    GuiRaster *raster;
+    int x_i32;
+    int middle;
+    int pixel_height;
+    GuiColor color;
+    GuiRect clip;
+    const CliViewFrameFold *fold;
+    GuiGlyphs *glyphs;
+    float x;
+    int top;
+    int baseline;
+    int line_height;
+    float cell;
+    unsigned int size;
+    int scale;
+    int y;
+    GuiRect rect;
+    int thick;
+    GuiRect row_rect;
+    float text_x;
+    int boxed;
+    GuiRect place;
+    unsigned long long line;
+    unsigned int at;
+    const CliViewFrameRow *stored_line;
+    int selected;
+    CliPosition selected_from;
+    CliPosition selected_to;
+    int numbers_right;
+    const unsigned char *marks;
+    unsigned long long marks_from;
+    unsigned long long marks_count;
+} EditorCtx;
+
+// how many digits the file's line count takes, three at the least, as the page gives its gutter capacity
+EMBED_INLINE unsigned int editor_digits(const EditorCtx *args)
+{
+    unsigned int digits = 1u;
+    for (unsigned long long left = args->lines_u64; left >= 10ULL; left /= 10ULL)
+    {
+        digits += 1u;
+    }
+    return (digits < 3u) ? 3u : digits;
+}
+
+int gui_editor_gutter(const GuiEditorPositionCellCfg *args)
+{
+    int scale = args->scale;
+    const float numbers =
+        (float)EMBED_CALL(editor_digits, EditorCtx,
+                          .lines_u64 = (args->editor_read->frame != NULL) ? args->editor_read->frame->lines : 0ULL) *
+        args->cell;
+    return (int)(numbers + 0.5f) + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                              .pixels = GUI_GUTTER_BEFORE + GUI_GUTTER_AFTER, .scale = scale);
+}
+
+// the cell column a line's unit column stands at, tabs laid to their stops, a letter past the basic plane counting
+// two units; and the line's cells in all where `col` is past its end
+EMBED_INLINE unsigned long long editor_cell_get(const EditorCtx *args)
+{
+    const char *const text = args->editor->frame->bytes + args->line_line_pointer->text;
+    // a tab stops at the columns the view's indentation sets, as the CLI lays them
+    const unsigned long long tab =
+        (args->editor->frame->indent_size != 0u) ? args->editor->frame->indent_size : GUI_TAB_COLUMNS;
+    unsigned long long at = 0ULL;
+    unsigned long long units = 0ULL;
+    unsigned long long cell = 0ULL;
+    while ((at < args->line_line_pointer->length) && (units < args->col))
+    {
+        unsigned long long consumed = 0ULL;
+        const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text,
+                                               .size = args->line_line_pointer->length, .at = at, .length = &consumed);
+        at += (consumed != 0ULL) ? consumed : 1ULL;
+        units += (letter >= 0x10000u) ? 2ULL : 1ULL;
+        cell += (letter == '\t') ? (tab - (cell % tab)) : 1ULL;
+    }
+    return cell;
+}
+
+// The x where a row's first cell stands: the text's left edge `x_i32`, after the gutter, moved left by the cells of
+// the file's grid the view has slid past and by the part of a cell the scroll stands past them. A cell left of the
+// text's edge is out of view
+EMBED_INLINE float editor_text_x(const EditorCtx *args)
+{
+    const CliViewFrame *const frame = args->editor->frame;
+    const unsigned long long left = (frame != NULL) ? frame->left : 0ULL;
+    return (float)args->x_i32 - ((float)left * args->cell) - args->editor->scroll_x;
+}
+
+int gui_editor_cell_at(const GuiEditorPositionCellScaleCfg *args)
+{
+    int scale = args->scale;
+    unsigned long long *row = args->row;
+    unsigned long long *column = args->column;
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = scale);
+    const int text_x = args->place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                                  .editor_read = args->editor_read, .cell = args->cell, .scale = scale);
+    if ((line_height <= 0) || (args->cell <= 0.0f) || (args->y < args->place.y) ||
+        (args->y >= args->place.y + args->place.height) || (args->x < text_x) ||
+        (args->x >= args->place.x + args->place.width))
+    {
+        return 0;
+    }
+    // The row and the column are not negative, as the pixel stands in the text. The column counts the file's own
+    // cells, from where its first cell stands as the view has slid
+    const float first_x =
+        EMBED_CALL(editor_text_x, EditorCtx, .editor = args->editor_read, .x_i32 = text_x, .cell = args->cell);
+    // the frame's first row stands `scroll_y` pixels above the editor's top
+    *row = (unsigned long long)((args->y - args->place.y + args->editor_read->scroll_y) / line_height);
+    *column = (unsigned long long)((((float)args->x - first_x) / args->cell) + 0.5f);
+    return 1;
+}
+
+int gui_editor_row_at(const GuiEditorPositionCellScaleCfg *args)
+{
+    int scale = args->scale;
+    unsigned long long *row = args->row;
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = scale);
+    const int text_x = args->place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                                  .editor_read = args->editor_read, .cell = args->cell, .scale = scale);
+    if ((line_height <= 0) || (args->y < args->place.y) || (args->y >= args->place.y + args->place.height) ||
+        (args->x < args->place.x) || (args->x >= text_x))
+    {
+        return 0;
+    }
+    // the row is not negative, the pixel standing in the gutter; the frame's first row stands `scroll_y` pixels above
+    // the editor's top
+    *row = (unsigned long long)((args->y - args->place.y + args->editor_read->scroll_y) / line_height);
+    return 1;
+}
+
+GuiRect gui_editor_caret_rect(const GuiEditorPositionCfg *args)
+{
+    GuiGlyphs *glyphs = args->glyphs;
+    int scale = args->scale;
+    const GuiRect none = {0, 0, 0, 0};
+    if ((args->editor_read->frame == NULL) ||
+        (args->editor_read->frame->find.open && args->editor_read->frame->find.focus) ||
+        EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->place))
+    {
+        return none;
+    }
+    const unsigned int size =
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_SIZE, .scale = scale);
+    const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = glyphs, .size = size);
+    const int gutter = EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                  .editor_read = args->editor_read, .cell = cell, .scale = scale);
+    const GuiRect text_clip = EMBED_CALL(
+        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place,
+        .other = (GuiRect){args->place.x + gutter, args->place.y, args->place.width - gutter, args->place.height});
+    GuiRect at;
+    if (!EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = args->editor_read,
+                    .place = args->place, .cell = cell, .scale = scale, .line = args->editor_read->frame->cursor.line,
+                    .col = args->editor_read->frame->cursor.col, .rect = &at))
+    {
+        return none;
+    }
+    return EMBED_CALL(
+        gui_raster_one.rect_intersect, GuiRasterOneCfg,
+        .one = (GuiRect){at.x, at.y, EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale),
+                         at.height},
+        .other = text_clip);
+}
+
+// the caret's color at `text_color`'s share of its alpha: a byte's share of a byte, rounded, is a byte
+EMBED_INLINE GuiColor editor_caret_color(const EditorCtx *args)
+{
+    return GUI_RGBA(GUI_RED_OF(args->palette->caret), GUI_GREEN_OF(args->palette->caret),
+                    GUI_BLUE_OF(args->palette->caret),
+                    ((GUI_ALPHA_OF(args->palette->caret) * args->text_color) + 127u) / 255u);
+}
+
+GuiRect gui_editor_caret_draw(const GuiEditorRasterCfg *args)
+{
+    args->editor->caret_saved = 0;
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->caret))
+    {
+        return args->caret;
+    }
+    // the rectangle's sides are not negative where it is not empty
+    const unsigned int pixel_width = (unsigned int)args->caret.width;
+    const unsigned int pixel_height = (unsigned int)args->caret.height;
+    if (pixel_width * pixel_height <= GUI_CARET_UNDER_MAX)
+    {
+        for (unsigned int row = 0u; row < pixel_height; row += 1u)
+        {
+            memor.cpy(
+                &(MemoriaCfg){.dst = &args->editor->caret_under[row * pixel_width],
+                              .src = &args->raster->pixels[(((unsigned int)args->caret.y + row) * args->raster->width) +
+                                                           (unsigned int)args->caret.x],
+                              .bytes = pixel_width * sizeof(GuiColor)});
+        }
+        args->editor->caret_rect = args->caret;
+        args->editor->caret_saved = 1;
+    }
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = args->caret,
+               .color = EMBED_CALL(editor_caret_color, EditorCtx, .palette = args->palette,
+                                   .text_color = args->editor->caret_color));
+    return args->caret;
+}
+
+GuiRect gui_editor_caret_redrawn(const GuiEditorRasterCfg *args)
+{
+    if (!args->editor->caret_saved)
+    {
+        return (GuiRect){0, 0, 0, 0};
+    }
+    const GuiRect caret = args->editor->caret_rect;
+    // the rectangle's sides are not negative, the rectangle saved being drawn
+    const unsigned int pixel_width = (unsigned int)caret.width;
+    const unsigned int pixel_height = (unsigned int)caret.height;
+    for (unsigned int row = 0u; row < pixel_height; row += 1u)
+    {
+        memor.cpy(&(MemoriaCfg){
+            .dst = &args->raster->pixels[(((unsigned int)caret.y + row) * args->raster->width) + (unsigned int)caret.x],
+            .src = &args->editor->caret_under[row * pixel_width],
+            .bytes = pixel_width * sizeof(GuiColor)});
+    }
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = caret,
+               .color = EMBED_CALL(editor_caret_color, EditorCtx, .palette = args->palette,
+                                   .text_color = args->editor->caret_color));
+    return caret;
+}
+
+int gui_editor_position_rect(const GuiEditorPositionCellCfg *args)
+{
+    int scale = args->scale;
+    GuiRect *rect = args->rect;
+    const CliViewFrame *const frame = args->editor_read->frame;
+    if (frame == NULL)
+    {
+        return 0;
+    }
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = scale);
+    const int text_left =
+        args->place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                   .editor_read = args->editor_read, .cell = args->cell, .scale = scale);
+    const float text_x =
+        EMBED_CALL(editor_text_x, EditorCtx, .editor = args->editor_read, .x_i32 = text_left, .cell = args->cell);
+    unsigned int start = 0u;
+    while ((start < frame->count) && (frame->row[start].number < frame->top))
+    {
+        start += 1u;
+    }
+    for (unsigned int at = start; at < frame->count; at += 1u)
+    {
+        if (frame->row[at].number == args->line)
+        {
+            // The row's count is far inside what an int represents. The frame's first row stands `scroll_y` pixels
+            // above the editor's top. A row partly outside the editor gives no place, but a clamped place takes it
+            const int row = (int)(at - start);
+            const int y = args->place.y + (row * line_height) - args->editor_read->scroll_y;
+            const int whole = (y >= args->place.y) && (y + line_height <= args->place.y + args->place.height);
+            const int part = (y + line_height > args->place.y) && (y < args->place.y + args->place.height);
+            if (!(whole || (args->clamped && part)))
+            {
+                return 0;
+            }
+            const int found = (int)arith_round_f32(
+                text_x + ((float)EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor_read,
+                                            .line_line_pointer = &frame->row[at], .col = args->col) *
+                          args->cell));
+            // A place the view has slid past, left of the text's edge or past the editor's right edge, is out of
+            // view. A clamped place stands at the edge it is past
+            const int right = args->place.x + args->place.width;
+            const int outside = (found < text_left) || (found >= right);
+            if (outside && !args->clamped)
+            {
+                return 0;
+            }
+            const int x = (found < text_left) ? text_left : ((found >= right) ? right : found);
+            *rect = (GuiRect){x, y, (int)(args->cell + 0.5f), line_height};
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the fold that opens on `line`, or NULL
+EMBED_INLINE const CliViewFrameFold *editor_fold_on(const EditorCtx *args)
+{
+    const CliViewFrame *const frame = args->editor->frame;
+    for (unsigned int at = 0u; at < frame->folds; at += 1u)
+    {
+        if (frame->fold[at].first == args->line)
+        {
+            return &frame->fold[at];
+        }
+    }
+    return NULL;
+}
+
+// the gutter's mark of a fold closed: a triangle pointing right, `pixel_height` pixels tall, its point at the right,
+// drawn with its left side at `x` and its middle on `middle`
+EMBED_INLINE void editor_fold_mark(const EditorCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    GuiColor color = args->color;
+    const int half = args->pixel_height / 2;
+    for (int step = 0; step <= half; step += 1)
+    {
+        const int pixel_width = half - step + 1;
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){args->x_i32, args->middle - step, pixel_width, 1},
+                                      .other = args->clip),
+                   .color = color);
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){args->x_i32, args->middle + step, pixel_width, 1},
+                                      .other = args->clip),
+                   .color = color);
+    }
+}
+
+// the folded mark after a line that opens a fold closed, from `x`: a rounded ground two cells wide holding three
+// dots, then the closer's text half a cell after it; how far it reaches
+EMBED_INLINE float editor_folded_draw(const EditorCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    float x = args->x;
+    unsigned int size = args->size;
+    int scale = args->scale;
+    GuiRect clip = args->clip;
+    const int pixel_width = (int)arith_round_f32(2.0f * args->cell);
+    const int inset = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 3, .scale = scale);
+    const GuiRect box = {(int)arith_round_f32(x), args->top + inset, pixel_width, args->line_height - (2 * inset)};
+    const GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = clip);
+    if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met))
+    {
+        EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = met,
+                   .radius = (unsigned int)inset, .color = args->palette->same);
+    }
+    const int dot = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale);
+    const int middle = args->top + (args->line_height / 2);
+    for (int at = 0; at < 3; at += 1)
+    {
+        const int dot_x = box.x + ((pixel_width * (at + 1)) / 4) - (dot / 2);
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){dot_x, middle - (dot / 2), dot, dot}, .other = clip),
+                   .color = args->palette->text_2);
+    }
+    float reach = x + (float)pixel_width + (args->cell / 2.0f);
+    if (args->fold->displayed && (args->fold->closer_length != 0ULL))
+    {
+        const char *const closer = args->editor->frame->bytes + args->editor->frame->closers + args->fold->closer;
+        EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                   .face = GUI_FACE_CODE, .size = size, .x_f32 = reach, .y = args->baseline, .text = closer,
+                   .length = args->fold->closer_length, .color = args->palette->editor_text, .clip = clip);
+        reach += EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                            .face = GUI_FACE_CODE, .size = size, .text = closer, .length = args->fold->closer_length);
+    }
+    return reach;
+}
+
+GuiColor gui_editor_color(const GuiEditorPaletteCfg *args)
+{
+    const GuiPalette *palette = args->palette;
+    const CliDocumentNames *const names = args->editor_read->names;
+    if ((names == NULL) || (args->name >= names->count))
+    {
+        return palette->editor_text;
+    }
+    const GuiEditor *const editor = args->editor_read;
+    // a kept color stands only for the names table, its count and the palette it came from
+    if ((editor->colored_names == names) && (editor->name_colors == names->count) &&
+        (editor->colored_palette == palette) && (args->name < GUI_EDITOR_NAME_COLORS))
+    {
+        return editor->name_color[args->name];
+    }
+    const char *const text = names->name[args->name];
+    return EMBED_CALL(gui_palette_length.token, GuiPaletteLengthCfg, .palette = palette, .name_read = text,
+                      .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
+}
+
+void gui_editor_colors_keep(const GuiEditorPaletteCfg *args)
+{
+    GuiEditor *const editor = args->editor;
+    const CliDocumentNames *const names = editor->names;
+    if ((names == NULL) || ((editor->colored_names == names) && (editor->name_colors == names->count) &&
+                            (editor->colored_palette == args->palette)))
+    {
+        return;
+    }
+    // the cache stays invalid while the colors change, so a read in that time goes to the palette
+    editor->colored_names = NULL;
+    const unsigned int kept = (names->count < GUI_EDITOR_NAME_COLORS) ? names->count : GUI_EDITOR_NAME_COLORS;
+    for (unsigned int name = 0u; name < kept; name++)
+    {
+        editor->name_color[name] = EMBED_CALL(gui_editor_palette.color, GuiEditorPaletteCfg, .editor_read = editor,
+                                              .palette = args->palette, .name = name);
+    }
+    editor->name_colors = names->count;
+    editor->colored_palette = args->palette;
+    editor->colored_names = names;
+}
+
+// one line's text drawn from `x` on the baseline `y`, each letter in its run's color, a tab laid out to its stop
+EMBED_INLINE void editor_line_draw(const EditorCtx *args)
+{
+    const GuiEditor *editor = args->editor;
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    const GuiPalette *palette = args->palette;
+    float x = args->x;
+    int y = args->y;
+    float cell = args->cell;
+    unsigned int size = args->size;
+    GuiRect clip = args->clip;
+    const CliViewFrame *const frame = editor->frame;
+    const char *const text = frame->bytes + args->line_line_pointer->text;
+    // a tab stops at the columns the view's indentation sets, as the CLI lays them
+    const unsigned long long tab = (frame->indent_size != 0u) ? frame->indent_size : GUI_TAB_COLUMNS;
+    // a line's runs stand in the frame's runs cell as its columns and then its names, none where that cell could not be
+    // met
+    const CliDocumentLineRuns none = {0u, 0u};
+    const CliDocumentLineRuns runs = (frame->runs != NULL) ? frame->runs->line[args->at] : none;
+    const unsigned int *const column_of = (frame->runs != NULL) ? (frame->runs->word_text + runs.at) : NULL;
+    const unsigned int *const name_of = (frame->runs != NULL) ? (frame->runs->word_text + runs.at + runs.runs) : NULL;
+    unsigned long long at = 0ULL;
+    unsigned long long units = 0ULL;
+    unsigned long long column = 0ULL;
+    unsigned int next = 0u;
+    GuiColor color = palette->editor_text;
+    const float start = x;
+    while (at < args->line_line_pointer->length)
+    {
+        while ((next < runs.runs) && (units >= column_of[next]))
+        {
+            color = EMBED_CALL(gui_editor_palette.color, GuiEditorPaletteCfg, .editor_read = editor, .palette = palette,
+                               .name = name_of[next]);
+            next += 1u;
+        }
+        unsigned long long consumed = 0ULL;
+        const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text,
+                                               .size = args->line_line_pointer->length, .at = at, .length = &consumed);
+        at += (consumed != 0ULL) ? consumed : 1ULL;
+        units += (letter >= 0x10000u) ? 2ULL : 1ULL;
+        // a whitespace mark: a tab as an arrow at its first cell, a space as a middle dot, each in the quietest text
+        const int marked = editor->whitespace && ((letter == '\t') || (letter == ' '));
+        if (letter == '\t')
+        {
+            if (marked)
+            {
+                float advance = 0.0f;
+                const GuiGlyphCell *const arrow = EMBED_CALL(
+                    gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
+                    .letter = GUI_EDITOR_TAB_MARK, .size = size, .color = palette->text_3, .advance = &advance);
+                if (arrow != NULL)
+                {
+                    EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = raster, .cell = arrow,
+                               .x = (int)arith_round_f32(start + ((float)column * cell)), .y = y, .clip = clip);
+                }
+            }
+            column += tab - (column % tab);
+        }
+        else
+        {
+            float advance = 0.0f;
+            const GuiGlyphCell *const glyph =
+                EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = glyphs,
+                           .face = GUI_FACE_CODE, .letter = marked ? GUI_EDITOR_SPACE_MARK : letter, .size = size,
+                           .color = marked ? palette->text_3 : color, .advance = &advance);
+            if (glyph != NULL)
+            {
+                const float here = start + ((float)column * cell);
+                // a pixel's place, rounded, is far inside what an int represents
+                EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = raster, .cell = glyph,
+                           .x = (int)arith_round_f32(here), .y = y, .clip = clip);
+            }
+            column += 1ULL;
+        }
+        if (start + ((float)column * cell) > (float)(clip.x + clip.width))
+        {
+            return;
+        }
+    }
+}
+
+// a box drawn around `rect` on `raster`, its lines `thick` pixels wide inside the rect, in `color`, within `clip`
+EMBED_INLINE void editor_box_draw(const EditorCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    GuiRect rect = args->rect;
+    GuiColor color = args->color;
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){rect.x, rect.y, rect.width, args->thick}, .other = args->clip),
+               .color = color);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){rect.x, rect.y + rect.height - args->thick, rect.width, args->thick},
+                                  .other = args->clip),
+               .color = color);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){rect.x, rect.y, args->thick, rect.height}, .other = args->clip),
+               .color = color);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){rect.x + rect.width - args->thick, rect.y, args->thick, rect.height},
+                                  .other = args->clip),
+               .color = color);
+}
+
+// the matches on the line `line` drawn on the row `row_rect`, each cell they span in the match ground, the current one
+// in the stronger ground and boxed where `boxed` is 1
+EMBED_INLINE void editor_matches_draw(const EditorCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    int scale = args->scale;
+    for (unsigned long long at = 0ULL; at < args->editor->frame->matches; at += 1ULL)
+    {
+        if (args->editor->frame->match[at][0] != args->line)
+        {
+            continue;
+        }
+        const int current =
+            (args->editor->frame->find.current >= 0LL) && ((unsigned long long)args->editor->frame->find.current == at);
+        const int left =
+            (int)arith_round_f32(args->text_x + ((float)EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
+                                                                   .line_line_pointer = args->stored_line,
+                                                                   .col = args->editor->frame->match[at][1]) *
+                                                 args->cell));
+        const int right =
+            (int)arith_round_f32(args->text_x + ((float)EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
+                                                                   .line_line_pointer = args->stored_line,
+                                                                   .col = args->editor->frame->match[at][2]) *
+                                                 args->cell));
+        const GuiRect span = {left, args->row_rect.y, right - left, args->row_rect.height};
+        if (args->boxed)
+        {
+            if (current)
+            {
+                EMBED_CALL(editor_box_draw, EditorCtx, .raster = raster, .rect = span,
+                           .thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+                           .color = args->palette->signal, .clip = args->clip);
+            }
+        }
+        else
+        {
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                       .rect =
+                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = span, .other = args->clip),
+                       .color = current ? args->palette->match_on : args->palette->match);
+        }
+    }
+}
+
+// find's bar drawn at the top right of `place`: its field with the query, or "Find" dim where the query is empty, the
+// caret where the keys are its own, the toggles for case, whole words and a pattern, each lit where it is on, and the
+// count, "No results" where there is none
+EMBED_INLINE void editor_find_draw(const EditorCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    int scale = args->scale;
+    unsigned int size = args->size;
+    const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_FIND_PAD, .scale = scale);
+    const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4, .scale = scale);
+    const int field_width =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_FIND_FIELD, .scale = scale);
+    const int toggle_width =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_FIND_TOGGLE, .scale = scale);
+    const int count_width =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_FIND_COUNT, .scale = scale);
+    const int field_height =
+        args->line_height + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4, .scale = scale);
+    const int pixel_width = pad + field_width + gap + (3 * (toggle_width + gap)) + count_width + pad;
+    const GuiRect bar = {
+        args->place.x + args->place.width -
+            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_FIND_RIGHT, .scale = scale) -
+            pixel_width,
+        args->place.y, pixel_width, field_height + (2 * pad)};
+    const GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = bar, .other = args->place);
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met))
+    {
+        return;
+    }
+    EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = met,
+               .radius =
+                   (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4, .scale = scale),
+               .color = args->palette->surface);
+    EMBED_CALL(editor_box_draw, EditorCtx, .raster = raster, .rect = bar,
+               .thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+               .color = args->palette->widget_line, .clip = args->place);
+    const GuiRect field = {bar.x + pad, bar.y + pad, field_width, field_height};
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_HEAD, .size = size, .top = field.y, .pixel_height = field_height);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = field, .other = args->place),
+               .color = args->palette->editor_background);
+    EMBED_CALL(editor_box_draw, EditorCtx, .raster = raster, .rect = field,
+               .thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+               .color = args->editor->frame->find.focus ? args->palette->hover : args->palette->line,
+               .clip = args->place);
+    const float text_x =
+        (float)(field.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = scale));
+    const GuiRect field_clip =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = field, .other = args->place);
+    if (args->editor->frame->find.query_length == 0ULL)
+    {
+        EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                   .face = GUI_FACE_HEAD, .size = size, .x_f32 = text_x, .y = baseline, .text = "Find", .length = 4ULL,
+                   .color = args->palette->text_3, .clip = field_clip);
+    }
+    else
+    {
+        EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                   .face = GUI_FACE_HEAD, .size = size, .x_f32 = text_x, .y = baseline,
+                   .text = args->editor->frame->find.query, .length = args->editor->frame->find.query_length,
+                   .color = args->palette->editor_text, .clip = field_clip);
+    }
+    if (args->editor->frame->find.focus)
+    {
+        // the caret after as many letters as the cursor's units count, a letter past the basic plane two of them
+        unsigned long long bytes = 0ULL;
+        unsigned long long units = 0ULL;
+        while ((bytes < args->editor->frame->find.query_length) && (units < args->editor->frame->find.at))
+        {
+            unsigned long long consumed = 0ULL;
+            const unsigned int letter =
+                EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->editor->frame->find.query,
+                           .size = args->editor->frame->find.query_length, .at = bytes, .length = &consumed);
+            bytes += (consumed != 0ULL) ? consumed : 1ULL;
+            units += (letter >= 0x10000u) ? 2ULL : 1ULL;
+        }
+        const float before =
+            EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_HEAD,
+                       .size = size, .text = args->editor->frame->find.query, .length = bytes);
+        EMBED_CALL(
+            gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+            .rect = EMBED_CALL(
+                gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                .one = (GuiRect){(int)arith_round_f32(text_x + before),
+                                 field.y +
+                                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 3, .scale = scale),
+                                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+                                 field_height - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 6,
+                                                           .scale = scale)},
+                .other = args->place),
+            .color = args->palette->caret);
+    }
+    static const char *const s_toggle[3] = {"Aa", "ab", ".*"};
+    const int on[3] = {args->editor->frame->find.match_case, args->editor->frame->find.word_text,
+                       args->editor->frame->find.regex};
+    int x = field.x + field_width + gap;
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        const GuiRect toggle = {x, field.y, toggle_width, field_height};
+        if (on[at])
+        {
+            EMBED_CALL(
+                gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster,
+                .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = toggle, .other = args->place),
+                .radius =
+                    (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4, .scale = scale),
+                .color = args->palette->selection);
+            EMBED_CALL(editor_box_draw, EditorCtx, .raster = raster, .rect = toggle,
+                       .thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+                       .color = args->palette->hover, .clip = args->place);
+        }
+        const float label_width = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                             .face = GUI_FACE_HEAD, .size = size, .text = s_toggle[at], .length = 2ULL);
+        EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                   .face = GUI_FACE_HEAD, .size = size,
+                   .x_f32 = (float)toggle.x + (((float)toggle_width - label_width) / 2.0f), .y = baseline,
+                   .text = s_toggle[at], .length = 2ULL,
+                   .color = on[at] ? args->palette->editor_text : args->palette->text_2, .clip = args->place);
+        x += toggle_width + gap;
+    }
+    char count_text[64];
+    VerbaLinea count = {count_text, sizeof(count_text), 0ULL};
+    if (args->editor->frame->find.count == 0ULL)
+    {
+        mmgr_line_put(&count, "No results");
+    }
+    else
+    {
+        // the current match is counted among the matches
+        mmgr_line_decimal(&count,
+                          (args->editor->frame->find.current >= 0LL)
+                              ? (unsigned long long)args->editor->frame->find.current + 1ULL
+                              : 0ULL,
+                          1u);
+        mmgr_line_put(&count, " of ");
+        mmgr_line_decimal(&count, args->editor->frame->find.count, 1u);
+    }
+    EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+               .face = GUI_FACE_HEAD, .size = size,
+               .x_f32 = (float)(x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4, .scale = scale)),
+               .y = baseline, .text = count_text, .length = count.at, .color = args->palette->text_2,
+               .clip = args->place);
+}
+
+// the ground of the row `row_rect` of `line`, its stored row at `stored_line`: the current line's where the cursor
+// stands on it and nothing is `selected`, else the span of the selection from `selected_from` to `selected_to` the line
+// holds, its text starting at `text_x` with cells `cell` wide, inside `clip`
+EMBED_INLINE void editor_selection_draw(const EditorCtx *args)
+{
+    const unsigned long long line = args->line;
+    if ((line == args->editor->frame->cursor.line) && !args->selected)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->row_rect,
+                                      .other = args->place),
+                   .color = args->palette->current);
+    }
+    if (!args->selected || (line < args->selected_from.line) || (line > args->selected_to.line))
+    {
+        return;
+    }
+    const unsigned long long start_cell =
+        (line == args->selected_from.line)
+            ? EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor, .line_line_pointer = args->stored_line,
+                         .col = args->selected_from.col)
+            : 0ULL;
+    const unsigned long long end_cell =
+        (line == args->selected_to.line)
+            ? EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor, .line_line_pointer = args->stored_line,
+                         .col = args->selected_to.col)
+            : EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor, .line_line_pointer = args->stored_line,
+                         .col = ~0ULL) +
+                  1ULL;
+    const int left = (int)arith_round_f32(args->text_x + ((float)start_cell * args->cell));
+    const int right = (int)arith_round_f32(args->text_x + ((float)end_cell * args->cell));
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                  .one = (GuiRect){left, args->row_rect.y, right - left, args->line_height},
+                                  .other = args->clip),
+               .color = args->palette->selection);
+}
+
+// a box drawn about each bracket of the pair at the cursor that stands on `line`, its stored row at `stored_line`, in
+// the row `row_rect`, its text starting at `text_x` with cells `cell` wide, inside `clip`
+EMBED_INLINE void editor_pair_draw(const EditorCtx *args)
+{
+    for (unsigned int each = 0u; args->editor->frame->has_pair && (each < 2u); each += 1u)
+    {
+        if (args->editor->frame->pair[each].line != args->line)
+        {
+            continue;
+        }
+        const unsigned long long pair_cell =
+            EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor, .line_line_pointer = args->stored_line,
+                       .col = args->editor->frame->pair[each].col);
+        const int left = (int)arith_round_f32(args->text_x + ((float)pair_cell * args->cell));
+        const int right = (int)arith_round_f32(args->text_x + ((float)(pair_cell + 1ULL) * args->cell));
+        EMBED_CALL(editor_box_draw, EditorCtx, .raster = args->raster,
+                   .rect = (GuiRect){left, args->row_rect.y, right - left, args->line_height},
+                   .thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = args->scale),
+                   .color = args->palette->caret, .clip = args->clip);
+    }
+}
+
+// the row `row_rect` of `line`, its stored row at `stored_line` and the frame's row `at`: its ground and selection,
+// the find's matches under it, its number ending at `numbers_right`, its fold's mark, its text from `text_x` with its
+// baseline at `y`, what a closed fold hides after it, the bracket pair's boxes and the matches boxed over it
+EMBED_INLINE void editor_row_draw(const EditorCtx *args)
+{
+    GuiRaster *const raster = args->raster;
+    const unsigned long long line = args->line;
+    const CliViewFrameRow *const stored_line = args->stored_line;
+    const int find_open = args->editor->frame->find.open;
+    const CliViewFrameFold *const fold = EMBED_CALL(editor_fold_on, EditorCtx, .editor = args->editor, .line = line);
+    const int folded = (fold != NULL) && fold->closed;
+    EMBED_CALL(editor_selection_draw, EditorCtx, .editor = args->editor, .raster = raster, .palette = args->palette,
+               .line = line, .stored_line = stored_line, .row_rect = args->row_rect, .place = args->place,
+               .text_x = args->text_x, .cell = args->cell, .line_height = args->line_height, .clip = args->clip,
+               .selected = args->selected, .selected_from = args->selected_from, .selected_to = args->selected_to);
+    if (find_open)
+    {
+        EMBED_CALL(editor_matches_draw, EditorCtx, .editor = args->editor, .stored_line = stored_line, .line = line,
+                   .raster = raster, .palette = args->palette, .row_rect = args->row_rect, .text_x = args->text_x,
+                   .cell = args->cell, .boxed = 0, .scale = args->scale, .clip = args->clip);
+    }
+    char digits[24];
+    VerbaLinea number = {digits, sizeof(digits), 0ULL};
+    mmgr_line_decimal(&number, line + 1ULL, 1u);
+    const float number_width =
+        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs, .face = GUI_FACE_CODE,
+                   .size = args->size, .text = digits, .length = number.at);
+    EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = args->glyphs,
+               .face = GUI_FACE_CODE, .size = args->size, .x_f32 = (float)args->numbers_right - number_width,
+               .y = args->y, .text = digits, .length = number.at, .color = args->palette->number, .clip = args->place);
+    if (folded)
+    {
+        EMBED_CALL(editor_fold_mark, EditorCtx, .raster = raster,
+                   .x_i32 = args->numbers_right +
+                            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4, .scale = args->scale),
+                   .middle = args->row_rect.y + (args->line_height / 2),
+                   .pixel_height =
+                       EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 7, .scale = args->scale),
+                   .color = args->palette->number, .clip = args->place);
+    }
+    // the text's left is a whole pixel, the gutter's width rounded; the row's mark is the one the frame read for its
+    // line among the lines in view
+    const int marked =
+        (args->marks != NULL) && (line >= args->marks_from) && (line < args->marks_from + args->marks_count);
+    EMBED_CALL(gui_gutter.mark_draw, GuiGutterCfg, .raster = raster, .palette = args->palette,
+               .mark = marked ? args->marks[line - args->marks_from] : CLI_CHANGE_MARK_NONE, .rect = args->row_rect,
+               .text_x = (int)args->text_x, .scale = args->scale, .clip = args->place);
+    EMBED_CALL(editor_line_draw, EditorCtx, .editor = args->editor, .line_line_pointer = stored_line, .at = args->at,
+               .raster = raster, .glyphs = args->glyphs, .palette = args->palette, .x = args->text_x, .y = args->y,
+               .cell = args->cell, .size = args->size, .clip = args->clip);
+    if (folded)
+    {
+        const float after = args->text_x + ((float)(EMBED_CALL(editor_cell_get, EditorCtx, .editor = args->editor,
+                                                               .line_line_pointer = stored_line, .col = ~0ULL) +
+                                                    1ULL) *
+                                            args->cell);
+        (void)EMBED_CALL(editor_folded_draw, EditorCtx, .editor = args->editor, .fold = fold, .raster = raster,
+                         .glyphs = args->glyphs, .palette = args->palette, .x = after, .top = args->row_rect.y,
+                         .baseline = args->y, .line_height = args->line_height, .cell = args->cell, .size = args->size,
+                         .scale = args->scale, .clip = args->clip);
+    }
+    EMBED_CALL(editor_pair_draw, EditorCtx, .editor = args->editor, .raster = raster, .palette = args->palette,
+               .line = line, .stored_line = stored_line, .row_rect = args->row_rect, .text_x = args->text_x,
+               .cell = args->cell, .line_height = args->line_height, .scale = args->scale, .clip = args->clip);
+    if (find_open)
+    {
+        EMBED_CALL(editor_matches_draw, EditorCtx, .editor = args->editor, .stored_line = stored_line, .line = line,
+                   .raster = raster, .palette = args->palette, .row_rect = args->row_rect, .text_x = args->text_x,
+                   .cell = args->cell, .boxed = 1, .scale = args->scale, .clip = args->clip);
+    }
+}
+
+void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
+{
+    GuiRaster *raster = args->raster;
+    GuiGlyphs *glyphs = args->glyphs;
+    int scale = args->scale;
+    if ((args->editor->frame == NULL) || EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->place))
+    {
+        return;
+    }
+    // the code's size and its line in pixels at the scale, the size a whole pixel
+    const unsigned int size =
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_SIZE, .scale = scale);
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = scale);
+    const float cell = EMBED_CALL(gui_glyphs_face_letter.cell, GuiGlyphsFaceLetterCfg, .glyphs = glyphs, .size = size);
+    const int gutter = EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                  .editor_read = args->editor, .cell = cell, .scale = scale);
+    // the baseline inside a row, from the row's top
+    const int baseline = EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs,
+                                    .face = GUI_FACE_CODE, .size = size, .top = 0, .pixel_height = line_height);
+    const int numbers_right =
+        args->place.x + gutter -
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_GUTTER_AFTER, .scale = scale);
+    const float text_x =
+        EMBED_CALL(editor_text_x, EditorCtx, .editor = args->editor, .x_i32 = args->place.x + gutter, .cell = cell);
+    const GuiRect text_clip = EMBED_CALL(
+        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->place,
+        .other = (GuiRect){args->place.x + gutter, args->place.y, args->place.width - gutter, args->place.height});
+    // The frame's first row stands `scroll_y` pixels above the editor's top, so the rows run that much further down.
+    // Each part of a row clips to the editor
+    const int scroll_y = args->editor->scroll_y;
+    const int rows = (line_height > 0) ? (args->place.height + scroll_y + line_height - 1) / line_height : 0;
+    // the selection's ends in order
+    const int anchored = (args->editor->frame->anchor.line < args->editor->frame->cursor.line) ||
+                         ((args->editor->frame->anchor.line == args->editor->frame->cursor.line) &&
+                          (args->editor->frame->anchor.col < args->editor->frame->cursor.col));
+    const CliPosition selected_from = anchored ? args->editor->frame->anchor : args->editor->frame->cursor;
+    const CliPosition selected_to = anchored ? args->editor->frame->cursor : args->editor->frame->anchor;
+    const int selected = ((selected_from.line != selected_to.line) || (selected_from.col != selected_to.col));
+    // the first row drawn is the first line stored at or below the view's top
+    unsigned int start = 0u;
+    while ((start < args->editor->frame->count) && (args->editor->frame->top > args->editor->frame->row[start].number))
+    {
+        start += 1u;
+    }
+    // the change marks of the lines in view, from the first row's line to the last's, read off the store's diff once
+    // for the frame into a temporary cell
+    unsigned int last = start;
+    for (int row = 0; row < rows; row += 1)
+    {
+        const unsigned int at = start + (unsigned int)row;
+        if ((at >= args->editor->frame->count) || (args->editor->frame->row[at].number >= args->editor->frame->lines))
+        {
+            break;
+        }
+        last = at;
+    }
+    const unsigned long long marks_from =
+        (start < args->editor->frame->count) ? args->editor->frame->row[start].number : 0ULL;
+    const unsigned long long marks_count =
+        (start < args->editor->frame->count) ? (args->editor->frame->row[last].number + 1ULL - marks_from) : 0ULL;
+    unsigned char *const marks = ((args->key != NULL) && (marks_count != 0ULL))
+                                     ? g_cli_guard->temporary_buf_alloc(marks_count, g_cli_views_owner)
+                                     : NULL;
+    if (marks != NULL)
+    {
+        EMBED_CALL(cli_document_change.marks, CliChangeCfg, .key = args->key, .line = marks_from,
+                   .count = (unsigned int)marks_count, .marks_out = marks);
+    }
+    for (int row = 0; row < rows; row += 1)
+    {
+        // a row's count is not negative
+        const unsigned int at = start + (unsigned int)row;
+        if ((at >= args->editor->frame->count) || (args->editor->frame->row[at].number >= args->editor->frame->lines))
+        {
+            break;
+        }
+        EMBED_CALL(editor_row_draw, EditorCtx, .editor = args->editor, .raster = raster, .glyphs = glyphs,
+                   .palette = args->palette, .place = args->place, .at = at,
+                   .line = args->editor->frame->row[at].number, .stored_line = &args->editor->frame->row[at],
+                   .y = args->place.y + (row * line_height) - scroll_y + baseline,
+                   .row_rect = (GuiRect){text_clip.x, args->place.y + (row * line_height) - scroll_y, text_clip.width,
+                                         line_height},
+                   .text_x = text_x, .cell = cell, .size = size, .scale = scale, .clip = text_clip,
+                   .numbers_right = numbers_right, .line_height = line_height, .selected = selected,
+                   .selected_from = selected_from, .selected_to = selected_to, .marks = marks, .marks_from = marks_from,
+                   .marks_count = marks_count);
+    }
+    g_cli_guard->persistent_buf_release(marks, g_cli_views_owner);
+    // The sticky rows pinned over the rows at the editor's top, each on the widget's ground with its number and its
+    // runs as a row shown, a line along their foot; they stand whole whatever part of a row the view has scrolled
+    for (unsigned int pinned = 0u; pinned < args->editor->frame->stickies; pinned += 1u)
+    {
+        const unsigned int at = args->editor->frame->count + pinned;
+        // the count of sticky rows is far inside what an int represents
+        const GuiRect row_rect = {args->place.x, args->place.y + ((int)pinned * line_height), args->place.width,
+                                  line_height};
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = row_rect,
+                   .color = args->palette->surface);
+        EMBED_CALL(
+            editor_row_draw, EditorCtx, .editor = args->editor, .raster = raster, .glyphs = glyphs,
+            .palette = args->palette, .place = args->place, .at = at, .line = args->editor->frame->row[at].number,
+            .stored_line = &args->editor->frame->row[at], .y = row_rect.y + baseline,
+            .row_rect = (GuiRect){text_clip.x, row_rect.y, text_clip.width, line_height}, .text_x = text_x,
+            .cell = cell, .size = size, .scale = scale, .clip = text_clip, .numbers_right = numbers_right,
+            .line_height = line_height, .selected = 0, .selected_from = selected_from, .selected_to = selected_to);
+        if (pinned + 1u == args->editor->frame->stickies)
+        {
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
+                       .rect = (GuiRect){args->place.x, row_rect.y + line_height - 1, args->place.width, 1},
+                       .color = args->palette->line);
+        }
+    }
+    if (args->editor->frame->find.open)
+    {
+        EMBED_CALL(editor_find_draw, EditorCtx, .editor = args->editor, .raster = raster, .glyphs = glyphs,
+                   .palette = args->palette, .place = args->place, .scale = scale, .size = size,
+                   .line_height = line_height);
+    }
+}
+
+int gui_editor_sticky_at(const GuiEditorPositionCellScaleCfg *args)
+{
+    const CliViewFrame *const frame = args->editor_read->frame;
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = args->scale);
+    if ((frame == NULL) || (frame->stickies == 0u) || (line_height <= 0) || (args->y < args->place.y) ||
+        (args->x < args->place.x) || (args->x >= args->place.x + args->place.width))
+    {
+        return 0;
+    }
+    // the pixel stands under the editor's top, so the row it stands on is not negative
+    const unsigned long long pinned = (unsigned long long)((args->y - args->place.y) / line_height);
+    if (pinned >= frame->stickies)
+    {
+        return 0;
+    }
+    *args->row = frame->row[frame->count + pinned].number;
+    return 1;
+}

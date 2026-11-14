@@ -132,6 +132,8 @@ void cli_versions_release(void);
 // its place, CLI_VERSIONS_NONE where none is; and what a value describes, in a few words, for a completion's detail,
 // into `out` (version_catalog_aliases.c)
 int cli_versions_parse(const CliVersionCatalogTextCtx *args);
+// the parse's cells, the known names and the libraries' names given back, each table left empty
+void cli_versions_free(void);
 const char *cli_versions_text(const CliVersionCatalogCtx *args);
 unsigned int cli_versions_get(const CliVersionCatalogFirstCtx *args);
 void cli_versions_describe(const CliVersionCatalogFieldOutCtx *args);

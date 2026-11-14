@@ -24,8 +24,8 @@ endif()
 set(MMGR_BUILD_TESTS OFF)
 set(MMGR_LTO OFF)
 add_compile_definitions(MMGR_CARCER_OWNERS=1024u)
-set(FETCHCONTENT_SOURCE_DIR_EMBEDDED_TYPES "${CMAKE_CURRENT_SOURCE_DIR}/includes/embedded_types")
-add_subdirectory(includes/mmgr)
+set(FETCHCONTENT_SOURCE_DIR_EMBEDDED_TYPES "${ORIOR_ROOT}/includes/embedded_types")
+add_subdirectory("${ORIOR_ROOT}/includes/mmgr" includes/mmgr)
 get_property(ORIOR_MMGR_MODULES GLOBAL PROPERTY MMGR_TARGETS_host)
 add_custom_target(orior_mmgr)
 foreach(module ${ORIOR_MMGR_MODULES})
@@ -43,13 +43,13 @@ if(ORIOR_MMGR_ONLY)
 endif()
 
 
-set(ORIOR_EXACT_PORTABLE_SOURCES includes/types/integers/exact_integer_add.c
-    includes/types/integers/exact_integer_limbs.c includes/types/integers/exact_integer_multiply.c
-    includes/types/integers/exact_integer_divide.c includes/types/integers/exact_integer_gcd.c
-    includes/types/integers/exact_integer_decimal.c includes/types/integers/exact_integer_hash.c
-    includes/types/integers/arm.c)
+set(ORIOR_EXACT_PORTABLE_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_add.c
+    ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_limbs.c ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_multiply.c
+    ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_divide.c ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_gcd.c
+    ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_decimal.c ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_hash.c
+    ${ORIOR_ROOT}/includes/exact_types/integers/arm.c)
 add_library(orior_exact_portable STATIC ${ORIOR_EXACT_PORTABLE_SOURCES})
-target_include_directories(orior_exact_portable PUBLIC includes/types/integers)
+target_include_directories(orior_exact_portable PUBLIC ${ORIOR_ROOT}/includes/exact_types/integers)
 target_compile_options(orior_exact_portable PRIVATE ${SIFT_WARNINGS})
 
 
@@ -114,13 +114,13 @@ endif()
 
 
 add_library(orior_kernel STATIC ${ORIOR_SOURCES})
-target_include_directories(orior_kernel PUBLIC engine/nbody/orior includes/types/integers)
+target_include_directories(orior_kernel PUBLIC engine/nbody/orior ${ORIOR_ROOT}/includes/exact_types/integers)
 target_compile_definitions(orior_kernel PUBLIC ${ORIOR_DEFINES})
 target_link_libraries(orior_kernel PUBLIC orior_exact_portable)
 target_compile_options(orior_kernel PRIVATE $<$<COMPILE_LANGUAGE:C>:${SIFT_WARNINGS}>)
 
 add_library(orior_kernel_counted STATIC ${ORIOR_SOURCES})
-target_include_directories(orior_kernel_counted PUBLIC engine/nbody/orior includes/types/integers)
+target_include_directories(orior_kernel_counted PUBLIC engine/nbody/orior ${ORIOR_ROOT}/includes/exact_types/integers)
 target_compile_definitions(orior_kernel_counted PUBLIC ${ORIOR_DEFINES}
     ORIOR_COUNT_READS=1)
 target_link_libraries(orior_kernel_counted PUBLIC orior_exact_portable)
@@ -130,7 +130,7 @@ target_compile_options(orior_kernel_counted PRIVATE $<$<COMPILE_LANGUAGE:C>:${SI
 # read counters, and the exact integer sources compiled into it. No static library has to be position independent;
 # on Windows utils/test/src/cu/engine/nbody/orior/orior_probe.def names its exports. shift_agreement_host is shift_agreement.c alone.
 add_library(orior_host SHARED ${ORIOR_SOURCES} ${ORIOR_EXACT_PORTABLE_SOURCES})
-target_include_directories(orior_host PRIVATE engine/nbody/orior includes/types/integers)
+target_include_directories(orior_host PRIVATE engine/nbody/orior ${ORIOR_ROOT}/includes/exact_types/integers)
 target_compile_definitions(orior_host PRIVATE ${ORIOR_DEFINES} ORIOR_COUNT_READS=1)
 if(ORIOR_EXACT_LIMBS)
     target_compile_definitions(orior_host PRIVATE ORIOR_EXACT_LIMBS=${ORIOR_EXACT_LIMBS}u)
@@ -215,7 +215,7 @@ set(ORIOR_ARM_INCLUDES "")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
     # One AVX2 arm for every x86 build. It carries both detection paths, MSVC's cpuid and the
     # builtin GCC and Clang share. There is no per operating system copy to disagree with it.
-    list(APPEND ORIOR_ARM_SOURCES includes/types/integers/arm_avx2.c)
+    list(APPEND ORIOR_ARM_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/arm_avx2.c)
     list(APPEND ORIOR_ARM_DEFINES ORIOR_EXACT_HAVE_AVX2=1)
     # -mavx2 permits the intrinsics in this translation unit. It does not permit the compiler to
     # assume AVX2 anywhere else, because no other translation unit is built with it.
@@ -225,7 +225,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
         list(APPEND ORIOR_ARM_OPTIONS /arch:AVX2)
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64|armv[78].*)$")
-    list(APPEND ORIOR_ARM_SOURCES includes/types/integers/arm_neon.c)
+    list(APPEND ORIOR_ARM_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/arm_neon.c)
     list(APPEND ORIOR_ARM_DEFINES ORIOR_EXACT_HAVE_NEON=1)
     # NEON is part of the base aarch64 architecture and needs no flag there. A 32 bit ARM build
     # does need one, and asks for the softfp ABI's NEON.
@@ -239,7 +239,7 @@ include(CheckCCompilerFlag)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$" AND NOT MSVC)
     check_c_compiler_flag("-mavx512f -mavx512bw -mavx512vl" ORIOR_CC_TAKES_AVX512)
     if(ORIOR_CC_TAKES_AVX512)
-        add_library(orior_exact_avx512 STATIC includes/types/integers/arm_avx512.c)
+        add_library(orior_exact_avx512 STATIC ${ORIOR_ROOT}/includes/exact_types/integers/arm_avx512.c)
         target_link_libraries(orior_exact_avx512 PUBLIC orior_exact_portable)
         target_compile_definitions(orior_exact_avx512 PUBLIC ORIOR_EXACT_HAVE_AVX512=1)
         target_compile_options(orior_exact_avx512
@@ -249,7 +249,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$" AND NOT MSVC)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
     check_c_compiler_flag("-march=armv8.2-a+sve" ORIOR_CC_TAKES_SVE)
     if(ORIOR_CC_TAKES_SVE)
-        add_library(orior_exact_sve STATIC includes/types/integers/arm_sve.c)
+        add_library(orior_exact_sve STATIC ${ORIOR_ROOT}/includes/exact_types/integers/arm_sve.c)
         target_link_libraries(orior_exact_sve PUBLIC orior_exact_portable)
         target_compile_definitions(orior_exact_sve PUBLIC ORIOR_EXACT_HAVE_SVE=1)
         target_compile_options(orior_exact_sve PRIVATE ${SIFT_WARNINGS} -march=armv8.2-a+sve)
@@ -258,7 +258,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
 endif()
 
 if(CMAKE_CUDA_COMPILER)
-    list(APPEND ORIOR_ARM_SOURCES includes/types/integers/arm.cu)
+    list(APPEND ORIOR_ARM_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/arm.cu)
     list(APPEND ORIOR_ARM_DEFINES ORIOR_EXACT_HAVE_CUDA=1)
 endif()
 

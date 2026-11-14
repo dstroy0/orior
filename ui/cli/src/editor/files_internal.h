@@ -25,34 +25,42 @@ typedef struct CliFilesPathFolderCtx CliFilesPathFolderCtx;
 typedef struct CliFilesPickedIndexCtx CliFilesPickedIndexCtx;
 typedef struct CliFilesCtx CliFilesCtx;
 typedef struct CliFilesLetterCtx CliFilesLetterCtx;
+typedef struct CliFilesTopCtx CliFilesTopCtx;
 
-// The files a reader picks off the tree for one call: a list laid flat in the temporary tier, and how many
+// A place in a bounded list ranked by score: its score and its place among what it was found in
 typedef struct
 {
-    CliFiles *files;
+    double score;
+    unsigned int at;
+} CliTopPlace;
+
+// The files a reader picks off the tree, sorted, in one movable cell the reader owns and gives back: each path's
+// place from `text_at` first, as many as `count`, the paths zero-ended after them
+typedef struct
+{
+    const CarcerMovableEntry *cell;
     unsigned int count;
+    unsigned long long text_at;
 } CliPicked;
 
-// a cell of `bytes` of the cellblock counted to the files, or NULL where it cannot meet them, the files' report
-// reported where their mark rose a step past the one last reported; and a cell given back, NULL given back as nothing.
-// A list made for `count` paths of `bytes` together, each bounded by the list's limits, none made for no paths: 1, or 0
-// where the cellblock cannot meet its cells, the list left empty; a path put after the files: 1, or 0 where they are
-// full; the paths sorted by their bytes, each listed once, the sort's spare a cell taken and given back: 1, or 0 where
-// it could not be taken; and a list's cells given back and the list emptied. A list made for work given back within
-// its call, in the temporary tier, the same. The files of the tree at `root` that `filter` admits picked: 1, or 0 where
-// the cellblock cannot meet them; the path of the one picked at `index`; and their cell given back (files_cells.c)
-// a cell of the files' lists, which outlive the call that makes them; and one for work given back within its call, from
-// the temporary tier: no short cell stands in the persistent tier to leave a hole under one laid above it. Each is
-// given back the same way
-void *cli_files_cell_alloc(const CliFilesBytesCtx *args);
+// a cell of `bytes` for work given back within its call, from the temporary tier, or NULL where the cellblock cannot
+// meet it, the files' report reported where their mark rose a step past the one last reported; it is given back with
+// g_cli_guard->persistent_buf_release, NULL given back as nothing. A list made for work for `count` paths of `bytes`
+// together, each bounded by the list's limits, none made for no paths: 1, or 0 where the cellblock cannot meet its
+// cells, the list left empty; a path put after the files: 1, or 0 where they are full; the paths sorted by their
+// bytes, each listed once, the sort's spare a cell taken and given back: 1, or 0 where it could not be taken; and a
+// list's cells given back and the list emptied. The files of the tree at `root` that `filter` admits picked, sorted,
+// into a movable cell of the picked: 1, or 0 where the cellblock cannot meet them; the path of the one picked at
+// `index` copied into `path_out`, sized CLI_PATH_MAX_LEN: `path_out`; the place of `path` among the picked, their count
+// where it is none of them; and their cell given back (files_cells.c)
 void *cli_files_work_alloc(const CliFilesBytesCtx *args);
-int cli_files_init(const CliFilesBytesCtx *args);
 int cli_files_work_init(const CliFilesBytesCtx *args);
 int cli_files_append(const CliFilesPathLengthCtx *args);
 int cli_files_sort(const CliFilesBytesCtx *args);
 void cli_files_clear(const CliFilesBytesCtx *args);
 int cli_files_pick(const CliFilesPickedCtx *args);
 const char *cli_picked_at(const CliFilesPickedIndexCtx *args);
+unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args);
 void cli_picked_let(const CliFilesPickedCtx *args);
 
 // the most lines a search returns, the most letters of a found line retained, and the most bytes they take
@@ -124,6 +132,10 @@ int cli_paste_walk(const CliFilesContextErrMsgCtx *args);
 // `from` scoring more, `latest` sized for CLI_FUZZY_LETTERS for its own use: 1 with its score and its places, or 0
 // where it does not match (files_fuzzy.c)
 int cli_fuzzy_white(const CliFilesLetterCtx *args);
+// the place `at` with `score` put in the bounded list `top` of `count` places, at most `most`, after every place
+// scoring as much or more, its place found by a binary search, the last let go where the list is full: the list's
+// count (files_fuzzy.c)
+unsigned int cli_top_put(const CliFilesTopCtx *args);
 int cli_fuzzy_starts_word(const CliFilesTextU32sCtx *args);
 int cli_fuzzy_letters(const CliFilesBytesRequestedCtx *args);
 
@@ -202,7 +214,6 @@ struct CliFilesPickedCtx
     const char *root;
     int (*filter)(const CliEachPathCfg *args);
     void *context;
-    int standing;
 };
 
 struct CliFilesOutCtx
@@ -264,6 +275,8 @@ struct CliFilesPickedIndexCtx
 {
     const CliPicked *picked_read;
     unsigned int index;
+    char *path_out;
+    const char *path;
 };
 
 struct CliFilesCtx
@@ -276,20 +289,25 @@ struct CliFilesLetterCtx
     unsigned int letter;
 };
 
+struct CliFilesTopCtx
+{
+    CliTopPlace *top;
+    unsigned int count;
+    unsigned int most;
+    unsigned int at;
+    double score;
+};
+
 typedef struct
 {
-    void *(*cell_alloc)(const CliFilesBytesCtx *args);
     void *(*work_alloc)(const CliFilesBytesCtx *args);
-    int (*init)(const CliFilesBytesCtx *args);
     int (*work_init)(const CliFilesBytesCtx *args);
     int (*sort)(const CliFilesBytesCtx *args);
     void (*clear)(const CliFilesBytesCtx *args);
 } CliFilesBytesNs;
-EMBED_TABLE_LAYOUT(CliFilesBytesNs, cell_alloc, work_alloc, init, work_init, sort, clear);
+EMBED_TABLE_LAYOUT(CliFilesBytesNs, work_alloc, work_init, sort, clear);
 EMBED_TABLE_STORAGE CliFilesBytesNs cli_files_bytes_internal EMBED_UNUSED = {
-    .cell_alloc = cli_files_cell_alloc,
     .work_alloc = cli_files_work_alloc,
-    .init = cli_files_init,
     .work_init = cli_files_work_init,
     .sort = cli_files_sort,
     .clear = cli_files_clear,
@@ -318,10 +336,12 @@ EMBED_TABLE_STORAGE CliFilesPickedNs cli_files_picked_internal EMBED_UNUSED = {
 typedef struct
 {
     const char *(*picked_at)(const CliFilesPickedIndexCtx *args);
+    unsigned int (*picked_index)(const CliFilesPickedIndexCtx *args);
 } CliFilesPickedIndexNs;
-EMBED_TABLE_LAYOUT(CliFilesPickedIndexNs, picked_at);
+EMBED_TABLE_LAYOUT(CliFilesPickedIndexNs, picked_at, picked_index);
 EMBED_TABLE_STORAGE CliFilesPickedIndexNs cli_files_picked_index_internal EMBED_UNUSED = {
     .picked_at = cli_picked_at,
+    .picked_index = cli_picked_index,
 };
 
 typedef struct
@@ -344,6 +364,15 @@ EMBED_TABLE_LAYOUT(CliFilesLetterNs, hit_wordy, fuzzy_white);
 EMBED_TABLE_STORAGE CliFilesLetterNs cli_files_letter_internal EMBED_UNUSED = {
     .hit_wordy = cli_hit_wordy,
     .fuzzy_white = cli_fuzzy_white,
+};
+
+typedef struct
+{
+    unsigned int (*put)(const CliFilesTopCtx *args);
+} CliFilesTopNs;
+EMBED_TABLE_LAYOUT(CliFilesTopNs, put);
+EMBED_TABLE_STORAGE CliFilesTopNs cli_files_top_internal EMBED_UNUSED = {
+    .put = cli_top_put,
 };
 
 typedef struct

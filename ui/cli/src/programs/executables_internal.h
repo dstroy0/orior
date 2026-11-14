@@ -276,7 +276,7 @@ struct CliExecutablesNameOutErrMsgCtx
     const char *name;
     char *out;
     VerbaLinea *err_msg;
-    const CliLines *lines;
+    const CliRunLines *lines;
 };
 
 struct CliExecutablesRootCtx

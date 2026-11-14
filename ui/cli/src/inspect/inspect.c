@@ -108,7 +108,7 @@ CliInspectText cli_inspect_text_store(const CliInspectTextCtx *args)
     stored.at = args->facts->used;
     stored.size = (unsigned int)size;
     memor.cpy(
-        &(MemoriaCfg){.dst = args->facts->text + args->facts->used, .src = args->text_text, .bytes = (size_t)size});
+        &(MemoriaCfg){.dst = args->facts->text + args->facts->used, .src = args->text_text, .bytes = (embed_word)size});
     args->facts->text[args->facts->used + size] = '\0';
     args->facts->used += (unsigned int)size + 1u;
     return stored;
@@ -352,7 +352,26 @@ typedef struct
     unsigned int one_size;
     const char *other;
     unsigned int other_size;
+    const CliFactsCell *facts;
+    unsigned long long text_at;
+    unsigned int size;
 } InspectCtx;
+// `size` bytes of text at `text_at` of the facts cell `facts` written quoted as JSON, read out of the cell into a
+// cell of the call's own
+EMBED_INLINE void inspect_stored_quote(const InspectCtx *args)
+{
+    char *const text = g_cli_guard->temporary_buf_alloc((unsigned long long)args->size + 1ULL, g_cli_inspect_owner);
+    if (text == NULL)
+    {
+        mmgr_line_put(args->out, "\"\"");
+        return;
+    }
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = args->facts->cell, .offset = args->text_at, .dst = text, .bytes = (embed_word)args->size});
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = text,
+               .length = args->size);
+    g_cli_guard->persistent_buf_release(text, g_cli_inspect_owner);
+}
 // a place written as the protocol's `{"line", "character"}`, or as an edit's `{"line", "col"}`
 EMBED_INLINE void inspect_position_write(const InspectCtx *args)
 {
@@ -365,47 +384,61 @@ EMBED_INLINE void inspect_position_write(const InspectCtx *args)
 
 void cli_inspect_finding_write(const CliInspectFactsFindingCfg *args)
 {
-    const CliInspectFinding *const found = &args->facts_read->finding[args->finding];
+    const CliFactsCell *const facts = args->facts_read;
+    CliInspectFinding found;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = facts->cell,
+                                                            .offset = CLI_FACTS_FINDING_AT(facts, args->finding),
+                                                            .dst = &found,
+                                                            .bytes = sizeof(found)});
     mmgr_line_put(args->out, "{\"range\":{\"start\":");
-    EMBED_CALL(inspect_position_write, InspectCtx, .place = found->from, .col = ",\"character\":", .out = args->out);
+    EMBED_CALL(inspect_position_write, InspectCtx, .place = found.from, .col = ",\"character\":", .out = args->out);
     mmgr_line_put(args->out, ",\"end\":");
-    EMBED_CALL(inspect_position_write, InspectCtx, .place = found->to, .col = ",\"character\":", .out = args->out);
-    mmgr_line_put(args->out, (found->severity == CLI_INSPECT_WARNING) ? "},\"severity\":2" : "},\"severity\":3");
+    EMBED_CALL(inspect_position_write, InspectCtx, .place = found.to, .col = ",\"character\":", .out = args->out);
+    mmgr_line_put(args->out, (found.severity == CLI_INSPECT_WARNING) ? "},\"severity\":2" : "},\"severity\":3");
     mmgr_line_put(args->out, ",\"message\":{\"kind\":\"markdown\",\"value\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = args->facts_read->text + found->message.at, .length = found->message.size);
+    EMBED_CALL(inspect_stored_quote, InspectCtx, .out = args->out, .facts = facts,
+               .text_at = CLI_FACTS_TEXT_AT(facts, found.message.at), .size = found.message.size);
     mmgr_line_put(args->out, "},\"source\":\"orior\",\"code\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = found->code,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = found->code, .cap = CLI_POOL_BYTES}));
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = found.code,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = found.code, .cap = CLI_POOL_BYTES}));
     mmgr_line_put(args->out, ",\"data\":{\"orior\":[");
-    for (unsigned int fix = 0u; fix < found->fixes; fix += 1u)
+    for (unsigned int fix = 0u; fix < found.fixes; fix += 1u)
     {
-        const CliInspectFix *const one = &args->facts_read->fix[found->fix_first + fix];
+        CliInspectFix one;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = facts->cell,
+                                .offset = CLI_FACTS_FIX_AT(facts, found.fix_first + fix),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
         mmgr_line_put(args->out, (fix > 0u) ? ",{\"title\":" : "{\"title\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = args->facts_read->text + one->title.at, .length = one->title.size);
+        EMBED_CALL(inspect_stored_quote, InspectCtx, .out = args->out, .facts = facts,
+                   .text_at = CLI_FACTS_TEXT_AT(facts, one.title.at), .size = one.title.size);
         mmgr_line_put(args->out, ",\"edits\":[");
-        for (unsigned int edit = 0u; edit < one->edits; edit += 1u)
+        for (unsigned int edit = 0u; edit < one.edits; edit += 1u)
         {
-            const CliInspectEdit *const change = &args->facts_read->edit[one->edit_first + edit];
+            CliInspectEdit change;
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = facts->cell,
+                                    .offset = CLI_FACTS_EDIT_AT(facts, one.edit_first + edit),
+                                    .dst = &change,
+                                    .bytes = sizeof(change)});
             mmgr_line_put(args->out, (edit > 0u) ? ",{\"from\":" : "{\"from\":");
-            EMBED_CALL(inspect_position_write, InspectCtx, .place = change->from, .col = ",\"col\":", .out = args->out);
+            EMBED_CALL(inspect_position_write, InspectCtx, .place = change.from, .col = ",\"col\":", .out = args->out);
             mmgr_line_put(args->out, ",\"to\":");
-            EMBED_CALL(inspect_position_write, InspectCtx, .place = change->to, .col = ",\"col\":", .out = args->out);
+            EMBED_CALL(inspect_position_write, InspectCtx, .place = change.to, .col = ",\"col\":", .out = args->out);
             mmgr_line_put(args->out, ",\"text\":");
-            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                       .text = args->facts_read->text + change->text.at, .length = change->text.size);
+            EMBED_CALL(inspect_stored_quote, InspectCtx, .out = args->out, .facts = facts,
+                       .text_at = CLI_FACTS_TEXT_AT(facts, change.text.at), .size = change.text.size);
             mmgr_line_ch(args->out, '}');
         }
         mmgr_line_put(args->out, "]}");
     }
     mmgr_line_put(args->out, "]}");
-    if (found->href != NULL)
+    if (found.href != NULL)
     {
         mmgr_line_put(args->out, ",\"codeDescription\":{\"href\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = found->href,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = found->href, .cap = CLI_POOL_BYTES}));
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = found.href,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = found.href, .cap = CLI_POOL_BYTES}));
         mmgr_line_ch(args->out, '}');
     }
     mmgr_line_ch(args->out, '}');
@@ -419,7 +452,7 @@ unsigned int cli_inspect_physical(const CliInspectSizeSrcStartsCtx *args)
     {
         const char *const newline =
             (at < args->size)
-                ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (size_t)(args->size - at)})
+                ? memor.chr(&(MemoriaCfg){.src = src + at, .val = '\n', .bytes = (embed_word)(args->size - at)})
                 : NULL;
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - src) : args->size;
         args->starts[count] = at;

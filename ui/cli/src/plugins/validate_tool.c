@@ -57,7 +57,7 @@ typedef struct
     unsigned long long most;
     unsigned long long *value_u64s;
     unsigned int array;
-    CliTool *tool;
+    GuiTool *tool;
     unsigned int audit;
     unsigned int root;
     const char *language;
@@ -383,7 +383,7 @@ static void tool_look(const CliEachPluginCfg *args)
                          .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                          .err_msg = &unread, .owner = g_cli_plugins_owner)
             : CLI_JSON_NONE;
-    CliTool *const tool = &g_cli_validate->tool;
+    GuiTool *const tool = &g_cli_validate->tool;
     if ((root == CLI_JSON_NONE) || !EMBED_CALL(tool_read, ValidateToolCtx, .json = json, .root = root, .tool = tool))
     {
         return;

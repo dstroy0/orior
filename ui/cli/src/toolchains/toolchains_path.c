@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// toolchains_path.c: the tree whose own tools come first, its environment, the PATH's folders as orior_cli reads them,
+// toolchains_path.c: the tree whose own tools come first, its environment, the PATH's folders as impero reads them,
 // the PATH every step runs with, and a folder added to the reader's own PATH
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -322,7 +322,7 @@ char (*cli_toolchains_path_allocated(unsigned int *count, const CellOwner *owner
                 : 0u;
     g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, owner);
+        g_cli_guard->temporary_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, owner);
     *count = (folders != NULL) ? EMBED_CALL(cli_toolchains_count.path_folders, CliToolchainsCountCfg,
                                             .folders = folders, .capacity = most)
                                : 0u;

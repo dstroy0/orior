@@ -95,7 +95,7 @@ enum
 };
 
 // What a step runs: a bash script or a Python script by its path in the tree; a program a build job writes under one
-// of the build folders, by its name; the program `program` of the toolchain `tool`; orior_cli itself; or the program
+// of the build folders, by its name; the program `program` of the toolchain `tool`; impero itself; or the program
 // the job's build made, found once the steps before it end, run with the PATH a program opened on its own gets where
 // `system`
 enum
@@ -208,8 +208,9 @@ typedef struct
 } CliValues;
 
 // a catalog made empty whose lists and texts are taken at their most in one cell counted to `cells`, `jobs_max` jobs
-// at the most; and its cell given back, the catalog left empty and containing nothing
+// at the most; and a catalog emptied of its jobs with its cell kept, for the tree's jobs read into it again
 void cli_catalog_alloc(const CliCatalogCellsCfg *args);
+void cli_catalog_emptied(const CliCatalogCellsCfg *args);
 // a catalog made empty over the storage handed it
 void cli_catalog_begin(const CliCatalogJobsMaxCfg *args);
 // a text stored in the catalog: where it starts; and the text at a place, the empty text for none
@@ -404,10 +405,12 @@ struct CliCatalogTextValuesCfg
 typedef struct
 {
     void (*take)(const CliCatalogCellsCfg *args);
+    void (*emptied)(const CliCatalogCellsCfg *args);
 } CliCatalogCellsNs;
-EMBED_TABLE_LAYOUT(CliCatalogCellsNs, take);
+EMBED_TABLE_LAYOUT(CliCatalogCellsNs, take, emptied);
 EMBED_TABLE_STORAGE CliCatalogCellsNs cli_catalog_cells EMBED_UNUSED = {
     .take = cli_catalog_alloc,
+    .emptied = cli_catalog_emptied,
 };
 
 typedef struct

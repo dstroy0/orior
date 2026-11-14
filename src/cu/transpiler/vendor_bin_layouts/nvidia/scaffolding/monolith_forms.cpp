@@ -27,7 +27,7 @@
 // the cubin writer is C and its headers carry no guard of their own: the linkage is named here
 extern "C"
 {
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
 #include "interface_sass_probe.h"

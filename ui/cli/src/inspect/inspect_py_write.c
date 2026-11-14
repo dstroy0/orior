@@ -336,7 +336,8 @@ EMBED_INLINE void write_section(const InspectPyWriteCtx *args)
     {
         EMBED_CALL(write_text_line, InspectPyWriteCtx, .text = args->title);
         VerbaLinea *const line = write_line();
-        for (size_t at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_POOL_BYTES}); at += 1u)
+        for (embed_word at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_POOL_BYTES});
+             at += 1u)
         {
             mmgr_line_ch(line, '-');
         }

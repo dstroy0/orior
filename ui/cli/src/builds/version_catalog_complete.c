@@ -60,7 +60,7 @@ EMBED_INLINE const char *complete_section(const VersionCatalogCompleteCtx *args)
         if ((start < line_end) && (text[start] == '['))
         {
             const char *const close = memor.chr(
-                &(MemoriaCfg){.src = text + start + 1u, .val = ']', .bytes = (size_t)(line_end - start - 1u)});
+                &(MemoriaCfg){.src = text + start + 1u, .val = ']', .bytes = (embed_word)(line_end - start - 1u)});
             unsigned long long stop = (close != NULL) ? (unsigned long long)(close - text) : line_end;
             stop = ((stop > start + 1u) && (close == NULL) && (text[stop - 1u] == '\r')) ? stop - 1u : stop;
             unsigned long long from = 0ULL;
@@ -114,48 +114,7 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
         }
     }
     g_cli_guard->persistent_buf_release(about_text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
-    g_cli_versions_libraries.at = NULL;
-    g_cli_versions_libraries.size = NULL;
-    g_cli_versions_libraries.text = NULL;
-    g_cli_versions_libraries.count = 0u;
-    g_cli_versions_libraries.most = 0u;
-    g_cli_versions_libraries.used = 0u;
-    g_cli_versions_libraries.capacity = 0u;
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
-    g_cli_versions_known.at = NULL;
-    g_cli_versions_known.size = NULL;
-    g_cli_versions_known.text = NULL;
-    g_cli_versions_known.count = 0u;
-    g_cli_versions_known.most = 0u;
-    g_cli_versions_known.used = 0u;
-    g_cli_versions_known.capacity = 0u;
-    CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
-    parsed->line = NULL;
-    parsed->pool = NULL;
-    parsed->error = NULL;
-    parsed->item = NULL;
-    parsed->field = NULL;
-    parsed->section = NULL;
-    parsed->sections = 0u;
-    parsed->sections_capacity = 0u;
-    parsed->fields = 0u;
-    parsed->fields_capacity = 0u;
-    parsed->items = 0u;
-    parsed->items_capacity = 0u;
-    parsed->errors = 0u;
-    parsed->errors_capacity = 0u;
-    parsed->used = 0u;
-    parsed->pool_capacity = 0u;
-    parsed->longest = 0ULL;
+    cli_versions_free();
 }
 
 void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
@@ -172,7 +131,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
     const unsigned long long lead =
         EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = before, .size = before_size);
     if ((lead < before_size) && (before[lead] == '[') &&
-        (memor.chr(&(MemoriaCfg){.src = before, .val = ']', .bytes = (size_t)before_size}) == NULL))
+        (memor.chr(&(MemoriaCfg){.src = before, .val = ']', .bytes = (embed_word)before_size}) == NULL))
     {
         const unsigned long long start =
             EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = args->text, .at = args->at_u64,
@@ -232,7 +191,7 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
         }
     }
     if ((open == NULL) ||
-        (memor.chr(&(MemoriaCfg){.src = open, .val = '}', .bytes = (size_t)(before + before_size - open)}) != NULL))
+        (memor.chr(&(MemoriaCfg){.src = open, .val = '}', .bytes = (embed_word)(before + before_size - open)}) != NULL))
     {
         return;
     }

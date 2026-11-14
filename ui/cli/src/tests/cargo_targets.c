@@ -3,10 +3,10 @@
 // cargo_targets.c: a Cargo.toml read as the search for tests reads it: its lines and values, its package's name, and
 // its package's targets, each with its first file, as Cargo finds them
 #include "../command_line/callback_cfg.h"
+#include "../text/sort.h"
 #include "cargo_tests_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 // the most targets of a package and entries of a folder Cargo finds targets in, and those each list is taken with
 #define CLI_CARGO_TARGETS 1024u
@@ -244,7 +244,7 @@ static void found_entry(const CliEachNameIsFolderCfg *args)
         return;
     }
     CliCargoFirst *const entry = &s_targets.entries[s_targets.entry_count];
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     char path[CLI_PATH_MAX_LEN];
     if (!args->is_folder && (length >= 3u) &&
         (memor.cmp(&(MemoriaCfg){.src = args->name + length - 3u, .other = ".rs", .bytes = 3u}) == 0))
@@ -299,7 +299,8 @@ EMBED_INLINE void found_auto(const CargoTargetsCtx *args)
     s_targets.entry_count = 0u;
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = found_entry,
                      .context_bytess = NULL);
-    qsort(s_targets.entries, s_targets.entry_count, sizeof(s_targets.entries[0]), found_entry_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_targets.entries, .count = s_targets.entry_count,
+               .size = sizeof(s_targets.entries[0]), .order = found_entry_order);
     for (unsigned int at = 0u; at < s_targets.entry_count; at += 1u)
     {
         if (!EMBED_CALL(found_alloc, CargoTargetsCtx, .from = args->from, .to = args->to,
@@ -317,7 +318,7 @@ EMBED_INLINE void found_clean(const CargoTargetsCtx *args)
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->path_out,
                .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_out, .cap = CLI_POOL_BYTES}), .from = '\\',
                .to = '/');
-    size_t start = 0u;
+    embed_word start = 0u;
     while ((args->path_out[start] == '.') && (args->path_out[start + 1u] == '/'))
     {
         start += 2u;
@@ -463,8 +464,8 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     unsigned int *count = args->count;
     cli_cargo_firsts_free();
     s_targets.folder = folder;
-    s_targets.firsts = g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst),
-                                                         g_cli_cargo_owner);
+    s_targets.firsts = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst),
+                                                        g_cli_cargo_owner);
     s_targets.capacity = (s_targets.firsts != NULL) ? CLI_CARGO_TARGETS : 0u;
     // the folder's entries and the tables the manifest lists, given back as the targets are found
     const unsigned long long entry_bytes = (unsigned long long)CLI_CARGO_ENTRIES * sizeof(CliCargoFirst);

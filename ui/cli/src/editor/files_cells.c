@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_cells.c: the files' cells and the lists built of them: a list's paths and places taken at the sizes a count of
-// them sets, put, sorted and released; and the files of the tree a reader picks for one call, by their places in it.
-// The cells are the one cellblock's, counted to the files' own mark, which their report writes
+// files_cells.c: the files' cells and the lists built of them: a list's paths and places taken for one call at the
+// sizes a count of them sets, put, sorted and released; and the files of the tree a reader picks, by their places in
+// it, laid in one movable cell the reader owns and reads by index. The cells are the one cellblock's, counted to the
+// files' own mark, which their report writes
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -12,11 +13,6 @@
 void cli_files_cells_usage_write(const CliFilesRootOutDirCfg *args)
 {
     cli_pool_owner_usage_write(g_cli_files_views_owner, args->out);
-}
-
-void *cli_files_cell_alloc(const CliFilesBytesCtx *args)
-{
-    return g_cli_guard->persistent_buf_alloc(args->bytes, g_cli_files_views_owner);
 }
 
 void *cli_files_work_alloc(const CliFilesBytesCtx *args)
@@ -154,28 +150,6 @@ void cli_files_clear(const CliFilesBytesCtx *args)
     *files = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
 }
 
-int cli_files_init(const CliFilesBytesCtx *args)
-{
-    CliFiles *files = args->files;
-    *files = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
-    if (args->count == 0ULL)
-    {
-        return 1;
-    }
-    // each bounded by its limit, which an unsigned int counts
-    files->most = (unsigned int)((args->count < CLI_FILES_MAX) ? args->count : CLI_FILES_MAX);
-    files->text_max = (args->bytes < CLI_FILES_TEXT) ? args->bytes : CLI_FILES_TEXT;
-    files->start = EMBED_CALL(cli_files_bytes_internal.cell_alloc, CliFilesBytesCtx,
-                              .bytes = (unsigned long long)files->most * sizeof(unsigned int));
-    files->text = EMBED_CALL(cli_files_bytes_internal.cell_alloc, CliFilesBytesCtx, .bytes = files->text_max);
-    if ((files->start == NULL) || (files->text == NULL))
-    {
-        EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = files);
-        return 0;
-    }
-    return 1;
-}
-
 int cli_files_work_init(const CliFilesBytesCtx *args)
 {
     CliFiles *files = args->files;
@@ -202,17 +176,15 @@ int cli_files_pick(const CliFilesPickedCtx *args)
 {
     CliPicked *picked = args->picked;
     const char *root = args->root;
-    *picked = (CliPicked){NULL, 0u};
+    *picked = (CliPicked){NULL, 0u, 0ULL};
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
     unsigned int count = 0u;
     unsigned long long bytes = 0ULL;
     EMBED_CALL(cli_symbols_count.tree_files_count, CliSymbolsCountCfg, .count_pointer = &count, .bytes = &bytes);
-    // the most the tree has, one straight take: a filter admits no more than every file; a list that stands past
-    // the call, between the window's frames, is taken in the persistent tier
+    // the most the tree has, one list of this call: a filter admits no more than every file; the paths the filter
+    // admits, sorted, are written into the picked cell as the call ends
     const unsigned long long cell_bytes = sizeof(CliFiles) + ((unsigned long long)count * sizeof(unsigned int)) + bytes;
-    CliFiles *const files =
-        args->standing ? EMBED_CALL(cli_files_bytes_internal.cell_alloc, CliFilesBytesCtx, .bytes = cell_bytes)
-                       : EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = cell_bytes);
+    CliFiles *const files = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = cell_bytes);
     if (files == NULL)
     {
         return 0;
@@ -229,19 +201,85 @@ int cli_files_pick(const CliFilesPickedCtx *args)
                              .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}));
         }
     }
-    *picked = (CliPicked){files, files->count};
-    return 1;
+    const int sorted = EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = files);
+    const unsigned long long starts_bytes = (unsigned long long)files->count * sizeof(unsigned int);
+    const CarcerMovableEntry *const cell =
+        sorted ? g_cli_guard->movable_buf_alloc(starts_bytes + files->used + 1ULL, g_cli_files_views_owner) : NULL;
+    if (cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = files->start, .bytes = starts_bytes});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes, .src = files->text, .bytes = files->used});
+        const char zero = '\0';
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes + files->used, .src = &zero, .bytes = 1ULL});
+        *picked = (CliPicked){cell, files->count, starts_bytes};
+    }
+    g_cli_guard->persistent_buf_release(files, g_cli_files_views_owner);
+    return cell != NULL;
 }
 
 const char *cli_picked_at(const CliFilesPickedIndexCtx *args)
 {
-    unsigned int index = args->index;
-    return EMBED_CALL(cli_files.at, CliFilesCfg, .files = args->picked_read->files, .index = index);
+    const CliPicked *const picked = args->picked_read;
+    char *const out = args->path_out;
+    out[0] = '\0';
+    if ((picked->cell == NULL) || (args->index >= picked->count))
+    {
+        return out;
+    }
+    unsigned int start = 0u;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = picked->cell,
+                                                            .offset = (unsigned long long)args->index * sizeof(start),
+                                                            .dst = &start,
+                                                            .bytes = sizeof(start)});
+    const unsigned long long length =
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = picked->cell, .offset = picked->text_at + start});
+    const unsigned long long bytes = (length < CLI_PATH_MAX_LEN - 1ULL) ? length : CLI_PATH_MAX_LEN - 1ULL;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = picked->cell, .offset = picked->text_at + start, .dst = out, .bytes = bytes});
+    out[bytes] = '\0';
+    return out;
+}
+
+unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args)
+{
+    const CliPicked *const picked = args->picked_read;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
+    unsigned int low = 0u;
+    unsigned int high = (picked->cell != NULL) ? picked->count : 0u;
+    // the paths stand sorted, so the one looked for is found by halving
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        unsigned int start = 0u;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = picked->cell,
+                                                                .offset = (unsigned long long)middle * sizeof(start),
+                                                                .dst = &start,
+                                                                .bytes = sizeof(start)});
+        const unsigned long long stored = g_cli_guard->movable_buf_measure(
+            &(CarcerMovableCfg){.cell = picked->cell, .offset = picked->text_at + start});
+        const unsigned long long shared = (stored < length) ? stored : length;
+        embed_iword order = g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+            .cell = picked->cell, .offset = picked->text_at + start, .src = args->path, .bytes = shared});
+        order = (order != 0) ? order : ((stored < length) ? -1 : ((stored > length) ? 1 : 0));
+        if (order == 0)
+        {
+            return middle;
+        }
+        low = (order < 0) ? (middle + 1u) : low;
+        high = (order < 0) ? high : middle;
+    }
+    return picked->count;
 }
 
 void cli_picked_let(const CliFilesPickedCtx *args)
 {
     CliPicked *picked = args->picked;
-    g_cli_guard->persistent_buf_release(picked->files, g_cli_files_views_owner);
-    *picked = (CliPicked){NULL, 0u};
+    if (picked->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(picked->cell, g_cli_files_views_owner);
+    }
+    *picked = (CliPicked){NULL, 0u, 0ULL};
 }

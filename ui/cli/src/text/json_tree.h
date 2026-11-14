@@ -6,10 +6,12 @@
 // nothing allocated
 #ifndef JSON_TREE_H
 #define JSON_TREE_H
-#include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 
+typedef struct CliJsonTreeStoredCfg CliJsonTreeStoredCfg;
 typedef struct CliJsonTreeTextSizeErrMsgCfg CliJsonTreeTextSizeErrMsgCfg;
 typedef struct CliJsonTreeErrMsgCfg CliJsonTreeErrMsgCfg;
 typedef struct CliJsonTreeTextSizeTokensCfg CliJsonTreeTextSizeTokensCfg;
@@ -78,21 +80,36 @@ unsigned int cli_json_read(const CliJsonTreeTextSizeTokensCfg *args);
 // the tokens cfg_json makes of `size` bytes of `text`, counted without making them: exact where the text is JSON, and
 // where it is not, a count the read then refuses (json_allocated.c)
 unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args);
-// a tree made empty in a cell of its own sized for `nodes_max` nodes and `text_max` bytes of texts: 1, or 0 with the
-// cell refused and reported and the tree containing nothing. Every take below counts the tree's cell to `owner`, and
-// the tree is given back for the owner its cell counts to
+// a tree made empty in a cell of the call's own, on the temporary tier, sized for `nodes_max` nodes and `text_max`
+// bytes of texts: 1, or 0 with the cell refused and reported and the tree containing nothing. Every take below counts
+// the tree's cell to `owner`, the tree is given back for the owner its cell counts to, and a tree that stands past the
+// call is stored with cli_json_stored; capacity on the tree for `nodes` nodes and `text` bytes more: 1, or 0 with the
+// tree full; and a tree emptied, its capacity retained
 int cli_json_reserve(const CliJsonTreeNodesMaxCfg *args);
-// the same tree with its cell from the temporary tier, for a tree the call that makes it gives back; capacity on the
-// tree for `nodes` nodes and `text` bytes more: 1, or 0 with the tree full; and a tree emptied, its capacity retained
-int cli_json_reserved_temporary(const CliJsonTreeNodesMaxCfg *args);
 int cli_json_capacity(const CliJsonTreeNodesCfg *args);
 void cli_json_clear(const CliJsonTreeCfg *args);
-// `size` bytes of `text` read into a tree in a cell of its own, sized to the tokens they contain and to their bytes,
-// with `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why given;
-// and the tree's cell given back, the tree left containing nothing, where it contains one or none
+// `size` bytes of `text` read into a tree in a cell of the call's own, sized to the tokens they contain and to their
+// bytes, with `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why
+// given; and the tree's cell given back, the tree left containing nothing, where it contains one or none
 unsigned int cli_json_alloc(const CliJsonTreeTextSizeErrMsgCfg *args);
-// the same read with the tree's cell from the temporary tier, for a tree the call that reads it gives back
-unsigned int cli_json_alloc_temporary(const CliJsonTreeTextSizeErrMsgCfg *args);
+
+// A tree stored past the call that made it, in one movable cell its holder reaches by the cell's token: its nodes at
+// the cell's start and its texts after them, `nodes` of them and `used` bytes; `cell` NULL where none is stored
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    const CellOwner *owner;
+    unsigned int nodes;
+    unsigned long long used;
+} CliJsonStored;
+
+// `json_read`'s nodes and texts written into a movable cell of `owner` as `stored`, the one stored there before given
+// back: 1, or 0 where the cell is refused; `stored_read` read into `json`, a tree in a cell of the call's own which
+// persistent_buf_release gives back, its capacity what is stored: 1, or 0 where the cell is refused; and a stored
+// tree's cell given back
+int cli_json_stored(const CliJsonTreeStoredCfg *args);
+int cli_json_pinned(const CliJsonTreeStoredCfg *args);
+void cli_json_stored_release(CliJsonStored *stored);
 // the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the
 // capacity a copy of it takes in another tree
 void cli_json_extent(const CliJsonTreeNodeNodesCfg *args);
@@ -224,6 +241,15 @@ struct CliJsonTreeNodesMaxCfg
     unsigned int nodes_max;
     unsigned long long text_max;
     const char *what;
+    const CellOwner *owner;
+};
+
+struct CliJsonTreeStoredCfg
+{
+    const CliJson *json_read;
+    CliJson *json;
+    CliJsonStored *stored;
+    const CliJsonStored *stored_read;
     const CellOwner *owner;
 };
 
@@ -408,12 +434,21 @@ EMBED_TABLE_STORAGE CliJsonTreeTextNs cli_json_tree_text EMBED_UNUSED = {
 typedef struct
 {
     int (*json_reserve)(const CliJsonTreeNodesMaxCfg *args);
-    int (*json_reserved_temporary)(const CliJsonTreeNodesMaxCfg *args);
 } CliJsonTreeNodesMaxNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeNodesMaxNs, json_reserve, json_reserved_temporary);
+EMBED_TABLE_LAYOUT(CliJsonTreeNodesMaxNs, json_reserve);
 EMBED_TABLE_STORAGE CliJsonTreeNodesMaxNs cli_json_tree_nodes_max EMBED_UNUSED = {
     .json_reserve = cli_json_reserve,
-    .json_reserved_temporary = cli_json_reserved_temporary,
+};
+
+typedef struct
+{
+    int (*json_stored)(const CliJsonTreeStoredCfg *args);
+    int (*json_pinned)(const CliJsonTreeStoredCfg *args);
+} CliJsonTreeStoredNs;
+EMBED_TABLE_LAYOUT(CliJsonTreeStoredNs, json_stored, json_pinned);
+EMBED_TABLE_STORAGE CliJsonTreeStoredNs cli_json_tree_stored EMBED_UNUSED = {
+    .json_stored = cli_json_stored,
+    .json_pinned = cli_json_pinned,
 };
 
 typedef struct
@@ -439,12 +474,10 @@ EMBED_TABLE_STORAGE CliJsonTreeNs cli_json_tree EMBED_UNUSED = {
 typedef struct
 {
     unsigned int (*json_alloc)(const CliJsonTreeTextSizeErrMsgCfg *args);
-    unsigned int (*json_alloc_temporary)(const CliJsonTreeTextSizeErrMsgCfg *args);
 } CliJsonTreeTextSizeErrMsgNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeTextSizeErrMsgNs, json_alloc, json_alloc_temporary);
+EMBED_TABLE_LAYOUT(CliJsonTreeTextSizeErrMsgNs, json_alloc);
 EMBED_TABLE_STORAGE CliJsonTreeTextSizeErrMsgNs cli_json_tree_text_size_err_msg EMBED_UNUSED = {
     .json_alloc = cli_json_alloc,
-    .json_alloc_temporary = cli_json_alloc_temporary,
 };
 
 typedef struct

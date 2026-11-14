@@ -35,7 +35,7 @@ while (REPOSITORY != os.path.dirname(REPOSITORY)) and not os.path.isfile(
 # foot of the report is the only thing that shows that, so watch the count after anything moves.
 DEFAULT_ROOTS = tuple(
     os.path.join(REPOSITORY, one)
-    for one in ("docs", "src", "examples", os.path.join("utils", "maint"), "theory", os.path.join("utils", "test"), ".githooks")
+    for one in ("docs", "src", "includes", "examples", os.path.join("utils", "maint"), "theory", os.path.join("utils", "test"), ".githooks")
 )
 
 for one in DEFAULT_ROOTS:

@@ -5,12 +5,11 @@
 // another
 #ifndef CLI_INTERNAL_H
 #define CLI_INTERNAL_H
-#include "../../../../src/cu/includes/file_defs/ksg/ksg_writing.h"
+#include "../../../../includes/file_defs/ksg/ksg_writing.h"
 #include "../../../query/src/query_internal.h"
 #include "callback_cfg.h"
 #include "embed_dispatch_layout.h"
-#include "embed_turnstile.h"
-#include <stdatomic.h>
+#include "embed_ticket_ring.h"
 
 typedef struct CliWordsCtx CliWordsCtx;
 typedef struct CliWordsErrMsgCtx CliWordsErrMsgCtx;
@@ -47,6 +46,7 @@ typedef struct CliSizeBytesCtx CliSizeBytesCtx;
 typedef struct CliCapacityCtx CliCapacityCtx;
 typedef struct CliBytesSizeCtx CliBytesSizeCtx;
 typedef struct CliCapacityPipeHandleCtx CliCapacityPipeHandleCtx;
+typedef struct CliSpawnLinesCtx CliSpawnLinesCtx;
 typedef struct CliColsCtx CliColsCtx;
 typedef struct CliPipeHandleCtx CliPipeHandleCtx;
 typedef struct CliPathErrMsgFullCtx CliPathErrMsgFullCtx;
@@ -187,7 +187,7 @@ unsigned long long cli_wall_milliseconds(void);
 // one letter written in UTF-8 (words.c)
 void cli_utf8_append(const CliLineLetterCtx *args);
 // the staged file `from` copied over `to` with the rights the system requires of the reader: on Windows orior's own
-// program run again as `orior_cli write-raised`, raised; on Linux cp through pkexec; on macOS cp with the system's
+// program run again as `imp write-raised`, raised; on Linux cp through pkexec; on macOS cp with the system's
 // authorization. 1, or 0 with why given
 int cli_raised_platform(const CliErrMsgFromCtx *args);
 
@@ -218,6 +218,71 @@ typedef struct
 } CliWake;
 
 #define CLI_WAKE_INIT {EMBED_ATOMIC_INIT(0u)}
+
+// A gate one thread holds at a time: its word's held bit and its sleeper bit. A thread that finds the gate held sleeps
+// on the word with the turnstile's backoff until the holder opens it and wakes the word
+typedef struct
+{
+    embed_atomic_word word;
+} CliGate;
+
+#define CLI_GATE_INIT {EMBED_ATOMIC_INIT(0u)}
+#define CLI_GATE_HELD ((embed_atomic_word_value)1u)
+#define CLI_GATE_SLEEPER ((embed_atomic_word_value)2u)
+
+// the gate shut by this thread, once the holder before it has opened it
+EMBED_INLINE void cli_gate_shut(CliGate *gate)
+{
+    EmbedTurnstileBackoff backoff;
+    embed_atomic_word_value was = embed_atomic_word_fetch_or(&gate->word, CLI_GATE_HELD);
+    embed_turnstile_backoff_begin(&backoff);
+    while ((was & CLI_GATE_HELD) != 0u)
+    {
+        embed_turnstile_backed_off(&gate->word, was, CLI_GATE_SLEEPER, &backoff, 1u);
+        was = embed_atomic_word_fetch_or(&gate->word, CLI_GATE_HELD);
+    }
+    EMBED_ATOMIC_ORDERED();
+}
+
+// the gate opened by its holder, and a thread asleep on it woken
+EMBED_INLINE void cli_gate_opened(CliGate *gate)
+{
+    EMBED_ATOMIC_ORDERED();
+    const embed_atomic_word_value was = embed_atomic_word_fetch_and(&gate->word, ~(CLI_GATE_HELD | CLI_GATE_SLEEPER));
+    if ((was & CLI_GATE_SLEEPER) != 0u)
+    {
+        embed_word_wake(&gate->word);
+    }
+}
+
+// the epoch a ticket ring's stamp carries: the clock in steps of about a second, in the stamp's sixteen bits
+EMBED_INLINE embed_u16 cli_ticket_epoch(void)
+{
+    // Explicit cast keeps the low sixteen bits of the clock's steps
+    return (embed_u16)(embed_clock_ns() >> 30u);
+}
+
+// whether the slot of the ticket `next` carries that ticket with its push landed and no pop yet, its stamp with the
+// flag bits clear into `stamp_out`: what a consumer tests before it pops the next ticket in order
+EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, embed_u64 *stamp_out)
+{
+    const embed_u64 current = embed_atomic_u64_load(&embed_ticket_ring_slot(ring, (embed_u64)next)->stamp);
+    *stamp_out = embed_ticket_fields_of_stamp(current);
+    return (embed_ticket_of_stamp(current) == next) && ((current & EMBED_TICKET_PUSHED) != 0u) &&
+           ((current & EMBED_TICKET_POPPED) == 0u);
+}
+
+// Whether the slot of the ticket `next` is ready for its grant: a zero word on the ring's first lap, else the
+// released word of the ticket one lap before. A producer that grants only then keeps every live ticket within one
+// lap of the ring, which the ring's proofs need and the consumer's pop in ticket order relies on
+EMBED_INLINE int cli_ticket_room(const EmbedTicketRing *ring, embed_u32 next)
+{
+    const embed_u64 current = embed_atomic_u64_load(&embed_ticket_ring_slot(ring, (embed_u64)next)->stamp);
+    // Explicit cast narrows the slot count, at most 2^31, to the ticket's width
+    const embed_u32 lap = (embed_u32)(ring->mask + 1u);
+    return ((current == 0u) && (next < lap)) ||
+           (((current & EMBED_TICKET_RELEASED) != 0u) && (embed_ticket_of_stamp(current) == next - lap));
+}
 
 // A setting of a started process's environment: `name` set to `value`, or taken out where `value` is NULL
 typedef struct
@@ -342,7 +407,7 @@ _Static_assert(CLI_PATH_MAX_LEN <= KSG_PATH_MAX_LEN, "a path of the command line
 // were not; and the file begun on the disk and put in place of `path` where `whole` is 1, or taken away where it is 0:
 // 1, or 0 where it was not put in place (file_writing.c)
 int cli_file_begin(const CliPathFileCtx *args);
-int cli_file_write_chunk(void *context, const char *bytes, size_t size);
+int cli_file_write_chunk(void *context, const char *bytes, embed_word size);
 int cli_file_end(const CliFileCtx *args);
 
 // a line over `stage`, which is sized for CLI_STAGE_BYTES + 1, handing each whole stage to the file begun; and the
@@ -405,6 +470,10 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args);
 // the bytes waiting to be read from `pipe_handle`, which a read of no more than that many takes without waiting; 0
 // where none wait or the pipe has ended
 unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args);
+// what `pipe_handle` writes read until it ends, line by line into `line`, sized for `capacity`, each line handed to
+// `each` with `context` and its bytes, its end left off, a line longer than the capacity handed in pieces of the
+// capacity's length, and what stands after the last end handed as it ends (spawn_lines.c)
+void cli_spawn_lines_read(const CliSpawnLinesCtx *args);
 long long cli_spawn_wait(const CliSpawnedCtx *args);
 // whether a started process has ended, without waiting: 1 with its exit code into `code`, -1 where a signal ended it,
 // or 0 where it goes on
@@ -473,7 +542,7 @@ int cli_thread_start(const CliThreadCtx *args);
 // the calling thread put at `priority`, one of CLI_PRIORITY_WORK and the rest; its id, which no other live thread has;
 // and the processor given up to any thread waiting for it (platform/windows_threads.c, platform/posix_threads.c)
 void cli_priority_own(const CliWordsErrMsgCtx *args);
-size_t cli_thread_id(void);
+embed_word cli_thread_id(void);
 void cli_thread_yield(void);
 // the processors the machine has, one at the fewest
 unsigned int cli_processors(void);
@@ -525,9 +594,12 @@ int cli_socket_accept(const CliListenerCtx *args);
 // could not be, and off Windows; and the event let go (platform/windows_system.c, platform/posix_system.c)
 int cli_random_bytes(const CliSizeBytesCtx *args);
 // `size` bytes of pages from the system's own page allocator, zero, one allocation a graphics device can read from
-// where the system lets it: the pages, or NULL where it gives none; and pages so taken at `bytes_out`, `size` of them,
-// given back
+// where the system lets it: the pages, or NULL where it gives none; `size` bytes of pages reserved and none of them
+// committed, on the same terms; `size` bytes of reserved pages at `bytes_out` committed, zero: 1, or 0 where the system
+// refuses; and pages so taken or reserved at `bytes_out`, `size` of them, given back
 void *cli_pages_alloc(const CliSizeBytesCtx *args);
+void *cli_pages_reserve(const CliSizeBytesCtx *args);
+int cli_pages_commit(const CliSizeBytesCtx *args);
 void cli_pages_free(const CliSizeBytesCtx *args);
 // a folder made with every folder above it, readable by the reader alone, and a file written whole, made anew,
 // readable by the reader alone: each 1, or 0 where it could not be (platform/windows_system.c,
@@ -760,7 +832,7 @@ struct CliEachCtx
 struct CliPathCapacityCtx
 {
     char *path_out;
-    size_t capacity_bytes;
+    embed_word capacity_bytes;
     unsigned int type;
 };
 
@@ -801,7 +873,7 @@ struct CliCapacityNamesCtx
 
 struct CliCapacityPidCtx
 {
-    size_t capacity_bytes;
+    embed_word capacity_bytes;
     unsigned int pid;
     char *name_out;
 };
@@ -874,6 +946,15 @@ struct CliCapacityPipeHandleCtx
     unsigned long long capacity;
     unsigned long long pipe_handle;
     char *piece;
+};
+
+struct CliSpawnLinesCtx
+{
+    unsigned long long pipe_handle;
+    char *line;
+    unsigned long long capacity;
+    void (*each)(void *context, char *line, unsigned long long used);
+    void *context;
 };
 
 struct CliColsCtx
@@ -961,7 +1042,7 @@ struct CliPathErrMsgTypeCtx
 
 struct CliCapacityLogonCtx
 {
-    size_t capacity_bytes;
+    embed_word capacity_bytes;
     char *logon;
 };
 
@@ -1516,6 +1597,15 @@ EMBED_TABLE_STORAGE CliCapacityPipeHandleNs cli_capacity_pipe_handle_internal EM
 
 typedef struct
 {
+    void (*read)(const CliSpawnLinesCtx *args);
+} CliSpawnLinesNs;
+EMBED_TABLE_LAYOUT(CliSpawnLinesNs, read);
+EMBED_TABLE_STORAGE CliSpawnLinesNs cli_spawn_lines_internal EMBED_UNUSED = {
+    .read = cli_spawn_lines_read,
+};
+
+typedef struct
+{
     int (*registry_machine_path)(const CliOutCtx *args);
     void (*registry_expand)(const CliOutCtx *args);
 } CliOutNs;
@@ -1628,13 +1718,17 @@ typedef struct
     int (*socket_read)(const CliSizeBytesCtx *args);
     int (*random_bytes)(const CliSizeBytesCtx *args);
     void *(*pages_alloc)(const CliSizeBytesCtx *args);
+    void *(*pages_reserve)(const CliSizeBytesCtx *args);
+    int (*pages_commit)(const CliSizeBytesCtx *args);
     void (*pages_free)(const CliSizeBytesCtx *args);
 } CliSizeBytesNs;
-EMBED_TABLE_LAYOUT(CliSizeBytesNs, socket_read, random_bytes, pages_alloc, pages_free);
+EMBED_TABLE_LAYOUT(CliSizeBytesNs, socket_read, random_bytes, pages_alloc, pages_reserve, pages_commit, pages_free);
 EMBED_TABLE_STORAGE CliSizeBytesNs cli_size_bytes_internal EMBED_UNUSED = {
     .socket_read = cli_socket_read,
     .random_bytes = cli_random_bytes,
     .pages_alloc = cli_pages_alloc,
+    .pages_reserve = cli_pages_reserve,
+    .pages_commit = cli_pages_commit,
     .pages_free = cli_pages_free,
 };
 

@@ -4,7 +4,7 @@
 #include "cubin_write.h"
 
 #include "../container_write.h"
-#include "../../../includes/parsers/line_read.h"
+#include "../../../../../includes/parsers/line_read.h"
 
 #include <stdio.h>
 #include <string.h>

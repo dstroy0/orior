@@ -35,7 +35,7 @@ EMBED_INLINE int findings_file_get(const ServersFindingsCtx *args)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = path, .src = named, .bytes = (size_t)size});
+    memor.cpy(&(MemoriaCfg){.dst = path, .src = named, .bytes = (embed_word)size});
     path[size] = '\0';
     EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = path, .uri_out = uri);
     EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
@@ -49,11 +49,20 @@ EMBED_INLINE int findings_file_get(const ServersFindingsCtx *args)
 EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
 {
     const char *key = args->key_read;
-    const char *adjacent = NULL;
-    unsigned long long size = 0ULL;
-    const char *const stored =
-        EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_checked, .key = key,
-                   .adjacent = &adjacent, .size = &size);
+    const unsigned int place =
+        EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_checked, .key = key);
+    const CliKeyedEntry one = (place != CLI_KEYED_NONE) ? EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg,
+                                                                     .keyed = &g_cli_servers_checked, .at = place)
+                                                        : (CliKeyedEntry){0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+    const unsigned long long size = one.used ? one.text_size : 0ULL;
+    // the JSON stored read out of its cell into the reader's own cell for this call
+    char *const stored =
+        one.used ? g_cli_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_servers_owner) : NULL;
+    if ((stored != NULL) && (size != 0ULL))
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one.cell, .offset = (embed_word)one.text_at, .dst = stored, .bytes = (embed_word)size});
+    }
     unsigned int nodes_more = 1u;
     unsigned long long text_more = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES}) + 1ULL;
     EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = &s_found.json,
@@ -76,6 +85,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     {
         return 0;
     }
+    g_cli_guard->persistent_buf_release(stored, g_cli_servers_owner);
     entry = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = entry,
                        .type = CFG_JSON_OBJECT)
                 ? entry
@@ -160,7 +170,8 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
         }
     }
     g_cli_guard->persistent_buf_release(changed_files, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(s_found.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_found.json.node));
+    g_cli_guard->persistent_buf_release(s_found.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_found.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_found.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

@@ -5,7 +5,7 @@
 //
 // A language's name goes through its .klm to a key of the bridge, the key's pairs and their verdicts are in Lstar.klq,
 // and each ruleset's entry of the key's name is the form it writes. The forms of each line are in
-// src/cu/includes/file_defs/klq and klm.
+// includes/file_defs/klq and klm.
 //
 // Only the line shapes are checked: `key`, `pair`, the verdict under a pair (`open` or `closed`), and a .klm's `key`,
 // `type` and `breaks`. Every other line under a pair is retained as a note, its first word and the rest, and a line the

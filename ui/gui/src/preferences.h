@@ -1,0 +1,523 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// preferences.h: File, Preferences, in a system window of its own, drawn in the window's own terms: one section shown
+// at a time beside a quiet list of the sections, each row of a section a sentence that says what it is set to, and
+// nothing but how bright each thing stands to tell them apart, no line or ground about any of them. Colors is the one
+// exception, a grid of the palette's colors, each with its swatch, its name and its value, a value typed in as hex, and
+// a color of text under the least contrast marked with its ratio, a row over the grid saying what each is drawn on. The
+// window holds what each row sets and acts on what is changed here (preferences.c)
+#ifndef GUI_WINDOW_PREFERENCES_H
+#define GUI_WINDOW_PREFERENCES_H
+#include "../../../includes/glass/glass.h"
+#include "../../../includes/window/button.h"
+#include "../../../includes/window/frame.h"
+#include "../../../includes/window/glyphs.h"
+#include "../../../includes/window/palette.h"
+#include "../../../includes/window/scrollbar.h"
+#include "embed_dispatch_layout.h"
+
+typedef struct GuiPreferencesPaletteValuesCfg GuiPreferencesPaletteValuesCfg;
+typedef struct GuiPreferencesValuesCfg GuiPreferencesValuesCfg;
+typedef struct GuiPreferencesPaletteChangeCfg GuiPreferencesPaletteChangeCfg;
+typedef struct GuiPreferencesPaletteNameCfg GuiPreferencesPaletteNameCfg;
+typedef struct GuiPreferencesWidthCfg GuiPreferencesWidthCfg;
+typedef struct GuiPreferencesScaleCfg GuiPreferencesScaleCfg;
+typedef struct GuiPreferencesPercentCfg GuiPreferencesPercentCfg;
+typedef struct GuiPreferencesStepCfg GuiPreferencesStepCfg;
+typedef struct GuiPreferencesSizeCfg GuiPreferencesSizeCfg;
+typedef struct GuiPreferencesPaletteCfg GuiPreferencesPaletteCfg;
+typedef struct GuiPreferencesCfg GuiPreferencesCfg;
+typedef struct GuiPreferencesRowCfg GuiPreferencesRowCfg;
+
+// the sections; the rows of Settings; the zoom's steps; the opacities' step and most; and the sizes in unscaled pixels:
+// how far everything stands from the edges of what it stands in, a row's
+// height, the text's size, a cell of the grid's width and height, the swatch's side, the code's size, the shown tab's
+// underline, and the most bytes a value's text and a color's name take
+#define GUI_PREFERENCES_SETTINGS 0u
+#define GUI_PREFERENCES_SHORTCUTS 1u
+#define GUI_PREFERENCES_FONTS 2u
+#define GUI_PREFERENCES_FILES 3u
+#define GUI_PREFERENCES_MODIFIED 4u
+#define GUI_PREFERENCES_NOTIFICATIONS 5u
+#define GUI_PREFERENCES_SYNC 6u
+#define GUI_PREFERENCES_THEME 7u
+#define GUI_PREFERENCES_COLORS 8u
+#define GUI_PREFERENCES_SECTIONS 9u
+// The types of a row. A row from a catalog item takes its type from the item's arguments: the zoom's steps, a percent
+// on a slider, a switch, a count, text typed in place, or one of a list of choices that `note` holds, each choice
+// ended by '|'. A row of a command is a button that runs the command. A row of a command's keys holds the keys, and
+// a press or Enter takes the next keys pressed as its keys. A line says a setting in force, its value and its file
+#define GUI_PREFERENCE_TYPE_ZOOM 0u
+#define GUI_PREFERENCE_TYPE_PERCENT 1u
+#define GUI_PREFERENCE_TYPE_SWITCH 2u
+#define GUI_PREFERENCE_TYPE_COUNT 3u
+#define GUI_PREFERENCE_TYPE_TEXT 4u
+#define GUI_PREFERENCE_TYPE_CHOICE 5u
+#define GUI_PREFERENCE_TYPE_ACTION 6u
+#define GUI_PREFERENCE_TYPE_KEY 7u
+#define GUI_PREFERENCE_TYPE_LINE 8u
+// the most rows every section holds together
+#define GUI_PREFERENCE_ROWS_MAX 1024u
+#define GUI_PREFERENCE_ZOOM_STEPS 13u
+#define GUI_PREFERENCE_ZOOM_DEFAULT_STEP 5u
+#define GUI_PREFERENCE_OPACITY_STEP 10u
+#define GUI_PREFERENCE_OPACITY_MAX 100u
+#define GUI_PREFERENCES_EDGE 24
+#define GUI_PREFERENCES_TAB_LINE 2
+#define GUI_PREFERENCES_ROW 30
+#define GUI_PREFERENCES_SIZE 13u
+#define GUI_PREFERENCES_CELL_WIDTH 320
+#define GUI_PREFERENCES_CELL 24
+#define GUI_PREFERENCES_SWATCH 14
+#define GUI_PREFERENCES_NAME_WIDTH 175
+#define GUI_PREFERENCES_VALUE_WIDTH 66
+#define GUI_PREFERENCES_CODE 12u
+#define GUI_PREFERENCES_TEXT 64u
+#define GUI_PREFERENCES_CONTRASTS 1024u
+#define GUI_PREFERENCES_CLOSE_WIDTH 32
+#define GUI_PREFERENCES_CLOSE_SIDE 9
+// the palettes' list at the grid's left: the most listed, the window's and the language plugins', and its width
+#define GUI_PREFERENCES_PALETTES 64u
+#define GUI_PREFERENCES_LIST_WIDTH 150
+// a row's label column, a control's width, a slider's track and thumb, a switch's box, a field's inset and a button's
+// inset, unscaled
+#define GUI_PREFERENCES_LABEL_WIDTH 200
+#define GUI_PREFERENCES_CONTROL_WIDTH 260
+#define GUI_PREFERENCES_TRACK 4
+#define GUI_PREFERENCES_THUMB 13
+#define GUI_PREFERENCES_BOX 14
+#define GUI_PREFERENCES_FIELD_INSET 4
+#define GUI_PREFERENCES_BUTTON_INSET 10
+// the gap the line of a slider leaves each side of its thumb, unscaled
+#define GUI_PREFERENCES_THUMB_RING 2
+// The most pixels a corner's rounding takes at any scale. The corners come in pairs, the outer edge and the inner edge
+// one pixel in: at the rounding, at half of it and at half the track's thickness. The last pair is the window's
+// rounding and the ring between its outer edge and its inner edge. Each pair holds the top left, the top right, the
+// bottom left and the bottom right
+#define GUI_PREFERENCES_CORNER_MAX 32u
+#define GUI_PREFERENCES_CORNER_OUTER 0u
+#define GUI_PREFERENCES_CORNER_INNER 1u
+#define GUI_PREFERENCES_CORNER_SMALL_OUTER 2u
+#define GUI_PREFERENCES_CORNER_SMALL_INNER 3u
+#define GUI_PREFERENCES_CORNER_TRACK_OUTER 4u
+#define GUI_PREFERENCES_CORNER_TRACK_INNER 5u
+#define GUI_PREFERENCES_CORNER_EDGES 6u
+#define GUI_PREFERENCES_TOP_LEFT 0u
+#define GUI_PREFERENCES_TOP_RIGHT 1u
+#define GUI_PREFERENCES_BOTTOM_LEFT 2u
+#define GUI_PREFERENCES_BOTTOM_RIGHT 3u
+
+// One row of a section: its label; the setting's key in settings.json, or the command a button runs; its type; the
+// section that shows it; its value as the row says it, an empty value where nothing sets it; and what more it says:
+// the choices of a choice, the text a button carries, or the file a line's setting comes from
+typedef struct
+{
+    char label[GUI_PREFERENCES_TEXT];
+    char key[GUI_PREFERENCES_TEXT];
+    unsigned int type;
+    unsigned int section;
+    char value[GUI_PREFERENCES_TEXT];
+    char note[GUI_PREFERENCES_TEXT * 2u];
+} GuiPreferenceRow;
+
+// What the rows of Settings stand at: the zoom's step, the bar's and the editor's opacity in percent, whether motion is
+// reduced, and the rows themselves, as the window reads them from the catalog and the settings
+typedef struct
+{
+    unsigned int zoom_step;
+    unsigned int bar_percent;
+    unsigned int editor_percent;
+    int reduced;
+    GuiPreferenceRow row[GUI_PREFERENCE_ROWS_MAX];
+    unsigned int rows;
+} GuiPreferenceValues;
+
+// What a key or a press changed for the window to act on: nothing; Preferences closed; the row `at` moved `by` steps,
+// past its end back round to its start where `round` is set; the color `at` of the palette's named colors made
+// `color`; the row `at` given the text typed in Preferences' `entered`; the row `at` set to the share `share` of its
+// slider, in thousandths; the button of the row `at` pressed; the keys of the row `at` set to the keys named in
+// `entered`; or those keys taken off; or the palette `at` of the list chosen, for the window to hand in its colors. A
+// row's `at` counts every section's rows; a color's `at` counts the palette's colors from its first, so a plugin's
+// token is named among them past the window's named colors
+#define GUI_PREFERENCE_NOTHING 0u
+#define GUI_PREFERENCE_CLOSED 1u
+#define GUI_PREFERENCE_STEPPED 2u
+#define GUI_PREFERENCE_COLORED 3u
+#define GUI_PREFERENCE_TYPED 4u
+#define GUI_PREFERENCE_SLID 5u
+#define GUI_PREFERENCE_ACTED 6u
+#define GUI_PREFERENCE_KEYED 7u
+#define GUI_PREFERENCE_UNKEYED 8u
+#define GUI_PREFERENCE_PALETTE 9u
+typedef struct
+{
+    unsigned int type;
+    unsigned int at;
+    int by;
+    int round;
+    GuiColor color;
+    unsigned int share;
+} GuiPreferenceChange;
+
+// Preferences' layout pixels in pixels at its scale, scaled as its window is sized: an edge, a row's height, the
+// label's column, a control's width, a field's inset, a button's inset, a slider's track and thumb, a switch's box,
+// the rounding of a field and a button, and the text's size
+typedef struct
+{
+    int edge;
+    int row;
+    int label;
+    int control;
+    int inset;
+    int button;
+    int track;
+    int thumb;
+    int box;
+    unsigned int radius;
+    unsigned int text;
+} GuiPreferencesPixels;
+
+// Preferences: whether it is shown; the section shown; the row or color marked; the grid's first row in view; whether a
+// value is being typed, what has been typed and how much; its window's client size and the scale it is laid at, a
+// percent; whether the pointer stands on its close mark; whether its window holds the focus, which its edge shows in
+// the signal and the main window's work then does not; where the pointer last stood, -1 before it first stands in the
+// window; each section's first row among all rows and its count of rows; the shown section's first row and count;
+// each row's type, as the window sets it; whether the next keys pressed are a row's keys; whether the pointer drags
+// the marked row's slider; its sizes at its scale; the scrollbar beside a section's rows, and whether the pointer drags
+// its thumb; and a slider's thumb, a disc made as a mask as the window is sized. Then the palettes' list at the colors'
+// grid's left: each palette's name, the window's first and then each language plugin's id, how many, the one chosen,
+// the list's first row in view, and the first of the palette's colors the grid shows, 0 for the window's palette and
+// the count of its named colors for a plugin's, whose tokens stand after them. Last, the tabs' beads of water, one a
+// section, which a press on a tab sinks, and whether they moved in the last frame, so the frame after they rest is
+// drawn
+typedef struct
+{
+    unsigned int section_first[GUI_PREFERENCES_SECTIONS];
+    unsigned int section_rows[GUI_PREFERENCES_SECTIONS];
+    unsigned int first;
+    unsigned int rows;
+    char palette_name[GUI_PREFERENCES_PALETTES][GUI_PREFERENCES_TEXT];
+    unsigned int palettes;
+    unsigned int palette_chosen;
+    unsigned int palette_top;
+    unsigned int color_first;
+    unsigned int type[GUI_PREFERENCE_ROWS_MAX];
+    int capturing;
+    int sliding;
+    int pointer_x;
+    int pointer_y;
+    int displayed;
+    unsigned int section;
+    unsigned int marked;
+    unsigned int top;
+    int entering;
+    char entered[GUI_PREFERENCES_TEXT];
+    unsigned int entered_length;
+    unsigned int width;
+    unsigned int height;
+    int scale;
+    int close_pointed;
+    int focused;
+    GuiPreferencesPixels pixels;
+    // each section's tab's width in pixels: its name, the editor's tab's padding each side and the space after it
+    int tab_width[GUI_PREFERENCES_SECTIONS];
+    GuiScrollbar scrollbar;
+    int scrolling;
+    GuiMask thumb;
+    unsigned char thumb_cover[GUI_SCROLLBAR_SIDE_MAX * GUI_SCROLLBAR_SIDE_MAX];
+    GuiMask thumb_ring;
+    unsigned char thumb_ring_cover[GUI_SCROLLBAR_SIDE_MAX * GUI_SCROLLBAR_SIDE_MAX];
+    GuiMask corner[GUI_PREFERENCES_CORNER_EDGES][4];
+    unsigned char corner_cover[GUI_PREFERENCES_CORNER_EDGES][4]
+                              [GUI_PREFERENCES_CORNER_MAX * GUI_PREFERENCES_CORNER_MAX];
+    GuiButtons buttons;
+    int buttons_moving;
+} GuiPreferences;
+
+// a Preferences not shown, at its first section; its palettes' list emptied, the window's chosen; and the palette
+// named `text` listed after those listed, one past the most left out
+void gui_preferences_init(const GuiPreferencesSizeCfg *args);
+void gui_preferences_palettes_clear(const GuiPreferencesSizeCfg *args);
+void gui_preferences_palette_add(const GuiPreferencesSizeCfg *args);
+// its window's client `width` by `height` at `scale`, the grid's rows in view following; and the size at `scale` that
+// shows every color of `palette` in two columns
+void gui_preferences_resize(const GuiPreferencesWidthCfg *args);
+void gui_preferences_want(const GuiPreferencesScaleCfg *args);
+// the percent of a step of the zoom, and the step of a percent: 1, or 0 where no step has that percent
+unsigned int gui_preference_zoom_percent(const GuiPreferencesStepCfg *args);
+int gui_preference_zoom_step(const GuiPreferencesCfg *args);
+// a value `step` of the zoom or a percent moved `by`, no further than its ends, or past its end back round to its start
+// where `round` is set
+unsigned int gui_preference_zoom_move(const GuiPreferencesStepCfg *args);
+unsigned int gui_preference_opacity_move(const GuiPreferencesPercentCfg *args);
+// the row `row` of Settings as its sentence: what comes before its value, ending in `is `, and its value, each into
+// `size` bytes
+void gui_preference_sentence(const GuiPreferencesValuesCfg *args);
+// where it all stands in its window: what it covers, the client whole; the close mark at the head's right end; a
+// section's name in the list; a row of Settings; and the colors' grid's cells across and in view, and a color's cell,
+// empty where it is out of view; and the palette `at` of the list's row, empty where it is out of view or none is
+// listed
+GuiRect gui_preferences_rect(const GuiPreferencesPaletteValuesCfg *args);
+GuiRect gui_preferences_close_rect(const GuiPreferencesRowCfg *args);
+GuiRect gui_preferences_section_rect(const GuiPreferencesPaletteValuesCfg *args);
+GuiRect gui_preferences_row_rect(const GuiPreferencesRowCfg *args);
+unsigned int gui_preferences_cells_across(const GuiPreferencesPaletteValuesCfg *args);
+GuiRect gui_preferences_cell_rect(const GuiPreferencesPaletteValuesCfg *args);
+GuiRect gui_preferences_list_rect(const GuiPreferencesPaletteValuesCfg *args);
+// the keys of its window, `name` as the editor names a key: Up and Down mark a row or a color, Left and Right move a
+// row's value or mark a color beside, PageUp and PageDown show a section, Enter begins typing a color's value and takes
+// it, Escape leaves the typing or closes it. The change into `change`
+void gui_preferences_key(const GuiPreferencesPaletteNameCfg *args);
+// text typed: the hex of a color's value being typed, the rest passed over: 1 where it was taken
+int gui_preferences_type(const GuiPreferencesSizeCfg *args);
+// a press at x, y of its window at `time_ms`: closed by the close mark, a section shown and its tab's bead sunk, a
+// row moved a step on and round, a color
+// marked and its typing begun: 1 where it landed on one, the change into `change`; the pointer moved to x, y marking
+// the row or color under it and the close mark: 1 where a mark moved; and the wheel moving the grid `rows`: 1 where it
+// moved
+int gui_preferences_press(const GuiPreferencesPaletteChangeCfg *args);
+int gui_preferences_move(const GuiPreferencesPaletteChangeCfg *args);
+// the pointer at x while it drags a slider: the slider's share there into `change`, 1 where a slider is dragged; and
+// the press let go at `time_ms`, the slider let go with it and a tab's bead sprung back
+int gui_preferences_slide(const GuiPreferencesPaletteChangeCfg *args);
+int gui_preferences_release(const GuiPreferencesPaletteChangeCfg *args);
+// where the row `row` draws its control: its slider, switch, field, button or keys
+GuiRect gui_preferences_control_rect(const GuiPreferencesRowCfg *args);
+int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args);
+// its window's whole client drawn on the widget's ground at `time_ms`, the tabs' beads `buttons` as their presses
+// stand, none where it is NULL
+void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args);
+struct GuiPreferencesPaletteValuesCfg
+{
+    const GuiPalette *palette;
+    const GuiPreferenceValues *values;
+    const GuiPreferences *preferences_read;
+    unsigned int at;
+    GuiRaster *raster;
+    GuiGlyphs *glyphs;
+    const GuiRaster *ground;
+    GuiButtons *buttons;
+    unsigned long long time_ms;
+};
+
+struct GuiPreferencesValuesCfg
+{
+    const GuiPreferenceValues *values;
+    unsigned int row;
+    char *output;
+    char *value;
+    unsigned long long size;
+};
+
+struct GuiPreferencesPaletteChangeCfg
+{
+    GuiPreferences *preferences;
+    const GuiPalette *palette;
+    GuiPreferenceChange *change;
+    int x;
+    int y;
+    unsigned long long time_ms;
+};
+
+struct GuiPreferencesPaletteNameCfg
+{
+    GuiPreferences *preferences;
+    const GuiPalette *palette;
+    const char *name;
+    GuiPreferenceChange *change;
+};
+
+struct GuiPreferencesWidthCfg
+{
+    GuiPreferences *preferences;
+    GuiGlyphs *glyphs;
+    unsigned int width;
+    unsigned int height;
+    int scale;
+};
+
+struct GuiPreferencesScaleCfg
+{
+    int scale;
+    const GuiPalette *palette;
+    unsigned int *width_pointer;
+    unsigned int *height_pointer;
+};
+
+struct GuiPreferencesPercentCfg
+{
+    unsigned int percent;
+    int by;
+    int round;
+};
+
+struct GuiPreferencesStepCfg
+{
+    unsigned int step;
+    int by;
+    int round;
+};
+
+struct GuiPreferencesSizeCfg
+{
+    GuiPreferences *preferences;
+    unsigned long long size;
+    const char *text;
+};
+
+struct GuiPreferencesPaletteCfg
+{
+    GuiPreferences *preferences;
+    const GuiPalette *palette;
+    int rows;
+};
+
+struct GuiPreferencesCfg
+{
+    unsigned int percent;
+    unsigned int *step_pointer;
+};
+
+struct GuiPreferencesRowCfg
+{
+    unsigned int row;
+    const GuiPreferences *preferences_read;
+};
+
+typedef struct
+{
+    void (*init)(const GuiPreferencesSizeCfg *args);
+    int (*type)(const GuiPreferencesSizeCfg *args);
+    void (*palettes_clear)(const GuiPreferencesSizeCfg *args);
+    void (*palette_add)(const GuiPreferencesSizeCfg *args);
+} GuiPreferencesSizeNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesSizeNs, init, type, palettes_clear, palette_add);
+EMBED_TABLE_STORAGE GuiPreferencesSizeNs gui_preferences_size EMBED_UNUSED = {
+    .init = gui_preferences_init,
+    .type = gui_preferences_type,
+    .palettes_clear = gui_preferences_palettes_clear,
+    .palette_add = gui_preferences_palette_add,
+};
+
+typedef struct
+{
+    void (*resize)(const GuiPreferencesWidthCfg *args);
+} GuiPreferencesWidthNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesWidthNs, resize);
+EMBED_TABLE_STORAGE GuiPreferencesWidthNs gui_preferences_width EMBED_UNUSED = {
+    .resize = gui_preferences_resize,
+};
+
+typedef struct
+{
+    void (*want)(const GuiPreferencesScaleCfg *args);
+} GuiPreferencesScaleNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesScaleNs, want);
+EMBED_TABLE_STORAGE GuiPreferencesScaleNs gui_preferences_scale EMBED_UNUSED = {
+    .want = gui_preferences_want,
+};
+
+typedef struct
+{
+    unsigned int (*preference_zoom_percent)(const GuiPreferencesStepCfg *args);
+    unsigned int (*preference_zoom_move)(const GuiPreferencesStepCfg *args);
+} GuiPreferencesStepNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesStepNs, preference_zoom_percent, preference_zoom_move);
+EMBED_TABLE_STORAGE GuiPreferencesStepNs gui_preferences_step EMBED_UNUSED = {
+    .preference_zoom_percent = gui_preference_zoom_percent,
+    .preference_zoom_move = gui_preference_zoom_move,
+};
+
+typedef struct
+{
+    int (*preference_zoom_step)(const GuiPreferencesCfg *args);
+} GuiPreferencesNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesNs, preference_zoom_step);
+EMBED_TABLE_STORAGE GuiPreferencesNs gui_preferences EMBED_UNUSED = {
+    .preference_zoom_step = gui_preference_zoom_step,
+};
+
+typedef struct
+{
+    unsigned int (*preference_opacity_move)(const GuiPreferencesPercentCfg *args);
+} GuiPreferencesPercentNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesPercentNs, preference_opacity_move);
+EMBED_TABLE_STORAGE GuiPreferencesPercentNs gui_preferences_percent EMBED_UNUSED = {
+    .preference_opacity_move = gui_preference_opacity_move,
+};
+
+typedef struct
+{
+    void (*preference_sentence)(const GuiPreferencesValuesCfg *args);
+} GuiPreferencesValuesNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesValuesNs, preference_sentence);
+EMBED_TABLE_STORAGE GuiPreferencesValuesNs gui_preferences_values EMBED_UNUSED = {
+    .preference_sentence = gui_preference_sentence,
+};
+
+typedef struct
+{
+    GuiRect (*rect)(const GuiPreferencesPaletteValuesCfg *args);
+    GuiRect (*section_rect)(const GuiPreferencesPaletteValuesCfg *args);
+    unsigned int (*cells_across)(const GuiPreferencesPaletteValuesCfg *args);
+    GuiRect (*cell_rect)(const GuiPreferencesPaletteValuesCfg *args);
+    GuiRect (*list_rect)(const GuiPreferencesPaletteValuesCfg *args);
+    void (*draw)(const GuiPreferencesPaletteValuesCfg *args);
+} GuiPreferencesPaletteValuesNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesPaletteValuesNs, rect, section_rect, cells_across, cell_rect, list_rect, draw);
+EMBED_TABLE_STORAGE GuiPreferencesPaletteValuesNs gui_preferences_palette_values EMBED_UNUSED = {
+    .rect = gui_preferences_rect,
+    .section_rect = gui_preferences_section_rect,
+    .cells_across = gui_preferences_cells_across,
+    .cell_rect = gui_preferences_cell_rect,
+    .list_rect = gui_preferences_list_rect,
+    .draw = gui_preferences_draw,
+};
+
+typedef struct
+{
+    GuiRect (*close_rect)(const GuiPreferencesRowCfg *args);
+    GuiRect (*row_rect)(const GuiPreferencesRowCfg *args);
+    GuiRect (*control_rect)(const GuiPreferencesRowCfg *args);
+} GuiPreferencesRowNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesRowNs, close_rect, row_rect, control_rect);
+EMBED_TABLE_STORAGE GuiPreferencesRowNs gui_preferences_row EMBED_UNUSED = {
+    .close_rect = gui_preferences_close_rect,
+    .row_rect = gui_preferences_row_rect,
+    .control_rect = gui_preferences_control_rect,
+};
+
+typedef struct
+{
+    void (*key)(const GuiPreferencesPaletteNameCfg *args);
+} GuiPreferencesPaletteNameNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesPaletteNameNs, key);
+EMBED_TABLE_STORAGE GuiPreferencesPaletteNameNs gui_preferences_palette_name EMBED_UNUSED = {
+    .key = gui_preferences_key,
+};
+
+typedef struct
+{
+    int (*press)(const GuiPreferencesPaletteChangeCfg *args);
+    int (*move)(const GuiPreferencesPaletteChangeCfg *args);
+    int (*slide)(const GuiPreferencesPaletteChangeCfg *args);
+    int (*release)(const GuiPreferencesPaletteChangeCfg *args);
+} GuiPreferencesPaletteChangeNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesPaletteChangeNs, press, move, slide, release);
+EMBED_TABLE_STORAGE GuiPreferencesPaletteChangeNs gui_preferences_palette_change EMBED_UNUSED = {
+    .press = gui_preferences_press,
+    .move = gui_preferences_move,
+    .slide = gui_preferences_slide,
+    .release = gui_preferences_release,
+};
+
+typedef struct
+{
+    int (*wheel)(const GuiPreferencesPaletteCfg *args);
+} GuiPreferencesPaletteNs;
+EMBED_TABLE_LAYOUT(GuiPreferencesPaletteNs, wheel);
+EMBED_TABLE_STORAGE GuiPreferencesPaletteNs gui_preferences_palette EMBED_UNUSED = {
+    .wheel = gui_preferences_wheel,
+};
+
+#endif

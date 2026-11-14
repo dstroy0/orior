@@ -2,7 +2,9 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/cli/src/print/font.h"
+#include "includes/coverage/coverage.h"
+#include "includes/font/font.h"
+#include "ui/cli/src/print/font_families.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -79,17 +81,17 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\font\\test_font\\test_font.c");
-  run_test(test_a_square_of_four_draws_five_by_four, "test_a_square_of_four_draws_five_by_four", 63);
-  run_test(test_a_pixel_inside_is_fully_covered, "test_a_pixel_inside_is_fully_covered", 71);
-  run_test(test_a_pixel_end_the_edge_is_not_covered, "test_a_pixel_end_the_edge_is_not_covered", 78);
-  run_test(test_a_pixel_halved_by_the_edge_is_half_covered, "test_a_pixel_halved_by_the_edge_is_half_covered", 85);
-  run_test(test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area, "test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area", 107);
-  run_test(test_a_slope_in_the_top_row_covers_each_cell_by_its_area, "test_a_slope_in_the_top_row_covers_each_cell_by_its_area", 118);
-  run_test(test_the_system_font_has_a_glyph_for_h, "test_the_system_font_has_a_glyph_for_h", 127);
-  run_test(test_the_system_font_is_monospace, "test_the_system_font_is_monospace", 133);
-  run_test(test_h_draws_ink_and_not_everywhere, "test_h_draws_ink_and_not_everywhere", 139);
-  run_test(test_a_character_the_font_lacks_has_no_glyph, "test_a_character_the_font_lacks_has_no_glyph", 155);
-  run_test(test_an_accented_character_has_an_outline, "test_an_accented_character_has_an_outline", 161);
+  run_test(test_a_square_of_four_draws_five_by_four, "test_a_square_of_four_draws_five_by_four", 66);
+  run_test(test_a_pixel_inside_is_fully_covered, "test_a_pixel_inside_is_fully_covered", 74);
+  run_test(test_a_pixel_end_the_edge_is_not_covered, "test_a_pixel_end_the_edge_is_not_covered", 81);
+  run_test(test_a_pixel_halved_by_the_edge_is_half_covered, "test_a_pixel_halved_by_the_edge_is_half_covered", 88);
+  run_test(test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area, "test_a_slope_across_two_cells_of_a_row_covers_each_by_its_area", 110);
+  run_test(test_a_slope_in_the_top_row_covers_each_cell_by_its_area, "test_a_slope_in_the_top_row_covers_each_cell_by_its_area", 121);
+  run_test(test_the_system_font_has_a_glyph_for_h, "test_the_system_font_has_a_glyph_for_h", 130);
+  run_test(test_the_system_font_is_monospace, "test_the_system_font_is_monospace", 136);
+  run_test(test_h_draws_ink_and_not_everywhere, "test_h_draws_ink_and_not_everywhere", 142);
+  run_test(test_a_character_the_font_lacks_has_no_glyph, "test_a_character_the_font_lacks_has_no_glyph", 158);
+  run_test(test_an_accented_character_has_an_outline, "test_an_accented_character_has_an_outline", 164);
 
   return UNITY_END();
 }

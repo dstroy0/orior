@@ -19,11 +19,12 @@ int cli_fill_line_at(const CliFillTextSizeCtx *args)
     args->line->index = 0u;
     for (;;)
     {
-        const char *const newline = (args->line->start < args->size)
-                                        ? memor.chr(&(MemoriaCfg){.src = args->text + args->line->start,
-                                                                  .val = '\n',
-                                                                  .bytes = (size_t)(args->size - args->line->start)})
-                                        : NULL;
+        const char *const newline =
+            (args->line->start < args->size)
+                ? memor.chr(&(MemoriaCfg){.src = args->text + args->line->start,
+                                          .val = '\n',
+                                          .bytes = (embed_word)(args->size - args->line->start)})
+                : NULL;
         args->line->end = (newline != NULL) ? (unsigned long long)(newline - args->text) : args->size;
         if (args->line->index == index)
         {
@@ -62,7 +63,7 @@ int cli_fill_after(const CliFillTextSizeCtx *args)
     const char *const newline = (args->line->start < args->size)
                                     ? memor.chr(&(MemoriaCfg){.src = args->text + args->line->start,
                                                               .val = '\n',
-                                                              .bytes = (size_t)(args->size - args->line->start)})
+                                                              .bytes = (embed_word)(args->size - args->line->start)})
                                     : NULL;
     args->line->end = (newline != NULL) ? (unsigned long long)(newline - args->text) : args->size;
     args->line->index += 1u;

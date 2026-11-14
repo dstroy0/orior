@@ -22,7 +22,46 @@ typedef struct
 {
     const CliDbFailure *failure;
     const char *text;
+    unsigned int at;
+    CliDbOpen *open;
 } DbPaneActCtx;
+
+// the open connection `at`, NULL where it is not open, read out of the connections cell
+EMBED_INLINE CliDbOpen *open_read(const DbPaneActCtx *args)
+{
+    CliDbOpen *open = NULL;
+    if (g_cli_db_pane_state.connections_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_OPEN_AT(args->at),
+                                                                .dst = &open,
+                                                                .bytes = sizeof(open)});
+    }
+    return open;
+}
+
+// the connection `at`'s open one set to `open`, NULL for none, with its transaction's state as the open one has it,
+// empty for none, each written into the connections cell
+EMBED_INLINE void open_written(const DbPaneActCtx *args)
+{
+    CliDbOpen *const open = args->open;
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                             .offset = CLI_DB_PANE_OPEN_AT(args->at),
+                                                             .src = &open,
+                                                             .bytes = sizeof(open)});
+    char transaction[CLI_DB_PANE_TRANSACTION] = {0};
+    if (open != NULL)
+    {
+        (void)cellul.copy(
+            &(CatenaFinitaCfg){.dst = transaction,
+                               .src = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = open),
+                               .cap = CLI_DB_PANE_TRANSACTION});
+    }
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                             .offset = CLI_DB_PANE_TRANSACTION_AT(args->at),
+                                                             .src = transaction,
+                                                             .bytes = sizeof(transaction)});
+}
 
 unsigned int cli_db_pane_head_rows(const CliDbPaneHeadCfg *args)
 {
@@ -35,7 +74,7 @@ EMBED_INLINE int chosen_open(const DbPaneActCtx *args)
 {
     (void)args;
     const CliDbPaneState *const pane = &g_cli_db_pane_state;
-    return (pane->chosen != CLI_DB_PANE_NONE) && (pane->open[pane->chosen] != NULL);
+    return (pane->chosen != CLI_DB_PANE_NONE) && (EMBED_CALL(open_read, DbPaneActCtx, .at = pane->chosen) != NULL);
 }
 
 const char *cli_db_pane_head_tool(const CliDbPaneHeadCfg *args)
@@ -43,7 +82,16 @@ const char *cli_db_pane_head_tool(const CliDbPaneHeadCfg *args)
     const CliDbPaneState *const pane = &g_cli_db_pane_state;
     const int open = EMBED_CALL(chosen_open, DbPaneActCtx, .text = NULL);
     const int running = pane->run.standing;
-    const char *const transaction = open ? pane->transaction[pane->chosen] : "";
+    // the chosen connection's transaction state read out of the connections cell
+    char transaction[CLI_DB_PANE_TRANSACTION] = {0};
+    if (open)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->connections_cell,
+                                                                .offset = CLI_DB_PANE_TRANSACTION_AT(pane->chosen),
+                                                                .dst = transaction,
+                                                                .bytes = sizeof(transaction)});
+        transaction[sizeof(transaction) - 1u] = '\0';
+    }
     const int in_transaction = cellul.eq(&(CatenaFinitaCfg){.src = transaction, .other = "open", .cap = 16ULL}) ||
                                cellul.eq(&(CatenaFinitaCfg){.src = transaction, .other = "failed", .cap = 16ULL});
     if (args->which == CLI_DB_PANE_PICK)
@@ -143,9 +191,14 @@ int cli_db_pane_connected(const CliDbPaneCtx *args)
     }
     const unsigned int chosen = pane->chosen;
     CliDbFailure failure;
-    CliDbOpen *const open =
-        EMBED_CALL(cli_db_root.connect, CliDbRootCfg, .root = args->root, .config = &pane->connection[chosen],
-                   .password = args->text, .failure = &failure);
+    // the chosen connection read out of the connections cell for the connect
+    CliDbConnection connection;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->connections_cell,
+                                                            .offset = CLI_DB_PANE_CONNECTION_AT(chosen),
+                                                            .dst = &connection,
+                                                            .bytes = sizeof(connection)});
+    CliDbOpen *const open = EMBED_CALL(cli_db_root.connect, CliDbRootCfg, .root = args->root, .config = &connection,
+                                       .password = args->text, .failure = &failure);
     if (open == NULL)
     {
         if (EMBED_CALL(refused_password, DbPaneActCtx, .failure = &failure))
@@ -157,10 +210,7 @@ int cli_db_pane_connected(const CliDbPaneCtx *args)
         EMBED_CALL(cli_db_pane_internal.note_set, CliDbPaneCtx, .text = failure.message, .failed = 1);
         return 0;
     }
-    pane->open[chosen] = open;
-    (void)cellul.copy(&(CatenaFinitaCfg){.dst = pane->transaction[chosen],
-                                         .src = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = open),
-                                         .cap = 16ULL});
+    EMBED_CALL(open_written, DbPaneActCtx, .at = chosen, .open = open);
     EMBED_CALL(cli_db_pane_internal.labels_laid, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.note_set, CliDbPaneCtx, .text = NULL);
     EMBED_CALL(cli_db_pane_internal.schema_released, CliDbPaneCtx, .at = 0u);
@@ -174,11 +224,10 @@ EMBED_INLINE void chosen_closed(const DbPaneActCtx *args)
 {
     (void)args;
     CliDbPaneState *const pane = &g_cli_db_pane_state;
-    CliDbOpen *const open = pane->open[pane->chosen];
+    CliDbOpen *const open = EMBED_CALL(open_read, DbPaneActCtx, .at = pane->chosen);
     EMBED_CALL(cli_db_grid.clear, CliDbGridCfg, .open = open);
     EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = open);
-    pane->open[pane->chosen] = NULL;
-    pane->transaction[pane->chosen][0] = '\0';
+    EMBED_CALL(open_written, DbPaneActCtx, .at = pane->chosen, .open = NULL);
     EMBED_CALL(cli_db_pane_internal.labels_laid, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.schema_released, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.note_set, CliDbPaneCtx, .text = NULL);
@@ -199,7 +248,13 @@ void cli_db_pane_action(const CliDbPaneHeadCfg *args)
     {
     case CLI_DB_PANE_PICK: {
         const unsigned int next = (pane->chosen == CLI_DB_PANE_NONE) ? 0u : (pane->chosen + 1u) % pane->connections;
-        const char *const words[1] = {pane->connection[next].name};
+        // the next connection's name read out of the connections cell
+        CliDbConnection connection;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->connections_cell,
+                                                                .offset = CLI_DB_PANE_CONNECTION_AT(next),
+                                                                .dst = &connection,
+                                                                .bytes = sizeof(connection)});
+        const char *const words[1] = {connection.name};
         (void)EMBED_CALL(cli_db_pane_tree.command, CliDbPaneTreeCfg, .name = "db-choose", .words = words, .count = 1u,
                          .root = args->root);
         return;

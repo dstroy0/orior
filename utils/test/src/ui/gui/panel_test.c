@@ -4,7 +4,8 @@
 // paragraph one line high and two paragraphs two with the margin between, a fenced block a code line a line, a rule
 // its margins and line, a long paragraph wrapped in a narrow width, inline code drawn in the type's color, and a box
 // placed below its cell where the capacity allows, above where it does not, and saved inside its bounds
-#include "../../../../../ui/cli/src/view/parts/panel.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/panel.h"
 #include "../cli/cli_check.h"
 
 // whether any pixel of `rect` is `color`
@@ -26,18 +27,21 @@ static int has(const GuiRaster *raster, GuiRect rect, GuiColor color)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 400u, .height = 300u), "a raster is made");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 400u, .height = 300u), "a raster is made");
     const GuiRect all = {0, 0, 400, 300};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = all, .color = palette->background_fill);
 
@@ -91,10 +95,10 @@ int main(void)
     cli_check(clamped.x == 200, "a box is kept inside its bounds at the right");
     const GuiRect left = EMBED_CALL(gui_panel_width.place, GuiPanelWidthCfg, .anchor = (GuiRect){10, 50, 8, 20}, .pixel_width = 200, .pixel_height = 60, .back = 30, .bounds = bounds, .above = 0, .scale = 100);
     cli_check(left.x == 0, "a box is kept inside its bounds at the left");
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

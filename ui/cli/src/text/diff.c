@@ -9,7 +9,7 @@
 // both go as the edit ends. Past CLI_DIFF_MAX_EDITS rounds the texts read as too far apart
 #include "../command_line/pool.h"
 #include "../editor/document.h"
-#include "vector.h"
+#include "memoria_operor/memoria_operor.h"
 
 // The two runs a shortest edit compares: the lines of each from where the shared start ends, and how many
 typedef struct
@@ -128,23 +128,32 @@ EMBED_INLINE unsigned long long cli_hash_get(const DiffCtx *args)
     return (hash ^ args->length) * 0xff51afd7ed558ccdULL;
 }
 
-// whether line `one` of `a` is line `other` of `b`
+// whether line `one` of `a` is line `other` of `b`: as long, and their units the same bytes
 EMBED_INLINE int cli_same_line(const DiffCtx *args)
 {
     const CliLines *a = args->a;
     const CliLines *b = args->b;
-    return EMBED_CALL(cli_vector_a.same, CliVectorACfg, .a = a->unit + a->start[args->one],
-                      .a_length = a->length[args->one], .b = b->unit + b->start[args->other],
-                      .b_length = b->length[args->other]);
+    const unsigned long long length = a->length[args->one];
+    return (length == b->length[args->other]) &&
+           ((length == 0ULL) || (memor.cmp(&(MemoriaCfg){.src = a->unit + a->start[args->one],
+                                                         .other = b->unit + b->start[args->other],
+                                                         .bytes = length * sizeof(unsigned short)}) == 0));
 }
 
-// how many lines of `a` from `x` and of `b` from `y` are the same, one for one
+// how many lines of `a` from `x` and of `b` from `y` are the same, one for one: as many as their hashes agree, a word
+// at a time, and each of those lines checked against the other's
 EMBED_INLINE long long cli_run(const DiffCtx *args)
 {
-    const unsigned long long alike =
-        EMBED_CALL(cli_vector_a_length.common, CliVectorALengthCfg, .a_u64s = args->diff->hash_then + args->x,
-                   .a_length = (unsigned long long)(args->runs->n - args->x), .b_u64s = args->diff->hash_now + args->y,
-                   .b_length = (unsigned long long)(args->runs->m - args->y));
+    const unsigned long long *const then_hash = args->diff->hash_then + args->x;
+    const unsigned long long *const now_hash = args->diff->hash_now + args->y;
+    const unsigned long long then_left = (unsigned long long)(args->runs->n - args->x);
+    const unsigned long long now_left = (unsigned long long)(args->runs->m - args->y);
+    const unsigned long long fewest = (then_left < now_left) ? then_left : now_left;
+    unsigned long long alike = 0ULL;
+    while ((alike < fewest) && (then_hash[alike] == now_hash[alike]))
+    {
+        alike += 1ULL;
+    }
     unsigned long long at = 0ULL;
     while ((at < alike) && EMBED_CALL(cli_same_line, DiffCtx, .diff = args->diff, .a = args->runs->a,
                                       .one = args->runs->a_from + (unsigned long long)args->x + at, .b = args->runs->b,

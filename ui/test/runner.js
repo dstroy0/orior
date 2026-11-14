@@ -354,7 +354,7 @@
       return;
     }
     // the window's own process by its name: the parts stand largest first, and the web view is the largest
-    const own = read.parts.find((one) => one.name === "orior_gui") ?? { working: 0, commit: 0 };
+    const own = read.parts.find((one) => one.name === "tabvla") ?? { working: 0, commit: 0 };
     const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
     const heap = performance.memory?.usedJSHeapSize ?? "";
     memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, owners, heap].join("\t"));

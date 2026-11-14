@@ -11,6 +11,8 @@
 
 // the most files the editor has open
 #define CLI_SERVERS_TEXTS 4096u
+// the bytes of a stored text read at a time as it is put on a line
+#define SERVERS_FILES_WINDOW 1024u
 
 CliKeyed g_cli_servers_texts = {"editor texts", {NULL}, 0u, CLI_SERVERS_TEXTS};
 CliKeyed g_cli_servers_parses = {"parses", {NULL}, 0u, CLI_SERVERS_TEXTS};
@@ -194,7 +196,7 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
         EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = root,
                    .path = path, .text = disk, .size = read, .sink = &s_sink);
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
     EMBED_CALL(cli_servers_path_lsp_internal.plugins_close, CliServersPathLspCtx, .path = path);
     // a file the editor closes is the check's to give its server, in slices of the disk's text where it slices; a
     // server let go is not started again to close it
@@ -216,33 +218,48 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    const char *adjacent = NULL;
-    unsigned long long size = 0ULL;
-    const char *const text =
-        EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key,
-                   .adjacent = &adjacent, .size = &size);
-    if (text != NULL)
+    const unsigned int place =
+        EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key);
+    if (place == CLI_KEYED_NONE)
     {
-        mmgr_line_put_n(args->out, text, size);
+        return 0;
     }
-    return text != NULL;
+    // the text put on the line out of its cell, a window at a time
+    const CliKeyedEntry one =
+        EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_texts, .at = place);
+    for (unsigned long long at = 0ULL; at < one.text_size;)
+    {
+        char window[SERVERS_FILES_WINDOW];
+        const unsigned long long left = one.text_size - at;
+        const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one.cell, .offset = (embed_word)(one.text_at + at), .dst = window, .bytes = (embed_word)bytes});
+        mmgr_line_put_n(args->out, window, bytes);
+        at += bytes;
+    }
+    return 1;
 }
 
 char *cli_servers_text_alloc(const CliServersPathSizeTypeCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    const char *adjacent = NULL;
-    const char *const text =
-        EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key,
-                   .adjacent = &adjacent, .size = args->size_pointer);
-    char *const reserved =
-        (text != NULL) ? g_cli_guard->persistent_buf_alloc(*args->size_pointer + 1ULL, g_cli_servers_owner) : NULL;
+    const unsigned int place =
+        EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key);
+    if (place == CLI_KEYED_NONE)
+    {
+        *args->size_pointer = 0ULL;
+        return NULL;
+    }
+    const CliKeyedEntry one =
+        EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_texts, .at = place);
+    *args->size_pointer = one.text_size;
+    char *const reserved = g_cli_guard->temporary_buf_alloc(one.text_size + 1ULL, g_cli_servers_owner);
     if (reserved != NULL)
     {
-        // a size the store stored fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = reserved, .src = text, .bytes = (size_t)*args->size_pointer});
-        reserved[*args->size_pointer] = '\0';
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one.cell, .offset = (embed_word)one.text_at, .dst = reserved, .bytes = (embed_word)one.text_size});
+        reserved[one.text_size] = '\0';
     }
     return reserved;
 }

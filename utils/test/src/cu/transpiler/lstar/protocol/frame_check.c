@@ -18,12 +18,12 @@
 //     frame_check <folder>
 //
 // It runs in a query run (qry_run.sh), under the top of the tree QRY_TOP names, the folder within it.
-#include "../../../../../../../src/cu/includes/file_defs/khw/khw_machine_write/opening.h"
-#include "../../../../../../../src/cu/includes/file_defs/krf/krf.h"
-#include "../../../../../../../src/cu/includes/file_defs/krs/krs_write/fixed.h"
-#include "../../../../../../../src/cu/includes/file_defs/krs/krs_write/frame.h"
-#include "../../../../../../../src/cu/includes/file_defs/krs/krs_write/head.h"
-#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/khw/khw_machine_write/opening.h"
+#include "../../../../../../../includes/file_defs/krf/krf.h"
+#include "../../../../../../../includes/file_defs/krs/krs_write/fixed.h"
+#include "../../../../../../../includes/file_defs/krs/krs_write/frame.h"
+#include "../../../../../../../includes/file_defs/krs/krs_write/head.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/fixed_read.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/frame_walk.h"
 #include "verba_scribo/verba_linea.h"

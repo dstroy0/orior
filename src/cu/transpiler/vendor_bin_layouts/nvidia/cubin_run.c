@@ -87,7 +87,7 @@
 // against. Exit 0 where a line was written, 2 where no run's writer runs, or the inputs, the machine or the driver were
 // not reached.
 #include "cubin_run/cubin_run_internal.h"
-#include "../../../includes/parsers/line_read.h"
+#include "../../../../../includes/parsers/line_read.h"
 
 int main(int count, char **words)
 {

@@ -127,8 +127,8 @@ EMBED_INLINE void shape_holes_find(const ShapeCtx *args)
             args->holes->hole[args->holes->count] = hole;
             args->positions[args->holes->count] = (CliShapeHolePosition){byte, end};
             args->holes->count += 1u;
-            // a placeholder's bytes are a pattern's, below its size, which a size_t holds
-            memor.set(&(MemoriaCfg){.dst = args->blank + byte, .val = ' ', .bytes = (size_t)(end - byte)});
+            // a placeholder's bytes are a pattern's, below its size, which a embed_word holds
+            memor.set(&(MemoriaCfg){.dst = args->blank + byte, .val = ' ', .bytes = (embed_word)(end - byte)});
             byte = end;
             continue;
         }
@@ -262,8 +262,8 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args)
     }
     if (blank != NULL)
     {
-        // a pattern's bytes fit a size_t
-        memor.cpy(&(MemoriaCfg){.dst = blank, .src = src, .bytes = (size_t)args->size});
+        // a pattern's bytes fit a embed_word
+        memor.cpy(&(MemoriaCfg){.dst = blank, .src = src, .bytes = (embed_word)args->size});
         blank[args->size] = '\0';
         EMBED_CALL(shape_holes_find, ShapeCtx, .src = src, .size = args->size, .holes = args->holes,
                    .positions = positions, .blank = blank);

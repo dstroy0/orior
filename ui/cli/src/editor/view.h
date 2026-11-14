@@ -13,9 +13,17 @@
 // (view.c)
 #ifndef VIEW_H
 #define VIEW_H
+#include "../command_line/rings.h"
 #include "../machine/state.h"
 #include "document.h"
 #include "embed_dispatch_layout.h"
+#include "embed_ticket_ring.h"
+
+// the pair answers on their way from the workers to the view thread, a ticket ring's slots as a two's power, and the
+// bytes they take, the pairs' part of the rings block
+#define CLI_VIEW_PAIR_SHIFT 3u
+#define CLI_VIEW_PAIR_SLOTS (1u << CLI_VIEW_PAIR_SHIFT)
+#define CLI_VIEW_PAIR_RING_BYTES ((unsigned long long)CLI_VIEW_PAIR_SLOTS * sizeof(EmbedTicketRingSlot))
 
 typedef struct CliViewLineCfg CliViewLineCfg;
 typedef struct CliViewRowCfg CliViewRowCfg;
@@ -199,20 +207,28 @@ typedef struct
 
 // the views watched by `watcher` from here on, NULL for none
 void cli_view_watch(const CliViewWatcher *watcher);
-// the views open in the order they were opened, which are the files open as the window's tabs: how many; the key of the
-// one at `at`, its file's path from the tree's top and its file's name, the last part of that path, each NULL past
-// them; the place of the one shown and of the one
+// the views open in the order they were opened, which are the files open as the window's tabs, a view opened with no
+// path a pane's own and among no tab: how many; the key of the
+// one at `at` copied into `key_out`, sized for CLI_NAME_MAX_LEN, and its file's path from the tree's top into
+// `path_out`, sized for CLI_PATH_MAX_LEN, each 1, or 0 past the views; its file's name, the last part of that path,
+// inside `path_out` once the path is copied there, NULL past the views; the place of the one shown and of the one
 // shown before it, each -1 for none; the one at `at` shown, the one shown before it saved; and whether the close of the
 // one at `at` waits on a second press, set as `closing` asks
 unsigned int cli_view_count(void);
-const char *cli_view_key(unsigned int at);
-const char *cli_view_path_at(unsigned int at);
-const char *cli_view_name_at(unsigned int at);
+int cli_view_key(unsigned int at, char *key_out);
+int cli_view_path_at(unsigned int at, char *path_out);
+const char *cli_view_name_at(unsigned int at, char *path_out);
 int cli_view_shown(void);
 int cli_view_last(void);
 void cli_view_show(unsigned int at);
 int cli_view_closing(unsigned int at);
 void cli_view_closing_set(unsigned int at, int closing);
+// whether the frames carry sticky rows, 1 as the views start; and that switched `on` or off for every view
+int cli_view_sticky(void);
+void cli_view_sticky_set(int on);
+// the width Fill Paragraph lays words within, in cells, 0 for the view's own columns; and that width set
+unsigned long long cli_view_fill(void);
+void cli_view_fill_set(unsigned long long columns);
 // the files open as views (view_files.c): the file at `path`, a whole path inside the tree `root` or one from its top,
 // opened as a view where none is open on it: its text read whole or paged under the key `window:` and its path from the
 // tree's top, its grammar applied, the view opened at `rows` and `columns`; the view shown, the one shown before it

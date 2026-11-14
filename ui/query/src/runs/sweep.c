@@ -5,7 +5,7 @@
 // an entry's QUERY_SWEEP_ROUNDS words together. Each round starts one entry further along than the round before. Then
 // each entry's median over every sweep recorded, and qry_host.h written for the writer and files_host.js for the window
 // from the fastest, once QUERY_SWEEP_MIN sweeps report
-#include "../../../../src/cu/includes/file_defs/qry/writer/qry_writer_internal.h"
+#include "../../../../includes/file_defs/qry/writer/qry_writer_internal.h"
 #include "../../../cli/src/command_line/callback_cfg.h"
 #include "../../../cli/src/text/text.h"
 #include "retention_internal.h"
@@ -20,7 +20,7 @@ typedef struct
 // the sweeps' run folder, the files written from them, the rounds an entry is timed, the sweeps the files are written
 // from at least, how far past the fastest a smaller slice is still taken in parts a thousand, and the bytes timed over
 #define QUERY_SWEEPS "build/qry_sweep/qry"
-#define QUERY_SWEEP_HOST_HEADER "src/cu/includes/file_defs/qry/writer/qry_host.h"
+#define QUERY_SWEEP_HOST_HEADER "includes/file_defs/qry/writer/qry_host.h"
 #define QUERY_SWEEP_WINDOW_MODULE "ui/gui/src-js/files_host.js"
 #define QUERY_SWEEP_ROUNDS 3u
 #define QUERY_SWEEP_MIN 3u
@@ -271,12 +271,11 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
     }
     char text[1024];
     VerbaLinea header = {text, sizeof(text), 0ULL};
-    mmgr_line_put(&header,
-                  "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
-                  "LicenseRef-Educational\n// qry_host.h: this host's steps for the run's writer, the fastest "
-                  "of each size's median over the host's\n// sweeps, written by `orior_cli protocol sweep` and "
-                  "read by qry_writer_internal.h\n#ifndef QRY_HOST_H\n#define QRY_HOST_H\n\n#define "
-                  "QRY_WRITER_PIECE_BYTES ");
+    mmgr_line_put(&header, "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
+                           "LicenseRef-Educational\n// qry_host.h: this host's steps for the run's writer, the fastest "
+                           "of each size's median over the host's\n// sweeps, written by `imp protocol sweep` and "
+                           "read by qry_writer_internal.h\n#ifndef QRY_HOST_H\n#define QRY_HOST_H\n\n#define "
+                           "QRY_WRITER_PIECE_BYTES ");
     mmgr_line_decimal(&header, write, 0u);
     mmgr_line_put(&header, "ull\n\n#endif\n");
     EMBED_CALL(sweep_on_write, SweepCtx, .context = context, .relative = QUERY_SWEEP_HOST_HEADER, .text = &header);
@@ -284,7 +283,7 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
     mmgr_line_put(&module, "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
                            "LicenseRef-Educational\n\n// The file window's sizes on this host, the slice the fastest "
                            "of each size's median over the\n// host's sweeps, or within a twentieth of it and smaller, "
-                           "written by `orior_cli protocol sweep`:\n// a window HALF bytes either side of a line, read "
+                           "written by `imp protocol sweep`:\n// a window HALF bytes either side of a line, read "
                            "outward a SLICE at a time.\nexport const HALF = ");
     mmgr_line_decimal(&module, slice / 2ULL, 0u);
     mmgr_line_put(&module, ";\nexport const SLICE = ");

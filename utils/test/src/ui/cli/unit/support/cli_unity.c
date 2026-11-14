@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cli_unity.c: what orior_cli's Unity suites share
+// cli_unity.c: what impero's Unity suites share
 #include "cli_unity.h"
 
 #include "ui/cli/src/command_line/pool.h"

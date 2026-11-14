@@ -3,7 +3,8 @@
 // dialog_test.c: the dialog's check. It checks the ask and its refusals, the size the texts want, the layout of the
 // head, the body and the foot, each button's press and release, Enter, Escape and the keys that move the mark, and the
 // drawn grounds against the editor's and the tabs row's
-#include "../../../../../ui/cli/src/view/parts/dialog.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/dialog.h"
 #include "../cli/cli_check.h"
 
 // the brightness of a pixel, the sum of its three channels
@@ -15,12 +16,15 @@ static unsigned int brightness(GuiColor color)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     static GuiGlyphs glyphs;
-    cli_check(EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why), "the glyphs are read");
+    cli_check(EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why), "the glyphs are read");
     static GuiPaletteOwn own;
-    EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
+    EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
     const GuiPalette *const palette = &own.colors;
 
     // the ask and its refusals
@@ -29,7 +33,7 @@ int main(void)
     cli_check(!dialog.displayed, "a dialog starts hidden");
     const char *const labels[3] = {"Save", "Don't Save", "Cancel"};
     cli_check(!EMBED_CALL(gui_dialog_asking.ask, GuiDialogAskCfg, .dialog = &dialog, .title = "Close", .body = "x", .labels = labels, .count = 0u), "an ask with no button is refused");
-    cli_check(!EMBED_CALL(gui_dialog_asking.ask, GuiDialogAskCfg, .dialog = &dialog, .title = "Close", .body = "x", .labels = labels, .count = GUI_DIALOG_BUTTONS_MOST + 1u), "and one with too many");
+    cli_check(!EMBED_CALL(gui_dialog_asking.ask, GuiDialogAskCfg, .dialog = &dialog, .title = "Close", .body = "x", .labels = labels, .count = GUI_DIALOG_BUTTONS_MAX + 1u), "and one with too many");
     cli_check(!dialog.displayed, "and a refusal shows nothing");
     cli_check(EMBED_CALL(gui_dialog_asking.ask, GuiDialogAskCfg, .dialog = &dialog, .title = "Close engine.md", .body = "engine.md has changes that are not saved.\nSave them before it closes?", .labels = labels, .count = 3u, .preferred = 0u), "an ask with three buttons shows");
     cli_check(dialog.displayed && (dialog.buttons == 3u) && (dialog.marked == 0u), "the preferred button holds the keys");
@@ -38,7 +42,7 @@ int main(void)
     unsigned int width = 0u;
     unsigned int height = 0u;
     EMBED_CALL(gui_dialog_wanting.want, GuiDialogWantCfg, .dialog_read = &dialog, .glyphs = &glyphs, .scale = GUI_SCALE_ONE, .width_pointer = &width, .height_pointer = &height);
-    cli_check(width >= (unsigned int)GUI_DIALOG_LEAST_WIDTH, "the dialog is no narrower than its least");
+    cli_check(width >= (unsigned int)GUI_DIALOG_MIN_WIDTH, "the dialog is no narrower than its least");
     EMBED_CALL(gui_dialog_width.resize, GuiDialogWidthCfg, .dialog = &dialog, .glyphs = &glyphs, .width = width, .height = height, .scale = GUI_SCALE_ONE);
     const GuiRect head = EMBED_CALL(gui_dialog_read.head_rect, GuiDialogReadCfg, .dialog_read = &dialog);
     const GuiRect close = EMBED_CALL(gui_dialog_read.close_rect, GuiDialogReadCfg, .dialog_read = &dialog);
@@ -51,7 +55,7 @@ int main(void)
     cli_check((first.y >= body.y + body.height) && (last.y + last.height <= (int)height), "the buttons stand under the body");
     cli_check((first.x + first.width < second.x) && (second.x + second.width < last.x), "the buttons stand in their order");
     cli_check(last.x + last.width == (int)width - (GUI_DIALOG_MAT + GUI_DIALOG_PAD), "and end at the foot's right edge");
-    cli_check(first.width >= GUI_DIALOG_BUTTON_LEAST, "a button is no narrower than its least");
+    cli_check(first.width >= GUI_DIALOG_BUTTON_MIN, "a button is no narrower than its least");
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = EMBED_CALL(gui_dialog_read.button_rect, GuiDialogReadCfg, .dialog_read = &dialog, .at = 3u)), "a button past the count has no place");
 
     // the keys move the mark round the buttons
@@ -97,10 +101,10 @@ int main(void)
     // the glass, and the preferred button on the shown tab's ground
     (void)EMBED_CALL(gui_dialog_asking.ask, GuiDialogAskCfg, .dialog = &dialog, .title = "Close engine.md", .body = "engine.md has changes that are not saved.\nSave them before it closes?", .labels = labels, .count = 3u, .preferred = 0u);
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = width, .height = height), "a raster to draw on");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = width, .height = height), "a raster to draw on");
     EMBED_CALL(gui_dialog_drawing.draw, GuiDialogDrawCfg, .dialog_read = &dialog, .raster = &raster, .glyphs = &glyphs, .palette = palette, .ground = NULL);
-    const GuiColor editor = EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = palette->deep, .color = palette->editor_background);
-    const GuiColor surface = EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = palette->deep, .color = palette->surface);
+    const GuiColor editor = EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = palette->deep, .color = palette->editor_background);
+    const GuiColor surface = EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = palette->deep, .color = palette->surface);
     const GuiColor body_pixel = raster.pixels[((unsigned int)(body.y + body.height + 2) * raster.width) + (unsigned int)body.x + 2u];
     const GuiColor head_pixel = raster.pixels[((unsigned int)(head.height - 6) * raster.width) + (unsigned int)body.x + 2u];
     const GuiColor margin_pixel = raster.pixels[((unsigned int)(height / 2u) * raster.width) + 3u];
@@ -124,6 +128,6 @@ int main(void)
     EMBED_CALL(gui_dialog_drawing.draw, GuiDialogDrawCfg, .dialog_read = &dialog, .raster = &raster, .glyphs = &glyphs, .palette = palette, .ground = NULL);
     cli_check(raster.pixels[border_at] != (palette->fail | 0xff000000u), "and without the focus it does not");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

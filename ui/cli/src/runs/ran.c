@@ -6,8 +6,6 @@
 #include "../command_line/cli_internal.h"
 #include "../command_line/pool.h"
 
-#include <stddef.h>
-
 // the bytes one piece of what a run gives is read into
 #define CLI_RUN_RESULT_PIECE (64u << 10u)
 
@@ -44,7 +42,8 @@ static CliRunResult s_refused = {s_nothing, 0ULL, s_nothing, 0ULL, 1, -1LL, 0};
 
 CliRunResult *cli_run_result_alloc(void)
 {
-    CliRunResultWorkState *const work_state = g_cli_guard->persistent_buf_alloc(sizeof(*work_state), g_cli_runs_owner);
+    // the result is its caller's call's own, given back as the call ends
+    CliRunResultWorkState *const work_state = g_cli_guard->temporary_buf_alloc(sizeof(*work_state), g_cli_runs_owner);
     if (work_state == NULL)
     {
         return &s_refused;
@@ -119,7 +118,7 @@ static void cli_pipe_read(const RanCtx *args)
         if ((last == NULL) || (last->size == CLI_RUN_RESULT_PIECE))
         {
             CliRunResultPiece *const piece =
-                g_cli_guard->persistent_buf_alloc(sizeof(CliRunResultPiece) + CLI_RUN_RESULT_PIECE, g_cli_runs_owner);
+                g_cli_guard->temporary_buf_alloc(sizeof(CliRunResultPiece) + CLI_RUN_RESULT_PIECE, g_cli_runs_owner);
             if (piece == NULL)
             {
                 *whole = 0;
@@ -151,7 +150,7 @@ static void cli_pipe_read(const RanCtx *args)
         last->size += got;
         total += got;
     }
-    char *const joined = (total != 0ULL) ? g_cli_guard->persistent_buf_alloc(total + 1ULL, g_cli_runs_owner) : NULL;
+    char *const joined = (total != 0ULL) ? g_cli_guard->temporary_buf_alloc(total + 1ULL, g_cli_runs_owner) : NULL;
     *whole = *whole && ((total == 0ULL) || (joined != NULL));
     unsigned long long at = 0ULL;
     for (CliRunResultPiece *piece = first; piece != NULL;)
@@ -159,7 +158,7 @@ static void cli_pipe_read(const RanCtx *args)
         CliRunResultPiece *const next = piece->next;
         if (joined != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = joined + at, .src = piece->bytes, .bytes = (size_t)piece->size});
+            memor.cpy(&(MemoriaCfg){.dst = joined + at, .src = piece->bytes, .bytes = (embed_word)piece->size});
             at += piece->size;
         }
         g_cli_guard->persistent_buf_release(piece, g_cli_runs_owner);

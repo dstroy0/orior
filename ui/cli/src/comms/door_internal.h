@@ -7,7 +7,16 @@
 #include "door.h"
 #include "embed_atomic.h"
 #include "embed_dispatch_layout.h"
+#include "embed_ticket_ring.h"
 #include "transfer.h"
+
+// the most clients in one process, the messages queued for one client as a two's power, and the bytes their rings'
+// slots take, the clients' part of the rings block
+#define CLI_IPC_CLIENTS 2u
+#define CLI_IPC_RECV_SHIFT 6u
+#define CLI_IPC_RECV_QUEUE (1u << CLI_IPC_RECV_SHIFT)
+#define CLI_DOOR_CLIENTS_RING_BYTES                                                                                    \
+    ((unsigned long long)CLI_IPC_CLIENTS * CLI_IPC_RECV_QUEUE * sizeof(EmbedTicketRingSlot))
 
 typedef struct CliIpcErrMsgCtx CliIpcErrMsgCtx;
 typedef struct CliIpcListenerCtx CliIpcListenerCtx;
@@ -41,11 +50,10 @@ typedef struct CliIpcEndBytesCtx CliIpcEndBytesCtx;
 #define CLI_IPC_BODY_INLINE 'B'
 #define CLI_IPC_BODY_TRANSFER 'T'
 
-// A message queued: whether its writer has finished it, its channel, its speaker's name, its body's size, and its body,
-// in the entry, or in a region where it is longer
+// A message queued: its channel, its speaker's name, its body's size, and its body, in the entry, or in a region where
+// it is longer
 typedef struct
 {
-    embed_atomic_u32 written;
     char channel[CLI_NAME_MAX_LEN];
     char from[CLI_NAME_MAX_LEN];
     unsigned long long size;

@@ -19,12 +19,15 @@ typedef struct
     unsigned int view;
 } CommsCommand;
 
-// The view shown: its key, its path and its cursor's line
+// The view shown: its key and its path, each a copy out of the views table in a buffer of the record's own, NULL where
+// no view is shown, and its cursor's line
 typedef struct
 {
     const char *key;
     const char *path;
     unsigned long long line;
+    char key_text[CLI_NAME_MAX_LEN];
+    char path_text[CLI_PATH_MAX_LEN];
 } CommsShown;
 
 static const CommsCommand s_commands[] = {
@@ -50,9 +53,11 @@ EMBED_INLINE int command_shown(const CommsCommandCtx *args)
     {
         return 0;
     }
-    // the view shown is among the views
-    shown_out->key = cli_view_key((unsigned int)shown);
-    shown_out->path = cli_view_path_at((unsigned int)shown);
+    // the view shown is among the views: its key and path copied into the shown record's own buffers
+    const int named = cli_view_key((unsigned int)shown, shown_out->key_text) &&
+                      cli_view_path_at((unsigned int)shown, shown_out->path_text);
+    shown_out->key = named ? shown_out->key_text : NULL;
+    shown_out->path = named ? shown_out->path_text : NULL;
     CliPosition cursor = {0ULL, 0ULL};
     const int placed = (shown_out->key != NULL) && EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg,
                                                               .key = shown_out->key, .cursor = &cursor);
@@ -77,7 +82,7 @@ EMBED_INLINE int command_private(const CommsCommandCtx *args)
     // the path is written as a JSON string: its letters read through a tree of this call alone
     CliJson read = {0};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &read,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &read,
                    .text = written, .size = quoted.at, .err_msg = &err_msg, .owner = g_cli_comms_owner);
     unsigned long long length = 0ULL;
     const char *const letters = (root != CLI_JSON_NONE)

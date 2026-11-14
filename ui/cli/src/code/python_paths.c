@@ -5,14 +5,8 @@
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "purpose_lines.h"
 #include "python_paths_internal.h"
-
-// A span of a text: where it starts and its bytes
-typedef struct
-{
-    const char *at;
-    unsigned long long length;
-} CliSpan;
 
 typedef struct
 {
@@ -30,28 +24,6 @@ typedef struct
     CliSpan value;
     CliSpan target;
 } PythonPathsCtx;
-// the span with the whitespace at either end left off
-EMBED_INLINE CliSpan cli_trim(const PythonPathsCtx *args)
-{
-    const unsigned char *const bytes = (const unsigned char *)args->span.at;
-    unsigned long long start = args->span.length;
-    unsigned long long end = 0ULL;
-    unsigned long long at = 0ULL;
-    while (at < args->span.length)
-    {
-        unsigned int letter = 0u;
-        const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = bytes,
-                       .length = args->span.length, .at = at, .letter = &letter);
-        if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = letter))
-        {
-            start = (start == args->span.length) ? at : start;
-            end = at + step;
-        }
-        at += step;
-    }
-    return (start < end) ? (CliSpan){args->span.at + start, end - start} : (CliSpan){args->span.at, 0ULL};
-}
 
 // the span with every `letter` at its end left off
 EMBED_INLINE CliSpan cli_trimmed_get(const PythonPathsCtx *args)
@@ -188,7 +160,7 @@ EMBED_INLINE void cli_logical_lines(const PythonPathsCtx *args)
             open += ((letter == '(') || (letter == '[') || (letter == '{')) ? 1LL : 0LL;
             open -= ((letter == ')') || (letter == ']') || (letter == '}')) ? 1LL : 0LL;
         }
-        const CliSpan trimmed = EMBED_CALL(cli_trim, PythonPathsCtx, .span = code);
+        const CliSpan trimmed = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = code);
         const int joined = (trimmed.length > 0ULL) && (trimmed.at[trimmed.length - 1ULL] == '\\');
         if ((open <= 0LL) && !joined)
         {
@@ -290,12 +262,13 @@ EMBED_INLINE void cli_for_read(const PythonPathsCtx *args)
     {
         return;
     }
-    const CliSpan name = EMBED_CALL(cli_trim, PythonPathsCtx, .span = (CliSpan){args->rest.at, in});
+    const CliSpan name =
+        EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = (CliSpan){args->rest.at, in});
     const CliSpan iterable =
-        EMBED_CALL(cli_trim, PythonPathsCtx,
+        EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
                    .span = EMBED_CALL(
                        cli_trimmed_get, PythonPathsCtx,
-                       .span = EMBED_CALL(cli_trim, PythonPathsCtx,
+                       .span = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
                                           .span = (CliSpan){args->rest.at + in + 4u, args->rest.length - in - 4ULL}),
                        .letter = ':'));
     const unsigned int expr = EMBED_CALL(cli_span_parse, PythonPathsCtx, .span = iterable);
@@ -354,9 +327,10 @@ EMBED_INLINE void cli_calls_read(const PythonPathsCtx *args)
                                                  : (CliSpan){supplied.at, 0ULL};
         }
         EMBED_CALL(cli_found_append, PythonPathsCtx,
-                   .span = EMBED_CALL(cli_trim, PythonPathsCtx,
+                   .span = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
                                       .span = EMBED_CALL(cli_trimmed_get, PythonPathsCtx,
-                                                         .span = EMBED_CALL(cli_trim, PythonPathsCtx, .span = supplied),
+                                                         .span = EMBED_CALL(cli_purpose_lines_span.purpose_trim,
+                                                                            CliPurposeLinesSpanCfg, .span = supplied),
                                                          .letter = ',')));
     }
 }
@@ -399,7 +373,7 @@ EMBED_INLINE void cli_set_read(const PythonPathsCtx *args)
     }
     const CliSpan whole = {args->code.at, equals};
     const CliSpan target =
-        EMBED_CALL(cli_trim, PythonPathsCtx,
+        EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
                    .span = (CliSpan){whole.at, EMBED_CALL(cli_on_find, PythonPathsCtx, .span = whole, .text = ":")});
     const CliSpan value = {args->code.at + equals + 1u, args->code.length - equals - 1ULL};
     if (EMBED_CALL(cli_starts, PythonPathsCtx, .span = value, .text = "=") || (target.length == 0ULL) ||
@@ -408,7 +382,8 @@ EMBED_INLINE void cli_set_read(const PythonPathsCtx *args)
         return;
     }
     const unsigned int expr =
-        EMBED_CALL(cli_span_parse, PythonPathsCtx, .span = EMBED_CALL(cli_trim, PythonPathsCtx, .span = value));
+        EMBED_CALL(cli_span_parse, PythonPathsCtx,
+                   .span = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = value));
     if (expr == CLI_PY_NONE)
     {
         return;
@@ -465,7 +440,7 @@ void cli_py_paths_in(const CliPythonPathsSizeCtx *args)
     EMBED_CALL(cli_logical_lines, PythonPathsCtx, .text = args->text, .size = args->size);
     for (unsigned int index = 0u; index < s_lines.count; index += 1u)
     {
-        const CliSpan code = EMBED_CALL(cli_trim, PythonPathsCtx,
+        const CliSpan code = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
                                         .span = (CliSpan){s_lines.text + s_lines.start[index], s_lines.length[index]});
         if (EMBED_CALL(cli_starts, PythonPathsCtx, .span = code, .text = "for "))
         {
@@ -480,7 +455,7 @@ void cli_py_paths_in(const CliPythonPathsSizeCtx *args)
             if (set < rest.length)
             {
                 EMBED_CALL(cli_found_append, PythonPathsCtx,
-                           .span = EMBED_CALL(cli_trim, PythonPathsCtx,
+                           .span = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg,
                                               .span = (CliSpan){rest.at + set + 3u, rest.length - set - 3ULL}));
             }
         }

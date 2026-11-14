@@ -19,12 +19,12 @@ unsigned int cli_build_type_get(const CliBuildsPathCfg *args)
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}), .set = "/\\");
     name = (name_end != 0ULL) ? (args->path + name_end) : name;
     char lower[CLI_NAME_MAX_LEN];
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     if (length >= sizeof(lower))
     {
         return 0u;
     }
-    for (size_t at = 0u; at <= length; at += 1u)
+    for (embed_word at = 0u; at <= length; at += 1u)
     {
         lower[at] = ((name[at] >= 'A') && (name[at] <= 'Z')) ? (char)(name[at] - 'A' + 'a') : name[at];
     }

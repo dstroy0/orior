@@ -7,13 +7,14 @@
 // The window reads the same file for the rest of an item: what it needs before it can act, and a label that changes
 // with the scheme. The list is built into the program, as the window builds in the same one, and read once
 #include "commands.h"
-#include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "pool.h"
 
 // the list as it is built in, with a zero after it, read where it lies; its tokens, a cell of their count for as long
-// as the program runs; and each string token's text, read once, in one cell for as long as the program runs
+// as the program runs; and each string token's text, read once, in one cell for as long as the program runs. The two
+// cells are the process's own internal takes, persistent, taken once and never given back
 static const char *s_text;
 static unsigned long long s_size;
 static CfgJsonToken *s_tokens;
@@ -45,8 +46,8 @@ int cli_commands_read(const CliCommandsCfg *args)
         return 0;
     }
     CfgJsonParse parse;
-    // a list far below what a size_t counts
-    if (!cfg_json_parse_metadata(s_text, (size_t)s_size, s_tokens, tokens, &parse))
+    // a list far below what a embed_word counts
+    if (!cfg_json_parse_metadata(s_text, (embed_word)s_size, s_tokens, tokens, &parse))
     {
         mmgr_line_put(args->err_msg, "commands.json: ");
         mmgr_line_put(args->err_msg, parse.reason);
@@ -70,7 +71,7 @@ int cli_commands_read(const CliCommandsCfg *args)
         s_string[at] = "";
         if (s_tokens[at].kind == CFG_JSON_STRING)
         {
-            (void)cfg_json_string(s_text, &s_tokens[at], string_text, (size_t)string_left);
+            (void)cfg_json_string(s_text, &s_tokens[at], string_text, (embed_word)string_left);
             const unsigned long long used =
                 cellul.len(&(CatenaFinitaCfg){.src = string_text, .cap = string_left}) + 1ULL;
             s_string[at] = string_text;
@@ -112,7 +113,7 @@ typedef struct
     unsigned int object;
     const char *name;
     char *out;
-    size_t capacity;
+    embed_word capacity;
     unsigned int at;
     CliItem *item;
     unsigned int list;
@@ -369,8 +370,7 @@ int cli_menu_command(const CliCommandsMenuCfg *args)
 int cli_item_command(const CliCommandsMenuCfg *args)
 {
     return (args->list != 0u) && (s_tokens[args->list].kind == CFG_JSON_ARRAY) &&
-           EMBED_CALL(cli_flat_find, CommandsCtx, .list = args->list, .word_text = args->word_text,
-                      .item = args->item);
+           EMBED_CALL(cli_flat_find, CommandsCtx, .list = args->list, .word_text = args->word_text, .item = args->item);
 }
 
 // the node among the rows of `list` and the rows under them whose chain is `word_text`, its parts joined by dots, read
@@ -570,7 +570,13 @@ int cli_menus_row(unsigned int level, unsigned int at, CliItem *item)
     }
     // the titles folded from the bar, each a row of its menu's items
     const unsigned int title_menu = cli_menu_title_menu(g_cli_menus_open.shown + at);
-    *item = (CliItem){.label = cli_menu_title_text(title_menu), .command = "", .keys = "", .args = "", .needs = "", .checks = "", .list = cli_menu_list(title_menu)};
+    *item = (CliItem){.label = cli_menu_title_text(title_menu),
+                      .command = "",
+                      .keys = "",
+                      .args = "",
+                      .needs = "",
+                      .checks = "",
+                      .list = cli_menu_list(title_menu)};
     return 1;
 }
 
@@ -680,8 +686,11 @@ void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int pl
     g_cli_menus_open.level[0].pointed = commands_row_step(0u, -1, 1);
 }
 
-// a part's own rows as built, each pointing into the texts of the part that built it, and how many stand
+// a part's own rows as built, each row's label and word copied beside it, since the part's texts may move or go while
+// the menu is open, and how many stand
 static CliItem s_own[CLI_MENU_OWN_ROWS];
+static char s_own_labels[CLI_MENU_OWN_ROWS][CLI_LABEL_MAX_LEN];
+static char s_own_args[CLI_MENU_OWN_ROWS][CLI_PATH_MAX_LEN];
 static unsigned int s_own_count;
 
 void cli_menus_own_begin(void)
@@ -696,12 +705,27 @@ void cli_menus_own_row(const CliItem *item)
         return;
     }
     s_own[s_own_count] = *item;
+    if (item->label != NULL)
+    {
+        VerbaLinea label = {s_own_labels[s_own_count], CLI_LABEL_MAX_LEN, 0ULL};
+        mmgr_line_put(&label, item->label);
+        (void)mmgr_line_finish(&label);
+        s_own[s_own_count].label = s_own_labels[s_own_count];
+    }
+    if (item->args != NULL)
+    {
+        VerbaLinea word = {s_own_args[s_own_count], CLI_PATH_MAX_LEN, 0ULL};
+        mmgr_line_put(&word, item->args);
+        (void)mmgr_line_finish(&word);
+        s_own[s_own_count].args = s_own_args[s_own_count];
+    }
     s_own_count += 1u;
 }
 
 void cli_menus_own_line(void)
 {
-    cli_menus_own_row(&(CliItem){.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = "", .line = 1});
+    cli_menus_own_row(
+        &(CliItem){.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = "", .line = 1});
 }
 
 int cli_menus_own_named(const char *command, const char *args)
@@ -716,6 +740,42 @@ int cli_menus_own_named(const char *command, const char *args)
     return 1;
 }
 
+int cli_menus_popup(const char *title, const char *args)
+{
+    for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
+    {
+        if (cli_menu_shown(menu) ||
+            !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(menu), .other = title, .cap = CLI_LABEL_MAX_LEN}))
+        {
+            continue;
+        }
+        const unsigned int list = cli_menu_list(menu);
+        const unsigned int rows = commands_list_rows(list);
+        for (unsigned int at = 0u; at < rows; at += 1u)
+        {
+            CliItem item;
+            (void)commands_list_row(list, at, &item);
+            // a row runs with the part's word in place of the pattern the list gives
+            item.args = item.line ? "" : args;
+            cli_menus_own_row(&item);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+void cli_menus_own_relabel(unsigned int at, const char *label)
+{
+    if (at >= s_own_count)
+    {
+        return;
+    }
+    VerbaLinea line = {s_own_labels[at], CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&line, label);
+    (void)mmgr_line_finish(&line);
+    s_own[at].label = s_own_labels[at];
+}
+
 const CliItem *cli_menus_own_rows(unsigned int *count_out)
 {
     *count_out = s_own_count;
@@ -727,8 +787,8 @@ const char *cli_menus_own_word(const char *args)
     // the catalog's items carry the pattern of their args in the catalog's strings; a part's row carries the word it
     // runs with, which stands in the part's own texts
     const char *const strings = (s_string != NULL) ? (const char *)(const void *)(s_string + s_count) : NULL;
-    const int catalog = (strings != NULL) && ((uintptr_t)args >= (uintptr_t)strings) &&
-                        ((uintptr_t)args < (uintptr_t)(strings + s_size + s_count));
+    const int catalog = (strings != NULL) && ((embed_word)args >= (embed_word)strings) &&
+                        ((embed_word)args < (embed_word)(strings + s_size + s_count));
     return ((args == NULL) || (args[0] == '\0') || catalog) ? NULL : args;
 }
 

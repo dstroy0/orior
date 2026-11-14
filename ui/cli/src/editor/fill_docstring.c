@@ -139,8 +139,9 @@ EMBED_INLINE void docstring_close(const FillDocstringCtx *args)
     }
     memor.move_up(&(MemoriaCfg){.dst = out->out + cut + 1u + args->comment_prefix_size,
                                 .src = out->out + cut + 1u,
-                                .bytes = (size_t)word_text});
-    memor.cpy(&(MemoriaCfg){.dst = out->out + cut + 1u, .src = args->lead, .bytes = (size_t)args->comment_prefix_size});
+                                .bytes = (embed_word)word_text});
+    memor.cpy(
+        &(MemoriaCfg){.dst = out->out + cut + 1u, .src = args->lead, .bytes = (embed_word)args->comment_prefix_size});
     out->out[cut] = '\n';
     out->at = end;
     filled->line_start = cut + 1u;

@@ -5,8 +5,6 @@
 #include "../command_line/pool.h"
 #include "structure_internal.h"
 
-#include <stdlib.h>
-
 // the one compare's state
 CliStructureState *g_cli_structure;
 

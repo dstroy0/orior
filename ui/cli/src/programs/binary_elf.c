@@ -231,7 +231,7 @@ int cli_elf_dynamic(const CliBinaryErrMsgBytesCfg *args)
     memor.set(&(MemoriaCfg){.dst = args->found, .val = 0, .bytes = sizeof(*args->found)});
     if ((args->size < 6u) || (bytes[4] != 2u) || (bytes[5] != 1u))
     {
-        mmgr_line_put(args->err_msg, "orior_cli reads 64-bit little-endian Linux programs");
+        mmgr_line_put(args->err_msg, "impero reads 64-bit little-endian Linux programs");
         return 0;
     }
     if (args->size < 0x28u)
@@ -553,7 +553,7 @@ EMBED_INLINE unsigned int cli_library_loaded(const BinaryElfCtx *args)
                            .name = loaded->needed[at], .by = library->name, .origin = more_origin, .dynamic = loaded);
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)more, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)more, (g_cli_programs_owner));
     return queued;
 }
 

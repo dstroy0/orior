@@ -223,7 +223,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         }
         mmgr_line_finish(&print_line);
         EMBED_CALL(cli_print, ExecutablesCompareCtx, .sink = args->sink, .text = print_buf);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)old, (g_cli_executables_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)old, (g_cli_executables_owner));
     }
     EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = folder);
     if (EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder_buf))
@@ -232,7 +232,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx, .path = allowed, .pieces = &piece,
                    .count = 1u);
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)now, (g_cli_executables_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)now, (g_cli_executables_owner));
 }
 
 // each `NAME=value` line of a tree's .env handed to `each`, in order: a leading `export` taken off, a value in quotes

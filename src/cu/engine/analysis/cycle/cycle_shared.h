@@ -12,7 +12,7 @@
 #include "cycle.h"
 
 // the CRC that seals a program's block, and the signum that names its program
-#include "../../../includes/codecs/crc/crc.h"
+#include "../../../../../includes/codecs/crc/crc.h"
 #include "../../runtime/obsignatio/obsignatio.h"
 
 // the code generator, which writes a program's lane as PTX or C source for the target named here, and the launch it

@@ -79,16 +79,19 @@ typedef struct
     void *sink;
 } CliLspWriter;
 
-// A piece of a message's body: its bytes, written as they are or, where `quoted`, as a JSON string's letters
+// A piece of a message's body: its bytes, written as they are or, where `quoted`, as a JSON string's letters; the
+// bytes stand at `bytes`, or in the movable cell `cell` from `offset` where that is given
 typedef struct
 {
     const char *bytes;
     unsigned long long size;
     int quoted;
+    const CarcerMovableEntry *cell;
+    unsigned long long offset;
 } CliLspPart;
 
 // a piece of a message written as the literal `text_` is, its size counted from the literal
-#define CLI_LSP_RAW(text_) {(text_), sizeof(text_) - 1ull, 0}
+#define CLI_LSP_RAW(text_) {(text_), sizeof(text_) - 1ull, 0, NULL, 0ull}
 
 // `size` bytes of a JSON body framed and written whole by `writer` under `lock`; the same of a body made of `count`
 // pieces, each text written as a JSON string's letters as it goes, so that a file's whole text is never copied: each 1,
@@ -124,9 +127,10 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args);
 void cli_lsp_ref(const CliLspContextCfg *args);
 void cli_lsp_unref(const CliLspContextCfg *args);
 
-// what the server reported it can do, as it answered `initialize`, as JSON, its size into `size`; the process the
-// server runs as; whether it still runs; the last line it wrote to its errors, or nothing, into `out`; and the server
-// requested to end, and ended where it does not (lsp.c)
+// what the server reported it can do, as it answered `initialize`, as JSON, its size into `size` and its text copied
+// into `out` of `capacity` bytes with its end, "" with no `out`; the process the server runs as; whether it still runs;
+// the last line it wrote to its errors, or nothing, into `out`; and the server requested to end, and ended where it
+// does not (lsp.c)
 const char *cli_lsp_capabilities(const CliLspSizeTypeCfg *args);
 unsigned long long cli_lsp_pid(const CliLspSizeTypeCfg *args);
 int cli_lsp_alive(const CliLspContextCfg *args);
@@ -194,6 +198,8 @@ struct CliLspErrMsgTextCfg
 {
     VerbaLinea *err_msg;
     const char *text;
+    const CarcerMovableEntry *cell;
+    unsigned long long at;
     unsigned long long length;
     const char *path;
     CliLsp *lsp;
@@ -325,6 +331,8 @@ struct CliLspSizeTypeCfg
 {
     unsigned long long *size;
     const CliLsp *lsp_read;
+    char *out;
+    unsigned long long capacity;
 };
 
 typedef struct

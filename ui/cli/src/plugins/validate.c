@@ -11,7 +11,7 @@ CliValidateWorkState *g_cli_validate;
 
 int cli_validate_lock(void)
 {
-    g_cli_validate = g_cli_guard->persistent_buf_alloc(sizeof(*g_cli_validate), g_cli_plugins_owner);
+    g_cli_validate = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_validate), g_cli_plugins_owner);
     if (g_cli_validate == NULL)
     {
         return 0;
@@ -27,7 +27,7 @@ int cli_validate_lock(void)
 
 unsigned int cli_validate_key_get(const CliValidateAtCtx *args)
 {
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     unsigned int key = 0u;
     while ((key < args->at) &&
            (!cellul.eq(&(CatenaFinitaCfg){
@@ -40,7 +40,7 @@ unsigned int cli_validate_key_get(const CliValidateAtCtx *args)
 
 unsigned int cli_validate_grown_keys(const CliValidateCtx *args)
 {
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     unsigned int count = 0u;
     for (unsigned int key = 0u; key < tool->barrier_count; key += 1u)
     {
@@ -143,7 +143,7 @@ EMBED_INLINE void validate_check_print(const ValidateCtx *args)
     mmgr_line_put(&out, ",\"errors\":");
     mmgr_line_decimal(&out, errors, 1u);
     mmgr_line_put(&out, ",\"barriers\":[");
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     for (unsigned int at = 0u; at < args->hits; at += 1u)
     {
         // a name the one before it wrote is written once
@@ -170,7 +170,7 @@ EMBED_INLINE void validate_check_print(const ValidateCtx *args)
 // any moved
 EMBED_INLINE int validate_grow(const ValidateCtx *args)
 {
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     int moved = 0;
     for (unsigned int at = 0u; at < args->hits; at += 1u)
     {
@@ -202,7 +202,7 @@ EMBED_INLINE int validate_grow(const ValidateCtx *args)
 // name standing for an earlier, into `names` and `values`: their count
 EMBED_INLINE unsigned int validate_options(const ValidateCtx *args)
 {
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     unsigned int keys[CLI_VALIDATE_BARRIERS];
     const unsigned int grown = EMBED_CALL(cli_validate_internal.grown_keys, CliValidateCtx, .keys = keys);
     unsigned int count = 0u;
@@ -215,8 +215,9 @@ EMBED_INLINE unsigned int validate_options(const ValidateCtx *args)
         }
         char name[CLI_NAME_MAX_LEN];
         const char *const equal = cellul.chr(&(CatenaFinitaCfg){.src = lift + 2, .cap = CLI_POOL_BYTES, .byte = '='});
-        const size_t length = (equal != NULL) ? (size_t)(equal - lift - 2)
-                                              : cellul.len(&(CatenaFinitaCfg){.src = lift + 2, .cap = CLI_POOL_BYTES});
+        const embed_word length = (equal != NULL)
+                                      ? (embed_word)(equal - lift - 2)
+                                      : cellul.len(&(CatenaFinitaCfg){.src = lift + 2, .cap = CLI_POOL_BYTES});
         if (length >= sizeof(name))
         {
             continue;
@@ -331,7 +332,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     VerbaLinea *report = args->report;
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     CliJson *const json = &g_cli_validate->manifest;
     g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
@@ -384,7 +385,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     if (!EMBED_CALL(cli_validate_text_internal.code_get, CliValidateTextCtx, .text = text, .size = size))
     {
         mmgr_line_put(args->err_msg, path);
-        mmgr_line_put(args->err_msg, " is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, " is larger than impero supports");
         return 0;
     }
     cli_validate_words_get();
@@ -428,9 +429,9 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = base,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES}), .byte = '.');
-    const size_t stem = ((dot != NULL) && (dot > base))
-                            ? (size_t)(dot - base)
-                            : cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES});
+    const embed_word stem = ((dot != NULL) && (dot > base))
+                                ? (embed_word)(dot - base)
+                                : cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES});
     VerbaLinea copy_line = {copy_name, sizeof(copy_name), 0ULL};
     mmgr_line_ch(&copy_line, '.');
     mmgr_line_put_n(&copy_line, base, stem);
@@ -499,7 +500,7 @@ int cli_on_validate(const CliValidatePathCfg *args)
             validated = EMBED_CALL(validate_text, ValidateCtx, .path = args->path, .text = (const char *)bytes,
                                    .size = size, .report = args->report, .err_msg = args->err_msg);
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_plugins_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_plugins_owner));
     }
     g_cli_guard->persistent_buf_release(g_cli_validate->json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->json.node));

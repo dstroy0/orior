@@ -18,24 +18,18 @@ CliGathering g_cli_gather;
 static int gather_cells_alloc(void)
 {
     const int entries =
-        EMBED_CALL(cli_json_tree_nodes_max.json_reserved_temporary, CliJsonTreeNodesMaxCfg, .json = &g_cli_gather.json,
+        EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &g_cli_gather.json,
                    .nodes_max = CLI_GATHER_NODES_CAPACITY, .text_max = CLI_GATHER_TEXT_CAPACITY,
                    .what = "the compile entries gathered", .owner = g_cli_build_owner);
-    char *const flags_cell = g_cli_guard->temporary_buf_alloc(CLI_GATHER_FLAGS_CAPACITY, g_cli_build_owner);
-    char *const fragment_cell = g_cli_guard->temporary_buf_alloc(CLI_GATHER_FLAGS_CAPACITY, g_cli_build_owner);
-    g_cli_gather.flags_text = mmgr_line_over(flags_cell, CLI_GATHER_FLAGS_CAPACITY);
-    g_cli_gather.fragment_text = mmgr_line_over(fragment_cell, CLI_GATHER_FLAGS_CAPACITY);
-    const int reserved = entries && (flags_cell != NULL) && (fragment_cell != NULL);
+    cli_grown_begin(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_CAPACITY, g_cli_build_owner);
+    const int reserved = entries && (g_cli_gather.flags_text.cell != NULL);
     if (!reserved)
     {
         g_cli_guard->persistent_buf_release(g_cli_gather.json.node,
                                             mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_gather.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_gather.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(g_cli_gather.flags_text.out, g_cli_build_owner);
-        g_cli_guard->persistent_buf_release(g_cli_gather.fragment_text.out, g_cli_build_owner);
-        g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
-        g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        cli_grown_end(&g_cli_gather.flags_text);
     }
     return reserved;
 }
@@ -56,8 +50,7 @@ typedef struct
 static void cli_compiler_note(CliDatabase *database, char *compiler)
 {
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = compiler,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_POOL_BYTES}), .from = '\\',
-               .to = '/');
+               .size = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
     unsigned int place = 0u;
     while ((place < database->compilers) &&
            (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = database->compiler[place],
@@ -230,8 +223,8 @@ static void cli_of_file(const CompileDbGatherCtx *args)
         {
             (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = piece, .length = got,
                              .needle = (const unsigned char *)s_keys[key],
-                             .needle_length = cellul.len(&(CatenaFinitaCfg){.src = s_keys[key], .cap = 16u}),
-                             .fold = 0, .found = cli_compiler_found, .context = &sift);
+                             .needle_length = cellul.len(&(CatenaFinitaCfg){.src = s_keys[key], .cap = 16u}), .fold = 0,
+                             .found = cli_compiler_found, .context = &sift);
         }
     }
     g_cli_guard->persistent_buf_release(piece, g_cli_compile_owner);
@@ -288,7 +281,7 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
                                                       .size_pointer = &size, .owner = g_cli_build_owner);
         const int same = (there != NULL) && (size == out.at) &&
                          (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)there, (g_cli_build_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)there, (g_cli_build_owner));
         char folder[CLI_PATH_MAX_LEN];
         if (!same && EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
         {
@@ -320,10 +313,7 @@ void cli_compile_gather(const CliCompileDbRootCtx *args)
                                             mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_gather.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_gather.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(g_cli_gather.flags_text.out, g_cli_build_owner);
-        g_cli_guard->persistent_buf_release(g_cli_gather.fragment_text.out, g_cli_build_owner);
-        g_cli_gather.flags_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
-        g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        cli_grown_end(&g_cli_gather.flags_text);
     }
     else
     {

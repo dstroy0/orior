@@ -21,12 +21,18 @@ const unsigned short *cli_vim_line(const CliVimCtx *args)
     return units;
 }
 
+void cli_vim_line_end(const CliVimCtx *args)
+{
+    EMBED_CALL(cli_view_vim.line_end, CliViewVimCfg, .units = args->units);
+}
+
 // the units the line `line` takes
 EMBED_INLINE unsigned long long motions_length(const CliVimCtx *args)
 {
     unsigned long long length = 0ULL;
-    (void)EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key, .line = args->line,
-                     .length_out = &length);
+    const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
+                                                   .line = args->line, .length_out = &length);
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
     return length;
 }
 
@@ -35,7 +41,10 @@ unsigned int cli_vim_letter_at(const CliVimCtx *args)
     unsigned long long length = 0ULL;
     const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
                                                    .line = args->place.line, .length_out = &length);
-    return ((units != NULL) && (args->place.col < length)) ? units[args->place.col] : CLI_VIM_LINE_END;
+    const unsigned int letter =
+        ((units != NULL) && (args->place.col < length)) ? units[args->place.col] : CLI_VIM_LINE_END;
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
+    return letter;
 }
 
 int cli_vim_forward(const CliVimCtx *args)
@@ -86,14 +95,15 @@ unsigned long long cli_vim_first_letter(const CliVimCtx *args)
     unsigned long long length = 0ULL;
     const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
                                                    .line = args->line, .length_out = &length);
-    for (unsigned long long col = 0ULL; (units != NULL) && (col < length); col += 1ULL)
+    unsigned long long first = (length > 0ULL) ? length - 1ULL : 0ULL;
+    int found = 0;
+    for (unsigned long long col = 0ULL; !found && (units != NULL) && (col < length); col += 1ULL)
     {
-        if (!EMBED_CALL(cli_text_table.white, CliTextCfg, .letter = units[col]))
-        {
-            return col;
-        }
+        found = !EMBED_CALL(cli_text_table.white, CliTextCfg, .letter = units[col]);
+        first = found ? col : first;
     }
-    return (length > 0ULL) ? length - 1ULL : 0ULL;
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
+    return first;
 }
 
 unsigned long long cli_vim_last_col(const CliVimCtx *args)
@@ -104,10 +114,15 @@ unsigned long long cli_vim_last_col(const CliVimCtx *args)
 
 CliPosition cli_vim_head(const CliVimCtx *args)
 {
-    const CliVimView *const view = &g_cli_vim_state.view[args->at];
-    if ((view->mode == CLI_VIM_VISUAL) || (view->mode == CLI_VIM_LINE))
+    CliVimView view;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view,
+                            .bytes = sizeof(CliVimView)});
+    if ((view.mode == CLI_VIM_VISUAL) || (view.mode == CLI_VIM_LINE))
     {
-        return view->visual_head;
+        return view.visual_head;
     }
     CliPosition cursor = {0ULL, 0ULL};
     CliPosition anchor = {0ULL, 0ULL};
@@ -118,16 +133,25 @@ CliPosition cli_vim_head(const CliVimCtx *args)
 
 void cli_vim_put(const CliVimCtx *args)
 {
-    CliVimView *const view = &g_cli_vim_state.view[args->at];
+    CliVimView view;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view,
+                            .bytes = sizeof(CliVimView)});
     const unsigned long long lines = EMBED_CALL(cli_vim_motions_internal.lines, CliVimCtx, .key = args->key);
     const unsigned long long last = (lines > 0ULL) ? lines - 1ULL : 0ULL;
     const unsigned long long line = (args->place.line < last) ? args->place.line : last;
     const unsigned long long length = EMBED_CALL(motions_length, CliVimCtx, .key = args->key, .line = line);
-    const unsigned long long most = (view->mode == CLI_VIM_INSERT) ? length : ((length > 0ULL) ? length - 1ULL : 0ULL);
+    const unsigned long long most = (view.mode == CLI_VIM_INSERT) ? length : ((length > 0ULL) ? length - 1ULL : 0ULL);
     const CliPosition place = {line, (args->place.col < most) ? args->place.col : most};
     if (!args->goal_stays)
     {
-        view->goal_set = 0;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, goal_set),
+            .src = &(int){0},
+            .bytes = sizeof(int)});
     }
     EMBED_CALL(cli_view_vim.place, CliViewVimCfg, .key = args->key, .cursor = place, .anchor = place);
 }
@@ -273,9 +297,11 @@ EMBED_INLINE void motions_to_letter(const CliVimCtx *args)
         if (!seen)
         {
             args->found->found = 0;
+            EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
             return;
         }
     }
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
     args->found->found = 1;
     args->found->to = (CliPosition){args->from.line, col};
     args->found->inclusive = ahead;
@@ -298,6 +324,7 @@ EMBED_INLINE void motions_pair_of(const CliVimCtx *args)
         }
         col += (at_bracket == 6u) ? 1ULL : 0ULL;
     }
+    EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
     if (at_bracket == 6u)
     {
         return;
@@ -374,19 +401,34 @@ EMBED_INLINE CliPosition motions_paragraph(const CliVimCtx *args)
 // the next place the last search finds from `from`, back where `back`: 1 with it into `place_out`, or 0
 EMBED_INLINE int motions_searched(const CliVimCtx *args)
 {
-    const CliVimView *const view = &g_cli_vim_state.view[args->at];
+    CliVimView view;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view,
+                            .bytes = sizeof(CliVimView)});
+    // the search's text copied out of the cell for the find
     unsigned long long length = 0ULL;
-    const char *const text = EMBED_CALL(
-        cli_vim_internal.part_text, CliVimCtx, .length_out = &length,
+    char *const text = EMBED_CALL(
+        cli_vim_internal.part_alloc, CliVimCtx, .length_out = &length,
         .part = EMBED_CALL(cli_vim_internal.part_of, CliVimCtx, .at = args->at, .part = CLI_VIM_PART_SEARCH));
-    return (length != 0ULL) && EMBED_CALL(cli_view_vim.find, CliViewVimCfg, .key = args->key, .text = text,
-                                          .length = length, .from = args->from, .back = args->back,
-                                          .word_text = view->searched_word, .place = args->place_out);
+    const int found =
+        (text != NULL) && (length != 0ULL) &&
+        EMBED_CALL(cli_view_vim.find, CliViewVimCfg, .key = args->key, .text = text, .length = length,
+                   .from = args->from, .back = args->back, .word_text = view.searched_word, .place = args->place_out);
+    g_cli_guard->persistent_buf_release(text, g_cli_vim_owner);
+    return found;
 }
 
 void cli_vim_motion(const CliVimCtx *args)
 {
-    CliVimView *const view = &g_cli_vim_state.view[args->at];
+    CliVimView view_copy;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view_copy,
+                            .bytes = sizeof(CliVimView)});
+    const CliVimView *const view = &view_copy;
     CliVimFound *const found = args->found;
     *found = (CliVimFound){0, args->from, 0, 0, 0, 0, args->from};
     const unsigned long long times = args->counted ? args->count : 1ULL;
@@ -421,8 +463,18 @@ void cli_vim_motion(const CliVimCtx *args)
         }
         if (!view->goal_set)
         {
-            view->goal = from.col;
-            view->goal_set = 1;
+            view_copy.goal = from.col;
+            view_copy.goal_set = 1;
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = g_cli_vim_state.view,
+                .offset = ((unsigned long long)args->at * sizeof(CliVimView)) + offsetof(CliVimView, goal),
+                .src = &view_copy.goal,
+                .bytes = sizeof(view_copy.goal)});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = g_cli_vim_state.view,
+                .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, goal_set),
+                .src = &(int){1},
+                .bytes = sizeof(int)});
         }
         found->to = (CliPosition){line, view->goal};
         found->linewise = 1;
@@ -488,8 +540,16 @@ void cli_vim_motion(const CliVimCtx *args)
     }
     else if ((name == 'f') || (name == 'F') || (name == 't') || (name == 'T'))
     {
-        view->found_how = name;
-        view->found_letter = args->letter;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, found_how),
+            .src = &(unsigned int){name},
+            .bytes = sizeof(unsigned int)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, found_letter),
+            .src = &(unsigned int){args->letter},
+            .bytes = sizeof(unsigned int)});
         EMBED_CALL(motions_to_letter, CliVimCtx, .key = args->key, .from = from, .how = name, .letter = args->letter,
                    .count = times, .found = found);
     }
@@ -537,7 +597,6 @@ void cli_vim_motion(const CliVimCtx *args)
 
 void cli_vim_move_by(const CliVimCtx *args)
 {
-    CliVimView *const view = &g_cli_vim_state.view[args->at];
     CliVimFound found;
     EMBED_CALL(cli_vim_motions_internal.motion, CliVimCtx, .at = args->at, .key = args->key, .name = args->name,
                .letter = args->letter, .count = args->count, .counted = args->counted,
@@ -547,13 +606,31 @@ void cli_vim_move_by(const CliVimCtx *args)
     {
         return;
     }
-    if ((view->mode == CLI_VIM_VISUAL) || (view->mode == CLI_VIM_LINE))
+    CliVimView view;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                            .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
+                            .dst = &view,
+                            .bytes = sizeof(CliVimView)});
+    if ((view.mode == CLI_VIM_VISUAL) || (view.mode == CLI_VIM_LINE))
     {
         const unsigned long long last =
             EMBED_CALL(cli_vim_motions_internal.last_col, CliVimCtx, .key = args->key, .line = found.to.line);
-        view->visual_head = (CliPosition){found.to.line, (found.to.col < last) ? found.to.col : last};
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = g_cli_vim_state.view,
+            .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_head),
+            .src = &(CliPosition){((CliPosition){found.to.line, (found.to.col < last) ? found.to.col : last}).line,
+                                  ((CliPosition){found.to.line, (found.to.col < last) ? found.to.col : last}).col},
+            .bytes = sizeof(CliPosition)});
         EMBED_CALL(cli_vim_commands_internal.chosen_drawn, CliVimCtx, .at = args->at, .key = args->key);
-        view->goal_set = found.goal_stays ? view->goal_set : 0;
+        if (!found.goal_stays)
+        {
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = g_cli_vim_state.view,
+                .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, goal_set),
+                .src = &(int){0},
+                .bytes = sizeof(int)});
+        }
         return;
     }
     EMBED_CALL(cli_vim_motions_internal.put, CliVimCtx, .at = args->at, .key = args->key, .place = found.to,

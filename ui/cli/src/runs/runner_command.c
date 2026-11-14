@@ -491,7 +491,7 @@ EMBED_INLINE int cli_step_program(const RunnerCommandCtx *args)
         if (!EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = args->out,
                         .capacity_bytes = CLI_PATH_MAX_LEN))
         {
-            mmgr_line_put(args->err_msg, "orior_cli itself: its program could not be found");
+            mmgr_line_put(args->err_msg, "impero itself: its program could not be found");
             return 0;
         }
         return 1;
@@ -650,7 +650,7 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     }
     if (args->command->words.full || s_args.full)
     {
-        mmgr_line_put(args->err_msg, "the step's command is longer than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the step's command is longer than impero supports");
         return 0;
     }
     return 1;

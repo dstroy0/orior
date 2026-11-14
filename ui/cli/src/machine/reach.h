@@ -12,6 +12,13 @@
 #define REACH_H
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+#include "embed_ticket_ring.h"
+
+// the commands that wait at the door at once, a two's power, and the bytes their ring's slots take, the door's part
+// of the rings block
+#define CLI_REACH_RING_SHIFT 6u
+#define CLI_REACH_RING_SLOTS (1u << CLI_REACH_RING_SHIFT)
+#define CLI_REACH_RING_BYTES ((unsigned long long)CLI_REACH_RING_SLOTS * sizeof(EmbedTicketRingSlot))
 
 typedef struct CliReachMenuCfg CliReachMenuCfg;
 typedef struct CliReachCfg CliReachCfg;

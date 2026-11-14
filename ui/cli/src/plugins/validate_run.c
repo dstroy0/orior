@@ -32,7 +32,7 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     unsigned int *settings = args->settings;
     char *dir = args->dir;
     const CliJson *const json = &g_cli_validate->json;
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     static CliWords s_named;
     s_named.count = 0u;
     s_named.used = 0u;
@@ -165,7 +165,7 @@ int cli_validate_check(const CliValidateErrMsgCtx *args)
     // the output stored in a cell of its size, the one stored before given back
     g_cli_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
     g_cli_validate->output_size = 0ULL;
-    g_cli_validate->output = g_cli_guard->persistent_buf_alloc(out + err + 2ULL, g_cli_plugins_owner);
+    g_cli_validate->output = g_cli_guard->temporary_buf_alloc(out + err + 2ULL, g_cli_plugins_owner);
     if (g_cli_validate->output == NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);

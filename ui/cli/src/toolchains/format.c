@@ -152,7 +152,7 @@ unsigned int cli_format_tool(const CliFormatLanguageCtx *args)
             }
         }
     }
-    mmgr_line_put(args->err_msg, "orior_cli has no formatter for ");
+    mmgr_line_put(args->err_msg, "impero has no formatter for ");
     mmgr_line_put(args->err_msg, args->language);
     mmgr_line_put(args->err_msg, ": it formats with ");
     unsigned int written = 0u;
@@ -271,7 +271,7 @@ EMBED_INLINE const char *cli_word_fill(const FormatCtx *args)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->word_text, .at = at, .size = whole, .set = "{");
-        mmgr_line_put_n(&line, args->word_text + at, (size_t)(stop - at));
+        mmgr_line_put_n(&line, args->word_text + at, (embed_word)(stop - at));
         at = stop;
         if (stop == whole)
         {

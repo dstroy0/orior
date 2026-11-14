@@ -113,9 +113,10 @@ typedef struct
     char *text;
     unsigned long long used;
     unsigned long long capacity;
+    CliGrownLine grown;
 } CliLayers;
 
-// the system orior_cli runs on, as a settings file names it; and whether `key` is one of a settings file's own keys and
+// the system impero runs on, as a settings file names it; and whether `key` is one of a settings file's own keys and
 // no setting: `allocs`, a system's, `machine` or a type's
 const char *cli_settings_system(void);
 int cli_settings_is_file_key(const CliSettingsKeyCfg *args);

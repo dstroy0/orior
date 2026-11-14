@@ -4,8 +4,6 @@
 // that set it, in the page's own points from its top left
 #include "latex_internal.h"
 
-#include <math.h>
-
 // One record of a SyncTeX file: its file's tag, its line, its point and, for a box, its width, height and depth, all
 // in the file's own units
 typedef struct

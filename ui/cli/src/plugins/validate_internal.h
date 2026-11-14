@@ -100,7 +100,7 @@ typedef struct
     unsigned int gaps;
     unsigned int explains;
     unsigned int repeats;
-} CliTool;
+} GuiTool;
 
 // A word of the code: where it starts and its bytes, its line and column, from 0, and its letters
 typedef struct
@@ -160,7 +160,7 @@ typedef struct
 typedef struct
 {
     CliJson json;
-    CliTool tool;
+    GuiTool tool;
     char code[CLI_VALIDATE_CODE];
     unsigned long long code_size;
     CliCodeWord words[CLI_VALIDATE_WORDS];

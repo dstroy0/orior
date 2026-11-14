@@ -29,10 +29,10 @@ extern "C"
 #define TABLE_ORACLES "src/cu/transpiler/lstar/protocol"
 
 // the oracle of the rows of a k-file's table, from the top of the tree
-#define TABLE_KFILE_ROWS "src/cu/includes/file_defs/krep/krep_records.oracle.tsv"
+#define TABLE_KFILE_ROWS "includes/file_defs/krep/krep_records.oracle.tsv"
 
 // the folder of the k-files' oracles, each `<kind>/<kind>.oracle.tsv` in it, from the top of the tree
-#define TABLE_KFILE_ORACLES "src/cu/includes/file_defs"
+#define TABLE_KFILE_ORACLES "includes/file_defs"
 
     // the number of the `length` bytes at `bytes` in the table of texts: their 64-bit FNV-1a hash, 1 for a hash of
     // 0; the text appended as a row of the table the first time this process numbers it. An empty text has no

@@ -70,7 +70,7 @@ EMBED_INLINE void rows_columns(const PgRowsCtx *args)
     for (unsigned long long one = 0ULL; (one < count) && (args->pg->head.column_count < CLI_DB_COLUMNS); one += 1ULL)
     {
         const unsigned char *const nul =
-            (at < size) ? memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (size_t)(size - at)}) : NULL;
+            (at < size) ? memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (embed_word)(size - at)}) : NULL;
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - body) : size;
         CliDbColumn *const column = &args->pg->head.columns[args->pg->head.column_count];
         VerbaLinea name = {column->name, sizeof(column->name), 0ULL};
@@ -193,7 +193,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
             break;
         }
         case 'G': {
-            static const char s_reason[] = "orior_cli sends no data to COPY FROM STDIN";
+            static const char s_reason[] = "impero sends no data to COPY FROM STDIN";
             const void *const reason[1] = {s_reason};
             const unsigned long long reason_size[1] = {sizeof(s_reason)};
             if (!EMBED_CALL(cli_pg_failure_type_internal.send, CliPgFailureTypeCtx, .pg = args->pg, .type_value = 'f',

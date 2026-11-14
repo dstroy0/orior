@@ -227,7 +227,7 @@ int cli_ipc_write(const CliIpcEndSizeCtx *args)
 #endif
     for (unsigned long long at = 0ULL; at < args->size;)
     {
-        const ssize_t wrote = send((int)args->end->handle, from + at, (size_t)(args->size - at), flags);
+        const ssize_t wrote = send((int)args->end->handle, from + at, (embed_word)(args->size - at), flags);
         if ((wrote < 0) && (errno == EINTR))
         {
             continue;

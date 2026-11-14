@@ -108,7 +108,7 @@ static void processes_sort(const DebugProcessesCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = &process[args->from],
                             .src = &args->listing->sorted[args->from],
-                            .bytes = (size_t)(args->to - args->from) * sizeof(process[0])});
+                            .bytes = (embed_word)(args->to - args->from) * sizeof(process[0])});
 }
 
 void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
@@ -123,7 +123,7 @@ void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
         listing.text[0] = '\0';
         EMBED_CALL(cli_context_internal.processes_each, CliContextCtx, .each_callback = processes_list,
                    .context = &listing);
-        listing.sorted = g_cli_guard->persistent_buf_alloc(
+        listing.sorted = g_cli_guard->temporary_buf_alloc(
             ((unsigned long long)listing.count + 1ULL) * sizeof(CliDebugProcess), g_cli_debug_processes_owner);
     }
     const unsigned int count = (listing.sorted != NULL) ? listing.count : 0u;

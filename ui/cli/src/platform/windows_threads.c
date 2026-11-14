@@ -105,9 +105,9 @@ void cli_priority_own(const CliWordsErrMsgCtx *args)
     SetThreadPriority(GetCurrentThread(), level);
 }
 
-size_t cli_thread_id(void)
+embed_word cli_thread_id(void)
 {
-    return (size_t)GetCurrentThreadId();
+    return (embed_word)GetCurrentThreadId();
 }
 
 void cli_thread_yield(void)

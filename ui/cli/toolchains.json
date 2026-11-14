@@ -262,7 +262,7 @@
       "id": "ghidra",
       "name": "Ghidra",
       "group": "C, C++ and CUDA",
-      "for": "analyzeHeadless, Ghidra's analyzer run without its window, which orior_cli run disasm-verify reads a program's functions through",
+      "for": "analyzeHeadless, Ghidra's analyzer run without its window, which imp run disasm-verify reads a program's functions through",
       "uses": [],
       "programs": ["analyzeHeadless"],
       "version": ["-version"],

@@ -50,7 +50,7 @@ EMBED_INLINE int binary_is(const CargoBinaryCtx *args)
         {
             continue;
         }
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES});
+        const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES});
         is_lib = is_lib ||
                  ((length >= 3u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = type + length - 3u, .other = "lib", .cap = CLI_POOL_BYTES}))) ||

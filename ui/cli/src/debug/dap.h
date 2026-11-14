@@ -4,7 +4,7 @@
 // Content-Length header and a JSON body, as the Debug Adapter Protocol frames them, the same framing a language server
 // uses. A request is answered by a response that names its sequence number; an event goes to the function the adapter
 // was started with. The adapter is a program started for the session, one listening at an address that the client
-// connects to, or one that runs in orior_cli itself, framed the same way. A request from the adapter, such as one to
+// connects to, or one that runs in impero itself, framed the same way. A request from the adapter, such as one to
 // run the program in a terminal, is refused, and the adapter then runs it itself (dap.c, dap_start.c, dap_waiters.c)
 #ifndef DAP_H
 #define DAP_H
@@ -45,7 +45,7 @@ typedef int (*CliDapServe)(const CliDapServeCfg *args);
 
 // `program` started with `args`, `count` of them, in `folder`, its PATH `path`, as the adapter, `emit` taking its
 // events, ending the session ending the program where `ends_program`; the adapter listening at `host`:`port` connected
-// to, within 5 s; and an adapter that runs in orior_cli started on a thread of its own, `serve` handed each request.
+// to, within 5 s; and an adapter that runs in impero started on a thread of its own, `serve` handed each request.
 // Each referenced once for its starter, or NULL with why given. An adapter referenced once more, and a reference given
 // back, the adapter ended with the last (dap_start.c, dap_within.c, dap.c)
 CliDap *cli_dap_start(const CliDapProgramCfg *args);
@@ -54,7 +54,7 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args);
 void cli_dap_ref(const CliDapCfg *args);
 void cli_dap_unref(const CliDapCfg *args);
 
-// what an adapter in orior_cli sends to the client, and hands itself, `size` bytes of a message's JSON: 1, or 0 where
+// what an adapter in impero sends to the client, and hands itself, `size` bytes of a message's JSON: 1, or 0 where
 // it could not, as where the client let it go (dap_within.c)
 int cli_dap_send(const CliDapMessageCfg *args);
 int cli_dap_itself(const CliDapMessageCfg *args);

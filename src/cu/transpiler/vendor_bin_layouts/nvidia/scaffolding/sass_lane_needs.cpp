@@ -19,8 +19,8 @@ extern "C"
 }
 
 #include "machine_ir_types.h"
-#include "../../../../includes/file_defs/krs/ruleset_core_words.h"
-#include "../../../../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../../../../includes/file_defs/krs/ruleset_core_words.h"
+#include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "sass_target.h"
 #include "target.h"
 

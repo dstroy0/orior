@@ -116,19 +116,19 @@ EMBED_INLINE void recv_edit(const ServersRecvCtx *args)
                .read_state = &s_read_state);
     const unsigned int root = EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx,
                                          .read_state = &s_read_state, .text = args->params, .size = size);
-    char *const edits = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_ANSWER, g_cli_servers_owner);
-    VerbaLinea edits_line = mmgr_line_over(edits, CLI_SERVERS_ANSWER);
+    CliGrownLine edits;
+    cli_grown_begin(&edits, CLI_SERVERS_ANSWER, g_cli_servers_owner);
     EMBED_CALL(cli_servers_json_tree_out_internal.workspace_edit_get, CliServersJsonTreeOutCtx,
                .json = &s_read_state.json,
                .edit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                   .json_read = &s_read_state.json, .object = root, .name = "edit"),
-               .tree = args->sink->tree, .out = &edits_line);
-    if (mmgr_line_ok(&edits_line) && (args->sink->emit != NULL))
+               .tree = args->sink->tree, .out = &edits.line);
+    if (mmgr_line_ok(&edits.line) && (args->sink->emit != NULL))
     {
         EMBED_CALL(args->sink->emit, CliEachEventJsonSizeCfg, .context = args->sink->context, .event = "lsp-edits",
-                   .json = edits_line.out, .size = edits_line.at);
+                   .json = edits.cell, .size = cli_grown_size(&edits));
     }
-    g_cli_guard->persistent_buf_release(edits, g_cli_servers_owner);
+    cli_grown_end(&edits);
     g_cli_guard->persistent_buf_release(s_read_state.json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read_state.json),

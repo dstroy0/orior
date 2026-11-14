@@ -6,11 +6,11 @@
 #ifndef KDECODE_INTERNAL_H
 #define KDECODE_INTERNAL_H
 
-#include "../../../../../includes/file_defs/kqr/kqr_record.h"
-#include "../../../../../includes/file_defs/krep/krep_head.h"
-#include "../../../../../includes/file_defs/krep/krep_records.h"
-#include "../../../../../includes/file_defs/qry/qry_read.h"
-#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../../../includes/file_defs/krep/krep_head.h"
+#include "../../../../../../../includes/file_defs/krep/krep_records.h"
+#include "../../../../../../../includes/file_defs/qry/qry_read.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../table_text.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>

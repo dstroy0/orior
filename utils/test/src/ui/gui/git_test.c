@@ -7,10 +7,11 @@
 // searches by it; the pane's table stands the field under the head, a press on the field takes the keys, which typed
 // text then reaches and Escape lets go, the branch's row is taller than a commit's, and a file's row pressed opens the
 // file
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/code/git.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/cli/src/text/text.h"
-#include "../../../../../ui/cli/src/view/parts/git.h"
+#include "../../../../../ui/gui/src/git.h"
 #include "../cli/cli_check.h"
 
 static char s_root[CLI_PATH_MAX_LEN];
@@ -79,16 +80,19 @@ static int second_is(const CliGitLogRow *row, const char *text)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
@@ -160,11 +164,9 @@ int main(void)
 
     cli_check(EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u) == 0ULL, "no change waits before typing");
     EMBED_CALL(cli_git_log.type, CliGitLogCfg, .text = "second", .size = 6ULL, .now_ms = 1000ULL);
-    unsigned long long length = 0ULL;
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_log.query, CliGitLogCfg, .length_out = &length),
-                                           .cap = CLI_POOL_BYTES,
-                                           .other = "second",
-                                           .other_cap = 7u}) &&
+    char query[CLI_GIT_LOG_QUERY_MAX];
+    const unsigned long long length = EMBED_CALL(cli_git_log.query, CliGitLogCfg, .text_out = query);
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = query, .cap = CLI_POOL_BYTES, .other = "second", .other_cap = 7u}) &&
                   (length == 6ULL),
               "the text typed is the query");
     cli_check(EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u) == 1000ULL + CLI_GIT_LOG_REST_MS,
@@ -224,7 +226,7 @@ int main(void)
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_PANE_BOX,
@@ -238,10 +240,8 @@ int main(void)
     cli_check(pane.keys, "the field pressed takes the keys");
     cli_check(EMBED_CALL(gui_pane.text, GuiPaneCfg, .table = table, .pane = &pane, .text = "first", .length = 5ULL,
                          .root = s_root) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_log.query, CliGitLogCfg, .length_out = &length),
-                                               .cap = CLI_POOL_BYTES,
-                                               .other = "first",
-                                               .other_cap = 6u}),
+                  (EMBED_CALL(cli_git_log.query, CliGitLogCfg, .text_out = query) == 5ULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = query, .cap = CLI_POOL_BYTES, .other = "first", .other_cap = 6u}),
               "text typed while the field has the keys reaches the query");
     cli_check(EMBED_CALL(gui_pane.key, GuiPaneCfg, .table = table, .pane = &pane, .name = "Escape", .root = s_root) &&
                   !pane.keys,
@@ -331,10 +331,10 @@ int main(void)
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SHOWN, .root = NULL);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 0u, "no tree leaves no rows");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

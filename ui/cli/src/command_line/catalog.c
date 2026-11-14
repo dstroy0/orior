@@ -50,6 +50,18 @@ void cli_catalog_begin(const CliCatalogJobsMaxCfg *args)
 #define CLI_CATALOG_LIST_MAX 16384u
 #define CLI_CATALOG_TEXT_MAX (4u << 20u)
 
+void cli_catalog_emptied(const CliCatalogCellsCfg *args)
+{
+    CliCatalog *const catalog = args->catalog;
+    const CellOwner *const cells = catalog->cells;
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = catalog, .jobs = catalog->job,
+               .jobs_max = catalog->jobs_max, .params = catalog->param, .params_max = catalog->params_max,
+               .steps = catalog->step, .steps_max = catalog->steps_max, .request = catalog->arg,
+               .args_max = catalog->args_max, .lists = catalog->list, .lists_max = catalog->lists_max,
+               .text_out = catalog->text, .text_max = catalog->text_max);
+    catalog->cells = cells;
+}
+
 void cli_catalog_alloc(const CliCatalogCellsCfg *args)
 {
     CellOwner *cells = args->cells;
@@ -62,6 +74,8 @@ void cli_catalog_alloc(const CliCatalogCellsCfg *args)
     const unsigned long long step_bytes = (unsigned long long)CLI_CATALOG_LIST_MAX * sizeof(CliStep);
     const unsigned long long arg_bytes = (unsigned long long)CLI_CATALOG_LIST_MAX * sizeof(CliArg);
     const unsigned long long list_bytes = (unsigned long long)CLI_CATALOG_LIST_MAX * sizeof(unsigned int);
+    // the catalog's cell is the process's own internal take, persistent, taken as the process starts and never given
+    // back
     char *const cell = g_cli_guard->persistent_buf_alloc(
         job_bytes + param_bytes + step_bytes + arg_bytes + list_bytes + CLI_CATALOG_TEXT_MAX, cells);
     args->catalog->cells = cells;

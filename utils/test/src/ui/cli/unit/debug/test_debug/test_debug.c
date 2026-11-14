@@ -129,7 +129,11 @@ static CliDebugSession *position_planned(void)
     TEST_ASSERT_NOT_NULL(place);
     for (long long number = 0ll; number < 100ll; number += 1ll)
     {
-        place->positioned[place->positioned_count] = number;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = place->positioned_cell,
+                                .offset = (unsigned long long)place->positioned_count * sizeof(number),
+                                .src = &number,
+                                .bytes = sizeof(number)});
         place->positioned_count += 1u;
     }
     unsigned int read = CLI_JSON_NONE;
@@ -143,13 +147,7 @@ static CliDebugSession *position_planned(void)
 // `place` freed under the debugger's lock
 static void position_freed(CliDebugSession *place)
 {
-    g_cli_guard->persistent_buf_release(place->positioned, g_cli_debug_owner);
-    place->data = NULL;
-    place->data_count = 0u;
-    place->data_capacity = 0u;
-    place->positioned = NULL;
-    place->positioned_count = 0u;
-    place->positioned_capacity = 0u;
+    EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = place);
     g_cli_guard->persistent_buf_release(place->start.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), place->start.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
@@ -362,7 +360,9 @@ void test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts(void)
     CliDebugSession *const place = position_planned();
     TEST_ASSERT_EQUAL_UINT(100u, place->positioned_count);
     TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_POSITIONED, place->positioned_capacity);
-    TEST_ASSERT_EQUAL_INT64(99ll, place->positioned[99]);
+    long long placed = 0ll;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = place->positioned_cell, .offset = 99ull * sizeof(placed), .dst = &placed, .bytes = sizeof(placed)});
+    TEST_ASSERT_EQUAL_INT64(99ll, placed);
     position_freed(place);
 }
 
@@ -379,7 +379,7 @@ void test_all_of_a_position_is_released_as_it_is_freed(void)
     CliDebugSession *const place = position_planned();
     position_freed(place);
     TEST_ASSERT_FALSE(place->reserved);
-    TEST_ASSERT_NULL(place->positioned);
+    TEST_ASSERT_NULL(place->positioned_cell);
     TEST_ASSERT_EQUAL_UINT(0u, place->start.nodes_max);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_debug_owner));
 }

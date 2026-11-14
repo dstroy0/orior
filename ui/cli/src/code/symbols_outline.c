@@ -33,7 +33,43 @@ typedef struct
     char text[OUTLINE_TEXT_BYTES];
 } Outline;
 
+// the outline under build, a cell of the temporary tier for the one read; and the outline standing: its rows then its
+// text from `text_at` in a movable cell sized to them, and how many rows
 static Outline *s_outline;
+static const CarcerMovableEntry *s_outline_cell;
+static unsigned int s_outline_count;
+static unsigned long long s_outline_text_at;
+
+// the outline standing let go, none standing
+static void outline_released(void)
+{
+    (void)g_cli_guard->movable_buf_release(s_outline_cell, g_cli_code_owner);
+    s_outline_cell = NULL;
+    s_outline_count = 0u;
+    s_outline_text_at = 0ULL;
+}
+
+// the outline under build published as the outline standing, in a movable cell of its rows and the text they use
+static void outline_published(void)
+{
+    outline_released();
+    const embed_word rows_bytes = (embed_word)s_outline->count * sizeof(OutlineRow);
+    if (s_outline->count == 0u)
+    {
+        return;
+    }
+    s_outline_cell = g_cli_guard->movable_buf_alloc(rows_bytes + s_outline->used, g_cli_code_owner);
+    if (s_outline_cell == NULL)
+    {
+        return;
+    }
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_outline_cell, .src = s_outline->row, .bytes = rows_bytes});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = s_outline_cell, .offset = rows_bytes, .src = s_outline->text, .bytes = s_outline->used});
+    s_outline_count = s_outline->count;
+    s_outline_text_at = rows_bytes;
+}
 
 typedef struct
 {
@@ -123,16 +159,7 @@ EMBED_INLINE void outline_depths_read(const OutlineCtx *args)
 
 void cli_outline_read(const CliOutlineCfg *args)
 {
-    if (s_outline == NULL)
-    {
-        s_outline = g_cli_guard->persistent_buf_alloc(sizeof(Outline), g_cli_code_owner);
-        if (s_outline == NULL)
-        {
-            return;
-        }
-    }
-    s_outline->count = 0u;
-    s_outline->used = 0u;
+    outline_released();
     if ((args->key == NULL) || (args->path == NULL))
     {
         return;
@@ -143,33 +170,67 @@ void cli_outline_read(const CliOutlineCfg *args)
     {
         return;
     }
-    unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
-                                  .owner = g_cli_code_owner, .size_pointer = &size);
-    if (text == NULL)
+    // the outline built in a cell of this read, then published sized to its rows
+    s_outline = g_cli_guard->temporary_buf_alloc(sizeof(Outline), g_cli_code_owner);
+    if (s_outline == NULL)
     {
         return;
     }
-    EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = args->path, .text = text,
-               .size = size, .each_declared = outline_declared);
-    EMBED_CALL(outline_depths_read, OutlineCtx, .text = text, .length = size);
-    g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
+    s_outline->count = 0u;
+    s_outline->used = 0u;
+    unsigned long long size = 0ULL;
+    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = args->key,
+                                  .owner = g_cli_code_owner, .size_pointer = &size);
+    if (text != NULL)
+    {
+        EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = args->path, .text = text,
+                   .size = size, .each_declared = outline_declared);
+        EMBED_CALL(outline_depths_read, OutlineCtx, .text = text, .length = size);
+        g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
+        outline_published();
+    }
+    g_cli_guard->persistent_buf_release(s_outline, g_cli_code_owner);
+    s_outline = NULL;
 }
 
 unsigned int cli_outline_rows(const CliOutlineCfg *args)
 {
     (void)args;
-    return (s_outline != NULL) ? s_outline->count : 0u;
+    return s_outline_count;
 }
 
 int cli_outline_row(const CliOutlineCfg *args)
 {
-    if ((s_outline == NULL) || (args->at >= s_outline->count))
+    if (args->at >= s_outline_count)
     {
         return 0;
     }
-    const OutlineRow *const row = &s_outline->row[args->at];
-    *args->row =
-        (CliOutlineRow){s_outline->text + row->name, row->length, s_outline->text + row->type, row->line, row->depth};
+    OutlineRow row;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_outline_cell, .offset = (embed_word)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
+    {
+        const unsigned long long text_read =
+            (row.length < ((sizeof(args->row->name)) - 1ULL)) ? row.length : ((sizeof(args->row->name)) - 1ULL);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_outline_cell,
+                                                                .offset = (embed_word)(s_outline_text_at + row.name),
+                                                                .dst = args->row->name,
+                                                                .bytes = (embed_word)text_read});
+        args->row->name[text_read] = '\0';
+    }
+    // the type is ended in the text: its bytes are those before the end
+    const embed_word type_length = g_cli_guard->movable_buf_measure(
+        &(CarcerMovableCfg){.cell = s_outline_cell, .offset = (embed_word)(s_outline_text_at + row.type)});
+    {
+        const unsigned long long text_read =
+            (type_length < ((sizeof(args->row->type)) - 1ULL)) ? type_length : ((sizeof(args->row->type)) - 1ULL);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_outline_cell,
+                                                                .offset = (embed_word)(s_outline_text_at + row.type),
+                                                                .dst = args->row->type,
+                                                                .bytes = (embed_word)text_read});
+        args->row->type[text_read] = '\0';
+    }
+    args->row->length = row.length;
+    args->row->line = row.line;
+    args->row->depth = row.depth;
     return 1;
 }

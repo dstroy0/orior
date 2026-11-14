@@ -153,7 +153,7 @@ EMBED_INLINE int test_file_ahead(const TestPythonCtx *args)
     const unsigned long long before_length = EMBED_CALL(test_file_length, TestPythonCtx, .id = before_name);
     const unsigned long long length = EMBED_CALL(test_file_length, TestPythonCtx, .id = name);
     const embed_iword named_after = memor.cmp(&(MemoriaCfg){
-        .src = before_name, .other = name, .bytes = (size_t)((before_length < length) ? before_length : length)});
+        .src = before_name, .other = name, .bytes = (embed_word)((before_length < length) ? before_length : length)});
     return (s_file_size[args->before] < s_file_size[args->file]) ||
            ((s_file_size[args->before] == s_file_size[args->file]) &&
             ((named_after > 0) || ((named_after == 0) && (before_length > length))));

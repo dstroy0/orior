@@ -10,7 +10,7 @@ char *cli_uncommented_alloc(const CliExecutablesTextCtx *args)
 {
     // the code with its comments taken out is no longer than the text
     const unsigned long long capacity = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
-    char *const code = g_cli_guard->persistent_buf_alloc(capacity, g_cli_executables_owner);
+    char *const code = g_cli_guard->temporary_buf_alloc(capacity, g_cli_executables_owner);
     if (code != NULL)
     {
         EMBED_CALL(cli_executables_text_internal.uncommented, CliExecutablesTextCtx, .text = args->text,
@@ -27,8 +27,8 @@ unsigned int cli_calls_alloc(const CliExecutablesCodeCommandCtx *args)
             ? EMBED_CALL(cli_executables_code_internal.calls, CliExecutablesCodeCtx, .code = args->code,
                          .command = args->command, .calls = NULL, .capacity_u32 = 0u)
             : 0u;
-    *calls = (count != 0u) ? g_cli_guard->persistent_buf_alloc((unsigned long long)count * sizeof(CliCall),
-                                                               g_cli_executables_owner)
+    *calls = (count != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(CliCall),
+                                                              g_cli_executables_owner)
                            : NULL;
     return (*calls != NULL) ? EMBED_CALL(cli_executables_code_internal.calls, CliExecutablesCodeCtx, .code = args->code,
                                          .command = args->command, .calls = *calls, .capacity_u32 = count)
@@ -159,7 +159,7 @@ unsigned int cli_calls(const CliExecutablesCodeCtx *args)
         const char *const hit = cellul.find(&(CatenaFinitaCfg){.src = args->code + from,
                                                                .cap = CLI_POOL_BYTES,
                                                                .other = args->command,
-                                                               .other_cap = (size_t)length + 1u,
+                                                               .other_cap = (embed_word)length + 1u,
                                                                .ci = 1});
         const unsigned long long at =
             (hit != NULL) ? (unsigned long long)(hit - args->code)

@@ -79,7 +79,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)catalog, .size = read) &&
         EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases, CliVersionCatalogTextSizeAliasesCtx,
                    .text = (const char *)catalog, .size = read, .aliases = &aliases);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)catalog, (g_cli_gradle_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)catalog, (g_cli_gradle_owner));
     if (!whole)
     {
         return;
@@ -175,7 +175,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text,
                                                 .at = args->at, .of = complete_chain_letter);
     const char *const dot =
-        memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(args->at - token)});
+        memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (embed_word)(args->at - token)});
     if (open)
     {
         return;
@@ -252,7 +252,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         const CliGradleBlock *const block = &g_cli_gradle.block[inner];
         static char s_name[1u << 12u];
         const unsigned long long name_size = (block->name_size < sizeof(s_name)) ? block->name_size : 0ULL;
-        memor.cpy(&(MemoriaCfg){.dst = s_name, .src = text + block->name, .bytes = (size_t)name_size});
+        memor.cpy(&(MemoriaCfg){.dst = s_name, .src = text + block->name, .bytes = (embed_word)name_size});
         s_name[name_size] = '\0';
         unsigned int count = 0u;
         const char *const *const words = EMBED_CALL(cli_gradle_size_internal.block_words, CliGradleSizeCtx,

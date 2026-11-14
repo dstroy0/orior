@@ -26,7 +26,7 @@ extern "C"
 #include "../sass_machine.h"
 }
 
-#include "../../../../includes/file_defs/krs/ruleset_flat.h"
+#include "../../../../../../includes/file_defs/krs/ruleset_flat.h"
 #include "sass_target.h"
 #include "target.h"
 

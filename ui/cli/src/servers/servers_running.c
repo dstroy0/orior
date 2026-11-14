@@ -24,7 +24,7 @@ static void running_stop(const CliServersJobCfg *args)
     CliServersStopping stopping = {NULL};
     memor.cpy(&(MemoriaCfg){.dst = &stopping,
                             .src = args->job,
-                            .bytes = (sizeof(stopping) <= args->size) ? sizeof(stopping) : (size_t)args->size});
+                            .bytes = (sizeof(stopping) <= args->size) ? sizeof(stopping) : (embed_word)args->size});
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = stopping.server);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = stopping.server);
 }

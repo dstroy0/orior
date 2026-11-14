@@ -159,7 +159,7 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
         return 0;
     }
     g_cli_guard->persistent_buf_release(s_work_state->output, g_cli_toolchains_owner);
-    s_work_state->output = g_cli_guard->persistent_buf_alloc(run_result->out_size + 1ULL, g_cli_toolchains_owner);
+    s_work_state->output = g_cli_guard->temporary_buf_alloc(run_result->out_size + 1ULL, g_cli_toolchains_owner);
     if (s_work_state->output == NULL)
     {
         s_work_state->output_size = 0ULL;
@@ -272,7 +272,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->place, .joined = folder);
     }
-    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
+    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
     if (s_work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "an environment's resolving could not be taken");

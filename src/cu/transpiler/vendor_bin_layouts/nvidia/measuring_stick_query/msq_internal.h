@@ -9,7 +9,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../lstar/interface/interface.h"
 
 #include <pthread.h>

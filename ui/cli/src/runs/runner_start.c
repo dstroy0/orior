@@ -33,17 +33,26 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
         sizeof(CliJob) + ((unsigned long long)extent.params * sizeof(CliParam)) +
         ((unsigned long long)extent.steps * sizeof(CliStep)) + ((unsigned long long)extent.args * sizeof(CliArg)) +
         ((unsigned long long)extent.lists * sizeof(unsigned int)) + extent.text + sizeof(CliValues) + 64ULL;
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_runs_owner);
-    CliLines *const lines =
-        (cell != NULL) ? g_cli_guard->persistent_buf_alloc(sizeof(CliLines), g_cli_runs_owner) : NULL;
-    if (lines == NULL)
+    // the job laid in a cell of this call, then written into the run's movable cell
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_runs_owner);
+    if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(cell, g_cli_runs_owner);
         mmgr_line_put(args->err_msg, "a run's cells could not be taken");
         return 0;
     }
+    // the run's lines are rings over the run place's span of the rings block, where they punch no hole in the
+    // persistent tier; emptied for this run
+    static CliRunLines s_lines[CLI_RUNS_MAX];
+    const unsigned long long place = (unsigned long long)(args->run - g_cli_runs);
+    CliRunLines *const lines = &s_lines[place];
+    memor.set(&(MemoriaCfg){.dst = lines, .val = 0, .bytes = sizeof(*lines)});
+    unsigned char *const span =
+        EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_RUNNER_LINES) + (place * CLI_RUN_LINES_SET_BYTES);
+    lines->text_bytes = span + CLI_RUN_LINES_TEXT_AT;
+    lines->line_bytes = (CliRunnerLine *)(void *)(span + CLI_RUN_LINES_LINE_AT);
     unsigned char *at = cell;
-    args->run->values = EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = sizeof(CliValues));
+    CliValues *const values = EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = sizeof(CliValues));
+    memor.set(&(MemoriaCfg){.dst = values, .val = 0, .bytes = sizeof(*values)});
     CliJob *const jobs = EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = sizeof(CliJob));
     CliParam *const params =
         EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = (unsigned long long)extent.params * sizeof(CliParam));
@@ -59,17 +68,68 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
                .jobs_max = 1u, .params = params, .params_max = extent.params, .steps = steps, .steps_max = extent.steps,
                .request = arguments, .args_max = extent.args, .lists = lists, .lists_max = extent.lists,
                .text_out = text, .text_max = (unsigned int)extent.text);
-    if (EMBED_CALL(cli_catalog_from.copy, CliCatalogFromCfg, .from = args->catalog, .index = args->job,
-                   .to = &args->run->catalog) == CLI_CATALOG_NONE)
+    const CarcerMovableEntry *const stored =
+        (EMBED_CALL(cli_catalog_from.copy, CliCatalogFromCfg, .from = args->catalog, .index = args->job,
+                    .to = &args->run->catalog) != CLI_CATALOG_NONE)
+            ? g_cli_guard->movable_buf_alloc(bytes, g_cli_runs_owner)
+            : NULL;
+    if (stored != NULL)
     {
-        g_cli_guard->persistent_buf_release(lines, g_cli_runs_owner);
-        g_cli_guard->persistent_buf_release(cell, g_cli_runs_owner);
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .src = cell, .bytes = bytes});
+    }
+    args->run->job_cell = stored;
+    args->run->job_bytes = bytes;
+    args->run->values_at = (unsigned long long)((unsigned char *)values - cell);
+    args->run->job_at = (unsigned long long)((unsigned char *)jobs - cell);
+    args->run->param_at = (unsigned long long)((unsigned char *)params - cell);
+    args->run->step_at = (unsigned long long)((unsigned char *)steps - cell);
+    args->run->arg_at = (unsigned long long)((unsigned char *)arguments - cell);
+    args->run->list_at = (unsigned long long)((unsigned char *)lists - cell);
+    args->run->text_at = (unsigned long long)((unsigned char *)text - cell);
+    // the catalog's lists point into no cell between pins; its counts stand
+    args->run->catalog.job = NULL;
+    args->run->catalog.param = NULL;
+    args->run->catalog.step = NULL;
+    args->run->catalog.arg = NULL;
+    args->run->catalog.list = NULL;
+    args->run->catalog.text = NULL;
+    g_cli_guard->persistent_buf_release(cell, g_cli_runs_owner);
+    args->run->lines = lines;
+    if (stored == NULL)
+    {
         mmgr_line_put(args->err_msg, "the job contains more than a run stores");
         return 0;
     }
-    args->run->job_cell = cell;
-    args->run->lines = lines;
     return 1;
+}
+
+int cli_run_pinned(const CliRunnerRunCtx *args)
+{
+    CliRunPinned *const pinned = args->pinned;
+    const CliRun *const run = args->run;
+    pinned->cell = (run->job_cell != NULL) ? g_cli_guard->temporary_buf_alloc(run->job_bytes, g_cli_runs_owner) : NULL;
+    if (pinned->cell == NULL)
+    {
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = run->job_cell, .offset = 0ULL, .dst = pinned->cell, .bytes = run->job_bytes});
+    pinned->catalog = run->catalog;
+    pinned->catalog.job = (CliJob *)(void *)(pinned->cell + run->job_at);
+    pinned->catalog.param = (CliParam *)(void *)(pinned->cell + run->param_at);
+    pinned->catalog.step = (CliStep *)(void *)(pinned->cell + run->step_at);
+    pinned->catalog.arg = (CliArg *)(void *)(pinned->cell + run->arg_at);
+    pinned->catalog.list = (unsigned int *)(void *)(pinned->cell + run->list_at);
+    pinned->catalog.text = (char *)(void *)(pinned->cell + run->text_at);
+    pinned->values = (CliValues *)(void *)(pinned->cell + run->values_at);
+    return 1;
+}
+
+void cli_run_unpinned(const CliRunnerRunCtx *args)
+{
+    g_cli_guard->persistent_buf_release(args->pinned->cell, g_cli_runs_owner);
+    args->pinned->cell = NULL;
 }
 
 int cli_runs_start(const CliRunnerErrMsgCfg *args)
@@ -109,7 +169,7 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     }
     if (run == NULL)
     {
-        mmgr_line_put(args->err_msg, "more runs go at once than orior_cli supports");
+        mmgr_line_put(args->err_msg, "more runs go at once than impero supports");
         return 0;
     }
     if (!EMBED_CALL(cli_runner_run_internal.run_cells_alloc, CliRunnerRunCtx, .run = run, .catalog = args->catalog,
@@ -117,7 +177,8 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = run->values, .src = args->values, .bytes = sizeof(*args->values)});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = run->job_cell, .offset = run->values_at, .src = args->values, .bytes = sizeof(*args->values)});
     memor.cpy(&(MemoriaCfg){.dst = run->root,
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
@@ -129,15 +190,20 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     run->stopped = 0;
     run->process = 0ULL;
     run->group = 0ULL;
-    run->lines->count = 0u;
-    run->lines->used = 0u;
+    cli_lines_clear(run->lines);
     run->has_first = 0;
     run->began = cli_clock_milliseconds();
-    // the run's start reported before any line of it, so that a reader knows the run and its job first
+    // the run's start reported before any line of it, so that a reader knows the run and its job first, the job read
+    // out of the run's cell for the report
+    CliRunPinned pinned;
+    const int pinned_read =
+        EMBED_CALL(cli_runner_run_internal.run_pinned, CliRunnerRunCtx, .run = run, .pinned = &pinned);
     const CliRunEvent start = {CLI_RUN_EVENT_START,
                                run->run,
-                               EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &run->catalog,
-                                          .text_u32 = run->catalog.job[0].id),
+                               pinned_read
+                                   ? EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg,
+                                                .catalog_read = &pinned.catalog, .text_u32 = pinned.catalog.job[0].id)
+                                   : "",
                                NULL,
                                NULL,
                                0,
@@ -148,6 +214,10 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
                                NULL,
                                0.0};
     EMBED_CALL(sink.emit, CliEachEventCfg, .context = sink.context, .event = &start);
+    if (pinned_read)
+    {
+        EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
+    }
     *run_number = run->run;
     run->thread.run = cli_run_steps;
     run->thread.context = run;

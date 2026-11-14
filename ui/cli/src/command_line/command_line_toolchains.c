@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_toolchains.c: `orior_cli file toolchains`: with no words, every toolchain as orior_cli finds it, a group
-// at a time, with its version where it reports one, and whether orior_cli itself is on the PATH. `install` opens a
+// command_line_toolchains.c: `imp file toolchains`: with no words, every toolchain as impero finds it, a group
+// at a time, with its version where it reports one, and whether impero itself is on the PATH. `install` opens a
 // tool's install page, or runs the line its makers give to install it by, in this terminal; `add-path` puts the folder
-// its program was found in, or orior's own, on the reader's PATH; `use` has orior_cli run a tool from a folder and
+// its program was found in, or orior's own, on the reader's PATH; `use` has imp run a tool from a folder and
 // `forget` drops that folder; `add` and `add-group` add a toolchain or a group of the reader's, and `remove` and
 // `remove-group` take one out again
 #include "../runs/runner.h"
@@ -145,14 +145,15 @@ static void toolchains_group(const CliEachGroupCfg *args)
     }
 }
 
-// every toolchain as orior_cli finds it, a group at a time, and whether orior_cli is on the PATH
+// every toolchain as impero finds it, a group at a time, and whether impero is on the PATH
 static int toolchains_list(void)
 {
-    char *const found_text = g_cli_guard->temporary_buf_alloc(CLI_TOOLCHAINS_FOUND, g_cli_toolchains_words_owner);
-    VerbaLinea found = mmgr_line_over(found_text, CLI_TOOLCHAINS_FOUND);
+    CliGrownLine found;
+    cli_grown_begin(&found, CLI_TOOLCHAINS_FOUND, g_cli_toolchains_words_owner);
     EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 1, .seen = NULL,
-               .context_read = NULL, .out = &found);
-    const unsigned long long found_size = mmgr_line_finish(&found);
+               .context_read = NULL, .out = &found.line);
+    const unsigned long long found_size = (mmgr_line_finish(&found.line) != 0ULL) ? cli_grown_size(&found) : 0ULL;
+    const char *const found_text = found.cell;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
@@ -163,7 +164,7 @@ static int toolchains_list(void)
                                           .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_toolchains_words_owner)
                              : CLI_JSON_NONE,
         0ULL};
-    g_cli_guard->persistent_buf_release(found_text, g_cli_toolchains_words_owner);
+    cli_grown_end(&found);
     if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json,
                    .node = list_entries.found, .type = CFG_JSON_ARRAY))
     {
@@ -194,8 +195,8 @@ static int toolchains_list(void)
     }
     char text[CLI_TOOLCHAINS_LINE];
     VerbaLinea line = {text, sizeof(text), 0ULL};
-    mmgr_line_put(&line, on_path ? "\norior_cli is on PATH: "
-                                 : "\norior_cli is not on PATH: orior_cli file toolchains add-path orior_cli adds ");
+    mmgr_line_put(&line, on_path ? "\nimp is on PATH: "
+                                 : "\nimpero is not on PATH: imp file toolchains add-path impero adds ");
     mmgr_line_put(&line, folder);
     EMBED_CALL(toolchains_line_out, CommandLineToolchainsCtx, .line = &line);
     return 0;
@@ -339,14 +340,14 @@ int cli_toolchains_words(const CliCommandLineWordsCountCtx *args)
         char program[CLI_PATH_MAX_LEN] = "";
         const int chosen = EMBED_CALL(cli_toolchains_id.choose, CliToolchainsIdCfg, .id = second,
                                       .folder_read = args->words[2], .program = program, .err_msg = &err_msg);
-        mmgr_line_put(&out, "orior_cli runs ");
+        mmgr_line_put(&out, "impero runs ");
         mmgr_line_put(&out, program);
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = chosen, .out = &out,
                           .err_msg = &err_msg);
     }
     if ((args->count == 2u) && (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "forget", .cap = CLI_POOL_BYTES})))
     {
-        mmgr_line_put(&out, "orior_cli looks for ");
+        mmgr_line_put(&out, "impero looks for ");
         mmgr_line_put(&out, second);
         mmgr_line_put(&out, " on the PATH again");
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx,

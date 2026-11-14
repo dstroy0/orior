@@ -190,7 +190,7 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
         }
         any = 1;
         fits |= ((cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES}) == size) &&
-                 (memor.cmp(&(MemoriaCfg){.src = allowed, .other = type, .bytes = (size_t)size}) == 0)) ||
+                 (memor.cmp(&(MemoriaCfg){.src = allowed, .other = type, .bytes = (embed_word)size}) == 0)) ||
                 ((size == 6u) && (memor.cmp(&(MemoriaCfg){.src = allowed, .other = "number", .bytes = 6u}) == 0) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "integer", .cap = CLI_POOL_BYTES})));
     }
@@ -344,7 +344,7 @@ EMBED_INLINE const char *check_base(const SchemaCheckCtx *args)
         return args->base;
     }
     char *const base_at = s_bases + s_bases_used;
-    memor.cpy(&(MemoriaCfg){.dst = base_at, .src = id, .bytes = (size_t)size});
+    memor.cpy(&(MemoriaCfg){.dst = base_at, .src = id, .bytes = (embed_word)size});
     base_at[size] = '\0';
     s_bases_used += (unsigned int)size + 1u;
     return base_at;

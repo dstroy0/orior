@@ -10,8 +10,6 @@
 
 #include <wincred.h>
 
-#include <stdint.h>
-
 typedef struct
 {
 #if (defined(_WIN32))
@@ -47,7 +45,7 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args)
     credential.UserName = user;
     // the secret's bytes, as the credential carries a blob of them
     credential.CredentialBlobSize = (DWORD)cellul.len(&(CatenaFinitaCfg){.src = args->secret, .cap = CLI_POOL_BYTES});
-    credential.CredentialBlob = (LPBYTE)(uintptr_t)args->secret;
+    credential.CredentialBlob = (LPBYTE)(embed_word)args->secret;
     credential.Persist = CRED_PERSIST_LOCAL_MACHINE;
     if (!CredWriteW(&credential, 0u))
     {

@@ -4,23 +4,29 @@
 // settings retained as they are; what identifies the reporter struck from a report; an error's fingerprint; and the
 // run's recent errors
 #include "report.h"
+
 #include "../command_line/pool.h"
+#include "../command_line/rings.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "memoria_anularis/memoria_anularis.h"
 
 // the most recent errors retained for a report that requests them, and the most bytes of each; the nodes and the bytes
 // of texts a tree of the settings reserves over for the answer, beyond its copy of the settings; and the bytes the
 // settings written and a text struck are taken with
-#define CLI_REPORT_RETAIN_MAX 20u
 #define CLI_REPORT_ERROR (1u << 16u)
 #define CLI_REPORT_ANSWER_NODES 4u
 #define CLI_REPORT_ANSWER_TEXT 64ULL
 #define CLI_REPORT_STRUCK_MORE 64ULL
 
-// the run's recent errors, a ring of cells each of its error's size, the oldest at `first`, under the lock
-static char *s_errors[CLI_REPORT_RETAIN_MAX];
-static unsigned int s_first;
-static unsigned int s_count;
+// the run's recent errors, movable cells each of its error's bytes with their end, the segments of MMgr's ring, under
+// the lock; the ring is laid over its part of the rings block at the first error, its segments a power of two over
+// the most retained
+EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_REPORT_RETAIN_RING) && (CLI_REPORT_RETAIN_RING >= CLI_REPORT_RETAIN_MAX),
+                    "the errors ring's segments are a power of two over the errors retained");
+static mmgr_ring s_errors_ring;
+static const CarcerMovableEntry **s_errors;
+static int s_errors_laid;
 
 // settings.json read and written whole under its lock
 
@@ -50,7 +56,7 @@ typedef struct
     VerbaLinea *out;
     char **struck;
 } ReportCtx;
-// settings.json's path into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where orior_cli has no folder of its own
+// settings.json's path into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where impero has no folder of its own
 EMBED_INLINE int cli_settings_path(const ReportCtx *args)
 {
     char home[CLI_PATH_MAX_LEN];
@@ -99,7 +105,7 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
     {
         read = CLI_JSON_NONE;
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
     const unsigned int root = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                          .node = read, .type = CFG_JSON_OBJECT)
                                   ? read
@@ -191,7 +197,7 @@ int cli_report_set_auto(const CliReportOnCfg *args)
     char path[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_settings_path, ReportCtx, .path = path))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store settings in");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own to store settings in");
         return 0;
     }
     char folder[CLI_PATH_MAX_LEN];
@@ -253,13 +259,13 @@ EMBED_INLINE void cli_on_replace(const ReportCtx *args)
     while (at < end)
     {
         const char *const hit = (length != 0ULL) ? cellul.find(&(CatenaFinitaCfg){.src = at,
-                                                                                  .cap = (size_t)(end - at) + 1u,
+                                                                                  .cap = (embed_word)(end - at) + 1u,
                                                                                   .other = args->found,
-                                                                                  .other_cap = (size_t)length + 1u,
+                                                                                  .other_cap = (embed_word)length + 1u,
                                                                                   .ci = 1})
                                                  : NULL;
         const char *const stop = (hit != NULL) ? hit : end;
-        mmgr_line_put_n(args->out, at, (size_t)(stop - at));
+        mmgr_line_put_n(args->out, at, (embed_word)(stop - at));
         if (hit == NULL)
         {
             break;
@@ -386,7 +392,7 @@ void cli_report_fingerprint(const CliReportCategoryTextCfg *args)
 
 void cli_report_save(const CliReportTextCfg *args)
 {
-    char *const line_cell = g_cli_guard->persistent_buf_alloc(CLI_REPORT_ERROR, g_cli_machine_owner);
+    char *const line_cell = g_cli_guard->temporary_buf_alloc(CLI_REPORT_ERROR, g_cli_machine_owner);
     if (line_cell == NULL)
     {
         return;
@@ -396,26 +402,62 @@ void cli_report_save(const CliReportTextCfg *args)
     // an error stored is its first CLI_REPORT_ERROR bytes at the most
     line.at = (line.at < CLI_REPORT_ERROR) ? line.at : (CLI_REPORT_ERROR - 1u);
     line.out[(line.at < line.capacity) ? line.at : (line.capacity - 1u)] = '\0';
-    const unsigned int place = (s_first + s_count) % CLI_REPORT_RETAIN_MAX;
-    g_cli_guard->persistent_buf_release(s_errors[place], g_cli_machine_owner);
-    s_errors[place] = line.out;
-    if (s_count < CLI_REPORT_RETAIN_MAX)
+    const CarcerMovableEntry *const stored = g_cli_guard->movable_buf_alloc(line.at + 1ULL, g_cli_machine_owner);
+    if (stored != NULL)
     {
-        s_count += 1u;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .src = line.out, .bytes = line.at + 1ULL});
     }
-    else
+    g_cli_guard->persistent_buf_release(line_cell, g_cli_machine_owner);
+    if (stored == NULL)
     {
-        s_first = (s_first + 1u) % CLI_REPORT_RETAIN_MAX;
+        return;
     }
+    if (!s_errors_laid)
+    {
+        s_errors = (const CarcerMovableEntry **)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg,
+                                                                   .part = CLI_RINGS_REPORT_ERRORS);
+        s_errors_laid = anularis.init(&(AnularisCfg){.ring = &s_errors_ring,
+                                                     .buf = (embed_u8 *)(void *)s_errors,
+                                                     .capacity = CLI_REPORT_ERRORS_RING_BYTES,
+                                                     .segment_count = CLI_REPORT_RETAIN_RING,
+                                                     .segment_bytes = sizeof(s_errors[0])});
+    }
+    // the most retained standing, the oldest's cell let go and its segment released
+    if (anularis.seg_inflight(&(AnularisCfg){.ring = &s_errors_ring}) == CLI_REPORT_RETAIN_MAX)
+    {
+        size_t front = 0u;
+        (void)anularis.seg_front(&(AnularisCfg){.ring = &s_errors_ring, .out_index = &front});
+        (void)g_cli_guard->movable_buf_release(s_errors[front], g_cli_machine_owner);
+        anularis.seg_release(&(AnularisCfg){.ring = &s_errors_ring});
+    }
+    size_t segment = 0u;
+    (void)anularis.seg_next(&(AnularisCfg){.ring = &s_errors_ring, .out_index = &segment});
+    s_errors[segment] = stored;
+    anularis.seg_publish(&(AnularisCfg){.ring = &s_errors_ring});
 }
 
 void cli_report_recent(const CliReportRootOutCfg *args)
 {
-    for (unsigned int at = 0u; at < s_count; at += 1u)
+    if (!s_errors_laid)
     {
-        mmgr_line_put(args->out, (at != 0u) ? "\n\n" : "");
-        mmgr_line_put(args->out, s_errors[(s_first + at) % CLI_REPORT_RETAIN_MAX]);
+        return;
     }
+    size_t front = 0u;
+    (void)anularis.seg_front(&(AnularisCfg){.ring = &s_errors_ring, .out_index = &front});
+    const size_t count = anularis.seg_inflight(&(AnularisCfg){.ring = &s_errors_ring});
+    char *const copied = g_cli_guard->temporary_buf_alloc(CLI_REPORT_ERROR, g_cli_machine_owner);
+    for (size_t at = 0u; (copied != NULL) && (at < count); at += 1u)
+    {
+        const CarcerMovableEntry *const stored = s_errors[MMGR_RING_WRAP(front + at, CLI_REPORT_RETAIN_RING)];
+        const unsigned long long length =
+            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = stored, .offset = 0ULL});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .dst = copied, .bytes = length + 1ULL});
+        mmgr_line_put(args->out, (at != 0u) ? "\n\n" : "");
+        mmgr_line_put(args->out, copied);
+    }
+    g_cli_guard->persistent_buf_release(copied, g_cli_machine_owner);
 }
 
 const char *cli_report_panic_category(const CliReportCfg *args)
@@ -431,28 +473,26 @@ const char *cli_report_panic_category(const CliReportCfg *args)
         mmgr_line_finish(&category_line);
         line = (stop[0] != '\0') ? (stop + 1) : stop;
         if (cellul.find(&(CatenaFinitaCfg){
-                .src = category_buf, .cap = CLI_POOL_BYTES, .other = "orior_gui_lib::", .other_cap = CLI_POOL_BYTES}) !=
+                .src = category_buf, .cap = CLI_POOL_BYTES, .other = "tabvla_lib::", .other_cap = CLI_POOL_BYTES}) !=
             NULL)
         {
             return "ui";
         }
-        if ((cellul.find(&(CatenaFinitaCfg){.src = category_buf,
-                                            .cap = CLI_POOL_BYTES,
-                                            .other = "orior_cli::cli::",
-                                            .other_cap = CLI_POOL_BYTES}) != NULL) ||
-            (cellul.find(&(CatenaFinitaCfg){.src = category_buf,
-                                            .cap = CLI_POOL_BYTES,
-                                            .other = "orior_cli::main",
-                                            .other_cap = CLI_POOL_BYTES}) != NULL))
+        if ((cellul.find(&(CatenaFinitaCfg){
+                 .src = category_buf, .cap = CLI_POOL_BYTES, .other = "impero::cli::", .other_cap = CLI_POOL_BYTES}) !=
+             NULL) ||
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = category_buf, .cap = CLI_POOL_BYTES, .other = "impero::main", .other_cap = CLI_POOL_BYTES}) !=
+             NULL))
         {
             return "cli";
         }
         if ((cellul.find(&(CatenaFinitaCfg){
-                 .src = category_buf, .cap = CLI_POOL_BYTES, .other = "orior_cli::", .other_cap = CLI_POOL_BYTES}) !=
+                 .src = category_buf, .cap = CLI_POOL_BYTES, .other = "impero::", .other_cap = CLI_POOL_BYTES}) !=
              NULL) &&
             (cellul.find(&(CatenaFinitaCfg){.src = category_buf,
                                             .cap = CLI_POOL_BYTES,
-                                            .other = "orior_cli::report::",
+                                            .other = "impero::report::",
                                             .other_cap = CLI_POOL_BYTES}) == NULL))
         {
             return "library";

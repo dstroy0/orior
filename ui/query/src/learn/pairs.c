@@ -352,7 +352,7 @@ static int query_pairs_mode_run(const PairsCtx *args)
                .under = QUERY_PAIRS_STICK "/measuring_stick_nvcc.sass", .path_out = stick);
     if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = stick))
     {
-        mmgr_line_put(err_msg, "no stick: run orior_cli protocol stick");
+        mmgr_line_put(err_msg, "no stick: run imp protocol stick");
         return -1;
     }
     static const char *const s_types[3] = {"khw", "ksc", "kqr"};

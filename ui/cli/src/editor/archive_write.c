@@ -44,7 +44,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
     if (args->depth >= CLI_ARCHIVE_DEPTH)
     {
         mmgr_line_put(err_msg, name);
-        mmgr_line_put(err_msg, " lies deeper in archives than orior_cli writes back");
+        mmgr_line_put(err_msg, " lies deeper in archives than impero writes back");
         return 0;
     }
     char inner[CLI_NAME_MAX_LEN];
@@ -81,7 +81,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
             if (args->depth >= (CLI_ARCHIVE_DEPTH - 1u))
             {
                 mmgr_line_put(err_msg, path);
-                mmgr_line_put(err_msg, " lies deeper in archives than orior_cli writes back");
+                mmgr_line_put(err_msg, " lies deeper in archives than impero writes back");
                 return 0;
             }
             unsigned long long nested_size = 0ULL;
@@ -146,7 +146,7 @@ static int cli_replace(const ArchiveWriteCtx *args)
         if (*size == 0ULL)
         {
             mmgr_line_put(err_msg, name);
-            mmgr_line_put(err_msg, " is larger than orior_cli supports");
+            mmgr_line_put(err_msg, " is larger than impero supports");
             return 0;
         }
         return 1;
@@ -180,7 +180,7 @@ int cli_archive_write(const CliArchiveSizeDataCfg *args)
     int done = EMBED_CALL(cli_replace, ArchiveWriteCtx, .depth = 0u, .bytes = descent.bytes, .bytes_size = descent.size,
                           .type = descent.type, .name = descent.name, .parts = &s_parts, .from = 0u, .data = args->data,
                           .data_size = args->size, .size = &written, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)descent.bytes, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)descent.bytes, (g_cli_editor_owner));
     // the archive written beside the old one as `.<name>.saving`, then put in its place
     char adjacent[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];

@@ -6,7 +6,7 @@
 
 #include "../src/qasm.h"
 
-#include "../../../src/cu/includes/types/integers/exact_integer.h"
+#include "../../../includes/exact_types/integers/exact_integer.h"
 
 #include <stdarg.h>
 #include <stdio.h>

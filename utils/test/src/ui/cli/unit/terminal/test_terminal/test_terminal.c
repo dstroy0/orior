@@ -1,18 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_terminal.c: an xterm reads a shell's output into a text, a line each of its screen's rows: letters at the
-// cursor, the SGR of their style before them, the cursor moved, lines erased, the lines that leave the main screen's
-// top as it scrolls joining the history above it and the history cleared, the second screen's rows after the main
+// test_terminal.c: an xterm reads a shell's output into a text paged over a file, a line each of its screen's rows:
+// letters at the cursor, the SGR of their style before them, the cursor moved, lines erased, the lines that leave the
+// main screen's top as it scrolls joining the history above it and the history cleared, the history beyond the lines
+// kept taken out of the text's head, the text written through to its file, the second screen's rows after the main
 // screen's, the answers to where the cursor is, the folder a shell reports, wrapping at the last column, letters past
 // ASCII cut between two reads, a column's place among a line's units and a line's letters with its sequences left
 // out; a shell started in a pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent
 // once it settles, and its end printed; and the terminal's tabs, the panel opened on a tab whose shell starts as its
 // pane is sized, the keys it takes and those it lets go to the window, the panel and its panes as they stand, the
-// panel's place stored as the window ends and read back as it starts, a tab's shell started in its folder and the
-// rows standing at the end written to its history; and the panel's menu, Split Terminal shown on while a shell stands
-// beside the one shown, opened where it was asked for
+// panel's place stored as the window ends and read back as it starts, a tab's shell started in its folder, its file
+// in the folder the settings name with the defaults written there, and the rows standing at the end written through
+// to its file; and the panel's menu, Split Terminal shown on while a shell stands beside the one shown, opened where
+// it was asked for
 #include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/editor/document.h"
+#include "ui/cli/src/editor/pages.h"
 #include "ui/cli/src/editor/view.h"
 #include "ui/cli/src/machine/state.h"
 #include "ui/cli/src/terminal/keys.h"
@@ -24,8 +27,12 @@
 
 static CliTerminalXterm s_xterm;
 static char s_text[1024];
-// the key of the text the xterm writes into, and whether a text stands under it
+// the key of the text the xterm writes into, the folder and the file it is paged over, and whether a text stands under
+// the key
 static const char *const s_key = "terminal-check";
+static char s_folder[CLI_PATH_MAX_LEN];
+static char s_path[CLI_PATH_MAX_LEN];
+static int s_folder_created;
 static int s_stored;
 // the home the suite's tabs store their history and place under; the shell they start and the command that prints the
 // folder a shell stands in, each this system's
@@ -38,8 +45,17 @@ static const char s_shell[] = "/bin/sh";
 static const char s_folder_command[] = "pwd";
 #endif
 
-// the xterm opened `columns` wide and `rows` tall, at most 64, writing into a text of `rows` empty lines and no
-// history stored under s_key
+// the lines the text under s_key holds, as the pages count them
+static unsigned long long text_lines(void)
+{
+    unsigned long long lines = 0ULL;
+    int whole = 0;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages.count, CliPagesCfg, .key = s_key, .lines = &lines, .whole = &whole));
+    return lines;
+}
+
+// the xterm opened `columns` wide and `rows` tall, writing into a text of `rows` empty lines and no history, paged
+// over a file of the suite's folder and stored under s_key
 static void xterm_open(unsigned int columns, unsigned int rows)
 {
     char lines[64];
@@ -48,38 +64,85 @@ static void xterm_open(unsigned int columns, unsigned int rows)
     {
         lines[at] = '\n';
     }
-    CliShape shape = {0ULL, 0ULL};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .text = lines, .size = rows - 1u,
-                                .key = s_key, .shape = &shape));
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "xterm.log", .joined = s_path);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = s_path,
+                                .bytes = lines, .size = rows - 1u));
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    char shape_text[128];
+    VerbaLinea shape = {shape_text, sizeof(shape_text), 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = s_key, .path = s_path, .out = &shape,
+                                .err_msg = &err_msg));
     s_stored = 1;
+    // the index of so small a file is whole at once or a moment after
+    int whole = 0;
+    unsigned long long counted = 0ULL;
+    while (EMBED_CALL(cli_pages.count, CliPagesCfg, .key = s_key, .lines = &counted, .whole = &whole) && !whole)
+    {
+    }
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = s_key, .from = 0ULL,
+                                .to = ~0ULL));
+    TEST_ASSERT_EQUAL_UINT64(rows, text_lines());
     TEST_ASSERT_TRUE(EMBED_CALL(cli_terminal_xterm_size.init, CliTerminalXtermSizeCfg, .xterm = &s_xterm,
-                                .columns = columns, .rows = rows, .key = s_key, .history = 0ULL));
+                                .columns = columns, .rows = rows, .key = s_key, .paged = 1, .history = 0ULL));
 }
 
-// the lines the text under s_key holds
-static unsigned long long text_lines(void)
+// the bytes of the line `line` of the paged text under `key` into s_text, as many as s_text fits and ended by a 0:
+// their count
+static unsigned long long line_raw(const char *key, unsigned long long line)
 {
-    CliShape shape = {0ULL, 0ULL};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = s_key, .shape = &shape));
-    return shape.lines;
+    const char *start = NULL;
+    unsigned long long count = 0ULL;
+    char *const cell = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = key, .from = line,
+                                  .to = line + 1ULL, .line = &start, .count = &count, .owner = g_checks_owner);
+    const unsigned long long size =
+        ((cell != NULL) && (count != 0ULL)) ? cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES})
+                                            : 0ULL;
+    const unsigned long long fits = (size < (sizeof(s_text) - 1u)) ? size : (sizeof(s_text) - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = s_text, .src = start, .bytes = fits});
+    s_text[fits] = '\0';
+    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    return fits;
 }
 
-// the units of the line `line` of the text under `key` into s_text, a byte each, those past ASCII as '?', as many as
-// s_text fits and ended by a 0: their count
+// the bytes of the line `line` of the text under `key` into s_text, those past ASCII as '?', as many as s_text fits
+// and ended by a 0: their count
 static unsigned long long line_bytes(const char *key, unsigned long long line)
 {
-    unsigned long long count = 0ULL;
-    const unsigned short *const units = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = key,
-                                                   .line = line, .count = &count);
-    const unsigned long long capacity = sizeof(s_text) - 1u;
-    const unsigned long long fits = (units == NULL) ? 0ULL : ((count < capacity) ? count : capacity);
+    const unsigned long long fits = line_raw(key, line);
     for (unsigned long long at = 0ULL; at < fits; at += 1ULL)
     {
-        // a unit below 128 is its own byte
-        s_text[at] = (units[at] < 128u) ? (char)units[at] : '?';
+        // a byte read as unsigned is the same byte
+        s_text[at] = ((unsigned char)s_text[at] < 128u) ? s_text[at] : '?';
     }
-    s_text[fits] = '\0';
     return fits;
+}
+
+// the file the xterm's text is paged over read whole into s_text, ended by a 0: its bytes
+static unsigned long long file_text(void)
+{
+    unsigned long long size = 0ULL;
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_path,
+                                                  .size_pointer = &size, .owner = g_checks_owner);
+    TEST_ASSERT_NOT_NULL(bytes);
+    const unsigned long long fits = (size < (sizeof(s_text) - 1u)) ? size : (sizeof(s_text) - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = s_text, .src = bytes, .bytes = fits});
+    s_text[fits] = '\0';
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_checks_owner);
+    return fits;
+}
+
+// the xterm's text written through to its file
+static void text_written_through(void)
+{
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    char shape_text[128];
+    VerbaLinea shape = {shape_text, sizeof(shape_text), 0ULL};
+    const int saved =
+        EMBED_CALL(cli_pages_path.save, CliPagesPathCfg, .key = s_key, .out = &shape, .err_msg = &err_msg);
+    (void)mmgr_line_finish(&err_msg);
+    TEST_ASSERT_TRUE_MESSAGE(saved, why);
 }
 
 // the line `line` of the text under s_key as it stands, its sequences among its letters, into s_text
@@ -140,6 +203,11 @@ static int key_sent(const char *name, unsigned int mods, int application_cursor)
 void setUp(void)
 {
     cli_unity_begun();
+    if (!s_folder_created)
+    {
+        s_folder_created = 1;
+        cli_unity_folder("terminal", s_folder);
+    }
 }
 
 // the terminal ended as the window ends it
@@ -196,13 +264,42 @@ void test_control_sends_control_letters_and_alt_an_escape_and_the_letter(void)
 
 void tearDown(void)
 {
-    g_cli_guard->persistent_buf_release(s_xterm.cell, g_cli_terminal_owner);
-    s_xterm.cell = NULL;
     if (s_stored)
     {
         EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
+        EMBED_CALL(cli_pages.release, CliPagesCfg, .key = s_key);
+        (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = s_path);
         s_stored = 0;
     }
+}
+
+void test_what_the_xterm_writes_stands_in_the_texts_file_once_written_through(void)
+{
+    xterm_open(10u, 3u);
+    xterm_put("ab\r\ncd");
+    text_written_through();
+    TEST_ASSERT_EQUAL_UINT64(6ULL, file_text());
+    TEST_ASSERT_EQUAL_STRING("ab\ncd\n", s_text);
+    // the text goes on from the file as it stands
+    xterm_put("\r\nef");
+    TEST_ASSERT_EQUAL_STRING("ef", xterm_row_text(2u));
+    TEST_ASSERT_EQUAL_UINT64(3ULL, text_lines());
+}
+
+void test_the_history_beyond_the_lines_kept_is_taken_out_of_the_texts_head(void)
+{
+    xterm_open(10u, 2u);
+    xterm_put("1\r\n2\r\n3\r\n4\r\n5");
+    TEST_ASSERT_EQUAL_UINT64(3ULL, s_xterm.history);
+    TEST_ASSERT_EQUAL_UINT64(2ULL, EMBED_CALL(cli_terminal_xterm_keep.trim, CliTerminalXtermKeepCfg,
+                                              .xterm = &s_xterm, .keep = 1ULL));
+    TEST_ASSERT_EQUAL_UINT64(1ULL, s_xterm.history);
+    TEST_ASSERT_EQUAL_UINT64(1ULL, s_xterm.base);
+    TEST_ASSERT_EQUAL_UINT64(3ULL, text_lines());
+    TEST_ASSERT_EQUAL_STRING("3", xterm_line_text(0ULL));
+    TEST_ASSERT_EQUAL_STRING("4", xterm_row_text(0u));
+    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_terminal_xterm_keep.trim, CliTerminalXtermKeepCfg,
+                                              .xterm = &s_xterm, .keep = 1ULL));
 }
 
 void test_letters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line(void)
@@ -256,8 +353,8 @@ void test_a_column_is_found_past_the_sequences_and_a_line_read_without_them(void
     xterm_open(10u, 2u);
     xterm_put("\x1b[31mab\x1b[0mc");
     unsigned long long count = 0ULL;
-    const unsigned short *const units = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg,
-                                                   .key = s_key, .line = 0ULL, .count = &count);
+    unsigned short *const units = EMBED_CALL(cli_terminal_xterm_line.units_alloc, CliTerminalXtermLineCfg,
+                                             .xterm_read = &s_xterm, .line = 0ULL, .count = &count);
     TEST_ASSERT_NOT_NULL(units);
     TEST_ASSERT_EQUAL_UINT64(14ULL, count);
     static const unsigned long long s_places[4] = {7ULL, 8ULL, 13ULL, 14ULL};
@@ -267,6 +364,7 @@ void test_a_column_is_found_past_the_sequences_and_a_line_read_without_them(void
                                  EMBED_CALL(cli_terminal_xterm_column_unit, CliTerminalXtermUnitsCfg, .units = units,
                                             .count = count, .column = column));
     }
+    g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
     TEST_ASSERT_EQUAL_STRING("abc", xterm_row_text(0u));
 }
 
@@ -355,14 +453,10 @@ void test_a_letter_past_ascii_is_read_whole_across_two_reads(void)
     xterm_put("\xc3");
     xterm_put("\xa9!");
     xterm_put("\xff");
-    unsigned long long count = 0ULL;
-    const unsigned short *const units = EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg,
-                                                   .key = s_key, .line = 0ULL, .count = &count);
-    TEST_ASSERT_NOT_NULL(units);
-    TEST_ASSERT_EQUAL_UINT64(3ULL, count);
-    TEST_ASSERT_EQUAL_HEX16(0xe9u, units[0]);
-    TEST_ASSERT_EQUAL_HEX16((unsigned int)'!', units[1]);
-    TEST_ASSERT_EQUAL_HEX16(0xfffdu, units[2]);
+    // the letter whole, the mark and the replacement letter, which the ill-formed byte is written as
+    TEST_ASSERT_EQUAL_UINT64(6ULL, line_raw(s_key, 0ULL));
+    TEST_ASSERT_EQUAL_MEMORY("\xc3\xa9!\xef\xbf\xbd", s_text, 6u);
+    TEST_ASSERT_EQUAL_UINT(3u, s_xterm.cursor.x);
 }
 
 void test_lines_inserted_and_deleted_stay_inside_the_region(void)
@@ -539,7 +633,7 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     char history_path[CLI_PATH_MAX_LEN];
     VerbaLinea history_line = {history_path, sizeof(history_path), 0ull};
     mmgr_line_put(&history_line, home);
-    mmgr_line_put(&history_line, "/terminals/1");
+    mmgr_line_put(&history_line, "/terminals/1.log");
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&history_line));
     (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path, .bytes = "",
                      .size = 0ull, .fresh = 1);
@@ -587,22 +681,24 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     terminal_ended();
 }
 
-// the values stored in orior's folder, read as the window reads them as it starts: NULL where none could be read
-static CliStateEntries *entries_read(void)
+// the values stored in orior's folder, read as the window reads them as it starts: their cell NULL where none could
+// be read
+static CliStateEntries entries_read(void)
 {
     char folder[CLI_PATH_MAX_LEN];
+    const CliStateEntries none = {NULL, NULL, 0u};
     return EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder)
                ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_checks_owner})
-               : NULL;
+               : none;
 }
 
 // the tabs' place read back from what orior's folder stores, as the window reads it as it starts
 static void place_restored(void)
 {
-    CliStateEntries *const entries = entries_read();
-    TEST_ASSERT_NOT_NULL(entries);
-    cli_terminal_tabs_restore(entries, NULL);
-    g_cli_guard->persistent_buf_release(entries, g_checks_owner);
+    CliStateEntries entries = entries_read();
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    cli_terminal_tabs_restore(&entries, NULL);
+    cli_state_entries_release(&entries);
 }
 
 void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts(void)
@@ -664,7 +760,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     char history_path[CLI_PATH_MAX_LEN];
     VerbaLinea history_line = {history_path, sizeof(history_path), 0ull};
     mmgr_line_put(&history_line, home);
-    mmgr_line_put(&history_line, "/terminals/1");
+    mmgr_line_put(&history_line, "/terminals/1.log");
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&history_line));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path,
                                 .bytes = "line_before\n", .size = 12ull, .fresh = 1));
@@ -674,6 +770,18 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     CliTerminalView restored;
     TEST_ASSERT_TRUE(cli_terminal_tabs_view(0u, &restored));
     TEST_ASSERT_EQUAL_UINT64(1ull, restored.xterm_line);
+    // the folder the files stand in and the lines each keeps stand among the reader's settings, the defaults written
+    // there as the tab stored
+    CliStateEntries settings = entries_read();
+    TEST_ASSERT_NOT_NULL(settings.cell);
+    char setting[CLI_PATH_MAX_LEN];
+    VerbaLinea terminals = {s_text, sizeof(s_text), 0ull};
+    mmgr_line_put(&terminals, home);
+    mmgr_line_put(&terminals, "/terminals");
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&terminals));
+    TEST_ASSERT_EQUAL_STRING(s_text, cli_state_entry_value(&settings, "terminal.folder", setting, sizeof(setting)));
+    TEST_ASSERT_EQUAL_STRING("10000", cli_state_entry_value(&settings, "terminal.lines", setting, sizeof(setting)));
+    cli_state_entries_release(&settings);
     // the panel opens as it stood, without the keys, which a press in its pane gives it
     TEST_ASSERT_FALSE(cli_terminal_tabs_panel().keys);
     cli_terminal_tabs_press(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .index = 0u, .clicks = 1u});

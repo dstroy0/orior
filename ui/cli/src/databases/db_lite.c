@@ -73,7 +73,7 @@ EMBED_INLINE int lite_line(const DbLiteCtx *args)
         const unsigned char *const newline =
             memor.chr(&(MemoriaCfg){.src = args->lite->in + args->lite->start,
                                     .val = '\n',
-                                    .bytes = (size_t)(args->lite->end - args->lite->start)});
+                                    .bytes = (embed_word)(args->lite->end - args->lite->start)});
         const unsigned long long end =
             (newline != NULL) ? (unsigned long long)(newline - args->lite->in) : args->lite->end;
         const unsigned long long piece = end - args->lite->start;
@@ -82,7 +82,7 @@ EMBED_INLINE int lite_line(const DbLiteCtx *args)
         {
             memor.cpy(&(MemoriaCfg){.dst = args->lite->line + args->lite->size,
                                     .src = args->lite->in + args->lite->start,
-                                    .bytes = (size_t)piece});
+                                    .bytes = (embed_word)piece});
             args->lite->size += piece;
         }
         args->lite->start = (newline != NULL) ? end + 1u : end;
@@ -94,7 +94,7 @@ EMBED_INLINE int lite_line(const DbLiteCtx *args)
     if (!fits)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "SQLite's process printed more in one line than orior_cli reads");
+                   .message = "SQLite's process printed more in one line than impero reads");
     }
     return fits;
 }
@@ -127,7 +127,7 @@ EMBED_INLINE int lite_query(const DbLiteCtx *args)
                     .size = args->lite->size, .out = &(VerbaLinea){NULL, 0ULL, 0ULL}))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "SQLite's process printed what orior_cli cannot read");
+                   .message = "SQLite's process printed what impero cannot read");
         return 0;
     }
     args->lite->in_transaction =
@@ -202,16 +202,20 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     {
         entry_at += 1u;
     }
+    // a database's record holds its child process, so the records stand fixed outside the pool, one for each database
+    // open at once, where they punch no hole in the persistent tier
+    static CliDbLite s_places[CLI_DB_LITES];
     if (entry_at < CLI_DB_LITES)
     {
-        lite = g_cli_guard->persistent_buf_alloc(sizeof(CliDbLite), g_cli_db_owner);
+        lite = &s_places[entry_at];
+        memor.set(&(MemoriaCfg){.dst = lite, .val = 0, .bytes = sizeof(*lite)});
         s_lites[entry_at] = lite;
     }
     if (lite == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
                    .message = (entry_at < CLI_DB_LITES) ? "no capacity is left to open a SQLite database in"
-                                                        : "orior_cli has as many SQLite databases open as it can");
+                                                        : "impero has as many SQLite databases open as it can");
         return NULL;
     }
     lite->start = 0ULL;
@@ -235,7 +239,6 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
         mmgr_line_finish(&line);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure, .message = message);
         s_lites[entry_at] = NULL;
-        g_cli_guard->persistent_buf_release(lite, g_cli_db_owner);
         return NULL;
     }
     char request[CLI_PATH_MAX_LEN * 2u];
@@ -272,7 +275,6 @@ void cli_db_lite_close(const CliDbErrMsgCtx *args)
     {
         s_lites[entry_at] = (s_lites[entry_at] == args->lite) ? NULL : s_lites[entry_at];
     }
-    g_cli_guard->persistent_buf_release(args->lite, g_cli_db_owner);
 }
 
 int cli_db_lite_interrupt(const CliDbErrMsgCtx *args)
@@ -408,7 +410,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     if (!fits)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
-                   .message = (request != NULL) ? "the statement is longer than orior_cli sends SQLite's process"
+                   .message = (request != NULL) ? "the statement is longer than impero sends SQLite's process"
                                                 : "no capacity is left to send the statement in");
     }
     if (!answered)

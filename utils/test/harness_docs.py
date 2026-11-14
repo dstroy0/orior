@@ -22,7 +22,7 @@ from utils.tools import findroot  # noqa: E402
 ROOT = findroot.root()
 STE_CHECK = os.path.join(ROOT, "utils", "maint", "prose", "ste_check.py")
 STE_RATCHET = os.path.join(ROOT, "utils", "maint", "prose", "ste_ratchet.tsv")
-MMGR = os.path.join(ROOT, "src", "cu", "includes", "mmgr")
+MMGR = os.path.join(ROOT, "includes", "mmgr")
 # The other copies, each compared byte for byte with orior's. MMgr's is a submodule and must be there; embedded_types sits
 # under MMgr's deps/ only once MMgr's build has fetched it.
 STE_COPIES = (

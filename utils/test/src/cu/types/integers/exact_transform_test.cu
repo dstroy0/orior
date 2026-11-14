@@ -6,7 +6,7 @@
 // division and gcd are correct at the same width; and each rung is timed, so the crossovers are measured, not assumed.
 // Every value is allocated from the heap. The test runs at any width the header accepts.
 
-#include "../../../../../../src/cu/includes/types/integers/exact_integer.h"
+#include "../../../../../../includes/exact_types/integers/exact_integer.h"
 
 #include <chrono>
 #include <cstdio>

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line.h: the command line: the window's menus as words. `orior_cli <menu> <command>` is the command of that
-// menu, `orior_cli <menu> <job>` the job of a menu of jobs, and the help is the menus listed.
+// command_line.h: the command line: the window's menus as words. `imp <menu> <command>` is the command of that
+// menu, `imp <menu> <job>` the job of a menu of jobs, and the help is the menus listed.
 //
 // A command the terminal can do, starting a job, listing, showing, the bridge, the keys and the version, runs here.
 // Every other acts in the window, and the words come to the window to open with the command to run in it. Every job
@@ -57,7 +57,7 @@ void cli_console_let_go(void);
 
 // the window's command line and its tree (command_line_window.c): the command line run on the words the program was
 // started with, as the system gives them: the code to exit with, 1 in `window` where the words open the window
-// instead; the tree the window opens on found and readied: orior_cli run on the machine where it is in a Flatpak's
+// instead; the tree the window opens on found and readied: imp run on the machine where it is in a Flatpak's
 // sandbox, every process it starts contained under it, the door opened for the command line, `woken` called from the
 // door's thread as a command comes, and the tree watched, each batch of files changed outside the window noted among
 // its runs, walked into the tree's branches and handed to the servers on the watch's own thread; every server,
@@ -65,6 +65,8 @@ void cli_console_let_go(void);
 // its folder, empty for none; and the words the program was started with
 int cli_command_line_window(int *window);
 void cli_command_line_tree_begin(void (*woken)(void));
+// the catalog's cell taken as the process starts, after the pool is made, so it stands at the pool's lowest address
+void cli_command_line_catalog_alloc(void);
 void cli_command_line_tree_end(void);
 const char *cli_command_line_root(void);
 const char *cli_command_line_tree_name(void);
@@ -108,8 +110,9 @@ const char *cli_notice_shown(void);
 int cli_notice_failed(void);
 int cli_notices_focused(void);
 unsigned int cli_notices_waiting(void);
-// the types of notice put away, one a line, NULL where none is
-const char *cli_notices_away(void);
+// the types of notice put away, one a line, copied into a temporary cell, NULL where none is; and the copy given back
+char *cli_notices_away_alloc(void);
+void cli_notices_away_end(char *away);
 
 struct CliCommandLineInputCfg
 {

@@ -43,9 +43,9 @@ extern "C"
 #include "interface_sass_probe.h"
 }
 
-#include "../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../includes/file_defs/krs/ruleset_core_words.h"
-#include "../../../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../includes/file_defs/krs/ruleset_core_words.h"
+#include "../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "cu_target.h"
 #include "machine_ir_types.h"
 #include "sass_target.h"

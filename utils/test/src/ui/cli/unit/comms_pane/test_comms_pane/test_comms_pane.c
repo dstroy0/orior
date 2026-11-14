@@ -23,12 +23,11 @@ void tearDown(void)
 {
 }
 
-// the row `at` of the Channels view, the test failed where there is none
-static CliCommsRow row_at(unsigned int at)
+// the row `at` of the Channels view read into `row`, whose texts stand in its own bytes, the test failed where there
+// is none
+static void row_at(unsigned int at, CliCommsRow *row)
 {
-    CliCommsRow row;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_pane.row, CliCommsPaneCfg, .at = at, .row = &row));
-    return row;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_pane.row, CliCommsPaneCfg, .at = at, .row = row));
 }
 
 // the view read with its stamp looked at, in sight: 1 where it was listed again
@@ -71,8 +70,10 @@ void test_no_parts_and_no_channels_list_two_empty_groups(void)
     TEST_ASSERT_EQUAL_INT(-1, EMBED_CALL(cli_comms_pane.current, CliCommsPaneCfg, .at = 0u));
     TEST_ASSERT_TRUE(stepped(1));
     TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_comms_pane.rows, CliCommsPaneCfg, .at = 0u));
-    const CliCommsRow parts = row_at(0u);
-    const CliCommsRow channels = row_at(1u);
+    CliCommsRow parts;
+    row_at(0u, &parts);
+    CliCommsRow channels;
+    row_at(1u, &channels);
     TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_GROUP, parts.type);
     CLI_TEST_ASSERT_TEXT("Parts", parts.name, parts.name_length);
     CLI_TEST_ASSERT_TEXT("0", parts.status, parts.status_length);
@@ -95,11 +96,16 @@ void test_two_parts_and_a_channel_list_by_name_with_their_counts(void)
     TEST_ASSERT_TRUE(sent(s_alpha, "demo/one", "{\"n\":1}"));
     TEST_ASSERT_TRUE(stepped(0));
     TEST_ASSERT_EQUAL_UINT(5u, EMBED_CALL(cli_comms_pane.rows, CliCommsPaneCfg, .at = 0u));
-    const CliCommsRow parts = row_at(0u);
-    const CliCommsRow alpha = row_at(1u);
-    const CliCommsRow zeta = row_at(2u);
-    const CliCommsRow channels = row_at(3u);
-    const CliCommsRow channel = row_at(4u);
+    CliCommsRow parts;
+    row_at(0u, &parts);
+    CliCommsRow alpha;
+    row_at(1u, &alpha);
+    CliCommsRow zeta;
+    row_at(2u, &zeta);
+    CliCommsRow channels;
+    row_at(3u, &channels);
+    CliCommsRow channel;
+    row_at(4u, &channel);
     CLI_TEST_ASSERT_TEXT("2", parts.status, parts.status_length);
     TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_PART, alpha.type);
     CLI_TEST_ASSERT_TEXT("alpha", alpha.name, alpha.name_length);
@@ -121,13 +127,16 @@ void test_a_part_refused_is_marked_and_one_with_none_is_not(void)
 {
     TEST_ASSERT_FALSE(sent(s_zeta, "other/x", "{}"));
     TEST_ASSERT_TRUE(stepped(0));
-    const CliCommsRow alpha = row_at(1u);
-    const CliCommsRow zeta = row_at(2u);
+    CliCommsRow alpha;
+    row_at(1u, &alpha);
+    CliCommsRow zeta;
+    row_at(2u, &zeta);
     TEST_ASSERT_FALSE(alpha.refused);
     TEST_ASSERT_TRUE(zeta.refused);
     CLI_TEST_ASSERT_TEXT("0 sent, 1 refused", zeta.status, zeta.status_length);
     TEST_ASSERT_EQUAL_UINT(6u, EMBED_CALL(cli_comms_pane.rows, CliCommsPaneCfg, .at = 0u));
-    const CliCommsRow refusing = row_at(5u);
+    CliCommsRow refusing;
+    row_at(5u, &refusing);
     CLI_TEST_ASSERT_TEXT("other/x", refusing.name, refusing.name_length);
     CLI_TEST_ASSERT_TEXT("0 messages, 1 refused", refusing.status, refusing.status_length);
     TEST_ASSERT_TRUE(refusing.refused);
@@ -146,22 +155,29 @@ void test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes(void)
 {
     EMBED_CALL(cli_comms_pane.toggle, CliCommsPaneCfg, .at = 4u);
     TEST_ASSERT_EQUAL_UINT(8u, EMBED_CALL(cli_comms_pane.rows, CliCommsPaneCfg, .at = 0u));
-    const CliCommsRow channel = row_at(4u);
+    CliCommsRow channel;
+    row_at(4u, &channel);
     TEST_ASSERT_TRUE(channel.open);
     TEST_ASSERT_TRUE(channel.current);
     TEST_ASSERT_EQUAL_INT(4, EMBED_CALL(cli_comms_pane.current, CliCommsPaneCfg, .at = 0u));
-    const CliCommsRow first = row_at(5u);
-    const CliCommsRow second = row_at(6u);
+    CliCommsRow first;
+    row_at(5u, &first);
+    CliCommsRow second;
+    row_at(6u, &second);
     TEST_ASSERT_EQUAL_UINT(CLI_COMMS_ROW_MESSAGE, first.type);
     CLI_TEST_ASSERT_TEXT("alpha", first.name, first.name_length);
     CLI_TEST_ASSERT_TEXT("{\"n\":1}", first.status, first.status_length);
     CLI_TEST_ASSERT_TEXT("{\"n\":2}", second.status, second.status_length);
-    CLI_TEST_ASSERT_TEXT("other/x", row_at(7u).name, row_at(7u).name_length);
+    CliCommsRow other;
+    row_at(7u, &other);
+    CLI_TEST_ASSERT_TEXT("other/x", other.name, other.name_length);
     EMBED_CALL(cli_comms_pane.toggle, CliCommsPaneCfg, .at = 5u);
     TEST_ASSERT_EQUAL_UINT(8u, EMBED_CALL(cli_comms_pane.rows, CliCommsPaneCfg, .at = 0u));
     EMBED_CALL(cli_comms_pane.toggle, CliCommsPaneCfg, .at = 4u);
     TEST_ASSERT_EQUAL_UINT(6u, EMBED_CALL(cli_comms_pane.rows, CliCommsPaneCfg, .at = 0u));
-    TEST_ASSERT_FALSE(row_at(4u).open);
+    CliCommsRow closed;
+    row_at(4u, &closed);
+    TEST_ASSERT_FALSE(closed.open);
     CliCommsRow past;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_comms_pane.row, CliCommsPaneCfg, .at = 6u, .row = &past));
 }

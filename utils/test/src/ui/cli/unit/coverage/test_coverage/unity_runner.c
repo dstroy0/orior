@@ -2,7 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/cli/src/coverage/coverage.h"
+#include "includes/coverage/coverage.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -78,16 +78,16 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\coverage\\test_coverage\\test_coverage.c");
-  run_test(test_a_pixel_inside_a_rectangle_takes_the_color_whole, "test_a_pixel_inside_a_rectangle_takes_the_color_whole", 55);
-  run_test(test_a_pixel_outside_a_rectangle_keeps_its_ground, "test_a_pixel_outside_a_rectangle_keeps_its_ground", 63);
-  run_test(test_a_pixel_an_edge_halves_takes_half_the_color, "test_a_pixel_an_edge_halves_takes_half_the_color", 72);
-  run_test(test_a_slope_covers_each_pixel_by_its_area, "test_a_slope_covers_each_pixel_by_its_area", 79);
-  run_test(test_a_wide_rectangle_fills_the_gap_between_its_edges_and_across_wide_tiles, "test_a_wide_rectangle_fills_the_gap_between_its_edges_and_across_wide_tiles", 94);
-  run_test(test_a_later_path_lies_over_an_earlier_one, "test_a_later_path_lies_over_an_earlier_one", 104);
-  run_test(test_a_color_at_half_alpha_blends_over_the_ground, "test_a_color_at_half_alpha_blends_over_the_ground", 113);
-  run_test(test_a_render_writes_nothing_outside_its_clip, "test_a_render_writes_nothing_outside_its_clip", 120);
-  run_test(test_a_cleared_scene_draws_nothing, "test_a_cleared_scene_draws_nothing", 129);
-  run_test(test_a_ring_leaves_its_hole_unfilled, "test_a_ring_leaves_its_hole_unfilled", 137);
+  run_test(test_a_pixel_inside_a_rectangle_takes_the_color_whole, "test_a_pixel_inside_a_rectangle_takes_the_color_whole", 57);
+  run_test(test_a_pixel_outside_a_rectangle_keeps_its_ground, "test_a_pixel_outside_a_rectangle_keeps_its_ground", 65);
+  run_test(test_a_pixel_an_edge_halves_takes_half_the_color, "test_a_pixel_an_edge_halves_takes_half_the_color", 74);
+  run_test(test_a_slope_covers_each_pixel_by_its_area, "test_a_slope_covers_each_pixel_by_its_area", 81);
+  run_test(test_a_wide_rectangle_fills_the_gap_between_its_edges_and_across_wide_tiles, "test_a_wide_rectangle_fills_the_gap_between_its_edges_and_across_wide_tiles", 96);
+  run_test(test_a_later_path_lies_over_an_earlier_one, "test_a_later_path_lies_over_an_earlier_one", 106);
+  run_test(test_a_color_at_half_alpha_blends_over_the_ground, "test_a_color_at_half_alpha_blends_over_the_ground", 115);
+  run_test(test_a_render_writes_nothing_outside_its_clip, "test_a_render_writes_nothing_outside_its_clip", 122);
+  run_test(test_a_cleared_scene_draws_nothing, "test_a_cleared_scene_draws_nothing", 131);
+  run_test(test_a_ring_leaves_its_hole_unfilled, "test_a_ring_leaves_its_hole_unfilled", 139);
 
   return UNITY_END();
 }

@@ -64,13 +64,13 @@ EMBED_INLINE int jupyter_python_prefix(const JupyterFoldersCtx *args)
     {
         return 0;
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES});
-    size_t start = length;
-    start = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder, .at = start,
-                               .set = "/\\");
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES});
+    embed_word start = length;
+    start = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
+                                   .at = start, .set = "/\\");
     char name[16];
-    const size_t size = length - start;
-    for (size_t at = 0u; (at < size) && (at < sizeof(name) - 1u); at += 1u)
+    const embed_word size = length - start;
+    for (embed_word at = 0u; (at < size) && (at < sizeof(name) - 1u); at += 1u)
     {
         const char letter = folder[start + at];
         name[at] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter;

@@ -47,7 +47,7 @@ EMBED_INLINE void start_string(const ServersStartCtx *args)
                                       .object = object, .name = name),
                    .length_pointer = &size);
     const unsigned long long copied_len = ((text != NULL) && (size < args->capacity)) ? size : 0ULL;
-    memor.cpy(&(MemoriaCfg){.dst = args->out, .src = (text != NULL) ? text : "", .bytes = (size_t)copied_len});
+    memor.cpy(&(MemoriaCfg){.dst = args->out, .src = (text != NULL) ? text : "", .bytes = (embed_word)copied_len});
     args->out[copied_len] = '\0';
 }
 
@@ -97,7 +97,7 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                                             .json_read = json, .node = at, .length_pointer = &size);
         if ((text != NULL) && (size < sizeof(args->spec->arg[0])))
         {
-            memor.cpy(&(MemoriaCfg){.dst = args->spec->arg[args->spec->args], .src = text, .bytes = (size_t)size});
+            memor.cpy(&(MemoriaCfg){.dst = args->spec->arg[args->spec->args], .src = text, .bytes = (embed_word)size});
             args->spec->arg[args->spec->args][size] = '\0';
             args->spec->args += 1u;
         }
@@ -115,8 +115,8 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
                                             .json_read = json, .node = at, .length_pointer = &size);
         if ((text != NULL) && (size < CLI_NAME_MAX_LEN))
         {
-            memor.cpy(
-                &(MemoriaCfg){.dst = args->spec->language[args->spec->languages], .src = text, .bytes = (size_t)size});
+            memor.cpy(&(MemoriaCfg){
+                .dst = args->spec->language[args->spec->languages], .src = text, .bytes = (embed_word)size});
             args->spec->language[args->spec->languages][size] = '\0';
             args->spec->languages += 1u;
         }
@@ -139,7 +139,8 @@ EMBED_INLINE void start_spec(const ServersStartCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = args->spec->id_extension[args->spec->ids],
                                     .src = key,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) + 1u});
-            memor.cpy(&(MemoriaCfg){.dst = args->spec->id_name[args->spec->ids], .src = text, .bytes = (size_t)size});
+            memor.cpy(
+                &(MemoriaCfg){.dst = args->spec->id_name[args->spec->ids], .src = text, .bytes = (embed_word)size});
             args->spec->id_name[args->spec->ids][size] = '\0';
             args->spec->ids += 1u;
         }
@@ -184,7 +185,7 @@ int cli_servers_spec_for(const CliServersLanguageCtx *args)
                                                 .json_read = &manifest_json, .node = at, .length_pointer = &size);
             found = (text != NULL) &&
                     (cellul.len(&(CatenaFinitaCfg){.src = args->language, .cap = CLI_POOL_BYTES}) == size) &&
-                    (memor.cmp(&(MemoriaCfg){.src = text, .other = args->language, .bytes = (size_t)size}) == 0);
+                    (memor.cmp(&(MemoriaCfg){.src = text, .other = args->language, .bytes = (embed_word)size}) == 0);
         }
         if (found)
         {
@@ -433,22 +434,24 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     }
     for (unsigned int one = 0u; one < s_reopen.entries; one += 1u)
     {
-        if (!EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_reopen, .at = one)->used)
+        const CliKeyedEntry entry = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_reopen, .at = one);
+        if (!entry.used)
         {
             continue;
         }
-        const char *const path = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_reopen, .at = one)->cell;
-        const char *adjacent = NULL;
-        unsigned long long size = 0ULL;
-        const char *const text = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_reopen,
-                                            .key = path, .adjacent = &adjacent, .size = &size);
+        // the path is the key, read out of the entry's cell; the text goes to the server out of the cell
+        char path[CLI_PATH_MAX_LEN];
+        const unsigned long long path_bytes = (entry.key_size < sizeof(path)) ? entry.key_size : (sizeof(path) - 1u);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = entry.cell, .offset = 0u, .dst = path, .bytes = (embed_word)path_bytes});
+        path[path_bytes] = '\0';
         char id[CLI_NAME_MAX_LEN];
         EMBED_CALL(cli_servers_path_language_internal.id_get, CliServersPathLanguageCtx, .spec_read = spec,
                    .path = path, .language = args->language, .id_out = id);
         char ignored[256];
         VerbaLinea quiet = {ignored, sizeof(ignored), 0ULL};
         (void)EMBED_CALL(cli_lsp_err_msg_text.open, CliLspErrMsgTextCfg, .lsp = server, .path = path, .language_id = id,
-                         .text = text, .length = size, .err_msg = &quiet);
+                         .cell = entry.cell, .at = entry.text_at, .length = entry.text_size, .err_msg = &quiet);
     }
     for (unsigned int index = 0u; index < CLI_SERVERS_MAX; index += 1u)
     {

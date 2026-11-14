@@ -12,7 +12,6 @@
 #include "../text/text.h"
 #include "symbols_internal.h"
 
-
 // One name a slice follows: its text, among a branch's bytes in the walk's cells, and its length
 typedef struct
 {
@@ -655,12 +654,12 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
                           : slice.start;
     }
     slice.written = (effect->seens != 0u)
-                        ? g_cli_guard->persistent_buf_alloc((unsigned long long)effect->seens, g_cli_code_owner)
+                        ? g_cli_guard->temporary_buf_alloc((unsigned long long)effect->seens, g_cli_code_owner)
                         : NULL;
     effect->refused |= (effect->seens != 0u) && (slice.written == NULL);
     if (slice.written != NULL)
     {
-        mmgr_zero_buf(slice.written, (size_t)effect->seens);
+        mmgr_zero_buf(slice.written, (embed_word)effect->seens);
     }
     unsigned int head_first[CLI_SLICE_OPENERS];
     unsigned int head_end[CLI_SLICE_OPENERS];
@@ -711,14 +710,13 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
         {
             sifted = (effect->sift_length[each] == one->length) &&
                      (memor.cmp(&(MemoriaCfg){
-                          .src = effect->sift_name[each], .other = one->text, .bytes = (size_t)one->length}) == 0);
+                          .src = effect->sift_name[each], .other = one->text, .bytes = (embed_word)one->length}) == 0);
         }
-        if (sifted || (carry->names >= carry->name_capacity) ||
-            ((carry->used + one->length) > carry->text_capacity))
+        if (sifted || (carry->names >= carry->name_capacity) || ((carry->used + one->length) > carry->text_capacity))
         {
             continue;
         }
-        memor.cpy(&(MemoriaCfg){.dst = carry->text + carry->used, .src = one->text, .bytes = (size_t)one->length});
+        memor.cpy(&(MemoriaCfg){.dst = carry->text + carry->used, .src = one->text, .bytes = (embed_word)one->length});
         carry->name[carry->names] = carry->text + carry->used;
         carry->length[carry->names] = one->length;
         carry->names += 1u;

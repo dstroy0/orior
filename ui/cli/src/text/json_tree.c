@@ -446,7 +446,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
             return CLI_JSON_NONE;
         }
         const unsigned long long capacity = json->text_max - json->used;
-        if (!cfg_json_string(text, at, json->text + json->used, (size_t)capacity))
+        if (!cfg_json_string(text, at, json->text + json->used, (embed_word)capacity))
         {
             json->full = 1;
             return CLI_JSON_NONE;
@@ -509,7 +509,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
 unsigned int cli_json_read(const CliJsonTreeTextSizeTokensCfg *args)
 {
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
-    if (!cfg_json_parse_metadata(args->text, (size_t)args->size, args->tokens, args->tokens_max, &parse))
+    if (!cfg_json_parse_metadata(args->text, (embed_word)args->size, args->tokens, args->tokens_max, &parse))
     {
         mmgr_line_put(args->err_msg, (parse.reason != NULL) ? parse.reason : "it is not JSON");
         mmgr_line_put(args->err_msg, " at line ");

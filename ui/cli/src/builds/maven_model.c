@@ -54,7 +54,7 @@ EMBED_INLINE CliMavenMapped model_map(const MavenModelCtx *args)
                               .owner = g_cli_maven_model_owner);
     if ((mapped.bytes != NULL) && (mapped.size > CLI_MAVEN_POM_TEXT))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped.bytes, (g_cli_maven_model_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped.bytes, (g_cli_maven_model_owner));
         mapped.bytes = NULL;
     }
     return mapped;
@@ -62,7 +62,7 @@ EMBED_INLINE CliMavenMapped model_map(const MavenModelCtx *args)
 
 EMBED_INLINE void model_unmapped(const MavenModelCtx *args)
 {
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)args->mapped.bytes, (g_cli_maven_model_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)args->mapped.bytes, (g_cli_maven_model_owner));
 }
 
 const char *cli_maven_property(const CliMavenSizeCtx *args)
@@ -73,7 +73,7 @@ const char *cli_maven_property(const CliMavenSizeCtx *args)
         if ((args->model_read->name_size[at] == args->size) &&
             (memor.cmp(&(MemoriaCfg){.src = args->model_read->text + args->model_read->name_at[at],
                                      .other = args->name,
-                                     .bytes = (size_t)args->size}) == 0))
+                                     .bytes = (embed_word)args->size}) == 0))
         {
             *value_size = args->model_read->value_size[at];
             return args->model_read->text + args->model_read->value_at[at];
@@ -91,7 +91,7 @@ EMBED_INLINE void model_set(const MavenModelCtx *args)
     while ((at < model->properties) && !((model->name_size[at] == args->name_size) &&
                                          (memor.cmp(&(MemoriaCfg){.src = model->text + model->name_at[at],
                                                                   .other = args->name,
-                                                                  .bytes = (size_t)args->name_size}) == 0)))
+                                                                  .bytes = (embed_word)args->name_size}) == 0)))
     {
         at += 1u;
     }
@@ -168,13 +168,13 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
 
 int cli_maven_free(const CliMavenSizeNameCtx *args)
 {
-    const char *const dot = memor.chr(&(MemoriaCfg){.src = args->name, .val = '.', .bytes = (size_t)args->size});
+    const char *const dot = memor.chr(&(MemoriaCfg){.src = args->name, .val = '.', .bytes = (embed_word)args->size});
     const unsigned long long first = (dot != NULL) ? (unsigned long long)(dot - args->name) : args->size;
     for (unsigned int at = 0u; at < 16u; at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_input_heads[at], .cap = CLI_POOL_BYTES}) == first) &&
-            (memor.cmp(
-                 &(MemoriaCfg){.src = g_cli_maven_input_heads[at], .other = args->name, .bytes = (size_t)first}) == 0))
+            (memor.cmp(&(MemoriaCfg){
+                 .src = g_cli_maven_input_heads[at], .other = args->name, .bytes = (embed_word)first}) == 0))
         {
             return 1;
         }
@@ -506,7 +506,7 @@ void cli_maven_program(const CliMavenOutCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = at,
                             .src = args->folder,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}) + 1u});
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     char up[CLI_PATH_MAX_LEN];
     VerbaLinea ups = {up, sizeof(up), 0ULL};
     for (;;)

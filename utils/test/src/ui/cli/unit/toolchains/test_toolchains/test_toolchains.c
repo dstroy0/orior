@@ -360,7 +360,7 @@ void test_a_toolchain_is_not_added_twice(void)
     CLI_TEST_ASSERT_CONTAINS("already", s_zig_again_error);
 }
 
-void test_an_id_orior_cli_has_is_refused(void)
+void test_an_id_impero_has_is_refused(void)
 {
     reader_run_result();
     TEST_ASSERT_FALSE(s_named_git_added);
@@ -387,7 +387,7 @@ void test_a_group_containing_a_tool_stays(void)
     TEST_ASSERT_FALSE(s_used_group_removed);
 }
 
-void test_a_toolchain_orior_cli_has_is_not_removed(void)
+void test_a_toolchain_impero_has_is_not_removed(void)
 {
     reader_run_result();
     TEST_ASSERT_FALSE(s_git_removed);

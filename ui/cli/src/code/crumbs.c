@@ -27,23 +27,21 @@ typedef struct
     unsigned int outline;
 } CrumbStored;
 
-// The crumbs: the cell, its rows and the texts after them, how many; the path read and the lines from `from` to
-// before `to` the declarations answer for, which a read inside on the same path leaves standing; whether the crumbs
-// show; and the menu's texts
+// The crumbs: a movable cell sized to them, its rows and the texts after them at `text_at`, how many; the path read and
+// the lines from `from` to before `to` the declarations answer for, which a read inside on the same path leaves
+// standing; and whether the crumbs show
 typedef struct
 {
-    unsigned char *cell;
-    const CrumbStored *row;
-    const char *text;
+    const CarcerMovableEntry *cell;
+    unsigned long long text_at;
     unsigned int count;
     char path[CLI_PATH_MAX_LEN];
     unsigned long long from;
     unsigned long long to;
     int shown;
-    char *menu;
 } Crumbs;
 
-static Crumbs s_crumbs = {NULL, NULL, NULL, 0u, {0}, 0ULL, 0ULL, 1, NULL};
+static Crumbs s_crumbs = {NULL, 0ULL, 0u, {0}, 0ULL, 0ULL, 1};
 
 typedef struct
 {
@@ -66,10 +64,9 @@ EMBED_INLINE int crumbs_separator(const CrumbsCtx *args)
 EMBED_INLINE void crumbs_released(const CrumbsCtx *args)
 {
     (void)args;
-    g_cli_guard->persistent_buf_release(s_crumbs.cell, g_cli_widgets_owner);
+    (void)g_cli_guard->movable_buf_release(s_crumbs.cell, g_cli_widgets_owner);
     s_crumbs.cell = NULL;
-    s_crumbs.row = NULL;
-    s_crumbs.text = NULL;
+    s_crumbs.text_at = 0ULL;
     s_crumbs.count = 0u;
     s_crumbs.path[0] = '\0';
 }
@@ -130,7 +127,8 @@ EMBED_INLINE void crumbs_chain_read(const CrumbsCtx *args)
 
 void cli_crumbs_begin(const CliCrumbsCfg *args)
 {
-    const char *const saved = (args->entries != NULL) ? cli_state_entry_value(args->entries, CLI_CRUMBS_KEY) : NULL;
+    char saved_text[16];
+    const char *const saved = cli_state_entry_value(args->entries, CLI_CRUMBS_KEY, saved_text, sizeof(saved_text));
     s_crumbs.shown = (saved == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = saved, .other = "false", .cap = 8ULL});
 }
 
@@ -178,8 +176,9 @@ void cli_crumbs_read(const CliCrumbsCfg *args)
         bytes += row.length + 1ULL;
     }
     const unsigned int count = (parts + chained < CLI_CRUMBS_MOST) ? parts + chained : CLI_CRUMBS_MOST;
+    // the rows and texts laid in a scratch of the temporary tier, then written into a movable cell of their bytes
     const unsigned long long rows_bytes = (unsigned long long)count * sizeof(CrumbStored);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(rows_bytes + bytes, g_cli_widgets_owner);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(rows_bytes + bytes, g_cli_widgets_owner);
     EMBED_CALL(crumbs_released, CrumbsCtx, .at = 0u);
     if (cell == NULL)
     {
@@ -218,12 +217,18 @@ void cli_crumbs_read(const CliCrumbsCfg *args)
         laid += 1u;
         used += row.length + 1ULL;
     }
-    s_crumbs.cell = cell;
-    s_crumbs.row = stored;
-    s_crumbs.text = text;
-    s_crumbs.count = laid;
-    memor.cpy(&(MemoriaCfg){.dst = s_crumbs.path, .src = args->path, .bytes = path_length});
-    s_crumbs.path[path_length] = '\0';
+    const embed_word laid_bytes = (embed_word)rows_bytes + (embed_word)used;
+    s_crumbs.cell = g_cli_guard->movable_buf_alloc(laid_bytes, g_cli_widgets_owner);
+    if (s_crumbs.cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = s_crumbs.cell, .src = cell, .bytes = laid_bytes});
+        s_crumbs.text_at = rows_bytes;
+        s_crumbs.count = laid;
+        memor.cpy(&(MemoriaCfg){.dst = s_crumbs.path, .src = args->path, .bytes = path_length});
+        s_crumbs.path[path_length] = '\0';
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_widgets_owner);
 }
 
 unsigned int cli_crumbs_rows(const CliCrumbsCfg *args)
@@ -238,8 +243,24 @@ int cli_crumbs_row(const CliCrumbsCfg *args)
     {
         return 0;
     }
-    const CrumbStored *const stored = &s_crumbs.row[args->at];
-    *args->row = (CliCrumbRow){stored->type, s_crumbs.text + stored->text, stored->length, stored->depth};
+    CrumbStored stored = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_crumbs.cell,
+                                                            .offset = (unsigned long long)args->at * sizeof(stored),
+                                                            .dst = &stored,
+                                                            .bytes = sizeof(stored)});
+    args->row->type = stored.type;
+    args->row->length = stored.length;
+    args->row->depth = stored.depth;
+    {
+        const embed_word text_length =
+            ((&stored)->length < (CLI_PATH_MAX_LEN - 1u)) ? (&stored)->length : (CLI_PATH_MAX_LEN - 1u);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_crumbs.cell,
+                                .offset = (embed_word)s_crumbs.text_at + (&stored)->text,
+                                .dst = args->row->text,
+                                .bytes = text_length});
+        args->row->text[text_length] = '\0';
+    }
     return 1;
 }
 
@@ -259,8 +280,8 @@ typedef struct
     const char *command;
 } CrumbsMenuCtx;
 
-// the menu's rows, `count` of them, built as the menus' own, each running `command` with its word, their texts copied
-// into a cell sized to them: 1, or 0 where none stands or the cell cannot be taken
+// the menu's rows, `count` of them, built as the menus' own, each running `command` with its word, their texts ended
+// in a cell of this call, which the menus copy: 1, or 0 where none stands or the cell cannot be taken
 EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
 {
     unsigned long long bytes = 0ULL;
@@ -268,13 +289,11 @@ EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
     {
         bytes += args->rows[at].label_length + args->rows[at].word_length + 2ULL;
     }
-    char *const texts = (args->count != 0u) ? g_cli_guard->persistent_buf_alloc(bytes, g_cli_widgets_owner) : NULL;
+    char *const texts = (args->count != 0u) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_widgets_owner) : NULL;
     if (texts == NULL)
     {
         return 0;
     }
-    g_cli_guard->persistent_buf_release(s_crumbs.menu, g_cli_widgets_owner);
-    s_crumbs.menu = texts;
     cli_menus_own_begin();
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -289,6 +308,7 @@ EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
         used += row->label_length + row->word_length + 2ULL;
         cli_menus_own_row(&(CliItem){label, args->command, "", word, "", "", 0, 0, 0, 0, 0u});
     }
+    g_cli_guard->persistent_buf_release(texts, g_cli_widgets_owner);
     return 1;
 }
 
@@ -344,6 +364,8 @@ EMBED_INLINE int crumbs_symbol_menu(const CrumbsCtx *args)
     }
     CrumbsMenuRow menu[CLI_MENU_OWN_ROWS];
     char digits[CLI_MENU_OWN_ROWS][CRUMBS_DIGITS];
+    // each row's name copied beside its digits, as the row read is one for every pass
+    char names[CLI_MENU_OWN_ROWS][CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     for (unsigned int at = first; (at < rows) && (count < CLI_MENU_OWN_ROWS); at += 1u)
     {
@@ -358,7 +380,8 @@ EMBED_INLINE int crumbs_symbol_menu(const CrumbsCtx *args)
         }
         VerbaLinea line = {digits[count], CRUMBS_DIGITS, 0ULL};
         mmgr_line_decimal(&line, row.line, 1u);
-        menu[count] = (CrumbsMenuRow){row.name, row.length, digits[count], mmgr_line_finish(&line)};
+        memor.cpy(&(MemoriaCfg){.dst = names[count], .src = row.name, .bytes = sizeof(names[count])});
+        menu[count] = (CrumbsMenuRow){names[count], row.length, digits[count], mmgr_line_finish(&line)};
         count += 1u;
     }
     return EMBED_CALL(crumbs_menu_built, CrumbsMenuCtx, .rows = menu, .count = count, .command = "symbol-go");
@@ -370,14 +393,18 @@ int cli_crumbs_menu(const CliCrumbsCfg *args)
     {
         return 0;
     }
-    const CrumbStored *const stored = &s_crumbs.row[args->at];
-    if (stored->type == CLI_CRUMB_SYMBOL)
+    CrumbStored stored = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_crumbs.cell,
+                                                            .offset = (unsigned long long)args->at * sizeof(stored),
+                                                            .dst = &stored,
+                                                            .bytes = sizeof(stored)});
+    if (stored.type == CLI_CRUMB_SYMBOL)
     {
-        return EMBED_CALL(crumbs_symbol_menu, CrumbsCtx, .at = stored->outline, .depth = stored->depth);
+        return EMBED_CALL(crumbs_symbol_menu, CrumbsCtx, .at = stored.outline, .depth = stored.depth);
     }
     // a folder's own entries, and a file's folder's: the path up to the crumb's end, or up to the separator before it
-    const unsigned int end = (stored->type == CLI_CRUMB_FOLDER) ? stored->text + stored->length
-                                                                : ((stored->text > 0u) ? stored->text - 1u : 0u);
+    const unsigned int end =
+        (stored.type == CLI_CRUMB_FOLDER) ? stored.text + stored.length : ((stored.text > 0u) ? stored.text - 1u : 0u);
     return EMBED_CALL(crumbs_folder_menu, CrumbsCtx, .root = args->root, .at = end);
 }
 

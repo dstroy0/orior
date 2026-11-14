@@ -4,7 +4,8 @@
 // menu too long for the window stands no taller than the window less 3.5rem and scrolls: the wheel over it moves its
 // rows a hundred pixels a notch, no further than its last, a row marked anew is scrolled into view, and a menu opened
 // anew stands at its first row
-#include "../../../../../ui/cli/src/view/parts/menubar.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../ui/gui/src/menubar.h"
 #include "../cli/cli_check.h"
 
 #define MENUBAR_TEST_ROWS 60u
@@ -24,10 +25,13 @@ static unsigned int row_at(const GuiMenubar *menubar, int x, int y)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         mmgr_line_finish(&why);
         cli_check(0, error_text);
@@ -78,6 +82,23 @@ int main(void)
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     cli_check(row_at(&menubar, 310, first_y) == 0u, "a menu opened anew stands at its first row");
 
+    // a menu at a point drawn: its line is rounded at every corner, so each corner pixel is short of the line's color
+    // at the edge's middle, at the top and the foot alike
+    static GuiPaletteOwn own;
+    EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
+    GuiRaster raster;
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u), "a raster to draw the menu on");
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920}, .color = own.colors.deep);
+    g_cli_menus_open.level[0].pointed = -1;
+    EMBED_CALL(gui_menubar_glyphs_frame.menus_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &menubar, .raster = &raster, .glyphs = &glyphs, .palette = &own.colors, .frame = &frame);
+    const GuiRect drawn = menubar.menu_rect[0];
+    const GuiColor line_pixel = raster.pixels[((unsigned int)(drawn.y + (drawn.height / 2)) * raster.width) + (unsigned int)drawn.x];
+    const GuiColor head_corner = raster.pixels[((unsigned int)drawn.y * raster.width) + (unsigned int)drawn.x];
+    const GuiColor foot_corner = raster.pixels[((unsigned int)(drawn.y + drawn.height - 1) * raster.width) + (unsigned int)drawn.x];
+    cli_check(line_pixel != own.colors.deep, "the menu's line colors its left edge");
+    cli_check((head_corner != line_pixel) && (foot_corner != line_pixel), "the menu's corners are short of its line's color at the top and the foot alike");
+    cli_check(head_corner == foot_corner, "the foot's corner is rounded as the top's is");
+
     // a part's own rows built as its menu is asked for: a row with its words, a line and the catalog's item
     char read_text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {read_text, sizeof(read_text), 0ULL};
@@ -112,6 +133,7 @@ int main(void)
                   !cli_menus_selectable(0u, 1u),
               "the rows built open as a menu, its line not selectable");
 
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

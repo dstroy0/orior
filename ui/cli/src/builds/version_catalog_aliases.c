@@ -12,7 +12,7 @@ const char *cli_versions_text(const CliVersionCatalogCtx *args)
 
 unsigned int cli_versions_get(const CliVersionCatalogFirstCtx *args)
 {
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
+    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     for (unsigned int at = args->first; at != CLI_VERSIONS_NONE; at = g_cli_versions.field[at].next)
     {
         const CliVersionsField *const field = &g_cli_versions.field[at];
@@ -137,7 +137,7 @@ EMBED_INLINE unsigned int aliases_text_store(const VersionCatalogAliasesCtx *arg
         return CLI_VERSIONS_ALIASES_TEXT;
     }
     const unsigned int at = args->aliases->used;
-    memor.cpy(&(MemoriaCfg){.dst = args->aliases->text + at, .src = bytes, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = args->aliases->text + at, .src = bytes, .bytes = (embed_word)args->size});
     args->aliases->text[at + args->size] = '\0';
     args->aliases->used += (unsigned int)args->size + 1u;
     return at;
@@ -176,8 +176,8 @@ EMBED_INLINE int aliases_alloc(const VersionCatalogAliasesCtx *args)
     const unsigned long long capacity = g_cli_versions.used + (16ULL * count) + (2ULL * g_cli_versions.items);
     // the capacity is under CLI_VERSIONS_ALIASES_TEXT, so it fits an unsigned int
     aliases->capacity = (unsigned int)((capacity < CLI_VERSIONS_ALIASES_TEXT) ? capacity : CLI_VERSIONS_ALIASES_TEXT);
-    aliases->alias = g_cli_guard->persistent_buf_alloc((count + 1ULL) * sizeof(CliVersionsAlias), g_cli_versions_owner);
-    aliases->text = g_cli_guard->persistent_buf_alloc(aliases->capacity + 1ULL, g_cli_versions_owner);
+    aliases->alias = g_cli_guard->temporary_buf_alloc((count + 1ULL) * sizeof(CliVersionsAlias), g_cli_versions_owner);
+    aliases->text = g_cli_guard->temporary_buf_alloc(aliases->capacity + 1ULL, g_cli_versions_owner);
     if ((aliases->alias == NULL) || (aliases->text == NULL))
     {
         g_cli_guard->persistent_buf_release(aliases->text, g_cli_versions_owner);
@@ -204,48 +204,7 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
                     .size = args->size) ||
         !EMBED_CALL(aliases_alloc, VersionCatalogAliasesCtx, .aliases = args->aliases))
     {
-        g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
-        g_cli_versions_libraries.at = NULL;
-        g_cli_versions_libraries.size = NULL;
-        g_cli_versions_libraries.text = NULL;
-        g_cli_versions_libraries.count = 0u;
-        g_cli_versions_libraries.most = 0u;
-        g_cli_versions_libraries.used = 0u;
-        g_cli_versions_libraries.capacity = 0u;
-        g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
-        g_cli_versions_known.at = NULL;
-        g_cli_versions_known.size = NULL;
-        g_cli_versions_known.text = NULL;
-        g_cli_versions_known.count = 0u;
-        g_cli_versions_known.most = 0u;
-        g_cli_versions_known.used = 0u;
-        g_cli_versions_known.capacity = 0u;
-        CliVersionsParsed *const parsed = &g_cli_versions;
-        g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
-        parsed->line = NULL;
-        parsed->pool = NULL;
-        parsed->error = NULL;
-        parsed->item = NULL;
-        parsed->field = NULL;
-        parsed->section = NULL;
-        parsed->sections = 0u;
-        parsed->sections_capacity = 0u;
-        parsed->fields = 0u;
-        parsed->fields_capacity = 0u;
-        parsed->items = 0u;
-        parsed->items_capacity = 0u;
-        parsed->errors = 0u;
-        parsed->errors_capacity = 0u;
-        parsed->used = 0u;
-        parsed->pool_capacity = 0u;
-        parsed->longest = 0ULL;
+        cli_versions_free();
         return 0;
     }
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
@@ -278,47 +237,6 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
-    g_cli_versions_libraries.at = NULL;
-    g_cli_versions_libraries.size = NULL;
-    g_cli_versions_libraries.text = NULL;
-    g_cli_versions_libraries.count = 0u;
-    g_cli_versions_libraries.most = 0u;
-    g_cli_versions_libraries.used = 0u;
-    g_cli_versions_libraries.capacity = 0u;
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
-    g_cli_versions_known.at = NULL;
-    g_cli_versions_known.size = NULL;
-    g_cli_versions_known.text = NULL;
-    g_cli_versions_known.count = 0u;
-    g_cli_versions_known.most = 0u;
-    g_cli_versions_known.used = 0u;
-    g_cli_versions_known.capacity = 0u;
-    CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
-    parsed->line = NULL;
-    parsed->pool = NULL;
-    parsed->error = NULL;
-    parsed->item = NULL;
-    parsed->field = NULL;
-    parsed->section = NULL;
-    parsed->sections = 0u;
-    parsed->sections_capacity = 0u;
-    parsed->fields = 0u;
-    parsed->fields_capacity = 0u;
-    parsed->items = 0u;
-    parsed->items_capacity = 0u;
-    parsed->errors = 0u;
-    parsed->errors_capacity = 0u;
-    parsed->used = 0u;
-    parsed->pool_capacity = 0u;
-    parsed->longest = 0ULL;
+    cli_versions_free();
     return 1;
 }

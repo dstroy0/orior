@@ -4,12 +4,12 @@
 #ifndef IDENTITY_INTERNAL_H
 #define IDENTITY_INTERNAL_H
 
-#include "../../../../../includes/file_defs/kdm/kdm.h"
-#include "../../../../../includes/file_defs/kernel_blob/forms_blob.h"
-#include "../../../../../includes/file_defs/kernel_blob/kernel_blob.h"
-#include "../../../../../includes/file_defs/kqr/kqr_record.h"
-#include "../../../../../includes/file_defs/krf/krf.h"
-#include "../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../includes/file_defs/kernel_blob/forms_blob.h"
+#include "../../../../../../../includes/file_defs/kernel_blob/kernel_blob.h"
+#include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../../../includes/file_defs/krf/krf.h"
+#include "../../../../../../../includes/file_defs/ksc/ksc.h"
 #include "../../../interface/interface.h"
 #include "../../overseer/overseer.h"
 #include "../../teacher/run_channel.h"
@@ -17,8 +17,8 @@
 #include "code_generator.h"
 #include "concept_product.h"
 #include "precepts.h"
-#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../includes/file_defs/klq/query_trace.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/klq/query_trace.h"
 #include "target_internal.h"
 #include "word_web.h"
 
@@ -49,7 +49,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
-#include "../../../../../includes/parsers/who.h"
+#include "../../../../../../../includes/parsers/who.h"
 #include "identity_settings.h"
 
 // the values each operand is put through: zero, the small numbers, and the edges of every width

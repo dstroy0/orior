@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../src/cu/engine/nbody/orior/orior.h"
-#include "../../src/cu/includes/codecs/sha256/sha256.h"
+#include "../../includes/codecs/sha256/sha256.h"
 
 #include <limits.h>
 #include <math.h>

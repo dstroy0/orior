@@ -76,7 +76,7 @@ EMBED_INLINE unsigned char *check_read(const SconsCheckCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned char *const class_of =
-        (size <= CLI_SCONS_TEXT) ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_scons_work_states_owner) : NULL;
+        (size <= CLI_SCONS_TEXT) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_scons_work_states_owner) : NULL;
     if ((class_of != NULL) && !EMBED_CALL(cli_scons_text_size_class_of_internal.read, CliSconsTextSizeClassOfCtx,
                                           .text = text, .size = size, .class_of = class_of))
     {
@@ -108,7 +108,7 @@ EMBED_INLINE void check_top_folder(const SconsCheckCtx *args)
     {
         EMBED_CALL(check_copy, SconsCheckCtx, .from = root, .out = folder);
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_POOL_BYTES});
     for (;;)
     {
         for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -142,7 +142,7 @@ static void check_script(const CliSconsScriptCfg *args)
     unsigned long long from = args->from;
     unsigned long long to = args->to;
     CliSconsCheck *const check = args->context;
-    if (memor.chr(&(MemoriaCfg){.src = args->written, .val = '$', .bytes = (size_t)size}) != NULL)
+    if (memor.chr(&(MemoriaCfg){.src = args->written, .val = '$', .bytes = (embed_word)size}) != NULL)
     {
         return;
     }
@@ -211,7 +211,7 @@ static void check_export(const CliEachNameSizeCfg *args)
             import->exported ||
             (((import->to - import->from) == args->size) &&
              (memor.cmp(&(MemoriaCfg){
-                  .src = s_check.text + import->from, .other = args->name, .bytes = (size_t)args->size}) == 0));
+                  .src = s_check.text + import->from, .other = args->name, .bytes = (embed_word)args->size}) == 0));
     }
     s_exports += 1u;
     // a name stored is no more than CLI_SCONS_EXPORTS_TEXT bytes, which an unsigned int counts
@@ -286,8 +286,8 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
     s_imports = 0u;
     EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_import, .context = NULL);
     s_imports_max = s_imports;
-    s_import = (s_imports_max > 0u) ? g_cli_guard->persistent_buf_alloc(s_imports_max * sizeof(CliSconsImport),
-                                                                        g_cli_scons_work_states_owner)
+    s_import = (s_imports_max > 0u) ? g_cli_guard->temporary_buf_alloc(s_imports_max * sizeof(CliSconsImport),
+                                                                       g_cli_scons_work_states_owner)
                                     : NULL;
     if (s_import == NULL)
     {
@@ -436,7 +436,7 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
     {
         return;
     }
-    if (memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(at - token)}) != NULL)
+    if (memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (embed_word)(at - token)}) != NULL)
     {
         EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
                    .words = g_cli_scons_methods, .count = 52u, .type = "function", .detail = "environment");
@@ -459,8 +459,9 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_scons_setters[one], .cap = CLI_POOL_BYTES}) ==
                  name_end - name) &&
-                (memor.cmp(&(MemoriaCfg){
-                     .src = g_cli_scons_setters[one], .other = text + name, .bytes = (size_t)(name_end - name)}) == 0))
+                (memor.cmp(&(MemoriaCfg){.src = g_cli_scons_setters[one],
+                                         .other = text + name,
+                                         .bytes = (embed_word)(name_end - name)}) == 0))
             {
                 EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
                            .words = g_cli_scons_variables, .count = 44u, .type = "property",

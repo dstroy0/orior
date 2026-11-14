@@ -198,9 +198,9 @@ reads has changed.
 ## Open
 
 1. **The device engine and this plan disagree where the list below says.** Every file of `src/cu/engine`,
-   `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `src/cu/includes` and the bootstrap, codegen, cubin, emit and
+   `src/cu/engine`, `src/cu/transpiler`, `src/cu/types`, `includes` and the bootstrap, codegen, cubin, emit and
    interface folders of `src/cu/transpiler` is read against this plan, `gnascor.md`, the engine table and the query
-   protocol table. `archive/src/python/engine`, `src/cu/types`, `src/cu/includes` and the host qasm are read with the other
+   protocol table. `archive/src/python/engine`, `src/cu/types`, `includes` and the host qasm are read with the other
    engines. Each entry is fixed in the code or in the document it contradicts.
    - Named here and not built, or built and not called.
      - The run channel. `run_channel.h` declares `run_channel_open`, `run_channel_ask`, `run_channel_close` and
@@ -290,7 +290,7 @@ reads has changed.
    before a cubin is written. A loop ask
    branches by its nature and is withheld from the part until a rule says when a loop ends.
 
-7. **One function of 132 runs on the device.** `src/cu/includes/types/integerfloats/double_fields/double_fields.cu` holds
+7. **One function of 132 runs on the device.** `includes/exact_types/integerfloats/double_fields/double_fields.cu` holds
     `double_fields.c`'s four functions as one record program, encoded, laid out and loaded by the calls
     `engine_record_encode` makes, swept on the device and run on the host. `double_fields_test.cu` holds it 1:1
     against the C on 4110 lanes, the edges of a double and 4096 drawn words, with merges past every mask: the

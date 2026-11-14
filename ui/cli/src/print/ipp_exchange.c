@@ -87,7 +87,7 @@ int cli_ipp_address(const CliIppErrMsgCfg *args)
     {
         mmgr_line_put(args->err_msg, args->uri);
         mmgr_line_put(args->err_msg,
-                      " takes only encrypted IPP, which orior_cli does not support; the printer's ipp:// address, "
+                      " takes only encrypted IPP, which impero does not support; the printer's ipp:// address, "
                       "where it has one, reaches it");
         return 0;
     }
@@ -143,20 +143,8 @@ int cli_ipp_address(const CliIppErrMsgCfg *args)
 // whether `length` bytes at `text` are `word` in ASCII's either case
 EMBED_INLINE int cli_same(const IppExchangeCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) != args->length)
-    {
-        return 0;
-    }
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
-    {
-        const char letter =
-            ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32) : args->text[at];
-        if (letter != args->word_text[at])
-        {
-            return 0;
-        }
-    }
-    return 1;
+    return EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .size = args->length, .one = args->text,
+                      .other_pointer = args->word_text);
 }
 
 // the line of the answer from `at`, its end into `stop` with its spaces after it left off: where the next starts, or
@@ -217,19 +205,20 @@ EMBED_INLINE int cli_chunk_size(const IppExchangeCtx *args)
 EMBED_INLINE int cli_send(const IppExchangeCtx *args)
 {
     unsigned long long size = args->size;
-    char *const body_cell = g_cli_guard->temporary_buf_alloc(CLI_IPP_REQUEST_CAPACITY, g_cli_print_owner);
-    VerbaLinea body = mmgr_line_over(body_cell, CLI_IPP_REQUEST_CAPACITY);
-    if (body.out == NULL)
+    CliGrownLine body;
+    cli_grown_begin(&body, CLI_IPP_REQUEST_CAPACITY, g_cli_print_owner);
+    if (body.cell == NULL)
     {
         return 0;
     }
     EMBED_CALL(cli_ipp_message_out_verba_linea.encode, CliIppMessageOutVerbaLineaCfg, .message_read = args->request,
-               .out_verba_linea_pointer = &body);
-    if (!mmgr_line_ok(&body))
+               .out_verba_linea_pointer = &body.line);
+    if (!mmgr_line_ok(&body.line))
     {
-        g_cli_guard->persistent_buf_release(body.out, g_cli_print_owner);
+        cli_grown_end(&body);
         return 0;
     }
+    const unsigned long long body_size = cli_grown_size(&body);
     char head[CLI_PATH_MAX_LEN * 3u];
     VerbaLinea line = {head, sizeof(head), 0ULL};
     mmgr_line_put(&line, "POST ");
@@ -241,16 +230,16 @@ EMBED_INLINE int cli_send(const IppExchangeCtx *args)
     mmgr_line_put(&line, bracketed ? "]:" : ":");
     mmgr_line_decimal(&line, args->port_value, 1u);
     mmgr_line_put(&line, "\r\nContent-Type: application/ipp\r\nContent-Length: ");
-    mmgr_line_decimal(&line, body.at + size, 1u);
+    mmgr_line_decimal(&line, body_size + size, 1u);
     mmgr_line_put(&line, "\r\nConnection: close\r\nUser-Agent: orior\r\n\r\n");
     const int sent = mmgr_line_ok(&line) &&
                      EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->socket,
                                 .bytes = head, .size = line.at) &&
                      EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->socket,
-                                .bytes = body.out, .size = body.at) &&
+                                .bytes = body.cell, .size = body_size) &&
                      ((size == 0ULL) || EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx,
                                                    .sock = args->socket, .bytes = args->document, .size = size));
-    g_cli_guard->persistent_buf_release(body.out, g_cli_print_owner);
+    cli_grown_end(&body);
     return sent;
 }
 
@@ -283,7 +272,7 @@ EMBED_INLINE int cli_body(const IppExchangeCtx *args)
                         .size_pointer = &chunk))
         {
             mmgr_line_put(args->err_msg, args->host);
-            mmgr_line_put(args->err_msg, " sent a chunk orior_cli cannot read");
+            mmgr_line_put(args->err_msg, " sent a chunk impero cannot read");
             return 0;
         }
         if (chunk == 0ULL)
@@ -334,7 +323,7 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
         return 0;
     }
     unsigned long long read = 0ULL;
-    char *const answer_cell = g_cli_guard->persistent_buf_alloc(CLI_IPP_ANSWER, g_cli_print_owner);
+    char *const answer_cell = g_cli_guard->temporary_buf_alloc(CLI_IPP_ANSWER, g_cli_print_owner);
     int read_state = answer_cell != NULL;
     while (read_state && (read < CLI_IPP_ANSWER))
     {

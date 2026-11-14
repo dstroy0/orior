@@ -445,7 +445,7 @@ EMBED_INLINE int cli_compose_up(const DevcontainerUpCtx *args)
     length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = s_output, .at = 0ULL,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = s_output, .cap = CLI_POOL_BYTES}), .set = "\n");
     length = (length < sizeof(container)) ? length : (sizeof(container) - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = container, .src = s_output, .bytes = (size_t)length});
+    memor.cpy(&(MemoriaCfg){.dst = container, .src = s_output, .bytes = (embed_word)length});
     length -= ((length != 0ULL) && (container[length - 1u] == '\r')) ? 1ULL : 0ULL;
     container[length] = '\0';
     const int run = made ? EMBED_CALL(cli_commands_run, DevcontainerUpCtx, .plan = plan, .container = container,

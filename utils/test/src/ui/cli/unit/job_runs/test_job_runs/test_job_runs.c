@@ -153,8 +153,8 @@ void test_the_filter_lets_stand_the_jobs_that_contain_it_and_the_counts_follow(v
     store_read();
     (void)pressed(0u);
     typed("BETA");
-    unsigned long long length = 0ULL;
-    const char *const filter = EMBED_CALL(cli_job_runs_field.filter, CliJobRunsFieldCfg, .length_out = &length);
+    char filter[CLI_JOB_RUNS_FIELD_MAX];
+    const unsigned long long length = EMBED_CALL(cli_job_runs_field.filter, CliJobRunsFieldCfg, .text_out = filter);
     CLI_TEST_ASSERT_TEXT("BETA", filter, length);
     TEST_ASSERT_EQUAL_UINT(2u, rows());
     TEST_ASSERT_EQUAL_UINT64(1ULL, row(0u).number);
@@ -300,6 +300,11 @@ void test_a_run_past_the_lines_bound_lets_its_oldest_lines_go(void)
         mmgr_line_decimal(&line, at, 1u);
         (void)mmgr_line_finish(&line);
         reported(CLI_JOB_RUNS_LINE, 903ULL, NULL, "stdout", text, 0LL, 0);
+        // the reports ring holds 256 in flight: this thread is the view's too, so it steps before the ring fills
+        if ((at % 200u) == 199u)
+        {
+            (void)EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL);
+        }
     }
     (void)EMBED_CALL(cli_job_runs_woken.step, CliJobRunsWokenCfg, .woken = NULL);
     const unsigned int run = row_of(CLI_JOB_RUN_RUN, 0u);

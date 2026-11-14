@@ -57,29 +57,6 @@ typedef struct
     unsigned int at;
 } CliTexInput;
 
-// The work state a make reads into: the toolchains, the PATH's folders, the tool found, the PATH and TEXINPUTS a
-// program runs with, the SVG with its ids made the preview's own, the SyncTeX file unzipped, and its boxes, marks and
-// files
-typedef struct
-{
-    CliFound found;
-    char path[CLI_PATH_TEXT];
-    char inputs[CLI_PATH_TEXT];
-    char svg[CLI_LATEX_SVG];
-    unsigned char sync[CLI_LATEX_SYNC];
-    CliTexOpen open[CLI_LATEX_OPEN];
-    CliTexMark marks[CLI_LATEX_MARKS];
-    CliTexInput files[CLI_LATEX_INPUTS];
-    char names[CLI_LATEX_INPUT_TEXT];
-} CliLatexWorkState;
-
-// the work state, a cell taken with the lock makes are read under and given back with it; and the lock taken with the
-// work state: 1, or 0 with the lock given back where the cells cannot meet it; and the work state given back with the
-// lock (latex.c)
-extern CliLatexWorkState *g_cli_latex;
-int cli_latex_lock(void);
-void cli_latex_release(void);
-
 // The file of the tree a name the engine writes stands for: the text made for `path`, by its name or its full path in
 // the make's folder, a file under the tree by its path there, and none for any other
 typedef struct

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// container.c: orior's container: the one process every process orior_cli starts stands under, the language servers,
+// container.c: orior's container: the one process every process impero starts stands under, the language servers,
 // kernels, debuggers, shells, database links and runs, and every process those start. On Windows the process puts
 // itself in a job object as it starts: every process it starts joins the job on its own, and so does every process
 // those start; the job lists them, and ends them all with the container, however the container ends. On Linux and
@@ -103,14 +103,14 @@ int cli_restarts_dy(const CliContainerRestartsAtCfg *args)
     memor.move_down(
         &(MemoriaCfg){.dst = &args->restarts->death[0],
                       .src = &args->restarts->death[first],
-                      .bytes = (size_t)(args->restarts->deaths - first) * sizeof(args->restarts->death[0])});
+                      .bytes = (embed_word)(args->restarts->deaths - first) * sizeof(args->restarts->death[0])});
     args->restarts->deaths -= first;
     if (args->restarts->deaths >= CLI_RESTARTS_MAX)
     {
         memor.move_down(
             &(MemoriaCfg){.dst = &args->restarts->death[0],
                           .src = &args->restarts->death[1],
-                          .bytes = (size_t)(args->restarts->deaths - 1u) * sizeof(args->restarts->death[0])});
+                          .bytes = (embed_word)(args->restarts->deaths - 1u) * sizeof(args->restarts->death[0])});
         args->restarts->deaths -= 1u;
     }
     args->restarts->death[args->restarts->deaths] = args->at;

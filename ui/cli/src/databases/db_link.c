@@ -100,7 +100,7 @@ int cli_db_link_open(const CliDbLinkCtx *args)
     char warned[CLI_NAME_MAX_LEN + 64u];
     VerbaLinea line = {warned, sizeof(warned), 0ULL};
     mmgr_line_put(&line, args->config->type);
-    mmgr_line_put(&line, " is no kind of database orior_cli supports");
+    mmgr_line_put(&line, " is no kind of database impero supports");
     mmgr_line_finish(&line);
     EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure, .message = warned);
     return 0;

@@ -6,7 +6,8 @@
 // moved by its offset's share of the reach; the loop showing no change through the rest and a change through the
 // spread, and the soonest moment it shows one; and the window's ground: laid out at a scale, drawn with a dot at a
 // point's origin, due at the moment the loop next shows, drawn again on a tick past it and lattice still off the screen
-#include "../../../../../ui/cli/src/view/ground.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/ground.h"
 #include "../cli/cli_check.h"
 #include "test_clock.h"
 
@@ -23,6 +24,9 @@ static int adjacent(double value, double required, double within)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     const double step = 22.0 / sqrt(3.0) / sqrt(8.0);
 
     // laid out
@@ -92,10 +96,12 @@ int main(void)
     cli_check(lattice_lay(CHECK_ENTRY, 100.0, 50.0) == 242u, "the lattice is laid over 100 by 50 again");
     cli_check(lattice_dots_moved(lattice, 100.0, 50.0, 0.0, &shades), "the dots are moved at the loop's start");
     cli_check(adjacent(lattice->dots[0].across, step / 2.0, 1e-5) && adjacent(lattice->dots[0].down, step / 2.0, 1e-5) &&
-                  (lattice->dots[0].color == shades.color[0]),
-              "a point on the ordered side stands at its origin in the first shade");
+                  ((lattice->dots[0].color & 0x00ffffffu) == (shades.color[0] & 0x00ffffffu)),
+              "a point on the ordered side stands at its origin in the first shade's color");
+    cli_check((lattice->dots[0].color >> 24u) == 0u,
+              "a point at its origin among neighbors at theirs has no ink: it fades into the ground");
     const LatticeDot *const last = &lattice->dots[241];
-    const double reach = LATTICE_REACH / LATTICE_OFFSET_MOST;
+    const double reach = LATTICE_REACH / LATTICE_OFFSET_MAX;
     cli_check(adjacent(last->across, step / 2.0 + 21.0 * step + lattice->offsets[241u * 2u] * reach, 1e-4) &&
                   (last->color == shades.color[LATTICE_SHADES - 1u]),
               "a point on the disordered side is moved by its offset's share of the reach in the last shade");
@@ -109,15 +115,15 @@ int main(void)
               "the soonest moment is never before the moment asked from");
 
     // the ground
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiBackground background_fill;
     g_test_clock_ms = 1000ull;
-    cli_check(EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &background_fill), "a ground takes its own lattice instance");
+    cli_check(EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &background_fill, .now_ms = cli_clock_milliseconds()), "a ground takes its own lattice instance");
     GuiRaster background_raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &background_raster, .width = EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = 200u), .height = 100u),
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &background_raster, .width = EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = 200u), .height = 100u),
               "a raster for the ground is made at the pitch");
     g_test_clock_ms = 1000ull;
-    cli_check(EMBED_CALL(gui_background_raster.layout, GuiBackgroundRasterCfg, .background_fill = &background_fill, .raster = &background_raster, .width = 200u, .height = 100u, .scale = 200, .palette = palette),
+    cli_check(EMBED_CALL(gui_background_raster.layout, GuiBackgroundRasterCfg, .now_ms = cli_clock_milliseconds(), .background_fill = &background_fill, .raster = &background_raster, .width = 200u, .height = 100u, .scale = 200, .palette = palette),
               "the ground is laid out at twice the scale");
     cli_check((background_fill.raster.width == EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = 200u)) && (background_fill.raster.height == 100u) &&
                   (lattice_slot(background_fill.lattice_index)->count == 242u),
@@ -128,39 +134,39 @@ int main(void)
     cli_check(background_fill.raster.pixels[(99u * 200u) + 0u] == palette->deep,
               "the corner clear of every dot is the deep color");
     g_test_clock_ms = 1000ull;
-    const unsigned long long wait_ms = EMBED_CALL(gui_background_clock.next_deadline_ms, GuiBackgroundClockCfg, .background_fill = &background_fill) - 1000ull;
+    const unsigned long long wait_ms = EMBED_CALL(gui_background_clock.next_deadline_ms, GuiBackgroundClockCfg, .background_fill = &background_fill, .now_ms = cli_clock_milliseconds()) - 1000ull;
     cli_check(((double)wait_ms >= 16000.0 * GUI_LATTICE_SLOWING) && ((double)wait_ms <= 20000.0 * GUI_LATTICE_SLOWING), "the next draw's deadline falls as the first change shows");
     g_test_clock_ms = 6000ull;
-    cli_check(!EMBED_CALL(gui_background_raster.tick, GuiBackgroundRasterCfg, .background_fill = &background_fill, .palette = palette) && (background_fill.frames == 1u),
+    cli_check(!EMBED_CALL(gui_background_raster.tick, GuiBackgroundRasterCfg, .now_ms = cli_clock_milliseconds(), .background_fill = &background_fill, .palette = palette) && (background_fill.frames == 1u),
               "a tick through the rest draws nothing");
     // the lattice runs GUI_LATTICE_SLOWING times slower: its spread and every time after it shift by the same
     const unsigned long long shift = (unsigned long long)(30000.0 * GUI_LATTICE_SLOWING) - 30000ull;
     g_test_clock_ms = 31000ull + shift;
-    cli_check(EMBED_CALL(gui_background_raster.tick, GuiBackgroundRasterCfg, .background_fill = &background_fill, .palette = palette) && (background_fill.frames == 2u),
+    cli_check(EMBED_CALL(gui_background_raster.tick, GuiBackgroundRasterCfg, .now_ms = cli_clock_milliseconds(), .background_fill = &background_fill, .palette = palette) && (background_fill.frames == 2u),
               "a tick through the spread draws the ground again");
     cli_check(background_fill.next_draw_ms > 30000ull, "the next draw falls after this one");
     g_test_clock_ms = 32000ull + shift;
-    EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &background_fill, .paused = 1);
+    EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &background_fill, .paused = 1, .now_ms = cli_clock_milliseconds());
     g_test_clock_ms = 40000ull + shift;
-    cli_check(EMBED_CALL(gui_background_clock.next_deadline_ms, GuiBackgroundClockCfg, .background_fill = &background_fill) == 0ull, "the ground off screen has no deadline");
+    cli_check(EMBED_CALL(gui_background_clock.next_deadline_ms, GuiBackgroundClockCfg, .background_fill = &background_fill, .now_ms = cli_clock_milliseconds()) == 0ull, "the ground off screen has no deadline");
     g_test_clock_ms = 40000ull + shift;
-    cli_check(EMBED_CALL(gui_background_clock.elapsed_ms, GuiBackgroundClockCfg, .background_fill = &background_fill) == 31000ull + shift, "the clock stands while the ground is lattice");
+    cli_check(EMBED_CALL(gui_background_clock.elapsed_ms, GuiBackgroundClockCfg, .background_fill = &background_fill, .now_ms = cli_clock_milliseconds()) == 31000ull + shift, "the clock stands while the ground is lattice");
     g_test_clock_ms = 40000ull + shift;
-    cli_check(!EMBED_CALL(gui_background_raster.tick, GuiBackgroundRasterCfg, .background_fill = &background_fill, .palette = palette), "a tick while lattice draws nothing");
+    cli_check(!EMBED_CALL(gui_background_raster.tick, GuiBackgroundRasterCfg, .now_ms = cli_clock_milliseconds(), .background_fill = &background_fill, .palette = palette), "a tick while lattice draws nothing");
     g_test_clock_ms = 40000ull + shift;
-    EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &background_fill, .paused = 0);
+    EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &background_fill, .paused = 0, .now_ms = cli_clock_milliseconds());
     g_test_clock_ms = 41000ull + shift;
-    cli_check(EMBED_CALL(gui_background_clock.elapsed_ms, GuiBackgroundClockCfg, .background_fill = &background_fill) == 32000ull + shift, "the clock takes up where it stood");
+    cli_check(EMBED_CALL(gui_background_clock.elapsed_ms, GuiBackgroundClockCfg, .background_fill = &background_fill, .now_ms = cli_clock_milliseconds()) == 32000ull + shift, "the clock takes up where it stood");
     GuiBackground other;
     g_test_clock_ms = 0ull;
-    cli_check(EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &other) && (other.lattice_index != background_fill.lattice_index), "another ground takes another lattice instance");
-    EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &other);
-    EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &background_fill);
+    cli_check(EMBED_CALL(gui_background.init, GuiBackgroundCfg, .background_fill = &other, .now_ms = cli_clock_milliseconds()) && (other.lattice_index != background_fill.lattice_index), "another ground takes another lattice instance");
+    EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &other, .now_ms = cli_clock_milliseconds());
+    EMBED_CALL(gui_background.free, GuiBackgroundCfg, .background_fill = &background_fill, .now_ms = cli_clock_milliseconds());
     cli_check((background_fill.raster.pixels == NULL) && !background_fill.laid, "the ground given holds no raster");
-    g_cli_guard->persistent_buf_release(background_raster.pixels, g_gui_raster_owner);
     background_raster.pixels = NULL;
     background_raster.width = 0u;
     background_raster.height = 0u;
     lattice_given(CHECK_ENTRY);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

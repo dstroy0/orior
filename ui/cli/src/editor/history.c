@@ -12,7 +12,7 @@
 
 #define CLI_HISTORY_STAMPS 4096u
 
-static const char *const s_no_home = "orior_cli has no folder of its own here";
+static const char *const s_no_home = "impero has no folder of its own here";
 
 // the stamps of a folder of snapshots, guarded by the lock while one is stored or listed
 static unsigned long long s_stamps[CLI_HISTORY_STAMPS];
@@ -42,9 +42,10 @@ EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
     const unsigned char *const snapshot_bytes =
         EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->snapshot, .size_pointer = &read,
                    .owner = g_cli_editor_owner);
-    const int same = (snapshot_bytes != NULL) && (read == size) &&
-                     (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = args->text, .bytes = (size_t)size}) == 0);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)snapshot_bytes, (g_cli_editor_owner));
+    const int same =
+        (snapshot_bytes != NULL) && (read == size) &&
+        (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = args->text, .bytes = (embed_word)size}) == 0);
+    g_cli_guard->persistent_buf_release((void *)(embed_word)snapshot_bytes, (g_cli_editor_owner));
     return same;
 }
 
@@ -235,6 +236,22 @@ int cli_history_save(const CliHistoryBeforeCfg *args)
         EMBED_CALL(cli_snapshot_save, HistoryCtx, .root = args->root, .path = args->path, .before = args->before,
                    .before_size = args->before_size, .text = args->text, .size = args->size, .err_msg = args->err_msg);
     return saved;
+}
+
+unsigned int cli_history_stamps(const CliHistoryStampsCfg *args)
+{
+    char home[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home) ||
+        !EMBED_CALL(cli_folder_get, HistoryCtx, .home = home, .root = args->root, .path = args->path,
+                    .folder_out = folder))
+    {
+        return 0u;
+    }
+    const unsigned int count = EMBED_CALL(cli_stamps, HistoryCtx, .folder = folder);
+    const unsigned int copied = (count < args->capacity) ? count : args->capacity;
+    memor.cpy(&(MemoriaCfg){.dst = args->stamps_out, .src = s_stamps, .bytes = (embed_word)copied * sizeof(*s_stamps)});
+    return copied;
 }
 
 int cli_history_read(const CliHistoryCfg *args)

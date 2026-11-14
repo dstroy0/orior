@@ -123,7 +123,7 @@ The interface between this program and the machine, each optimized on its own te
 
 | the program asks | the engine offers | status |
 |---|---|---|
-| a parquet column chunk decoded to its stored bytes | the Snappy and Zstd decoders under `src/cu/includes/codecs/`, reached by `src/parquet/` | built |
-| the whole parquet file sealed as a set | `engine_ingest_set` with the parquet source (`src/cu/includes/formats/parquet/`), its members from `engine_source_samples` | built; both files sealed on the device, every member rebuilt lane for lane (part 1) |
+| a parquet column chunk decoded to its stored bytes | the Snappy and Zstd decoders under `includes/codecs/`, reached by `src/parquet/` | built |
+| the whole parquet file sealed as a set | `engine_ingest_set` with the parquet source (`includes/formats/parquet/`), its members from `engine_source_samples` | built; both files sealed on the device, every member rebuilt lane for lane (part 1) |
 | an exact program run over records on the device | the record machine: `exact_record` builds, `keymath`/`key_schedule` lay out, `cycle_record_run` runs, `cycle_record_sum`/`cycle_record_sort` reduce | built |
 | a device job admitted by memory headroom | the tessera daemon, submitted through `sim_job_submit` | built |

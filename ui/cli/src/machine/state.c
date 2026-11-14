@@ -75,21 +75,22 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         root = mmgr_line_ok(&plain)
-                   ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
+                   ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                 .json = args->json, .text = plain_text, .size = plain.at,
                                 .nodes_more = args->nodes_more + 1u, .text_more = args->text_more, .err_msg = &err_msg,
                                 .owner = g_cli_state_owner)
                    : CLI_JSON_NONE;
     }
     g_cli_guard->persistent_buf_release(plain_text, g_cli_state_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_state_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_state_owner));
     if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = root,
                    .type = CFG_JSON_OBJECT))
     {
         return root;
     }
     // an empty object in a tree of its own, with the capacity over requested
-    g_cli_guard->persistent_buf_release(args->json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), args->json->node));
+    g_cli_guard->persistent_buf_release(args->json->node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = args->json,
@@ -382,36 +383,38 @@ int cli_state_read(const CliStateOutCfg *args)
     return 1;
 }
 
-// the most bytes every entry of orior's folder takes as they are read
+// the most bytes the entries of orior's folder grow to as they are read
 #define CLI_STATE_ENTRIES_TEXT (6ULL << 20u)
 
-CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args)
+CliStateEntries cli_state_entries_alloc(const CliStateEntriesCfg *args)
 {
-    char *const text_cell = g_cli_guard->temporary_buf_alloc(CLI_STATE_ENTRIES_TEXT, g_cli_state_owner);
-    VerbaLinea read = mmgr_line_over(text_cell, CLI_STATE_ENTRIES_TEXT);
-    if ((read.out == NULL) || !EMBED_CALL(cli_state_out.read, CliStateOutCfg, .folder = args->folder, .out = &read) ||
-        !mmgr_line_ok(&read))
+    CliStateEntries entries = {NULL, args->owner, 0u};
+    CliGrownLine read;
+    cli_grown_begin(&read, CLI_STATE_ENTRIES_TEXT, g_cli_state_owner);
+    if ((read.cell == NULL) ||
+        !EMBED_CALL(cli_state_out.read, CliStateOutCfg, .folder = args->folder, .out = &read.line) ||
+        !mmgr_line_ok(&read.line))
     {
-        g_cli_guard->persistent_buf_release(text_cell, g_cli_state_owner);
-        return NULL;
+        cli_grown_end(&read);
+        return entries;
     }
     char why[256];
     VerbaLinea ignored = {why, sizeof(why), 0ULL};
     CliJson json;
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = read.out, .size = read.at, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &ignored,
-                   .owner = g_cli_state_owner);
-    g_cli_guard->persistent_buf_release(text_cell, g_cli_state_owner);
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                   .text = read.cell, .size = cli_grown_size(&read), .nodes_more = 0u, .text_more = 0ULL,
+                   .err_msg = &ignored, .owner = g_cli_state_owner);
+    cli_grown_end(&read);
     if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = root,
                     .type = CFG_JSON_OBJECT))
     {
         g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        return NULL;
+        return entries;
     }
-    // the entries and their texts counted, then laid in one cell
+    // the entries and their texts counted, then written into one movable cell, the entries first and the texts after
     unsigned int count = 0u;
     unsigned long long bytes = 0ULL;
     for (unsigned int member = json.node[root].first; member != CLI_JSON_NONE; member = json.node[member].next)
@@ -423,13 +426,11 @@ CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args)
                  cellul.len(&(CatenaFinitaCfg){.src = json.text + json.node[member].key, .cap = CLI_POOL_BYTES}) + 1ULL;
         count += 1u;
     }
-    CliStateEntries *const entries =
-        g_cli_guard->persistent_buf_alloc(sizeof(*entries) + (count * sizeof(CliStateEntry)) + bytes, args->owner);
-    if (entries != NULL)
+    entries.cell = g_cli_guard->movable_buf_alloc(CLI_STATE_ENTRY_AT(count) + bytes + 1ULL, args->owner);
+    if (entries.cell != NULL)
     {
-        entries->count = 0u;
-        entries->entry = (CliStateEntry *)(void *)(entries + 1);
-        char *place = (char *)(void *)(entries->entry + count);
+        const char zero = '\0';
+        unsigned long long place = CLI_STATE_ENTRY_AT(count);
         for (unsigned int member = json.node[root].first; member != CLI_JSON_NONE; member = json.node[member].next)
         {
             const char *const key = json.text + json.node[member].key;
@@ -438,18 +439,24 @@ CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args)
             unsigned long long length = 0ULL;
             const char *const value = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                  .json_read = &json, .node = member, .length_pointer = &length);
-            CliStateEntry *const entry = &entries->entry[entries->count];
-            memor.cpy(&(MemoriaCfg){.dst = place, .src = key, .bytes = key_size});
-            entry->key = place;
+            CliStateEntry entry = {place, place + key_size};
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = entries.cell, .offset = place, .src = key, .bytes = key_size});
             place += key_size;
-            if (value != NULL)
+            if ((value != NULL) && (length > 0ULL))
             {
-                memor.cpy(&(MemoriaCfg){.dst = place, .src = value, .bytes = length});
+                (void)g_cli_guard->movable_buf_write(
+                    &(CarcerMovableCfg){.cell = entries.cell, .offset = place, .src = value, .bytes = length});
             }
-            place[(value != NULL) ? length : 0ULL] = '\0';
-            entry->value = place;
-            place += ((value != NULL) ? length : 0ULL) + 1ULL;
-            entries->count += 1u;
+            place += (value != NULL) ? length : 0ULL;
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = entries.cell, .offset = place, .src = &zero, .bytes = 1ULL});
+            place += 1ULL;
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = entries.cell,
+                                                                     .offset = CLI_STATE_ENTRY_AT(entries.count),
+                                                                     .src = &entry,
+                                                                     .bytes = sizeof(entry)});
+            entries.count += 1u;
         }
     }
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
@@ -458,16 +465,97 @@ CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args)
     return entries;
 }
 
-const char *cli_state_entry_value(const CliStateEntries *entries, const char *key)
+void cli_state_entries_release(CliStateEntries *entries)
 {
-    for (unsigned int at = 0u; (entries != NULL) && (at < entries->count); at += 1u)
+    if (entries->cell != NULL)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = entries->entry[at].key, .other = key, .cap = CLI_POOL_BYTES}))
+        (void)g_cli_guard->movable_buf_release(entries->cell, entries->owner);
+    }
+    entries->cell = NULL;
+    entries->count = 0u;
+}
+
+// the entry `at` read out of the entries' cell
+static CliStateEntry state_entry(const CliStateEntries *entries, unsigned int at)
+{
+    CliStateEntry entry = {0ULL, 0ULL};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
+    return entry;
+}
+
+// the text at `text_at` of the entries' cell read into `out`, `capacity` bytes, a 0 after it: `out`, or NULL where
+// it does not fit
+static const char *state_text(const CliStateEntries *entries, unsigned long long text_at, char *out,
+                              unsigned long long capacity)
+{
+    const unsigned long long length = g_cli_guard->movable_buf_measure(
+        &(CarcerMovableCfg){.cell = entries->cell, .offset = text_at, .bytes = (embed_word)capacity});
+    if (length >= capacity)
+    {
+        return NULL;
+    }
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = entries->cell, .offset = text_at, .dst = out, .bytes = (embed_word)length});
+    out[length] = '\0';
+    return out;
+}
+
+// the place among the entries of the one with `key`, the count where none has it
+static unsigned int state_entry_find(const CliStateEntries *entries, const char *key)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES});
+    for (unsigned int at = 0u; (entries != NULL) && (entries->cell != NULL) && (at < entries->count); at += 1u)
+    {
+        const CliStateEntry entry = state_entry(entries, at);
+        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                .cell = entries->cell, .offset = entry.key_at, .src = key, .bytes = (embed_word)(length + 1ULL)}) == 0)
         {
-            return entries->entry[at].value;
+            return at;
         }
     }
-    return NULL;
+    return (entries != NULL) ? entries->count : 0u;
+}
+
+const char *cli_state_entry_value(const CliStateEntries *entries, const char *key, char *out,
+                                  unsigned long long capacity)
+{
+    const unsigned int at = state_entry_find(entries, key);
+    if ((entries == NULL) || (at >= entries->count))
+    {
+        return NULL;
+    }
+    return state_text(entries, state_entry(entries, at).value_at, out, capacity);
+}
+
+unsigned long long cli_state_entry_size(const CliStateEntries *entries, const char *key)
+{
+    const unsigned int at = state_entry_find(entries, key);
+    if ((entries == NULL) || (at >= entries->count))
+    {
+        return CLI_STATE_NONE;
+    }
+    return g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+        .cell = entries->cell, .offset = state_entry(entries, at).value_at, .bytes = CLI_STATE_ENTRIES_TEXT});
+}
+
+const char *cli_state_entry_key(const CliStateEntries *entries, unsigned int at, char *out, unsigned long long capacity)
+{
+    if ((entries == NULL) || (entries->cell == NULL) || (at >= entries->count))
+    {
+        return NULL;
+    }
+    return state_text(entries, state_entry(entries, at).key_at, out, capacity);
+}
+
+const char *cli_state_entry_text(const CliStateEntries *entries, unsigned int at, char *out,
+                                 unsigned long long capacity)
+{
+    if ((entries == NULL) || (entries->cell == NULL) || (at >= entries->count))
+    {
+        return NULL;
+    }
+    return state_text(entries, state_entry(entries, at).value_at, out, capacity);
 }
 
 int cli_state_value_save(const CliStateValueCfg *args)

@@ -326,7 +326,7 @@ void cli_cargo_tokens(const CliCargoTestsCtx *args)
     EMBED_CALL(scan_tokens_append, CargoScanCtx, .text = args->text, .size = args->size);
     const unsigned long long counted = g_cli_cargo_scan.token_count;
     g_cli_cargo_scan.tokens =
-        (counted != 0ULL) ? g_cli_guard->persistent_buf_alloc(counted * sizeof(CliRustToken), g_cli_cargo_owner) : NULL;
+        (counted != 0ULL) ? g_cli_guard->temporary_buf_alloc(counted * sizeof(CliRustToken), g_cli_cargo_owner) : NULL;
     g_cli_cargo_scan.token_capacity = (g_cli_cargo_scan.tokens != NULL) ? counted : 0ULL;
     EMBED_CALL(scan_tokens_append, CargoScanCtx, .text = args->text, .size = args->size);
     g_cli_cargo_scan.token_count = (unsigned int)g_cli_cargo_scan.token_capacity;
@@ -454,7 +454,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
     if (g_cli_cargo_scan.items == NULL)
     {
         const unsigned long long item_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(CliRustItem);
-        char *const cell = g_cli_guard->persistent_buf_alloc(item_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
+        char *const cell = g_cli_guard->temporary_buf_alloc(item_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
         if (cell != NULL)
         {
             g_cli_cargo_scan.items = (CliRustItem *)(void *)cell;

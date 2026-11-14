@@ -11,9 +11,9 @@
 
 #include "../run_channel.h"
 
-#include "../../../../../includes/file_defs/kqr/kqr_record.h"
-#include "../../../../../includes/file_defs/ksc/ksc.h"
-#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../interface/interface.h"
 #include "../../overseer/overseer.h"
 #include "verba_scribo/verba_linea.h"

@@ -129,7 +129,7 @@ int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
                         EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length
                                                                                               : 0ULL);
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_runs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_runs_owner));
     if ((bytes == NULL) || (at != size))
     {
         mmgr_line_put(args->err_msg, args->path);
@@ -331,6 +331,6 @@ int cli_qry_records(const CliQryPathFromEachCfg *args)
     }
     *args->rest = ((bytes != NULL) && (size > at)) ? size - at : 0ULL;
     *args->next = at;
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_runs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_runs_owner));
     return 0;
 }

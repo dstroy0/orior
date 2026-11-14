@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // devcontainer_plan.c: a description's JSON read, its strings, members and lists, its variables read in, and the
 // plan's texts it is stored in
-#include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -29,18 +29,18 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
                                                 .size_pointer = &size, .owner = g_cli_devcontainer_owner);
     if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)raw, (g_cli_devcontainer_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)raw, (g_cli_devcontainer_owner));
         mmgr_line_put(args->err_msg, args->file);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
     }
     // plain JSON is the description with its comments and trailing commas left out, never longer
-    s_plain = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_devcontainer_owner);
+    s_plain = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_devcontainer_owner);
     VerbaLinea plain = mmgr_line_over(s_plain, size + 1ULL);
     // the description's bytes read as the text they are
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)raw, .size = size,
                .plain = &plain);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)raw, (g_cli_devcontainer_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)raw, (g_cli_devcontainer_owner));
     const unsigned int counted =
         mmgr_line_ok(&plain)
             ? EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = s_plain, .size = plain.at)
@@ -62,7 +62,7 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
         tokens = CLI_DESCRIPTION_TOKENS;
     }
     s_tokens = mmgr_line_ok(&plain)
-                   ? g_cli_guard->persistent_buf_alloc(tokens * sizeof(*s_tokens), g_cli_devcontainer_owner)
+                   ? g_cli_guard->temporary_buf_alloc(tokens * sizeof(*s_tokens), g_cli_devcontainer_owner)
                    : NULL;
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
     if ((s_tokens != NULL) && cfg_json_parse_metadata(s_plain, plain.at, s_tokens, tokens, &parse))
@@ -172,7 +172,7 @@ typedef struct
 EMBED_INLINE int cli_same_key(const DevcontainerPlanCtx *args)
 {
     unsigned int other = args->other;
-    const size_t size = s_tokens[args->one].end - s_tokens[args->one].start;
+    const embed_word size = s_tokens[args->one].end - s_tokens[args->one].start;
     return ((s_tokens[other].end - s_tokens[other].start) == size) &&
            (memor.cmp(&(MemoriaCfg){.src = s_plain + s_tokens[args->one].start,
                                     .other = s_plain + s_tokens[other].start,

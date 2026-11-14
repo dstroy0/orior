@@ -8,7 +8,7 @@
 // `python_classes` and `python_functions` are read in place of these. The folders of environments, of what a build
 // writes and of caches are not searched, nor a file larger than 2 MiB or not UTF-8.
 //
-// A test is named as pytest names it, `path::Class::name`, and a Rust test as orior_cli names one, its file first,
+// A test is named as pytest names it, `path::Class::name`, and a Rust test as impero names one, its file first,
 // `src/files.rs::listing::name` (testing.c, testing_found.c)
 #ifndef TESTING_H
 #define TESTING_H
@@ -235,15 +235,16 @@ EMBED_TABLE_STORAGE CliTestingRootNs cli_testing_root EMBED_UNUSED = {
 #define CLI_TESTS_COVER 3u
 #define CLI_TESTS_STOP 4u
 #define CLI_TESTS_PARALLEL 5u
-// the most bytes of a summary with its end
+// the most bytes of a summary with its end, and of a row's text with its end
 #define CLI_TESTS_SUMMARY 320u
+#define CLI_TESTS_ROW_TEXT CLI_ERR_MSG_MAX_LEN
 
 // A row of the pane: its type; the file's path in the tree; its name, a file's own, a test's label, a message's first
 // line or a coverage row's path, and the name's bytes; a file row's folder, the bytes of `path` before the name; the
 // outcome, a file's worst or a test's own; a file row's counts of passed, failed and skipped tests, a coverage row's
 // lines that ran in `passed` and missed in `failed`; whether a file row's tests show; a test row's time in
-// milliseconds, 0 where it has not run; and the line a press opens at, a failed test's where it failed, else where it
-// is written, a coverage row's first line missed
+// milliseconds, 0 where it has not run; the line a press opens at, a failed test's where it failed, else where it is
+// written, a coverage row's first line missed; and the row's own bytes its path and name are copied into
 typedef struct
 {
     unsigned int type;
@@ -258,6 +259,8 @@ typedef struct
     int open;
     unsigned int milliseconds;
     unsigned long long line;
+    char path_copied[CLI_TESTS_ROW_TEXT];
+    char name_copied[CLI_TESTS_ROW_TEXT];
 } CliTestsRow;
 
 typedef struct CliTestsPaneCfg CliTestsPaneCfg;

@@ -316,8 +316,8 @@ int cli_process_memory(const CliPidCtx *args)
 
 int cli_process_by_name(const CliCapacityPidCtx *args)
 {
-    // a process id the system gives is below what an int counts, and a capacity is far below what a uint32_t counts
-    return proc_name((int)args->pid, args->name_out, (uint32_t)args->capacity_bytes) > 0;
+    // a process id the system gives is below what an int counts, and a capacity is far below what a embed_u32 counts
+    return proc_name((int)args->pid, args->name_out, (embed_u32)args->capacity_bytes) > 0;
 }
 #else
 int cli_process_memory(const CliPidCtx *args)

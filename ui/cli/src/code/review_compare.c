@@ -357,9 +357,9 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
     const unsigned int was_lines = EMBED_CALL(cli_lines_count, ReviewCompareCtx, .text = was_text, .size = was_size);
     const unsigned int now_lines = EMBED_CALL(cli_lines_count, ReviewCompareCtx, .text = now_text, .size = now_size);
     unsigned char *const cell =
-        g_cli_guard->persistent_buf_alloc(EMBED_CALL(cli_side_bytes, ReviewCompareCtx, .lines = was_lines) +
-                                              EMBED_CALL(cli_side_bytes, ReviewCompareCtx, .lines = now_lines),
-                                          g_cli_code_owner);
+        g_cli_guard->temporary_buf_alloc(EMBED_CALL(cli_side_bytes, ReviewCompareCtx, .lines = was_lines) +
+                                             EMBED_CALL(cli_side_bytes, ReviewCompareCtx, .lines = now_lines),
+                                         g_cli_code_owner);
     if (cell == NULL)
     {
         EMBED_CALL(cli_other_append, ReviewCompareCtx, .path = args->file->path);

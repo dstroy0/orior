@@ -114,7 +114,10 @@ EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
     int positioned = 0;
     for (unsigned int index = 0u; index < one->pieces; index += 1u)
     {
-        const CliPagePiece *const piece = &one->piece[index];
+        CliPagePiece read = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one->piece, .offset = (embed_word)index * sizeof(read), .dst = &read, .bytes = sizeof(read)});
+        const CliPagePiece *const piece = &read;
         const unsigned long long count =
             EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = piece, .indexed = indexed);
         const unsigned long long end = at + count;
@@ -154,7 +157,19 @@ EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
     {
         EMBED_CALL(cli_piece_append, PagesEditCtx, .pieces = &pieces, .piece = args->lines_page_piece);
     }
-    memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = pieces.piece, .bytes = pieces.count * sizeof(CliPagePiece)});
+    // the pieces retained written into a movable cell sized to them, the cell before given back
+    const CarcerMovableEntry *const retained =
+        g_cli_guard->movable_buf_alloc((embed_word)pieces.count * sizeof(CliPagePiece), g_cli_editor_owner);
+    if (retained == NULL)
+    {
+        g_cli_guard->persistent_buf_release(pieces.piece, g_cli_editor_owner);
+        mmgr_line_put(args->err_msg, "the pieces a replace retains could not be taken");
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = retained, .src = pieces.piece, .bytes = (embed_word)pieces.count * sizeof(CliPagePiece)});
+    (void)g_cli_guard->movable_buf_release(one->piece, g_cli_editor_owner);
+    one->piece = retained;
     one->pieces = pieces.count;
     g_cli_guard->persistent_buf_release(pieces.piece, g_cli_editor_owner);
     return 1;
@@ -313,9 +328,14 @@ int cli_pages_change(const CliPagesPathCfg *args)
         mmgr_line_ch(args->out, '[');
         for (unsigned int index = 0u; index < one->pieces; index += 1u)
         {
-            const unsigned long long count = EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx,
-                                                        .piece = &one->piece[index], .indexed = indexed);
-            if (one->piece[index].written)
+            CliPagePiece piece = {0};
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->piece,
+                                                                    .offset = (embed_word)index * sizeof(piece),
+                                                                    .dst = &piece,
+                                                                    .bytes = sizeof(piece)});
+            const unsigned long long count =
+                EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = &piece, .indexed = indexed);
+            if (piece.written)
             {
                 mmgr_line_put(args->out, (runs != 0u) ? ",[" : "[");
                 mmgr_line_decimal(args->out, at, 0u);
@@ -366,13 +386,9 @@ EMBED_INLINE CliLines cli_block_get(const PagesEditCtx *args)
             // each unit of a letter is below 2^16
             block.unit[block.used] =
                 (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
-            EMBED_CALL(cli_lines_histogram_append, CliLinesHistogramAppendCfg, .lines = &block,
-                       .unit = block.unit[block.used]);
             if (need == 2ULL)
             {
                 block.unit[block.used + 1ULL] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
-                EMBED_CALL(cli_lines_histogram_append, CliLinesHistogramAppendCfg, .lines = &block,
-                           .unit = block.unit[block.used + 1ULL]);
             }
             block.used += need;
         }
@@ -411,7 +427,10 @@ EMBED_INLINE unsigned long long cli_total(const PagesEditCtx *args)
     unsigned long long total = 0ULL;
     for (unsigned int at = 0u; at < one->pieces; at += 1u)
     {
-        total += EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = &one->piece[at], .indexed = indexed);
+        CliPagePiece piece = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one->piece, .offset = (embed_word)at * sizeof(piece), .dst = &piece, .bytes = sizeof(piece)});
+        total += EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = &piece, .indexed = indexed);
     }
     return total;
 }

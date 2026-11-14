@@ -162,7 +162,7 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
     if (count == 0u)
     {
         EMBED_CALL(find_release, DebugFindCtx, .manifest = &manifest_json);
-        mmgr_line_put(args->err_msg, "orior_cli has no debugger for ");
+        mmgr_line_put(args->err_msg, "impero has no debugger for ");
         mmgr_line_put(args->err_msg, args->language);
         return 0;
     }

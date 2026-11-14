@@ -112,7 +112,7 @@ function madePath(made) {
 }
 
 // What a build that made a program offers: the program run in the terminal at the tree's top folder;
-// built and run again in the job, as orior_gui runs it or as the system runs a program opened on its
+// built and run again in the job, as tabvla runs it or as the system runs a program opened on its
 // own; the libraries it loads through a PATH copied beside it; and its path copied.
 function madeButtons(job, made) {
   const buttons = element("div", { className: "views" });

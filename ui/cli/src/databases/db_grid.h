@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_grid.h: the Database tool's right column as the window reads it, a statement's result as numbers. A run's answer
-// is adopted into two cells: the head, every column's label and type, the result's sentence and its message lines;
-// and the stretch of rows stored, one start a cell into one text of every cell's bytes, a null flag a cell. Each
+// is adopted into two movable cells, each read by copy: the head, every column's label and type, the result's sentence
+// and its message lines; and the stretch of rows stored, one start a cell into one text of every cell's bytes, a null
+// flag a cell. Each
 // column's width in letters is the longest of its label and its first rows' cells, cut to a most, and its start the
 // sum of the widths before it, both laid once at the adopt. The window's draw reaches the first and last row it shows
 // as two numbers; the step reads the rows the stretch lacks from the run in one read, as far ahead the way the rows
@@ -34,8 +35,13 @@ typedef struct CliDbGridStepCfg CliDbGridStepCfg;
 #define CLI_DB_GRID_REST_MS 400ULL
 #define CLI_DB_GRID_SHARE 40ULL
 
-// A column: its label and its type with their bytes, whether its values are numbers, its width in letters and its
-// start in letters from the column the grid is panned to, below 0 for one panned off to the left
+// the most bytes of a row's text and of a cell's text with their ends, as they are copied out of the grid's cells
+#define CLI_DB_GRID_ROW_TEXT 4096u
+#define CLI_DB_GRID_CELL_TEXT 1024u
+
+// A column: its label and its type with their bytes, each copied into the column's own bytes, whether its values are
+// numbers, its width in letters and its start in letters from the column the grid is panned to, below 0 for one panned
+// off to the left
 typedef struct
 {
     const char *label;
@@ -45,24 +51,29 @@ typedef struct
     int numeric;
     unsigned int width;
     long long start;
+    char label_copied[CLI_NAME_MAX_LEN];
+    char type_copied[CLI_NAME_MAX_LEN];
 } CliDbGridColumn;
 
-// A row: its type and its text with its bytes, a failure's or a notice's line, or the word a waiting row stands as
+// A row: its type and its text with its bytes, a failure's or a notice's line copied into the row's own bytes, cut to
+// CLI_DB_GRID_ROW_TEXT, or the word a waiting row stands as
 typedef struct
 {
     unsigned int type;
     const char *text;
     unsigned long long length;
+    char text_copied[CLI_DB_GRID_ROW_TEXT];
 } CliDbGridRow;
 
-// A cell: its text with its bytes, the word NULL for a null one, whether it is null and whether its column's values
-// are numbers
+// A cell: its text with its bytes copied into the cell's own bytes, cut to CLI_DB_GRID_CELL_TEXT, the word NULL for a
+// null one, whether it is null and whether its column's values are numbers
 typedef struct
 {
     const char *text;
     unsigned long long length;
     int null;
     int numeric;
+    char text_copied[CLI_DB_GRID_CELL_TEXT];
 } CliDbGridCell;
 
 // a run's answer adopted: `size` bytes of `answer`, the JSON cli_db_run writes, its rows read on from `open`, the

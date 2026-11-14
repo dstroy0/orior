@@ -79,10 +79,10 @@ EMBED_INLINE void cli_word_quote(const WindowsSpawnCtx *args)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->word, .at = at, .size = whole, .set = "\\\"");
-        mmgr_line_put_n(args->line, args->word + at, (size_t)(stop - at));
+        mmgr_line_put_n(args->line, args->word + at, (embed_word)(stop - at));
         const unsigned long long run_end = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                       .text = args->word, .at = stop, .size = whole, .set = "\\");
-        mmgr_line_put_n(args->line, args->word + stop, (size_t)(run_end - stop));
+        mmgr_line_put_n(args->line, args->word + stop, (embed_word)(run_end - stop));
         // a slash's count is below the path's bytes, which an unsigned int stores
         slashes = (run_end == whole) ? (unsigned int)(run_end - stop) : 0u;
         at = run_end;
@@ -185,7 +185,7 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
 // cell kept
 EMBED_INLINE WindowsSpawnCell *cli_spawn_prepare(const WindowsSpawnCtx *args)
 {
-    WindowsSpawnCell *const cell = g_cli_guard->persistent_buf_alloc(sizeof(WindowsSpawnCell), g_cli_platform_owner);
+    WindowsSpawnCell *const cell = g_cli_guard->temporary_buf_alloc(sizeof(WindowsSpawnCell), g_cli_platform_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "no memory is left to start the command");
@@ -239,9 +239,9 @@ EMBED_INLINE int cli_spawn_attributes(const WindowsSpawnCtx *args)
 int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
 {
     long long *code = args->code;
-    WindowsSpawnCell *const cell = EMBED_CALL(cli_spawn_prepare, WindowsSpawnCtx, .words = args->words, .folder = NULL,
-                                              .settings = args->settings, .count = args->count,
-                                              .err_msg = args->err_msg);
+    WindowsSpawnCell *const cell =
+        EMBED_CALL(cli_spawn_prepare, WindowsSpawnCtx, .words = args->words, .folder = NULL, .settings = args->settings,
+                   .count = args->count, .err_msg = args->err_msg);
     if (cell == NULL)
     {
         return 0;
@@ -263,8 +263,8 @@ int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
             inherited += 1u;
         }
     }
-    const int listed = (inherited != 0u) &&
-                       EMBED_CALL(cli_spawn_attributes, WindowsSpawnCtx, .cell = cell, .inherited = inherited);
+    const int listed =
+        (inherited != 0u) && EMBED_CALL(cli_spawn_attributes, WindowsSpawnCtx, .cell = cell, .inherited = inherited);
     const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)cell->attributes;
     STARTUPINFOEXW startup;
     memor.set(&(MemoriaCfg){.dst = &startup, .val = 0, .bytes = sizeof(startup)});
@@ -277,8 +277,8 @@ int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
     const DWORD flags = CREATE_UNICODE_ENVIRONMENT | (listed ? EXTENDED_STARTUPINFO_PRESENT : 0u);
-    const BOOL made = CreateProcessW(NULL, cell->wide, NULL, NULL, listed, flags, cell->block, NULL,
-                                     &startup.StartupInfo, &process);
+    const BOOL made =
+        CreateProcessW(NULL, cell->wide, NULL, NULL, listed, flags, cell->block, NULL, &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
     if (listed)
     {
@@ -374,7 +374,7 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     cell->inherited[1] = out_write;
     cell->inherited[2] = err_write;
     // a handle is a pointer's width, which an unsigned long long stores
-    cell->inherited[3] = (HANDLE)(uintptr_t)args->inherited_handle;
+    cell->inherited[3] = (HANDLE)(embed_word)args->inherited_handle;
     const unsigned int handles_listed = (args->inherited_handle != 0ull) ? 4u : 3u;
     const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)cell->attributes;
     const int listed = piped && EMBED_CALL(cli_spawn_attributes, WindowsSpawnCtx, .cell = cell,
@@ -444,14 +444,14 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
         mmgr_line_decimal(args->err_msg, error, 1u);
         return 0;
     }
-    args->spawned->group = (unsigned long long)(uintptr_t)job;
+    args->spawned->group = (unsigned long long)(embed_word)job;
     CloseHandle(process.hThread);
     // a handle is a pointer's width, which an unsigned long long stores
-    args->spawned->process = (unsigned long long)(uintptr_t)process.hProcess;
+    args->spawned->process = (unsigned long long)(embed_word)process.hProcess;
     args->spawned->id = process.dwProcessId;
-    args->spawned->out = (unsigned long long)(uintptr_t)out_read;
-    args->spawned->err = (unsigned long long)(uintptr_t)err_read;
-    args->spawned->in = (unsigned long long)(uintptr_t)in_write;
+    args->spawned->out = (unsigned long long)(embed_word)out_read;
+    args->spawned->err = (unsigned long long)(embed_word)err_read;
+    args->spawned->in = (unsigned long long)(embed_word)in_write;
     return 1;
 }
 
@@ -533,9 +533,9 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     startup.StartupInfo.hStdError = INVALID_HANDLE_VALUE;
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
-    made = made &&
-           CreateProcessW(NULL, cell->wide, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
-                          cell->block, (args->folder != NULL) ? cell->folder : NULL, &startup.StartupInfo, &process);
+    made = made && CreateProcessW(NULL, cell->wide, NULL, NULL, FALSE,
+                                  EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT, cell->block,
+                                  (args->folder != NULL) ? cell->folder : NULL, &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
     if (list_entries)
     {
@@ -571,11 +571,11 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     }
     CloseHandle(process.hThread);
     // a handle is a pointer's width, which an unsigned long long stores
-    args->spawned->process = (unsigned long long)(uintptr_t)process.hProcess;
+    args->spawned->process = (unsigned long long)(embed_word)process.hProcess;
     args->spawned->id = process.dwProcessId;
-    args->spawned->out = (unsigned long long)(uintptr_t)out_read;
-    args->spawned->in = (unsigned long long)(uintptr_t)in_write;
-    args->spawned->group = (unsigned long long)(uintptr_t)console;
+    args->spawned->out = (unsigned long long)(embed_word)out_read;
+    args->spawned->in = (unsigned long long)(embed_word)in_write;
+    args->spawned->group = (unsigned long long)(embed_word)console;
     return 1;
 }
 
@@ -584,19 +584,19 @@ int cli_spawn_terminal_resize(const CliColsCtx *args)
     const COORD size = {EMBED_CALL(cli_terminal_extent, WindowsSpawnCtx, .count = args->cols),
                         EMBED_CALL(cli_terminal_extent, WindowsSpawnCtx, .count = args->rows)};
     return (args->spawned_read->group != 0ull) &&
-           SUCCEEDED(ResizePseudoConsole((HPCON)(uintptr_t)args->spawned_read->group, size));
+           SUCCEEDED(ResizePseudoConsole((HPCON)(embed_word)args->spawned_read->group, size));
 }
 
 void cli_spawn_terminal_hung_up(const CliColsCtx *args)
 {
-    TerminateProcess((HANDLE)(uintptr_t)args->spawned_read->process, 1u);
+    TerminateProcess((HANDLE)(embed_word)args->spawned_read->process, 1u);
 }
 
 void cli_spawn_terminal_close(const CliSpawnedCtx *args)
 {
     if (args->spawned->group != 0ull)
     {
-        ClosePseudoConsole((HPCON)(uintptr_t)args->spawned->group);
+        ClosePseudoConsole((HPCON)(embed_word)args->spawned->group);
     }
     args->spawned->group = 0ull;
 }
@@ -610,7 +610,7 @@ int cli_spawn_write(const CliPipeHandleCtx *args)
         DWORD written = 0u;
         // a piece is at most a gibibyte, which a DWORD counts
         const DWORD chunk = (DWORD)((size < (1ull << 30u)) ? size : (1ull << 30u));
-        if (!WriteFile((HANDLE)(uintptr_t)args->pipe_handle, at, chunk, &written, NULL) || (written == 0u))
+        if (!WriteFile((HANDLE)(embed_word)args->pipe_handle, at, chunk, &written, NULL) || (written == 0u))
         {
             return 0;
         }
@@ -624,7 +624,7 @@ void cli_spawn_input_close(const CliSpawnedCtx *args)
 {
     if (args->spawned->in != 0ull)
     {
-        CloseHandle((HANDLE)(uintptr_t)args->spawned->in);
+        CloseHandle((HANDLE)(embed_word)args->spawned->in);
         args->spawned->in = 0ull;
     }
 }
@@ -634,7 +634,8 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
     DWORD read = 0u;
     // a piece is at most a gibibyte, which a DWORD counts
     const DWORD chunk = (DWORD)((args->capacity < (1ull << 30u)) ? args->capacity : (1ull << 30u));
-    if ((args->pipe_handle == 0ull) || !ReadFile((HANDLE)(uintptr_t)args->pipe_handle, args->piece, chunk, &read, NULL))
+    if ((args->pipe_handle == 0ull) ||
+        !ReadFile((HANDLE)(embed_word)args->pipe_handle, args->piece, chunk, &read, NULL))
     {
         return 0ull;
     }
@@ -645,7 +646,7 @@ unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args)
 {
     DWORD waiting = 0u;
     if ((args->pipe_handle == 0ull) ||
-        !PeekNamedPipe((HANDLE)(uintptr_t)args->pipe_handle, NULL, 0u, NULL, &waiting, NULL))
+        !PeekNamedPipe((HANDLE)(embed_word)args->pipe_handle, NULL, 0u, NULL, &waiting, NULL))
     {
         return 0ull;
     }
@@ -654,7 +655,7 @@ unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args)
 
 long long cli_spawn_wait(const CliSpawnedCtx *args)
 {
-    const HANDLE process = (HANDLE)(uintptr_t)args->spawned->process;
+    const HANDLE process = (HANDLE)(embed_word)args->spawned->process;
     WaitForSingleObject(process, INFINITE);
     DWORD code = 0u;
     GetExitCodeProcess(process, &code);
@@ -665,7 +666,7 @@ long long cli_spawn_wait(const CliSpawnedCtx *args)
 int cli_spawn_poll(const CliSpawnedCtx *args)
 {
     long long *code = args->code;
-    const HANDLE process = (HANDLE)(uintptr_t)args->spawned->process;
+    const HANDLE process = (HANDLE)(embed_word)args->spawned->process;
     if (WaitForSingleObject(process, 0u) != WAIT_OBJECT_0)
     {
         return 0;
@@ -681,7 +682,7 @@ void cli_spawn_group_end(const CliGroupCtx *args)
 {
     if (args->group != 0ull)
     {
-        TerminateJobObject((HANDLE)(uintptr_t)args->group, 1u);
+        TerminateJobObject((HANDLE)(embed_word)args->group, 1u);
     }
 }
 
@@ -693,7 +694,7 @@ void cli_spawn_close(const CliSpawnedCtx *args)
     {
         if (handles[at] != 0ull)
         {
-            CloseHandle((HANDLE)(uintptr_t)handles[at]);
+            CloseHandle((HANDLE)(embed_word)handles[at]);
         }
     }
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
@@ -701,7 +702,7 @@ void cli_spawn_close(const CliSpawnedCtx *args)
 
 void cli_spawn_kill(const CliColsCtx *args)
 {
-    TerminateProcess((HANDLE)(uintptr_t)args->spawned_read->process, 1u);
+    TerminateProcess((HANDLE)(embed_word)args->spawned_read->process, 1u);
 }
 
 int cli_spawn_interrupt(const CliColsCtx *args)
@@ -732,7 +733,7 @@ unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
 {
     unsigned int capacity = args->capacity_u32;
     // the PATH read into a cell of this call's own, so two threads that read it share nothing
-    char *const path = g_cli_guard->persistent_buf_alloc(QUERY_ENVIRONMENT_MAX_LEN, g_cli_platform_owner);
+    char *const path = g_cli_guard->temporary_buf_alloc(QUERY_ENVIRONMENT_MAX_LEN, g_cli_platform_owner);
     if (path == NULL)
     {
         return 0u;

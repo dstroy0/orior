@@ -122,7 +122,7 @@ void cli_schema_read(const CliSchemaReadTextCtx *args);
 const char *cli_schema_text(const CliSchemaReadAtCtx *args);
 const char *cli_schema_type(const CliSchemaCtx *args);
 
-// the meta-schemas orior_cli bundles, each its URL with no scheme and no `#` and its text (schema_bundled.c)
+// the meta-schemas impero bundles, each its URL with no scheme and no `#` and its text (schema_bundled.c)
 extern const char *const g_cli_schema_bundled[5][2];
 
 // the most documents a check reaches, those it could not find, the values and bytes their tree is taken with, and the
@@ -147,7 +147,7 @@ typedef struct
 
 // the cells the store occupies while it reads a document; the store made empty; the document at `key` read where it was
 // not, a bundled meta-schema, a file, or a schema stored from an earlier fetch: its root, CLI_SCHEMA_NONE where none
-// could be read; and the file a schema fetched from `url` is stored in, into `out`: 1, or 0 where orior_cli has no
+// could be read; and the file a schema fetched from `url` is stored in, into `out`: 1, or 0 where impero has no
 void cli_schema_store_begin(const CliSchemaStoreCtx *args);
 unsigned int cli_schema_load(const CliSchemaStoreCtx *args);
 int cli_schema_cache_path(const CliSchemaUrlCtx *args);
@@ -172,7 +172,7 @@ int cli_schema_same(const CliSchemaReadJsonCtx *args);
 int cli_schema_same_values(const CliSchemaReadOneCtx *args);
 // a schema's value as a message shows it, between backticks, cut short where it is long; a file's value the same; a
 // number as a message shows it; a type's name as a message names it; and whether `size` bytes of `text` match `pattern`
-// somewhere, as ECMAScript reads it: 1, 0, or -1 where orior_cli does not read the pattern
+// somewhere, as ECMAScript reads it: 1, 0, or -1 where impero does not read the pattern
 void cli_schema_show(const CliSchemaJsonValueCtx *args);
 void cli_schema_displayed_value(const CliSchemaReadNodeCtx *args);
 void cli_schema_number_show(const CliSchemaOutCtx *args);
@@ -184,6 +184,8 @@ int cli_schema_matches(const CliSchemaTextCtx *args);
 // them; and them given back with the lock (schema.c)
 extern CliSchemaRead *g_cli_schema_read;
 extern CliSchemaStore *g_cli_schema_store;
+// the read's and the store's cells given back and both let go
+void cli_schema_free(void);
 int cli_schema_lock(void);
 void cli_schema_release(void);
 

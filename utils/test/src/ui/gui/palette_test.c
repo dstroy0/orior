@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // palette_test.c: the palette's check: the dark scheme's colors are the stylesheet's, a token's name finds its color
 // and a name no token has finds the editor's text color
-#include "../../../../../ui/cli/src/view/palette.h"
+#include "../../../../../includes/window/palette.h"
 #include "../cli/cli_check.h"
 
 // the named color called `required`: whether one has the name and its color is `color`
@@ -44,7 +44,7 @@ static int named_differ(const GuiPalette *palette)
 
 int main(void)
 {
-    const GuiPalette *const dark = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const dark = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     cli_check(dark->background_fill == GUI_RGB(0x13u, 0x13u, 0x31u), "the dark ground is the stylesheet's --bg");
     cli_check(dark->text == GUI_RGB(0xe4u, 0xe3u, 0xf5u), "the dark text is the stylesheet's --fg");
     cli_check(dark->text_color == GUI_RGB(0x1du, 0x18u, 0x50u), "the dark ink is the stylesheet's --ink");
@@ -52,7 +52,7 @@ int main(void)
     // a palette the window can change: its colors as the scheme's until they are changed, each named color found by the
     // stylesheet's name, the ink's tint and the editor's ground laid at their opacities
     static GuiPaletteOwn own;
-    EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
+    EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
     cli_check((own.colors.glass == dark->glass) && (own.colors.token == own.token) && (own.colors.token_count == 0u), "a palette of its own starts as the scheme's, with no tokens: those come from the shown language's plugin");
     EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &own, .bar_percent = 30u, .editor_percent = 80u);
     cli_check((own.colors.glass == dark->glass) && (own.colors.editor_background == dark->editor_background), "the opacities the scheme stands at lay the colors the scheme gives");
@@ -71,10 +71,10 @@ int main(void)
     cli_check(named_is(dark, "divider", dark->line) && named_is(dark, "accent", dark->signal), "the hairline and the accent");
     cli_check(named_is(dark, "link.foreground", dark->link) && named_is(dark, "hover.foreground", dark->hover) && named_is(dark, "failure.foreground", dark->fail), "the link, what the pointer lights and a failure");
     cli_check(named_is(dark, "glass.tint", dark->text_color), "the tint of the panes");
-    cli_check(named_is(dark, "titleBar.foreground", dark->bar_text) && named_is(dark, "menubar.foreground", dark->bar_title), "the bar's text and its menu titles");
-    cli_check(named_is(dark, "toolbar.hoverBackground", dark->bar_title_hover) && named_is(dark, "toolbar.hoverForeground", dark->bar_bright), "a pointed title or tool");
-    cli_check(named_is(dark, "breadcrumb.separator", dark->bar_path) && named_is(dark, "statusBar.foreground", dark->status_text), "the status bar's text and the marks between its crumbs");
-    cli_check(named_is(dark, "wordmark.foreground", dark->open_text) && named_is(dark, "wordmark.eye", dark->bar_mark), "the large name and the eye");
+    cli_check(named_is(dark, "titleBar.foreground", dark->top_menu_text) && named_is(dark, "menubar.foreground", dark->top_menu_title), "the bar's text and its menu titles");
+    cli_check(named_is(dark, "toolbar.hoverBackground", dark->top_menu_title_hover) && named_is(dark, "toolbar.hoverForeground", dark->top_menu_bright), "a pointed title or tool");
+    cli_check(named_is(dark, "breadcrumb.separator", dark->top_menu_path) && named_is(dark, "statusBar.foreground", dark->status_text), "the status bar's text and the marks between its crumbs");
+    cli_check(named_is(dark, "wordmark.foreground", dark->open_text) && named_is(dark, "wordmark.eye", dark->top_menu_mark), "the large name and the eye");
     cli_check(named_is(dark, "editor.background", dark->editor_background) && named_is(dark, "editor.foreground", dark->editor_text), "the editor's ground and text");
     cli_check(named_is(dark, "editor.lineNumber", dark->number) && named_is(dark, "editor.lineHighlight", dark->current), "the line numbers and the current line");
     cli_check(named_is(dark, "editor.selection", dark->selection) && named_is(dark, "editor.inactiveSelection", dark->selection_idle), "the selection, with the keys and without them");
@@ -83,6 +83,7 @@ int main(void)
     cli_check(named_is(dark, "minimap.selection", dark->map_selection) && named_is(dark, "minimap.findMatch", dark->map_match) && named_is(dark, "minimap.slider", dark->map_slider) && named_is(dark, "minimap.sliderActive", dark->map_slider_on), "the minimap's");
     cli_check(named_is(dark, "diagnostic.error", dark->error) && named_is(dark, "diagnostic.warning", dark->warning) && named_is(dark, "diagnostic.information", dark->note), "a diagnostic's severities");
     cli_check(named_is(dark, "tab.activeBackground", dark->tab_background), "the shown tab's ground");
+    cli_check(named_is(dark, "button.background", dark->button) && named_is(dark, "button.border", dark->button_line), "a button's glass and its lip");
     cli_check(named_is(dark, "fuse.ash", dark->fuse_ash) && named_is(dark, "fuse.burn", dark->fuse_burn) && named_is(dark, "fuse.fire", dark->fuse_fire), "the busy circle's fuse");
     cli_check(named_is(dark, "lattice.inPlace", dark->lattice[0]) && named_is(dark, "lattice.moving", dark->lattice[1]) && named_is(dark, "lattice.displaced", dark->lattice[2]), "a lattice point in place and moved");
     cli_check(named_is(dark, "fileIcon.red", dark->mark[0]) && named_is(dark, "fileIcon.green", dark->mark[1]) && named_is(dark, "fileIcon.yellow", dark->mark[2]) && named_is(dark, "fileIcon.blue", dark->mark[3]) &&
@@ -144,7 +145,7 @@ int main(void)
     cli_check(!EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = dark, .at = foreground_at, .tenths = &tenths, .under = under, .size = sizeof(under)), "the editor's text is over the least");
     cli_check(!EMBED_CALL(gui_palette_at_size.name_low, GuiPaletteAtSizeCfg, .palette = dark, .at = 0u, .tenths = &tenths, .under = under, .size = sizeof(under)), "a color that is no text is not checked");
     static GuiPaletteOwn dim;
-    EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &dim, .scheme = GUI_SCHEME_DARK);
+    EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &dim, .scheme = GUI_SCHEME_DARK);
     dim.colors.text_2 = GUI_RGB(0x20u, 0x20u, 0x40u);
     unsigned int secondary_at = colors_named;
     for (unsigned int at = 0u; at < colors_named; at += 1u)
@@ -180,9 +181,9 @@ int main(void)
     cli_check((dark->lattice[0] == GUI_RGB(0x6fu, 0xdcu, 0xb4u)) && (dark->lattice[2] == GUI_RGB(0xb4u, 0x9cu, 0xffu)),
               "the lattice's colors are the stylesheet's --lattice-1 to --lattice-3");
     cli_check(dark->open_text == GUI_RGB(0xd7u, 0xd6u, 0xdfu), "the large name stands on the ladder's rung of 86, under the text's 91");
-    cli_check(dark->bar_text == GUI_RGB(0xd7u, 0xd6u, 0xdfu), "the bar's resting text stands on the rung of 86, under the text's 91");
-    cli_check(dark->bar_bright == GUI_RGB(0xe5u, 0xe4u, 0xedu), "what the pointer lights stands on the rung of 91, under the operators' 100");
-    cli_check(dark->bar_mark == GUI_RGB(0xdfu, 0xe0u, 0xf0u), "the eye in the bar is the stylesheet's --bar-mark");
+    cli_check(dark->top_menu_text == GUI_RGB(0xd7u, 0xd6u, 0xdfu), "the bar's resting text stands on the rung of 86, under the text's 91");
+    cli_check(dark->top_menu_bright == GUI_RGB(0xe5u, 0xe4u, 0xedu), "what the pointer lights stands on the rung of 91, under the operators' 100");
+    cli_check(dark->top_menu_mark == GUI_RGB(0xdfu, 0xe0u, 0xf0u), "the eye in the bar is the stylesheet's --bar-mark");
     cli_check(dark->lifted == GUI_RGBA(0x08u, 0x06u, 0x1eu, 0x73u), "the shade is the stylesheet's --lifted");
     cli_check(dark->incised == GUI_RGB(0x11u, 0x10u, 0x2bu), "the cuts are --deep at 80% with black, its lightness by 1.15");
     return cli_on_check();

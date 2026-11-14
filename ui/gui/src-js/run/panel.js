@@ -235,7 +235,7 @@ export function planNoted(run, line) {
     panelRedrawn(run);
   }
   if (line.stream === "command" && !run.pass) {
-    // the pass's name off the command line, `orior_gui protocol learn <pass> ...`, for the line before the plan comes
+    // the pass's name off the command line, `tab protocol learn <pass> ...`, for the line before the plan comes
     const words = line.text.split(/\s+/);
     const at = words.indexOf("learn");
     run.pass = at >= 0 && words[at + 1] ? words[at + 1] : words[words.indexOf("protocol") + 1] ?? "";

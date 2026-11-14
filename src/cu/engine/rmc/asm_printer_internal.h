@@ -9,7 +9,7 @@
 #include "../../engine/analysis/keymath/keymath.h"
 #include "asm_printer.h"
 #include "asm_printer_core.h"
-#include "../../includes/file_defs/krs/ruleset_reader.h"
+#include "../../../../includes/file_defs/krs/ruleset_reader.h"
 
 #include <stddef.h>
 #include <stdio.h>

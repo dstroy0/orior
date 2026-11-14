@@ -3,7 +3,8 @@
 // raster_test.c: the raster's check: a raster made is clear, a fill colors its rectangle and nothing about it, is
 // clipped to the raster and blends by its alpha, a mask blends by its coverage inside the clip, two rectangles meet in
 // their overlap, a rounded fill leaves its corners short, a line colors its ends and a dot is soft-edged
-#include "../../../../../ui/cli/src/view/raster.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/raster/raster.h"
 #include "../cli/cli_check.h"
 
 #include <math.h>
@@ -24,7 +25,7 @@ static void rows_checked(void)
     const GuiColor over = GUI_RGB(0xffu, 0xffu, 0xffu);
     const GuiColor under = GUI_RGB(0u, 0u, 0u);
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 8u, .height = 2u), "a raster for the rows is made");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 8u, .height = 2u), "a raster for the rows is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 8, 2}, .color = under);
     row_laid(&raster, row, 2u, 1 << 16, 3 << 16, 0, over);
     cli_check((raster.pixels[0] == under) && (raster.pixels[1] == over) && (raster.pixels[2] == under), "a row laid one to one is its bytes");
@@ -49,7 +50,6 @@ static void rows_checked(void)
     row_laid(&raster, full, 1u, 0, 8 << 16, -1, over);
     row_laid(&raster, full, 1u, 5 << 16, 5 << 16, 1, over);
     cli_check(raster.pixels[13] == under, "a row off the raster or of no width lays nothing");
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
@@ -61,7 +61,7 @@ static void pictures_checked(void)
     const GuiColor under = GUI_RGB(0u, 0u, 0u);
     GuiRaster raster;
     GuiRaster picture;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &picture, .width = 2u, .height = 1u), "a picture is made clear");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &picture, .width = 2u, .height = 1u, .part = GUI_BLOCK_FRAMES, .segment = 1u), "a picture is made clear");
     unsigned char solid[2] = {255u, 255u};
     const GuiMask both = {2u, 1u, 0, 0, solid};
     EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask_bits = &both, .x = 0, .y = 0, .color = GUI_RGBA(0x80u, 0u, 0u, 0x80u));
@@ -76,7 +76,7 @@ static void pictures_checked(void)
     cli_check((GUI_ALPHA_OF(picture.pixels[0]) >= 0xbfu) && (GUI_ALPHA_OF(picture.pixels[0]) <= 0xc1u) &&
                   (GUI_GREEN_OF(picture.pixels[0]) > GUI_RED_OF(picture.pixels[0])),
               "a mask over part of an alpha adds to the alpha and leads the color");
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 4u, .height = 1u), "a raster for the picture is made");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 4u, .height = 1u), "a raster for the picture is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 4, 1}, .color = under);
     EMBED_CALL(gui_raster_x.picture_layout, GuiRasterXCfg, .raster = &raster, .picture_read = &picture, .x = 1, .y = 0, .opacity = 255u);
     cli_check((raster.pixels[0] == under) && (raster.pixels[2] == GUI_RGB(0u, 0u, 0xffu)) && (raster.pixels[3] == under),
@@ -90,11 +90,9 @@ static void pictures_checked(void)
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 4, 1}, .color = under);
     EMBED_CALL(gui_raster_x.picture_layout, GuiRasterXCfg, .raster = &raster, .picture_read = &picture, .x = -9, .y = 0, .opacity = 255u);
     cli_check(raster.pixels[0] == under, "and one off it lays nothing");
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    g_cli_guard->persistent_buf_release(picture.pixels, g_gui_raster_owner);
     picture.pixels = NULL;
     picture.width = 0u;
     picture.height = 0u;
@@ -112,8 +110,11 @@ static void row_laid(GuiRaster *raster, const unsigned char *cover, unsigned int
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 8u, .height = 4u), "a raster of eight by four is made");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 8u, .height = 4u), "a raster of eight by four is made");
     cli_check((raster.width == 8u) && (raster.height == 4u), "a raster made keeps its size");
     cli_check((raster.pixels[0] == 0u) && (raster.pixels[31] == 0u), "a raster made is clear");
 
@@ -187,6 +188,8 @@ int main(void)
     cli_check(raster.pixels[0] != 0xff000000u, "a rounded fill covers its corner pixel in part");
     cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a rounded fill colors its middle whole");
     cli_check(raster.pixels[3u] == 0xffffffffu, "a rounded fill colors its top edge between the corners whole");
+    cli_check((raster.pixels[(3u * 8u) + 0u] != 0xffffffffu) && (raster.pixels[(3u * 8u) + 7u] != 0xffffffffu), "a rounded fill leaves its bottom corner pixels short of the color");
+    cli_check(raster.pixels[(3u * 8u) + 0u] == raster.pixels[0], "a rounded fill covers its bottom corner as it covers its top");
 
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
     const GuiUnder plain = {NULL, black};
@@ -197,7 +200,7 @@ int main(void)
 
     // a corner cut to a ground raster takes that raster's pixel, with a color over it where one is given
     GuiRaster under;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &under, .width = 8u, .height = 4u), "a ground raster is made");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &under, .width = 8u, .height = 4u, .part = GUI_BLOCK_FRAMES, .segment = 1u), "a ground raster is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &under, .rect = whole, .color = GUI_RGB(0x00u, 0x80u, 0x00u));
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
     EMBED_CALL(gui_raster_rect_radius_background.corners_cut, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .background_fill = (GuiUnder){&under, 0u});
@@ -205,7 +208,6 @@ int main(void)
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
     EMBED_CALL(gui_raster_rect_radius_background.corners_cut, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .background_fill = (GuiUnder){&under, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u)});
     cli_check((red_of(raster.pixels[0]) > 0x40u) && (((raster.pixels[0] >> 8u) & 0xffu) > 0x20u), "a color over the ground raster is blended into the corner");
-    g_cli_guard->persistent_buf_release(under.pixels, g_gui_raster_owner);
     under.pixels = NULL;
     under.width = 0u;
     under.height = 0u;
@@ -221,11 +223,10 @@ int main(void)
     EMBED_CALL(gui_raster_rect_radius.grain, GuiRasterRectRadiusCfg, .raster = &raster, .rect = whole, .radius = 3u, .alpha = grain, .tile = 2u, .color = GUI_RGB(0xffu, 0xffu, 0xffu));
     cli_check(red_of(raster.pixels[1u]) < 0xffu, "the grain is short at a rounded corner");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 40u, .height = 30u), "a raster of forty by thirty is made for a notch");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 40u, .height = 30u), "a raster of forty by thirty is made for a notch");
     const GuiRect big = {0, 0, 40, 30};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = big, .color = white);
     EMBED_CALL(gui_raster_radius_background.notch, GuiRasterRadiusBackgroundCfg, .raster = &raster, .work = big, .notch = (GuiRect){10, 0, 20, 12}, .radius = 4u, .background_fill = plain);
@@ -235,11 +236,10 @@ int main(void)
     cli_check(red_of(raster.pixels[(11u * 40u) + 10u]) > 0x80u, "the turn into the notch's corner inside the work is filleted, the work's color left at the corner");
     cli_check(red_of(raster.pixels[(0u * 40u) + 9u]) < 0x80u, "the turn at the work's edge beside the notch is cut round");
     cli_check(raster.pixels[(8u * 40u) + 20u] == 0xff000000u, "the notch's middle is the ground whole");
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 8u, .height = 4u), "the small raster is made again");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 8u, .height = 4u), "the small raster is made again");
 
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
     EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = &raster, .x0 = 0, .y0 = 3, .x1 = 7, .y1 = 3, .color = text_color);
@@ -283,7 +283,7 @@ int main(void)
     cli_check((raster.pixels[(1u * 8u) + 1u] == 0xff000000u) && (raster.pixels[(1u * 8u) + 2u] == 0xff000000u), "lanes lay nothing outside the clip");
 
     // a ground with a grain: the tint over the ground's color, and white over that by the grain's tile
-    cli_check(EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = black, .color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u)) == 0xff808080u, "a half-clear white over black is mid gray");
+    cli_check(EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = black, .color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u)) == 0xff808080u, "a half-clear white over black is mid gray");
     const unsigned char grained[4] = {0u, 255u, 0u, 0u};
     const GuiUnder table = {NULL, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u), grained, 2u, black, GUI_RGB(0xffu, 0xffu, 0xffu)};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
@@ -311,13 +311,12 @@ int main(void)
               "each the radius's square inside the hole at its corner");
     cli_check(EMBED_CALL(gui_raster_radius.notch_fillets, GuiRasterRadiusCfg, .work = (GuiRect){0, 0, 40, 30}, .notch = (GuiRect){10, 10, 20, 12}, .radius = 4u, .squares = fillets) == 4u, "a hole inside the work has four");
     cli_check(EMBED_CALL(gui_raster_radius.notch_fillets, GuiRasterRadiusCfg, .work = (GuiRect){0, 0, 40, 30}, .notch = (GuiRect){50, 0, 20, 12}, .radius = 4u, .squares = fillets) == 0u, "a notch off the work has none");
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
 
     // the work's outline: its lines along each edge, bent round its corners to the table, and round a hole
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 40u, .height = 30u), "a raster of forty by thirty is made for the outline");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 40u, .height = 30u), "a raster of forty by thirty is made for the outline");
     const GuiRect work = {2, 2, 36, 26};
     const GuiRect inside = {3, 4, 33, 23};
     const GuiColor top = GUI_RGB(0x10u, 0xe0u, 0xa0u);
@@ -343,7 +342,6 @@ int main(void)
     cli_check((raster.pixels[(12u * 40u) + 20u] == top) && (raster.pixels[(13u * 40u) + 20u] == top), "and its foot carries it across");
     cli_check(raster.pixels[(20u * 40u) + 20u] == 0xffffffffu, "the work below the hole stands");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
@@ -368,5 +366,6 @@ int main(void)
     cli_check(arcs_right, "an arc's table holds each pixel's share inside it, at every reach");
     cli_check((EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = 7u, .across = 0u, .down = 0u) == 255u) && (EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = 7u, .across = 7u, .down = 7u) == 0u), "a pixel by the center is whole inside and one past the arc is out");
     cli_check(EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = 90u, .across = 0u, .down = 0u) == 255u, "a reach past the tables is worked out");
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

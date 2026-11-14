@@ -77,7 +77,7 @@ EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
     const unsigned long long capacity =
         (args->size < CLI_COMMENT_CAPACITY) ? (args->size + 1ULL) : CLI_COMMENT_CAPACITY;
     const unsigned long long spans = 2ULL * line_capacity * sizeof(CliSpan);
-    char *const cell = g_cli_guard->persistent_buf_alloc(spans + (3ULL * capacity), g_cli_purpose_owner);
+    char *const cell = g_cli_guard->temporary_buf_alloc(spans + (3ULL * capacity), g_cli_purpose_owner);
     if (cell == NULL)
     {
         return 0;

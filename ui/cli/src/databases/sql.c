@@ -291,20 +291,8 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
 // whether `length` bytes of `text` are `word` in either case
 EMBED_INLINE int cli_word_is(const SqlCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) != args->length)
-    {
-        return 0;
-    }
-    for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
-    {
-        const char letter =
-            ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32) : args->text[at];
-        if (letter != args->word_text[at])
-        {
-            return 0;
-        }
-    }
-    return 1;
+    return EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .size = args->length, .one = args->text,
+                      .other_pointer = args->word_text);
 }
 
 EMBED_INLINE int cli_word_in(const SqlCtx *args)

@@ -20,27 +20,46 @@ typedef struct CliInspectTreePathCtx CliInspectTreePathCtx;
 #define CLI_TREE_FILES 65536u
 #define CLI_TREE_NONE 0xffffffffu
 
-// A file of the tree: whether it contains one, whether its language is Python, its path, and its facts, both stored in
-// `cell`, `size` bytes taken as the file is set and given back as it is taken out
+// A file of the tree: whether it contains one, whether its language is Python, the length of its path and the bucket
+// its path hashes to, and its facts. The path stands at the start of the facts' movable cell, a 0 after it, and the
+// facts' lists after the path; the cell is taken as the file is set and given back as it is taken out
 typedef struct
 {
     int used;
     int python;
-    const char *path;
     unsigned int path_size;
-    CliFacts facts;
-    unsigned char *cell;
-    unsigned long long size;
+    unsigned int hash;
+    CliFactsCell facts;
 } CliTreeFile;
 
-// the tree's files in pages of CLI_TREE_PAGE, each page a cell taken as the first place in it is and given back as
-// the tree is cleared, how many places among them were ever taken, and its lock; and the file at `file_`
-// (inspect_tree.c)
+// where a file's path stands in its facts' cell
+#define CLI_TREE_PATH_AT 0ULL
+
+// the most bytes a path of the tree is read into on the stack
+#define CLI_TREE_PATH_BYTES (CLI_PATH_MAX_LEN * 2u)
+
+// the tree's files in pages of CLI_TREE_PAGE, each page a movable cell taken as the first place in it is and given
+// back as the tree is cleared, and how many places among them were ever taken; the page the file at `file_` stands
+// in and where its record stands in that page. A reader reads the record through the guard's movable read into a
+// record of its own (inspect_tree.c)
 #define CLI_TREE_PAGE 256u
 #define CLI_TREE_PAGES (CLI_TREE_FILES / CLI_TREE_PAGE)
-extern CliTreeFile *g_cli_tree_page[CLI_TREE_PAGES];
+extern const CarcerMovableEntry *g_cli_tree_page[CLI_TREE_PAGES];
 extern unsigned int g_cli_tree_files;
-#define CLI_TREE_FILE(file_) (g_cli_tree_page[(file_) / CLI_TREE_PAGE][(file_) % CLI_TREE_PAGE])
+#define CLI_TREE_PAGE_OF(file_) (g_cli_tree_page[(file_) / CLI_TREE_PAGE])
+#define CLI_TREE_FILE_AT(file_) ((unsigned long long)((file_) % CLI_TREE_PAGE) * sizeof(CliTreeFile))
+
+// the record of the file at `file_` read into `record_`, and `record_` written as it
+#define CLI_TREE_FILE_READ(file_, record_)                                                                             \
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = CLI_TREE_PAGE_OF(file_),                           \
+                                                            .offset = CLI_TREE_FILE_AT(file_),                         \
+                                                            .dst = (record_),                                          \
+                                                            .bytes = sizeof(CliTreeFile)})
+#define CLI_TREE_FILE_WRITE(file_, record_)                                                                            \
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = CLI_TREE_PAGE_OF(file_),                          \
+                                                             .offset = CLI_TREE_FILE_AT(file_),                        \
+                                                             .src = (record_),                                         \
+                                                             .bytes = sizeof(CliTreeFile)})
 
 // the file of `size` bytes of path at `path`: its place, CLI_TREE_NONE where the tree contains none; the same of a
 // path written as `folder` and `name` joined by a slash, `folder` empty for none (inspect_tree.c)

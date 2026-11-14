@@ -1,172 +1,163 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_check_capacity.c: the tree's check's capacity: four cells taken as the check starts and given back as it is
-// let go, each sized from the tree's files: their paths, where each starts, the files waiting in a ring, and the paths
-// of those. Every call with the queue's lock acquired
+// servers_check_room.c: the tree's check's room: the movable cell for the tree's files, taken as the check starts and
+// given back as it is let go, sized from the tree's files; and the files waiting, each one movable cell whose token is
+// pushed on one of the check's two ticket rings under a ticket of its own, the ring's proofs holding the checkers'
+// pops in ticket order. Every call with the queue's lock acquired
 #include "../command_line/pool.h"
+#include "../command_line/rings.h"
 #include "servers_internal.h"
 
-#include <stdlib.h>
-
-// the most files waiting; and the bytes and the files a capacity holds past those of the tree it is made for
-#define CLI_SERVERS_WAITING (1u << 16u)
-#define CLI_SERVERS_CAPACITY_MORE (64ULL << 10u)
+// the files a capacity holds past those of the tree it is made for
 #define CLI_SERVERS_POSITIONS_MORE 64u
-
-// the files waiting by their places in the ring, sorted by where their paths stand, and the queue they are of
-static unsigned int s_order[CLI_SERVERS_WAITING];
-static const CliServersQueue *s_ordering;
 
 int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
 {
+    CliServersQueue *const queue = args->queue;
     const char *const *files = args->files;
     // the files of the tree checked and their paths' bytes, and as many over for those a change adds
-    unsigned long long bytes = CLI_SERVERS_CAPACITY_MORE;
+    unsigned long long bytes = 64ULL << 10u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = files[at], .cap = CLI_POOL_BYTES}) + 2ULL;
     }
     const unsigned int required = args->count + CLI_SERVERS_POSITIONS_MORE;
-    const unsigned int positions = (required < CLI_SERVERS_WAITING) ? required : CLI_SERVERS_WAITING;
-    if ((args->queue->files != NULL) &&
-        ((args->queue->count != 0u) || ((args->queue->files_max >= bytes) && (args->queue->file_at_max >= positions))))
+    const unsigned int positions = (required < CLI_SERVERS_FILES_MOST) ? required : CLI_SERVERS_FILES_MOST;
+    if (!queue->laid)
+    {
+        EmbedTicketRingSlot *const slots =
+            (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_SERVERS_CHECK);
+        embed_ticket_ring_begin(&queue->waiting.ring, slots, CLI_SERVERS_CHECK_RING_SHIFT);
+        embed_ticket_ring_begin(&queue->first.ring, slots + (1u << CLI_SERVERS_CHECK_RING_SHIFT),
+                                CLI_SERVERS_CHECK_FIRST_SHIFT);
+        queue->laid = 1;
+    }
+    if ((queue->files_cell != NULL) && (queue->files_max >= bytes) && (queue->file_at_max >= positions))
     {
         return 1;
     }
-    g_cli_guard->persistent_buf_release(args->queue->files, g_cli_servers_check_work_state_owner);
-    g_cli_guard->persistent_buf_release(args->queue->file_at, g_cli_servers_check_work_state_owner);
-    g_cli_guard->persistent_buf_release(args->queue->waiting, g_cli_servers_check_work_state_owner);
-    g_cli_guard->persistent_buf_release(args->queue->capacity, g_cli_servers_check_work_state_owner);
-    args->queue->files = NULL;
-    args->queue->file_at = NULL;
-    args->queue->waiting = NULL;
-    args->queue->capacity = NULL;
-    args->queue->files = g_cli_guard->persistent_buf_alloc(bytes, g_cli_servers_check_work_state_owner);
-    args->queue->file_at = g_cli_guard->persistent_buf_alloc(positions * sizeof(*args->queue->file_at),
-                                                             g_cli_servers_check_work_state_owner);
-    args->queue->waiting = g_cli_guard->persistent_buf_alloc(positions * sizeof(*args->queue->waiting),
-                                                             g_cli_servers_check_work_state_owner);
-    args->queue->capacity = g_cli_guard->persistent_buf_alloc(bytes, g_cli_servers_check_work_state_owner);
-    args->queue->files_max = bytes;
-    args->queue->file_at_max = positions;
-    args->queue->waiting_max = positions;
-    args->queue->capacity_max = bytes;
-    if ((args->queue->files == NULL) || (args->queue->file_at == NULL) || (args->queue->waiting == NULL) ||
-        (args->queue->capacity == NULL))
+    if (queue->files_cell != NULL)
     {
-        g_cli_guard->persistent_buf_release(args->queue->files, g_cli_servers_check_work_state_owner);
-        g_cli_guard->persistent_buf_release(args->queue->file_at, g_cli_servers_check_work_state_owner);
-        g_cli_guard->persistent_buf_release(args->queue->waiting, g_cli_servers_check_work_state_owner);
-        g_cli_guard->persistent_buf_release(args->queue->capacity, g_cli_servers_check_work_state_owner);
-        args->queue->files = NULL;
-        args->queue->file_at = NULL;
-        args->queue->waiting = NULL;
-        args->queue->capacity = NULL;
+        (void)g_cli_guard->movable_buf_release(queue->files_cell, g_cli_servers_check_work_state_owner);
+    }
+    // the starts, the waiting bytes and the texts in one cell
+    queue->files_cell = g_cli_guard->movable_buf_alloc(
+        CLI_SERVERS_FILE_AT(positions) + (unsigned long long)positions + bytes, g_cli_servers_check_work_state_owner);
+    queue->files_max = bytes;
+    queue->file_at_max = positions;
+    if (queue->files_cell == NULL)
+    {
         return 0;
     }
+    EMBED_CALL(cli_servers_queue_files_internal.check_queued_cleared, CliServersQueueFilesCtx, .queue = queue);
     return 1;
 }
 
-CliServersQueued *cli_servers_check_queued_at(const CliServersQueueAtCtx *args)
+void cli_servers_check_queued_cleared(const CliServersQueueFilesCtx *args)
 {
-    return &args->queue_read->waiting[(args->queue_read->head + args->at) % args->queue_read->waiting_max];
-}
-
-// two files waiting in the order their paths stand in the capacity
-static int capacity_order(const void *one, const void *other)
-{
-    const unsigned long long left = EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
-                                               .queue_read = s_ordering, .at = *(const unsigned int *)one)
-                                        ->path;
-    const unsigned long long right = EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
-                                                .queue_read = s_ordering, .at = *(const unsigned int *)other)
-                                         ->path;
-    if (left < right)
+    static const unsigned char s_zeros[256];
+    CliServersQueue *const queue = args->queue;
+    for (unsigned int at = 0u; (queue->files_cell != NULL) && (at < queue->file_at_max); at += sizeof(s_zeros))
     {
-        return -1;
+        const unsigned int left = queue->file_at_max - at;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = queue->files_cell,
+                                .offset = CLI_SERVERS_QUEUED_AT(queue, at),
+                                .src = s_zeros,
+                                .bytes = (left < sizeof(s_zeros)) ? left : sizeof(s_zeros)});
     }
-    if (left > right)
-    {
-        return 1;
-    }
-    return 0;
-}
-
-typedef struct
-{
-    CliServersQueue *queue;
-} ServersCheckCapacityCtx;
-// the capacity's paths moved down together, its free bytes all after the last
-EMBED_INLINE void capacity_compact(const ServersCheckCapacityCtx *args)
-{
-    CliServersQueue *queue = args->queue;
-    for (unsigned int at = 0u; at < queue->count; at += 1u)
-    {
-        s_order[at] = at;
-    }
-    s_ordering = queue;
-    qsort(s_order, queue->count, sizeof(s_order[0]), capacity_order);
-    unsigned long long used = 0ULL;
-    for (unsigned int at = 0u; at < queue->count; at += 1u)
-    {
-        CliServersQueued *const one = EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
-                                                 .queue_read = queue, .at = s_order[at]);
-        memor.move_down(
-            &(MemoriaCfg){.dst = queue->capacity + used, .src = queue->capacity + one->path, .bytes = one->integer});
-        one->path = used;
-        used += one->integer;
-    }
-    queue->used = used;
 }
 
 int cli_servers_check_queue_append(const CliServersQueueCtx *args)
 {
-    const unsigned int size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
-    if (args->queue->capacity == NULL)
+    CliServersQueue *const queue = args->queue;
+    CliServersCheckRing *const ring = args->front ? &queue->first : &queue->waiting;
+    if (!queue->laid)
     {
         return 0;
     }
-    // the path and its 0, then the name and its 0
+    // the ring full, the file is refused; the queuing threads hold the queue's lock, so the ticket read here is the
+    // one taken below, and a checker only makes room
+    const embed_u32 ticket = embed_atomic_u32_load(&ring->ticket);
+    if (!cli_ticket_room(&ring->ring, ticket))
+    {
+        return 0;
+    }
+    // the head, then the path and its 0, then the name and its 0, in one movable cell whose token rides the ring
+    const unsigned int size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned int named =
         (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = args->waiting->id, .cap = CLI_NAME_MAX_LEN}) + 1u;
-    const unsigned int integer = size + 1u + named;
-    if (args->queue->used + integer > args->queue->capacity_max)
-    {
-        EMBED_CALL(capacity_compact, ServersCheckCapacityCtx, .queue = args->queue);
-    }
-    if ((args->queue->count == args->queue->waiting_max) || (args->queue->used + integer > args->queue->capacity_max))
+    const CarcerMovableEntry *const job = g_cli_guard->movable_buf_alloc(sizeof(CliServersQueued) + size + 1u + named,
+                                                                         g_cli_servers_check_work_state_owner);
+    if (job == NULL)
     {
         return 0;
     }
-    if (args->front)
+    const CliServersQueued head = {args->waiting->server, embed_atomic_u64_load(&queue->generation), args->file, size};
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = job, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = job, .offset = sizeof(head), .src = args->path, .bytes = size + 1u});
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = job, .offset = sizeof(head) + size + 1u, .src = args->waiting->id, .bytes = named});
+    (void)EMBED_ATOMIC_ADD_32(&ring->ticket, 1u);
+    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)job;
+    embed_u64 seen = 0u;
+    (void)embed_ticket_ring_granted(&ring->turnstiles, address, &ring->ring, stamp, &seen);
+    (void)embed_ticket_ring_pushed(&ring->turnstiles, address, &ring->ring, stamp, (void *)(embed_word)job, &seen);
+    if ((args->file != CLI_SERVERS_NO_FILE) && (args->file < queue->file_at_max))
     {
-        args->queue->head = (args->queue->head + args->queue->waiting_max - 1u) % args->queue->waiting_max;
+        static const unsigned char s_waiting = 1u;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = queue->files_cell,
+                                                                 .offset = CLI_SERVERS_QUEUED_AT(queue, args->file),
+                                                                 .src = &s_waiting,
+                                                                 .bytes = 1u});
     }
-    CliServersQueued *const one = EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
-                                             .queue_read = args->queue, .at = args->front ? 0u : args->queue->count);
-    args->queue->count += 1u;
-    memor.cpy(&(MemoriaCfg){.dst = args->queue->capacity + args->queue->used, .src = args->path, .bytes = size + 1u});
-    memor.cpy(&(MemoriaCfg){
-        .dst = args->queue->capacity + args->queue->used + size + 1u, .src = args->waiting->id, .bytes = named});
-    *one = (CliServersQueued){args->queue->used, size, integer, args->waiting->server};
-    args->queue->used += integer;
     return 1;
+}
+
+unsigned int cli_servers_check_waiting(const CliServersQueue *queue)
+{
+    unsigned int waiting = 0u;
+    const CliServersCheckRing *const rings[2] = {&queue->waiting, &queue->first};
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        // the checkers take tickets ahead of the pushes, so the taken past the pushed count as none waiting
+        const embed_u32 pushed = embed_atomic_u32_load(&rings[at]->ticket);
+        const embed_u32 taken = embed_atomic_u32_load(&rings[at]->taken);
+        waiting += (pushed > taken) ? pushed - taken : 0u;
+    }
+    return waiting;
 }
 
 void cli_servers_check_files_append(const CliServersQueueFilesCtx *args)
 {
-    for (unsigned int at = 0u; (args->queue->files != NULL) && (at < args->count); at += 1u)
+    static const unsigned char s_idle = 0u;
+    CliServersQueue *const queue = args->queue;
+    for (unsigned int at = 0u; (queue->files_cell != NULL) && (at < args->count); at += 1u)
     {
-        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->files[at], .cap = CLI_POOL_BYTES}) + 1u;
-        if ((args->queue->file_count == args->queue->file_at_max) ||
-            (args->queue->files_used + size > args->queue->files_max))
+        const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->files[at], .cap = CLI_POOL_BYTES}) + 1u;
+        if ((queue->file_count == queue->file_at_max) || (queue->files_used + size > queue->files_max))
         {
             return;
         }
-        memor.cpy(
-            &(MemoriaCfg){.dst = args->queue->files + args->queue->files_used, .src = args->files[at], .bytes = size});
-        args->queue->file_at[args->queue->file_count] = args->queue->files_used;
-        args->queue->file_count += 1u;
-        args->queue->files_used += size;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = queue->files_cell,
+                                .offset = CLI_SERVERS_FILES_TEXT_AT(queue, queue->files_used),
+                                .src = args->files[at],
+                                .bytes = size});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = queue->files_cell,
+                                                                 .offset = CLI_SERVERS_FILE_AT(queue->file_count),
+                                                                 .src = &queue->files_used,
+                                                                 .bytes = sizeof(queue->files_used)});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = queue->files_cell,
+                                .offset = CLI_SERVERS_QUEUED_AT(queue, queue->file_count),
+                                .src = &s_idle,
+                                .bytes = 1u});
+        queue->file_count += 1u;
+        queue->files_used += size;
     }
 }

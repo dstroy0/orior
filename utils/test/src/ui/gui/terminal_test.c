@@ -4,8 +4,9 @@
 // dotted token, drawn through the pane as a tab's line is: the sequences take no column, the letter after
 // keyword.foreground.1 stands in the terminal's red, the letter after keyword.reset in the text's color, and the letter
 // after keyword.inverse on the text's color as its ground
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/plugins/plugins.h"
-#include "../../../../../ui/cli/src/view/parts/terminal.h"
+#include "../../../../../ui/gui/src/terminal.h"
 #include "../cli/cli_check.h"
 
 static const char s_key[] = "check:terminal";
@@ -29,16 +30,19 @@ static int colored(const GuiRaster *raster, GuiRect rect, GuiColor color)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &frame, .height = 240);
@@ -74,7 +78,7 @@ int main(void)
 
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
                .raster = &raster, .palette = palette);
@@ -95,9 +99,9 @@ int main(void)
 
     cli_view_frame_release((CliViewFrame *)terminal.frame[0]);
     g_cli_guard->persistent_buf_release((void *)terminal.names[0], g_checks_owner);
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

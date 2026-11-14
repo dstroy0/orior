@@ -3,9 +3,8 @@
 // schema_bounds.c: a number checked against `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` and
 // `multipleOf`, draft 4's boolean exclusive bounds read beside them, the last bound it passes reported; and a string
 // against `minLength`, `maxLength`, counted in letters, and `pattern`
+#include "../../../../includes/arith/arith.h"
 #include "schema_internal.h"
-
-#include <math.h>
 
 typedef struct
 {
@@ -84,7 +83,7 @@ void cli_schema_number_check(const CliSchemaBaseMapCtx *args)
         (bound > 0.0))
     {
         const double ratio = number / bound;
-        if (fabs(ratio - round(ratio)) > 1e-9)
+        if (arith_abs(ratio - arith_round(ratio)) > 1e-9)
         {
             EMBED_CALL(bounds_msg_write, SchemaBoundsCtx, .msg = &msg, .number = number,
                        .between = " is no multiple of ", .bound = bound, .after = "");

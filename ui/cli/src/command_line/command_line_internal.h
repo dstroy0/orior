@@ -53,7 +53,7 @@ void cli_wrap(const CliCommandLineTextCtx *args);
 // as ASCII has it
 void cli_quoted_word(const CliCommandLineOutCtx *args);
 int cli_contains_word(const CliCommandLineCtx *args);
-// the tree's jobs read, stored until the next read
+// the tree's jobs read into the catalog's cell, stored until the next read
 CliCatalog *cli_command_line_catalog(const CliCommandLineWordCtx *args);
 // the job a word names among the jobs of `catalog` at `among`, `among_count` of them, or among every one where `among`
 // is NULL: the one whose id it is, else the only one whose id ends in it after a slash or whose title it is: its place,
@@ -76,7 +76,7 @@ int cli_job_run(const CliCommandLineRootCtx *args);
 // a terminal of the window's started this process, else none; and `size` bytes of `body`, JSON, sent to it
 
 // the jobs of the menu's groups, their places in the catalog into `list_entries`, sized for CLI_LINE_JOBS: their count;
-// a menu's commands and the jobs of a menu of jobs listed, as `orior_cli <menu>` alone shows them, its jobs from the
+// a menu's commands and the jobs of a menu of jobs listed, as `imp <menu>` alone shows them, its jobs from the
 // tree at `root`, NULL where there is none; and a job of a menu of jobs shown, as the window shows it on choosing, each
 // giving the code to exit with (command_line_menus.c)
 unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args);
@@ -106,7 +106,7 @@ int cli_console(const CliCommandLineWordsCountCtx *args);
 // it into what it draws with and reads no file for it; with no words, the text standing written out. The code to exit
 // with (command_line_console.c)
 int cli_console_setting(const CliCommandLineWordsCountCtx *args);
-// `orior_cli edit search [--case] [--word] [--regex] <text>`: every line in the tree's files that contains the text, as
+// `imp edit search [--case] [--word] [--regex] <text>`: every line in the tree's files that contains the text, as
 // path:line:column: line; the code to exit with, 1 where none does, as grep exits (command_line_search.c)
 int cli_console_search(const CliCommandLineWordsCountCtx *args);
 // the path in the tree and what follows it of a word that names a file of the tree, as path, path:line or
@@ -114,7 +114,7 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args);
 // it names no file
 int cli_file_word(const CliCommandLineOutCtx *args);
 
-// the commands of `orior_cli file` and `orior_cli run` that work on plugins, toolchains, files and repositories, each
+// the commands of `imp file` and `imp run` that work on plugins, toolchains, files and repositories, each
 // giving the code to exit with (command_line_tools.c, command_line_toolchains.c, command_line_files.c)
 int cli_plugins_list(void);
 int cli_new_plugin(const CliCommandLineWordsCountCtx *args);

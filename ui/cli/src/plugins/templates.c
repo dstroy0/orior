@@ -132,7 +132,7 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
         g_cli_guard->temporary_buf_alloc(((2ULL * named) + 1ULL) * sizeof(*piece), g_cli_templates_owner);
     if (piece == NULL)
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_templates_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_templates_owner));
         return EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->from, .err_msg = args->err_msg);
     }
     unsigned int pieces = 0u;
@@ -157,7 +157,7 @@ EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
     const int written = EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx, .path = args->to,
                                    .pieces = piece, .count = pieces);
     g_cli_guard->persistent_buf_release(piece, g_cli_templates_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_templates_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_templates_owner));
     return written || EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->to, .err_msg = args->err_msg);
 }
 
@@ -207,7 +207,7 @@ int cli_templates_create(const CliTemplatesTemplateNameCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = folder))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store templates in");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own to store templates in");
         return 0;
     }
     if (!EMBED_CALL(cli_plain, TemplatesCtx, .name = args->name))
@@ -250,7 +250,7 @@ int cli_templates_save(const CliTemplatesNameCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = folder))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store templates in");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own to store templates in");
         return 0;
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = args->name, .joined = args->made);

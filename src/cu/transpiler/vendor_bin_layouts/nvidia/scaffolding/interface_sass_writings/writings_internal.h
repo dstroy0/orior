@@ -7,8 +7,8 @@
 #define WRITINGS_INTERNAL_H
 
 #include "../../../../../engine/rmc/word_web.h"
-#include "../../../../../includes/file_defs/kdm/kdm.h"
-#include "../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../lstar/protocol/counterexample/ladder.h"
 #include "../../cubin_safe.h"
 #include "../../cubin_write.h"

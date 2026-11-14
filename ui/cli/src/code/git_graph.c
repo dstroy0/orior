@@ -425,4 +425,5 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
     {
         EMBED_CALL(cli_git_found_internal.layout_out, CliGitFoundCtx, .found = args->found_graph_pointer);
     }
+    EMBED_CALL(cli_git_text.text_end, CliGitTextCfg, .text = &args->found_graph_pointer->text);
 }

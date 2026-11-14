@@ -194,4 +194,5 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
                    .relative = relative, .folder = search->nested[at]);
     }
     g_cli_guard->persistent_buf_release(cell, g_cli_git_owner);
+    EMBED_CALL(cli_git_text.text_end, CliGitTextCfg, .text = &args->found_repositories_pointer->text);
 }

@@ -74,14 +74,14 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
         const wchar_t *start = NULL;
         memor.cpy(&(MemoriaCfg){.dst = &bytes, .src = base, .bytes = sizeof(bytes)});
         memor.cpy(&(MemoriaCfg){.dst = (void *)&start, .src = base + sizeof(void *), .bytes = sizeof(start)});
-        const size_t length = (size_t)bytes / 2u;
+        const embed_word length = (embed_word)bytes / 2u;
         const unsigned char *const end = base + capacity;
         // the text read lies within the capacity, as the system wrote it there, and each of its units is three bytes of
         // UTF-8 at the most, below an int's reach as the capacity is
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {
-            command = g_cli_guard->persistent_buf_alloc((3ull * length) + 1ull, g_cli_platform_owner);
+            command = g_cli_guard->temporary_buf_alloc((3ull * length) + 1ull, g_cli_platform_owner);
         }
         if (command != NULL)
         {

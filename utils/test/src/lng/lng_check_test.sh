@@ -9,7 +9,7 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../.." && pwd)"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/lng"
 mkdir -p "$OUT"
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/lng_check_test" "$HERE/lng_check_test.c" "$TOP/src/lng/lng.c" \

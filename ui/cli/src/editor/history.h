@@ -21,6 +21,16 @@ typedef struct CliHistoryCfg CliHistoryCfg;
 int cli_history_save(const CliHistoryBeforeCfg *args);
 // the text of the snapshot stored at `at` put into `out`: 1, or 0 with why given
 int cli_history_read(const CliHistoryCfg *args);
+// the stamps of the snapshots of the file at `path` under the tree at `root`, the oldest first, into `stamps_out`,
+// `capacity` of them at most: how many were written, 0 where the file has none
+typedef struct
+{
+    const char *root;
+    const char *path;
+    unsigned long long *stamps_out;
+    unsigned int capacity;
+} CliHistoryStampsCfg;
+unsigned int cli_history_stamps(const CliHistoryStampsCfg *args);
 
 struct CliHistoryBeforeCfg
 {
@@ -58,6 +68,15 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliHistoryNs, read);
 EMBED_TABLE_STORAGE CliHistoryNs cli_history EMBED_UNUSED = {
     .read = cli_history_read,
+};
+
+typedef struct
+{
+    unsigned int (*stamps)(const CliHistoryStampsCfg *args);
+} CliHistoryStampsNs;
+EMBED_TABLE_LAYOUT(CliHistoryStampsNs, stamps);
+EMBED_TABLE_STORAGE CliHistoryStampsNs cli_history_stamps_table EMBED_UNUSED = {
+    .stamps = cli_history_stamps,
 };
 
 #endif

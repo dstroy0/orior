@@ -96,7 +96,7 @@ long long cli_tls_write(const CliTlsDataCfg *args)
     const unsigned long part = (args->size < most) ? (unsigned long)args->size : most;
     if ((header + part + trailer) > args->tls->message_capacity)
     {
-        mmgr_line_put(args->err_msg, "TLS: a record is larger than orior_cli seals");
+        mmgr_line_put(args->err_msg, "TLS: a record is larger than impero seals");
         return CLI_SOCKET_FAILED;
     }
     unsigned char *const message = args->tls->message;

@@ -57,7 +57,7 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
         return 0;
     }
     const unsigned char *const nul =
-        memor.chr(&(MemoriaCfg){.src = hello + 1u, .val = 0, .bytes = (size_t)(size - 1u)});
+        memor.chr(&(MemoriaCfg){.src = hello + 1u, .val = 0, .bytes = (embed_word)(size - 1u)});
     unsigned long long at = (nul != NULL) ? (unsigned long long)(nul - hello) : size;
     if (at + 1u + 4u + 9u + 2u + 5u + 1u + 10u > size)
     {
@@ -88,12 +88,12 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
     if ((at + rest <= size) && (rest <= 56u))
     {
         const unsigned long long more = ((rest > 0u) && (hello[at + rest - 1u] == 0u)) ? rest - 1u : rest;
-        memor.cpy(&(MemoriaCfg){.dst = args->scramble + 8u, .src = hello + at, .bytes = (size_t)more});
+        memor.cpy(&(MemoriaCfg){.dst = args->scramble + 8u, .src = hello + at, .bytes = (embed_word)more});
         *scramble_size += more;
         at += rest;
     }
     const unsigned char *const plugin_end =
-        (at < size) ? memor.chr(&(MemoriaCfg){.src = hello + at, .val = 0, .bytes = (size_t)(size - at)}) : NULL;
+        (at < size) ? memor.chr(&(MemoriaCfg){.src = hello + at, .val = 0, .bytes = (embed_word)(size - at)}) : NULL;
     unsigned long long plugin_size;
     if (plugin_end != NULL)
     {
@@ -178,7 +178,7 @@ EMBED_INLINE int sign_reply(const MysqlSignCtx *args)
     if (!mmgr_line_ok(&out))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "the user's and the database's names are longer than orior_cli sends");
+                   .message = "the user's and the database's names are longer than impero sends");
         return 0;
     }
     return EMBED_CALL(cli_mysql_failure_internal.send, CliMysqlFailureCtx, .mysql = mysql,
@@ -196,9 +196,9 @@ EMBED_INLINE int sign_seal(const MysqlSignCtx *args)
     unsigned long long sealed_size = 0ULL;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}) + 1u;
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->password, .cap = CLI_POOL_BYTES}) + 1u;
     memor.cpy(&(MemoriaCfg){.dst = secret, .src = args->password, .bytes = length});
-    for (size_t at = 0u; (args->scramble_size_value > 0u) && (at < length); at += 1u)
+    for (embed_word at = 0u; (args->scramble_size_value > 0u) && (at < length); at += 1u)
     {
         secret[at] = (unsigned char)(secret[at] ^ args->scramble_read[at % args->scramble_size_value]);
     }
@@ -226,7 +226,7 @@ EMBED_INLINE int sign_switch(const MysqlSignCtx *args)
     const unsigned char *const packet = mysql->packet;
     const unsigned long long size = mysql->size;
     const unsigned char *const nul =
-        memor.chr(&(MemoriaCfg){.src = packet + 1u, .val = 0, .bytes = (size_t)(size - 1u)});
+        memor.chr(&(MemoriaCfg){.src = packet + 1u, .val = 0, .bytes = (embed_word)(size - 1u)});
     const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - packet) : size;
     char plugin[CLI_NAME_MAX_LEN];
     VerbaLinea plugin_line = {plugin, sizeof(plugin), 0ULL};
@@ -236,7 +236,7 @@ EMBED_INLINE int sign_switch(const MysqlSignCtx *args)
     const unsigned long long data = (end + 1u < size) ? size - end - 1u : 0ULL;
     const unsigned long long data_len = ((data > 0u) && (packet[size - 1u] == 0u)) ? data - 1u : data;
     *scramble_size = (data_len < 64u) ? data_len : 64ULL;
-    memor.cpy(&(MemoriaCfg){.dst = scramble, .src = packet + end + 1u, .bytes = (size_t)*scramble_size});
+    memor.cpy(&(MemoriaCfg){.dst = scramble, .src = packet + end + 1u, .bytes = (embed_word)*scramble_size});
     unsigned char answer[CLI_NAME_MAX_LEN + 1u];
     unsigned int answer_size = 0u;
     if (cellul.eq(&(CatenaFinitaCfg){.src = plugin, .other = "mysql_native_password", .cap = CLI_POOL_BYTES}))
@@ -260,7 +260,7 @@ EMBED_INLINE int sign_switch(const MysqlSignCtx *args)
         VerbaLinea line = {why, sizeof(why), 0ULL};
         mmgr_line_put(&line, "the account signs in by ");
         mmgr_line_put(&line, plugin);
-        mmgr_line_put(&line, ", which orior_cli does not support: mysql_native_password and caching_sha2_password are "
+        mmgr_line_put(&line, ", which impero does not support: mysql_native_password and caching_sha2_password are "
                              "supported");
         mmgr_line_finish(&line);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = why);
@@ -340,7 +340,7 @@ int cli_mysql_signed_in(const CliMysqlFailurePasswordCtx *args)
         else if (first != 0x01u)
         {
             EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                       .message = "the server answered the sign-in with what orior_cli cannot read");
+                       .message = "the server answered the sign-in with what impero cannot read");
             return 0;
         }
         if (!going)
@@ -375,16 +375,20 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     {
         at += 1u;
     }
-    mysql = (at < CLI_MYSQL_LINKS) ? g_cli_guard->persistent_buf_alloc(sizeof(CliMysql), g_cli_db_owner) : NULL;
+    // a link's record holds its socket, so the records stand fixed outside the pool, one for each link open at once,
+    // where they punch no hole in the persistent tier
+    static CliMysql s_places[CLI_MYSQL_LINKS];
+    mysql = (at < CLI_MYSQL_LINKS) ? &s_places[at] : NULL;
     if (mysql != NULL)
     {
+        memor.set(&(MemoriaCfg){.dst = mysql, .val = 0, .bytes = sizeof(*mysql)});
         mysql->place = at;
         s_links[at] = mysql;
     }
     if (mysql == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "orior_cli has as many MySQL connections as it can");
+                   .message = "impero has as many MySQL connections as it can");
         return NULL;
     }
     mysql->start = 0ULL;
@@ -435,9 +439,8 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     if (!connected)
     {
         s_links[mysql->place] = NULL;
-        // the password lies in the link's cancel, which the pool leaves as it is
+        // the password lies in the link's record, zeroed as it closes
         mmgr_zero_buf(mysql, sizeof(*mysql));
-        g_cli_guard->persistent_buf_release(mysql, g_cli_db_owner);
         return NULL;
     }
     return mysql;
@@ -452,7 +455,6 @@ void cli_mysql_close(const CliMysqlFailureSqlCfg *args)
                      .size = sizeof(quit), .failure = &failure);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->mysql_out->socket);
     s_links[args->mysql_out->place] = NULL;
-    // the password lies in the link's cancel, which the pool leaves as it is
+    // the password lies in the link's record, zeroed as it closes
     mmgr_zero_buf(args->mysql_out, sizeof(*args->mysql_out));
-    g_cli_guard->persistent_buf_release(args->mysql_out, g_cli_db_owner);
 }

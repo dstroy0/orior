@@ -5,8 +5,6 @@
 #include "../text/text.h"
 #include "latex_internal.h"
 
-#include <stdlib.h>
-
 int cli_tex_white(const CliLatexCtx *args)
 {
     return (args->letter == ' ') || (args->letter == '\t') || (args->letter == '\n') || (args->letter == '\r') ||
@@ -128,7 +126,7 @@ int cli_tex_double(const CliLatexTextLengthValueCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = copy, .src = args->text, .bytes = args->length});
     copy[args->length] = '\0';
-    *value = strtod(copy, NULL);
+    *value = cellul.to_double(&(TransfiguroCfg){.src = copy});
     return 1;
 }
 

@@ -76,6 +76,23 @@ typedef struct
     int changed;
     unsigned int file;
 } SymbolsCtx;
+
+// the walk's cells given back, the languages' pairs first, and the walk itself
+EMBED_INLINE void symbols_walk_released(const SymbolsCtx *args)
+{
+    CliTreeWalk *const walk = args->walk;
+    g_cli_guard->persistent_buf_release(walk->read_text, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(walk->read_symbols, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(walk->file_bytes, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(walk->mount_name, g_cli_code_owner);
+    if (walk->languages != NULL)
+    {
+        g_cli_guard->persistent_buf_release(walk->languages->languages.pair, g_cli_plugins_owner);
+        *(&walk->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+    }
+    g_cli_guard->persistent_buf_release(walk->languages, g_cli_code_owner);
+    g_cli_guard->persistent_buf_release(walk, g_cli_code_owner);
+}
 // a file's stamp, one word its time and its size both change, never 0, which a branch not stamped reads
 EMBED_INLINE unsigned long long cli_branch_stamp(const SymbolsCtx *args)
 {
@@ -123,7 +140,7 @@ static void cli_leaf_declare(const CliDeclaredCfg *args)
         // a name and a type are below a file's largest size, which an unsigned int counts
         type_at = read_state->read_used + (unsigned int)args->length;
         memor.cpy(
-            &(MemoriaCfg){.dst = read_state->read_text + type_at, .src = args->type, .bytes = (size_t)type_length});
+            &(MemoriaCfg){.dst = read_state->read_text + type_at, .src = args->type, .bytes = (embed_word)type_length});
         read_state->type[read_state->types] = type_at;
         read_state->types += (read_state->types < (CLI_SYMBOLS_TYPES - 1u)) ? 1u : 0u;
     }
@@ -153,17 +170,19 @@ EMBED_INLINE int cli_branch_join(const SymbolsCtx *args)
     {
         return 0;
     }
-    CliTreeBranch *const branch = &g_cli_branches[file];
-    (void)g_cli_guard->movable_buf_release(branch->cell, g_cli_code_owner);
-    branch->cell = cell;
+    CliTreeBranch branch;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+    (void)g_cli_guard->movable_buf_release(branch.cell, g_cli_code_owner);
+    branch.cell = cell;
     // a file's declarations, path and names are below what an unsigned int counts
-    branch->bytes = (unsigned int)bytes;
-    branch->path = (unsigned int)symbols_size;
-    branch->walked = 1;
-    branch->written = written;
-    branch->count = args->walk_read->read_count;
-    branch->seen = 1;
-    EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = branch->bytes);
+    branch.bytes = (unsigned int)bytes;
+    branch.path = (unsigned int)symbols_size;
+    branch.walked = 1;
+    branch.written = written;
+    branch.count = args->walk_read->read_count;
+    branch.seen = 1;
+    EMBED_CALL(cli_symbols_tree_at.branch_write, CliSymbolsTreeAtCfg, .file = file, .branch = &branch);
+    EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = branch.bytes);
     // the names and types read, after the path, each declaration's places among them moved with them
     const unsigned int texts = (unsigned int)(symbols_size + path_length);
     for (unsigned int at = 0u; at < args->walk_read->read_count; at += 1u)
@@ -208,8 +227,11 @@ static int cli_branch_walk(const SymbolsCtx *args)
         stamped ? EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path) : CLI_BRANCHES_MAX;
     if (file != CLI_BRANCHES_MAX)
     {
-        g_cli_branches[file].seen = 1;
-        if (!changed && g_cli_branches[file].walked && (g_cli_branches[file].written == stamp))
+        CliTreeBranch branch;
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+        branch.seen = 1;
+        EMBED_CALL(cli_symbols_tree_at.branch_write, CliSymbolsTreeAtCfg, .file = file, .branch = &branch);
+        if (!changed && branch.walked && (branch.written == stamp))
         {
             return 1;
         }
@@ -301,14 +323,22 @@ static void cli_tree_walk(void *context)
     s_total = files;
     for (unsigned int at = 0u; at < g_cli_branch_count; at += 1u)
     {
-        g_cli_branches[at].seen = (g_cli_branches[at].parent == CLI_BRANCH_MOUNTED) ? 0 : g_cli_branches[at].seen;
+        CliTreeBranch branch;
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &branch);
+        if (branch.parent == CLI_BRANCH_MOUNTED)
+        {
+            branch.seen = 0;
+            EMBED_CALL(cli_symbols_tree_at.branch_write, CliSymbolsTreeAtCfg, .file = at, .branch = &branch);
+        }
     }
     int stopped = 0;
     {
         unsigned int at = 0u;
         while (!stopped && (at < g_cli_branch_count))
         {
-            const CliTreeBranch *const branch = &g_cli_branches[at];
+            CliTreeBranch read;
+            EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &read);
+            const CliTreeBranch *const branch = &read;
             if (branch->used && !branch->folder && (branch->parent != CLI_BRANCH_MOUNTED))
             {
                 char path[CLI_PATH_MAX_LEN];
@@ -351,7 +381,9 @@ static void cli_tree_walk(void *context)
         // A walk stopped retains every branch it has walked, and those it had not come to
         for (unsigned int at = 0u; !stopped && (at < g_cli_branch_count); at += 1u)
         {
-            const CliTreeBranch *const branch = &g_cli_branches[at];
+            CliTreeBranch read;
+            EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &read);
+            const CliTreeBranch *const branch = &read;
             if (branch->used && !branch->seen && (branch->parent == CLI_BRANCH_MOUNTED))
             {
                 EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = at);
@@ -360,17 +392,7 @@ static void cli_tree_walk(void *context)
         g_cli_tree_walking = 0;
         s_read = 1;
     }
-    g_cli_guard->persistent_buf_release(walk->read_text, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk->read_symbols, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk->file_bytes, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk->mount_name, g_cli_code_owner);
-    if (walk->languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(walk->languages->languages.pair, g_cli_plugins_owner);
-        *(&walk->languages->languages) = (CliLanguages){NULL, 0u, 0u};
-    }
-    g_cli_guard->persistent_buf_release(walk->languages, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk, g_cli_code_owner);
+    EMBED_CALL(symbols_walk_released, SymbolsCtx, .walk = walk);
     s_walk = NULL;
     s_running = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
@@ -425,7 +447,10 @@ static void cli_tree_path_list(const CliEachPathLengthCfg *args)
         }
         if (file != CLI_BRANCHES_MAX)
         {
-            g_cli_branches[file].seen = 1;
+            CliTreeBranch branch;
+            EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+            branch.seen = 1;
+            EMBED_CALL(cli_symbols_tree_at.branch_write, CliSymbolsTreeAtCfg, .file = file, .branch = &branch);
         }
     }
 }
@@ -505,7 +530,9 @@ int cli_tree_next_file(const CliSymbolsAtCfg *args)
     unsigned int *at = args->at;
     for (unsigned int place = *at; place < g_cli_branch_count; place += 1u)
     {
-        const CliTreeBranch *const branch = &g_cli_branches[place];
+        CliTreeBranch read;
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = place, .branch_out = &read);
+        const CliTreeBranch *const branch = &read;
         if (branch->used && !branch->folder && (branch->parent != CLI_BRANCH_MOUNTED))
         {
             EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
@@ -520,14 +547,24 @@ int cli_tree_next_file(const CliSymbolsAtCfg *args)
 int cli_tree_has_file(const CliSymbolsPathNameCfg *args)
 {
     const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = args->path);
-    const int has = (file != CLI_BRANCHES_MAX) && !g_cli_branches[file].folder;
+    CliTreeBranch branch = {0};
+    if (file != CLI_BRANCHES_MAX)
+    {
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+    }
+    const int has = (file != CLI_BRANCHES_MAX) && !branch.folder;
     return has;
 }
 
 int cli_tree_has_folder(const CliSymbolsPathNameCfg *args)
 {
     const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = args->path);
-    const int has = (file != CLI_BRANCHES_MAX) && g_cli_branches[file].folder;
+    CliTreeBranch branch = {0};
+    if (file != CLI_BRANCHES_MAX)
+    {
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+    }
+    const int has = (file != CLI_BRANCHES_MAX) && branch.folder;
     return has;
 }
 
@@ -535,17 +572,22 @@ int cli_tree_has_folder(const CliSymbolsPathNameCfg *args)
 static void cli_branch_remove(const SymbolsCtx *args)
 {
     unsigned int file = args->file;
-    if (!g_cli_branches[file].folder)
+    CliTreeBranch branch;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+    if (!branch.folder)
     {
         EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = file);
         return;
     }
     // the last branch left under a folder lets the folder go
-    for (unsigned int at = 0u; (at < g_cli_branch_count) && g_cli_branches[file].used; at += 1u)
+    for (unsigned int at = 0u; (at < g_cli_branch_count) && branch.used; at += 1u)
     {
-        if (g_cli_branches[at].used && (g_cli_branches[at].parent == file))
+        CliTreeBranch under;
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &under);
+        if (under.used && (under.parent == file))
         {
             EMBED_CALL(cli_branch_remove, SymbolsCtx, .file = at);
+            EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
         }
     }
 }
@@ -632,7 +674,13 @@ void cli_tree_relist(const CliSymbolsContextCfg *args)
     s_listing = generation;
     for (unsigned int at = 0u; at < g_cli_branch_count; at += 1u)
     {
-        g_cli_branches[at].seen = (g_cli_branches[at].parent == CLI_BRANCH_MOUNTED) ? g_cli_branches[at].seen : 0;
+        CliTreeBranch branch;
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &branch);
+        if (branch.parent != CLI_BRANCH_MOUNTED)
+        {
+            branch.seen = 0;
+            EMBED_CALL(cli_symbols_tree_at.branch_write, CliSymbolsTreeAtCfg, .file = at, .branch = &branch);
+        }
     }
     CliTreeListing listing = {generation, args->emit, args->context};
     int git = 0;
@@ -642,7 +690,9 @@ void cli_tree_relist(const CliSymbolsContextCfg *args)
     {
         for (unsigned int at = 0u; whole && (at < g_cli_branch_count); at += 1u)
         {
-            const CliTreeBranch *const branch = &g_cli_branches[at];
+            CliTreeBranch read;
+            EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &read);
+            const CliTreeBranch *const branch = &read;
             if (!branch->used || branch->folder || branch->seen || (branch->parent == CLI_BRANCH_MOUNTED))
             {
                 continue;
@@ -671,7 +721,9 @@ void cli_tree_stamp(const CliSymbolsContextCfg *args)
                                (s_generation == generation) && (at < g_cli_branch_count);
          at += 1u)
     {
-        const CliTreeBranch *const branch = &g_cli_branches[at];
+        CliTreeBranch read;
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &read);
+        const CliTreeBranch *const branch = &read;
         if (!branch->used || branch->folder || (branch->parent == CLI_BRANCH_MOUNTED))
         {
             continue;
@@ -685,11 +737,15 @@ void cli_tree_stamp(const CliSymbolsContextCfg *args)
         unsigned long long written = 0ULL;
         const int there = EMBED_CALL(cli_path_size_internal.file_stamp, CliPathSizeCtx, .path = full,
                                      .size_pointer = &size, .changed = &written);
-        if (there && (s_generation == generation) && g_cli_branches[at].used)
+        // the branch read again after the stamp, which the lock was given up for
+        CliTreeBranch now;
+        EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &now);
+        if (there && (s_generation == generation) && now.used)
         {
             const unsigned long long stamp = EMBED_CALL(cli_branch_stamp, SymbolsCtx, .size = size, .written = written);
-            const int moved = (g_cli_branches[at].written != 0ULL) && (g_cli_branches[at].written != stamp);
-            g_cli_branches[at].written = stamp;
+            const int moved = (now.written != 0ULL) && (now.written != stamp);
+            now.written = stamp;
+            EMBED_CALL(cli_symbols_tree_at.branch_write, CliSymbolsTreeAtCfg, .file = at, .branch = &now);
             if (moved && (args->emit != NULL))
             {
                 EMBED_CALL(args->emit, CliEachPathTypeCfg, .context = args->context, .path = path,
@@ -732,8 +788,9 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    s_walk = (languages != NULL) ? g_cli_guard->persistent_buf_alloc(sizeof(*s_walk), g_cli_code_owner) : NULL;
+    // the walk's own cells live for the one walk on its thread: takes of the temporary tier, given back as it ends
+    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
+    s_walk = (languages != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(*s_walk), g_cli_code_owner) : NULL;
     if (s_walk == NULL)
     {
         if (languages != NULL)
@@ -758,7 +815,7 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         mount_bytes += cellul.len(&(CatenaFinitaCfg){.src = mount_names[at], .cap = CLI_NAME_MAX_LEN}) +
                        cellul.len(&(CatenaFinitaCfg){.src = mount_paths[at], .cap = CLI_PATH_MAX_LEN}) + 2ULL;
     }
-    s_walk->mount_name = (mounts != 0u) ? g_cli_guard->persistent_buf_alloc(mount_bytes, g_cli_code_owner) : NULL;
+    s_walk->mount_name = (mounts != 0u) ? g_cli_guard->temporary_buf_alloc(mount_bytes, g_cli_code_owner) : NULL;
     s_walk->mounts = (s_walk->mount_name != NULL) ? mounts : 0u;
     s_walk->mount_path = (s_walk->mount_name != NULL) ? (s_walk->mount_name + mounts) : NULL;
     char *mount_text = (s_walk->mount_name != NULL) ? (char *)(void *)(s_walk->mount_path + mounts) : NULL;
@@ -783,7 +840,7 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
     s_walk->read_count = 0u;
     s_walk->read_used = 0u;
     s_walk->types = 0u;
-    s_walk->file_bytes = g_cli_guard->persistent_buf_alloc(CLI_SYMBOLS_LARGEST + CLI_FILE_SLACK, g_cli_code_owner);
+    s_walk->file_bytes = g_cli_guard->temporary_buf_alloc(CLI_SYMBOLS_LARGEST + CLI_FILE_SLACK, g_cli_code_owner);
     s_thread.run = cli_tree_walk;
     s_thread.context = s_walk;
     s_running = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread);
@@ -835,17 +892,7 @@ void cli_tree_branches_walk(const CliSymbolsRootCfg *args)
                              .generation = generation, .changed = 1);
         }
     }
-    g_cli_guard->persistent_buf_release(walk->read_text, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk->read_symbols, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk->file_bytes, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk->mount_name, g_cli_code_owner);
-    if (walk->languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(walk->languages->languages.pair, g_cli_plugins_owner);
-        *(&walk->languages->languages) = (CliLanguages){NULL, 0u, 0u};
-    }
-    g_cli_guard->persistent_buf_release(walk->languages, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(walk, g_cli_code_owner);
+    EMBED_CALL(symbols_walk_released, SymbolsCtx, .walk = walk);
 }
 
 int cli_tree_walk_progress(const CliSymbolsDoneCfg *args)

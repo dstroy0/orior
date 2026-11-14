@@ -15,7 +15,7 @@
 #ifndef LNG_H
 #define LNG_H
 
-#include "../cu/includes/file_defs/kfile_lines/kfile_lines.h"
+#include "../../includes/file_defs/kfile_lines/kfile_lines.h"
 
 #include <stddef.h>
 

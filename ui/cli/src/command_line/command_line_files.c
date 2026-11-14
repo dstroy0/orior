@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_files.c: `orior_cli run run-file`, a file run with its language's toolchain, in bash at the tree's top
-// folder, attached to this terminal, exiting with its code; `orior_cli run validate`, each file validated with the tool
-// plugin for its language, what it found and its verdict printed, or the whole report as JSON; and `orior_cli edit
+// command_line_files.c: `imp run run-file`, a file run with its language's toolchain, in bash at the tree's top
+// folder, attached to this terminal, exiting with its code; `imp run validate`, each file validated with the tool
+// plugin for its language, what it found and its verdict printed, or the whole report as JSON; and `imp edit
 // format`, each file formatted in place with its language's formatter, or with --check each that would change named
 #include "../code/git.h"
 #include "../plugins/validate.h"
@@ -14,8 +14,6 @@
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 #include "pool.h"
-
-#include <stdlib.h>
 
 // A command's work state, a cell taken as the command starts and given back as it ends: the tree a text is read into, a
 // line printed, a file read and what is made of it
@@ -35,7 +33,7 @@ static CliFilesWorkState *s_work_state;
 // the command's work state taken: 1, or 0 reported on the errors
 static int files_work_state_init(void)
 {
-    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
+    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
     if (s_work_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "a command on files could not be taken");
@@ -132,7 +130,7 @@ EMBED_INLINE int files_run_words(const CommandLineFilesCtx *args)
     if (!EMBED_CALL(cli_format_table.language_get, CliFormatCfg, .path = path, .id = language))
     {
         EMBED_CALL(files_err, CommandLineFilesCtx, .one = words[0],
-                   .two = ": no plugin opens it, and so orior_cli knows no way to run it", .three = "");
+                   .two = ": no plugin opens it, and so impero knows no way to run it", .three = "");
         return CLI_NO_CODE;
     }
     VerbaLinea run = {s_work_state->read, sizeof(s_work_state->read), 0ULL};
@@ -221,7 +219,7 @@ EMBED_INLINE double files_number(const CommandLineFilesCtx *args)
     memor.cpy(&(MemoriaCfg){
         .dst = text, .src = s_work_state->json.text + s_work_state->json.node[number].text, .bytes = copied_len});
     text[copied_len] = '\0';
-    return strtod(text, NULL);
+    return cellul.to_double(&(TransfiguroCfg){.src = text});
 }
 
 // the text member of `node` named `name`, or NULL where it has none

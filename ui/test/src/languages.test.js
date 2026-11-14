@@ -75,7 +75,7 @@ async function colored(path, text, wanted) {
 
 // The tables the plugins kfile, gsm and g read their words from, written into the tree at the paths they name.
 const TABLES = {
-  "src/cu/includes/file_defs/krs/krs.oracle.tsv": "where\twho\tkind\tform\tgloss\nline 1\t-\tcomment\t# <text>\ta note\nline 2\t-\truleset\truleset <name>\tthe ruleset's name\n",
+  "includes/file_defs/krs/krs.oracle.tsv": "where\twho\tkind\tform\tgloss\nline 1\t-\tcomment\t# <text>\ta note\nline 2\t-\truleset\truleset <name>\tthe ruleset's name\n",
   "src/lng/gnascor_asm_lng.tsv": "mnemonic\ttable\tpast\tpresent\tarrow\ncore\tthe pair\tlead\tvoid\t->\n",
   "src/lng/gnascor_hol_lng.tsv": "word\tkind\ni32_t\ttype\n",
 };

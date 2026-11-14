@@ -6,8 +6,8 @@
 
 #include "../sass_machine.h"
 
-#include "../../../../includes/file_defs/ksc/ksc.h"
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -37,30 +37,48 @@ int cli_state_read(const CliStateOutCfg *args);
 // (state_save.c)
 int cli_state_save(const CliStateFolderCfg *args);
 
-// One entry of orior's folder, its key without `orior.` and its text
+// One entry of orior's folder: where its key without `orior.` and its text stand in the entries' cell, each with a 0
+// after it
 typedef struct
 {
-    const char *key;
-    const char *value;
+    unsigned long long key_at;
+    unsigned long long value_at;
 } CliStateEntry;
 
-// Every entry of orior's folder in one cell: how many and each
+// Every entry of orior's folder in one movable cell its reader reaches by the cell's token: how many, the entries at
+// the cell's start and their texts after them; `cell` NULL where none are read
 typedef struct
 {
+    const CarcerMovableEntry *cell;
+    const CellOwner *owner;
     unsigned int count;
-    CliStateEntry *entry;
 } CliStateEntries;
 
-// every entry stored in `folder` read into a cell of `owner`, the files' JSON decoded here at their edge: the cell, or
-// NULL where the window has stored nothing there yet or the cells cannot meet it; and the text of `key` among them,
-// NULL where none is
+// where the entry `at_` stands in the entries' cell
+#define CLI_STATE_ENTRY_AT(at_) ((unsigned long long)(at_) * sizeof(CliStateEntry))
+
+// no entry
+#define CLI_STATE_NONE (~0ULL)
+
+// every entry stored in `folder` read into a movable cell of `owner`, the files' JSON decoded here at their edge: the
+// entries, their cell NULL where the window has stored nothing there yet or the cells cannot meet it; the entries'
+// cell given back; the text of `key` among them read into `out`, `capacity` bytes, a 0 after it: `out`, or NULL where
+// no entry has the key or its text does not fit; the bytes that text takes without its 0, CLI_STATE_NONE where no
+// entry has the key; and the key and the text of the entry `at` read into `out` the same way
 typedef struct
 {
     const char *folder;
     const CellOwner *owner;
 } CliStateEntriesCfg;
-CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args);
-const char *cli_state_entry_value(const CliStateEntries *entries, const char *key);
+CliStateEntries cli_state_entries_alloc(const CliStateEntriesCfg *args);
+void cli_state_entries_release(CliStateEntries *entries);
+const char *cli_state_entry_value(const CliStateEntries *entries, const char *key, char *out,
+                                  unsigned long long capacity);
+unsigned long long cli_state_entry_size(const CliStateEntries *entries, const char *key);
+const char *cli_state_entry_key(const CliStateEntries *entries, unsigned int at, char *out,
+                                unsigned long long capacity);
+const char *cli_state_entry_text(const CliStateEntries *entries, unsigned int at, char *out,
+                                 unsigned long long capacity);
 
 // the text `value` stored under `key`, without `orior.`, in `folder`, written as the file's JSON here at its edge: 1,
 // or 0 with why given

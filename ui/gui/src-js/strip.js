@@ -319,7 +319,7 @@ function showNotices(bell) {
     list.append(element("div", { className: `notice${notice.failed ? " failed" : ""}` }, element("span", { className: "notice-text", textContent: notice.text }), element("span", { className: "notice-time", textContent: time(notice.at) })));
   }
   if (!said.length) {
-    list.append(element("p", { className: "notices-empty", textContent: "What orior_gui says on the status bar is kept here." }));
+    list.append(element("p", { className: "notices-empty", textContent: "What tabvla says on the status bar is kept here." }));
   }
   const clear = element("button", { className: "notices-clear", type: "button", textContent: "Clear" });
   clear.disabled = !said.length;

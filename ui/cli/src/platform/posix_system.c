@@ -17,7 +17,7 @@
 
 #if !defined(_WIN32)
 #include <fcntl.h>
-#include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -62,7 +62,7 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
     unsigned long long supplied = 0ULL;
     while (supplied < args->size)
     {
-        const ssize_t read_now = read(source, into + supplied, (size_t)(args->size - supplied));
+        const ssize_t read_now = read(source, into + supplied, (embed_word)(args->size - supplied));
         if (read_now <= 0)
         {
             close(source);
@@ -76,13 +76,30 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
 
 void *cli_pages_alloc(const CliSizeBytesCtx *args)
 {
-    // the pages are the C library's here, zero; no surface of the system's reads them where they lie
-    return calloc(1u, (size_t)args->size);
+    // the pages are the system's own, mapped zero; no surface of the system's reads them where they lie
+    void *const pages =
+        mmap(NULL, (embed_word)args->size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, (off_t)0);
+    return (pages == MAP_FAILED) ? NULL : pages;
+}
+
+void *cli_pages_reserve(const CliSizeBytesCtx *args)
+{
+    // the reserve maps the addresses with no access; a commit of a span inside it opens that span to reads and writes
+    void *const pages = mmap(NULL, (embed_word)args->size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, (off_t)0);
+    return (pages == MAP_FAILED) ? NULL : pages;
+}
+
+int cli_pages_commit(const CliSizeBytesCtx *args)
+{
+    return mprotect(args->bytes_out, (embed_word)args->size, PROT_READ | PROT_WRITE) == 0;
 }
 
 void cli_pages_free(const CliSizeBytesCtx *args)
 {
-    free(args->bytes_out);
+    if (args->bytes_out != NULL)
+    {
+        (void)munmap(args->bytes_out, (embed_word)args->size);
+    }
 }
 
 void cli_temp_folder(const CliFolderCtx *args)
@@ -116,9 +133,9 @@ void cli_temp_folder(const CliFolderCtx *args)
         }
         return;
     }
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_POOL_BYTES});
-    end = (size_t)(1u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
-                                   .text = args->folder_out + 1u, .at = end - 1u, .set = "/"));
+    embed_word end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_POOL_BYTES});
+    end = (embed_word)(1u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                       .text = args->folder_out + 1u, .at = end - 1u, .set = "/"));
     args->folder_out[end] = '\0';
 }
 
@@ -155,7 +172,7 @@ int cli_private_file_write(const CliPathBytesCtx *args)
     unsigned long long written = 0ULL;
     while (written < args->size)
     {
-        const ssize_t wrote = write(file, from + written, (size_t)(args->size - written));
+        const ssize_t wrote = write(file, from + written, (embed_word)(args->size - written));
         if (wrote <= 0)
         {
             break;
@@ -178,7 +195,7 @@ EMBED_INLINE unsigned long long system_read(const PosixSystemCtx *args)
     while ((file >= 0) && (used + 1ULL < args->capacity))
     {
         const unsigned long long capacity = args->capacity - 1ULL - used;
-        const ssize_t count = read(file, args->out + used, (size_t)capacity);
+        const ssize_t count = read(file, args->out + used, (embed_word)capacity);
         // a count that is positive fits an unsigned long long
         if ((count <= 0) || ((unsigned long long)count > capacity))
         {
@@ -237,7 +254,7 @@ void cli_logon_by_name(const CliCapacityLogonCtx *args)
 unsigned long long cli_booted_seconds(void)
 {
     struct timeval booted;
-    size_t size = sizeof(booted);
+    embed_word size = sizeof(booted);
     // a start the system gives is after 1970, never below 0
     return (sysctlbyname("kern.boottime", &booted, &size, NULL, 0u) == 0) ? (unsigned long long)booted.tv_sec : 0ULL;
 }

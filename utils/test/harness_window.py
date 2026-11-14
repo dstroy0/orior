@@ -309,10 +309,10 @@ def cmd_scroll(a):
         text = kept.read().decode("utf-8", errors="replace")
     lines = [found.groups() for found in map(FRAMES_LINE.match, text.splitlines()) if found]
     print("window %d %s %d moves, %d ms apart" % (process_id, "wheel" if a.wheel else "drag", a.moves, a.spacing))
-    print("frames  draw_us mean most  events_us mean most  gap_most_us")
+    print("frames  draw_us mean max  events_us mean max  gap_max_us")
     for fields in lines:
-        frames, draw, draw_most, _, _, _, events, events_most, gap = (int(field) for field in fields)
-        print("%6d  %9d %6d  %11d %6d  %11d" % (frames, draw, draw_most, events, events_most, gap))
+        frames, draw, draw_max, _, _, _, events, events_max, gap = (int(field) for field in fields)
+        print("%6d  %9d %6d  %11d %6d  %11d" % (frames, draw, draw_max, events, events_max, gap))
     return 0
 
 

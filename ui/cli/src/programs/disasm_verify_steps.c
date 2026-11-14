@@ -203,7 +203,7 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
         count =
             EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg,
                        .ir = (const char *)text, .size = size, .names = args->names, .capacity = CLI_DISASM_FUNCTIONS);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_cli_programs_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)text, (g_cli_programs_owner));
     }
     if (count == 0u)
     {
@@ -332,7 +332,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
                      EMBED_CALL(cli_words_err_msg_internal.private_folder_init, CliWordsErrMsgCtx, .folder = project) &&
                      EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = script,
                                 .bytes = script_text, .size = script_size);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)script_text, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)script_text, (g_cli_programs_owner));
     static char s_names_text[CLI_DISASM_FUNCTIONS * CLI_NAME_MAX_LEN];
     VerbaLinea list_entries = {s_names_text, sizeof(s_names_text), 0ULL};
     for (unsigned int each = 0u; each < count; each += 1u)
@@ -401,7 +401,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
                                                  .size_pointer = size, .owner = g_cli_programs_owner);
     if ((text == NULL) || (*size == 0ULL))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_cli_programs_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)text, (g_cli_programs_owner));
         mmgr_line_put(err_msg, "Ghidra's script wrote nothing to ");
         mmgr_line_put(err_msg, args->into);
         mmgr_line_put(err_msg, ": the analyzer's log in the run's errors explains why");

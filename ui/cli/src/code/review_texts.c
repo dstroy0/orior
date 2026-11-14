@@ -24,20 +24,18 @@ int cli_review_text_add(const CliReviewLineCtx *args)
     unsigned long long *size = args->size;
     // a text stored moves the texts' end
     const unsigned int was = g_cli_review.used;
-    if (args->written && mmgr_line_ok(args->line))
+    if (args->written && mmgr_line_ok(&args->line->line))
     {
-        *at = EMBED_CALL(cli_review_text_length_internal.text_append, CliReviewTextLengthCtx, .text = args->line->out,
-                         .length = args->line->at);
+        *at = EMBED_CALL(cli_review_text_length_internal.text_append, CliReviewTextLengthCtx, .text = args->line->cell,
+                         .length = cli_grown_size(args->line));
     }
     const int added = g_cli_review.used != was;
-    *size = added ? args->line->at : 0ULL;
-    g_cli_guard->persistent_buf_release(args->line->out, g_cli_code_owner);
+    *size = added ? cli_grown_size(args->line) : 0ULL;
+    cli_grown_end(args->line);
     return added;
 }
 
-VerbaLinea cli_review_text_line(void)
+void cli_review_text_line(CliGrownLine *line)
 {
-    char *const line_cell = g_cli_guard->temporary_buf_alloc(CLI_REVIEW_TEXT_CAPACITY, g_cli_code_owner);
-    VerbaLinea line = mmgr_line_over(line_cell, CLI_REVIEW_TEXT_CAPACITY);
-    return line;
+    cli_grown_begin(line, CLI_REVIEW_TEXT_CAPACITY, g_cli_code_owner);
 }

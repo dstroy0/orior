@@ -125,10 +125,12 @@ static void inspect_supplied(const CliInspectSuppliedCfg *args)
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = full, .key_out = key);
-    const char *adjacent = NULL;
-    unsigned long long size = 0ULL;
-    const char *const stored = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_supplied_new,
-                                          .key = key, .adjacent = &adjacent, .size = &size);
+    const unsigned int stored =
+        EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_supplied_new, .key = key);
+    const CliKeyedEntry one = (stored != CLI_KEYED_NONE) ? EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg,
+                                                                      .keyed = &s_supplied_new, .at = stored)
+                                                         : (CliKeyedEntry){0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+    const unsigned long long size = one.used ? one.text_size : 0ULL;
     const unsigned long long class_size =
         cellul.len(&(CatenaFinitaCfg){.src = args->class_name, .cap = CLI_POOL_BYTES});
     const unsigned long long attribute_size =
@@ -139,12 +141,17 @@ static void inspect_supplied(const CliInspectSuppliedCfg *args)
     {
         return;
     }
-    // each size is a path's, a name's or a line of them, far inside what a size_t counts
-    memor.cpy(&(MemoriaCfg){.dst = line, .src = (stored != NULL) ? stored : "", .bytes = (size_t)size});
-    memor.cpy(&(MemoriaCfg){.dst = line + size, .src = args->class_name, .bytes = (size_t)class_size});
+    // each size is a path's, a name's or a line of them, far inside what a embed_word counts; the lines stored read
+    // out of their cell into the new text's own cell, ahead of the new line
+    if (size != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one.cell, .offset = (embed_word)one.text_at, .dst = line, .bytes = (embed_word)size});
+    }
+    memor.cpy(&(MemoriaCfg){.dst = line + size, .src = args->class_name, .bytes = (embed_word)class_size});
     line[size + class_size] = ' ';
-    memor.cpy(
-        &(MemoriaCfg){.dst = line + size + class_size + 1ULL, .src = args->attribute, .bytes = (size_t)attribute_size});
+    memor.cpy(&(MemoriaCfg){
+        .dst = line + size + class_size + 1ULL, .src = args->attribute, .bytes = (embed_word)attribute_size});
     line[line_size - 1ULL] = '\n';
     (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_supplied_new, .key = key,
                      .adjacent_value = "", .text = line, .size_value = line_size);
@@ -160,28 +167,38 @@ static int inspect_supplied_append(void)
     for (unsigned int at = 0u; at < g_cli_servers_supplied.entries; at += 1u)
     {
         count +=
-            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_supplied, .at = at)->used ? 1u : 0u;
+            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_supplied, .at = at).used ? 1u : 0u;
     }
     for (unsigned int at = 0u; !moved && (at < s_supplied_new.entries); at += 1u)
     {
-        const CliKeyedEntry *const one =
-            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_supplied_new, .at = at);
-        if (!one->used)
+        const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_supplied_new, .at = at);
+        if (!one.used)
         {
             continue;
         }
         made += 1u;
-        const char *adjacent = NULL;
-        unsigned long long size = 0ULL;
-        unsigned long long other = 0ULL;
-        const char *const key = one->cell;
-        const char *const text = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg,
-                                            .keyed = &s_supplied_new, .key = key, .adjacent = &adjacent, .size = &size);
-        const char *const was =
-            EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_supplied, .key = key,
-                       .adjacent = &adjacent, .size = &other);
-        moved = (was == NULL) || (other != size) ||
-                (memor.cmp(&(MemoriaCfg){.src = was, .other = text, .bytes = (size_t)size}) != 0);
+        // the key read out of the entry's cell, a path's length at most
+        char key[CLI_PATH_MAX_LEN];
+        const unsigned long long key_bytes = (one.key_size < sizeof(key)) ? one.key_size : (sizeof(key) - 1u);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = one.cell, .offset = 0u, .dst = key, .bytes = (embed_word)key_bytes});
+        key[key_bytes] = '\0';
+        const unsigned int was = EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg,
+                                            .keyed = &g_cli_servers_supplied, .key = key);
+        moved = was == CLI_KEYED_NONE;
+        if (!moved)
+        {
+            // the two texts ordered in their cells
+            const CliKeyedEntry other =
+                EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_supplied, .at = was);
+            moved = (other.text_size != one.text_size) ||
+                    ((one.text_size != 0ULL) &&
+                     (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = one.cell,
+                                                                           .offset = (embed_word)one.text_at,
+                                                                           .other_cell = other.cell,
+                                                                           .other_offset = (embed_word)other.text_at,
+                                                                           .bytes = (embed_word)one.text_size}) != 0));
+        }
     }
     if (!moved && (count == made))
     {
@@ -190,22 +207,20 @@ static int inspect_supplied_append(void)
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_supplied);
     for (unsigned int at = 0u; at < s_supplied_new.entries; at += 1u)
     {
-        const CliKeyedEntry *const one =
-            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_supplied_new, .at = at);
-        if (!one->used)
+        const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_supplied_new, .at = at);
+        if (!one.used)
         {
             continue;
         }
-        const char *adjacent = NULL;
-        unsigned long long size = 0ULL;
-        const char *const text =
-            EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_supplied_new, .key = one->cell,
-                       .adjacent = &adjacent, .size = &size);
-        if (text != NULL)
-        {
-            (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_supplied,
-                             .key = one->cell, .adjacent_value = "", .text = text, .size_value = size);
-        }
+        // the key read out of the entry's cell, a path's length at most, and the text stored under it out of the cell
+        char key[CLI_PATH_MAX_LEN];
+        const unsigned long long key_bytes = (one.key_size < sizeof(key)) ? one.key_size : (sizeof(key) - 1u);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = one.cell, .offset = 0u, .dst = key, .bytes = (embed_word)key_bytes});
+        key[key_bytes] = '\0';
+        (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_supplied,
+                         .key = key, .adjacent_value = "", .text_cell = one.cell, .text_at = one.text_at,
+                         .size_value = one.text_size);
     }
     return 1;
 }
@@ -249,14 +264,21 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
                    .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}), .key = key);
         (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_seen, .key = key,
                          .adjacent_value = "", .text = "", .size_value = 0ULL);
-        const char *adjacent = NULL;
-        unsigned long long stored_size = 0ULL;
-        const char *const stored =
-            EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_inspected,
-                       .key = key, .adjacent = &adjacent, .size = &stored_size);
-        const int same = (stored != NULL) && (stored_size == values_size) &&
-                         (memor.cmp(&(MemoriaCfg){.src = stored, .other = values, .bytes = (size_t)values_size}) == 0);
-        if (((stored != NULL) || (values_size > 2u)) && !same)
+        const unsigned int stored = EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg,
+                                               .keyed = &g_cli_servers_inspected, .key = key);
+        const CliKeyedEntry one =
+            (stored != CLI_KEYED_NONE)
+                ? EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_inspected, .at = stored)
+                : (CliKeyedEntry){0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+        // the values stored ordered against the new ones in their cell
+        const int same =
+            one.used && (one.text_size == values_size) &&
+            ((values_size == 0ULL) ||
+             (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = one.cell,
+                                                                   .offset = (embed_word)one.text_at,
+                                                                   .src = values,
+                                                                   .bytes = (embed_word)values_size}) == 0));
+        if ((one.used || (values_size > 2u)) && !same)
         {
             (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_inspected,
                              .key = key, .adjacent_value = uri, .text = values, .size_value = values_size);
@@ -265,18 +287,29 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
     }
     for (unsigned int at = 0u; at < g_cli_servers_inspected.entries; at += 1u)
     {
-        CliKeyedEntry *const one =
+        const CliKeyedEntry one =
             EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_inspected, .at = at);
-        const char *const key = one->cell;
-        const char *adjacent = NULL;
-        unsigned long long stored_size = 0ULL;
-        if (one->used && (EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_seen, .key = key,
-                                     .adjacent = &adjacent, .size = &stored_size) == NULL))
+        if (!one.used)
         {
-            (void)EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_inspected,
-                             .key = key, .adjacent = &adjacent, .size = &stored_size);
-            EMBED_CALL(inspect_change, ServersInspectCtx, .changed = &changed, .key = key, .uri = adjacent);
-            one->used = 0;
+            continue;
+        }
+        // the key and the URI beside it, each a path's length at most, read out of the entry's cell
+        char key[CLI_PATH_MAX_LEN];
+        const unsigned long long key_bytes = (one.key_size < sizeof(key)) ? one.key_size : (sizeof(key) - 1u);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = one.cell, .offset = 0u, .dst = key, .bytes = (embed_word)key_bytes});
+        key[key_bytes] = '\0';
+        if (EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_seen, .key = key) ==
+            CLI_KEYED_NONE)
+        {
+            char uri[CLI_PATH_MAX_LEN];
+            const unsigned long long uri_bytes =
+                (one.adjacent_size < sizeof(uri)) ? one.adjacent_size : (sizeof(uri) - 1u);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = one.cell, .offset = (embed_word)one.key_size + 1u, .dst = uri, .bytes = (embed_word)uri_bytes});
+            uri[uri_bytes] = '\0';
+            EMBED_CALL(inspect_change, ServersInspectCtx, .changed = &changed, .key = key, .uri = uri);
+            EMBED_CALL(cli_keyed_table.remove_at, CliKeyedCfg, .keyed_out = &g_cli_servers_inspected, .at = at);
         }
     }
     const unsigned long long changed_size = mmgr_line_ok(&changed) ? changed.at : 0ULL;
@@ -321,7 +354,7 @@ EMBED_INLINE int inspect_tree_read(const ServersInspectCtx *args)
             (void)EMBED_CALL(cli_inspect_tree_path_language.set, CliInspectTreePathLanguageCfg, .path = one,
                              .language = language, .text = (const char *)mapped, .size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_servers_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
     if (inspect_generation() != args->born)
@@ -361,21 +394,21 @@ static void inspect_job(const CliServersJobCfg *args)
     {
         EMBED_CALL(cli_inspect_tree_path_line.remove, CliInspectTreePathLineCfg, .path = read->file);
     }
-    char *const findings = g_cli_guard->temporary_buf_alloc(CLI_SERVERS_FINDINGS, g_cli_servers_owner);
-    VerbaLinea line = mmgr_line_over(findings, CLI_SERVERS_FINDINGS);
-    CliServersInspectFound found = {&line, 0, 0, 0ULL};
+    CliGrownLine line;
+    cli_grown_begin(&line, CLI_SERVERS_FINDINGS, g_cli_servers_owner);
+    CliServersInspectFound found = {&line.line, 0, 0, 0ULL};
     EMBED_CALL(cli_inspect_tree.findings, CliInspectTreeCfg, .each_inspect_found = inspect_find, .context = &found);
     EMBED_CALL(inspect_file_close, ServersInspectCtx, .found = &found);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_supplied_new);
     EMBED_CALL(cli_inspect_tree_context_each_supplied.supplied, CliInspectTreeContextEachSuppliedCfg,
                .each_inspect_supplied = inspect_supplied, .context = (void *)read->root);
     const int moved = inspect_supplied_append();
-    if (mmgr_line_ok(&line))
+    if (mmgr_line_ok(&line.line))
     {
-        EMBED_CALL(inspect_passed_on, ServersInspectCtx, .root = read->root, .found_text = line.out, .size = line.at,
-                   .found_files = found.files, .sink = &read->sink);
+        EMBED_CALL(inspect_passed_on, ServersInspectCtx, .root = read->root, .found_text = line.cell,
+                   .size = cli_grown_size(&line), .found_files = found.files, .sink = &read->sink);
     }
-    g_cli_guard->persistent_buf_release(findings, g_cli_servers_owner);
+    cli_grown_end(&line);
     // what a family sets decides whether a server's reports of an attribute pass on
     if (moved)
     {
@@ -401,14 +434,15 @@ void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
     const char *path = args->path;
     unsigned long long size = args->size;
     const CliServersSink *sink = args->sink;
-    const size_t top = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
+    const embed_word top = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = path, .other_pointer = args->root, .size = top) ||
         ((path[top] != '/') && (path[top] != '\\')) ||
         (EMBED_CALL(cli_inspect_table.language_get, CliInspectCfg, .path = path) == NULL))
     {
         return;
     }
-    // the read made in a cell of its size, the text after it where it is given
+    // the read made in a cell of this call's own, the text after it where it is given, run at once where the tree
+    // stands, else copied into the cell the servers' thread takes it from
     const int has_text = (args->text != NULL) && (size <= CLI_SERVERS_LARGEST);
     const unsigned long long text_size = has_text ? size : 0ULL;
     char *const job = g_cli_guard->temporary_buf_alloc(sizeof(CliServersInspectJob) + text_size, g_cli_servers_owner);
@@ -428,8 +462,8 @@ void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
     read->size = text_size;
     if (has_text)
     {
-        // a size under CLI_SERVERS_LARGEST fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*read), .src = args->text, .bytes = (size_t)text_size});
+        // a size under CLI_SERVERS_LARGEST fits a embed_word
+        memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*read), .src = args->text, .bytes = (embed_word)text_size});
     }
     g_cli_servers.sink = *sink;
     g_cli_servers.has_sink = 1;
@@ -438,11 +472,13 @@ void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
     if (ready)
     {
         EMBED_CALL(inspect_job, CliServersJobCfg, .job = job, .size = sizeof(*read) + text_size);
-        g_cli_guard->persistent_buf_release(job, g_cli_servers_owner);
-        return;
     }
-    (void)EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = inspect_job,
-                     .bytes = job, .size = sizeof(*read) + text_size);
+    else
+    {
+        (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = inspect_job, .job = job,
+                         .size = sizeof(*read) + text_size);
+    }
+    g_cli_guard->persistent_buf_release(job, g_cli_servers_owner);
 }
 
 void cli_servers_inspect_again(const CliServersPathSizeLanguageCtx *args)

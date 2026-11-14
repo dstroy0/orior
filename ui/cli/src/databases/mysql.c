@@ -37,7 +37,7 @@ EMBED_INLINE int mysql_read(const MysqlCtx *args)
         if (args->out != NULL)
         {
             memor.cpy(&(MemoriaCfg){
-                .dst = args->out + at, .src = args->mysql->in + args->mysql->start, .bytes = (size_t)piece});
+                .dst = args->out + at, .src = args->mysql->in + args->mysql->start, .bytes = (embed_word)piece});
         }
         args->mysql->start += piece;
         at += piece;
@@ -79,7 +79,7 @@ int cli_mysql_packet(const CliMysqlFailureCtx *args)
     if (!fits)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "a packet is past the capacity of the buffer orior_cli reads one in");
+                   .message = "a packet is past the capacity of the buffer impero reads one in");
     }
     return fits;
 }
@@ -236,7 +236,7 @@ unsigned int cli_mysql_answer(const CliMysqlSizePasswordCtx *args)
         EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = once, .size = width,
                    .digest = twice);
         memor.cpy(&(MemoriaCfg){.dst = joined, .src = twice, .bytes = width});
-        memor.cpy(&(MemoriaCfg){.dst = joined + width, .src = args->scramble, .bytes = (size_t)copied_len});
+        memor.cpy(&(MemoriaCfg){.dst = joined + width, .src = args->scramble, .bytes = (embed_word)copied_len});
         EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = joined,
                    .size = width + copied_len, .digest = mixed);
     }
@@ -247,7 +247,7 @@ unsigned int cli_mysql_answer(const CliMysqlSizePasswordCtx *args)
                    .digest = once);
         EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = once, .size = width,
                    .digest = twice);
-        memor.cpy(&(MemoriaCfg){.dst = joined, .src = args->scramble, .bytes = (size_t)copied_len});
+        memor.cpy(&(MemoriaCfg){.dst = joined, .src = args->scramble, .bytes = (embed_word)copied_len});
         memor.cpy(&(MemoriaCfg){.dst = joined + copied_len, .src = twice, .bytes = width});
         EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = joined, .size = copied_len + width,
                    .digest = mixed);

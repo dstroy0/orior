@@ -17,6 +17,7 @@ extern void test_arguments_outside_brackets_are_required(void);
 extern void test_arguments_inside_brackets_are_optional(void);
 extern void test_a_choice_counts_as_one_argument(void);
 extern void test_a_required_argument_after_an_optional_group_is_required(void);
+extern void test_the_preferences_list_the_terminals_folder_and_lines_as_settings(void);
 
 
 /*=======Mock Management=====*/
@@ -88,6 +89,7 @@ int main(void)
   run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 147);
   run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 152);
   run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 157);
+  run_test(test_the_preferences_list_the_terminals_folder_and_lines_as_settings, "test_the_preferences_list_the_terminals_folder_and_lines_as_settings", 177);
 
   return UNITY_END();
 }

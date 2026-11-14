@@ -33,7 +33,7 @@ static void cli_palette_each(const CliEachPluginCfg *args)
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &err_msg, .owner = g_cli_plugins_owner);
     if (root == CLI_JSON_NONE)
@@ -86,10 +86,9 @@ EMBED_INLINE unsigned int cli_palette_tree(const PaletteCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
-                      .json = args->json, .text = args->plugin->text, .size = args->plugin->size,
-                      .nodes_more = args->nodes_more, .text_more = args->text_more, .err_msg = &err_msg,
-                      .owner = g_cli_plugins_owner);
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = args->json,
+                      .text = args->plugin->text, .size = args->plugin->size, .nodes_more = args->nodes_more,
+                      .text_more = args->text_more, .err_msg = &err_msg, .owner = g_cli_plugins_owner);
 }
 
 // the tree's cell given back
@@ -139,7 +138,7 @@ static void cli_palettes_each(const CliEachPluginCfg *args)
 void cli_plugins_palettes_each(const CliPluginsEachIdCfg *args)
 {
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_palettes_each,
-               .context = (void *)(uintptr_t)args);
+               .context = (void *)(embed_word)args);
 }
 
 // The color set: the plugin sought, the color's name and its value, and whether the plugin's file was written
@@ -177,18 +176,18 @@ EMBED_INLINE int cli_palette_file_write(const PaletteCtx *args)
         return 0;
     }
     // the plugin laid out as its file lays it, each value on one line where it fits
-    char *const cell = g_cli_guard->temporary_buf_alloc(CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
-    if (cell == NULL)
+    CliGrownLine out;
+    cli_grown_begin(&out, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
+    if (out.cell == NULL)
     {
         return 0;
     }
-    VerbaLinea out = mmgr_line_over(cell, CLI_PLUGIN_TEXT_CAPACITY);
     EMBED_CALL(cli_plugins_json_out.text_get, CliPluginsJsonOutCfg, .json = args->json, .plugin = args->root,
-               .out = &out);
+               .out = &out.line);
     const int written =
-        mmgr_line_ok(&out) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file,
-                                         .bytes = out.out, .size = out.at);
-    g_cli_guard->persistent_buf_release(cell, g_cli_plugins_owner);
+        mmgr_line_ok(&out.line) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
+                                              .path = file, .bytes = out.cell, .size = cli_grown_size(&out));
+    cli_grown_end(&out);
     return written;
 }
 

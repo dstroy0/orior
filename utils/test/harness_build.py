@@ -47,9 +47,9 @@ import harness_rename  # noqa: E402
 ROOT = findroot.root()
 BUILD = os.path.join(ROOT, "build")
 OUT = os.path.join(BUILD, "harness", "out")
-MMGR = os.path.join(ROOT, "src", "cu", "includes", "mmgr")
-EMBEDDED_TYPES = os.path.join(ROOT, "src", "cu", "includes", "embedded_types")
-MMGR_FLAGS = ["-I", os.path.join(MMGR, "include"), "-I", os.path.join(MMGR, "src"), "-I", os.path.join(EMBEDDED_TYPES, "include"), "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_CARCER_OWNERS=1024u"]
+MMGR = os.path.join(ROOT, "includes", "mmgr")
+EMBEDDED_TYPES = os.path.join(ROOT, "includes", "embedded_types")
+MMGR_FLAGS = ["-I", os.path.join(MMGR, "include"), "-I", os.path.join(MMGR, "src"), "-I", os.path.join(EMBEDDED_TYPES, "include"), "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_MOVABLE_READ_MS=10u", "-DMMGR_MOVABLE_QUIET_READINGS=2u", "-DMMGR_CARCER_OWNERS=1024u"]
 RUBY = r"C:\tools\ruby34\bin"
 FRAME_LARGEST = 65536
 FRAME_JOBS = 16
@@ -132,7 +132,7 @@ def cmd_source_tidy(a):
     inside the Linux test image with the build's own words, their reports written under build/sonarqube for the
     SonarQube scan to import."""
     os.makedirs(os.path.join(BUILD, "sonarqube"), exist_ok=True)
-    words = "-std=c11 -I src/cu/includes/mmgr/include -I src/cu/includes/mmgr/src -I src/cu/includes/embedded_types/include -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1 -DMMGR_CARCER_OWNERS=1024u"
+    words = "-std=c11 -I includes/mmgr/include -I includes/mmgr/src -I includes/embedded_types/include -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1 -DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u -DMMGR_CARCER_OWNERS=1024u"
     inside = (
         "find %s -name '*.c' -not -path '*/bundle/*' | sort > build/sonarqube/tidy_files.txt"
         " && xargs -a build/sonarqube/tidy_files.txt -P %d -I{} sh -c \"clang-tidy -quiet -checks='%s' {} -- %s 2>/dev/null\" > %s"
@@ -757,7 +757,7 @@ def register(sub):
     p = source.add_parser("format", help="clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed")
     p.set_defaults(fn=cmd_source_format)
     p = source.add_parser("repeats", help="the runs of C lines standing in two or more places under the folder, the longest first")
-    p.add_argument("folder", nargs="?", default="ui/cli/src/view", help="the folder read, from the top of the tree")
+    p.add_argument("folder", nargs="?", default="includes/window", help="the folder read, from the top of the tree")
     p.add_argument("lines", nargs="?", type=int, default=6, help="the fewest folded lines a run has")
     p.set_defaults(fn=cmd_source_repeats)
     p = source.add_parser("page-names", help="the page's modules named, each import exported where it comes from and used, each name another uses imported")

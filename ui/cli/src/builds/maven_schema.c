@@ -163,7 +163,8 @@ const char *const *cli_maven_schema(const CliMavenSizeNameCtx *args)
     for (unsigned int at = 0u; at < sizeof(s_schema) / sizeof(s_schema[0]); at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_schema[at][0], .cap = CLI_POOL_BYTES}) == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_schema[at][0], .other = args->name, .bytes = (size_t)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_schema[at][0], .other = args->name, .bytes = (embed_word)args->size}) ==
+             0))
         {
             unsigned int children = 0u;
             while ((children < 30u) && (s_schema[at][children + 1u] != NULL))

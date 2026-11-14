@@ -15,6 +15,7 @@
 #include "../text/keyed.h"
 #include "../text/text.h"
 #include "embed_dispatch_layout.h"
+#include "embed_ticket_ring.h"
 #include "lsp.h"
 #include "servers.h"
 
@@ -100,7 +101,7 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 #define CLI_SERVERS_RESTARTS_WITHIN 60000ull
 #define CLI_SERVERS_LARGEST (2ull << 20u)
 
-// the name the findings of the files orior_cli reads itself are stored by, beside the checkers'
+// the name the findings of the files impero reads itself are stored by, beside the checkers'
 #define CLI_SERVERS_OWN "orior"
 
 // the most bytes of a text written from one server's answer or one file's findings, and of what a check of the whole
@@ -198,49 +199,87 @@ typedef struct
     char id[CLI_NAME_MAX_LEN];
 } CliServersWaiting;
 
-// A file waiting for the tree's check: its path in the paths' capacity and its size, and its server and language
+// A file waiting for the tree's check, the head of one movable cell: its server, referenced for it, the check's
+// generation it was queued in, its place among the tree's files or CLI_SERVERS_NO_FILE, and its path's bytes; the
+// path with its 0 then its language's name with its 0 follow the head in the cell
 typedef struct
 {
-    unsigned long long path;
-    unsigned int size;
-    unsigned int integer;
     CliLsp *server;
+    unsigned long long generation;
+    unsigned int file;
+    unsigned int size;
 } CliServersQueued;
+#define CLI_SERVERS_NO_FILE 0xffffffffu
 
-// The tree's check: whether it is on, its tree, where what it reports goes; its capacity, four cells each with its
-// most: the tree's files' paths, where each starts, the files waiting in order from `head` in a ring, and their paths;
-// how many it was given and how many are done, and whether its threads started
+// the tree's files the check lists at the most; and the slots of its two ticket rings, as two's powers: the files
+// waiting, and the files a change puts first
+#define CLI_SERVERS_FILES_MOST (1u << 16u)
+#define CLI_SERVERS_CHECK_RING_SHIFT 16u
+#define CLI_SERVERS_CHECK_FIRST_SHIFT 6u
+// the bytes the two rings' slots take, the waiting ring's first, the check's part of the rings block
+#define CLI_SERVERS_CHECK_RING_BYTES                                                                                   \
+    (((1ULL << CLI_SERVERS_CHECK_RING_SHIFT) + (1ULL << CLI_SERVERS_CHECK_FIRST_SHIFT)) * sizeof(EmbedTicketRingSlot))
+// the problems' reports on their way to the view's thread at once, a two's power, and the bytes their ring's slots
+// take, the problems' part of the rings block
+#define CLI_PROBLEMS_RING_SHIFT 5u
+#define CLI_PROBLEMS_RING_SLOTS (1u << CLI_PROBLEMS_RING_SHIFT)
+#define CLI_PROBLEMS_RING_BYTES ((unsigned long long)CLI_PROBLEMS_RING_SLOTS * sizeof(EmbedTicketRingSlot))
+// the jobs ring's slots as a two's power, the jobs in flight at the most, and the bytes they take, the jobs' part of
+// the rings block
+#define CLI_SERVERS_JOBS_RING_SHIFT 8u
+#define CLI_SERVERS_JOBS_RING_BYTES ((1ULL << CLI_SERVERS_JOBS_RING_SHIFT) * sizeof(EmbedTicketRingSlot))
+
+// A ring of files waiting for the check: the ticket ring, its turnstiles, the next ticket a queuing thread takes and
+// the next a checker takes; a checker takes a ticket and waits for its push, so the checkers pop in ticket order
+typedef struct
+{
+    EmbedTurnstiles turnstiles;
+    EmbedTicketRing ring;
+    embed_atomic_u32 ticket;
+    embed_atomic_u32 taken;
+} CliServersCheckRing;
+
+// The tree's check: whether it is on, its tree, where what it reports goes; the tree's files in one movable cell sized
+// from them, laid as `file_at_max` starts of eight bytes, then a byte a file, 1 while it waits, then the paths' texts
+// each with its 0, `files_max` bytes of them and `files_used` written; the two rings of files waiting, the tree's
+// files and the files a change puts first, their slots the check's part of the rings block; the generation, moved on as
+// the check is let go so that a checker drops the files queued before; how many it was given and how many are done,
+// whether its threads started and whether its rings are laid
 typedef struct
 {
     int on;
     char root[CLI_PATH_MAX_LEN];
     CliServersSink sink;
     int has_sink;
-    char *files;
+    const CarcerMovableEntry *files_cell;
     unsigned long long files_max;
     unsigned long long files_used;
-    unsigned long long *file_at;
     unsigned int file_at_max;
     unsigned int file_count;
-    CliServersQueued *waiting;
-    unsigned int waiting_max;
-    unsigned int head;
-    unsigned int count;
-    char *capacity;
-    unsigned long long capacity_max;
-    unsigned long long used;
-    unsigned long long total;
-    unsigned long long done;
+    CliServersCheckRing waiting;
+    CliServersCheckRing first;
+    embed_atomic_u64 generation;
+    embed_atomic_u64 total;
+    embed_atomic_u64 done;
     int started;
+    int laid;
 } CliServersQueue;
 
-// the check's capacity given back, where `queue` has one; taken where it has none, sized from the tree's files: 1, or 0
-// where the cells cannot meet it; the place of the `at`th file waiting; a file put in the queue, at its front where
-// `front`: 1, or 0 where it has no capacity; and the tree's files recorded, those of `files` and those recorded before.
-// Each with the queue's lock acquired (servers_check_capacity.c)
+// the places in the check's files cell of the start of the file `at_`, of the waiting byte of the file `at_`, and of
+// the text at `offset_` of the paths' bytes
+#define CLI_SERVERS_FILE_AT(at_) ((unsigned long long)(at_) * sizeof(unsigned long long))
+#define CLI_SERVERS_QUEUED_AT(queue_, at_) (CLI_SERVERS_FILE_AT((queue_)->file_at_max) + (unsigned long long)(at_))
+#define CLI_SERVERS_FILES_TEXT_AT(queue_, offset_) (CLI_SERVERS_QUEUED_AT((queue_), (queue_)->file_at_max) + (offset_))
+
+// the check's cell for the tree's files given back where it is too small and taken sized from the tree's files, the
+// rings laid once: 1, or 0 where the cells cannot meet it; every file's waiting byte written 0; a file pushed on the
+// ring its `front` names, under a ticket of its own: 1, or 0 where the ring is full or its cell is refused; the files
+// waiting, pushed and not yet taken; and the tree's files recorded, those of `files` and those recorded before. Each
+// with the queue's lock acquired (servers_check_room.c)
 int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args);
-CliServersQueued *cli_servers_check_queued_at(const CliServersQueueAtCtx *args);
+void cli_servers_check_queued_cleared(const CliServersQueueFilesCtx *args);
 int cli_servers_check_queue_append(const CliServersQueueCtx *args);
+unsigned int cli_servers_check_waiting(const CliServersQueue *queue);
 void cli_servers_check_files_append(const CliServersQueueFilesCtx *args);
 
 // the texts of the files the editor has open, by their keys with their paths, and the parses as last read, by their
@@ -264,9 +303,10 @@ extern CliKeyed g_cli_servers_supplied;
 
 // A job of the servers done on one of their threads, from `size` bytes of it, its own copy of what it was handed
 typedef void (*CliServersJob)(const CliServersJobCfg *args);
-// `size` bytes of a job handed to the servers' threads in a cell of their size, waiting where every place is taken: 1,
-// or 0 where the cell could not be taken; and a cell of `size` bytes of a job, taken by the caller, handed over whole
-// and given back once the job has run: 1, or 0 where `job` is NULL (servers_jobs.c)
+// `size` bytes of a job copied into a persistent cell of their size and pushed on the jobs' ticket ring under a ticket
+// of the caller's, waiting where the ring holds a lap of jobs in flight: 1, or 0 where the cell could not be taken;
+// and a job's cell, laid by the caller, pushed under a ticket, popped by the thread that runs it and given back by it:
+// 1, or 0 where `cell` is NULL (servers_jobs.c)
 int cli_servers_later(const CliServersRunCtx *args);
 int cli_servers_later_dispatch(const CliServersRunSizeCtx *args);
 
@@ -338,7 +378,7 @@ void cli_servers_item_get(const CliServersJsonOneCtx *args);
 // a call's signature written, `null` where the server gave none; a code action written, `{"orior_plugin", "action"}`
 // its raw where the server of the plugin `plugin` offers it: 1, or 0 where it has no title; and whether the span
 // `from`, `to` shares a place with `range`, a span with no width touching the other counting (servers_offers.c)
-CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *args);
+int cli_servers_signature_get(const CliServersJsonOutHelpCtx *args);
 int cli_servers_overlaps(const CliServersJsonFromCtx *args);
 // a diagnostic of the server's written as orior's, `{"from", "to", "severity", "message", "markdown", "source",
 // "code", "href"}`; and a location written as `{"path", "line", "col"}`: 1, or 0 where it names no file
@@ -447,14 +487,14 @@ CliLsp *cli_servers_plugin_owner_get(const CliServersPathIdCtx *args);
 int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args);
 void cli_servers_plugin_folder_append(const CliServersTextCtx *args);
 void cli_servers_plugin_args(const CliServersJsonServerCtx *args);
-// one file checked with each checker named for its language, on a thread of its own; a file orior_cli reads itself
-// checked as its text stands; and every file of the tree orior_cli reads itself checked as the disk stores it
+// one file checked with each checker named for its language, on a thread of its own; a file impero reads itself
+// checked as its text stands; and every file of the tree impero reads itself checked as the disk stores it
 // (servers_checkers.c)
 void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args);
 void cli_servers_check_own(const CliServersPathSizeRootSinkCtx *args);
 void cli_servers_check_tree_own(const CliServersFilesCtx *args);
 void cli_servers_check_tree_with_checkers(const CliServersFilesCtx *args);
-// whether orior_cli reads the file at `path` itself, as a build file or as JSON by its schema (servers_own.c)
+// whether impero reads the file at `path` itself, as a build file or as JSON by its schema (servers_own.c)
 int cli_servers_own_reads(const CliServersPathSizeRootSinkCtx *args);
 // a run of the checker `id` over the file of `key` counted: its number, which a later run of the same checker over
 // the same file stands in for; and whether the run `run` is still the last (servers_checkers.c)
@@ -701,6 +741,7 @@ struct CliServersQueueCtx
     CliServersQueue *queue;
     const char *path;
     const CliServersWaiting *waiting;
+    unsigned int file;
     int front;
 };
 
@@ -854,7 +895,7 @@ struct CliServersRunSizeCtx
 {
     CliServersJob run;
     unsigned long long size;
-    char *bytes;
+    const CarcerMovableEntry *cell;
 };
 
 struct CliServersJsonOutCtx
@@ -904,6 +945,7 @@ struct CliServersJsonOutHelpCtx
     const CliJson *json;
     unsigned int help;
     const CellOwner *owner;
+    CliSignatureStore *store;
 };
 
 struct CliServersPathLineCtx
@@ -943,12 +985,6 @@ struct CliServersUriCtx
 {
     const char *uri;
     int open;
-};
-
-struct CliServersQueueAtCtx
-{
-    const CliServersQueue *queue_read;
-    unsigned int at;
 };
 
 struct CliServersPathLspCtx
@@ -1006,20 +1042,13 @@ typedef struct
 {
     int (*check_work_state_init)(const CliServersQueueFilesCtx *args);
     void (*check_files_append)(const CliServersQueueFilesCtx *args);
+    void (*check_queued_cleared)(const CliServersQueueFilesCtx *args);
 } CliServersQueueFilesNs;
-EMBED_TABLE_LAYOUT(CliServersQueueFilesNs, check_work_state_init, check_files_append);
+EMBED_TABLE_LAYOUT(CliServersQueueFilesNs, check_work_state_init, check_files_append, check_queued_cleared);
 EMBED_TABLE_STORAGE CliServersQueueFilesNs cli_servers_queue_files_internal EMBED_UNUSED = {
     .check_work_state_init = cli_servers_check_work_state_init,
     .check_files_append = cli_servers_check_files_append,
-};
-
-typedef struct
-{
-    CliServersQueued *(*check_queued_at)(const CliServersQueueAtCtx *args);
-} CliServersQueueAtNs;
-EMBED_TABLE_LAYOUT(CliServersQueueAtNs, check_queued_at);
-EMBED_TABLE_STORAGE CliServersQueueAtNs cli_servers_queue_at_internal EMBED_UNUSED = {
-    .check_queued_at = cli_servers_check_queued_at,
+    .check_queued_cleared = cli_servers_check_queued_cleared,
 };
 
 typedef struct
@@ -1219,7 +1248,7 @@ EMBED_TABLE_STORAGE CliServersJsonOneNs cli_servers_json_one_internal EMBED_UNUS
 
 typedef struct
 {
-    CliSignaturePanel *(*signature_get)(const CliServersJsonOutHelpCtx *args);
+    int (*signature_get)(const CliServersJsonOutHelpCtx *args);
 } CliServersJsonOutHelpNs;
 EMBED_TABLE_LAYOUT(CliServersJsonOutHelpNs, signature_get);
 EMBED_TABLE_STORAGE CliServersJsonOutHelpNs cli_servers_json_out_help_internal EMBED_UNUSED = {

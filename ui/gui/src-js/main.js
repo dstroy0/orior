@@ -354,7 +354,7 @@ async function openFolder(folder) {
   }
 }
 
-// Says which of the toolchains every job needs, as toolchains.json marks them, orior_gui cannot find,
+// Says which of the toolchains every job needs, as toolchains.json marks them, tabvla cannot find,
 // a press on the word opening File, Toolchains.
 async function checkNeeded() {
   const read = await invoke("toolchains_check").catch(() => null);

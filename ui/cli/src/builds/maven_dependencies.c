@@ -56,14 +56,14 @@ EMBED_INLINE int dependencies_visit(const MavenDependenciesCtx *args)
     {
         if ((s_seen_size[at] == args->size) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = s_seen_text + s_seen_at[at], .other = args->whole, .bytes = (size_t)args->size}) == 0))
+                 .src = s_seen_text + s_seen_at[at], .other = args->whole, .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
     }
     if ((s_seen < CLI_MAVEN_LISTING) && (args->size <= CLI_MAVEN_LISTING_TEXT - s_seen_used))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_seen_text + s_seen_used, .src = args->whole, .bytes = (size_t)args->size});
+        memor.cpy(&(MemoriaCfg){.dst = s_seen_text + s_seen_used, .src = args->whole, .bytes = (embed_word)args->size});
         s_seen_at[s_seen] = s_seen_used;
         s_seen_size[s_seen] = (unsigned int)args->size;
         s_seen += 1u;
@@ -140,7 +140,7 @@ EMBED_INLINE int dependencies_managed(const MavenDependenciesCtx *args)
         if ((args->model->managed_size[at] == args->size) &&
             (memor.cmp(&(MemoriaCfg){.src = args->model->text + args->model->managed_at[at],
                                      .other = args->key,
-                                     .bytes = (size_t)args->size}) == 0))
+                                     .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }

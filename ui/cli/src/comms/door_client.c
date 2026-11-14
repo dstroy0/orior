@@ -3,11 +3,14 @@
 // door_client.c: a process's end of the door: joined by its key, a thread reading what comes, each message on a channel
 // it listens on queued and each answer stored for the one waiting on it, and what it requests written a frame at a
 // time, the region a long body is in handed over with its frame
+#include "../command_line/rings.h"
 #include "../text/text.h"
 #include "door_internal.h"
 
+// the bytes of an answer stored
 #define CLI_IPC_ANSWER (1u << 16u)
-#define CLI_IPC_RECV_QUEUE 64u
+// An end of the door: the messages that come are queued on a ticket ring, the reader's thread taking a ticket and
+// pushing the entry of its slot, the thread that asks for the next popping them in the order of their tickets
 struct CliIpcClient
 {
     int reserved;
@@ -20,13 +23,12 @@ struct CliIpcClient
     embed_atomic_u32 answered;
     char *frame;
     CliIpcEntry recv_queue[CLI_IPC_RECV_QUEUE];
-    unsigned int first;
-    embed_atomic_u32 queued;
+    EmbedTurnstiles turnstiles;
+    EmbedTicketRing ring;
+    embed_u32 ticket;
+    embed_u32 taken;
     CliThread reader;
 };
-// the most clients in one process; the bytes of an answer stored; and the messages queued for one client
-#define CLI_IPC_CLIENTS 2u
-
 static CliIpcClient s_clients[CLI_IPC_CLIENTS];
 
 typedef struct
@@ -48,13 +50,23 @@ EMBED_INLINE void client_recv(const DoorClientCtx *args)
     const unsigned long long channel_end = cli_ipc_field_end(args->message, size, 0ULL);
     const unsigned long long from_end =
         (channel_end != 0ULL) ? cli_ipc_field_end(args->message, size, channel_end) : 0ULL;
-    const unsigned int queued = EMBED_ATOMIC_LOAD(&args->client->queued);
-    if ((queued >= CLI_IPC_RECV_QUEUE) || (from_end == 0ULL) || (from_end >= size))
+    if ((from_end == 0ULL) || (from_end >= size))
     {
         return;
     }
-    // the entry past the last queued is the reader's alone until it is counted
-    CliIpcEntry *const entry = &args->client->recv_queue[(args->client->first + queued) % CLI_IPC_RECV_QUEUE];
+    // the slot of the next ticket granted, which fails while the entry of that slot is still queued; the entry is the
+    // reader's alone until it is pushed
+    CliIpcClient *const client = args->client;
+    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), client->ticket);
+    CliIpcEntry *const entry = &client->recv_queue[client->ticket & (CLI_IPC_RECV_QUEUE - 1u)];
+    // Explicit cast carries the entry's address as the pass's entry
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)entry;
+    embed_u64 seen = 0u;
+    if (!embed_ticket_ring_granted(&client->turnstiles, address, &client->ring, stamp, &seen))
+    {
+        return;
+    }
+    client->ticket += 1u;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     VerbaLinea channel = {entry->channel, sizeof(entry->channel), 0ULL};
@@ -93,12 +105,36 @@ EMBED_INLINE void client_recv(const DoorClientCtx *args)
         entry->has_region = (rest_size >= CLI_IPC_ENTRY_BODY);
         if (!entry->has_region)
         {
-            memor.cpy(&(MemoriaCfg){.dst = entry->body, .src = rest, .bytes = (size_t)rest_size});
+            memor.cpy(&(MemoriaCfg){.dst = entry->body, .src = rest, .bytes = (embed_word)rest_size});
         }
         entry->size = rest_size;
     }
-    (void)EMBED_ATOMIC_ADD_32(&args->client->queued, 1u);
-    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->client->wake);
+    (void)embed_ticket_ring_pushed(&client->turnstiles, address, &client->ring, stamp, entry, &seen);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
+}
+
+// the next entry queued popped off the ring, where one is pushed, into `entry_out` with its stamp into `stamp_out`
+static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u64 *stamp_out)
+{
+    void *job = NULL;
+    embed_u64 seen = 0u;
+    // Explicit cast carries the end's address as the pass's entry
+    if (!cli_ticket_pushed(&client->ring, client->taken, stamp_out) ||
+        !embed_ticket_ring_popped(&client->turnstiles, (embed_atomic_uptr_value)(embed_word)client, &client->ring,
+                                  *stamp_out, &job, &seen))
+    {
+        return 0;
+    }
+    *entry_out = job;
+    return 1;
+}
+
+// a popped entry's slot released and the next ticket moved past it
+static void client_released(CliIpcClient *client, embed_u64 stamp)
+{
+    embed_u64 seen = 0u;
+    (void)embed_ticket_ring_released(&client->turnstiles, &client->ring, stamp, &seen);
+    client->taken += 1u;
 }
 
 // what comes read until the end breaks: each message queued, and each other frame stored as the answer waited on
@@ -127,7 +163,7 @@ static void client_read(void *context)
             continue;
         }
         const unsigned long long pending = (size < CLI_IPC_ANSWER) ? size : 0ULL;
-        memor.cpy(&(MemoriaCfg){.dst = client->answer, .src = client->frame, .bytes = (size_t)pending});
+        memor.cpy(&(MemoriaCfg){.dst = client->answer, .src = client->frame, .bytes = (embed_word)pending});
         client->answer_size = pending;
         EMBED_ATOMIC_STORE(&client->answered, 1u);
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
@@ -205,25 +241,27 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
         mmgr_line_put(args->err_msg, "this process has as many ends of the door as it can");
         return NULL;
     }
-    // an end's answer, frame and queued bodies stand in one cell of the temporary tier, for as long as the end does
-    client->answer =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_IPC_ANSWER + CLI_IPC_FRAME +
-                                             ((unsigned long long)CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY),
-                                         g_cli_ipc_owner);
-    if (client->answer == NULL)
-    {
-        client->reserved = 0;
-        mmgr_line_put(args->err_msg, "the cells cannot meet an end of the door");
-        return NULL;
-    }
+    // an end's answer, frame and queued bodies are the reader's thread's buffers, so they stand fixed outside the
+    // pool, one set for each end, where they punch no hole in the persistent tier
+    static char s_answers[CLI_IPC_CLIENTS][CLI_IPC_ANSWER + CLI_IPC_FRAME + (CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY)];
+    client->answer = s_answers[client - s_clients];
     client->frame = client->answer + CLI_IPC_ANSWER;
     for (unsigned int at = 0u; at < CLI_IPC_RECV_QUEUE; at += 1u)
     {
         client->recv_queue[at].body = client->frame + CLI_IPC_FRAME + ((unsigned long long)at * CLI_IPC_ENTRY_BODY);
     }
     client->wake = (CliWake)CLI_WAKE_INIT;
-    client->first = 0u;
-    EMBED_ATOMIC_STORE(&client->queued, 0u);
+    memor.set(&(MemoriaCfg){.dst = &client->turnstiles, .val = 0, .bytes = sizeof(client->turnstiles)});
+    // the ring's slots, this client's run of the clients' part of the rings block
+    EmbedTicketRingSlot *const slots =
+        (EmbedTicketRingSlot *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_DOOR_CLIENTS) +
+                                        ((unsigned long long)(client - s_clients) * CLI_IPC_RECV_QUEUE *
+                                         sizeof(EmbedTicketRingSlot)));
+    memor.set(&(MemoriaCfg){
+        .dst = slots, .val = 0, .bytes = (unsigned long long)CLI_IPC_RECV_QUEUE * sizeof(EmbedTicketRingSlot)});
+    embed_ticket_ring_begin(&client->ring, slots, CLI_IPC_RECV_SHIFT);
+    client->ticket = 0u;
+    client->taken = 0u;
     EMBED_ATOMIC_STORE(&client->answered, 0u);
     EMBED_ATOMIC_STORE(&client->read_state, 1u);
     char hello[CLI_NAME_MAX_LEN * 2u];
@@ -252,7 +290,6 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     if (!joined || !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &client->reader))
     {
         EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &client->end);
-        g_cli_guard->persistent_buf_release(client->answer, g_cli_ipc_owner);
         client->answer = NULL;
         client->reserved = 0;
         return NULL;
@@ -272,17 +309,17 @@ void cli_ipc_leave(const CliIpcClientCfg *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &args->client->wake);
     }
-    const unsigned int queued = EMBED_ATOMIC_LOAD(&args->client->queued);
-    for (unsigned int at = 0u; at < queued; at += 1u)
+    CliIpcEntry *entry = NULL;
+    embed_u64 stamp = 0u;
+    while (client_popped(args->client, &entry, &stamp))
     {
-        CliIpcEntry *const entry = &args->client->recv_queue[(args->client->first + at) % CLI_IPC_RECV_QUEUE];
         if (entry->has_region)
         {
             EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
         }
+        client_released(args->client, stamp);
     }
     EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &args->client->end);
-    g_cli_guard->persistent_buf_release(args->client->answer, g_cli_ipc_owner);
     args->client->answer = NULL;
     args->client->reserved = 0;
 }
@@ -338,21 +375,21 @@ int cli_ipc_send(const CliIpcErrMsgCfg *args)
 int cli_ipc_next(const CliIpcClientCfg *args)
 {
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
+    embed_u64 stamp = 0u;
     for (;;)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &args->client->wake);
         const unsigned long long now = cli_clock_milliseconds();
-        if ((EMBED_ATOMIC_LOAD(&args->client->queued) != 0u) || (EMBED_ATOMIC_LOAD(&args->client->read_state) == 0u) ||
-            (now >= until))
+        if (cli_ticket_pushed(&args->client->ring, args->client->taken, &stamp) ||
+            (EMBED_ATOMIC_LOAD(&args->client->read_state) == 0u) || (now >= until))
         {
             break;
         }
         (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &args->client->wake, .seen = seen,
                          .milliseconds_u64 = until - now);
     }
-    const int has = (EMBED_ATOMIC_LOAD(&args->client->queued) > 0u);
-    CliIpcEntry *const entry = &args->client->recv_queue[args->client->first];
-    if (!has)
+    CliIpcEntry *entry = NULL;
+    if (!client_popped(args->client, &entry, &stamp))
     {
         return 0;
     }
@@ -369,7 +406,6 @@ int cli_ipc_next(const CliIpcClientCfg *args)
     {
         EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
     }
-    args->client->first = (args->client->first + 1u) % CLI_IPC_RECV_QUEUE;
-    (void)EMBED_ATOMIC_ADD_32(&args->client->queued, (embed_u32)-1);
+    client_released(args->client, stamp);
     return 1;
 }

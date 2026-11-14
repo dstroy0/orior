@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// host.c: orior_cli in a Flatpak's sandbox runs the machine's own programs on the machine. Inside the sandbox none of
+// host.c: impero in a Flatpak's sandbox runs the machine's own programs on the machine. Inside the sandbox none of
 // the machine's compilers, SDKs and tools are there: each program on the machine's PATH is given a stand-in of the same
-// name in a folder of orior's own, put first on the PATH of orior_cli and of all it starts: a script that runs the
+// name in a folder of orior's own, put first on the PATH of impero and of all it starts: a script that runs the
 // program on the machine through `flatpak-spawn --host`, in the folder it was started in, with the terminal's type, the
 // language, and each variable ORIOR_HOST_ENV names. A job, a tool, a language server, git and the terminal's shell all
 // reach the machine's own that way. Outside a sandbox nothing changes
@@ -10,12 +10,12 @@
 #include "../text/text.h"
 
 // the programs that stay running inside the sandbox: the one that reaches the machine, and orior
-static const char *const s_inside[3] = {"flatpak-spawn", "orior", "orior_cli"};
+static const char *const s_inside[3] = {"flatpak-spawn", "orior", "imp"};
 
 // the variables every stand-in passes to the machine's program, where they are set
 static const char *const s_passed[4] = {"TERM", "COLORTERM", "LANG", "LC_ALL"};
 
-// whether orior_cli runs inside a Flatpak's sandbox
+// whether impero runs inside a Flatpak's sandbox
 int cli_sandbox(void)
 {
 #if defined(__linux__)
@@ -92,7 +92,7 @@ long long cli_stand_ins_write(const CliHostIntoCfg *args)
     const char *line = args->names;
     while (*line != '\0')
     {
-        const size_t length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = line, .set = "\r\n");
+        const embed_word length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = line, .set = "\r\n");
         char name[CLI_NAME_MAX_LEN];
         int valid_name = (length != 0u) && (length < sizeof(name));
         if (valid_name)
@@ -139,7 +139,7 @@ long long cli_stand_ins_write(const CliHostIntoCfg *args)
 }
 
 // Inside a sandbox, a stand-in made for each program on the machine's PATH and their folder put first on orior's own
-// PATH, which all it starts take: how many it made, -1 with why given, or -2 outside a sandbox. Run as orior_cli
+// PATH, which all it starts take: how many it made, -1 with why given, or -2 outside a sandbox. Run as impero
 // starts, before it starts anything else
 long long cli_host_prepare(const CliHostIntoCfg *args)
 {
@@ -196,7 +196,7 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
             mmgr_line_ch(&path, ':');
             mmgr_line_put(&path, s_old);
         }
-        // orior_cli starts nothing before this, and no thread of its own runs yet
+        // impero starts nothing before this, and no thread of its own runs yet
         if (mmgr_line_finish(&path) != 0ULL)
         {
             EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH", .value = s_path);

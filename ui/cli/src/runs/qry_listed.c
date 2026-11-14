@@ -6,6 +6,7 @@
 // that appears in one showing at once, and reads each folder's overseer.txt for its lessons. A run opened in the pane
 // is read through the run's records, its panics' and conferences' texts copied into the pane's own cell, every other
 // record listed by its name and size alone. All of it stands in one cell taken at the first listing
+#include "../text/sort.h"
 #include "qry.h"
 
 #include "../command_line/command_line.h"
@@ -13,8 +14,6 @@
 #include "../editor/files.h"
 #include "../text/text.h"
 #include "embed_atomic.h"
-
-#include <stdlib.h>
 
 // the most folders of runs, the bytes their paths take, the most runs listed, the most lessons, the bytes the runs'
 // paths and the lessons' words take, the runs opened at once, the most records an opened run lists, the bytes of the
@@ -409,7 +408,7 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
         }
         at = end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (g_cli_qry_listing_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), (g_cli_qry_listing_owner));
     return count;
 }
 
@@ -562,7 +561,8 @@ EMBED_INLINE void runs_list(const QryListedCtx *args)
         QryListedCtx listing = {.root = args->root, .folder = at};
         (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = full, .each = runs_entry,
                          .context_bytess = &listing);
-        qsort(runs->run + folder->first, folder->count, sizeof(RunsRun), runs_order);
+        EMBED_CALL(cli_sort, CliSortCfg, .base = runs->run + folder->first, .count = folder->count,
+                   .size = sizeof(RunsRun), .order = runs_order);
     }
     runs->live = 0u;
     runs->panicked = 0u;
@@ -747,13 +747,11 @@ EMBED_INLINE int runs_any_opened_live(const QryListedCtx *args)
 // taken
 EMBED_INLINE Runs *runs_of(const QryListedCtx *args)
 {
+    // the one record of the runs listed stands fixed outside the pool, where it punches no hole in the persistent tier
+    static Runs s_record;
     if (s_runs == NULL)
     {
-        s_runs = g_cli_guard->persistent_buf_alloc(sizeof(Runs), g_cli_qry_listing_owner);
-        if (s_runs == NULL)
-        {
-            return NULL;
-        }
+        s_runs = &s_record;
         memor.set(&(MemoriaCfg){.dst = s_runs, .val = 0, .bytes = sizeof(Runs)});
     }
     Runs *const runs = s_runs;

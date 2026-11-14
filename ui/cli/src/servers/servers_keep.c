@@ -182,13 +182,22 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     const char *path = args->path;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    const char *named = NULL;
-    unsigned long long size = 0ULL;
-    const int found = (EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_languages, .key = key,
-                                  .adjacent = &named, .size = &size) != NULL) &&
-                      (named != NULL);
+    const unsigned int place =
+        EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_languages, .key = key);
+    const int found = place != CLI_KEYED_NONE;
+    // the language's name stands beside the key, a name's length at most
+    char named[CLI_NAME_MAX_LEN] = "";
+    if (found)
+    {
+        const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_languages, .at = place);
+        const unsigned long long bytes =
+            (one.adjacent_size < sizeof(named)) ? one.adjacent_size : (sizeof(named) - 1ULL);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = one.cell, .offset = one.key_size + 1u, .dst = named, .bytes = (embed_word)bytes});
+        named[bytes] = '\0';
+    }
     VerbaLinea line = {args->language, CLI_NAME_MAX_LEN, 0ULL};
-    mmgr_line_put(&line, found ? named : "");
+    mmgr_line_put(&line, named);
     const int integer = mmgr_line_finish(&line) != 0ULL;
     return found && integer;
 }

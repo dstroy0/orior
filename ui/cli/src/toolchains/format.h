@@ -22,7 +22,7 @@ typedef struct CliFormatLanguageCfg CliFormatLanguageCfg;
 // the language a file opens in, by its extension, as the window chooses it, into `id`, sized for CLI_NAME_MAX_LEN:
 // one of the reader's plugins ahead of one that comes with orior, and of two that come with orior the first by id. 1,
 // or 0 where none takes it; every language a formatter formats, written as a JSON array; and the program that formats
-// `language` into `program`, sized for CLI_NAME_MAX_LEN: 1, or 0 where orior_cli has no formatter for it
+// `language` into `program`, sized for CLI_NAME_MAX_LEN: 1, or 0 where impero has no formatter for it
 int cli_format_language_get(const CliFormatCfg *args);
 int cli_format_program_get(const CliFormatLanguageCfg *args);
 

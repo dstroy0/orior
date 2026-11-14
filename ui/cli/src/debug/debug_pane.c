@@ -33,19 +33,48 @@ typedef struct
 // the views' labels, in the order of CLI_DEBUG_VIEW_FRAMES and the rest
 static const char *const s_labels[CLI_DEBUG_VIEWS] = {"Frames", "Variables", "Console"};
 
-// the sink's lock taken, a thread spinning while another has it, and let go
+// the sink's gate shut, a thread asleep while another holds it, and opened
 EMBED_INLINE void pane_locked(const DebugPaneCtx *args)
 {
     (void)args;
-    while (EMBED_ATOMIC_EXCHANGE_32(&g_cli_debug_pane.lock, 1u) != 0u)
-    {
-    }
+    cli_gate_shut(&g_cli_debug_pane.lock);
 }
 
 EMBED_INLINE void pane_unlocked(const DebugPaneCtx *args)
 {
     (void)args;
-    EMBED_ATOMIC_STORE(&g_cli_debug_pane.lock, 0u);
+    cli_gate_opened(&g_cli_debug_pane.lock);
+}
+
+// a movable cell of `size` bytes taken with the first `length` bytes of `text`'s cell copied in through a cell of this
+// call, the old cell released: the new cell, or NULL where the cells cannot meet it, the old left as it is
+EMBED_INLINE const CarcerMovableEntry *pane_cell_grown(const DebugPaneCtx *args)
+{
+    const CarcerMovableEntry *const old = (const CarcerMovableEntry *)args->body;
+    const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(args->size, g_cli_debug_pane_owner);
+    if (grown == NULL)
+    {
+        return NULL;
+    }
+    if (args->session != 0ULL)
+    {
+        unsigned char *const copied = g_cli_guard->temporary_buf_alloc(args->session, g_cli_debug_pane_owner);
+        if (copied == NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(grown, g_cli_debug_pane_owner);
+            return NULL;
+        }
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = old, .offset = 0ULL, .dst = copied, .bytes = args->session});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = grown, .offset = 0ULL, .src = copied, .bytes = args->session});
+        g_cli_guard->persistent_buf_release(copied, g_cli_debug_pane_owner);
+    }
+    if (old != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(old, g_cli_debug_pane_owner);
+    }
+    return grown;
 }
 
 unsigned long long cli_debug_pane_text_put(const CliDebugPaneCtx *args)
@@ -54,81 +83,105 @@ unsigned long long cli_debug_pane_text_put(const CliDebugPaneCtx *args)
     const unsigned long long needed = store->used + args->length + 1ULL;
     if (needed > store->size)
     {
+        // the old cell rides as the body, the live bytes as the session
         const unsigned long long size = (needed * 2ULL > 256ULL) ? needed * 2ULL : 256ULL;
-        char *const grown = g_cli_guard->persistent_buf_alloc(size, g_cli_debug_pane_owner);
+        const CarcerMovableEntry *const grown = EMBED_CALL(pane_cell_grown, DebugPaneCtx, .size = size,
+                                                           .body = (const char *)store->text, .session = store->used);
         if (grown == NULL)
         {
             return CLI_DEBUG_PANE_NONE;
         }
-        if (store->used != 0ULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = store->text, .bytes = store->used});
-        }
-        g_cli_guard->persistent_buf_release(store->text, g_cli_debug_pane_owner);
         store->text = grown;
         store->size = size;
     }
     const unsigned long long at = store->used;
+    const char end = '\0';
     if (args->length != 0ULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = store->text + at, .src = args->text, .bytes = args->length});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = store->text, .offset = at, .src = args->text, .bytes = args->length});
     }
-    store->text[at + args->length] = '\0';
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = store->text, .offset = at + args->length, .src = &end, .bytes = 1ULL});
     store->used = needed;
     return at;
 }
 
-CliDebugPaneEntry *cli_debug_pane_entry_put(const CliDebugPaneCtx *args)
+unsigned int cli_debug_pane_entry_put(const CliDebugPaneCtx *args)
 {
     CliDebugPaneStore *const store = args->store;
     if (store->count == store->capacity)
     {
         const unsigned int capacity = (store->capacity != 0u) ? store->capacity * 2u : 16u;
-        CliDebugPaneEntry *const grown = g_cli_guard->persistent_buf_alloc(
-            (unsigned long long)capacity * sizeof(CliDebugPaneEntry), g_cli_debug_pane_owner);
+        const CarcerMovableEntry *const grown =
+            EMBED_CALL(pane_cell_grown, DebugPaneCtx, .size = CLI_DEBUG_PANE_ENTRY_AT(capacity),
+                       .body = (const char *)store->entry, .session = CLI_DEBUG_PANE_ENTRY_AT(store->count));
         if (grown == NULL)
         {
-            return NULL;
+            return CLI_DEBUG_PANE_NO_ENTRY;
         }
-        if (store->count != 0u)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown,
-                                    .src = store->entry,
-                                    .bytes = (unsigned long long)store->count * sizeof(CliDebugPaneEntry)});
-        }
-        g_cli_guard->persistent_buf_release(store->entry, g_cli_debug_pane_owner);
         store->entry = grown;
         store->capacity = capacity;
     }
-    CliDebugPaneEntry *const entry = &store->entry[store->count];
-    *entry = (CliDebugPaneEntry){0};
+    const CliDebugPaneEntry empty = {0};
+    const unsigned int at = store->count;
+    EMBED_CALL(cli_debug_pane_internal.entry_written, CliDebugPaneCtx, .store = store, .at = at, .entry = &empty);
     store->count += 1u;
-    return entry;
+    return at;
+}
+
+void cli_debug_pane_entry_read(const CliDebugPaneCtx *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                            .dst = args->entry_out,
+                                                            .bytes = sizeof(CliDebugPaneEntry)});
+}
+
+void cli_debug_pane_entry_written(const CliDebugPaneCtx *args)
+{
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                             .src = args->entry,
+                                                             .bytes = sizeof(CliDebugPaneEntry)});
+}
+
+void cli_debug_pane_text_read(const CliDebugPaneCtx *args)
+{
+    const unsigned long long copied = (args->length < args->capacity) ? args->length : (args->capacity - 1ULL);
+    if (copied != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = args->store->text, .offset = args->offset, .dst = args->text_out, .bytes = copied});
+    }
+    args->text_out[copied] = '\0';
 }
 
 void cli_debug_pane_store_empty(const CliDebugPaneCtx *args)
 {
     CliDebugPaneStore *const store = args->store;
-    g_cli_guard->persistent_buf_release(store->entry, g_cli_debug_pane_owner);
-    g_cli_guard->persistent_buf_release(store->text, g_cli_debug_pane_owner);
+    if (store->entry != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(store->entry, g_cli_debug_pane_owner);
+    }
+    if (store->text != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(store->text, g_cli_debug_pane_owner);
+    }
     *store = (CliDebugPaneStore){0};
 }
 
 void cli_debug_pane_status_set(const CliDebugPaneCtx *args)
 {
-    char *const status = g_cli_guard->persistent_buf_alloc(args->length + 1ULL, g_cli_debug_pane_owner);
-    if (status == NULL)
+    // the line is its first bytes where it passes the status' size
+    const unsigned long long length =
+        (args->length < sizeof(g_cli_debug_pane.status)) ? args->length : (sizeof(g_cli_debug_pane.status) - 1ULL);
+    if (length != 0ULL)
     {
-        return;
+        memor.cpy(&(MemoriaCfg){.dst = g_cli_debug_pane.status, .src = args->text, .bytes = length});
     }
-    if (args->length != 0ULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = status, .src = args->text, .bytes = args->length});
-    }
-    status[args->length] = '\0';
-    g_cli_guard->persistent_buf_release(g_cli_debug_pane.status, g_cli_debug_pane_owner);
-    g_cli_debug_pane.status = status;
-    g_cli_debug_pane.status_length = args->length;
+    g_cli_debug_pane.status[length] = '\0';
+    g_cli_debug_pane.status_length = length;
     g_cli_debug_pane.status_failed = args->failed;
 }
 
@@ -151,16 +204,38 @@ EMBED_INLINE int pane_number(const DebugPaneCtx *args)
                       .value = args->value);
 }
 
+// `session` bytes of the session's texts at `size` copied into `body`, a buffer of CLI_PATH_MAX_LEN bytes, with an end,
+// cut to the buffer; empty with no session texts
+EMBED_INLINE void pane_session_text(const DebugPaneCtx *args)
+{
+    char *const out = (char *)(embed_word)args->body;
+    const unsigned long long copied =
+        (args->session < CLI_PATH_MAX_LEN) ? args->session : (unsigned long long)(CLI_PATH_MAX_LEN - 1u);
+    if ((g_cli_debug_pane.session_texts != NULL) && (copied != 0ULL))
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_debug_pane.session_texts, .offset = args->size, .dst = out, .bytes = copied});
+        out[copied] = '\0';
+        return;
+    }
+    out[0] = '\0';
+}
+
 void cli_debug_pane_running_said(const CliDebugPaneCtx *args)
 {
     (void)args;
     char sentence[(2u * CLI_PATH_MAX_LEN) + 32u];
     VerbaLinea line = {sentence, sizeof(sentence), 0ULL};
-    const char *const texts = (g_cli_debug_pane.session_texts != NULL) ? g_cli_debug_pane.session_texts : "";
+    // the session's name and tool read out of their cell into this call's bytes, each cut to a path's
+    char name[CLI_PATH_MAX_LEN];
+    char tool[CLI_PATH_MAX_LEN];
+    EMBED_CALL(pane_session_text, DebugPaneCtx, .size = 0ULL, .session = g_cli_debug_pane.name_length, .body = name);
+    EMBED_CALL(pane_session_text, DebugPaneCtx, .size = g_cli_debug_pane.tool_at,
+               .session = g_cli_debug_pane.tool_length, .body = tool);
     mmgr_line_put(&line, "Running ");
-    mmgr_line_put_n(&line, texts, g_cli_debug_pane.name_length);
+    mmgr_line_put(&line, name);
     mmgr_line_put(&line, " under ");
-    mmgr_line_put_n(&line, texts + g_cli_debug_pane.tool_at, g_cli_debug_pane.tool_length);
+    mmgr_line_put(&line, tool);
     EMBED_CALL(cli_debug_pane_internal.status_set, CliDebugPaneCtx, .text = sentence,
                .length = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
@@ -174,7 +249,10 @@ EMBED_INLINE void pane_followed(const DebugPaneCtx *args)
     g_cli_debug_pane.paused = 0;
     g_cli_debug_pane.has_thread = 0;
     g_cli_debug_pane.step_back = 0;
-    g_cli_guard->persistent_buf_release(g_cli_debug_pane.session_texts, g_cli_debug_pane_owner);
+    if (g_cli_debug_pane.session_texts != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(g_cli_debug_pane.session_texts, g_cli_debug_pane_owner);
+    }
     g_cli_debug_pane.session_texts = NULL;
     g_cli_debug_pane.name_length = 0ULL;
     g_cli_debug_pane.tool_at = 0ULL;
@@ -191,11 +269,11 @@ EMBED_INLINE void pane_followed(const DebugPaneCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     g_cli_debug_pane.requests->sessions(&(CliDebugOutErrMsgIdStepCfg){.out = &out, .err_msg = &err_msg});
     CliJson json = {0};
-    const unsigned int root = mmgr_line_ok(&out)
-                                  ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary,
-                                               CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = scratch,
-                                               .size = out.at, .err_msg = &err_msg, .owner = g_cli_debug_pane_owner)
-                                  : CLI_JSON_NONE;
+    const unsigned int root =
+        mmgr_line_ok(&out)
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                         .text = scratch, .size = out.at, .err_msg = &err_msg, .owner = g_cli_debug_pane_owner)
+            : CLI_JSON_NONE;
     for (unsigned int at = 0u; root != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -226,11 +304,14 @@ EMBED_INLINE void pane_followed(const DebugPaneCtx *args)
                 EMBED_CALL(cli_debug_json_node_internal.debug_true, CliDebugJsonNodeCtx, .json = &json,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &json, .object = one, .name = "step_back"));
-            // the three texts one after another, each with its end
+            // the three texts one after another, each with its end, laid in a cell of this call and written whole into
+            // a movable cell of their size
             const unsigned long long bytes = name_length + tool_length + language_length + 3ULL;
             char *const texts =
-                (one != CLI_JSON_NONE) ? g_cli_guard->persistent_buf_alloc(bytes, g_cli_debug_pane_owner) : NULL;
-            if (texts != NULL)
+                (one != CLI_JSON_NONE) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_debug_pane_owner) : NULL;
+            const CarcerMovableEntry *const stored =
+                (texts != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_debug_pane_owner) : NULL;
+            if (stored != NULL)
             {
                 memor.cpy(&(MemoriaCfg){.dst = texts, .src = (name != NULL) ? name : "", .bytes = name_length});
                 texts[name_length] = '\0';
@@ -241,7 +322,9 @@ EMBED_INLINE void pane_followed(const DebugPaneCtx *args)
                                         .src = (language != NULL) ? language : "",
                                         .bytes = language_length});
                 texts[bytes - 1ULL] = '\0';
-                g_cli_debug_pane.session_texts = texts;
+                (void)g_cli_guard->movable_buf_write(
+                    &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .src = texts, .bytes = bytes});
+                g_cli_debug_pane.session_texts = stored;
                 g_cli_debug_pane.name_length = name_length;
                 g_cli_debug_pane.tool_at = name_length + 1ULL;
                 g_cli_debug_pane.tool_length = tool_length;
@@ -292,20 +375,19 @@ EMBED_INLINE void pane_stopped(const DebugPaneCtx *args)
     VerbaLinea line = {sentence, sizeof(sentence), 0ULL};
     mmgr_line_put(&line, "Stopped ");
     mmgr_line_put(&line, why);
-    const CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
+    CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
     if (frames->count != 0u)
     {
-        const CliDebugPaneEntry *const top = &frames->entry[0];
+        CliDebugPaneEntry top;
+        EMBED_CALL(cli_debug_pane_internal.entry_read, CliDebugPaneCtx, .store = frames, .at = 0u, .entry_out = &top);
         mmgr_line_put(&line, ", ");
-        // a frame with no file is placed by its function
-        if (top->second_length != 0ULL)
-        {
-            mmgr_line_put_n(&line, frames->text + top->second, top->second_length);
-        }
-        else
-        {
-            mmgr_line_put_n(&line, frames->text + top->text, top->text_length);
-        }
+        // a frame with no file is placed by its function, the text read into this call's bytes
+        const int placed = top.second_length != 0ULL;
+        char where[CLI_PATH_MAX_LEN + 16u];
+        EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = frames,
+                   .offset = placed ? top.second : top.text, .length = placed ? top.second_length : top.text_length,
+                   .text_out = where, .capacity = sizeof(where));
+        mmgr_line_put(&line, where);
     }
     EMBED_CALL(cli_debug_pane_internal.status_set, CliDebugPaneCtx, .text = sentence,
                .length = mmgr_line_ok(&line) ? line.at : 0ULL);
@@ -362,7 +444,10 @@ EMBED_INLINE void pane_exited(const DebugPaneCtx *args)
     VerbaLinea line = {sentence, sizeof(sentence), 0ULL};
     if ((g_cli_debug_pane.session_texts != NULL) && (g_cli_debug_pane.name_length != 0ULL))
     {
-        mmgr_line_put_n(&line, g_cli_debug_pane.session_texts, g_cli_debug_pane.name_length);
+        char name[CLI_PATH_MAX_LEN];
+        EMBED_CALL(pane_session_text, DebugPaneCtx, .size = 0ULL, .session = g_cli_debug_pane.name_length,
+                   .body = name);
+        mmgr_line_put(&line, name);
     }
     else
     {
@@ -389,11 +474,11 @@ EMBED_INLINE int pane_event(const DebugPaneCtx *args)
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const unsigned int body = (args->size != 0ULL)
-                                  ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary,
-                                               CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = args->body,
-                                               .size = args->size, .err_msg = &err_msg, .owner = g_cli_debug_pane_owner)
-                                  : CLI_JSON_NONE;
+    const unsigned int body =
+        (args->size != 0ULL)
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                         .text = args->body, .size = args->size, .err_msg = &err_msg, .owner = g_cli_debug_pane_owner)
+            : CLI_JSON_NONE;
     const char *const event = args->event;
     // a session's first event follows it while none is followed, and a stop in any session follows it
     const int stop = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = 32ULL});
@@ -446,12 +531,13 @@ static void pane_emitted(const CliDebugEventCfg *args)
 {
     EMBED_CALL(pane_locked, DebugPaneCtx, .session = args->session);
     CliDebugPaneStore *const events = &g_cli_debug_pane.events;
-    CliDebugPaneEntry *const entry = EMBED_CALL(cli_debug_pane_internal.entry_put, CliDebugPaneCtx, .store = events);
+    const unsigned int at = EMBED_CALL(cli_debug_pane_internal.entry_put, CliDebugPaneCtx, .store = events);
     const char *const event = (args->event != NULL) ? args->event : "";
     const unsigned long long name =
-        (entry != NULL) ? EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = events, .text = event,
-                                     .length = cellul.len(&(CatenaFinitaCfg){.src = event, .cap = 64ULL}))
-                        : CLI_DEBUG_PANE_NONE;
+        (at != CLI_DEBUG_PANE_NO_ENTRY)
+            ? EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = events, .text = event,
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = event, .cap = 64ULL}))
+            : CLI_DEBUG_PANE_NONE;
     const unsigned long long body = (name != CLI_DEBUG_PANE_NONE)
                                         ? EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = events,
                                                      .text = (args->body != NULL) ? args->body : "",
@@ -460,15 +546,18 @@ static void pane_emitted(const CliDebugEventCfg *args)
     if (body == CLI_DEBUG_PANE_NONE)
     {
         // an event the cells cannot meet is passed over whole
-        events->count -= (entry != NULL) ? 1u : 0u;
+        events->count -= (at != CLI_DEBUG_PANE_NO_ENTRY) ? 1u : 0u;
     }
     else
     {
         // the session's number is far inside what a signed reference counts
-        entry->reference = (long long)args->session;
-        entry->text = name;
-        entry->second = body;
-        entry->second_length = (args->body != NULL) ? args->size : 0ULL;
+        CliDebugPaneEntry entry = {0};
+        entry.reference = (long long)args->session;
+        entry.text = name;
+        entry.text_length = cellul.len(&(CatenaFinitaCfg){.src = event, .cap = 64ULL});
+        entry.second = body;
+        entry.second_length = (args->body != NULL) ? args->size : 0ULL;
+        EMBED_CALL(cli_debug_pane_internal.entry_written, CliDebugPaneCtx, .store = events, .at = at, .entry = &entry);
     }
     EMBED_ATOMIC_STORE(&g_cli_debug_pane.waiting, 1u);
     EMBED_CALL(pane_unlocked, DebugPaneCtx, .session = args->session);
@@ -487,11 +576,13 @@ void cli_debug_pane_begin(const CliDebugPaneViewCfg *args)
     {
         EMBED_CALL(cli_debug_pane_internal.store_empty, CliDebugPaneCtx, .store = stores[at]);
     }
-    g_cli_guard->persistent_buf_release(g_cli_debug_pane.watch_typed.bytes, g_cli_debug_pane_owner);
-    g_cli_guard->persistent_buf_release(g_cli_debug_pane.console_typed.bytes, g_cli_debug_pane_owner);
-    g_cli_guard->persistent_buf_release(g_cli_debug_pane.session_texts, g_cli_debug_pane_owner);
-    g_cli_debug_pane.watch_typed = (CliTyped){NULL, 0ULL};
-    g_cli_debug_pane.console_typed = (CliTyped){NULL, 0ULL};
+    EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &g_cli_debug_pane.watch_typed, .owner = g_cli_debug_pane_owner);
+    EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &g_cli_debug_pane.console_typed,
+               .owner = g_cli_debug_pane_owner);
+    if (g_cli_debug_pane.session_texts != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(g_cli_debug_pane.session_texts, g_cli_debug_pane_owner);
+    }
     g_cli_debug_pane.session_texts = NULL;
     g_cli_debug_pane.view = CLI_DEBUG_VIEW_FRAMES;
     g_cli_debug_pane.has_session = 0;
@@ -502,7 +593,7 @@ void cli_debug_pane_begin(const CliDebugPaneViewCfg *args)
     g_cli_debug_pane.woken = args->woken;
     g_cli_debug_pane.requests = (args->requests != NULL) ? args->requests : &cli_debug_pane_requests;
     EMBED_ATOMIC_STORE(&g_cli_debug_pane.waiting, 0u);
-    EMBED_ATOMIC_STORE(&g_cli_debug_pane.lock, 0u);
+    g_cli_debug_pane.lock = (CliGate)CLI_GATE_INIT;
     EMBED_CALL(cli_debug_pane_internal.status_set, CliDebugPaneCtx, .text = PANE_OPENING,
                .length = sizeof(PANE_OPENING) - 1ULL);
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
@@ -523,22 +614,32 @@ int cli_debug_pane_step(const CliDebugPaneViewCfg *args)
     }
     // the events stored taken whole under the lock, the sink storing anew into an empty store
     EMBED_CALL(pane_locked, DebugPaneCtx, .root = args->root);
-    const CliDebugPaneStore events = g_cli_debug_pane.events;
+    CliDebugPaneStore events = g_cli_debug_pane.events;
     g_cli_debug_pane.events = (CliDebugPaneStore){0};
     EMBED_ATOMIC_STORE(&g_cli_debug_pane.waiting, 0u);
     EMBED_CALL(pane_unlocked, DebugPaneCtx, .root = args->root);
     int changed = 0;
-    for (unsigned int at = 0u; at < events.count; at += 1u)
+    // every event's texts read into one cell of this call, the events read off it
+    char *const texts =
+        (events.used != 0ULL) ? g_cli_guard->temporary_buf_alloc(events.used, g_cli_debug_pane_owner) : NULL;
+    if (texts != NULL)
     {
-        const CliDebugPaneEntry *const entry = &events.entry[at];
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = events.text, .offset = 0ULL, .dst = texts, .bytes = events.used});
+    }
+    for (unsigned int at = 0u; (texts != NULL) && (at < events.count); at += 1u)
+    {
+        CliDebugPaneEntry entry;
+        EMBED_CALL(cli_debug_pane_internal.entry_read, CliDebugPaneCtx, .store = &events, .at = at,
+                   .entry_out = &entry);
         // a session's number stored is not negative
-        changed = EMBED_CALL(pane_event, DebugPaneCtx, .session = (unsigned long long)entry->reference,
-                             .event = events.text + entry->text, .body = events.text + entry->second,
-                             .size = entry->second_length, .root = args->root) ||
+        changed = EMBED_CALL(pane_event, DebugPaneCtx, .session = (unsigned long long)entry.reference,
+                             .event = texts + entry.text, .body = texts + entry.second, .size = entry.second_length,
+                             .root = args->root) ||
                   changed;
     }
-    g_cli_guard->persistent_buf_release(events.entry, g_cli_debug_pane_owner);
-    g_cli_guard->persistent_buf_release(events.text, g_cli_debug_pane_owner);
+    g_cli_guard->persistent_buf_release(texts, g_cli_debug_pane_owner);
+    EMBED_CALL(cli_debug_pane_internal.store_empty, CliDebugPaneCtx, .store = &events);
     return changed;
 }
 

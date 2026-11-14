@@ -8,6 +8,17 @@
 #include "../../../../../ui/cli/src/builds/builds.h"
 #include "../../../../../ui/cli/src/command_line/cli_internal.h"
 #include "../../../../../ui/cli/src/text/json_tree.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/glyphs.h"
+
+// the system's pages the window's block lays in, the CLI's (ui/gui/src/pages.c), and the faces the window's glyphs
+// read, this system's (ui/gui/src/faces.c)
+extern const GuiBlockPages g_gui_pages;
+extern const GuiGlyphsFaces g_gui_faces;
+
+// the largest monitor a check reserves the window's block for, every raster a check draws a part of it
+#define CLI_CHECK_MONITOR_WIDTH 3440u
+#define CLI_CHECK_MONITOR_HEIGHT 1440u
 
 // the checks begun: this process put on a lane as the one command it runs, the lane's cells rewound by cli_on_check
 void cli_check_begun(void);

@@ -3,7 +3,7 @@
 // funnel.c: the vendor's tables read off a capture of its disassembler: the records, the instruction set unpacked
 // from its LZ4 archive, and the latencies gathered from the copies out of their buffer
 #include "funnel.h"
-#include "../../../../includes/parsers/line_read.h"
+#include "../../../../../../includes/parsers/line_read.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -19,10 +19,10 @@ case "$(uname -s)" in
     Darwin) HOST="$(uname -m)-apple-darwin"; SUFFIX=""; LIBRARIES=(-lpthread -lm) ;;
     *) HOST="$(uname -m)-unknown-linux-gnu"; SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
 esac
-MMGR="$TOP/src/cu/includes/mmgr"
-MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
+MMGR="$TOP/includes/mmgr"
+MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
     -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
-    -DMMGR_CARCER_OWNERS=1024u)
+    -DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u -DMMGR_CARCER_OWNERS=1024u)
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "bench exit 1"; exit 1; }
 CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"

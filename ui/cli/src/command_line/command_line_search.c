@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_search.c: `orior_cli edit search`, every line in the tree's files that contains a text, written as grep
+// command_line_search.c: `imp edit search`, every line in the tree's files that contains a text, written as grep
 // writes it
 #include "../editor/files.h"
 #include "../text/json_tree.h"
@@ -85,7 +85,7 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     if (mmgr_line_finish(&query) == 0ULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
-                   .text = "search needs text: orior_cli edit search <text>");
+                   .text = "search needs text: imp edit search <text>");
         return CLI_WRONG;
     }
     static char s_root[CLI_PATH_MAX_LEN];
@@ -99,18 +99,18 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     static CliPatterns s_none;
-    char *const found_cell = g_cli_guard->temporary_buf_alloc(CLI_SEARCH_HITS_CAPACITY, g_cli_command_line_owner);
-    VerbaLinea found = mmgr_line_over(found_cell, CLI_SEARCH_HITS_CAPACITY);
-    if (found.out == NULL)
+    CliGrownLine found;
+    cli_grown_begin(&found, CLI_SEARCH_HITS_CAPACITY, g_cli_command_line_owner);
+    if (found.cell == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
                    .text = "the hits of a search could not be given a cell");
         return CLI_WRONG;
     }
     if (!EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = s_root, .query = s_query,
-                    .how = how, .set = &s_none, .out = &found, .err_msg = &err_msg))
+                    .how = how, .set = &s_none, .out = &found.line, .err_msg = &err_msg))
     {
-        g_cli_guard->persistent_buf_release(found.out, g_cli_command_line_owner);
+        cli_grown_end(&found);
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
                    .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         return CLI_WRONG;
@@ -121,9 +121,9 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     err_msg.at = 0ULL;
     const unsigned int list =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &hits,
-                   .text = found.out, .size = mmgr_line_ok(&found) ? found.at : 0ULL, .nodes_more = 0u,
-                   .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_command_line_owner);
-    g_cli_guard->persistent_buf_release(found.out, g_cli_command_line_owner);
+                   .text = found.cell, .size = mmgr_line_ok(&found.line) ? cli_grown_size(&found) : 0ULL,
+                   .nodes_more = 0u, .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_command_line_owner);
+    cli_grown_end(&found);
     const int any = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &hits,
                                .node = list, .type = CFG_JSON_ARRAY) &&
                     (hits.node[list].count != 0u);

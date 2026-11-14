@@ -5,6 +5,7 @@
 // past the capacity a message is queued in stored in a region of the transfer layer
 #include "door_serve.h"
 #include "../command_line/callback_cfg.h"
+#include "../command_line/rings.h"
 
 #include "container.h"
 
@@ -41,7 +42,7 @@ EMBED_INLINE int serve_answer(const DoorServeCtx *args)
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &joined->queue_wake, .seen = seen);
     }
     const unsigned long long size = (args->size < CLI_IPC_SERVE_ANSWER) ? args->size : CLI_IPC_SERVE_ANSWER;
-    memor.cpy(&(MemoriaCfg){.dst = joined->answer, .src = args->bytes, .bytes = (size_t)size});
+    memor.cpy(&(MemoriaCfg){.dst = joined->answer, .src = args->bytes, .bytes = (embed_word)size});
     joined->answer_size = size;
     EMBED_ATOMIC_STORE(&joined->answer_waits, 1u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
@@ -58,8 +59,8 @@ EMBED_INLINE int serve_reject(const DoorServeCtx *args)
     return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .bytes = out.out, .size = out.at);
 }
 
-// a message sent on a channel the process listens on queued for it, from any thread, the next place claimed before it
-// is written: 1, 0 where the process is gone, -1 where its queue has no capacity
+// a message sent on a channel the process listens on queued for it, from any thread, a ticket taken and its slot
+// granted before the entry is written and pushed: 1, 0 where the process is gone, -1 where every slot is in flight
 static int serve_recv(const CliCommsRecvCfg *args)
 {
     unsigned long long size = args->size;
@@ -77,11 +78,23 @@ static int serve_recv(const CliCommsRecvCfg *args)
     {
         return -1;
     }
-    embed_u32 claimed = EMBED_ATOMIC_LOAD(&joined->claimed);
-    do
+    const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&joined->claimed, 1u);
+    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    CliIpcEntry *const entry = &joined->entries[ticket & (CLI_IPC_ENTRIES - 1u)];
+    // Explicit cast carries the entry's address as the pass's entry
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)entry;
+    embed_u64 seen = 0u;
+    // the slot is granted once the entry a lap before it is sent and released; this thread sleeps on the queue's
+    // wake until then, and a message that comes once a thread of the place has ended is let go
+    for (;;)
     {
-        // the counts run on past the queue's capacity, and their difference stands whole across a wrap
-        if ((claimed - EMBED_ATOMIC_LOAD(&joined->taken)) >= CLI_IPC_ENTRIES)
+        const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &joined->queue_wake);
+        if (cli_ticket_room(&joined->ring, ticket) &&
+            embed_ticket_ring_granted(&joined->turnstiles, address, &joined->ring, stamp, &seen))
+        {
+            break;
+        }
+        if (EMBED_ATOMIC_LOAD(&joined->going) != 2u)
         {
             if (has_region)
             {
@@ -89,8 +102,8 @@ static int serve_recv(const CliCommsRecvCfg *args)
             }
             return -1;
         }
-    } while (!EMBED_ATOMIC_CAS_32(&joined->claimed, &claimed, claimed + 1u));
-    CliIpcEntry *const entry = &joined->entries[claimed % CLI_IPC_ENTRIES];
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &joined->queue_wake, .seen = room);
+    }
     memor.cpy(&(MemoriaCfg){.dst = entry->channel,
                             .src = args->channel,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_POOL_BYTES}) + 1u});
@@ -105,9 +118,9 @@ static int serve_recv(const CliCommsRecvCfg *args)
     }
     else
     {
-        memor.cpy(&(MemoriaCfg){.dst = entry->body, .src = args->body, .bytes = (size_t)size});
+        memor.cpy(&(MemoriaCfg){.dst = entry->body, .src = args->body, .bytes = (embed_word)size});
     }
-    EMBED_ATOMIC_STORE(&entry->written, 1u);
+    (void)embed_ticket_ring_pushed(&joined->turnstiles, address, &joined->ring, stamp, entry, &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
     return 1;
 }
@@ -165,7 +178,6 @@ EMBED_INLINE void serve_thread_end(const DoorServeCtx *args)
     }
     EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &args->joined->end);
     g_cli_ipc_served.joined[args->joined->place] = NULL;
-    g_cli_guard->persistent_buf_release(args->joined, g_cli_ipc_owner);
 }
 
 // what the process's end has stopped taking told: its reader let go, and nothing more written
@@ -197,10 +209,16 @@ static void serve_drain(void *context)
             EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
             continue;
         }
-        CliIpcEntry *const entry = &joined->entries[joined->first];
-        if ((EMBED_ATOMIC_LOAD(&joined->claimed) != EMBED_ATOMIC_LOAD(&joined->taken)) &&
-            (EMBED_ATOMIC_LOAD(&entry->written) != 0u))
+        // the next entry pushed popped, in the order of the tickets, sent, and its slot released
+        embed_u64 stamp = 0u;
+        void *job = NULL;
+        embed_u64 found = 0u;
+        if (cli_ticket_pushed(&joined->ring, joined->taken, &stamp) &&
+            // Explicit cast carries the place's address as the pass's entry
+            embed_ticket_ring_popped(&joined->turnstiles, (embed_atomic_uptr_value)(embed_word)joined, &joined->ring,
+                                     stamp, &job, &found))
         {
+            CliIpcEntry *const entry = job;
             if ((EMBED_ATOMIC_LOAD(&joined->sending) != 0u) &&
                 !EMBED_CALL(serve_send, DoorServeCtx, .joined = joined, .entry = entry))
             {
@@ -210,13 +228,13 @@ static void serve_drain(void *context)
             {
                 EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
             }
-            EMBED_ATOMIC_STORE(&entry->written, 0u);
-            joined->first = (joined->first + 1u) % CLI_IPC_ENTRIES;
-            (void)EMBED_ATOMIC_ADD_32(&joined->taken, 1u);
+            (void)embed_ticket_ring_released(&joined->turnstiles, &joined->ring, stamp, &found);
+            joined->taken += 1u;
+            // a reading thread asleep for the slot's room wakes to it
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
             continue;
         }
-        if ((EMBED_ATOMIC_LOAD(&joined->read_state) == 0u) &&
-            (EMBED_ATOMIC_LOAD(&joined->claimed) == EMBED_ATOMIC_LOAD(&joined->taken)))
+        if ((EMBED_ATOMIC_LOAD(&joined->read_state) == 0u) && (EMBED_ATOMIC_LOAD(&joined->claimed) == joined->taken))
         {
             break;
         }
@@ -338,22 +356,31 @@ static void serve_accept(void *context)
                 at += 1u;
             }
         }
-        // a joined process's frame, queued bodies and answer stand in its cell, after it
-        joined = (place < CLI_IPC_JOINED)
-                     ? g_cli_guard->persistent_buf_alloc(
-                           sizeof(CliIpcJoined) + CLI_IPC_FRAME +
-                               ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY) + CLI_IPC_SERVE_ANSWER,
-                           g_cli_ipc_owner)
-                     : NULL;
+        // a joined process's record, frame, queued bodies and answer are its two threads' buffers, so they stand
+        // fixed outside the pool, one set for each place, where they punch no hole in the persistent tier
+        static CliIpcJoined s_places[CLI_IPC_JOINED];
+        static char s_bytes[CLI_IPC_JOINED]
+                           [CLI_IPC_FRAME + (CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY) + CLI_IPC_SERVE_ANSWER];
+        joined = (place < CLI_IPC_JOINED) ? &s_places[place] : NULL;
         if (joined != NULL)
         {
-            joined->frame = (char *)(void *)(joined + 1);
+            memor.set(&(MemoriaCfg){.dst = joined, .val = 0, .bytes = sizeof(*joined)});
+            joined->frame = s_bytes[place];
             for (unsigned int at = 0u; at < CLI_IPC_ENTRIES; at += 1u)
             {
                 joined->entries[at].body =
                     joined->frame + CLI_IPC_FRAME + ((unsigned long long)at * CLI_IPC_ENTRY_BODY);
-                EMBED_ATOMIC_STORE(&joined->entries[at].written, 0u);
             }
+            memor.set(&(MemoriaCfg){.dst = &joined->turnstiles, .val = 0, .bytes = sizeof(joined->turnstiles)});
+            // the ring's slots, this place's run of the joined part of the rings block
+            EmbedTicketRingSlot *const slots =
+                (EmbedTicketRingSlot *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg,
+                                                           .part = CLI_RINGS_DOOR_JOINED) +
+                                                ((unsigned long long)place * CLI_IPC_ENTRIES *
+                                                 sizeof(EmbedTicketRingSlot)));
+            memor.set(&(MemoriaCfg){
+                .dst = slots, .val = 0, .bytes = (unsigned long long)CLI_IPC_ENTRIES * sizeof(EmbedTicketRingSlot)});
+            embed_ticket_ring_begin(&joined->ring, slots, CLI_IPC_ENTRIES_SHIFT);
             joined->answer = joined->frame + CLI_IPC_FRAME + ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY);
             joined->place = place;
             EMBED_ATOMIC_STORE(&joined->going, 2u);
@@ -371,9 +398,8 @@ static void serve_accept(void *context)
         joined->has_peer = has_peer;
         joined->peer = peer;
         joined->queue_wake = (CliWake)CLI_WAKE_INIT;
-        joined->first = 0u;
         EMBED_ATOMIC_STORE(&joined->claimed, 0u);
-        EMBED_ATOMIC_STORE(&joined->taken, 0u);
+        joined->taken = 0u;
         EMBED_ATOMIC_STORE(&joined->answer_waits, 0u);
         joined->listens = 0u;
         EMBED_ATOMIC_STORE(&joined->read_state, 1u);

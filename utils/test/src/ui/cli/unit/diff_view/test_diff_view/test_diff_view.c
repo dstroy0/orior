@@ -301,12 +301,13 @@ void test_white_space_set_aside_lays_lines_level_and_saves_its_setting(void)
     TEST_ASSERT_TRUE(on);
     TEST_ASSERT_EQUAL_UINT(0u, rows());
     empty_is("No change from the last commit.");
-    CliStateEntries *const entries =
+    CliStateEntries entries =
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = s_home, .owner = g_cli_diff_view_owner});
-    TEST_ASSERT_NOT_NULL(entries);
-    TEST_ASSERT_EQUAL_STRING("aside", cli_state_entry_value(entries, "diff-space"));
-    EMBED_CALL(cli_diff_view_option_on.begin, CliDiffViewOptionOnCfg, .entries = entries);
-    g_cli_guard->persistent_buf_release(entries, g_cli_diff_view_owner);
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    char space[32];
+    TEST_ASSERT_EQUAL_STRING("aside", cli_state_entry_value(&entries, "diff-space", space, sizeof(space)));
+    EMBED_CALL(cli_diff_view_option_on.begin, CliDiffViewOptionOnCfg, .entries = &entries);
+    cli_state_entries_release(&entries);
     (void)EMBED_CALL(cli_diff_view_option_on.option_toggle, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_SPACE,
                      .at = 0u);
     TEST_ASSERT_EQUAL_UINT(3u, rows());

@@ -13,7 +13,7 @@
       "title": "File",
       "items": [
         {
-          "label": "Create",
+          "label": "New",
           "items": [
             { "label": "File…", "command": "create-file", "keys": "Ctrl+N", "args": "[path]" },
             { "label": "Folder…", "command": "create-folder", "args": "[path]" },
@@ -43,6 +43,7 @@
         { "label": "Save", "command": "save", "keys": "Ctrl+S", "needs": "changed-active" },
         { "label": "Save All", "command": "save-all", "needs": "changed" },
         { "label": "Auto Save", "command": "auto-save", "args": "[on|off]", "checks": "auto-save" },
+        { "label": "Auto Save After…", "command": "auto-save-after", "args": "<count>", "setting": true },
         { "label": "Format on Save", "command": "format-on-save", "args": "[on|off]", "checks": "format-on-save" },
         "-",
         { "label": "Print…", "command": "print", "needs": "editor" },
@@ -61,6 +62,8 @@
         { "label": "Tree Environment…", "command": "environment", "args": "[place|none]" },
         { "label": "Maven Settings…", "command": "maven-settings" },
         { "label": "Toolchains…", "command": "toolchains", "args": "[check|install <tool>|add-path <tool|orior>|use <tool> <folder>|forget <tool>|add <name> --group <group> --program <name,...> [--for <text>] [--id <id>] [--version <word,...>] [--install <url>]|add-group <group>|remove <tool>|remove-group <group>]", "console": true },
+        { "label": "Install…", "command": "install", "args": "[folder] [--accept] [--yes] [--no-imp] [--no-tab] [--aliases] [--debug-port <port|off>]", "console": true },
+        { "label": "Uninstall…", "command": "uninstall", "args": "[--files] [--yes]", "console": true },
         "-",
         { "label": "Exit", "command": "exit" }
       ]
@@ -383,17 +386,21 @@
       "popup": true,
       "items": [
         { "label": "Open", "command": "file-open", "args": "<path>" },
-        { "label": "Remove from Window", "command": "file-remove", "args": "<name>" },
-        { "label": "Names' Encoding", "command": "file-names", "args": "<archive> [encoding]" },
         { "label": "Open in a window", "command": "file-open-window", "args": "<file>" },
+        { "label": "Open in terminal", "command": "file-terminal", "args": "[path]" },
+        "-",
         { "label": "Cut", "command": "file-cut", "args": "<path>" },
         { "label": "Copy", "command": "file-copy", "args": "<path>" },
         { "label": "Paste", "command": "file-paste", "args": "[folder]" },
+        "-",
         { "label": "Copy path", "command": "file-copy-path", "args": "<path>" },
-        { "label": "Open in terminal", "command": "file-terminal", "args": "[path]" },
+        "-",
         { "label": "Select for Compare", "command": "file-select-compare", "args": "<file>" },
         { "label": "Compare with Selected", "command": "file-compare", "args": "<file> [other]" },
-        { "label": "Show Changes", "command": "show-changes", "args": "[file]" }
+        { "label": "Show Changes", "command": "show-changes", "args": "[file]" },
+        "-",
+        { "label": "Names' Encoding", "command": "file-names", "args": "<archive> [encoding]" },
+        { "label": "Remove from Window", "command": "file-remove", "args": "<name>" }
       ]
     },
     {
@@ -401,10 +408,15 @@
       "popup": true,
       "items": [
         { "label": "Close", "command": "tab-close", "args": "<file>" },
-        { "label": "Close others", "command": "tab-close-others", "args": "<file>" },
+        { "label": "Close others", "command": "tab-close-others", "args": "<file>", "needs": "others" },
+        { "label": "Close All", "command": "close-all", "needs": "tabs" },
+        "-",
+        { "label": "Copy path", "command": "file-copy-path", "args": "<path>" },
+        "-",
         { "label": "Split Right", "command": "tab-split-right", "args": "<file>" },
         { "label": "Split Down", "command": "tab-split-down", "args": "<file>" },
         { "label": "Open in New Window", "command": "tab-new-window", "args": "<file>" },
+        "-",
         { "label": "Add to Group…", "command": "tab-group", "args": "<file> [group]" },
         { "label": "Remove from Group", "command": "tab-ungroup", "args": "<file>" },
         { "label": "Mark File", "command": "tab-mark", "args": "<file>" },
@@ -415,10 +427,11 @@
       "title": "Explorer",
       "popup": true,
       "items": [
-        { "label": "Show or Hide a Pane", "command": "pane-show", "args": "<pane> [on|off]" },
         { "label": "Refresh Explorer", "command": "explorer-refresh" },
         { "label": "Collapse Folders in Explorer", "command": "explorer-collapse" },
-        { "label": "Pin the File Shown", "command": "outline-pin", "args": "[file|none]" }
+        "-",
+        { "label": "Pin the File Shown", "command": "outline-pin", "args": "[file|none]" },
+        { "label": "Show or Hide a Pane", "command": "pane-show", "args": "<pane> [on|off]" }
       ]
     },
     {
@@ -549,7 +562,7 @@
       "items": [
         { "label": "Zoom", "command": "zoom", "args": "<percent>", "setting": true },
         { "label": "Language", "command": "language", "args": "<tag|system>", "setting": true },
-        { "label": "Cores kept for you", "command": "cores-reserved", "args": "<count>", "setting": true, "machine": true, "reader": true },
+        { "label": "Cores reserved", "command": "cores-reserved", "args": "<count>", "setting": true, "machine": true, "reader": true },
         { "label": "Opacity", "command": "opacity", "items": [
             { "label": "Bar opacity", "command": "bar", "args": "<percent>", "setting": true },
             { "label": "Menu opacity", "command": "menu", "args": "<percent>", "setting": true },
@@ -562,7 +575,8 @@
         },
         { "label": "Trim Trailing Whitespace", "command": "trim", "args": "[on|off]", "setting": true },
         { "label": "Insert Final Newline", "command": "final-newline", "args": "[on|off]", "setting": true },
-        { "label": "Vim's Keys", "command": "vim", "args": "[on|off]", "setting": true },
+        { "label": "Use Vim's Keybindings", "command": "vim", "args": "[on|off]", "setting": true },
+        { "label": "Freeze background lattice", "command": "freeze-lattice", "args": "[on|off]", "setting": true },
         { "label": "Fonts", "command": "fonts", "items": [
             { "label": "Interface font", "command": "head", "args": "[font]", "setting": true },
             { "label": "Reading font", "command": "text", "args": "[font]", "setting": true },
@@ -578,6 +592,11 @@
         },
         { "label": "Find in Files", "command": "search", "items": [
             { "label": "Sets of files to search", "command": "sets", "args": "[line]...", "setting": true }
+          ]
+        },
+        { "label": "Terminal", "command": "terminal", "items": [
+            { "label": "Terminal files' folder", "command": "folder", "args": "[path]", "setting": true, "machine": true },
+            { "label": "Terminal log lines", "command": "lines", "args": "<count>", "setting": true }
           ]
         },
         { "label": "Color Theme", "command": "theme-choose", "args": "<dark|light|theme>" },

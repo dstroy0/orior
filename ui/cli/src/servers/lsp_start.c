@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lsp_start.c: a language server started at a tree, its readers started, and requested to initialize with what
-// orior_cli can do
+// impero can do
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
@@ -10,7 +10,7 @@
 // how long the server has to answer that it started, in milliseconds
 #define CLI_LSP_STARTING 30000ULL
 
-// what orior_cli can do, as it informs a server it starts
+// what impero can do, as it informs a server it starts
 static const char s_capabilities[] =
     "{\"general\":{\"positionEncodings\":[\"utf-16\"]},"
     "\"textDocument\":{"
@@ -52,12 +52,18 @@ static int lsp_input_write(const CliSinkBytesSizeCfg *args)
                       .pipe_handle = ((CliLsp *)args->sink)->spawned.in, .bytes = bytes, .size = size);
 }
 
-// a server's cell taken, referenced once, numbered apart from every other started, and made empty: the server, or NULL
-// where the cells cannot meet it
+// a server's place taken, referenced once, numbered apart from every other started, and made empty: the server, or
+// NULL where every place is taken. A server's record holds the wake its readers wait on, so the records stand fixed
+// outside the pool, one for each server run at once, where they punch no hole in the persistent tier
 static CliLsp *lsp_position_alloc(void)
 {
     static unsigned int s_started;
-    CliLsp *const lsp = g_cli_guard->persistent_buf_alloc(sizeof(*lsp), g_cli_servers_owner);
+    static CliLsp s_places[CLI_LSP_PLACES];
+    CliLsp *lsp = NULL;
+    for (unsigned int at = 0u; (lsp == NULL) && (at < CLI_LSP_PLACES); at += 1u)
+    {
+        lsp = (s_places[at].reserved == 0) ? &s_places[at] : NULL;
+    }
     if (lsp != NULL)
     {
         lsp->reserved = 1;
@@ -97,12 +103,12 @@ EMBED_INLINE void lsp_initialize_params(const LspStartCtx *args)
     char uri[CLI_PATH_MAX_LEN * 3u];
     EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = args->root, .uri_out = uri,
                .capacity = sizeof(uri));
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
-    end = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->root, .at = end,
-                             .set = "/\\");
-    size_t start = end;
-    start = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root,
-                               .at = start, .set = "/\\");
+    embed_word end = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
+    end = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->root,
+                                 .at = end, .set = "/\\");
+    embed_word start = end;
+    start = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root,
+                                   .at = start, .set = "/\\");
     mmgr_line_put(out, "{\"processId\":");
     mmgr_line_decimal(out, cli_process_own(), 1u);
     mmgr_line_put(out, ",\"rootUri\":");
@@ -151,7 +157,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
                     .words = lsp->words.word_text, .folder = args->root, .settings = lsp->settings,
                     .count = settings_used, .detached = 1, .err_msg = args->err_msg))
     {
-        g_cli_guard->persistent_buf_release(lsp, g_cli_servers_owner);
+        lsp->reserved = 0;
         return NULL;
     }
     EMBED_CALL(cli_lsp_internal.readers_start, CliLspCtx, .lsp = lsp);
@@ -194,13 +200,16 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     const int has = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = answer.text, .size_value = answer.size,
                                .name = "capabilities", .start = &at, .length_pointer = &size);
     lsp->capabilities_size = has ? size : 4ULL;
-    lsp->capabilities = g_cli_guard->persistent_buf_alloc(lsp->capabilities_size + 1ULL, g_cli_servers_owner);
+    lsp->capabilities = g_cli_guard->movable_buf_alloc(lsp->capabilities_size + 1ULL, g_cli_servers_owner);
     if (lsp->capabilities != NULL)
     {
-        // a member of the reply, which a size_t counts
-        memor.cpy(&(MemoriaCfg){
-            .dst = lsp->capabilities, .src = has ? answer.text + at : "null", .bytes = (size_t)lsp->capabilities_size});
-        lsp->capabilities[lsp->capabilities_size] = '\0';
+        const char end = '\0';
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = lsp->capabilities,
+                                                                 .offset = 0ULL,
+                                                                 .src = has ? answer.text + at : "null",
+                                                                 .bytes = lsp->capabilities_size});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = lsp->capabilities, .offset = lsp->capabilities_size, .src = &end, .bytes = 1ULL});
     }
     g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     char why[CLI_ERR_MSG_MAX_LEN];

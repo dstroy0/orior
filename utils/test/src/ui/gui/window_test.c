@@ -12,9 +12,13 @@
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/machine/reach.h"
 #include "../../../../../ui/cli/src/machine/state.h"
+#include "../../../../../ui/cli/src/machine/trust.h"
+#include "../../../../../ui/cli/src/plugins/templates.h"
 #include "../../../../../ui/cli/src/text/text.h"
-#include "../../../../../ui/cli/src/view/parts/explorer.h"
-#include "../../../../../ui/cli/src/view/window.h"
+#include "../../../../../includes/window/top_menu.h"
+#include "../../../../../includes/window/controls.h"
+#include "../../../../../ui/gui/src/explorer.h"
+#include "../../../../../ui/gui/src/window.h"
 #include "../cli/cli_check.h"
 #include "test_clock.h"
 
@@ -158,11 +162,10 @@ static int tab_opened(const char *name)
     tree_path(name, path);
     const int opened = asked("file", path);
     const int shown = cli_view_shown();
-    const int stands = opened && (shown >= 0) &&
-                       cellul.eq(&(CatenaFinitaCfg){.src = cli_view_path_at((unsigned int)shown),
-                                                    .cap = CLI_POOL_BYTES,
-                                                    .other = name,
-                                                    .other_cap = CLI_POOL_BYTES});
+    char shown_path[CLI_PATH_MAX_LEN];
+    const int stands = opened && (shown >= 0) && cli_view_path_at((unsigned int)shown, shown_path) &&
+                       cellul.eq(&(CatenaFinitaCfg){
+                           .src = shown_path, .cap = CLI_POOL_BYTES, .other = name, .other_cap = CLI_POOL_BYTES});
     if (!stands)
     {
         // a file the window refused is told through its notice
@@ -175,8 +178,8 @@ static int tab_opened(const char *name)
 // whether the tab `at` has changes not saved
 static int changed(unsigned int at)
 {
-    const char *const key = cli_view_key(at);
-    return (key != NULL) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key);
+    char key[CLI_NAME_MAX_LEN];
+    return cli_view_key(at, key) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key);
 }
 
 // every tab closed, a changed one by the second close it waits on, and the tree's files written afresh
@@ -355,10 +358,10 @@ static void place_checked(void)
     tree_path("placed.txt:2:3", path);
     cli_check(asked("file", path), "a path with a line and a column opens through the door");
     const int shown = cli_view_shown();
-    cli_check((shown >= 0) && cellul.eq(&(CatenaFinitaCfg){.src = cli_view_path_at((unsigned int)shown),
-                                                           .cap = CLI_POOL_BYTES,
-                                                           .other = "placed.txt",
-                                                           .other_cap = 11u}),
+    char shown_path[CLI_PATH_MAX_LEN];
+    cli_check((shown >= 0) && cli_view_path_at((unsigned int)shown, shown_path) &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = shown_path, .cap = CLI_POOL_BYTES, .other = "placed.txt", .other_cap = 11u}),
               "the file of the path before the line and the column stands as the tab shown");
     const CliViewFrame *const frame = s_window.editor.frame;
     cli_check((frame != NULL) && (frame->cursor.line == 1ULL) && (frame->cursor.col == 2ULL),
@@ -416,8 +419,8 @@ static void stepped_for(unsigned long long milliseconds)
     }
 }
 
-// The explorer stays while the pointer works in it: the claim on, a rest in the left band brings the strip and the
-// side, and a pointer that moves from the strip onto the side's rows arms no hide
+// The explorer stays while the pointer works in it: the claim on, a rest in the left band brings the side_menu and the
+// side, and a pointer that moves from the side_menu onto the side's rows arms no hide
 static void explorer_stays_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -427,11 +430,11 @@ static void explorer_stays_checked(void)
     moved(2, 400);
     stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
     cli_check(s_window.claim.displayed == GUI_AUTOHIDE_LEFT, "a rest in the left band shows the left edge");
-    // the strip's first tool, at its button's middle
-    const GuiRect tool = EMBED_CALL(gui_strip.button, GuiStripCfg, .frame = &s_window.frame, .at = 0u);
+    // the side_menu's first tool, at its button's middle
+    const GuiRect tool = EMBED_CALL(gui_side_menu.button, GuiSideMenuCfg, .frame = &s_window.frame, .at = 0u);
     moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));
     stepped_for(GUI_SIDES_ICON_REST_MS + GUI_SIDES_SLIDE_MS + 100ULL);
-    cli_check(s_window.frame.side_displayed, "a rest on the strip's tool shows its side");
+    cli_check(s_window.frame.side_displayed, "a rest on the side_menu's tool shows its side");
     const GuiRect side = s_window.frame.side;
     moved(side.x + (side.width / 2), side.y + (side.height / 2));
     cli_check(s_window.claim.hide_deadline_ms == 0ULL, "the pointer on the side's rows arms no hide of the left edge");
@@ -500,16 +503,30 @@ static void pressed_with(int x, int y, unsigned int button)
     stepped();
 }
 
+// the button `button` let go at x, y as the system hands it on
+static void released_with(int x, int y, unsigned int button)
+{
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_UP, .x = x, .y = y, .button = button});
+    stepped();
+}
+
 // A middle press in the text starts a scroll that follows the pointer's distance from the press point: the pointer
 // below the press point scrolls the view down each frame, one above it scrolls it back up, and the next press
-// ends it. The tall file the map's check opened, placed deep in it, is the text
+// ends it. A middle button let go where it was pressed leaves the scroll to run; one let go after the pointer
+// dragged past the rest pixels, in the window or out of it, ends the scroll. The tall file the map's check opened,
+// placed deep in it, is the text
 static void autoscroll_checked(void)
 {
     const int shown = cli_view_shown();
     cli_check(shown >= 0, "the tall file stands shown for the autoscroll");
-    const char *const key = cli_view_key((unsigned int)shown);
+    char key[CLI_NAME_MAX_LEN];
+    if ((shown < 0) || !cli_view_key((unsigned int)shown, key))
+    {
+        return;
+    }
     // the view placed deep in the file comes to rest there first
-    stepped_for(GUI_SCROLL_STEP_MOST_MS * 10ULL);
+    stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
     const unsigned long long start = cli_view_top(key);
     const GuiRect editor = s_window.frame.editor;
     const int x = editor.x + (editor.width / 2);
@@ -529,10 +546,124 @@ static void autoscroll_checked(void)
     pressed_with(x, y + 100, GUI_BUTTON_LEFT);
     cli_check(!s_window.autoscroll, "the next press ends the autoscroll");
     // the scroll eases to where the autoscroll last put it, then stands
-    stepped_for(GUI_SCROLL_STEP_MOST_MS * 10ULL);
+    stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
     const unsigned long long ended = cli_view_top(key);
     stepped_for(200ULL);
     cli_check(cli_view_top(key) == ended, "the view stands once it ends");
+    // a click: the button let go within the rest pixels of the press point leaves the scroll to run
+    pressed_with(x, y, GUI_BUTTON_MIDDLE);
+    moved(x, y + GUI_AUTOSCROLL_REST_PIXELS);
+    released_with(x, y + GUI_AUTOSCROLL_REST_PIXELS, GUI_BUTTON_MIDDLE);
+    cli_check(s_window.autoscroll, "the middle button let go at the press point leaves the autoscroll to run");
+    pressed_with(x, y, GUI_BUTTON_LEFT);
+    cli_check(!s_window.autoscroll, "the next press ends it");
+    // a drag: the pointer past the rest pixels, let go below the window's bottom edge
+    pressed_with(x, y, GUI_BUTTON_MIDDLE);
+    moved(x, y + 100);
+    stepped_for(300ULL);
+    cli_check(cli_view_top(key) > ended, "the drag scrolls the view down");
+    // the frame's height is a pixel count well inside an int
+    const int below = (int)s_window.frame.height + 40;
+    moved(x, below);
+    released_with(x, below, GUI_BUTTON_MIDDLE);
+    cli_check(!s_window.autoscroll, "the middle button let go after a drag ends the autoscroll, outside the window too");
+    stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
+    const unsigned long long dragged = cli_view_top(key);
+    stepped_for(200ULL);
+    cli_check(cli_view_top(key) == dragged, "the view stands once the drag ends");
+}
+
+static int same(const char *text, const char *required)
+{
+    return cellul.eq(&(CatenaFinitaCfg){.src = text, .other = required, .cap = CLI_POOL_BYTES});
+}
+
+// A rest on a button shows its tip: the pointer moved onto the first tool shows nothing at once and the tool's label
+// and keys as GUI_TIP_REST_MS pass, the box under the button; moved onto the minimize control, the control's name;
+// moved into the text, the tip goes; a press on a button whose tip shows takes the tip away
+static void tips_checked(void)
+{
+    const GuiRect tool = EMBED_CALL(gui_side_menu.button, GuiSideMenuCfg, .frame = &s_window.frame, .at = 0u);
+    moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));
+    cli_check(!s_window.tip.displayed, "a tip waits for the rest on the button");
+    stepped_for(GUI_TIP_REST_MS + 100ULL);
+    cli_check(s_window.tip.displayed, "the rest on a tool shows its tip");
+    cli_check((s_window.tip.label != NULL) && same(s_window.tip.label, g_gui_tools[0].label),
+              "the tip carries the tool's label");
+    cli_check((s_window.tip.keys != NULL) && same(s_window.tip.keys, g_gui_tools[0].keys),
+              "the tip carries the tool's keys");
+    // the box's rectangle comes from a drawn frame: one is drawn to read it
+    EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
+    cli_check((s_window.tip.rect.width > 0) && (s_window.tip.rect.x >= tool.x + tool.width) &&
+                  (s_window.tip.rect.y < tool.y + tool.height) && (s_window.tip.rect.y + s_window.tip.rect.height > tool.y),
+              "a side_menu tool's tip stands at the button's right, on its row");
+    const GuiRect minimize =
+        EMBED_CALL(gui_controls.rect, GuiControlsCfg, .frame = &s_window.frame, .which = GUI_CONTROL_MINIMIZE);
+    moved(minimize.x + (minimize.width / 2), minimize.y + (minimize.height / 2));
+    cli_check(!s_window.tip.displayed, "the pointer moved onto another button starts the rest again");
+    stepped_for(GUI_TIP_REST_MS + 100ULL);
+    cli_check(s_window.tip.displayed && (s_window.tip.label != NULL) && same(s_window.tip.label, "Minimize"),
+              "the rest on the minimize control names it");
+    const GuiRect editor = s_window.frame.editor;
+    moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
+    cli_check(!s_window.tip.displayed && (s_window.tip.label == NULL), "the tip goes as the pointer leaves the button");
+    moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));
+    stepped_for(GUI_TIP_REST_MS + 100ULL);
+    cli_check(s_window.tip.displayed, "the tip shows again on the tool");
+    pressed_with(tool.x + (tool.width / 2), tool.y + (tool.height / 2), GUI_BUTTON_LEFT);
+    cli_check(!s_window.tip.displayed, "a press takes the tip away");
+    released_with(tool.x + (tool.width / 2), tool.y + (tool.height / 2), GUI_BUTTON_LEFT);
+    moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
+    // the window without the focus: a rest on a tool still lights it and shows its tip, through a rest long past the
+    // side pane's own waits
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_BLUR});
+    stepped();
+    moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));
+    stepped_for(GUI_TIP_REST_MS + 100ULL);
+    cli_check(s_window.tip.displayed, "the rest on a tool shows its tip while the window lacks the focus");
+    stepped_for(1500ULL);
+    cli_check(s_window.tip.displayed && (s_window.side_menu.pointed == 0),
+              "the tip stands and the tool stays lit through a longer rest without the focus");
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_FOCUS});
+    moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
+    stepped();
+}
+
+// The bar's tools before the controls: the pointer on the Preferences tool lights it and, at rest, names it with its
+// keys; a press on it opens Preferences; the pointer off it unlights it; a press on Notifications presses the status
+// bar's notice and leaves the window standing
+static void bar_tools_checked(void)
+{
+    const GuiRect preferences = EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = &s_window.frame,
+                                           .which = GUI_TOP_MENU_TOOL_PREFERENCES);
+    cli_check((preferences.width > 0) && (preferences.x + preferences.width < s_window.frame.controls.x),
+              "the Preferences tool stands before the controls");
+    const int x = preferences.x + (preferences.width / 2);
+    const int y = preferences.y + (preferences.height / 2);
+    moved(x, y);
+    cli_check(s_window.top_menu_tool_pointed == GUI_TOP_MENU_TOOL_PREFERENCES, "the pointer on the Preferences tool lights it");
+    stepped_for(GUI_TIP_REST_MS + 100ULL);
+    cli_check(s_window.tip.displayed && (s_window.tip.label != NULL) && same(s_window.tip.label, "Preferences") &&
+                  (s_window.tip.keys != NULL) && same(s_window.tip.keys, "Ctrl+,"),
+              "the rest on the Preferences tool names it with its keys");
+    pressed_with(x, y, GUI_BUTTON_LEFT);
+    released_with(x, y, GUI_BUTTON_LEFT);
+    cli_check(s_window.preferences.displayed, "a press on the Preferences tool opens Preferences");
+    EMBED_CALL(gui_window_table.preferences_close, GuiWindowCfg, .window = &s_window);
+    stepped();
+    cli_check(!s_window.preferences.displayed, "Preferences closed again");
+    const GuiRect editor = s_window.frame.editor;
+    moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
+    cli_check(s_window.top_menu_tool_pointed == GUI_TOP_MENU_TOOL_NONE, "the pointer off the tools lights none");
+    const GuiRect bell = EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = &s_window.frame,
+                                    .which = GUI_TOP_MENU_TOOL_NOTIFICATIONS);
+    pressed_with(bell.x + (bell.width / 2), bell.y + (bell.height / 2), GUI_BUTTON_LEFT);
+    released_with(bell.x + (bell.width / 2), bell.y + (bell.height / 2), GUI_BUTTON_LEFT);
+    stepped();
+    cli_check(!s_window.closing, "a press on Notifications leaves the window standing");
+    moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
 }
 
 static void terminal_menu_checked(void)
@@ -561,30 +692,58 @@ static void terminal_menu_checked(void)
     (void)asked("toggle", NULL);
 }
 
-// whether the text `text` is `required`
-static int same(const char *text, const char *required)
+// The tab's menu on a right press: the list's Tab popup at the point, Close first, Close others off with one tab open,
+// Close All third, a line after it, fourteen rows in all; Escape closes it
+static void tab_menu_checked(void)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = text, .other = required, .cap = CLI_POOL_BYTES});
+    tabs_closed("first.txt", "one\n", NULL, NULL);
+    cli_check(tab_opened("first.txt"), "a file opens for the tab's menu");
+    const GuiRect tabs = s_window.frame.tabs;
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_MENU, .x = tabs.x + 20, .y = tabs.y + (tabs.height / 2)});
+    cli_check((g_cli_menus_open.levels == 1u) && (g_cli_menus_open.open == -1), "a right press on the tab opens its menu");
+    CliItem row;
+    cli_check(cli_menus_row(0u, 0u, &row) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = row.label, .cap = CLI_POOL_BYTES, .other = "Close", .other_cap = 6u}),
+              "Close first");
+    cli_check(cli_menus_row(0u, 1u, &row) && !cli_menus_selectable(0u, 1u), "Close others is off with one tab open");
+    cli_check(cli_menus_row(0u, 2u, &row) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = row.label, .cap = CLI_POOL_BYTES, .other = "Close All", .other_cap = 10u}),
+              "Close All third");
+    cli_check(cli_menus_row(0u, 3u, &row) && row.line, "a line after the closes");
+    cli_check(g_cli_menus_open.level[0].rows == 14u, "fourteen rows, the list's Tab popup");
+    key_pressed("Escape");
+    cli_check(g_cli_menus_open.levels == 0u, "Escape closes it");
 }
 
+// whether the text `text` is `required`
 // The theme commands through the door: a theme made from the scheme's colors and chosen, renamed, given an icon the
 // explorer's marks take, given a color the palette takes, shared to the clipboard, left for the scheme's own colors
 // and chosen again, read back from the clipboard as a theme of its own, its icon taken off, and deleted; the themes and
 // the choice stand in the home's state; and the image commands stay refused
+// the theme `at` of the window's read into a record of the check's: the record, zero where `at` names none
+static GuiTheme s_theme_read;
+static const GuiTheme *theme_at(unsigned int at)
+{
+    s_theme_read = (GuiTheme){0};
+    (void)EMBED_CALL(gui_themes_at.get, GuiThemesAtCfg, .themes = &s_window.themes, .at = at, .theme_out = &s_theme_read);
+    return &s_theme_read;
+}
+
 static void themes_checked(void)
 {
-    GuiThemes *const themes = s_window.themes;
-    cli_check((themes != NULL) && (themes->count == 0u) && (s_window.theme_chosen == 0u),
+    GuiThemes *const themes = &s_window.themes;
+    cli_check((themes->cell != NULL) && (themes->count == 0u) && (s_window.theme_chosen == 0u),
               "the window starts on the scheme's own colors with no themes");
     const GuiColor accent = s_window.palette->signal;
     cli_check(asked("theme-new", NULL), "theme-new runs through the door");
-    cli_check((themes->count == 1u) && (s_window.theme_chosen == 0u) && same(themes->theme[0].name, "Dark 2"),
+    cli_check((themes->count == 1u) && (s_window.theme_chosen == 0u) && same(theme_at(0u)->name, "Dark 2"),
               "a theme from the scheme's colors is named after it and chosen");
-    cli_check(asked("theme-rename", "Night") && same(themes->theme[0].name, "Night"), "theme-rename renames it");
+    cli_check(asked("theme-rename", "Night") && same(theme_at(0u)->name, "Night"), "theme-rename renames it");
     const char *const icon_words[3] = {"*.txt", "Tx", "accent"};
-    cli_check(asked_words("theme-icon", icon_words, 3u) && (themes->theme[0].icons == 1u),
+    cli_check(asked_words("theme-icon", icon_words, 3u) && (theme_at(0u)->icons == 1u),
               "theme-icon gives the theme an icon");
-    char mark[GUI_EXPLORER_MARK_MOST];
+    char mark[GUI_EXPLORER_MARK_MAX];
     GuiColor own = 0u;
     const unsigned int marked =
         EMBED_CALL(gui_explorer_mark_table.mark, GuiExplorerMarkCfg, .name = "first.txt", .length = 9ULL, .text = mark,
@@ -613,28 +772,235 @@ static void themes_checked(void)
               "theme-choose by name lays the theme's colors again");
     cli_check(!asked("theme-choose", "Nowhere"), "a name no theme has is refused");
     cli_check(asked("theme-import", NULL) && (themes->count == 2u) && (s_window.theme_chosen == 1u) &&
-                  same(themes->theme[1].name, "Night 2") && (themes->theme[1].icons == 1u) &&
+                  same(theme_at(1u)->name, "Night 2") && (theme_at(1u)->icons == 1u) &&
                   EMBED_CALL(gui_themes_at_color.color_get, GuiThemesAtColorCfg, .themes = themes, .at = 1u,
                              .name = "accent", .color_pointer = &set) &&
                   (set == GUI_RGB(0x10u, 0x20u, 0x30u)),
               "theme-import reads the clipboard's theme in under a free name and chooses it");
-    cli_check(asked("theme-icon-remove", "*.txt") && (themes->theme[1].icons == 0u),
+    cli_check(asked("theme-icon-remove", "*.txt") && (theme_at(1u)->icons == 0u),
               "theme-icon-remove takes the icon off the chosen theme");
     cli_check(asked("theme-delete", NULL) && (themes->count == 1u) && (s_window.theme_chosen == 1u) &&
                   (s_window.palette->signal == accent),
               "theme-delete takes the chosen theme out and goes back to the scheme's colors");
     char folder[CLI_PATH_MAX_LEN];
     cli_check(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder), "the home is known");
-    CliStateEntries *const entries =
+    CliStateEntries entries =
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
-    const char *const kept = (entries != NULL) ? cli_state_entry_value(entries, "themes") : NULL;
-    const char *const chosen = (entries != NULL) ? cli_state_entry_value(entries, "theme.dark") : NULL;
+    char kept_text[4096];
+    char chosen_text[CLI_NAME_MAX_LEN];
+    const char *const kept = cli_state_entry_value(&entries, "themes", kept_text, sizeof(kept_text));
+    const char *const chosen = cli_state_entry_value(&entries, "theme.dark", chosen_text, sizeof(chosen_text));
     cli_check((kept != NULL) && cellul.has(&(CatenaFinitaCfg){.src = kept, .other = "\"Night\"", .cap = CLI_POOL_BYTES, .other_cap = 8u}) &&
                   !cellul.has(&(CatenaFinitaCfg){.src = kept, .other = "Night 2", .cap = CLI_POOL_BYTES, .other_cap = 8u}),
               "the home's state keeps the themes as they stand");
     cli_check((chosen != NULL) && same(chosen, "Dark"), "and the choice");
-    g_cli_guard->persistent_buf_release(entries, g_cli_view_owner);
+    cli_state_entries_release(&entries);
     cli_check(!asked("theme-image", NULL), "theme-image stays refused: the window reads no image files");
+}
+
+// whether the View menu's row `label` shows checked
+static int view_checked_on(const char *label)
+{
+    CliItem item;
+    (void)row_chosen("View", label, &item);
+    return g_cli_menus_open.checked(&item);
+}
+
+// The View menu's switches and tool views through the door: whitespace marks, the eased scroll, the sticky rows and
+// the claim turned off and on, each saved as its setting and shown checked in the menu; and a tool view opening and
+// closing the side_menu's tool
+static void view_checked(void)
+{
+    cli_check(asked("whitespace", "on") && s_window.editor.whitespace && view_checked_on("Show Whitespace"),
+              "whitespace on marks spaces and tabs and shows checked");
+    cli_check(asked("whitespace", NULL) && !s_window.editor.whitespace, "whitespace without a word turns it off");
+    cli_check(asked("smooth-scroll", "off") && !s_window.scroll_smooth && !view_checked_on("Smooth Scrolling"),
+              "smooth-scroll off stops the ease");
+    cli_check(asked("smooth-scroll", "on") && s_window.scroll_smooth, "and on starts it again");
+    cli_check(asked("sticky-scroll", "off") && !cli_view_sticky() && !view_checked_on("Sticky Scroll"),
+              "sticky-scroll off takes the sticky rows out of the frames");
+    cli_check(asked("sticky-scroll", "on") && cli_view_sticky(), "and on puts them back");
+    cli_check(asked("auto-collapse", "off") && !s_window.autohide_wanted && !s_window.claim.autohidden &&
+                  !view_checked_on("Auto Collapse Panes"),
+              "auto-collapse off lets the claim go");
+    cli_check(asked("auto-collapse", "on") && s_window.autohide_wanted, "and on allows it again");
+    char folder[CLI_PATH_MAX_LEN];
+    (void)EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder);
+    CliStateEntries entries =
+        cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
+    char kept_text[CLI_NAME_MAX_LEN];
+    const char *const kept = cli_state_entry_value(&entries, "whitespace", kept_text, sizeof(kept_text));
+    cli_check((kept != NULL) && same(kept, "false"), "a switch is saved as its setting");
+    cli_state_entries_release(&entries);
+    int comms = -1;
+    for (unsigned int at = 0u; at < g_gui_tools_count; at += 1u)
+    {
+        if (same(g_gui_tools[at].name, "comms"))
+        {
+            // the tools are fewer than an int counts
+            comms = (int)at;
+        }
+    }
+    cli_check(asked("comms-view", NULL) && (s_window.side_menu.foot == comms), "comms-view opens the Comms tool at the foot");
+    cli_check(asked("comms-view", NULL) && (s_window.side_menu.foot == GUI_SIDE_MENU_NONE), "and closes it again");
+}
+
+// whether the folder at `path` stands
+static int folder_stands(const char *path)
+{
+    return EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path);
+}
+
+// `root` and `rest` joined with a slash into `out`, sized CLI_PATH_MAX_LEN
+static void joined(const char *root, const char *rest, char *out)
+{
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&line, root);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, rest);
+    (void)mmgr_line_finish(&line);
+}
+
+// The File menu's commands through the door: a folder made in the tree and made a repository, the tree kept as a
+// template, auto save turned on and saving a changed tab once the edits rest, the trust question asked and its answer
+// kept, and the environment setting saved
+static void file_checked(void)
+{
+    char path[CLI_PATH_MAX_LEN];
+    joined(s_root, "made_here", path);
+    cli_check(asked("create-folder", "made_here") && folder_stands(path), "create-folder makes the folder in the tree");
+    cli_check(!asked("create-folder", NULL), "create-folder without a name is refused");
+    char git[CLI_PATH_MAX_LEN];
+    joined(path, ".git", git);
+    cli_check(asked("create-repository", "made_here") && folder_stands(git),
+              "create-repository makes the folder a repository");
+    CliItem item;
+    (void)row_chosen("File", "Auto Save", &item);
+    cli_check(asked("auto-save", "on") && s_window.autosave && g_cli_menus_open.checked(&item),
+              "auto-save on shows checked");
+    cli_check(!asked("auto-save-after", NULL) && (s_window.autosave_ms == GUI_WINDOW_AUTOSAVE_DEFAULT_MS),
+              "auto-save-after without the seconds is refused and the rest stands");
+    cli_check(asked("auto-save-after", "3") && (s_window.autosave_ms == 3000ULL),
+              "auto-save-after sets the rest in seconds");
+    tabs_closed("kept.txt", "alpha\n", NULL, NULL);
+    cli_check(tab_opened("kept.txt"), "a file opens");
+    typed("x");
+    cli_check(changed(0u) && (s_window.edited_ms != 0ULL), "an edit marks the tab changed and starts the rest");
+    g_test_clock_ms = s_window.edited_ms + 2000ULL;
+    stepped();
+    cli_check(changed(0u), "before the rest is up the tab stays changed");
+    g_test_clock_ms = s_window.edited_ms + s_window.autosave_ms + 1ULL;
+    stepped();
+    g_test_clock_ms = GUI_TEST_CLOCK_MACHINE;
+    // a save the file writer refused leaves a failure's notice, which the check carries
+    char saved_why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea saved_line = {saved_why, sizeof(saved_why), 0ULL};
+    mmgr_line_put(&saved_line, "the rest past, auto save clears the changed mark");
+    if (changed(0u) && (cli_notice_shown() != NULL))
+    {
+        mmgr_line_put(&saved_line, ": ");
+        mmgr_line_put(&saved_line, cli_notice_shown());
+    }
+    (void)mmgr_line_finish(&saved_line);
+    cli_check(!changed(0u), saved_why);
+    cli_check(file_reads("kept.txt", "xalpha\n"), "the rest past, auto save writes the tab to the disk");
+    cli_check(asked("auto-save", "off") && !s_window.autosave, "auto-save off");
+    char templates[CLI_PATH_MAX_LEN];
+    cli_check(EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = templates), "the templates' folder is known");
+    char kept[CLI_PATH_MAX_LEN];
+    joined(templates, "kept_tree", kept);
+    cli_check(asked("keep-template", "kept_tree") && folder_stands(kept), "keep-template copies the tree under its name");
+    int trusted = 0;
+    cli_check(!cli_trust_answer(&(CliTrustTreeCfg){.tree = s_root, .trusted = &trusted}), "the tree has no trust answer yet");
+    cli_check(asked("trust-tree", NULL) && s_window.dialog.displayed && s_window.trust_asked &&
+                  same(s_window.dialog.label[0], "Trust"),
+              "trust-tree asks in the dialog");
+    s_window.dialog_answer = (GuiDialogChange){GUI_DIALOG_ANSWERED, 0u};
+    stepped();
+    cli_check(!s_window.trust_asked && cli_trust_answer(&(CliTrustTreeCfg){.tree = s_root, .trusted = &trusted}) && trusted,
+              "Trust pressed, the tree's answer is kept as trusted");
+    cli_check(asked("environment", "none"), "environment runs with a word");
+    cli_check(!asked("environment", NULL), "and is refused without one");
+    cli_check(asked("reload-plugins", NULL), "reload-plugins runs");
+    char folder[CLI_PATH_MAX_LEN];
+    (void)EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder);
+    CliStateEntries entries =
+        cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
+    char place_text[CLI_NAME_MAX_LEN];
+    const char *const place = cli_state_entry_value(&entries, "environment", place_text, sizeof(place_text));
+    cli_check((place != NULL) && same(place, "none"), "the environment setting is saved");
+    cli_state_entries_release(&entries);
+}
+
+// the text saved under `key` in the home's state, the same as `required`
+static int state_saved(const char *key, const char *required)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    (void)EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder);
+    CliStateEntries entries =
+        cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
+    char kept_text[4096];
+    const char *const kept = cli_state_entry_value(&entries, key, kept_text, sizeof(kept_text));
+    const int saved = (kept != NULL) && same(kept, required);
+    cli_state_entries_release(&entries);
+    return saved;
+}
+
+// whether the row whose check is `checks` shows checked
+static int checks_on(const char *checks)
+{
+    const CliItem item = {.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = checks};
+    return g_cli_menus_open.checked(&item);
+}
+
+// The Edit menu's commands through the door: a paragraph filled to the documentation margin, a macro recorded,
+// played, kept and played by name, the clipboard compared against the shown file, Local History's snapshot shown,
+// and the settings saved
+static void edit_checked(void)
+{
+    cli_check(asked("doc-margin", "12") && (cli_view_fill() == 12ULL), "doc-margin sets the fill's width");
+    tabs_closed("fill.txt", "aa bb cc dd ee\nff gg\n", NULL, NULL);
+    cli_check(tab_opened("fill.txt"), "a paragraph of two lines opens");
+    cli_check(asked("fill-paragraph", NULL) && asked("save", NULL) && file_reads("fill.txt", "aa bb cc dd\nee ff gg\n"),
+              "fill-paragraph lays the words again within the margin");
+    cli_check(asked("doc-margin", "none") && (cli_view_fill() == 0ULL) && state_saved("doc-margin", "none"),
+              "doc-margin none goes back to the view's columns and is saved");
+    cli_check(!asked("doc-margin", NULL), "doc-margin without a word is refused");
+    tabs_closed("macro.txt", "", NULL, NULL);
+    cli_check(tab_opened("macro.txt"), "an empty file opens for the macro");
+    cli_check(!asked("macro-play", NULL), "macro-play with nothing recorded is refused");
+    cli_check(asked("macro-record", NULL) && s_window.macro_recording && checks_on("macro-recording"),
+              "macro-record starts the recording and shows checked");
+    typed("ab");
+    key_pressed("Enter");
+    cli_check(asked("macro-record", NULL) && !s_window.macro_recording && same(s_window.macro, "text ab\nkey Enter\n"),
+              "macro-record again ends it with the text and the key recorded");
+    cli_check(asked("macro-play", "2") && asked("save", NULL) && file_reads("macro.txt", "ab\nab\nab\n"),
+              "macro-play 2 plays the macro twice");
+    cli_check(!asked("macro-keep", NULL), "macro-keep without a name is refused");
+    cli_check(asked("macro-keep", "two") && state_saved("macro.two", "text ab\nkey Enter\n"),
+              "macro-keep saves the macro under its name");
+    const char *const by_name[2] = {"1", "two"};
+    cli_check(asked_words("macro-play", by_name, 2u) && asked("save", NULL) && file_reads("macro.txt", "ab\nab\nab\nab\n"),
+              "macro-play by name plays the kept macro");
+    cli_check(!asked("macro-play", "nowhere"), "macro-play with a name none is kept under is refused");
+    (void)cli_clipboard_text_write(&(CliSizeTextCtx){.size = 3ULL, .text = "ab\n"});
+    cli_check(asked("compare-clipboard", NULL), "compare-clipboard opens the clipboard against the file");
+    key_pressed("Escape");
+    cli_check(asked("undo-history", NULL), "undo-history shows the file against its newest snapshot");
+    key_pressed("Escape");
+    tabs_closed("fresh.txt", "x\n", NULL, NULL);
+    cli_check(tab_opened("fresh.txt") && !asked("undo-history", NULL), "a file never saved here has no snapshot");
+    cli_check(!asked("continuation", NULL), "continuation without words is refused");
+    const char *const indents[3] = {"4", "8", "4"};
+    cli_check(asked_words("continuation", indents, 3u) && state_saved("continuation", "4 8 4"),
+              "continuation saves its three indents");
+    cli_check(asked("operator-next-line", "on") && s_window.operator_next_line && checks_on("operator-next-line") &&
+                  state_saved("operator-next-line", "true"),
+              "operator-next-line on shows checked and is saved");
+    cli_check(asked("operator-next-line", NULL) && !s_window.operator_next_line, "and without a word turns off");
+    cli_check(!asked("docstring-form", NULL), "docstring-form without a word is refused");
+    cli_check(asked("docstring-form", "google") && state_saved("docstring-form", "google"), "docstring-form is saved");
 }
 
 int main(void)
@@ -688,25 +1054,16 @@ int main(void)
     caret_checked();
     explorer_stays_checked();
     terminal_menu_checked();
+    tab_menu_checked();
     minimap_lines_checked();
     autoscroll_checked();
+    tips_checked();
+    bar_tools_checked();
     map_collapses_checked();
     themes_checked();
-    // the pool as the checks leave it: the end, the fragmentation, and the largest of a few takes the tier still meets
-    {
-        const SeriesCellularum *const record = cli_pool_series_cellularum();
-        static const unsigned long long s_probe_bytes[] = {512ULL << 10u, 2ULL << 20u, 8ULL << 20u, 32ULL << 20u};
-        unsigned long long met = 0ULL;
-        for (unsigned int at = 0u; at < sizeof(s_probe_bytes) / sizeof(s_probe_bytes[0]); at += 1u)
-        {
-            void *const probe = g_cli_guard->persistent_buf_alloc(s_probe_bytes[at], g_checks_owner);
-            met = (probe != NULL) ? s_probe_bytes[at] : met;
-            g_cli_guard->persistent_buf_release(probe, g_checks_owner);
-        }
-        (void)fprintf(stderr, "  pool end %llu fragmentation %llu, a take of %llu bytes met\n",
-                      (unsigned long long)mmgr_series_cellularum_persistent_end(record),
-                      (unsigned long long)mmgr_series_cellularum_fragmentation(record), met);
-    }
+    view_checked();
+    edit_checked();
+    file_checked();
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_window);
     cli_command_line_tree_end();
     return cli_on_check();

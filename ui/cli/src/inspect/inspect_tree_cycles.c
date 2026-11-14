@@ -4,7 +4,8 @@
 // files each runs, and for each, the shortest way from what it runs back to its own file, named in the finding with
 // each file it passes through. An import is reported once, by the first file it runs that leads back. The imports are
 // counted by one walk of the files and followed by a second, every list of the walk one cell sized to the tree's files,
-// imports and edges; a finding's message a cell sized to the paths of its way
+// imports and edges; a finding's message a cell sized to the paths of its way. A file's path and an import are read
+// out of its facts cell through the guard, by the file's token
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "inspect_tree_internal.h"
@@ -55,8 +56,9 @@ static void cycles_gather(void)
             s_walk.edge_first[file] = s_walk.edges_used;
             s_walk.edges[file] = 0u;
         }
-        const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
-        for (unsigned int import = 0u; tree_file->used && (import < tree_file->facts.imports); import += 1u)
+        CliTreeFile tree_file;
+        CLI_TREE_FILE_READ(file, &tree_file);
+        for (unsigned int import = 0u; tree_file.used && (import < tree_file.facts.imports); import += 1u)
         {
             s_walk.import = import;
             EMBED_CALL(cli_inspect_tree_file_internal.tree_targets, CliInspectTreeFileCtx, .file = file,
@@ -122,13 +124,26 @@ EMBED_INLINE unsigned int cycles_path_back(const InspectTreeCyclesCtx *args)
     return 0u;
 }
 
-// a name of the way, numbered from 1, put on the message
+// the path length of the file at `file`
+EMBED_INLINE unsigned long long cycles_path_size(const InspectTreeCyclesCtx *args)
+{
+    CliTreeFile tree_file;
+    CLI_TREE_FILE_READ(args->file, &tree_file);
+    return tree_file.path_size;
+}
+
+// a name of the way, numbered from 1, put on the message: the path of the file at `file` read out of its cell
 EMBED_INLINE void cycles_by_name(const InspectTreeCyclesCtx *args)
 {
+    CliTreeFile tree_file;
+    CLI_TREE_FILE_READ(args->file, &tree_file);
+    char path[CLI_TREE_PATH_BYTES];
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = tree_file.facts.cell, .offset = CLI_TREE_PATH_AT, .dst = path, .bytes = tree_file.path_size + 1ULL});
     mmgr_line_put(args->message, (args->number > 1u) ? "\n" : "");
     mmgr_line_decimal(args->message, args->number, 1u);
     mmgr_line_put(args->message, ". `");
-    mmgr_line_put_n(args->message, CLI_TREE_FILE(args->file).path, CLI_TREE_FILE(args->file).path_size);
+    mmgr_line_put_n(args->message, path, tree_file.path_size);
     mmgr_line_ch(args->message, '`');
 }
 
@@ -140,10 +155,11 @@ EMBED_INLINE void cycles_by_name(const InspectTreeCyclesCtx *args)
 EMBED_INLINE void cycles_report(const InspectTreeCyclesCtx *args)
 {
     // each name of the way its path, its number, a newline, a dot, a space and two quotes
-    unsigned long long size = sizeof(CLI_CYCLES_OPENING) + CLI_TREE_FILE(args->file).path_size + 32ULL;
+    unsigned long long size =
+        sizeof(CLI_CYCLES_OPENING) + EMBED_CALL(cycles_path_size, InspectTreeCyclesCtx, .file = args->file) + 32ULL;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ULL;
+        size += EMBED_CALL(cycles_path_size, InspectTreeCyclesCtx, .file = s_walk.way[at]) + 32ULL;
     }
     char *const text = g_cli_guard->temporary_buf_alloc(size, g_cli_inspect_owner);
     if (text == NULL)
@@ -158,12 +174,18 @@ EMBED_INLINE void cycles_report(const InspectTreeCyclesCtx *args)
         EMBED_CALL(cycles_by_name, InspectTreeCyclesCtx, .message = &message, .number = at + 2u,
                    .file = s_walk.way[at]);
     }
-    const CliFacts *const facts = &CLI_TREE_FILE(args->file).facts;
+    CliTreeFile tree_file;
+    CLI_TREE_FILE_READ(args->file, &tree_file);
+    CliInspectImport one;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = tree_file.facts.cell,
+                            .offset = CLI_FACTS_IMPORT_AT(&tree_file.facts, args->import),
+                            .dst = &one,
+                            .bytes = sizeof(one)});
     if (mmgr_line_ok(&message))
     {
-        EMBED_CALL(args->each, CliTreeFindingCfg, .context = args->context, .file = args->file,
-                   .from = facts->import[args->import].from, .to = facts->import[args->import].to,
-                   .code = "import-cycle", .message = &message);
+        EMBED_CALL(args->each, CliTreeFindingCfg, .context = args->context, .file = args->file, .from = one.from,
+                   .to = one.to, .code = "import-cycle", .message = &message);
     }
     g_cli_guard->persistent_buf_release(text, g_cli_inspect_owner);
 }
@@ -201,18 +223,19 @@ void cli_tree_cycles(const CliInspectTreeCtx *args)
     unsigned long long imports = 1ULL;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
-        imports = (tree_file->used && (tree_file->facts.imports > imports)) ? tree_file->facts.imports : imports;
+        CliTreeFile tree_file;
+        CLI_TREE_FILE_READ(file, &tree_file);
+        imports = (tree_file.used && (tree_file.facts.imports > imports)) ? tree_file.facts.imports : imports;
     }
     const unsigned long long files = g_cli_tree_files + 1ULL;
-    unsigned int *const cell = g_cli_guard->persistent_buf_alloc(
+    unsigned int *const cell = g_cli_guard->temporary_buf_alloc(
         ((6ULL * files) + (2ULL * edges) + imports) * sizeof(unsigned int), g_cli_inspect_owner);
     if (cell == NULL)
     {
         return;
     }
     memor.set(
-        &(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)(((6ULL * files) + imports) * sizeof(unsigned int))});
+        &(MemoriaCfg){.dst = cell, .val = 0, .bytes = (embed_word)(((6ULL * files) + imports) * sizeof(unsigned int))});
     s_walk.edge_first = cell;
     s_walk.edges = s_walk.edge_first + files;
     s_walk.received = s_walk.edges + files;
@@ -225,7 +248,9 @@ void cli_tree_cycles(const CliInspectTreeCtx *args)
     cycles_gather();
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        if (CLI_TREE_FILE(file).used)
+        CliTreeFile tree_file;
+        CLI_TREE_FILE_READ(file, &tree_file);
+        if (tree_file.used)
         {
             EMBED_CALL(cycles_get, InspectTreeCyclesCtx, .file = file, .each = args->each, .context = args->context);
         }

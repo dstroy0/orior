@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 SUFFIXES = (".c", ".h", ".cu", ".cuh", ".cpp", ".hpp")
-ROOTS = ("src", "utils", "examples")
+ROOTS = ("src", "includes", "utils", "examples")
 HEAD = "number\tsource"
 
 

@@ -40,8 +40,8 @@ EMBED_INLINE int cli_file_send(const SettingsSyncExportCtx *args)
 {
     // the file written in a cell sized to what travels
     const unsigned long long file_capacity =
-        EMBED_CALL(cli_settings_sync_transferred_internal.transferred_sent_capacity,
-                   CliSettingsSyncTransferredCtx, .synced = &s_send.packed);
+        EMBED_CALL(cli_settings_sync_transferred_internal.transferred_sent_capacity, CliSettingsSyncTransferredCtx,
+                   .synced = &s_send.packed);
     char *const file_cell = g_cli_guard->temporary_buf_alloc(file_capacity, g_cli_machine_owner);
     VerbaLinea file = mmgr_line_over(file_cell, file_capacity);
     if (file.out == NULL)
@@ -156,13 +156,15 @@ EMBED_INLINE int cli_commit(const SettingsSyncExportCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     static const char *const s_add[4] = {"add", "-A", "--", "."};
     static const char *const s_diff[3] = {"diff", "--cached", "--quiet"};
-    if (!EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = s_add, .count = 4u, .err_msg = err_msg))
+    if (!EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = s_add, .count = 4u,
+                    .err_msg = err_msg))
     {
         return 0;
     }
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea quiet = {why, sizeof(why), 0ULL};
-    if (EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = s_diff, .count = 3u, .err_msg = &quiet))
+    if (EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = s_diff, .count = 3u,
+                   .err_msg = &quiet))
     {
         mmgr_line_put(out, args->to);
         mmgr_line_put(out, " contains these settings already");
@@ -182,7 +184,8 @@ EMBED_INLINE int cli_commit(const SettingsSyncExportCtx *args)
     mmgr_line_put(&line, named ? name : "a machine");
     mmgr_line_finish(&line);
     const char *const commit[3] = {"commit", "-m", message};
-    if (!EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = commit, .count = 3u, .err_msg = err_msg))
+    if (!EMBED_CALL(cli_git_in, SettingsSyncExportCtx, .folder = args->to, .request = commit, .count = 3u,
+                    .err_msg = err_msg))
     {
         return 0;
     }
@@ -195,8 +198,8 @@ EMBED_INLINE int cli_commit(const SettingsSyncExportCtx *args)
         {
             return 0;
         }
-        EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = out, .count = s_send.packed.count, .how = " files committed to ",
-                   .to = args->to, .after = " and pushed");
+        EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = out, .count = s_send.packed.count,
+                   .how = " files committed to ", .to = args->to, .after = " and pushed");
         return 1;
     }
     EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = out, .count = s_send.packed.count, .how = " files committed to ",
@@ -206,8 +209,8 @@ EMBED_INLINE int cli_commit(const SettingsSyncExportCtx *args)
 
 int cli_settings_sync_send(const CliSettingsSyncHomeToCfg *args)
 {
-    int sent = EMBED_CALL(cli_settings_sync.pack, CliSettingsSyncCfg, .home = args->home,
-                          .packed = &s_send.packed, .err_msg = args->err_msg);
+    int sent = EMBED_CALL(cli_settings_sync.pack, CliSettingsSyncCfg, .home = args->home, .packed = &s_send.packed,
+                          .err_msg = args->err_msg);
     if (sent && !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->to))
     {
         sent = EMBED_CALL(cli_file_send, SettingsSyncExportCtx, .to = args->to, .err_msg = args->err_msg);
@@ -234,16 +237,17 @@ int cli_settings_sync_send(const CliSettingsSyncHomeToCfg *args)
     sent = sent && EMBED_CALL(cli_folder_layout, SettingsSyncExportCtx, .to = args->to, .err_msg = args->err_msg);
     if (sent && !repository)
     {
-        EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = args->out, .count = s_send.packed.count, .how = " files written to ",
-                   .to = args->to, .after = "");
+        EMBED_CALL(cli_send, SettingsSyncExportCtx, .out = args->out, .count = s_send.packed.count,
+                   .how = " files written to ", .to = args->to, .after = "");
     }
     else if (sent)
     {
-        sent = EMBED_CALL(cli_commit, SettingsSyncExportCtx, .to = args->to, .out = args->out, .err_msg = args->err_msg);
+        sent =
+            EMBED_CALL(cli_commit, SettingsSyncExportCtx, .to = args->to, .out = args->out, .err_msg = args->err_msg);
     }
-    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
-               CliSettingsSyncTransferredPositionCtx, .transferred_out = &s_send.there);
-    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
-               CliSettingsSyncTransferredPositionCtx, .transferred_out = &s_send.packed);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear, CliSettingsSyncTransferredPositionCtx,
+               .transferred_out = &s_send.there);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear, CliSettingsSyncTransferredPositionCtx,
+               .transferred_out = &s_send.packed);
     return sent;
 }

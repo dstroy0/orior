@@ -8,6 +8,9 @@ cmake_minimum_required(VERSION 3.18)
 
 get_filename_component(ORIOR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../.." ABSOLUTE)
 set(ORIOR_CU "${ORIOR_ROOT}/src/cu")
+# the second tree of sources, the includes at the top of the tree, and the folder its wrappers and suites stand in
+set(ORIOR_INCLUDES "${ORIOR_ROOT}/includes")
+set(ORIOR_INCLUDES_UNIT "${ORIOR_ROOT}/utils/test/includes/unit")
 
 # nvcc's host compiler on Windows is MSVC's cl.exe, which harness.py names, and nvcc finds its headers and libraries from it
 if(ORIOR_CU_HOST)
@@ -36,10 +39,11 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     set(CMAKE_CUDA_ARCHITECTURES native)
 endif()
 
-# Every folder under src/cu with a header, but MMgr's and embedded_types', which have a library's own layout and are reached from
-# their include and src folders
-file(GLOB_RECURSE ORIOR_CU_HEADERS "${ORIOR_CU}/*.h" "${ORIOR_CU}/*.cuh" "${ORIOR_CU}/*.hpp")
-set(ORIOR_CU_INCLUDES "${ORIOR_CU}")
+# Every folder under src/cu and includes with a header, but MMgr's and embedded_types', which have a library's own layout and are
+# reached from their include and src folders; the top of the tree, which a wrapper names its source from
+file(GLOB_RECURSE ORIOR_CU_HEADERS "${ORIOR_CU}/*.h" "${ORIOR_CU}/*.cuh" "${ORIOR_CU}/*.hpp"
+     "${ORIOR_INCLUDES}/*.h" "${ORIOR_INCLUDES}/*.cuh" "${ORIOR_INCLUDES}/*.hpp")
+set(ORIOR_CU_INCLUDES "${ORIOR_ROOT}" "${ORIOR_CU}" "${ORIOR_INCLUDES}")
 foreach(header ${ORIOR_CU_HEADERS})
     if(NOT header MATCHES "/includes/(mmgr|embedded_types)/")
         get_filename_component(folder "${header}" DIRECTORY)
@@ -47,17 +51,17 @@ foreach(header ${ORIOR_CU_HEADERS})
     endif()
 endforeach()
 list(REMOVE_DUPLICATES ORIOR_CU_INCLUDES)
-list(APPEND ORIOR_CU_INCLUDES "${ORIOR_CU}/includes/mmgr/include" "${ORIOR_CU}/includes/mmgr/src" "${ORIOR_CU}/includes/embedded_types/include")
+list(APPEND ORIOR_CU_INCLUDES "${ORIOR_INCLUDES}/mmgr/include" "${ORIOR_INCLUDES}/mmgr/src" "${ORIOR_INCLUDES}/embedded_types/include")
 
 set(ORIOR_CU_DEFINES BODY_OVERLAP_BUILD_DLL=1 HEAVIEST_MATCHING_BUILD_DLL=1 SHIFT_AGREEMENT_BUILD_DLL=1
-    MMGR_ENABLE_DMA=0 MMGR_ENABLE_EXTRAM=0 MMGR_ALIGN_BYTES=32)
+    MMGR_ENABLE_DMA=0 MMGR_ENABLE_EXTRAM=0 MMGR_ALIGN_BYTES=32 MMGR_MOVABLE_READ_MS=10u MMGR_MOVABLE_QUIET_READINGS=2u)
 set(ORIOR_CU_OPTIONS -fmad=false)
 # the CUDA toolkit's headers refuse MSVC's traditional preprocessor
 if(MSVC)
     list(APPEND ORIOR_CU_OPTIONS "SHELL:-Xcompiler /Zc:preprocessor")
 endif()
 
-file(GLOB_RECURSE ORIOR_CU_WRAPPERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*_wrap.cu")
+file(GLOB_RECURSE ORIOR_CU_WRAPPERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*_wrap.cu" "${ORIOR_INCLUDES_UNIT}/*_wrap.cu")
 foreach(wrapper ${ORIOR_CU_WRAPPERS})
     get_filename_component(name "${wrapper}" NAME)
     string(REGEX REPLACE "_wrap\\.cu$" "" name "${name}")
@@ -77,12 +81,12 @@ target_compile_definitions(cu_unity PRIVATE UNITY_NORETURN=_Noreturn)
 set_property(TARGET cu_unity PROPERTY C_STANDARD 11)
 
 # A suite is a folder test_<source> holding test_<source>.cu, which includes the source's wrapper, and the generated unity_runner.cu
-file(GLOB_RECURSE ORIOR_CU_SUITES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cu")
+file(GLOB_RECURSE ORIOR_CU_SUITES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cu" "${ORIOR_INCLUDES_UNIT}/test_*.cu")
 foreach(suite ${ORIOR_CU_SUITES})
     get_filename_component(name "${suite}" NAME_WE)
     get_filename_component(folder "${suite}" DIRECTORY)
     add_executable(${name} "${suite}" "${folder}/unity_runner.cu")
-    target_include_directories(${name} PRIVATE ${ORIOR_CU_INCLUDES} "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(${name} PRIVATE ${ORIOR_CU_INCLUDES} "${CMAKE_CURRENT_SOURCE_DIR}" "${ORIOR_INCLUDES_UNIT}")
     target_compile_definitions(${name} PRIVATE ${ORIOR_CU_DEFINES})
     target_compile_options(${name} PRIVATE ${ORIOR_CU_OPTIONS})
     target_link_libraries(${name} PRIVATE cu_unity)

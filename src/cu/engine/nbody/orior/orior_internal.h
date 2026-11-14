@@ -20,7 +20,7 @@
  */
 
 #include "orior.h"
-#include "../../../includes/types/integers/exact_integer.h"
+#include "../../../../../includes/exact_types/integers/exact_integer.h"
 
 #include <string.h>
 

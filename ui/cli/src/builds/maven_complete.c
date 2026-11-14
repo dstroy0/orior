@@ -5,10 +5,10 @@
 // its closing tag where no `>` follows; and in an element's text, the values it takes, the local repository's groups,
 // artifacts and versions among them. More folders of the repository than CLI_MAVEN_FOLDERS are not offered
 #include "../command_line/callback_cfg.h"
+#include "../text/sort.h"
 #include "maven_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 // the most folders of the local repository offered, and the bytes their names take
 #define CLI_MAVEN_FOLDERS 4096u
@@ -181,14 +181,14 @@ static CliMavenFolders s_folders;
 static void complete_folder_visit(const CliEachNameIsFolderCfg *args)
 {
     CliMavenFolders *const folders = args->context;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (!args->is_folder || (folders->count == CLI_MAVEN_FOLDERS) ||
         (folders->base_size + length + 1u > CLI_MAVEN_FOLDERS_TEXT - folders->used))
     {
         return;
     }
     char *const at = folders->text + folders->used;
-    memor.cpy(&(MemoriaCfg){.dst = at, .src = folders->base, .bytes = (size_t)folders->base_size});
+    memor.cpy(&(MemoriaCfg){.dst = at, .src = folders->base, .bytes = (embed_word)folders->base_size});
     memor.cpy(&(MemoriaCfg){.dst = at + folders->base_size, .src = args->name, .bytes = length});
     at[folders->base_size + length] = '\0';
     folders->at[folders->count] = folders->used;
@@ -218,7 +218,8 @@ EMBED_INLINE void complete_repository(const MavenCompleteCtx *args)
     s_folders.base_size = base_size;
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                      .each = complete_folder_visit, .context_bytess = &s_folders);
-    qsort(s_folders.at, s_folders.count, sizeof(s_folders.at[0]), complete_folder_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_folders.at, .count = s_folders.count, .size = sizeof(s_folders.at[0]),
+               .order = complete_folder_order);
     for (unsigned int at = 0u; at < s_folders.count; at += 1u)
     {
         const char *const value = s_folders.text + s_folders.at[at];
@@ -327,13 +328,13 @@ EMBED_INLINE int complete_values(const MavenCompleteCtx *args)
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_lists[at].name, .cap = CLI_POOL_BYTES}) == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_lists[at].name, .other = name, .bytes = (size_t)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_lists[at].name, .other = name, .bytes = (embed_word)args->size}) == 0))
         {
             list = s_lists[at].list;
             count = s_lists[at].count;
         }
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_boolean_names[at], .cap = CLI_POOL_BYTES}) == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_boolean_names[at], .other = name, .bytes = (size_t)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_boolean_names[at], .other = name, .bytes = (embed_word)args->size}) == 0))
         {
             list = g_cli_maven_booleans;
             count = 2u;
@@ -408,8 +409,8 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
         tag =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = lead, .at = tag, .set = "<");
         if ((tag > 0u) && (tag < comment_prefix_size) && (lead[tag] != '/') &&
-            (memor.chr(&(MemoriaCfg){.src = lead + tag, .val = '>', .bytes = (size_t)(comment_prefix_size - tag)}) !=
-             NULL))
+            (memor.chr(&(MemoriaCfg){
+                 .src = lead + tag, .val = '>', .bytes = (embed_word)(comment_prefix_size - tag)}) != NULL))
         {
             unsigned long long name_end = tag;
             for (int lettered = 1; lettered && (name_end < comment_prefix_size);)
@@ -423,7 +424,7 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
             }
             static char s_name[1u << 12u];
             const unsigned long long name_size = (name_end - tag < sizeof(s_name)) ? name_end - tag : 0ULL;
-            memor.cpy(&(MemoriaCfg){.dst = s_name, .src = lead + tag, .bytes = (size_t)name_size});
+            memor.cpy(&(MemoriaCfg){.dst = s_name, .src = lead + tag, .bytes = (embed_word)name_size});
             s_name[name_size] = '\0';
             if (!EMBED_CALL(complete_values, MavenCompleteCtx, .name = s_name, .size = name_size, .token = typed,
                             .token_size = typed_size, .items = args->items) &&

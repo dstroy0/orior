@@ -1,16 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_changes.c: the changes as the window reads them, and the next commit. Each read lists the tree's changed files
-// through the repositories' status into the list read from git, whose texts stand in the persistent tier until the
-// next read, and every row points into it, and reads how far the branch stands from the remote it follows. The next
-// commit takes every file but those left out: whether each file of the list is left out stands as a byte a file in a
-// cell sized to the list, and the paths left out stand as one text of their own, so the choice outlasts the list's
+// through the repositories' status into the list read from git, whose texts stand in a movable cell until the next
+// read, and every row points into it, and reads how far the branch stands from the remote it follows. The next commit
+// takes every file but those left out: whether each file of the list is left out stands as a byte a file in one movable
+// cell, and the paths left out stand in one movable cell of CHANGES_LEFT_MOST paths, so the choice outlasts the list's
 // next read. A file's changes open under its row: the document store's changes of its text, the open view's where one
 // is open on it and else the file stored for the changes alone, against the file as the last commit has it, which the
-// store has beside the text; the changes stand in one cell a file with a byte a line of them, 1 where the line is
-// left out of the next commit, which then takes the file with the text of its lines taken. The message typed stands
-// in a cell sized to it, and git's refusal of the last commit, pull, push or roll back in one sized to the refusal. The
-// watch marks the changes stale from its thread, and the step reads them again
+// store has beside the text; the open parts stand as CHANGES_PARTS_MOST records in one movable cell, each part's
+// changes in a movable cell of its own with a byte a line of them, 1 where the line is left out, which then takes the
+// file with the text of its lines taken. The message typed stands in the typed text's cell, and git's refusal of the
+// last commit, pull, push or roll back in one movable cell of CLI_CHANGES_REFUSAL_MAX bytes. Every cell but a part's is
+// taken once at its most; a part's cell is sized to the changes the diff counts. The watch marks the changes stale from
+// its thread, and the step reads them again
 #include "git.h"
 
 #include "../command_line/commands.h"
@@ -21,34 +23,42 @@
 #include "embed_atomic.h"
 
 // why nothing was committed, the bytes git's own words of a commit, a pull or a push may take, the bytes a file's text
-// as the last commit has it may take, the key a file is stored under for its changes alone, and no place
+// as the last commit has it may take, the key a file is stored under for its changes alone, no place, the most parts
+// open at once, and the most paths left out kept across the list's reads
 #define CHANGES_EMPTY "The commit message is empty."
 #define CHANGES_NONE "No file is taken."
 #define CHANGES_OUT 4096ULL
 #define CHANGES_TEXT_MAX (1ULL << 20u)
 #define CHANGES_KEY "changes:"
 #define CHANGES_NONE_AT 0xffffffffu
+#define CHANGES_PARTS_MOST 64u
+#define CHANGES_LEFT_MOST 256u
+// the bytes a key is copied into, and the bytes zeroed at a time as a part's line bytes are cleared
+#define CHANGES_KEY_MAX (CLI_PATH_MAX_LEN + sizeof(CHANGES_KEY))
+#define CHANGES_ZERO_STEP 4096ULL
 
 // the list, standing between the window's frames until the next read
 static CliChangedList s_changed;
 
-// A file whose changes are open under its row, in one cell: its path with its end, the key its text is stored under in
-// the document store, its changes as the diff hands them, four numbers each, the newer text's first line and the line
-// after its last then the older's, the row under the file's row each change starts at, one more than the changes, so
-// that a change's first line's byte is its row less its place, how many lines of each change are left out, and a byte a
-// line of the changes in the changes' order, each change's lines taken out then its lines put in, 1 where the line is
-// left out. Beside the cell: how many changes, how many line bytes, how many are 1, how many rows stand under the
-// file's row, whether the text was stored for the changes alone and goes as they close, and the file's place in the
-// list
+// A file whose changes are open under its row: its cell and where each span stands in it, its path with its end and
+// its bytes, the key its text is stored under in the document store with its bytes, its changes as the diff hands
+// them, four numbers each, the newer text's first line and the line after its last then the older's, the row under the
+// file's row each change starts at, one more than the changes, so that a change's first line's byte is its row less
+// its place, how many lines of each change are left out, and a byte a line of the changes in the changes' order, each
+// change's lines taken out then its lines put in, 1 where the line is left out. Beside the cell: how many changes, how
+// many line bytes, how many are 1, how many rows stand under the file's row, whether the text was stored for the
+// changes alone and goes as they close, and the file's place in the list
 typedef struct
 {
-    unsigned char *cell;
-    const char *path;
-    const char *key;
-    unsigned int *hunk;
-    unsigned int *hunk_row;
-    unsigned int *hunk_out;
-    unsigned char *out;
+    const CarcerMovableEntry *cell;
+    unsigned long long path_at;
+    unsigned long long path_bytes;
+    unsigned long long key_at;
+    unsigned long long key_bytes;
+    unsigned long long hunk_at;
+    unsigned long long hunk_row_at;
+    unsigned long long hunk_out_at;
+    unsigned long long out_at;
     unsigned int hunks;
     unsigned int outs;
     unsigned int out_count;
@@ -64,24 +74,27 @@ typedef struct
     unsigned int keys;
 } ChangesCount;
 
-// The next commit: its message, the paths left out as one text each with its end and the bytes of that text, a byte a
-// file of the list, 1 where the file is left out, how many files are taken, the files whose changes are open and how
-// many, the row each file's row stands at, one more than the files, each file's open changes' place, CHANGES_NONE_AT
-// for none, git's refusal of the last commit, pull, push or roll back with its bytes, whether the list was read since
-// the tree was opened, how far the branch stands from the remote it follows, 1 where it follows one, and the
-// millisecond a roll back was armed at, 0 for not armed
+// The next commit: its message, the paths left out, CHANGES_LEFT_MOST of CLI_PATH_MAX_LEN each with its end, and how
+// many, a byte a file of the list, 1 where the file is left out, and whether the list's bytes stand, how many files
+// are taken, the parts open and how many, the row each file's row stands at, one more than the files, each file's open
+// part's place, CHANGES_NONE_AT for none, and whether the two stand for the list, git's refusal of the last commit,
+// pull, push or roll back with its bytes, whether the list was read since the tree was opened, how far the branch
+// stands from the remote it follows, 1 where it follows one, and the millisecond a roll back was armed at, 0 for not
+// armed
 typedef struct
 {
     CliTyped message;
-    char *left;
-    unsigned long long left_bytes;
-    unsigned char *out;
+    const CarcerMovableEntry *left;
+    unsigned int lefts;
+    const CarcerMovableEntry *out;
+    int out_standing;
     unsigned int taken;
-    ChangesPart *part;
+    const CarcerMovableEntry *part;
     unsigned int parts;
-    unsigned int *first_row;
-    unsigned int *file_part;
-    char *refusal;
+    const CarcerMovableEntry *first_row;
+    const CarcerMovableEntry *file_part;
+    int rows_standing;
+    const CarcerMovableEntry *refusal;
     unsigned long long refusal_length;
     int listed;
     int followed;
@@ -111,68 +124,189 @@ typedef struct
     char state;
     const char *key_text;
     char *written;
+    char *path_out;
+    const CarcerMovableEntry *cell;
+    unsigned long long offset;
+    unsigned int index;
 } ChangesCtx;
+
+// A cell taken once at its most, `bytes`, where none stands: 1, or 0 where it could not be taken
+static int cell_taken(const CarcerMovableEntry **cell, unsigned long long bytes)
+{
+    if (*cell == NULL)
+    {
+        *cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_git_owner);
+    }
+    return *cell != NULL;
+}
+
+// `size` bytes at `offset` of `cell` zeroed, CHANGES_ZERO_STEP at a time
+EMBED_INLINE void cell_zeroed(const ChangesCtx *args)
+{
+    static const unsigned char s_zeros[CHANGES_ZERO_STEP] = {0};
+    for (unsigned long long at = 0ULL; at < args->size;)
+    {
+        const unsigned long long step = (args->size - at < CHANGES_ZERO_STEP) ? args->size - at : CHANGES_ZERO_STEP;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = args->cell, .offset = args->offset + at, .src = s_zeros, .bytes = step});
+        at += step;
+    }
+}
+
+// the byte of the file `file` of the list, 1 where it is left out, 0 where the list's bytes do not stand; and one
+// written
+EMBED_INLINE unsigned char file_out(const ChangesCtx *args)
+{
+    unsigned char byte_7 = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_changes.out, .offset = 0ULL + args->file, .dst = &byte_7, .bytes = 1ULL});
+
+    return s_changes.out_standing ? byte_7 : 0u;
+}
+
+EMBED_INLINE void file_out_put(const ChangesCtx *args)
+{
+    if (s_changes.out_standing)
+    {
+        {
+            // whether a line or a file is left out is 0 or 1, which a byte carries
+            const unsigned char value = (unsigned char)args->on;
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = s_changes.out, .offset = 0ULL + args->file, .src = &value, .bytes = 1ULL});
+        }
+    }
+}
+
+// the row each file's row stands at, `file` from 0 to the files' count, and the part of the file `file`,
+// CHANGES_NONE_AT where its changes are not open
+EMBED_INLINE unsigned int file_first_row(const ChangesCtx *args)
+{
+    unsigned int value_3 = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_changes.first_row,
+                            .offset = 0ULL + ((unsigned long long)args->file * sizeof(value_3)),
+                            .dst = &value_3,
+                            .bytes = sizeof(value_3)});
+
+    return value_3;
+}
+
+EMBED_INLINE unsigned int file_part_at(const ChangesCtx *args)
+{
+    unsigned int value_4 = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_changes.file_part,
+                            .offset = 0ULL + ((unsigned long long)args->file * sizeof(value_4)),
+                            .dst = &value_4,
+                            .bytes = sizeof(value_4)});
+
+    return s_changes.rows_standing ? value_4 : CHANGES_NONE_AT;
+}
+
+// `path` written as the path left out at `at`, its end after it
+EMBED_INLINE void left_put(const ChangesCtx *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN - 1ULL});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_changes.left,
+                                                             .offset = (unsigned long long)args->at * CLI_PATH_MAX_LEN,
+                                                             .src = args->path,
+                                                             .bytes = length});
+    const char end = '\0';
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_changes.left,
+                            .offset = ((unsigned long long)args->at * CLI_PATH_MAX_LEN) + length,
+                            .src = &end,
+                            .bytes = 1ULL});
+}
 
 // whether `path` is among the paths left out
 EMBED_INLINE int left_has(const ChangesCtx *args)
 {
-    for (unsigned long long at = 0ULL; at < s_changes.left_bytes;)
+    char one[CLI_PATH_MAX_LEN];
+    for (unsigned int at = 0u; (s_changes.left != NULL) && (at < s_changes.lefts); at += 1u)
     {
-        const char *const one = s_changes.left + at;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.left,
+                                                                .offset = (unsigned long long)at * CLI_PATH_MAX_LEN,
+                                                                .dst = one,
+                                                                .bytes = CLI_PATH_MAX_LEN});
         if (cellul.eq(&(CatenaFinitaCfg){.src = one, .other = args->path, .cap = CLI_PATH_MAX_LEN}))
         {
             return 1;
         }
-        at += cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
     return 0;
 }
 
-// the path of the file `file` of the list
+// the path of the file `file` of the list copied into `path_out`, CLI_PATH_MAX_LEN bytes
 EMBED_INLINE const char *file_path(const ChangesCtx *args)
 {
     return EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_changed.text,
-                      .at = s_changed.item[args->file].path);
+                      .at = s_changed.item[args->file].path, .dst = args->path_out, .capacity = CLI_PATH_MAX_LEN);
 }
 
 // the choice settled after the bytes a file changed: the files taken counted, and the paths left out written again
-// from the files marked out, in a cell sized to them, none where none is
+// from the files marked out, CHANGES_LEFT_MOST of them at the most, the rest taken again at the next read
 EMBED_INLINE void choice_settled(const ChangesCtx *args)
 {
     (void)args;
-    unsigned long long bytes = 0ULL;
     unsigned int taken = 0u;
-    for (unsigned int at = 0u; (s_changes.out != NULL) && (at < s_changed.count); at += 1u)
+    unsigned int lefts = 0u;
+    char path[CLI_PATH_MAX_LEN];
+    const int kept = s_changes.out_standing && cell_taken(&s_changes.left, CHANGES_LEFT_MOST * CLI_PATH_MAX_LEN);
+    for (unsigned int at = 0u; s_changes.out_standing && (at < s_changed.count); at += 1u)
     {
-        const char *const path = EMBED_CALL(file_path, ChangesCtx, .file = at);
-        bytes += s_changes.out[at] ? cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL : 0ULL;
-        taken += s_changes.out[at] ? 0u : 1u;
+        const unsigned char out = EMBED_CALL(file_out, ChangesCtx, .file = at);
+        taken += out ? 0u : 1u;
+        if (out && kept && (lefts < CHANGES_LEFT_MOST))
+        {
+            (void)EMBED_CALL(file_path, ChangesCtx, .file = at, .path_out = path);
+            EMBED_CALL(left_put, ChangesCtx, .at = lefts, .path = path);
+            lefts += 1u;
+        }
     }
     s_changes.taken = taken;
-    char *const left = (bytes != 0ULL) ? g_cli_guard->persistent_buf_alloc(bytes, g_cli_git_owner) : NULL;
-    unsigned long long used = 0ULL;
-    for (unsigned int at = 0u; (left != NULL) && (at < s_changed.count); at += 1u)
-    {
-        if (!s_changes.out[at])
-        {
-            continue;
-        }
-        const char *const path = EMBED_CALL(file_path, ChangesCtx, .file = at);
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-        memor.cpy(&(MemoriaCfg){.dst = left + used, .src = path, .bytes = length + 1ULL});
-        used += length + 1ULL;
-    }
-    g_cli_guard->persistent_buf_release(s_changes.left, g_cli_git_owner);
-    s_changes.left = left;
-    s_changes.left_bytes = (left != NULL) ? bytes : 0ULL;
+    s_changes.lefts = lefts;
 }
 
-// git `run` at `root`, pull or push: its words into a cell of this run alone, 1, or 0 with the refusal in a cell sized
-// to why
+// git's refusal set to `size` bytes of `text`, CLI_CHANGES_REFUSAL_MAX - 1 at the most, with its end
+EMBED_INLINE void refusal_put(const ChangesCtx *args)
+{
+    s_changes.refusal_length = 0ULL;
+    if ((args->size == 0ULL) || !cell_taken(&s_changes.refusal, CLI_CHANGES_REFUSAL_MAX))
+    {
+        return;
+    }
+    const unsigned long long length =
+        (args->size < CLI_CHANGES_REFUSAL_MAX - 1ULL) ? args->size : CLI_CHANGES_REFUSAL_MAX - 1ULL;
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_changes.refusal, .src = args->text, .bytes = length});
+    const char end = '\0';
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_changes.refusal, .offset = length, .src = &end, .bytes = 1ULL});
+    s_changes.refusal_length = length;
+}
+
+// `size` bytes of `text` put after the refusal standing, on a line of its own where one stands, CLI_CHANGES_REFUSAL_MAX
+// - 1 bytes at the most
+EMBED_INLINE void refusal_appended(const ChangesCtx *args)
+{
+    char joined[CLI_CHANGES_REFUSAL_MAX];
+    VerbaLinea line = {joined, sizeof(joined), 0ULL};
+    if (s_changes.refusal_length != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_changes.refusal, .dst = joined, .bytes = s_changes.refusal_length});
+        line.at = s_changes.refusal_length;
+        mmgr_line_ch(&line, '\n');
+    }
+    mmgr_line_put_n(&line, args->text, args->size);
+    (void)mmgr_line_finish(&line);
+    EMBED_CALL(refusal_put, ChangesCtx, .text = joined, .size = line.at);
+}
+
+// git `run` at `root`, pull or push: its words into a cell of this run alone, 1, or 0 with the refusal standing
 EMBED_INLINE int remote_run(const ChangesCtx *args)
 {
-    g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
-    s_changes.refusal = NULL;
     s_changes.refusal_length = 0ULL;
     char *const scratch = g_cli_guard->temporary_buf_alloc(CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, g_cli_git_owner);
     if (scratch == NULL)
@@ -183,13 +317,7 @@ EMBED_INLINE int remote_run(const ChangesCtx *args)
     VerbaLinea err_msg = {scratch + CHANGES_OUT, CLI_ERR_MSG_MAX_LEN, 0ULL};
     const int ran = args->run(&(CliGitRootOutCountErrMsgCfg){.root = args->root, .out = &out, .err_msg = &err_msg});
     const unsigned long long refused = (!ran && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
-    s_changes.refusal = (refused != 0ULL) ? g_cli_guard->persistent_buf_alloc(refused + 1ULL, g_cli_git_owner) : NULL;
-    s_changes.refusal_length = (s_changes.refusal != NULL) ? refused : 0ULL;
-    if (s_changes.refusal != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = scratch + CHANGES_OUT, .bytes = refused});
-        s_changes.refusal[refused] = '\0';
-    }
+    EMBED_CALL(refusal_put, ChangesCtx, .text = scratch + CHANGES_OUT, .size = refused);
     g_cli_guard->persistent_buf_release(scratch, g_cli_git_owner);
     return ran;
 }
@@ -202,15 +330,16 @@ static void changes_counted(const CliEachHunkCfg *args)
     count->keys += (args->now_to - args->now_from) + (args->then_to - args->then_from);
 }
 
-// a change handed by the diff written into the part's changes as the next
+// a change handed by the diff written into the part's cell as the next
 static void changes_filled(const CliEachHunkCfg *args)
 {
     ChangesPart *const part = args->context;
-    unsigned int *const hunk = part->hunk + (4u * part->hunks);
-    hunk[0] = args->now_from;
-    hunk[1] = args->now_to;
-    hunk[2] = args->then_from;
-    hunk[3] = args->then_to;
+    const unsigned int hunk[4] = {args->now_from, args->now_to, args->then_from, args->then_to};
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = part->cell,
+                            .offset = part->hunk_at + ((unsigned long long)part->hunks * sizeof(hunk)),
+                            .src = hunk,
+                            .bytes = sizeof(hunk)});
     part->hunks += 1u;
 }
 
@@ -238,118 +367,184 @@ EMBED_INLINE int head_stored(const ChangesCtx *args)
     return found;
 }
 
-// the part's cell laid for `path`, `key_text` and the changes counted in `count`, the changes written in from the store
-// and every line taken; the cell it had released: 1, or 0 where the cells cannot meet it, the part as it was
+// the part's cell laid for `path`, `key_text` and the changes counted in `count`, sized to them, the changes written
+// in from the store and every line taken; the cell it had released: 1, or 0 where the cells cannot meet it, the part as
+// it was
 EMBED_INLINE int part_laid(const ChangesCtx *args)
 {
     ChangesPart *const part = args->part;
     const ChangesCount *const count = args->count;
     const unsigned long long path_bytes =
-        cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+        cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN - 1ULL}) + 1ULL;
     const unsigned long long key_bytes =
-        cellul.len(&(CatenaFinitaCfg){.src = args->key_text, .cap = CLI_PATH_MAX_LEN + sizeof(CHANGES_KEY)}) + 1ULL;
+        cellul.len(&(CatenaFinitaCfg){.src = args->key_text, .cap = CHANGES_KEY_MAX - 1ULL}) + 1ULL;
     const unsigned long long texts = (path_bytes + key_bytes + 7ULL) & ~7ULL;
     const unsigned long long numbers =
         ((4ULL * count->hunks) + (count->hunks + 1ULL) + count->hunks) * sizeof(unsigned int);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(texts + numbers + count->keys, g_cli_git_owner);
+    const CarcerMovableEntry *const cell =
+        g_cli_guard->movable_buf_alloc(texts + numbers + count->keys + 1ULL, g_cli_git_owner);
     if (cell == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->path, .bytes = path_bytes});
-    memor.cpy(&(MemoriaCfg){.dst = cell + path_bytes, .src = args->key_text, .bytes = key_bytes});
-    g_cli_guard->persistent_buf_release(part->cell, g_cli_git_owner);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->path, .bytes = path_bytes});
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = path_bytes, .src = args->key_text, .bytes = key_bytes});
+    (void)g_cli_guard->movable_buf_release(part->cell, g_cli_git_owner);
     part->cell = cell;
-    part->path = (const char *)cell;
-    part->key = (const char *)(cell + path_bytes);
-    part->hunk = (unsigned int *)(void *)(cell + texts);
-    part->hunk_row = part->hunk + (4u * count->hunks);
-    part->hunk_out = part->hunk_row + count->hunks + 1u;
-    part->out = cell + texts + numbers;
+    part->path_at = 0ULL;
+    part->path_bytes = path_bytes;
+    part->key_at = path_bytes;
+    part->key_bytes = key_bytes;
+    part->hunk_at = texts;
+    part->hunk_row_at = texts + (4ULL * count->hunks * sizeof(unsigned int));
+    part->hunk_out_at = part->hunk_row_at + ((count->hunks + 1ULL) * sizeof(unsigned int));
+    part->out_at = texts + numbers;
     part->hunks = 0u;
-    (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = part->key,
+    (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = args->key_text,
                      .each = changes_filled, .context = part);
-    part->hunk_row[0] = 0u;
+    unsigned int row = 0u;
+    {
+        const unsigned int value = row;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell,
+                                .offset = part->hunk_row_at + ((unsigned long long)0u * sizeof(value)),
+                                .src = &value,
+                                .bytes = sizeof(value)});
+    }
     for (unsigned int at = 0u; at < part->hunks; at += 1u)
     {
-        const unsigned int *const hunk = part->hunk + (4u * at);
-        part->hunk_row[at + 1u] = part->hunk_row[at] + 1u + (hunk[1] - hunk[0]) + (hunk[3] - hunk[2]);
-        part->hunk_out[at] = 0u;
+        unsigned int hunk[4];
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = part->cell,
+                                .offset = part->hunk_at + ((unsigned long long)at * 4ULL * sizeof(unsigned int)),
+                                .dst = hunk,
+                                .bytes = 4ULL * sizeof(unsigned int)});
+        row += 1u + (hunk[1] - hunk[0]) + (hunk[3] - hunk[2]);
+        {
+            const unsigned int value = row;
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = cell,
+                                    .offset = part->hunk_row_at + ((unsigned long long)(at + 1u) * sizeof(value)),
+                                    .src = &value,
+                                    .bytes = sizeof(value)});
+        }
+        {
+            const unsigned int value = 0u;
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = part->cell,
+                                    .offset = part->hunk_out_at + ((unsigned long long)at * sizeof(value)),
+                                    .src = &value,
+                                    .bytes = sizeof(value)});
+        }
     }
-    if (count->keys != 0u)
-    {
-        memor.set(&(MemoriaCfg){.dst = part->out, .val = 0, .bytes = count->keys});
-    }
+    EMBED_CALL(cell_zeroed, ChangesCtx, .cell = cell, .offset = part->out_at, .size = count->keys);
     part->outs = count->keys;
     part->out_count = 0u;
-    part->rows = part->hunk_row[part->hunks];
+    part->rows = row;
     return 1;
 }
 
-// the part `at` taken out of the parts: the text stored for its changes alone let go, its cell released, the ones
-// after it moved up, and the parts in a cell sized to what is left
+// the part `at` taken out of the parts: the text stored for its changes alone let go, its cell released, and the
+// records after it moved up
 EMBED_INLINE void part_closed(const ChangesCtx *args)
 {
-    ChangesPart *const part = &s_changes.part[args->at];
-    if (part->own)
+    ChangesPart part = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.part,
+                                                            .offset = (unsigned long long)args->at * sizeof(part),
+                                                            .dst = &part,
+                                                            .bytes = sizeof(part)});
+    if (part.own)
     {
-        EMBED_CALL(cli_document.release, CliDocumentCfg, .key = part->key);
+        char key[CHANGES_KEY_MAX];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = (&part)->cell, .offset = (&part)->key_at, .dst = key, .bytes = (&part)->key_bytes});
+        EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
     }
-    g_cli_guard->persistent_buf_release(part->cell, g_cli_git_owner);
+    (void)g_cli_guard->movable_buf_release(part.cell, g_cli_git_owner);
     for (unsigned int from = args->at + 1u; from < s_changes.parts; from += 1u)
     {
-        s_changes.part[from - 1u] = s_changes.part[from];
+        ChangesPart moved = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.part,
+                                                                .offset = (unsigned long long)from * sizeof(moved),
+                                                                .dst = &moved,
+                                                                .bytes = sizeof(moved)});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = s_changes.part,
+                                .offset = (unsigned long long)(from - 1u) * sizeof(ChangesPart),
+                                .src = &moved,
+                                .bytes = sizeof(ChangesPart)});
     }
-    const unsigned int left = s_changes.parts - 1u;
-    ChangesPart *const fewer =
-        (left != 0u) ? g_cli_guard->persistent_buf_alloc(left * sizeof(ChangesPart), g_cli_git_owner) : NULL;
-    if (fewer != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = fewer, .src = s_changes.part, .bytes = left * sizeof(ChangesPart)});
-    }
-    if ((left == 0u) || (fewer != NULL))
-    {
-        g_cli_guard->persistent_buf_release(s_changes.part, g_cli_git_owner);
-        s_changes.part = fewer;
-    }
-    s_changes.parts = left;
+    s_changes.parts -= 1u;
 }
 
-// the row each file's row stands at and each file's part settled after the list or the parts changed, in cells sized to
-// the list
+// the row each file's row stands at and each file's part settled after the list or the parts changed, in the two cells
+// taken once at the list's most
 EMBED_INLINE void rows_settled(const ChangesCtx *args)
 {
     (void)args;
-    g_cli_guard->persistent_buf_release(s_changes.first_row, g_cli_git_owner);
-    g_cli_guard->persistent_buf_release(s_changes.file_part, g_cli_git_owner);
-    s_changes.first_row =
-        g_cli_guard->persistent_buf_alloc((s_changed.count + 1ULL) * sizeof(unsigned int), g_cli_git_owner);
-    s_changes.file_part =
-        (s_changed.count != 0u)
-            ? g_cli_guard->persistent_buf_alloc(s_changed.count * sizeof(unsigned int), g_cli_git_owner)
-            : NULL;
-    if ((s_changes.first_row == NULL) || ((s_changed.count != 0u) && (s_changes.file_part == NULL)))
+    s_changes.rows_standing = cell_taken(&s_changes.first_row, (CLI_GIT_CHANGED + 1ULL) * sizeof(unsigned int)) &&
+                              cell_taken(&s_changes.file_part, CLI_GIT_CHANGED * sizeof(unsigned int));
+    if (!s_changes.rows_standing)
     {
-        g_cli_guard->persistent_buf_release(s_changes.first_row, g_cli_git_owner);
-        g_cli_guard->persistent_buf_release(s_changes.file_part, g_cli_git_owner);
-        s_changes.first_row = NULL;
-        s_changes.file_part = NULL;
         return;
     }
     for (unsigned int at = 0u; at < s_changed.count; at += 1u)
     {
-        s_changes.file_part[at] = CHANGES_NONE_AT;
+        {
+            const unsigned int value = CHANGES_NONE_AT;
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = s_changes.file_part,
+                                    .offset = 0ULL + ((unsigned long long)at * sizeof(value)),
+                                    .src = &value,
+                                    .bytes = sizeof(value)});
+        }
     }
     for (unsigned int at = 0u; at < s_changes.parts; at += 1u)
     {
-        s_changes.file_part[s_changes.part[at].file] = at;
+        ChangesPart part = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.part,
+                                                                .offset = (unsigned long long)at * sizeof(part),
+                                                                .dst = &part,
+                                                                .bytes = sizeof(part)});
+        {
+            const unsigned int value = at;
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = s_changes.file_part,
+                                    .offset = 0ULL + ((unsigned long long)part.file * sizeof(value)),
+                                    .src = &value,
+                                    .bytes = sizeof(value)});
+        }
     }
-    s_changes.first_row[0] = 0u;
+    unsigned int row = 0u;
+    {
+        const unsigned int value = row;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = s_changes.first_row,
+                                .offset = 0ULL + ((unsigned long long)0u * sizeof(value)),
+                                .src = &value,
+                                .bytes = sizeof(value)});
+    }
     for (unsigned int at = 0u; at < s_changed.count; at += 1u)
     {
-        const unsigned int part = s_changes.file_part[at];
-        s_changes.first_row[at + 1u] =
-            s_changes.first_row[at] + 1u + ((part != CHANGES_NONE_AT) ? s_changes.part[part].rows : 0u);
+        const unsigned int part = EMBED_CALL(file_part_at, ChangesCtx, .file = at);
+        ChangesPart opened = {0};
+        if (part != CHANGES_NONE_AT)
+        {
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.part,
+                                                                    .offset = (unsigned long long)part * sizeof(opened),
+                                                                    .dst = &opened,
+                                                                    .bytes = sizeof(opened)});
+        }
+        row += 1u + opened.rows;
+        {
+            const unsigned int value = row;
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = s_changes.first_row,
+                                    .offset = 0ULL + ((unsigned long long)(at + 1u) * sizeof(value)),
+                                    .src = &value,
+                                    .bytes = sizeof(value)});
+        }
     }
 }
 
@@ -360,64 +555,102 @@ EMBED_INLINE void parts_matched(const ChangesCtx *args)
 {
     for (unsigned int at = 0u; at < s_changes.parts;)
     {
-        ChangesPart *const part = &s_changes.part[at];
+        ChangesPart part = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.part,
+                                                                .offset = (unsigned long long)at * sizeof(part),
+                                                                .dst = &part,
+                                                                .bytes = sizeof(part)});
+        char part_path_text[CLI_PATH_MAX_LEN];
+        char part_key_text[CHANGES_KEY_MAX];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = (&part)->cell, .offset = (&part)->path_at, .dst = part_path_text, .bytes = (&part)->path_bytes});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = (&part)->cell, .offset = (&part)->key_at, .dst = part_key_text, .bytes = (&part)->key_bytes});
         unsigned int file = CHANGES_NONE_AT;
+        char path[CLI_PATH_MAX_LEN];
         for (unsigned int each = 0u; (file == CHANGES_NONE_AT) && (each < s_changed.count); each += 1u)
         {
-            file = cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(file_path, ChangesCtx, .file = each),
-                                                .other = part->path,
-                                                .cap = CLI_PATH_MAX_LEN})
+            (void)EMBED_CALL(file_path, ChangesCtx, .file = each, .path_out = path);
+            file = cellul.eq(&(CatenaFinitaCfg){.src = path, .other = part_path_text, .cap = CLI_PATH_MAX_LEN})
                        ? each
                        : CHANGES_NONE_AT;
         }
         ChangesCount count;
         if ((file == CHANGES_NONE_AT) ||
-            !EMBED_CALL(head_stored, ChangesCtx, .path = part->path, .key_text = part->key, .root = args->root,
+            !EMBED_CALL(head_stored, ChangesCtx, .path = part_path_text, .key_text = part_key_text, .root = args->root,
                         .state = s_changed.item[file].state, .count = &count))
         {
             EMBED_CALL(part_closed, ChangesCtx, .at = at);
             continue;
         }
-        part->file = file;
-        // the changes as they were, for the choices to stand where they are the same
-        const unsigned long long was_bytes = 4ULL * part->hunks * sizeof(unsigned int) + part->outs;
-        unsigned char *const was = g_cli_guard->temporary_buf_alloc(was_bytes + 1ULL, g_cli_git_owner);
-        const unsigned int was_hunks = part->hunks;
-        const unsigned int was_outs = part->outs;
-        const unsigned int was_out_count = part->out_count;
+        part.file = file;
+        // the changes as they were, for the choices to stand where they are the same: a cell of the temporary tier
+        const unsigned long long was_hunk_bytes = 4ULL * part.hunks * sizeof(unsigned int);
+        unsigned char *const was = g_cli_guard->temporary_buf_alloc(was_hunk_bytes + part.outs + 1ULL, g_cli_git_owner);
+        const unsigned int was_hunks = part.hunks;
+        const unsigned int was_outs = part.outs;
+        const unsigned int was_out_count = part.out_count;
         if (was != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = was, .src = part->hunk, .bytes = 4ULL * was_hunks * sizeof(unsigned int)});
-            memor.cpy(&(MemoriaCfg){
-                .dst = was + (4ULL * was_hunks * sizeof(unsigned int)), .src = part->out, .bytes = was_outs});
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = part.cell, .offset = part.hunk_at, .dst = was, .bytes = was_hunk_bytes});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = part.cell, .offset = part.out_at, .dst = was + was_hunk_bytes, .bytes = was_outs});
         }
-        ChangesPart laid = *part;
+        ChangesPart laid = part;
         laid.cell = NULL;
-        const int relaid = EMBED_CALL(part_laid, ChangesCtx, .part = &laid, .path = part->path, .key_text = part->key,
-                                      .count = &count);
+        const int relaid = EMBED_CALL(part_laid, ChangesCtx, .part = &laid, .path = part_path_text,
+                                      .key_text = part_key_text, .count = &count);
         if (relaid)
         {
             const int same =
                 (was != NULL) && (was_hunks == laid.hunks) && (was_outs == laid.outs) &&
-                (memor.cmp(&(MemoriaCfg){
-                     .src = was, .other = laid.hunk, .bytes = 4ULL * was_hunks * sizeof(unsigned int)}) == 0);
+                (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                     .cell = laid.cell, .offset = laid.hunk_at, .src = was, .bytes = was_hunk_bytes}) == 0);
             if (same && (was_outs != 0u))
             {
-                memor.cpy(&(MemoriaCfg){
-                    .dst = laid.out, .src = was + (4ULL * was_hunks * sizeof(unsigned int)), .bytes = was_outs});
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                    .cell = laid.cell, .offset = laid.out_at, .src = was + was_hunk_bytes, .bytes = was_outs});
                 laid.out_count = was_out_count;
                 for (unsigned int hunk = 0u; hunk < laid.hunks; hunk += 1u)
                 {
-                    const unsigned int first = laid.hunk_row[hunk] - hunk;
-                    const unsigned int last = laid.hunk_row[hunk + 1u] - hunk - 1u;
+                    unsigned int hunk_row_8 = 0u;
+                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                        .cell = (&laid)->cell,
+                        .offset = (&laid)->hunk_row_at + ((unsigned long long)hunk * sizeof(hunk_row_8)),
+                        .dst = &hunk_row_8,
+                        .bytes = sizeof(hunk_row_8)});
+
+                    const unsigned int first = hunk_row_8 - hunk;
+                    unsigned int hunk_row_9 = 0u;
+                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                        .cell = (&laid)->cell,
+                        .offset = (&laid)->hunk_row_at + ((unsigned long long)(hunk + 1u) * sizeof(hunk_row_9)),
+                        .dst = &hunk_row_9,
+                        .bytes = sizeof(hunk_row_9)});
+
+                    const unsigned int last = hunk_row_9 - hunk - 1u;
+                    unsigned int out = 0u;
                     for (unsigned int key = first; key < last; key += 1u)
                     {
-                        laid.hunk_out[hunk] += laid.out[key];
+                        out += was[was_hunk_bytes + key];
+                    }
+                    {
+                        const unsigned int value = out;
+                        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                            .cell = (&laid)->cell,
+                            .offset = (&laid)->hunk_out_at + ((unsigned long long)hunk * sizeof(value)),
+                            .src = &value,
+                            .bytes = sizeof(value)});
                     }
                 }
             }
-            g_cli_guard->persistent_buf_release(part->cell, g_cli_git_owner);
-            *part = laid;
+            (void)g_cli_guard->movable_buf_release(part.cell, g_cli_git_owner);
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = s_changes.part,
+                                    .offset = (unsigned long long)at * sizeof(ChangesPart),
+                                    .src = &laid,
+                                    .bytes = sizeof(ChangesPart)});
         }
         g_cli_guard->persistent_buf_release(was, g_cli_git_owner);
         if (!relaid)
@@ -429,23 +662,23 @@ EMBED_INLINE void parts_matched(const ChangesCtx *args)
     }
 }
 
-// the part of the file `file`, NULL where its changes are not open
-EMBED_INLINE ChangesPart *part_of(const ChangesCtx *args)
-{
-    const unsigned int part = (s_changes.file_part != NULL) ? s_changes.file_part[args->file] : CHANGES_NONE_AT;
-    return (part != CHANGES_NONE_AT) ? &s_changes.part[part] : NULL;
-}
-
-// the last of `at` starts in `part->hunk_row` that is at most `key`: the file or the change a row stands under
+// the last of `at` numbers from `index` of the array at `offset` of `cell` that is at most `key`: the file or the
+// change a row stands under
 EMBED_INLINE unsigned int place_under(const ChangesCtx *args)
 {
-    const unsigned int *const first = args->part->hunk_row;
     unsigned int low = 0u;
     unsigned int high = args->at;
     while ((high - low) > 1u)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (first[middle] <= args->key)
+        unsigned int value_5 = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = args->cell,
+                                .offset = args->offset + ((unsigned long long)middle * sizeof(value_5)),
+                                .dst = &value_5,
+                                .bytes = sizeof(value_5)});
+
+        if (value_5 <= args->key)
         {
             low = middle;
         }
@@ -457,45 +690,74 @@ EMBED_INLINE unsigned int place_under(const ChangesCtx *args)
     return low;
 }
 
-// the byte of the line `key` of the part set to `on`, 1 for left out, the counts following
+// the byte of the line `key` of the part set to `on`, 1 for left out, the counts following in the record, which the
+// caller writes back
 EMBED_INLINE void key_set(const ChangesCtx *args)
 {
     ChangesPart *const part = args->part;
-    const unsigned char was = part->out[args->key];
+    unsigned char was = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = part->cell, .offset = part->out_at + args->key, .dst = &was, .bytes = 1ULL});
     const unsigned char now = args->on ? 1u : 0u;
     if (was == now)
     {
         return;
     }
-    part->out[args->key] = now;
+    {
+        // whether a line is left out is 0 or 1, which a byte carries
+        const unsigned char value = (unsigned char)now;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = part->cell, .offset = part->out_at + args->key, .src = &value, .bytes = 1ULL});
+    }
     part->out_count += now ? 1u : 0u;
     part->out_count -= was ? 1u : 0u;
-    part->hunk_out[args->hunk] += now ? 1u : 0u;
-    part->hunk_out[args->hunk] -= was ? 1u : 0u;
+    unsigned int hunk_out_11 = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = part->cell,
+                            .offset = part->hunk_out_at + ((unsigned long long)args->hunk * sizeof(hunk_out_11)),
+                            .dst = &hunk_out_11,
+                            .bytes = sizeof(hunk_out_11)});
+
+    const unsigned int out = hunk_out_11 + (now ? 1u : 0u) - (was ? 1u : 0u);
+    {
+        const unsigned int value = out;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = part->cell,
+                                .offset = part->hunk_out_at + ((unsigned long long)args->hunk * sizeof(value)),
+                                .src = &value,
+                                .bytes = sizeof(value)});
+    }
 }
 
 // after a part's lines changed: the file taken again where a line of it is, left out where its every line is, its
-// lines' choices cleared then
+// lines' choices cleared then; the record changed, which the caller writes back
 EMBED_INLINE void part_followed(const ChangesCtx *args)
 {
     ChangesPart *const part = args->part;
-    if (s_changes.out == NULL)
+    if (!s_changes.out_standing)
     {
         return;
     }
     if ((part->outs != 0u) && (part->out_count == part->outs))
     {
-        s_changes.out[part->file] = 1u;
-        memor.set(&(MemoriaCfg){.dst = part->out, .val = 0, .bytes = part->outs});
+        EMBED_CALL(file_out_put, ChangesCtx, .file = part->file, .on = 1);
+        EMBED_CALL(cell_zeroed, ChangesCtx, .cell = part->cell, .offset = part->out_at, .size = part->outs);
         part->out_count = 0u;
         for (unsigned int at = 0u; at < part->hunks; at += 1u)
         {
-            part->hunk_out[at] = 0u;
+            {
+                const unsigned int value = 0u;
+                (void)g_cli_guard->movable_buf_write(
+                    &(CarcerMovableCfg){.cell = part->cell,
+                                        .offset = part->hunk_out_at + ((unsigned long long)at * sizeof(value)),
+                                        .src = &value,
+                                        .bytes = sizeof(value)});
+            }
         }
     }
     else if (args->on)
     {
-        s_changes.out[part->file] = 0u;
+        EMBED_CALL(file_out_put, ChangesCtx, .file = part->file, .on = 0);
     }
     EMBED_CALL(choice_settled, ChangesCtx, .size = 0ULL);
 }
@@ -508,21 +770,29 @@ EMBED_INLINE int part_partial(const ChangesCtx *args)
 
 // a line of the part's texts put after the lines written so far, the older text's line `at` where `on`, else the
 // newer's, as UTF-8 after a line end where a line stands before it; into `written` as a line of `size` bytes where it
-// is not NULL: the units the line takes, for the bytes it may take
+// is not NULL: the units the line takes, for the bytes it may take. `key_text` is the part's key
 EMBED_INLINE unsigned long long part_line_written(const ChangesCtx *args)
 {
     unsigned long long count = 0ULL;
-    const unsigned short *const units = args->on
-                                            ? EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg,
-                                                         .key = args->part->key, .line = args->at, .count = &count)
-                                            : EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg,
-                                                         .key = args->part->key, .line = args->at, .count = &count);
+    const CliDocumentLineUnitsNs *const read = &cli_document_line;
+    unsigned long long (*const units_read)(const CliDocumentLineUnitsCfg *) =
+        args->on ? read->head_line_units : read->line_units;
+    (void)EMBED_CALL(units_read, CliDocumentLineUnitsCfg, .key = args->key_text, .line = args->at, .count = &count);
     if (args->written != NULL)
     {
         VerbaLinea *const line = (VerbaLinea *)(void *)args->written;
         mmgr_line_put(line, (args->key != 0u) ? (args->state ? "\r\n" : "\n") : "");
+        // the line's units copied out into a cell of the temporary tier and written as UTF-8
+        unsigned short *const units =
+            (count != 0ULL) ? g_cli_guard->temporary_buf_alloc(count * sizeof(*units), g_cli_git_owner) : NULL;
+        if (units != NULL)
+        {
+            (void)EMBED_CALL(units_read, CliDocumentLineUnitsCfg, .key = args->key_text, .line = args->at,
+                             .count = &count, .dst = units, .capacity = count);
+        }
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = line, .units = units,
-                   .count = count);
+                   .count = (units != NULL) ? count : 0ULL);
+        g_cli_guard->persistent_buf_release(units, g_cli_git_owner);
     }
     return count;
 }
@@ -532,40 +802,62 @@ EMBED_INLINE unsigned long long part_line_written(const ChangesCtx *args)
 // is not NULL: the units its lines take, which bound its bytes at three a unit with two a line end
 EMBED_INLINE unsigned long long part_text_written(const ChangesCtx *args)
 {
-    ChangesPart *const part = args->part;
-    const int crlf = EMBED_CALL(cli_document.crlf, CliDocumentCfg, .key = part->key);
+    const ChangesPart *const part = args->part;
+    char key[CHANGES_KEY_MAX];
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = part->cell, .offset = part->key_at, .dst = key, .bytes = part->key_bytes});
+    const int crlf = EMBED_CALL(cli_document.crlf, CliDocumentCfg, .key = key);
     unsigned long long units = 0ULL;
     unsigned int lines = 0u;
     unsigned int at = 0u;
     for (unsigned int hunk = 0u; hunk <= part->hunks; hunk += 1u)
     {
-        const unsigned int *const one = (hunk < part->hunks) ? part->hunk + (4u * hunk) : NULL;
+        unsigned int one[4] = {0u, 0u, 0u, 0u};
+        const int last = hunk == part->hunks;
+        if (!last)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = part->cell,
+                                    .offset = part->hunk_at + ((unsigned long long)hunk * 4ULL * sizeof(unsigned int)),
+                                    .dst = one,
+                                    .bytes = 4ULL * sizeof(unsigned int)});
+        }
         unsigned long long count = 0ULL;
         // the older text's lines before the change, or after the last change to its end
-        while (((one != NULL) && (at < one[2])) ||
-               ((one == NULL) && (EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg,
-                                             .key = part->key, .line = at, .count = &count) != NULL)))
+        while ((!last && (at < one[2])) ||
+               (last && (EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg, .key = key, .line = at,
+                                    .count = &count) != 0ULL)))
         {
-            units += EMBED_CALL(part_line_written, ChangesCtx, .part = part, .on = 1, .at = at, .key = lines,
+            units += EMBED_CALL(part_line_written, ChangesCtx, .key_text = key, .on = 1, .at = at, .key = lines,
                                 .state = (char)crlf, .written = args->written);
             lines += 1u;
             at += 1u;
         }
-        if (one == NULL)
+        if (last)
         {
             break;
         }
-        const unsigned int key_first = part->hunk_row[hunk] - hunk;
+        unsigned int hunk_row_10 = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = part->cell,
+                                .offset = part->hunk_row_at + ((unsigned long long)hunk * sizeof(hunk_row_10)),
+                                .dst = &hunk_row_10,
+                                .bytes = sizeof(hunk_row_10)});
+
+        const unsigned int key_first = hunk_row_10 - hunk;
         const unsigned int outs = one[3] - one[2];
         for (unsigned int line = 0u; line < outs + (one[1] - one[0]); line += 1u)
         {
             const int gone = line < outs;
-            const int taken = gone ? part->out[key_first + line] : !part->out[key_first + line];
+            unsigned char out = 0u;
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = part->cell, .offset = part->out_at + (key_first + line), .dst = &out, .bytes = 1ULL});
+            const int taken = gone ? out : !out;
             if (!taken)
             {
                 continue;
             }
-            units += EMBED_CALL(part_line_written, ChangesCtx, .part = part, .on = gone,
+            units += EMBED_CALL(part_line_written, ChangesCtx, .key_text = key, .on = gone,
                                 .at = gone ? (one[2] + line) : (one[0] + (line - outs)), .key = lines,
                                 .state = (char)crlf, .written = args->written);
             lines += 1u;
@@ -612,18 +904,16 @@ int cli_changes_step(const CliGitChangesCfg *args)
 
 void cli_changes_read(const CliGitChangesCfg *args)
 {
-    g_cli_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
-    s_changed.text = (CliGitText){NULL, 0ULL, 0ULL, 0, 1};
+    // the list's texts stand between the window's frames
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &s_changed.text);
+    s_changed.text.standing = 1;
     s_changed.count = 0u;
-    g_cli_guard->persistent_buf_release(s_changes.out, g_cli_git_owner);
-    s_changes.out = NULL;
+    s_changes.out_standing = 0;
     s_changes.taken = 0u;
     s_changes.listed = args->root != NULL;
     if (args->root == NULL)
     {
-        g_cli_guard->persistent_buf_release(s_changes.left, g_cli_git_owner);
-        s_changes.left = NULL;
-        s_changes.left_bytes = 0ULL;
+        s_changes.lefts = 0u;
         s_changes.followed = 0;
         s_changes.ahead = 0u;
         s_changes.behind = 0u;
@@ -635,13 +925,12 @@ void cli_changes_read(const CliGitChangesCfg *args)
                .found_changed_list_pointer = &s_changed);
     // a byte a file, 1 where the file was left out before this read; the paths left out that are no longer in the
     // list go with the settling
-    s_changes.out =
-        (s_changed.count != 0u) ? g_cli_guard->persistent_buf_alloc(s_changed.count, g_cli_git_owner) : NULL;
-    for (unsigned int at = 0u; (s_changes.out != NULL) && (at < s_changed.count); at += 1u)
+    s_changes.out_standing = (s_changed.count != 0u) && cell_taken(&s_changes.out, CLI_GIT_CHANGED);
+    for (unsigned int at = 0u; s_changes.out_standing && (at < s_changed.count); at += 1u)
     {
-        // whether a file is left out is 0 or 1, which a byte carries
-        s_changes.out[at] =
-            (unsigned char)EMBED_CALL(left_has, ChangesCtx, .path = EMBED_CALL(file_path, ChangesCtx, .file = at));
+        char path[CLI_PATH_MAX_LEN];
+        (void)EMBED_CALL(file_path, ChangesCtx, .file = at, .path_out = path);
+        EMBED_CALL(file_out_put, ChangesCtx, .file = at, .on = EMBED_CALL(left_has, ChangesCtx, .path = path));
     }
     EMBED_CALL(choice_settled, ChangesCtx, .size = 0ULL);
     EMBED_CALL(parts_matched, ChangesCtx, .root = args->root);
@@ -658,7 +947,7 @@ void cli_changes_read(const CliGitChangesCfg *args)
 unsigned int cli_changes_rows(const CliGitChangesCfg *args)
 {
     (void)args;
-    return (s_changes.first_row != NULL) ? s_changes.first_row[s_changed.count] : s_changed.count;
+    return s_changes.rows_standing ? EMBED_CALL(file_first_row, ChangesCtx, .file = s_changed.count) : s_changed.count;
 }
 
 unsigned int cli_changes_files(const CliGitChangesCfg *args)
@@ -669,38 +958,70 @@ unsigned int cli_changes_files(const CliGitChangesCfg *args)
 
 int cli_changes_row(const CliGitChangesCfg *args)
 {
-    if ((s_changes.first_row == NULL) || (args->at >= s_changes.first_row[s_changed.count]))
+    if (!s_changes.rows_standing || (args->at >= EMBED_CALL(file_first_row, ChangesCtx, .file = s_changed.count)))
     {
         return 0;
     }
     // the file whose rows the row stands among, the last whose first row is at most it
-    ChangesPart files = {.hunk_row = s_changes.first_row};
-    const unsigned int file =
-        EMBED_CALL(place_under, ChangesCtx, .part = &files, .at = s_changed.count, .key = args->at);
+    const unsigned int file = EMBED_CALL(place_under, ChangesCtx, .cell = s_changes.first_row, .offset = 0ULL,
+                                         .at = s_changed.count, .key = args->at);
     const CliChanged *const changed = &s_changed.item[file];
-    const char *const path = EMBED_CALL(file_path, ChangesCtx, .file = file);
-    ChangesPart *const part = EMBED_CALL(part_of, ChangesCtx, .file = file);
-    const unsigned int inner = args->at - s_changes.first_row[file];
+    const unsigned int part_place = EMBED_CALL(file_part_at, ChangesCtx, .file = file);
+    const unsigned int inner = args->at - EMBED_CALL(file_first_row, ChangesCtx, .file = file);
+    const unsigned char out = EMBED_CALL(file_out, ChangesCtx, .file = file);
     CliChangedRow *const row = args->row;
     *row = (CliChangedRow){0};
-    row->path = path;
+    (void)EMBED_CALL(file_path, ChangesCtx, .file = file, .path_out = row->path);
     row->file = file;
     row->state = changed->state;
     if (inner == 0u)
     {
+        ChangesPart part;
+        const int open = part_place != CHANGES_NONE_AT;
+        if (open)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = s_changes.part,
+                                    .offset = (unsigned long long)part_place * sizeof(part),
+                                    .dst = &part,
+                                    .bytes = sizeof(part)});
+        }
         row->type = CLI_CHANGES_ROW_FILE;
-        row->name = path + changed->name;
+        row->name = row->path + changed->name;
         row->folder_length = (changed->name > 0u) ? changed->name - 1u : 0u;
-        row->taken = (s_changes.out == NULL) || !s_changes.out[file];
-        row->part = EMBED_CALL(part_partial, ChangesCtx, .part = part);
+        row->taken = !out;
+        row->part = open && EMBED_CALL(part_partial, ChangesCtx, .part = &part);
         row->opens = (changed->state == 'M') || (changed->state == 'A') || (changed->state == 'U');
-        row->open = part != NULL;
+        row->open = open;
         return 1;
     }
+    ChangesPart part = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.part,
+                                                            .offset = (unsigned long long)part_place * sizeof(part),
+                                                            .dst = &part,
+                                                            .bytes = sizeof(part)});
     const unsigned int under = inner - 1u;
-    const unsigned int hunk = EMBED_CALL(place_under, ChangesCtx, .part = part, .at = part->hunks, .key = under);
-    const unsigned int *const one = part->hunk + (4u * hunk);
-    const unsigned int offset = under - part->hunk_row[hunk];
+    const unsigned int hunk = EMBED_CALL(place_under, ChangesCtx, .cell = part.cell, .offset = part.hunk_row_at,
+                                         .at = part.hunks, .key = under);
+    unsigned int one[4];
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = (&part)->cell,
+                            .offset = (&part)->hunk_at + ((unsigned long long)hunk * 4ULL * sizeof(unsigned int)),
+                            .dst = one,
+                            .bytes = 4ULL * sizeof(unsigned int)});
+    unsigned int hunk_row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = (&part)->cell,
+                            .offset = (&part)->hunk_row_at + ((unsigned long long)hunk * sizeof(hunk_row)),
+                            .dst = &hunk_row,
+                            .bytes = sizeof(hunk_row)});
+    unsigned int hunk_out = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = (&part)->cell,
+                            .offset = (&part)->hunk_out_at + ((unsigned long long)hunk * sizeof(hunk_out)),
+                            .dst = &hunk_out,
+                            .bytes = sizeof(hunk_out)});
+    const unsigned int offset = under - hunk_row;
     const unsigned int outs = one[3] - one[2];
     const unsigned int lines = outs + (one[1] - one[0]);
     row->hunk = hunk;
@@ -709,66 +1030,142 @@ int cli_changes_row(const CliGitChangesCfg *args)
         row->type = CLI_CHANGES_ROW_HUNK;
         row->from = one[0];
         row->to = one[1];
-        row->taken = !s_changes.out[file] && (part->hunk_out[hunk] < lines);
-        row->part = (part->hunk_out[hunk] != 0u) && (part->hunk_out[hunk] < lines);
+        row->taken = !out && (hunk_out < lines);
+        row->part = (hunk_out != 0u) && (hunk_out < lines);
         return 1;
     }
     const unsigned int line = offset - 1u;
+    char key[CHANGES_KEY_MAX];
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = (&part)->cell, .offset = (&part)->key_at, .dst = key, .bytes = (&part)->key_bytes});
     row->type = CLI_CHANGES_ROW_LINE;
     row->from = one[0];
     row->to = one[1];
     row->gone = line < outs;
-    row->units = row->gone ? EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg, .key = part->key,
-                                        .line = one[2] + line, .count = &row->count)
-                           : EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = part->key,
-                                        .line = one[0] + (line - outs), .count = &row->count);
-    row->taken = !s_changes.out[file] && !part->out[(part->hunk_row[hunk] - hunk) + line];
+    unsigned long long count = 0ULL;
+    if (row->gone)
+    {
+        (void)EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg, .key = key, .line = one[2] + line,
+                         .count = &count, .dst = row->units, .capacity = CLI_CHANGED_ROW_UNITS);
+    }
+    else
+    {
+        (void)EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = key,
+                         .line = one[0] + (line - outs), .count = &count, .dst = row->units,
+                         .capacity = CLI_CHANGED_ROW_UNITS);
+    }
+    row->count = (count < CLI_CHANGED_ROW_UNITS) ? count : CLI_CHANGED_ROW_UNITS;
+    unsigned char out_byte_12 = 0u;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (&part)->cell,
+                                                            .offset = (&part)->out_at + ((hunk_row - hunk) + line),
+                                                            .dst = &out_byte_12,
+                                                            .bytes = 1ULL});
+
+    row->taken = !out && !out_byte_12;
     return 1;
 }
 
 void cli_changes_toggle(const CliGitChangesCfg *args)
 {
     CliChangedRow row;
-    if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = args->at, .row = &row) || (s_changes.out == NULL))
+    if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = args->at, .row = &row) || !s_changes.out_standing)
     {
         return;
     }
-    ChangesPart *const part = EMBED_CALL(part_of, ChangesCtx, .file = row.file);
+    const unsigned int part_place = EMBED_CALL(file_part_at, ChangesCtx, .file = row.file);
+    const int open = part_place != CHANGES_NONE_AT;
+    ChangesPart part;
+    memor.set(&(MemoriaCfg){.dst = &part, .val = 0, .bytes = sizeof(part)});
+    if (open)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_changes.part,
+                                                                .offset = (unsigned long long)part_place * sizeof(part),
+                                                                .dst = &part,
+                                                                .bytes = sizeof(part)});
+    }
+    const unsigned char out = EMBED_CALL(file_out, ChangesCtx, .file = row.file);
     if (row.type == CLI_CHANGES_ROW_FILE)
     {
-        s_changes.out[row.file] ^= 1u;
+        EMBED_CALL(file_out_put, ChangesCtx, .file = row.file, .on = !out);
         // the file taken whole or left out whole: its lines' choices go
-        if ((part != NULL) && (part->outs != 0u))
+        if (open && (part.outs != 0u))
         {
-            memor.set(&(MemoriaCfg){.dst = part->out, .val = 0, .bytes = part->outs});
-            part->out_count = 0u;
-            for (unsigned int at = 0u; at < part->hunks; at += 1u)
+            EMBED_CALL(cell_zeroed, ChangesCtx, .cell = part.cell, .offset = part.out_at, .size = part.outs);
+            part.out_count = 0u;
+            for (unsigned int at = 0u; at < part.hunks; at += 1u)
             {
-                part->hunk_out[at] = 0u;
+                {
+                    const unsigned int value = 0u;
+                    (void)g_cli_guard->movable_buf_write(
+                        &(CarcerMovableCfg){.cell = (&part)->cell,
+                                            .offset = (&part)->hunk_out_at + ((unsigned long long)at * sizeof(value)),
+                                            .src = &value,
+                                            .bytes = sizeof(value)});
+                }
             }
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = s_changes.part,
+                                    .offset = (unsigned long long)part_place * sizeof(ChangesPart),
+                                    .src = &part,
+                                    .bytes = sizeof(ChangesPart)});
         }
         EMBED_CALL(choice_settled, ChangesCtx, .size = 0ULL);
         return;
     }
-    const unsigned int *const one = part->hunk + (4u * row.hunk);
-    const unsigned int key_first = part->hunk_row[row.hunk] - row.hunk;
+    if (!open)
+    {
+        return;
+    }
+    unsigned int one[4];
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = (&part)->cell,
+                            .offset = (&part)->hunk_at + ((unsigned long long)row.hunk * 4ULL * sizeof(unsigned int)),
+                            .dst = one,
+                            .bytes = 4ULL * sizeof(unsigned int)});
+    unsigned int hunk_row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = (&part)->cell,
+                            .offset = (&part)->hunk_row_at + ((unsigned long long)row.hunk * sizeof(hunk_row)),
+                            .dst = &hunk_row,
+                            .bytes = sizeof(hunk_row)});
+    const unsigned int key_first = hunk_row - row.hunk;
     const unsigned int lines = (one[1] - one[0]) + (one[3] - one[2]);
     if (row.type == CLI_CHANGES_ROW_HUNK)
     {
         // every line taken where some is left out or the file is, else every line left out
-        const int on = s_changes.out[row.file] || (part->hunk_out[row.hunk] != 0u);
+        unsigned int hunk_out = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = part.cell,
+                                .offset = part.hunk_out_at + ((unsigned long long)row.hunk * sizeof(hunk_out)),
+                                .dst = &hunk_out,
+                                .bytes = sizeof(hunk_out)});
+        const int on = out || (hunk_out != 0u);
         for (unsigned int line = 0u; line < lines; line += 1u)
         {
-            EMBED_CALL(key_set, ChangesCtx, .part = part, .hunk = row.hunk, .key = key_first + line, .on = !on);
+            EMBED_CALL(key_set, ChangesCtx, .part = &part, .hunk = row.hunk, .key = key_first + line, .on = !on);
         }
-        EMBED_CALL(part_followed, ChangesCtx, .part = part, .on = on);
+        EMBED_CALL(part_followed, ChangesCtx, .part = &part, .on = on);
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = s_changes.part,
+                                .offset = (unsigned long long)part_place * sizeof(ChangesPart),
+                                .src = &part,
+                                .bytes = sizeof(ChangesPart)});
         return;
     }
-    const unsigned int under = args->at - s_changes.first_row[row.file] - 1u;
-    const unsigned int key = key_first + (under - part->hunk_row[row.hunk] - 1u);
-    const int on = s_changes.out[row.file] || part->out[key];
-    EMBED_CALL(key_set, ChangesCtx, .part = part, .hunk = row.hunk, .key = key, .on = !on);
-    EMBED_CALL(part_followed, ChangesCtx, .part = part, .on = on);
+    const unsigned int under = args->at - EMBED_CALL(file_first_row, ChangesCtx, .file = row.file) - 1u;
+    const unsigned int key = key_first + (under - hunk_row - 1u);
+    unsigned char out_byte_13 = 0u;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = (&part)->cell, .offset = (&part)->out_at + key, .dst = &out_byte_13, .bytes = 1ULL});
+
+    const int on = out || out_byte_13;
+    EMBED_CALL(key_set, ChangesCtx, .part = &part, .hunk = row.hunk, .key = key, .on = !on);
+    EMBED_CALL(part_followed, ChangesCtx, .part = &part, .on = on);
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_changes.part,
+                            .offset = (unsigned long long)part_place * sizeof(ChangesPart),
+                            .src = &part,
+                            .bytes = sizeof(ChangesPart)});
 }
 
 int cli_changes_open(const CliGitChangesCfg *args)
@@ -781,21 +1178,30 @@ int cli_changes_open(const CliGitChangesCfg *args)
     }
     if (row.open)
     {
-        EMBED_CALL(part_closed, ChangesCtx, .at = s_changes.file_part[row.file]);
+        EMBED_CALL(part_closed, ChangesCtx, .at = EMBED_CALL(file_part_at, ChangesCtx, .file = row.file));
         EMBED_CALL(rows_settled, ChangesCtx, .size = 0ULL);
         return 1;
+    }
+    // the parts stand at their most
+    if ((s_changes.parts >= CHANGES_PARTS_MOST) ||
+        !cell_taken(&s_changes.part, (unsigned long long)CHANGES_PARTS_MOST * sizeof(ChangesPart)))
+    {
+        return 0;
     }
     // the text's key: the view's where one is open on the file, else the file stored for the changes alone
     const char *key = NULL;
     const unsigned int views = cli_view_count();
+    char open[CLI_PATH_MAX_LEN];
+    char opened_key[CLI_NAME_MAX_LEN];
     for (unsigned int at = 0u; (key == NULL) && (at < views); at += 1u)
     {
-        const char *const open = cli_view_path_at(at);
-        key = ((open != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = open, .other = row.path, .cap = CLI_PATH_MAX_LEN}))
-                  ? cli_view_key(at)
+        key = (cli_view_path_at(at, open) &&
+               cellul.eq(&(CatenaFinitaCfg){.src = open, .other = row.path, .cap = CLI_PATH_MAX_LEN}) &&
+               cli_view_key(at, opened_key))
+                  ? opened_key
                   : NULL;
     }
-    char keyed[CLI_PATH_MAX_LEN + sizeof(CHANGES_KEY)];
+    char keyed[CHANGES_KEY_MAX];
     const int own = key == NULL;
     if (own)
     {
@@ -812,41 +1218,34 @@ int cli_changes_open(const CliGitChangesCfg *args)
         }
         key = keyed;
     }
-    // the parts grown by one for the file's
     ChangesCount count;
-    ChangesPart *const grown =
-        g_cli_guard->persistent_buf_alloc((s_changes.parts + 1ULL) * sizeof(ChangesPart), g_cli_git_owner);
-    if ((grown == NULL) || !EMBED_CALL(head_stored, ChangesCtx, .path = row.path, .key_text = key, .root = args->root,
-                                       .state = row.state, .count = &count))
+    if (!EMBED_CALL(head_stored, ChangesCtx, .path = row.path, .key_text = key, .root = args->root, .state = row.state,
+                    .count = &count))
     {
-        g_cli_guard->persistent_buf_release(grown, g_cli_git_owner);
         if (own)
         {
             EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
         }
         return 0;
     }
-    if (s_changes.parts != 0u)
+    ChangesPart part;
+    memor.set(&(MemoriaCfg){.dst = &part, .val = 0, .bytes = sizeof(part)});
+    part.file = row.file;
+    part.own = own;
+    if (!EMBED_CALL(part_laid, ChangesCtx, .part = &part, .path = row.path, .key_text = key, .count = &count))
     {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_changes.part, .bytes = s_changes.parts * sizeof(ChangesPart)});
+        if (own)
+        {
+            EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
+        }
+        return 0;
     }
-    g_cli_guard->persistent_buf_release(s_changes.part, g_cli_git_owner);
-    s_changes.part = grown;
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_changes.part,
+                            .offset = (unsigned long long)s_changes.parts * sizeof(ChangesPart),
+                            .src = &part,
+                            .bytes = sizeof(ChangesPart)});
     s_changes.parts += 1u;
-    ChangesPart *const part = &grown[s_changes.parts - 1u];
-    *part = (ChangesPart){0};
-    part->file = row.file;
-    part->own = own;
-    if (!EMBED_CALL(part_laid, ChangesCtx, .part = part, .path = row.path, .key_text = key, .count = &count))
-    {
-        if (own)
-        {
-            EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
-        }
-        s_changes.parts -= 1u;
-        EMBED_CALL(rows_settled, ChangesCtx, .size = 0ULL);
-        return 0;
-    }
     EMBED_CALL(rows_settled, ChangesCtx, .size = 0ULL);
     return 1;
 }
@@ -859,11 +1258,14 @@ unsigned int cli_changes_taken(const CliGitChangesCfg *args)
 
 void cli_changes_take_all(const CliGitChangesCfg *args)
 {
-    if (s_changes.out == NULL)
+    if (!s_changes.out_standing)
     {
         return;
     }
-    memor.set(&(MemoriaCfg){.dst = s_changes.out, .val = args->on ? 0 : 1, .bytes = s_changed.count});
+    for (unsigned int at = 0u; at < s_changed.count; at += 1u)
+    {
+        EMBED_CALL(file_out_put, ChangesCtx, .file = at, .on = !args->on);
+    }
     EMBED_CALL(choice_settled, ChangesCtx, .size = 0ULL);
 }
 
@@ -899,53 +1301,61 @@ int cli_changes_key(const CliGitChangesCfg *args)
     return 1;
 }
 
-const char *cli_changes_message(const CliGitChangesCfg *args)
+unsigned long long cli_changes_message(const CliGitChangesCfg *args)
 {
-    *args->length_out = s_changes.message.length;
-    return (s_changes.message.bytes != NULL) ? s_changes.message.bytes : "";
+    return EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = &s_changes.message, .dst = args->text_out,
+                      .capacity = CLI_CHANGES_MESSAGE_MAX);
 }
 
 int cli_changes_commit(const CliGitChangesCfg *args)
 {
-    g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
-    s_changes.refusal = NULL;
     s_changes.refusal_length = 0ULL;
     const unsigned int taken = s_changes.taken;
     if ((s_changes.message.length == 0ULL) || (taken == 0u))
     {
-        // why nothing is to commit, in a cell sized to the sentence with its end
+        // why nothing is to commit
         const char *const why = (s_changes.message.length == 0ULL) ? CHANGES_EMPTY : CHANGES_NONE;
         const unsigned long long size =
-            (s_changes.message.length == 0ULL) ? sizeof(CHANGES_EMPTY) : sizeof(CHANGES_NONE);
-        s_changes.refusal = g_cli_guard->persistent_buf_alloc(size, g_cli_git_owner);
-        s_changes.refusal_length = (s_changes.refusal != NULL) ? size - 1ULL : 0ULL;
-        if (s_changes.refusal != NULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = why, .bytes = size});
-        }
+            (s_changes.message.length == 0ULL) ? sizeof(CHANGES_EMPTY) - 1ULL : sizeof(CHANGES_NONE) - 1ULL;
+        EMBED_CALL(refusal_put, ChangesCtx, .text = why, .size = size);
         return 0;
     }
-    // the files taken whole and the files taken in part counted, with the bytes their texts may take
+    // the files taken whole and the files taken in part counted, with the bytes their paths and texts may take
     unsigned int whole = 0u;
     unsigned int partial = 0u;
     unsigned long long texts = 0ULL;
+    unsigned long long path_bytes = 0ULL;
     for (unsigned int at = 0u; at < s_changed.count; at += 1u)
     {
-        if ((s_changes.out != NULL) && s_changes.out[at])
+        if (EMBED_CALL(file_out, ChangesCtx, .file = at))
         {
             continue;
         }
-        ChangesPart *const part = EMBED_CALL(part_of, ChangesCtx, .file = at);
-        const int in_part = EMBED_CALL(part_partial, ChangesCtx, .part = part);
+        const unsigned int part_place = EMBED_CALL(file_part_at, ChangesCtx, .file = at);
+        ChangesPart part;
+        const int open = part_place != CHANGES_NONE_AT;
+        if (open)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = s_changes.part,
+                                    .offset = (unsigned long long)part_place * sizeof(part),
+                                    .dst = &part,
+                                    .bytes = sizeof(part)});
+        }
+        const int in_part = open && EMBED_CALL(part_partial, ChangesCtx, .part = &part);
         partial += in_part ? 1u : 0u;
         whole += in_part ? 0u : 1u;
-        texts += in_part ? EMBED_CALL(part_text_written, ChangesCtx, .part = part) : 0ULL;
+        texts += in_part ? EMBED_CALL(part_text_written, ChangesCtx, .part = &part) : 0ULL;
+        char path[CLI_PATH_MAX_LEN];
+        (void)EMBED_CALL(file_path, ChangesCtx, .file = at, .path_out = path);
+        path_bytes += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
-    // the paths taken whole, the parts with their texts, git's own words and the error line, for this commit alone
+    // the paths taken whole with their texts, the parts with their paths and texts, git's own words and the error
+    // line, for this commit alone
     const unsigned long long paths_bytes = (unsigned long long)whole * sizeof(const char *);
     const unsigned long long parts_bytes = (unsigned long long)partial * sizeof(CliGitPart);
     char *const scratch = g_cli_guard->temporary_buf_alloc(
-        paths_bytes + parts_bytes + texts + CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, g_cli_git_owner);
+        paths_bytes + parts_bytes + texts + path_bytes + CHANGES_OUT + CLI_ERR_MSG_MAX_LEN, g_cli_git_owner);
     if (scratch == NULL)
     {
         return 0;
@@ -953,54 +1363,68 @@ int cli_changes_commit(const CliGitChangesCfg *args)
     const char **const paths = (const char **)(void *)scratch;
     CliGitPart *const parts = (CliGitPart *)(void *)(scratch + paths_bytes);
     char *text_at = scratch + paths_bytes + parts_bytes;
-    VerbaLinea out = {scratch + paths_bytes + parts_bytes + texts, CHANGES_OUT, 0ULL};
-    VerbaLinea err_msg = {scratch + paths_bytes + parts_bytes + texts + CHANGES_OUT, CLI_ERR_MSG_MAX_LEN, 0ULL};
+    char *path_at = scratch + paths_bytes + parts_bytes + texts;
+    VerbaLinea out = {scratch + paths_bytes + parts_bytes + texts + path_bytes, CHANGES_OUT, 0ULL};
+    VerbaLinea err_msg = {scratch + paths_bytes + parts_bytes + texts + path_bytes + CHANGES_OUT, CLI_ERR_MSG_MAX_LEN,
+                          0ULL};
     unsigned int put = 0u;
     unsigned int put_parts = 0u;
     for (unsigned int at = 0u; at < s_changed.count; at += 1u)
     {
-        if ((s_changes.out != NULL) && s_changes.out[at])
+        if (EMBED_CALL(file_out, ChangesCtx, .file = at))
         {
             continue;
         }
-        ChangesPart *const part = EMBED_CALL(part_of, ChangesCtx, .file = at);
-        if (EMBED_CALL(part_partial, ChangesCtx, .part = part))
+        char path[CLI_PATH_MAX_LEN];
+        (void)EMBED_CALL(file_path, ChangesCtx, .file = at, .path_out = path);
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
+        memor.cpy(&(MemoriaCfg){.dst = path_at, .src = path, .bytes = length + 1ULL});
+        const char *const path_copy = path_at;
+        path_at += length + 1ULL;
+        const unsigned int part_place = EMBED_CALL(file_part_at, ChangesCtx, .file = at);
+        ChangesPart part;
+        const int open = part_place != CHANGES_NONE_AT;
+        if (open)
         {
-            VerbaLinea line = {text_at, EMBED_CALL(part_text_written, ChangesCtx, .part = part), 0ULL};
-            (void)EMBED_CALL(part_text_written, ChangesCtx, .part = part, .written = (char *)(void *)&line);
-            parts[put_parts] = (CliGitPart){part->path, text_at, line.at};
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = s_changes.part,
+                                    .offset = (unsigned long long)part_place * sizeof(part),
+                                    .dst = &part,
+                                    .bytes = sizeof(part)});
+        }
+        if (open && EMBED_CALL(part_partial, ChangesCtx, .part = &part))
+        {
+            VerbaLinea line = {text_at, EMBED_CALL(part_text_written, ChangesCtx, .part = &part), 0ULL};
+            (void)EMBED_CALL(part_text_written, ChangesCtx, .part = &part, .written = (char *)(void *)&line);
+            parts[put_parts] = (CliGitPart){path_copy, text_at, line.at};
             put_parts += 1u;
             text_at += line.capacity;
         }
         else
         {
-            paths[put] = EMBED_CALL(file_path, ChangesCtx, .file = at);
+            paths[put] = path_copy;
             put += 1u;
         }
     }
+    // the message copied out of the typed text's cell for git
+    char message[CLI_CHANGES_MESSAGE_MAX];
+    (void)EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = &s_changes.message, .dst = message,
+                     .capacity = sizeof(message));
     const int committed =
         (partial != 0u)
-            ? EMBED_CALL(cli_git_root.commit_parts, CliGitRootCfg, .root = args->root, .out = &out,
-                         .message = s_changes.message.bytes, .err_msg = &err_msg, .whole = paths,
-                         .full_files_count = whole, .parts = parts, .part_count = partial, .push = args->push)
+            ? EMBED_CALL(cli_git_root.commit_parts, CliGitRootCfg, .root = args->root, .out = &out, .message = message,
+                         .err_msg = &err_msg, .whole = paths, .full_files_count = whole, .parts = parts,
+                         .part_count = partial, .push = args->push)
             : EMBED_CALL(cli_git_root_out_count.commit, CliGitRootOutCountCfg, .root = args->root, .out = &out,
-                         .count = taken, .message = s_changes.message.bytes, .paths = paths, .err_msg = &err_msg,
-                         .push = args->push);
+                         .count = taken, .message = message, .paths = paths, .err_msg = &err_msg, .push = args->push);
     if (committed)
     {
-        g_cli_guard->persistent_buf_release(s_changes.message.bytes, g_cli_git_owner);
-        s_changes.message = (CliTyped){NULL, 0ULL};
+        EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &s_changes.message, .owner = g_cli_git_owner);
         EMBED_CALL(parts_released, ChangesCtx, .size = 0ULL);
     }
-    // git's refusal in a cell sized to it with its end
+    // git's refusal
     const unsigned long long refused = (!committed && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
-    s_changes.refusal = (refused != 0ULL) ? g_cli_guard->persistent_buf_alloc(refused + 1ULL, g_cli_git_owner) : NULL;
-    s_changes.refusal_length = (s_changes.refusal != NULL) ? refused : 0ULL;
-    if (s_changes.refusal != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = s_changes.refusal, .src = err_msg.out, .bytes = refused});
-        s_changes.refusal[refused] = '\0';
-    }
+    EMBED_CALL(refusal_put, ChangesCtx, .text = err_msg.out, .size = refused);
     g_cli_guard->persistent_buf_release(scratch, g_cli_git_owner);
     if (committed)
     {
@@ -1009,10 +1433,18 @@ int cli_changes_commit(const CliGitChangesCfg *args)
     return committed;
 }
 
-const char *cli_changes_refusal(const CliGitChangesCfg *args)
+unsigned long long cli_changes_refusal(const CliGitChangesCfg *args)
 {
-    *args->length_out = s_changes.refusal_length;
-    return (s_changes.refusal != NULL) ? s_changes.refusal : "";
+    if (args->text_out != NULL)
+    {
+        if (s_changes.refusal_length != 0ULL)
+        {
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_changes.refusal, .dst = args->text_out, .bytes = s_changes.refusal_length});
+        }
+        args->text_out[s_changes.refusal_length] = '\0';
+    }
+    return s_changes.refusal_length;
 }
 
 int cli_changes_sync(const CliGitChangesCfg *args)
@@ -1050,42 +1482,25 @@ int cli_changes_rollback(const CliGitChangesCfg *args)
         return 0;
     }
     s_changes.armed_ms = 0ULL;
-    g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
-    s_changes.refusal = NULL;
     s_changes.refusal_length = 0ULL;
     for (unsigned int at = 0u; at < s_changed.count; at += 1u)
     {
-        if ((s_changes.out != NULL) && s_changes.out[at])
+        if (EMBED_CALL(file_out, ChangesCtx, .file = at))
         {
             continue;
         }
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        char path[CLI_PATH_MAX_LEN];
+        (void)EMBED_CALL(file_path, ChangesCtx, .file = at, .path_out = path);
         const int rolled = EMBED_CALL(cli_git_root_err_msg_path.rollback, CliGitRootErrMsgPathCfg, .root = args->root,
-                                      .path = EMBED_CALL(file_path, ChangesCtx, .file = at), .err_msg = &err_msg);
+                                      .path = path, .err_msg = &err_msg);
         const unsigned long long refused = (!rolled && mmgr_line_ok(&err_msg)) ? err_msg.at : 0ULL;
-        if (refused == 0ULL)
+        if (refused != 0ULL)
         {
-            continue;
+            // the file's refusal put after the refusals before it on a line of its own
+            EMBED_CALL(refusal_appended, ChangesCtx, .text = why, .size = refused);
         }
-        // the file's refusal put after the refusals before it on a line of its own, in a cell sized to them all
-        const unsigned long long before = s_changes.refusal_length;
-        const unsigned long long joined = before + ((before != 0ULL) ? 1ULL : 0ULL);
-        char *const grown = g_cli_guard->persistent_buf_alloc(joined + refused + 1ULL, g_cli_git_owner);
-        if (grown == NULL)
-        {
-            continue;
-        }
-        if (before != 0ULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_changes.refusal, .bytes = before});
-            grown[before] = '\n';
-        }
-        memor.cpy(&(MemoriaCfg){.dst = grown + joined, .src = why, .bytes = refused});
-        grown[joined + refused] = '\0';
-        g_cli_guard->persistent_buf_release(s_changes.refusal, g_cli_git_owner);
-        s_changes.refusal = grown;
-        s_changes.refusal_length = joined + refused;
     }
     return 1;
 }

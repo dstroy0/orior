@@ -8,8 +8,6 @@
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
-#include <limits.h>
-#include <stdint.h>
 #include <time.h>
 #if defined(__linux__)
 #include <linux/futex.h>
@@ -34,13 +32,15 @@
 // the longest an untimed wait sleeps before its waiter tests again, which bounds a wake landing between the test and
 // the sleep
 #define CLI_WAKE_RECHECK_MS 10ULL
+// the count of waiters a wake reaches so that none is left asleep, the largest int
+#define CLI_FUTEX_WAKE_ALL 0x7FFFFFFF
 
 #if defined(__APPLE__)
 // macOS's address wait and wake, which the C++ library's atomic waits call as well: the operation, compare and wait
 // with the wake reaching every sleeper and the error returned rather than set in errno; the timeout in microseconds, 0
 // for none
-extern int __ulock_wait(uint32_t operation, void *address, uint64_t value, uint32_t timeout_us);
-extern int __ulock_wake(uint32_t operation, void *address, uint64_t wake_value);
+extern int __ulock_wait(embed_u32 operation, void *address, embed_u64 value, embed_u32 timeout_us);
+extern int __ulock_wake(embed_u32 operation, void *address, embed_u64 wake_value);
 #define CLI_ULOCK_COMPARE_AND_WAIT 1u
 #define CLI_ULOCK_COMPARE_AND_WAIT64 5u
 #define CLI_ULOCK_WAKE_ALL 0x00000100u
@@ -63,11 +63,11 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed
     (void)syscall(SYS_futex, (void *)&word->value, FUTEX_WAIT_PRIVATE, (unsigned int)seen,
                   (nanoseconds == EMBED_WAIT_FOREVER) ? NULL : &span, NULL, 0);
 #elif defined(__APPLE__)
-    // the microseconds a uint32_t counts, rounded up, since 0 waits with no end
+    // the microseconds a embed_u32 counts, rounded up, since 0 waits with no end
     const unsigned long long micro = (nanoseconds / 1000ULL) + (unsigned long long)((nanoseconds % 1000ULL) != 0ULL);
-    const uint32_t timeout =
-        (nanoseconds == EMBED_WAIT_FOREVER) ? 0u : (uint32_t)((micro < 4294967295ULL) ? micro : 4294967295ULL);
-    (void)__ulock_wait(CLI_ULOCK_COMPARE_AND_WAIT64 | CLI_ULOCK_NO_ERRNO, (void *)&word->value, (uint64_t)seen,
+    const embed_u32 timeout =
+        (nanoseconds == EMBED_WAIT_FOREVER) ? 0u : (embed_u32)((micro < 4294967295ULL) ? micro : 4294967295ULL);
+    (void)__ulock_wait(CLI_ULOCK_COMPARE_AND_WAIT64 | CLI_ULOCK_NO_ERRNO, (void *)&word->value, (embed_u64)seen,
                        timeout);
 #else
     // a system with no address wait sleeps the time, or a millisecond for a sleep with no end, and its sleeper tests
@@ -87,7 +87,7 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed
 void embed_word_wake(embed_atomic_word *word)
 {
 #if defined(__linux__)
-    (void)syscall(SYS_futex, (void *)&word->value, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
+    (void)syscall(SYS_futex, (void *)&word->value, FUTEX_WAKE_PRIVATE, CLI_FUTEX_WAKE_ALL, NULL, NULL, 0);
 #elif defined(__APPLE__)
     (void)__ulock_wake(CLI_ULOCK_COMPARE_AND_WAIT64 | CLI_ULOCK_WAKE_ALL | CLI_ULOCK_NO_ERRNO, (void *)&word->value,
                        0u);
@@ -173,13 +173,13 @@ void cli_priority_own(const CliWordsErrMsgCtx *args)
 #endif
 }
 
-size_t cli_thread_id(void)
+embed_word cli_thread_id(void)
 {
 #if defined(__linux__)
-    return (size_t)syscall(SYS_gettid);
+    return (embed_word)syscall(SYS_gettid);
 #else
     // a thread's handle read as the integer it is, which identifies it for as long as it lives
-    return (size_t)(uintptr_t)pthread_self();
+    return (embed_word)(embed_word)pthread_self();
 #endif
 }
 

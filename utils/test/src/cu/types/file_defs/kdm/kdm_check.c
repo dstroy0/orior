@@ -22,10 +22,10 @@
 //     kdm_check <folder> [<a part's .kdm>]
 //
 // It runs in a query run (qry_run.sh): every file it writes is handed to the run's writer.
-#include "../../../../../../../src/cu/includes/file_defs/kdm/kdm.h"
-#include "../../../../../../../src/cu/includes/file_defs/klang/klang.h"
+#include "../../../../../../../includes/file_defs/kdm/kdm.h"
+#include "../../../../../../../includes/file_defs/klang/klang.h"
 
-#include "../../../../../../../src/cu/includes/parsers/who.h"
+#include "../../../../../../../includes/parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_binary.c: the program reader: a Windows program gives its imports and delayed imports, on Windows a library only orior_cli finds is
+// test_binary.c: the program reader: a Windows program gives its imports and delayed imports, on Windows a library only impero finds is
 // reported and copied beside the program, and a Linux program gives its needs, run paths and glibc
 #include "ui/cli/src/programs/binary.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
@@ -217,7 +217,7 @@ void test_windows_a_delayed_import_found_nowhere_is_missing(void)
 #endif
 }
 
-void test_windows_the_library_only_orior_cli_finds_is_reported(void)
+void test_windows_the_library_only_impero_finds_is_reported(void)
 {
 #if defined(_WIN32)
     program_read();
@@ -225,13 +225,13 @@ void test_windows_the_library_only_orior_cli_finds_is_reported(void)
     s_report_lines.at = 0ull;
     EMBED_CALL(cli_binary_report.report_print, CliBinaryReportCfg, .report_read = &s_report, .sink = sink);
     (void)mmgr_line_finish(&s_report_lines);
-    CLI_TEST_ASSERT_CONTAINS("helper.dll, which main.exe loads, is found through the folders orior_cli puts on its PATH", s_lines);
+    CLI_TEST_ASSERT_CONTAINS("helper.dll, which main.exe loads, is found through the folders impero puts on its PATH", s_lines);
 #else
     TEST_IGNORE_MESSAGE("the Windows loader's search");
 #endif
 }
 
-void test_windows_only_the_library_orior_cli_finds_is_copied_adjacent_the_program(void)
+void test_windows_only_the_library_impero_finds_is_copied_adjacent_the_program(void)
 {
 #if defined(_WIN32)
     char path[CLI_PATH_MAX_LEN];

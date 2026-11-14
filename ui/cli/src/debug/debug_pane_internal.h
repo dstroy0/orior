@@ -8,6 +8,12 @@
 #include "../text/typed.h"
 #include "debug_pane.h"
 #include "embed_atomic.h"
+#include "memoria_anularis/memoria_anularis.h"
+
+// the segments of the console's ring, a power of two over the lines it keeps
+#define CLI_DEBUG_CONSOLE_RING 8192u
+EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_DEBUG_CONSOLE_RING) && (CLI_DEBUG_CONSOLE_RING >= CLI_DEBUG_CONSOLE_LINES),
+                    "the console ring's segments are a power of two over the lines kept");
 
 typedef struct CliDebugPaneCtx CliDebugPaneCtx;
 
@@ -38,27 +44,35 @@ typedef struct
     unsigned long long key_length;
     long long reference;
 } CliDebugPaneEntry;
+// the bytes the console ring's entries take, the console's part of the rings block
+#define CLI_DEBUG_CONSOLE_RING_BYTES ((unsigned long long)CLI_DEBUG_CONSOLE_RING * sizeof(CliDebugPaneEntry))
 
-// A store: its entries in one cell, how many and how many the cell carries, the first of them where the store is a
-// ring, and its texts in one cell, each with its end after it, the bytes used and the bytes the cell carries
+// A store: its entries in a movable cell, read and written one at a time, how many and how many the cell carries; or,
+// for the console, its entries in one fixed cell MMgr's ring is laid over, its count the ring's segments in flight;
+// and its texts in a movable cell, each with its end after it, the bytes used and the bytes the cell carries
 typedef struct
 {
-    CliDebugPaneEntry *entry;
+    const CarcerMovableEntry *entry;
+    CliDebugPaneEntry *ring_entry;
     unsigned int count;
     unsigned int capacity;
-    unsigned int first;
-    char *text;
+    mmgr_ring ring;
+    const CarcerMovableEntry *text;
     unsigned long long used;
     unsigned long long size;
 } CliDebugPaneStore;
 
+// the place of the entry `at` in a store's entries cell; and no entry, an entry that could not be put
+#define CLI_DEBUG_PANE_ENTRY_AT(at_) ((unsigned long long)(at_) * sizeof(CliDebugPaneEntry))
+#define CLI_DEBUG_PANE_NO_ENTRY 0xffffffffu
+
 // The pane: the stores of the frames, the variables, the console's lines as a ring, the watches' expressions, the open
 // set's keys sorted by their bytes, a key standing where its row's open state is the reverse of its first one, and the
 // events the sink stored since the last step; the field's text in Variables and in Console; the view shown; the
-// session followed and whether one is, its name, tool and language as offsets into its own text cell, whether it steps
-// back; whether it is stopped, its thread and whether one is known, the frame chosen; the status line in a cell sized
-// to it, whether it reports a failure; the bar's flags, set as the state changes; where the wake goes and the requests'
-// table; the sink's lock and whether events wait
+// session followed and whether one is, its name, tool and language as offsets into its own movable text cell, whether
+// it steps back; whether it is stopped, its thread and whether one is known, the frame chosen; the status line in its
+// own bytes with its end, whether it reports a failure; the bar's flags, set as the state changes; where the wake goes
+// and the requests' table; the sink's lock and whether events wait
 typedef struct
 {
     CliDebugPaneStore frames;
@@ -72,7 +86,7 @@ typedef struct
     unsigned int view;
     unsigned long long session;
     int has_session;
-    char *session_texts;
+    const CarcerMovableEntry *session_texts;
     unsigned long long name_length;
     unsigned long long tool_at;
     unsigned long long tool_length;
@@ -83,14 +97,14 @@ typedef struct
     long long thread;
     int has_thread;
     unsigned int frame_at;
-    char *status;
+    char status[CLI_ERR_MSG_MAX_LEN];
     unsigned long long status_length;
     int status_failed;
     unsigned char enabled[CLI_DEBUG_STEPS];
     unsigned char shown[CLI_DEBUG_STEPS];
     void (*woken)(void);
     const CliDebugPaneRequestsNs *requests;
-    embed_atomic_u32 lock;
+    CliGate lock;
     embed_atomic_u32 waiting;
 } CliDebugPaneState;
 
@@ -98,10 +112,15 @@ extern CliDebugPaneState g_cli_debug_pane;
 
 // `length` bytes of `text` put at the end of the store's text cell with an end after them, the cell taken anew twice
 // the live bytes where it is outgrown: their offset, CLI_DEBUG_PANE_NONE where the cells cannot meet them; an entry put
-// after the store's last, all zero, the cell taken anew twice its count where it is outgrown: the entry, NULL where the
-// cells cannot meet it; and the store's cells released, the store empty (debug_pane.c)
+// after the store's last, all zero, the cell taken anew twice its count where it is outgrown: its place,
+// CLI_DEBUG_PANE_NO_ENTRY where the cells cannot meet it; the entry `at` read into `entry_out`, and written from
+// `entry`; `length` bytes of the store's text at `offset` copied into `text_out` of `capacity` bytes with an end, cut
+// to the capacity; and the store's cells released, the store empty (debug_pane.c)
 unsigned long long cli_debug_pane_text_put(const CliDebugPaneCtx *args);
-CliDebugPaneEntry *cli_debug_pane_entry_put(const CliDebugPaneCtx *args);
+unsigned int cli_debug_pane_entry_put(const CliDebugPaneCtx *args);
+void cli_debug_pane_entry_read(const CliDebugPaneCtx *args);
+void cli_debug_pane_entry_written(const CliDebugPaneCtx *args);
+void cli_debug_pane_text_read(const CliDebugPaneCtx *args);
 void cli_debug_pane_store_empty(const CliDebugPaneCtx *args);
 // the status line set to `length` bytes of `text`, a failure's where `failed`, in a cell sized to it; and set to the
 // sentence of the session followed running, its name and its tool (debug_pane.c)
@@ -127,12 +146,21 @@ struct CliDebugPaneCtx
     unsigned int type;
     int failed;
     const char *root;
+    unsigned int at;
+    CliDebugPaneEntry *entry_out;
+    const CliDebugPaneEntry *entry;
+    unsigned long long offset;
+    char *text_out;
+    unsigned long long capacity;
 };
 
 typedef struct
 {
     unsigned long long (*text_put)(const CliDebugPaneCtx *args);
-    CliDebugPaneEntry *(*entry_put)(const CliDebugPaneCtx *args);
+    unsigned int (*entry_put)(const CliDebugPaneCtx *args);
+    void (*entry_read)(const CliDebugPaneCtx *args);
+    void (*entry_written)(const CliDebugPaneCtx *args);
+    void (*text_read)(const CliDebugPaneCtx *args);
     void (*store_empty)(const CliDebugPaneCtx *args);
     void (*status_set)(const CliDebugPaneCtx *args);
     void (*running_said)(const CliDebugPaneCtx *args);
@@ -142,11 +170,14 @@ typedef struct
     void (*frames_read)(const CliDebugPaneCtx *args);
     void (*ended)(const CliDebugPaneCtx *args);
 } CliDebugPaneNs;
-EMBED_TABLE_LAYOUT(CliDebugPaneNs, text_put, entry_put, store_empty, status_set, running_said, bar_settle, line_write,
-                   variables_read, frames_read, ended);
+EMBED_TABLE_LAYOUT(CliDebugPaneNs, text_put, entry_put, entry_read, entry_written, text_read, store_empty, status_set,
+                   running_said, bar_settle, line_write, variables_read, frames_read, ended);
 EMBED_TABLE_STORAGE CliDebugPaneNs cli_debug_pane_internal EMBED_UNUSED = {
     .text_put = cli_debug_pane_text_put,
     .entry_put = cli_debug_pane_entry_put,
+    .entry_read = cli_debug_pane_entry_read,
+    .entry_written = cli_debug_pane_entry_written,
+    .text_read = cli_debug_pane_text_read,
     .store_empty = cli_debug_pane_store_empty,
     .status_set = cli_debug_pane_status_set,
     .running_said = cli_debug_pane_running_said,

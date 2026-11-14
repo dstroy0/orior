@@ -3,10 +3,9 @@
 // pdf.c: the pages laid out as a PDF of orior's own writing: PDF 1.4, its text in the Courier faces every PDF reader
 // contains, regular, bold, oblique and bold oblique, encoded as WinAnsi, a letter that has no place there written as a
 // question mark. Only the pages the layout names are written
+#include "../../../../includes/arith/arith.h"
 #include "../text/regexp.h"
 #include "print.h"
-
-#include <math.h>
 
 // the bytes a page's contents are taken with
 #define CLI_PDF_CONTENT_CAPACITY (4ULL << 20u)
@@ -140,7 +139,7 @@ EMBED_INLINE void cli_text_string(const PdfCtx *args)
 EMBED_INLINE void cli_fix(const PdfCtx *args)
 {
     const double scale = (args->positions == 3u) ? 1000.0 : 100.0;
-    const long long whole = llround((double)args->value_f32 * scale);
+    const long long whole = arith_round_whole((double)args->value_f32 * scale);
     // the value's size, never negative
     const unsigned long long size = (unsigned long long)((whole < 0LL) ? -whole : whole);
     // a scale of 100 or 1000, which an unsigned long long represents whole
@@ -254,16 +253,16 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
         g_cli_guard->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(unsigned int), g_cli_print_owner);
     unsigned long long *const offsets =
         g_cli_guard->temporary_buf_alloc((7ULL + (2ULL * most)) * sizeof(unsigned long long), g_cli_print_owner);
-    char *const content_cell = g_cli_guard->temporary_buf_alloc(CLI_PDF_CONTENT_CAPACITY, g_cli_print_owner);
-    VerbaLinea content = mmgr_line_over(content_cell, CLI_PDF_CONTENT_CAPACITY);
-    const int begun = content.out != NULL;
+    CliGrownLine content;
+    cli_grown_begin(&content, CLI_PDF_CONTENT_CAPACITY, g_cli_print_owner);
+    const int begun = content.cell != NULL;
     *pages = 0ULL;
     if ((printed == NULL) || (offsets == NULL) || !begun)
     {
         // with no capacity to write it in, nothing is written
         g_cli_guard->persistent_buf_release(printed, g_cli_print_owner);
         g_cli_guard->persistent_buf_release(offsets, g_cli_print_owner);
-        g_cli_guard->persistent_buf_release(content.out, g_cli_print_owner);
+        cli_grown_end(&content);
         return;
     }
     unsigned int count = 0u;
@@ -316,15 +315,15 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
         mmgr_line_put(args->out, "] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> >> /Contents ");
         mmgr_line_decimal(args->out, page + 1u, 1u);
         mmgr_line_put(args->out, " 0 R >>\nendobj\n");
-        content.at = 0ULL;
+        cli_grown_reset(&content);
         EMBED_CALL(cli_content, PdfCtx, .laid = laid, .page = printed[at], .height = height, .gray = args->layout->gray,
-                   .out = &content);
-        const unsigned long long length = mmgr_line_ok(&content) ? content.at : 0ULL;
+                   .out = &content.line);
+        const unsigned long long length = mmgr_line_ok(&content.line) ? cli_grown_size(&content) : 0ULL;
         EMBED_CALL(cli_object, PdfCtx, .out = args->out, .offsets = offsets, .number = page + 1u);
         mmgr_line_put(args->out, "<< /Length ");
         mmgr_line_decimal(args->out, length, 1u);
         mmgr_line_put(args->out, " >>\nstream\n");
-        mmgr_line_put_n(args->out, content.out, length);
+        mmgr_line_put_n(args->out, content.cell, length);
         mmgr_line_put(args->out, "endstream\nendobj\n");
     }
     const unsigned long long xref = args->out->at;
@@ -344,5 +343,5 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
     *pages = count;
     g_cli_guard->persistent_buf_release(printed, g_cli_print_owner);
     g_cli_guard->persistent_buf_release(offsets, g_cli_print_owner);
-    g_cli_guard->persistent_buf_release(content.out, g_cli_print_owner);
+    cli_grown_end(&content);
 }

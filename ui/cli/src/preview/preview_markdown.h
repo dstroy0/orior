@@ -17,8 +17,8 @@ typedef struct CliPreviewMarkdownCfg CliPreviewMarkdownCfg;
 #define CLI_PREVIEW_PAD_FOOT 24
 
 // `length` bytes of `text`, its first line counted as `first_line`, laid out `width_px` page pixels wide after the
-// items `items` carries, each of its cells taken anew at the size the old items and the new together fill, the old
-// copied in and its cell released: 1, or 0 where a cell cannot be taken, the items as they were
+// items `items` carries, each of its movable cells taken anew at the size the old items and the new together fill, the
+// old copied in and its cell released: 1, or 0 where a cell cannot be taken, the items as they were
 int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args);
 struct CliPreviewMarkdownCfg
 {

@@ -121,7 +121,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
             g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
             g_cli_format.settings = EMBED_CALL(cli_format_bytes_internal.utf8, CliFormatBytesCtx,
                                                .bytes = (const char *)bytes, .size = size)
-                                        ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_toolchains_owner)
+                                        ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_toolchains_owner)
                                         : NULL;
             const int text = g_cli_format.settings != NULL;
             if (text)
@@ -130,7 +130,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
                 g_cli_format.settings[size] = '\0';
             }
             g_cli_format.settings_size = text ? size : 0ULL;
-            g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_toolchains_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_toolchains_owner));
             if (text)
             {
                 return 1;

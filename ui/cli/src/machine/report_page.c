@@ -26,7 +26,7 @@ typedef struct
 // orior's version, and the commit and changes of the tree where it is orior's own, into `out`
 static void cli_version(const ReportPageCtx *args)
 {
-    mmgr_line_put(args->out, "orior_cli " CLI_VERSION);
+    mmgr_line_put(args->out, "imp " CLI_VERSION);
     if (args->root == NULL)
     {
         return;

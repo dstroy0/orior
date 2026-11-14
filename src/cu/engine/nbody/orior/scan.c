@@ -17,7 +17,7 @@
  * @note THE REFERENCE. This arm uses no intrinsic and no compiler extension. It builds anywhere a
  *       C11 compiler runs, and every other scan arm returns the same count or has a defect. That is
  *       the contract OriorSteerEngine carries, the same one the exact arms carry in
- * src/cu/includes/types/integers/arm.h.
+ * includes/exact_types/integers/arm.h.
  * @note It counts a scan call and never a wide call. orior_steer_scan_calls and
  *       orior_steer_wide_calls are defined in orior_steer_count.c and declared in the header; a wide arm
  *       counts both. Wide over total is the share served on the vector path.

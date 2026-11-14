@@ -8,6 +8,7 @@
 #include "ui/cli/src/notebooks/notebook_cells_internal.h"
 #include "ui/cli/src/notebooks/notebook_edit.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
+#include "utils/test/src/ui/cli/unit/support/notebook_model_unity.h"
 
 // a percent script of three cells, code, markdown and code, and the same as a notebook with a printed stream
 static const char s_script[] = "# %%\nx = 1\nprint(x)\n\n# %% [markdown]\n# # Title\n\n# %%\ny = x + 1\n";
@@ -80,17 +81,17 @@ void test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not(void)
     const CliNotebookModel *const model = opened("edit.py", s_script);
     focused(0u, 1ULL, 8ULL);
     const unsigned int rows = rows_of();
-    const unsigned int after = model->first_row[2];
+    const unsigned int after = notebook_first_row_at(model, 2u);
     const CliViewInput letter = {.type = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
     handed(&letter);
     TEST_ASSERT_EQUAL_UINT(rows, rows_of());
-    TEST_ASSERT_EQUAL_UINT(after, model->first_row[2]);
-    TEST_ASSERT_TRUE(model->cell[0].edited != 0u);
+    TEST_ASSERT_EQUAL_UINT(after, notebook_first_row_at(model, 2u));
+    TEST_ASSERT_TRUE(notebook_cell_at(model, 0u).edited != 0u);
     const CliViewInput line = {.type = CLI_VIEW_KEY, .name = "Enter"};
     handed(&line);
-    TEST_ASSERT_EQUAL_UINT(3u, model->cell[0].lines);
+    TEST_ASSERT_EQUAL_UINT(3u, notebook_cell_at(model, 0u).lines);
     TEST_ASSERT_EQUAL_UINT(rows + 1u, rows_of());
-    TEST_ASSERT_EQUAL_UINT(after + 1u, model->first_row[2]);
+    TEST_ASSERT_EQUAL_UINT(after + 1u, notebook_first_row_at(model, 2u));
 }
 
 void test_the_notebooks_keys_are_taken_and_others_are_not(void)
@@ -129,14 +130,14 @@ void test_cells_added_changed_moved_cleared_and_deleted(void)
     model->dirty = 0;
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.retype, CliNotebookEditCellCfg, .key = "edit:a",
                                         .cell = 1u));
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, model->cell[1].type);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, notebook_cell_at(model, 1u).type);
     TEST_ASSERT_EQUAL_INT(1, model->dirty);
-    const unsigned int serial = model->cell[0].serial;
+    const unsigned int serial = notebook_cell_at(model, 0u).serial;
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = "edit:a",
                                         .cell = 0u, .by = 1));
-    TEST_ASSERT_EQUAL_UINT(serial, model->cell[1].serial);
-    TEST_ASSERT_EQUAL_UINT(1u, model->cell[1].outputs);
-    TEST_ASSERT_EQUAL_UINT(0u, model->cell[1].output_first);
+    TEST_ASSERT_EQUAL_UINT(serial, notebook_cell_at(model, 1u).serial);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(model, 1u).outputs);
+    TEST_ASSERT_EQUAL_UINT(0u, notebook_cell_at(model, 1u).output_first);
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = "edit:a",
                                         .cell = 3u, .by = 1));
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.outputs_clear, CliNotebookEditCellCfg,
@@ -144,16 +145,20 @@ void test_cells_added_changed_moved_cleared_and_deleted(void)
     TEST_ASSERT_EQUAL_UINT(0u, model->outputs);
     // the cell at 1 ran first and the last cell after it; the first deleted, the last stands on a cell gone
     model->clock = 2u;
-    model->cell[1].first_run = 1u;
-    model->cell[1].last_run = 1u;
-    model->cell[3].first_run = 2u;
-    model->cell[3].last_run = 2u;
+    CliNotebookCell second = notebook_cell_at(model, 1u);
+    second.first_run = 1u;
+    second.last_run = 1u;
+    notebook_cell_set(model, 1u, &second);
+    CliNotebookCell fourth = notebook_cell_at(model, 3u);
+    fourth.first_run = 2u;
+    fourth.last_run = 2u;
+    notebook_cell_set(model, 3u, &fourth);
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.remove, CliNotebookEditCellCfg, .key = "edit:a",
                                         .cell = 1u));
     TEST_ASSERT_EQUAL_UINT(3u, model->cells);
     TEST_ASSERT_EQUAL_UINT(1u, model->gone_count);
-    TEST_ASSERT_EQUAL_UINT(1u, model->gone[0].last_run);
-    TEST_ASSERT_EQUAL_INT(1, model->cell[2].stale);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_gone_at(model, 0u).last_run);
+    TEST_ASSERT_EQUAL_INT(1, notebook_cell_at(model, 2u).stale);
 }
 
 void test_the_cell_menu_refuses_a_move_past_either_end(void)

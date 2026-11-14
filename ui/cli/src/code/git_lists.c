@@ -228,14 +228,8 @@ void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args)
             EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = subject,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_POOL_BYTES}));
     }
-    g_cli_guard->persistent_buf_release(s_elsewhere.found.text.bytes, g_cli_git_owner);
-    s_elsewhere.found.text.bytes = NULL;
-    s_elsewhere.found.text.used = 0ULL;
-    s_elsewhere.found.text.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(s_elsewhere.made.bytes, g_cli_git_owner);
-    s_elsewhere.made.bytes = NULL;
-    s_elsewhere.made.used = 0ULL;
-    s_elsewhere.made.capacity = 0ULL;
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &s_elsewhere.found.text);
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &s_elsewhere.made);
 }
 
 int cli_git_commits(const CliGitRootFileErrMsgCfg *args)

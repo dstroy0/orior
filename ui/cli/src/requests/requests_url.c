@@ -85,7 +85,8 @@ EMBED_INLINE int url_host(const RequestsUrlCtx *args)
     unsigned long long host_size = 0ULL;
     if ((size > 0u) && (args->authority[0] == '['))
     {
-        const char *const close = memor.chr(&(MemoriaCfg){.src = args->authority, .val = ']', .bytes = (size_t)size});
+        const char *const close =
+            memor.chr(&(MemoriaCfg){.src = args->authority, .val = ']', .bytes = (embed_word)size});
         if (close == NULL)
         {
             mmgr_line_put(args->err_msg, args->url);
@@ -132,7 +133,7 @@ EMBED_INLINE int url_host(const RequestsUrlCtx *args)
     mmgr_line_put_n(&host_line, host, host_size);
     if (mmgr_line_finish(&host_line) == 0ULL)
     {
-        mmgr_line_put(args->err_msg, "the request is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the request is larger than impero supports");
         return 0;
     }
     return 1;
@@ -179,7 +180,7 @@ int cli_requests_address(const CliRequestsErrMsgUrlCtx *args)
     mmgr_line_put_n(&target_line, target, target_size);
     if (mmgr_line_finish(&target_line) == 0ULL)
     {
-        mmgr_line_put(args->err_msg, "the request is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the request is larger than impero supports");
         return 0;
     }
     return EMBED_CALL(url_host, RequestsUrlCtx, .url = args->url, .authority = authority,

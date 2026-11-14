@@ -95,7 +95,7 @@ EMBED_INLINE unsigned int references_chain(const GradleReferencesCtx *args)
                  args->to[count - 1u] - args->from[count - 1u]) &&
                 (memor.cmp(&(MemoriaCfg){.src = s_getters[at],
                                          .other = text + args->from[count - 1u],
-                                         .bytes = (size_t)(args->to[count - 1u] - args->from[count - 1u])}) == 0))
+                                         .bytes = (embed_word)(args->to[count - 1u] - args->from[count - 1u])}) == 0))
             {
                 popped = 1;
             }
@@ -120,7 +120,8 @@ EMBED_INLINE void references_section_get(const GradleReferencesCtx *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_POOL_BYTES}) == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = args->word_text, .bytes = (embed_word)args->size}) ==
+             0))
         {
             *section = s_sections[at];
             *type = s_types[at];
@@ -165,7 +166,7 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
         EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
                    .alias = args->aliases->text + alias->alias_at, .size = alias->alias_size, .out = &known);
         if ((known.at == path_size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_known, .other = path, .bytes = (size_t)path_size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_known, .other = path, .bytes = (embed_word)path_size}) == 0))
         {
             return;
         }
@@ -231,7 +232,7 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
     unsigned long long at = 0ULL;
     while (at + name_size + 1u <= size)
     {
-        if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = (size_t)name_size}) != 0) ||
+        if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = (embed_word)name_size}) != 0) ||
             (text[at + name_size] != '.') || (g_cli_gradle.class_of[at] != CLI_GRADLE_CODE))
         {
             at += 1u;

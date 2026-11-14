@@ -112,10 +112,9 @@ EMBED_INLINE int children_equal(const DbChildrenCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     const unsigned long long have = children_is(args) ? args->values[args->at].size : 0ULL;
-    return (have == size) &&
-           ((size == 0u) ||
-            (memor.cmp(&(MemoriaCfg){.src = args->values[args->at].text, .other = args->text, .bytes = (size_t)size}) ==
-             0));
+    return (have == size) && ((size == 0u) || (memor.cmp(&(MemoriaCfg){.src = args->values[args->at].text,
+                                                                       .other = args->text,
+                                                                       .bytes = (embed_word)size}) == 0));
 }
 
 // a word of a column's detail written after those before it, where it is not empty

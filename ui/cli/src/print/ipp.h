@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ipp.h: the Internet Printing Protocol, as RFC 8010 and 8011 set it out, implemented by orior_cli itself over HTTP/1.1
+// ipp.h: the Internet Printing Protocol, as RFC 8010 and 8011 set it out, implemented by impero itself over HTTP/1.1
 // (ipp.c encodes, decodes and exchanges a message, ipp_jobs.c requests what printing needs): a printer's attributes
 // requested for, a job printed with its document, its state requested for and a job canceled, and the printers a CUPS
 // server shares listed. A printer is named by its ipp:// address; one that takes only ipps://, IPP over TLS, is
@@ -27,7 +27,7 @@ typedef struct CliIppCfg CliIppCfg;
 typedef struct CliIppMessageOutVerbaLineaCfg CliIppMessageOutVerbaLineaCfg;
 typedef struct CliIppCodeCfg CliIppCodeCfg;
 
-// the groups' tags, the end of the groups, and the tags of the texts orior_cli writes
+// the groups' tags, the end of the groups, and the tags of the texts impero writes
 #define CLI_IPP_OPERATION 0x01u
 #define CLI_IPP_JOB 0x02u
 #define CLI_IPP_END 0x03u
@@ -49,7 +49,7 @@ typedef struct CliIppCodeCfg CliIppCodeCfg;
 
 #define CLI_IPP_BYTES (1u << 21u)
 
-// a value's types: a number, a truth, an enum, a range of two numbers, a text by its tag, and one orior_cli reads past
+// a value's types: a number, a truth, an enum, a range of two numbers, a text by its tag, and one impero reads past
 enum
 {
     CLI_IPP_INTEGER,

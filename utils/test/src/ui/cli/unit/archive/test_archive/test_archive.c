@@ -4,8 +4,8 @@
 // a folder, its files read and one saved back; a run's .qry opens as a folder of its blobs and is never written back; an archive inside an archive opens and
 // saves too; a gzipped tar and a gzipped file open and save back; archives Python writes are read here and those orior writes are read by Python; and a path
 // of the tree runs into an archive only past an archive's file
-#include "src/cu/includes/file_defs/qry/qry.h"
-#include "src/cu/includes/file_defs/qry/qry_read.h"
+#include "includes/file_defs/qry/qry.h"
+#include "includes/file_defs/qry/qry_read.h"
 #include "ui/cli/src/editor/archive.h"
 #include "ui/cli/src/runs/runner.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -234,7 +234,7 @@ static int deflated_and_back(const unsigned char *data, unsigned long long size)
 // the long text of repeating words written in s_text
 static void text_of_words(void)
 {
-    static const char s_words[] = "orior_cli reads archives ";
+    static const char s_words[] = "impero reads archives ";
     for (unsigned int at = 0u; at < sizeof(s_text); at += 1u)
     {
         // a letter of the words, its low bit turned at every 251st

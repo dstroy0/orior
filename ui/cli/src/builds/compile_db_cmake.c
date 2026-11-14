@@ -52,18 +52,17 @@ EMBED_INLINE int cli_reply_file_read(const CompileDbCmakeCtx *args)
 // a flag put after the compile group's flags
 EMBED_INLINE void cli_flag_append(const CompileDbCmakeCtx *args)
 {
-    VerbaLinea *const text = &g_cli_gather.flags_text;
-    const unsigned long long mark = text->at;
+    CliGrownLine *const text = &g_cli_gather.flags_text;
+    const unsigned long long mark = cli_grown_size(text);
     if ((g_cli_gather.flags >= CLI_GATHER_FLAGS) || (mark > 0xffffffffULL))
     {
         return;
     }
-    mmgr_line_put_n(text, args->flag, args->size);
-    mmgr_line_ch(text, '\0');
-    // a flag whose capacity the cellblock cannot meet is left out, the flags before it retained
-    if (!mmgr_line_ok(text))
+    mmgr_line_put_n(&text->line, args->flag, args->size);
+    mmgr_line_ch(&text->line, '\0');
+    // a flag past the most the line grows to is left out, the flags before it retained
+    if (!mmgr_line_ok(&text->line))
     {
-        text->at = mark;
         return;
     }
     // where the flag starts, below 4 GiB as the test above ensures, which an unsigned int stores
@@ -103,31 +102,31 @@ EMBED_INLINE unsigned int cli_slashed_init(const CompileDbCmakeCtx *args)
                       .length = cellul.len(&(CatenaFinitaCfg){.src = slashed, .cap = CLI_POOL_BYTES}));
 }
 
-// a fragment of a compile command at `at` of the target's reply decoded into the fragment line, at the bytes it is
-// sized for, and its words put after the flags
+// a fragment of a compile command at `at` of the target's reply decoded into a cell of its span, taken for the call,
+// and its words put after the flags
 EMBED_INLINE void cli_fragment_flags(const CompileDbCmakeCtx *args)
 {
     unsigned long long at = args->at;
-    VerbaLinea *const text = &g_cli_gather.fragment_text;
     const unsigned long long span =
         EMBED_CALL(cli_reply_at.string_span, CliReplyAtCfg, .reply = args->target, .at = at);
-    text->at = 0ULL;
-    if ((text->capacity <= (span + 1ULL)) ||
-        !EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target, .at = at, .out = text->out,
-                    .capacity = span + 1ULL))
+    char *const text = g_cli_guard->temporary_buf_alloc(span + 1ULL, g_cli_build_owner);
+    if ((text == NULL) || !EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target, .at = at,
+                                      .out = text, .capacity = span + 1ULL))
     {
+        g_cli_guard->persistent_buf_release(text, g_cli_build_owner);
         return;
     }
-    EMBED_CALL(cli_compile_db_text_internal.compile_words_each, CliCompileDbTextCtx, .text = text->out,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = text->out, .cap = CLI_POOL_BYTES}),
-               .each = cli_fragment_word, .context = NULL);
+    EMBED_CALL(cli_compile_db_text_internal.compile_words_each, CliCompileDbTextCtx, .text = text,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .each = cli_fragment_word,
+               .context = NULL);
+    g_cli_guard->persistent_buf_release(text, g_cli_build_owner);
 }
 
 // a compile group's flags: its fragments' words, its include folders, its defines and its sysroot
 EMBED_INLINE void cli_group_flags(const CompileDbCmakeCtx *args)
 {
     g_cli_gather.flags = 0u;
-    g_cli_gather.flags_text.at = 0ULL;
+    cli_grown_reset(&g_cli_gather.flags_text);
     const unsigned long long fragments = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                                     .object = args->group, .key = "compileCommandFragments");
     for (unsigned long long at =
@@ -267,7 +266,7 @@ EMBED_INLINE void cli_entry_init(const CompileDbCmakeCtx *args)
                .value = EMBED_CALL(cli_slashed_init, CompileDbCmakeCtx, .text = args->compiler->path));
     for (unsigned int flag = 0u; flag < g_cli_gather.flags; flag += 1u)
     {
-        const char *const text = g_cli_gather.flags_text.out + g_cli_gather.flag[flag];
+        const char *const text = g_cli_gather.flags_text.cell + g_cli_gather.flag[flag];
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = json, .array = arguments,
                    .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg,
                                        .json = json, .text = text,
@@ -362,7 +361,7 @@ EMBED_INLINE void cli_target_entries(const CompileDbCmakeCtx *args)
     }
 }
 
-// the configuration of the codemodel the build's folder is named for, as orior_cli names it, or the first
+// the configuration of the codemodel the build's folder is named for, as impero names it, or the first
 EMBED_INLINE unsigned long long cli_configuration_get(const CompileDbCmakeCtx *args)
 {
     const char *named = args->build;

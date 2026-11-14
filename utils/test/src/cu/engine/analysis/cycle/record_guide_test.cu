@@ -9,7 +9,7 @@
 // submitted before the program is loaded onto the device.
 #include "codegen_device.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/cu/includes/types/integers/exact_integer.h"
+#include "../../../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "verba_scribo/verba_linea.h"

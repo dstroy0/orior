@@ -54,9 +54,9 @@ typedef struct
     unsigned int to;
 } CliSignatureParameter;
 
-// A signature in one cell: the label and how long; its parameters; the parameter the cursor's argument answers, -1 for
-// none; the parameters the arguments differ from, each a place among the parameters; and the documentation as Markdown,
-// empty for none
+// A signature: the label and how long; its parameters; the parameter the cursor's argument answers, -1 for none; the
+// parameters the arguments differ from, each a place among the parameters; and the documentation as Markdown, empty
+// for none. Each pointer points into the store the signature was written to
 typedef struct
 {
     const char *label;
@@ -69,6 +69,22 @@ typedef struct
     const char *doc;
     unsigned long long doc_length;
 } CliSignaturePanel;
+
+// the most parameters a signature's store holds, the most bytes of its label with its end, and of its documentation
+#define CLI_SIGNATURE_PARAMETERS 64u
+#define CLI_SIGNATURE_LABEL 4096u
+#define CLI_SIGNATURE_DOC (1u << 16u)
+
+// A signature's store, the one place a signature is written to: the panel, whose pointers point into the arrays after
+// it, the parameters, the differing places, the label and the documentation
+typedef struct
+{
+    CliSignaturePanel panel;
+    CliSignatureParameter parameter[CLI_SIGNATURE_PARAMETERS];
+    unsigned int differs[CLI_SIGNATURE_PARAMETERS];
+    char label[CLI_SIGNATURE_LABEL];
+    char doc[CLI_SIGNATURE_DOC];
+} CliSignatureStore;
 
 // the most completion items one request gives, and the bytes their texts take
 #define CLI_COMPLETIONS_MAX 4096u

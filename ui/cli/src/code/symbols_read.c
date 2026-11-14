@@ -142,7 +142,7 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &err_msg, .owner = g_cli_code_owner);
     const char *const type =
@@ -168,17 +168,17 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
     char *const marks[] = {mark, continued};
     for (unsigned int at = 0u; grammared && (at < (sizeof(s_mark_names) / sizeof(s_mark_names[0]))); at += 1u)
     {
-        const char *const named = EMBED_CALL(
-            cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
-            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
-                               .object = root, .name = s_mark_names[at]),
-            .length_pointer = NULL);
+        const char *const named =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
+                                          .object = root, .name = s_mark_names[at]),
+                       .length_pointer = NULL);
         if (named != NULL)
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = marks[at],
                 .src = named,
-                .bytes = (size_t)cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_SYMBOLS_MARK_MAX - 1u})});
+                .bytes = (embed_word)cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_SYMBOLS_MARK_MAX - 1u})});
         }
     }
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
@@ -205,18 +205,20 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = read->grammar[at].id, .src = args->plugin->id, .bytes = (size_t)length + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = read->grammar[at].id, .src = args->plugin->id, .bytes = (embed_word)length + 1u});
     read->grammar[at].key[0] = '\0';
     read->grammar[at].stored = 0;
     read->grammar[at].declares = declares;
     memor.cpy(&(MemoriaCfg){.dst = read->grammar[at].directive_mark, .src = mark, .bytes = sizeof(mark)});
-    memor.cpy(&(MemoriaCfg){.dst = read->grammar[at].directive_continued, .src = continued, .bytes = sizeof(continued)});
+    memor.cpy(
+        &(MemoriaCfg){.dst = read->grammar[at].directive_continued, .src = continued, .bytes = sizeof(continued)});
     read->grammars += (at == read->grammars) ? 1u : 0u;
 }
 
 CliSymbolsLanguages *cli_symbols_languages_read(void)
 {
-    CliSymbolsLanguages *const read = g_cli_guard->persistent_buf_alloc(sizeof(CliSymbolsLanguages), g_cli_code_owner);
+    // the languages live for the walk or the effect that reads them: a cell of the temporary tier
+    CliSymbolsLanguages *const read = g_cli_guard->temporary_buf_alloc(sizeof(CliSymbolsLanguages), g_cli_code_owner);
     if (read != NULL)
     {
         EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &read->languages);
@@ -300,7 +302,7 @@ const char *cli_symbols_directive_continued(const CliSymbolsReadLanguagesCtx *ar
 
 int cli_symbols_reads(const CliSymbolsPathNameCfg *args)
 {
-    CliSymbolsLanguages *const read = cli_symbols_languages_read();
+    CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
     const int reads =
         (read != NULL) && EMBED_CALL(cli_symbols_read_languages_internal.reads_in, CliSymbolsReadLanguagesCtx,
                                      .read_symbols_languages_pointer = read, .path = args->path);
@@ -315,7 +317,7 @@ int cli_symbols_reads(const CliSymbolsPathNameCfg *args)
 
 void cli_symbols_declare(const CliSymbolsPathTextSizeCfg *args)
 {
-    CliSymbolsLanguages *const read = cli_symbols_languages_read();
+    CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
     if (read != NULL)
     {
         EMBED_CALL(cli_symbols_path_read_languages_internal.declared_in, CliSymbolsPathReadLanguagesCtx,
@@ -369,7 +371,7 @@ static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = lines, .src = text, .bytes = (size_t)size});
+    memor.cpy(&(MemoriaCfg){.dst = lines, .src = text, .bytes = (embed_word)size});
     lines[size] = '\0';
     for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
@@ -388,7 +390,7 @@ static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
     char starting[CLI_SYMBOLS_STATE] = "root";
     if ((supplied != 0ULL) && (supplied < CLI_SYMBOLS_STATE))
     {
-        memor.cpy(&(MemoriaCfg){.dst = starting, .src = state, .bytes = (size_t)supplied + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = starting, .src = state, .bytes = (embed_word)supplied + 1u});
     }
     unsigned long long at = 0ULL;
     int colored = 1;

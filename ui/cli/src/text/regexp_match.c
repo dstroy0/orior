@@ -40,7 +40,7 @@ EMBED_INLINE int match_end_capacity(const RegexpMatchCtx *args)
         return 0;
     }
     memor.cpy(&(MemoriaCfg){
-        .dst = cell, .src = args->run->ends, .bytes = (size_t)(args->run->ends_top * sizeof(unsigned int))});
+        .dst = cell, .src = args->run->ends, .bytes = (embed_word)(args->run->ends_top * sizeof(unsigned int))});
     args->run->ends = cell;
     args->run->ends_capacity = CLI_REGEXP_ENDS_MAX;
     args->run->ends_reserved = 1;
@@ -174,8 +174,8 @@ EMBED_INLINE int cli_again(const RegexpMatchCtx *args)
         return 0;
     }
     const char mark = 0;
-    const uintptr_t here = (uintptr_t)&mark;
-    const uintptr_t depth = (here > run->base) ? (here - run->base) : (run->base - here);
+    const embed_word here = (embed_word)&mark;
+    const embed_word depth = (here > run->base) ? (here - run->base) : (run->base - here);
     if (depth > CLI_REGEXP_STACK_MAX)
     {
         // given up as STEPS gives up: no step after it goes on

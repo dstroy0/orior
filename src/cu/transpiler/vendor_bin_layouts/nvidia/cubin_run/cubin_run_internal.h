@@ -10,7 +10,7 @@
 // clock_gettime and the monotonic clock are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../cubin_safe.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"

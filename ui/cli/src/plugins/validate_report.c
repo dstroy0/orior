@@ -69,7 +69,7 @@ static void report_barriers(void)
 {
     const CliProverMessages *const first = &g_cli_validate->first;
     const CliProverMessages *const last = &g_cli_validate->last;
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     for (unsigned int at = 0u; at < first->count; at += 1u)
     {
         const CliProverMessage *const message = &first->message[at];
@@ -202,7 +202,7 @@ EMBED_INLINE void report_on_count(const ValidateReportCtx *args)
 // the file's own settings changed and the theorems that rest on axioms past those trusted
 EMBED_INLINE void report_verdict(const ValidateReportCtx *args)
 {
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     const CliJson *const json = &g_cli_validate->json;
     if (g_cli_validate->late)
     {

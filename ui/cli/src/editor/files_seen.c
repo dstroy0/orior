@@ -50,7 +50,7 @@ EMBED_INLINE void walk_pending(const FilesSeenCtx *args)
                            : NULL;
     if (cell != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->path, .bytes = (size_t)length + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->path, .bytes = (embed_word)length + 1u});
         args->walk->pending[args->walk->pending_count] = cell;
         args->walk->pending_count += 1u;
     }
@@ -254,7 +254,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
     {
         const unsigned long long length =
             cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_POOL_BYTES}) + 1ULL;
-        memor.cpy(&(MemoriaCfg){.dst = input + used, .src = args->paths[at], .bytes = (size_t)length});
+        memor.cpy(&(MemoriaCfg){.dst = input + used, .src = args->paths[at], .bytes = (embed_word)length});
         used += length;
     }
     const char *words[8] = {"git"};
@@ -319,7 +319,7 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
 void cli_files_let(const CliFilesCfg *args)
 {
     // the cell is given back as it was taken; const is the reader's view of it
-    g_cli_guard->persistent_buf_release(((void *)(uintptr_t)args->files), g_cli_files_views_owner);
+    g_cli_guard->persistent_buf_release(((void *)(embed_word)args->files), g_cli_files_views_owner);
 }
 
 // where the name of the file at `path`, `length` bytes, starts in it, and the bytes of its ending from its last dot

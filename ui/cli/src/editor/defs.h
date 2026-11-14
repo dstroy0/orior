@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // defs.h: the definitions the editor reads its languages from, as the tree stores them (defs.c).
 //
-// Each file type's oracle table under src/cu/includes/file_defs, the head every k-file opens with, and the language
+// Each file type's oracle table under includes/file_defs, the head every k-file opens with, and the language
 // tables under src/lng. The editor builds its highlighting, its hover and its completion from these and contains no
 // word of its own. A form added to an oracle table is a form the editor knows the next time it opens
 #ifndef DEFS_H

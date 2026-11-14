@@ -18,7 +18,7 @@ typedef struct
 {
     unsigned int type;
     char *path;
-    size_t capacity;
+    embed_word capacity;
     int chosen;
     int done;
     CliThread thread;

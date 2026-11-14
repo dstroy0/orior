@@ -11,7 +11,7 @@ set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../.." && pwd)"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/engine"
 mkdir -p "$OUT"
 BINARY="$OUT/orior_kdecode"
@@ -20,9 +20,9 @@ built="$BINARY"
 [ -f "$built.exe" ] && built="$built.exe"
 stale=0
 [ -f "$built" ] || stale=1
-for source in "${SOURCES[@]}" "$HERE"/kdecode/*.h "$TOP/src/cu/includes/file_defs/kqr/kqr.h" \
-    "$TOP/src/cu/includes/file_defs/krep/krep_records.h" "$TOP/src/cu/includes/file_defs/qry/qry.h" \
-    "$TOP/src/cu/includes/file_defs/qry/qry_read.h" "$HERE/../writer/qry_member.h"; do
+for source in "${SOURCES[@]}" "$HERE"/kdecode/*.h "$TOP/includes/file_defs/kqr/kqr.h" \
+    "$TOP/includes/file_defs/krep/krep_records.h" "$TOP/includes/file_defs/qry/qry.h" \
+    "$TOP/includes/file_defs/qry/qry_read.h" "$HERE/../writer/qry_member.h"; do
     [ "$source" -nt "$built" ] && stale=1
 done
 if [ "$stale" -eq 1 ]; then

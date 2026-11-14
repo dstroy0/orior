@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // reply.c: a JSON reply read off its bytes in one pass with no tree made, as reply.h describes
 #include "reply.h"
-#include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../command_line/pool.h"
 #include "text.h"
 
@@ -18,7 +18,7 @@ int cli_reply_read(const CliReplyPathCfg *args)
 
 void cli_reply_let_go(const CliReplyPathCfg *args)
 {
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->reply_out->text),
+    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->reply_out->text),
                                         (g_cli_text_owner));
     args->reply_out->text = NULL;
     args->reply_out->size = 0ULL;
@@ -46,8 +46,8 @@ EMBED_INLINE unsigned long long reply_string_end(const ReplyCtx *args)
     unsigned long long from = at + 1ULL;
     while (from < args->reply->size)
     {
-        const char *const quote = memor.chr(
-            &(MemoriaCfg){.src = args->reply->text + from, .val = '"', .bytes = (size_t)(args->reply->size - from)});
+        const char *const quote = memor.chr(&(MemoriaCfg){
+            .src = args->reply->text + from, .val = '"', .bytes = (embed_word)(args->reply->size - from)});
         if (quote == NULL)
         {
             return args->reply->size;
@@ -211,8 +211,8 @@ int cli_reply_string(const CliReplyAtOutCfg *args)
     {
         return 0;
     }
-    const CfgJsonToken token = {CFG_JSON_STRING, (size_t)(args->at + 1ULL), (size_t)end, 0u, 0u};
-    return cfg_json_string(args->reply->text, &token, args->out, (size_t)args->capacity);
+    const CfgJsonToken token = {CFG_JSON_STRING, (embed_word)(args->at + 1ULL), (embed_word)end, 0u, 0u};
+    return cfg_json_string(args->reply->text, &token, args->out, (embed_word)args->capacity);
 }
 
 unsigned long long cli_reply_integer(const CliReplyAtCfg *args)

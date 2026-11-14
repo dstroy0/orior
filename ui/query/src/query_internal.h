@@ -5,8 +5,8 @@
 // one module reads from another
 #ifndef QUERY_INTERNAL_H
 #define QUERY_INTERNAL_H
-#include "../../../src/cu/includes/file_defs/qry/qry_read.h"
-#include "../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
+#include "../../../includes/file_defs/qry/qry_read.h"
+#include "../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/command_line/pool.h"
 #include "cellularum_laboro/cellularum_laboro.h"

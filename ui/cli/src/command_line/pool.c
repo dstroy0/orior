@@ -6,10 +6,9 @@
 // the owner. MMgr's report of a release carrying the wrong owner is logged. The reports read the cellblock's peaks and
 // the owner table off their atomic words, and are written at a command's end
 #include "pool.h"
+#include "rings.h"
 
 #include "cli_internal.h"
-
-#include <stdio.h>
 
 // The pool: bytes of the program's own image, declared at CLI_POOL_BYTES, the cellblock's record beside them, both
 // settled by the linker; emptied for a program's request while no cell is allocated. Minimum security: a cell is left
@@ -49,23 +48,30 @@ EMBED_INLINE void pool_log(const PoolCtx *args)
     cli_pool_reported(args->type, args->line);
     if (mmgr_line_ok(args->line))
     {
-        (void)fprintf(stderr, "cells %s %.*s\n", args->type, (int)args->line->at, args->line->out);
+        char text[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea line = {text, sizeof(text), 0ULL};
+        mmgr_line_put(&line, "cells ");
+        mmgr_line_put(&line, args->type);
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put_n(&line, args->line->out, args->line->at);
+        mmgr_line_ch(&line, '\n');
+        EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
+                   .length = mmgr_line_finish(&line));
     }
-}
-
-uint64_t mmgr_carcer_hw_clock_ns(void)
-{
-    // the clock read as MMgr stamps a take with it: the microsecond clock in nanoseconds, rolling in the word's bits
-    return (uint64_t)cli_clock_microseconds() * 1000u;
 }
 
 embed_u64 embed_clock_ns(void)
 {
-    // the clock a turnstile badge is stamped with, the same one
+    // the one clock: the microsecond clock in nanoseconds, which stamps a turnstile's badge and a cell's take alike
     return (embed_u64)cli_clock_microseconds() * 1000u;
 }
 
-void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, size_t bytes)
+embed_u64 mmgr_carcer_hw_clock_ns(void)
+{
+    return embed_clock_ns();
+}
+
+void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, embed_word bytes)
 {
     char text[200];
     VerbaLinea line = {text, sizeof(text), 0u, NULL, NULL, 0u};
@@ -89,23 +95,72 @@ ParsMemoriaeInternae(cli_pool_movable, MMGR_MOVABLE_STORAGE_BYTES(CLI_POOL_MOVAB
 static CliThread s_mover;
 static CliWake s_mover_wake = CLI_WAKE_INIT;
 
-static embed_bool pool_mover_started(void (*run)(void *context), void *context)
+// The mover as MMgr hands it to the thread: what it runs and on what, and whether the pool asks it to end, which its
+// next wait answers, and whether it has ended, which the pool waits on before it empties the cellblock again
+static void (*s_mover_run)(void *context);
+static void *s_mover_context;
+static embed_atomic_u32 s_mover_ending;
+static embed_atomic_u32 s_mover_ended;
+
+static void pool_mover_run(void *context)
 {
-    s_mover.run = run;
-    s_mover.context = context;
-    s_mover.priority = CLI_PRIORITY_IDLE;
-    return (embed_bool)(EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_mover) != 0);
+    (void)context;
+    s_mover_run(s_mover_context);
+    EMBED_ATOMIC_STORE(&s_mover_ended, 1u);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_mover_wake);
 }
 
-static embed_bool pool_mover_waited(uint32_t milliseconds)
+static embed_bool pool_mover_started(void (*run)(void *context), void *context)
 {
+    s_mover_run = run;
+    s_mover_context = context;
+    EMBED_ATOMIC_STORE(&s_mover_ending, 0u);
+    EMBED_ATOMIC_STORE(&s_mover_ended, 0u);
+    s_mover.run = pool_mover_run;
+    s_mover.context = NULL;
+    s_mover.priority = CLI_PRIORITY_IDLE;
+    const int started = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_mover) != 0;
+    // a thread that did not start leaves no mover to end
+    s_mover_run = started ? run : NULL;
+    return (embed_bool)started;
+}
+
+static embed_bool pool_mover_waited(embed_u32 milliseconds)
+{
+    if (EMBED_ATOMIC_LOAD(&s_mover_ending) != 0u)
+    {
+        return EMBED_FALSE;
+    }
     (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_mover_wake,
                      .milliseconds_u64 = milliseconds);
-    return EMBED_TRUE;
+    return (embed_bool)(EMBED_ATOMIC_LOAD(&s_mover_ending) == 0u);
 }
+
+// the mover ended where it runs: asked to end, woken, and waited for
+static void pool_mover_ended(void)
+{
+    if (s_mover_run == NULL)
+    {
+        return;
+    }
+    EMBED_ATOMIC_STORE(&s_mover_ending, 1u);
+    while (EMBED_ATOMIC_LOAD(&s_mover_ended) == 0u)
+    {
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_mover_wake);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_mover_wake, .milliseconds_u64 = 1ULL);
+    }
+    s_mover_run = NULL;
+}
+
+// the sorts the mover has started, read by the telemetry
+static embed_atomic_u32 s_mover_sorts;
 
 static void pool_mover_moving(embed_bool moving)
 {
+    if (moving)
+    {
+        (void)EMBED_ATOMIC_ADD_32(&s_mover_sorts, 1u);
+    }
     EMBED_CALL(cli_words_err_msg_internal.priority_own, CliWordsErrMsgCtx,
                .priority = moving ? CLI_PRIORITY_WORK : CLI_PRIORITY_IDLE);
 }
@@ -142,7 +197,7 @@ static unsigned long long pool_bytes(void)
 EMBED_INLINE unsigned int pool_owners_read(const PoolCtx *args)
 {
     unsigned int count = 0u;
-    for (size_t at = 0u; at < mmgr_owner_table_count; at += 1u)
+    for (embed_word at = 0u; at < mmgr_owner_table_count; at += 1u)
     {
         const CellOwner *const owner = &mmgr_owner_table[at];
         args->owners[count] = (PoolOwnerRead){owner->name, (unsigned long long)mmgr_owner_in_use(owner),
@@ -180,17 +235,87 @@ void cli_pool_reported(const char *name, const VerbaLinea *report)
 
 int cli_pool_made(unsigned long long bytes)
 {
-    // a program empties its pool before any thread takes a cell, and empties it again only while no cell is allocated
-    // and the mover does not read it; nothing takes between the test and the emptying. A request past the pool declared
-    // is refused
+    // a program empties its pool before any thread takes a cell, and empties it again only while no cell is allocated;
+    // the mover is ended first, so that it does not read the cellblock as it empties, and started again with it.
+    // Nothing takes between the test and the emptying. A request past the pool declared is refused
     SeriesCellularum *const record = &cli_pool_site_cli_pool_ctx;
-    const int idle = mmgr_series_cellularum_idle(record) && (embed_atomic_uptr_load(&record->movable) == 0u);
+    const int idle = mmgr_series_cellularum_idle(record);
     const int fits = bytes <= CLI_POOL_BYTES;
     if (idle && fits)
     {
+        pool_mover_ended();
         mmgr_series_cellularum_emptied(record);
+        // the mover's thread starts with the pool, so the cellblock is sorted in every quiet past the fragmentation
+        // threshold, whether or not a module stores movable cells
+        cli_pool_movable_ready();
+        // the rings' records laid over their parts of the rings block, with the pool, before any ticket is taken
+        cli_rings.laid();
     }
     return idle && fits;
+}
+
+// The line's flush as its cell fills: a cell of twice the capacity taken, the text so far copied into it, the cell
+// given back, and the line's `out` set past the copied text. 1, or 0 where the cells cannot meet the next cell or it
+// would pass `most`, which fills the line
+static int grown_flush(void *context, const char *bytes, embed_word size)
+{
+    CliGrownLine *const grown = context;
+    (void)bytes;
+    const unsigned long long held = grown->line.flushed + size;
+    const unsigned long long doubled = grown->capacity * 2ULL;
+    const unsigned long long capacity = (doubled < grown->most) ? doubled : grown->most;
+    if (capacity <= grown->capacity)
+    {
+        return 0;
+    }
+    char *const cell = g_cli_guard->temporary_buf_alloc(capacity, grown->owner);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = cell, .src = grown->cell, .bytes = held});
+    g_cli_guard->persistent_buf_release(grown->cell, grown->owner);
+    grown->cell = cell;
+    grown->capacity = capacity;
+    grown->line.out = cell + held;
+    grown->line.capacity = capacity - held;
+    return 1;
+}
+
+void cli_grown_begin(CliGrownLine *grown, unsigned long long most, const CellOwner *owner)
+{
+    // the line's cell is taken once at its most
+    const unsigned long long first = most;
+    grown->cell = g_cli_guard->temporary_buf_alloc(first, owner);
+    grown->capacity = (grown->cell != NULL) ? first : 0ULL;
+    grown->most = most;
+    grown->owner = owner;
+    grown->line = mmgr_line_over(grown->cell, first);
+    grown->line.flush = grown_flush;
+    grown->line.context = grown;
+}
+
+unsigned long long cli_grown_size(const CliGrownLine *grown)
+{
+    // a full line holds its capacity less its terminator
+    const unsigned long long at =
+        (grown->line.at < grown->line.capacity) ? grown->line.at : (grown->line.capacity - 1ULL);
+    return (grown->line.capacity != 0ULL) ? (grown->line.flushed + at) : 0ULL;
+}
+
+void cli_grown_reset(CliGrownLine *grown)
+{
+    grown->line = mmgr_line_over(grown->cell, grown->capacity);
+    grown->line.flush = grown_flush;
+    grown->line.context = grown;
+}
+
+void cli_grown_end(CliGrownLine *grown)
+{
+    g_cli_guard->persistent_buf_release(grown->cell, grown->owner);
+    grown->cell = NULL;
+    grown->capacity = 0ULL;
+    grown->line = mmgr_line_over(NULL, 0u);
 }
 
 void cli_pool_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary)
@@ -250,10 +375,10 @@ void cli_pool_telemetry_log(void)
     }
     const SeriesCellularum *const record = &cli_pool_site_cli_pool_ctx;
     unsigned long long touches = 0ULL;
-    for (size_t row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
+    for (embed_word row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
     {
-        size_t id = 0u;
-        size_t passes = 0u;
+        embed_word id = 0u;
+        embed_word passes = 0u;
         if (mmgr_movable_touches(record, row, &id, &passes))
         {
             touches += (unsigned long long)passes;
@@ -274,30 +399,48 @@ void cli_pool_telemetry_log(void)
     mmgr_line_decimal(&line, touches, 1u);
     if (mmgr_line_ok(&line))
     {
-        (void)fprintf(stderr, "cells telemetry %.*s\n", (int)line.at, line.out);
+        EMBED_CALL(pool_log, PoolCtx, .type = "telemetry", .line = &line);
     }
+    // the sorts the mover has run, with the persistent end and the fragmentation as they stand
+    line.at = 0ULL;
+    mmgr_line_decimal(&line, EMBED_ATOMIC_LOAD(&s_mover_sorts), 1u);
+    mmgr_line_put(&line, " end ");
+    mmgr_line_decimal(&line, (unsigned long long)mmgr_series_cellularum_persistent_end(record), 1u);
+    mmgr_line_put(&line, " fragmentation ");
+    mmgr_line_decimal(&line, (unsigned long long)mmgr_series_cellularum_fragmentation(record), 1u);
+    EMBED_CALL(pool_log, PoolCtx, .type = "sorts", .line = &line);
     // an owner gets a line only where its in-use count moved since the last telemetry line
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if (owners[at].in_use != s_pool_telemetry_in_use[at])
         {
             s_pool_telemetry_in_use[at] = owners[at].in_use;
-            (void)fprintf(stderr, "cells owner %s %llu %llu\n", owners[at].name, owners[at].in_use, owners[at].hw);
+            line.at = 0ULL;
+            mmgr_line_put(&line, owners[at].name);
+            mmgr_line_ch(&line, ' ');
+            mmgr_line_decimal(&line, owners[at].in_use, 1u);
+            mmgr_line_ch(&line, ' ');
+            mmgr_line_decimal(&line, owners[at].hw, 1u);
+            EMBED_CALL(pool_log, PoolCtx, .type = "owner", .line = &line);
         }
     }
     // A lane's passes are an owner's takes and releases, its id the owner's place from 1. A row gets a line only where
     // its passes moved since the last telemetry line; the last row counts every lane past the rest
     static unsigned long long s_pool_telemetry_passes[POOL_TOUCH_ROWS + 1u];
-    for (size_t row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
+    for (embed_word row = 0u; row <= POOL_TOUCH_ROWS; row += 1u)
     {
-        size_t id = 0u;
-        size_t passes = 0u;
-        if (mmgr_movable_touches(record, row, &id, &passes) && ((unsigned long long)passes != s_pool_telemetry_passes[row]))
+        embed_word id = 0u;
+        embed_word passes = 0u;
+        if (mmgr_movable_touches(record, row, &id, &passes) &&
+            ((unsigned long long)passes != s_pool_telemetry_passes[row]))
         {
             s_pool_telemetry_passes[row] = (unsigned long long)passes;
-            const int named = (id >= 1u) && (id <= (size_t)count);
-            (void)fprintf(stderr, "cells touches %s %llu\n", named ? owners[id - 1u].name : "other",
-                          (unsigned long long)passes);
+            const int named = (id >= 1u) && (id <= (embed_word)count);
+            line.at = 0ULL;
+            mmgr_line_put(&line, named ? owners[id - 1u].name : "other");
+            mmgr_line_ch(&line, ' ');
+            mmgr_line_decimal(&line, (unsigned long long)passes, 1u);
+            EMBED_CALL(pool_log, PoolCtx, .type = "touches", .line = &line);
         }
     }
 }

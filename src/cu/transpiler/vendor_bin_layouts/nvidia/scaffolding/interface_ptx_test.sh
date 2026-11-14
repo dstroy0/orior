@@ -12,9 +12,9 @@ TOP="$(cd "$TEST/../../../../../.." && pwd)"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
 CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
-CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
+CODEGEN_CU_2="$TOP/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 build_stamp interface_ptx_test
 
 HOST_FLAGS=()

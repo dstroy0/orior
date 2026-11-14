@@ -4,6 +4,7 @@
 // written over it, and the lines a reading of them gives, under the pages' lock
 #ifndef PAGES_INTERNAL_H
 #define PAGES_INTERNAL_H
+#include "../command_line/pool.h"
 #include "embed_dispatch_layout.h"
 #include "pages.h"
 
@@ -48,13 +49,14 @@ typedef struct CliPagesOneCtx CliPagesOneCtx;
 #define CLI_PAGE_STILL 100ull
 
 // The index of a file's lines as far as it has been read: the byte a line starts at, recorded CLI_PAGE_STEP lines or
-// CLI_PAGE_SPAN bytes after the one recorded before, whichever comes first, and the line each is, in order, each a cell
-// of `starts_max` sized to the file and no more than CLI_PAGE_STARTS; how many lines there are, whether it is whole,
+// CLI_PAGE_SPAN bytes after the one recorded before, whichever comes first, and the line each is, in order, each a
+// movable cell of `starts_max` sized to the file and no more than CLI_PAGE_STARTS; how many lines there are, whether it
+// is whole,
 // whether its reading is going on or is to stop, and the file it reads
 typedef struct
 {
-    unsigned long long *start;
-    unsigned long long *line;
+    const CarcerMovableEntry *start;
+    const CarcerMovableEntry *line;
     unsigned long long starts_max;
     unsigned long long starts;
     unsigned long long lines;
@@ -80,10 +82,14 @@ typedef struct
 // A paged text, a cell of its own, taken as it is opened and given back once it is let go and its index has stopped,
 // as many stored as the cells meet: the next stored, its key, its file and the shadow beside it the lines written over
 // it are put after, the shadow's bytes, the file's size and the end of line its first line ends with, its index, its
-// pieces, a cell of CLI_PAGE_PIECES, and the view the page reported last: whether it has reported one, the line at its
-// top and the millisecond it was reported
+// pieces in a movable cell sized to them, no more than CLI_PAGE_PIECES, and the view the page reported last: whether
+// it has reported one, the line at its top and the millisecond it was reported
+// the most paged texts open at once
+#define CLI_PAGED_MOST 64u
+
 typedef struct CliPaged
 {
+    int reserved;
     struct CliPaged *next;
     char key[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
@@ -92,7 +98,7 @@ typedef struct CliPaged
     unsigned long long size;
     const char *eol;
     CliPageIndex index;
-    CliPagePiece *piece;
+    const CarcerMovableEntry *piece;
     unsigned int pieces;
     int viewed;
     unsigned long long view_top;

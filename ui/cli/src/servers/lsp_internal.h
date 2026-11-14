@@ -9,6 +9,9 @@
 #include "embed_dispatch_layout.h"
 #include "lsp.h"
 
+// the places for servers' records, as many as the servers run at once
+#define CLI_LSP_PLACES 16u
+
 typedef struct CliLspCtx CliLspCtx;
 typedef struct CliLspTypeCtx CliLspTypeCtx;
 
@@ -25,8 +28,8 @@ typedef struct
 
 // A server: whether its place is taken and how many reference it; its words, settings and process, whether it ended;
 // the lock its input is written under, and the writer of its input; under its lock, the next id, the requests waiting,
-// what it wrote to its errors, and its readers still reading, woken by its wake; what it reported it can do, in a cell
-// of its size given back with the server; its receiver; and its readers
+// what it wrote to its errors, and its readers still reading, woken by its wake; what it reported it can do, in a
+// movable cell of its size given back with the server, and its bytes; its receiver; and its readers
 struct CliLsp
 {
     int reserved;
@@ -43,7 +46,7 @@ struct CliLsp
     char complaint[CLI_LSP_COMPLAINT * 2u];
     unsigned long long complaint_size;
     unsigned int read_state;
-    char *capabilities;
+    const CarcerMovableEntry *capabilities;
     unsigned long long capabilities_size;
     CliLspRecvFn recv;
     void *context;

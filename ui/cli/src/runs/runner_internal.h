@@ -12,16 +12,14 @@ typedef struct CliRunnerRunStreamCtx CliRunnerRunStreamCtx;
 typedef struct CliRunnerRunSpawnedCtx CliRunnerRunSpawnedCtx;
 typedef struct CliRunnerCtx CliRunnerCtx;
 
-// the most runs open at once, and the most steps a run's job takes
-#define CLI_RUNS_MAX 16u
-
+// the most steps a run's job takes
 #define CLI_RUN_STEPS 256u
 
-// A run: its number, sink and tree; its job, stored in a catalog of its own whose lists are one cell sized to the job,
-// and the values it runs with, in the same cell; its thread; whether it has ended and whether a reader stopped it; the
-// process of its step still running and the job it heads; the lines its steps wrote, a cell of the run's; when it
-// began, and when the step running began and wrote its first line. The cells are taken as the run starts and given back
-// as it ends
+// A run: its number, sink and tree; its job, its catalog's counts kept on the run and its lists and the values it runs
+// with laid in one movable cell sized to the job, each part at its place from the cell's start, read into a cell of the
+// call that reads them; its thread; whether it has ended and whether a reader stopped it; the process of its step still
+// running and the job it heads; the lines its steps wrote, which stand fixed outside the pool; when it began, and when
+// the step running began and wrote its first line. The job's cell is taken as the run starts and given back as it ends
 typedef struct
 {
     int used;
@@ -29,22 +27,42 @@ typedef struct
     CliRunSink sink;
     char root[CLI_PATH_MAX_LEN];
     CliCatalog catalog;
-    void *job_cell;
-    CliValues *values;
+    const CarcerMovableEntry *job_cell;
+    unsigned long long job_bytes;
+    unsigned long long values_at;
+    unsigned long long job_at;
+    unsigned long long param_at;
+    unsigned long long step_at;
+    unsigned long long arg_at;
+    unsigned long long list_at;
+    unsigned long long text_at;
     CliThread thread;
     int ended;
     int stopped;
     unsigned long long process;
     unsigned long long group;
-    CliLines *lines;
+    CliRunLines *lines;
     unsigned long long began;
     double first;
     int has_first;
 } CliRun;
 
+// A run's job and values read into a cell of the call's own: the cell, the catalog with its lists pointed into it, and
+// the values
+typedef struct
+{
+    unsigned char *cell;
+    CliCatalog catalog;
+    CliValues *values;
+} CliRunPinned;
+
 // the run's job copied from `catalog` into a cell sized to it, and a cell taken for its lines: 1, or 0 with why given
 // and neither taken; and both given back (runner_start.c)
 int cli_run_cells_alloc(const CliRunnerRunCtx *args);
+// the run's job and values read out of its cell into `pinned`, a cell of this call: 1, or 0 where the cell cannot be
+// taken; and `pinned` given back (runner_start.c)
+int cli_run_pinned(const CliRunnerRunCtx *args);
+void cli_run_unpinned(const CliRunnerRunCtx *args);
 
 // the lock every run's state is read and changed under
 // the milliseconds since a run began, to the microsecond (runner_run.c)
@@ -71,13 +89,14 @@ struct CliRunnerRunCtx
     const CliCatalog *catalog;
     unsigned int job;
     VerbaLinea *err_msg;
+    CliRunPinned *pinned;
 };
 
 struct CliRunnerRootCtx
 {
     const char *root;
     const char *view_out;
-    const CliLines *lines;
+    const CliRunLines *lines;
     char (*views)[CLI_PATH_MAX_LEN];
 };
 
@@ -102,10 +121,14 @@ struct CliRunnerCtx
 typedef struct
 {
     int (*run_cells_alloc)(const CliRunnerRunCtx *args);
+    int (*run_pinned)(const CliRunnerRunCtx *args);
+    void (*run_unpinned)(const CliRunnerRunCtx *args);
 } CliRunnerRunNs;
-EMBED_TABLE_LAYOUT(CliRunnerRunNs, run_cells_alloc);
+EMBED_TABLE_LAYOUT(CliRunnerRunNs, run_cells_alloc, run_pinned, run_unpinned);
 EMBED_TABLE_STORAGE CliRunnerRunNs cli_runner_run_internal EMBED_UNUSED = {
     .run_cells_alloc = cli_run_cells_alloc,
+    .run_pinned = cli_run_pinned,
+    .run_unpinned = cli_run_unpinned,
 };
 
 typedef struct

@@ -14,6 +14,7 @@ extern void test_a_folder_contains_itself_and_what_is_under_it(void);
 extern void test_a_folder_does_not_contain_a_sibling_sharing_its_prefix(void);
 extern void test_the_code_a_tree_runs_is_found_and_released(void);
 extern void test_a_tree_with_no_answer_has_none(void);
+extern void test_an_answer_set_is_read_back_and_the_last_answer_stands(void);
 extern void test_git_in_an_untrusted_tree_runs_no_hook(void);
 
 
@@ -83,7 +84,8 @@ int main(void)
   run_test(test_a_folder_does_not_contain_a_sibling_sharing_its_prefix, "test_a_folder_does_not_contain_a_sibling_sharing_its_prefix", 66);
   run_test(test_the_code_a_tree_runs_is_found_and_released, "test_the_code_a_tree_runs_is_found_and_released", 71);
   run_test(test_a_tree_with_no_answer_has_none, "test_a_tree_with_no_answer_has_none", 87);
-  run_test(test_git_in_an_untrusted_tree_runs_no_hook, "test_git_in_an_untrusted_tree_runs_no_hook", 92);
+  run_test(test_an_answer_set_is_read_back_and_the_last_answer_stands, "test_an_answer_set_is_read_back_and_the_last_answer_stands", 92);
+  run_test(test_git_in_an_untrusted_tree_runs_no_hook, "test_git_in_an_untrusted_tree_runs_no_hook", 108);
 
   return UNITY_END();
 }

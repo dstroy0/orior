@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dap_internal.h: what the debug adapter sources share: the adapters open, each with its process or connection, its
-// readers and the requests waiting on answers, and the queues an adapter in orior_cli is connected to through
+// readers and the requests waiting on answers, and the queues an adapter in impero is connected to through
 #ifndef DAP_INTERNAL_H
 #define DAP_INTERNAL_H
 #include "../servers/lsp.h"
@@ -9,11 +9,19 @@
 #include "../toolchains/toolchains.h"
 #include "dap.h"
 #include "embed_dispatch_layout.h"
+#include "embed_ticket_ring.h"
 
 typedef struct CliDapCtx CliDapCtx;
 
 // the most bytes of what an adapter writes to its errors that are retained
 #define CLI_DAP_COMPLAINT 4096u
+
+// the adapter in orior's two queues, the slots of each one's ring as a two's power, the messages in flight at the
+// most, and the bytes the slots take, the adapter's part of the rings block
+#define CLI_DAP_QUEUES 2u
+#define CLI_DAP_RING_SHIFT 8u
+#define CLI_DAP_RING_SLOTS (1u << CLI_DAP_RING_SHIFT)
+#define CLI_DAP_RING_BYTES ((unsigned long long)CLI_DAP_QUEUES * CLI_DAP_RING_SLOTS * sizeof(EmbedTicketRingSlot))
 
 // what an adapter is: a program started for the session, one listening at an address, or one in orior
 #define CLI_DAP_PROGRAM 0u
@@ -67,10 +75,10 @@ extern CliDap g_cli_daps[CLI_DAPS_MAX];
 // received and each request of its refused, and, for a program, what it writes to its errors retained (dap.c)
 CliDap *cli_dap_position_alloc(void);
 void cli_dap_readers_start(const CliDapCtx *args);
-// the adapter ended: its connection ended, its process ended and waited on, an adapter in orior_cli notified no more
+// the adapter ended: its connection ended, its process ended and waited on, an adapter in impero notified no more
 // comes
 void cli_dap_end(const CliDapCtx *args);
-// what an adapter in orior_cli is connected to through let go, as it is (dap_within.c)
+// what an adapter in impero is connected to through let go, as it is (dap_within.c)
 void cli_dap_within_let_go(const CliDapCtx *args);
 
 struct CliDapCtx

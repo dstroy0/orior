@@ -9,7 +9,7 @@
 // names what no form alone contains (the lane's opening and close, its states, its memory) is not measured, and costs
 // what the lane's schedule model gives a form it does not name. The set is written as a krep KCS file and read back
 // whole, and the file is removed where the two differ.
-#include "../includes/file_defs/krep/krep.h"
+#include "../../../includes/file_defs/krep/krep.h"
 #include "crc.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"

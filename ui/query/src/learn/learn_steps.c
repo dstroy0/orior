@@ -354,7 +354,7 @@ EMBED_INLINE int query_offline_checked(const LearnStepsCtx *args)
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = line);
     }
     EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context,
-               .text = "  cross-check them: orior_cli protocol cross [--base <cu>]");
+               .text = "  cross-check them: imp protocol cross [--base <cu>]");
     return 1;
 }
 

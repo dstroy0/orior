@@ -4,7 +4,7 @@
 #ifndef MAX_TREE_INTERNAL_H
 #define MAX_TREE_INTERNAL_H
 
-#include "../../../includes/types/integers/exact_integer.h"
+#include "../../../../../includes/exact_types/integers/exact_integer.h"
 #include "max_tree.h"
 
 #include <stdio.h>

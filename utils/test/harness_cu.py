@@ -1,8 +1,9 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""harness.py cu: every .cu under src/cu given a thin wrapper, and nvcc building the wrappers through CMake.
+"""harness.py cu: every .cu under src/cu and includes given a thin wrapper, and nvcc building the wrappers through CMake.
 
-    harness.py cu wrappers          each source's wrapper written under utils/test/src/cu/unit, a wrapper whose source is gone removed
+    harness.py cu wrappers          each source's wrapper written under utils/test/src/cu/unit or utils/test/includes/unit, a wrapper
+                                    whose source is gone removed
     harness.py cu build [name...]   nvcc builds the wrappers into build/cu_unit, every one where none is named, each by its source's name
     harness.py cu test [name...]    the Unity suites of the .cu sources generated, built by nvcc and run, every one where none is named
 
@@ -25,9 +26,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness_unity  # noqa: E402
 
 ROOT = findroot.root()
-SOURCES = os.path.join(ROOT, "src", "cu")
-SUITES = os.path.join("utils", "test", "src", "cu", "unit")
-WRAPPERS = os.path.join(ROOT, SUITES)
+# each tree of .cu sources beside the folder its wrappers and suites stand in, both from the top of the tree; the first
+# folder holds the CMake lists that build every wrapper and suite
+TREES = (("src/cu", "utils/test/src/cu/unit"), ("includes", "utils/test/includes/unit"))
+SUITES = tuple(suites for _, suites in TREES)
+WRAPPERS = os.path.join(ROOT, TREES[0][1])
 BUILD = os.path.join(ROOT, "build", "cu_unit")
 SUFFIX = "_wrap.cu"
 HEAD = "// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>\n// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n"
@@ -35,22 +38,25 @@ PROGRAM_ENTRY = re.compile(r"^\s*int\s+main\s*\(", re.M)
 
 
 def sources():
-    """Every .cu under src/cu but MMgr's and embedded_types', which have their own suites, each by its path from src/cu with forward
-    slashes, sorted."""
+    """Every .cu under each tree but MMgr's and embedded_types', which have their own suites, each by its path from the top of
+    the tree with forward slashes, sorted."""
     found = []
-    for top, directories, files in os.walk(SOURCES):
-        if os.path.normpath(top) == os.path.join(SOURCES, "includes"):
-            directories[:] = [name for name in directories if name not in ("mmgr", "embedded_types")]
-        found += [os.path.relpath(os.path.join(top, name), SOURCES).replace("\\", "/") for name in files if name.endswith(".cu")]
+    for tree, _ in TREES:
+        folder = os.path.join(ROOT, *tree.split("/"))
+        for top, directories, files in os.walk(folder):
+            if os.path.normpath(top) == os.path.normpath(folder):
+                directories[:] = [name for name in directories if name not in ("mmgr", "embedded_types")]
+            found += [os.path.relpath(os.path.join(top, name), ROOT).replace("\\", "/") for name in files if name.endswith(".cu")]
     return sorted(found)
 
 
 def wrapper_text(relative):
-    """The wrapper of the source at `relative`, its `main` renamed where it has one."""
+    """The wrapper of the source at `relative`, its `main` renamed where it has one; the include names the source from the top of
+    the tree, which every wrapper's build has on its include path."""
     name = os.path.basename(relative)[: -len(".cu")]
-    with open(os.path.join(SOURCES, relative), encoding="utf-8", errors="replace") as source:
+    with open(os.path.join(ROOT, relative), encoding="utf-8", errors="replace") as source:
         has_entry = PROGRAM_ENTRY.search(source.read()) is not None
-    lines = [HEAD + "// %s%s: src/cu/%s as a translation unit a Unity suite includes, every function of the source in reach of the suite\n" % (name, SUFFIX, relative)]
+    lines = [HEAD + "// %s%s: %s as a translation unit a Unity suite includes, every function of the source in reach of the suite\n" % (name, SUFFIX, relative)]
     if has_entry:
         lines.append("#define main %s_main\n" % name)
     lines.append('#include "%s"\n' % relative)
@@ -60,8 +66,10 @@ def wrapper_text(relative):
 
 
 def wrapper_path(relative):
-    """Where the wrapper of the source at `relative` lies."""
-    return os.path.join(WRAPPERS, *relative[: -len(".cu")].split("/")[:-1], os.path.basename(relative)[: -len(".cu")] + SUFFIX)
+    """Where the wrapper of the source at `relative` lies: under its tree's suites folder, at the source's path within the tree."""
+    tree, suites = next((tree, suites) for tree, suites in TREES if relative.startswith(tree + "/"))
+    within = relative[len(tree) + 1 : -len(".cu")]
+    return os.path.join(ROOT, suites, *within.split("/")[:-1], os.path.basename(relative)[: -len(".cu")] + SUFFIX)
 
 
 def cmd_cu_wrappers(a):
@@ -80,12 +88,13 @@ def cmd_cu_wrappers(a):
                 out.write(text)
             written += 1
     removed = 0
-    for top, _, files in os.walk(WRAPPERS):
-        for name in files:
-            path = os.path.normpath(os.path.join(top, name))
-            if name.endswith(SUFFIX) and path not in wanted:
-                os.remove(path)
-                removed += 1
+    for suites in SUITES:
+        for top, _, files in os.walk(os.path.join(ROOT, suites)):
+            for name in files:
+                path = os.path.normpath(os.path.join(top, name))
+                if name.endswith(SUFFIX) and path not in wanted:
+                    os.remove(path)
+                    removed += 1
     print("cu wrappers: %d sources, %d written, %d removed" % (len(wanted), written, removed))
     return 0
 
@@ -166,9 +175,9 @@ def cmd_cu_test(a):
 
 def register(sub):
     """The cu group's commands added to harness.py's subparsers."""
-    group = sub.add_parser("cu", help="every .cu under src/cu given a thin wrapper, and nvcc building the wrappers through CMake")
+    group = sub.add_parser("cu", help="every .cu under src/cu and includes given a thin wrapper, and nvcc building the wrappers through CMake")
     cu = group.add_subparsers(dest="command", required=True)
-    p = cu.add_parser("wrappers", help="each source's wrapper written under utils/test/src/cu/unit, a wrapper whose source is gone removed")
+    p = cu.add_parser("wrappers", help="each source's wrapper written under utils/test/src/cu/unit or utils/test/includes/unit, a wrapper whose source is gone removed")
     p.set_defaults(fn=cmd_cu_wrappers)
     p = cu.add_parser("build", help="nvcc builds the wrappers through CMake into build/cu_unit, every one where none is named")
     p.add_argument("names", nargs="*", help="source names without .cu, such as division")

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// net.h: each address orior_cli reaches over the network, requested here first (net.c). orior_cli reaches one only for
+// net.h: each address impero reaches over the network, requested here first (net.c). impero reaches one only for
 // what the reader requested of it: a request sent, a database connected, a repository pulled or pushed, a machine
 // linked or deployed to, settings carried, and an error report the reader let file on its own. The setting `network`,
 // `off`, blocks orior from the network entirely: each reach is refused, stating what it was for. Each address reached
@@ -17,7 +17,7 @@ typedef struct CliNetMaxCfg CliNetMaxCfg;
 typedef struct CliNetCfg CliNetCfg;
 typedef struct CliNetHostCfg CliNetHostCfg;
 
-// orior_cli blocked from the network, or let on, as the window's setting specifies; and whether it is blocked: as the
+// impero blocked from the network, or let on, as the window's setting specifies; and whether it is blocked: as the
 // window set it, or as settings.json specifies where it has not
 void cli_net_disable(const CliNetCfg *args);
 int cli_net_is_disable(void);
@@ -28,8 +28,8 @@ void cli_net_host_get(const CliNetAddressHostCfg *args);
 int cli_net_local(const CliNetHostCfg *args);
 // whether `address` is a folder or a file of this machine's, as a repository's remote may be
 int cli_net_path(const CliNetAddressCfg *args);
-// `address` requested to be reached for `purpose`: 1 where it may be, logged where orior_cli is let on; 0 with why
-// given where orior_cli is blocked. This machine's own addresses and paths are let on and not logged
+// `address` requested to be reached for `purpose`: 1 where it may be, logged where impero is let on; 0 with why
+// given where impero is blocked. This machine's own addresses and paths are let on and not logged
 int cli_net_reach(const CliNetAddressCfg *args);
 struct CliNetAddressCfg
 {

@@ -22,7 +22,7 @@ typedef struct
 } CliStateWriting;
 
 // a piece added to the file the answers are written in, the first made anew: 1, or 0 where it could not be
-static int history_append(void *context, const char *bytes, size_t size)
+static int history_append(void *context, const char *bytes, embed_word size)
 {
     CliStateWriting *const writing = context;
     const int put = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = writing->path,
@@ -141,7 +141,7 @@ EMBED_INLINE int history_read(const RequestsHistoryCtx *args)
                              !EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
                                          .text = (const char *)*bytes, .size = *size, .out = &none)))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)(*bytes), (g_cli_requests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)(*bytes), (g_cli_requests_owner));
         *bytes = NULL;
     }
     *first = at + 1u;
@@ -218,7 +218,7 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
     }
     if (before)
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
     }
     mmgr_line_ch(&piece, ']');
     done = done && mmgr_line_flush(&piece) &&
@@ -248,7 +248,7 @@ int cli_requests_answers(const CliRequestsTextCfg *args)
     if (!mmgr_line_ok(&key_line) || !EMBED_CALL(history_file, RequestsHistoryCtx, .folder_read = folder, .key = key,
                                                 .key_size = key_line.at, .file = file, .writing = writing))
     {
-        mmgr_line_put(args->err_msg, "the request is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the request is larger than impero supports");
         return 0;
     }
     mmgr_line_put(args->out, "{\"key\":");
@@ -263,7 +263,7 @@ int cli_requests_answers(const CliRequestsTextCfg *args)
     {
         (void)EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = (const char *)bytes,
                          .size = byte_count, .out = args->out);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
     }
     else
     {

@@ -38,7 +38,7 @@ typedef struct
 // 1 where `path` is `base` or stands under it
 EMBED_INLINE int values_under(const RequestsValuesCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
     return EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->path, .other_pointer = args->base,
                       .size = length) &&
            ((args->path[length] == '\0') || (args->path[length] == '/') || (args->path[length] == '\\'));
@@ -87,7 +87,7 @@ EMBED_INLINE unsigned int values_read(const RequestsValuesCtx *args)
     if ((bytes == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
         mmgr_line_put(err_msg, args->file);
         mmgr_line_put(err_msg, ": it could not be read");
         return CLI_JSON_NONE;
@@ -100,7 +100,7 @@ EMBED_INLINE unsigned int values_read(const RequestsValuesCtx *args)
     const unsigned int object = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                            .json = &s_json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                            .text_more = 0ULL, .err_msg = &read_err_msg, .owner = g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
     if (object == CLI_JSON_NONE)
     {
         mmgr_line_put(err_msg, args->file);
@@ -125,7 +125,7 @@ int cli_requests_value_append(const CliRequestsNameCtx *args)
            ((args->values->name[at].size != args->name_size) ||
             (memor.cmp(&(MemoriaCfg){.src = args->values->text + args->values->name[at].at,
                                      .other = args->name,
-                                     .bytes = (size_t)args->name_size}) != 0)))
+                                     .bytes = (embed_word)args->name_size}) != 0)))
     {
         at += 1u;
     }
@@ -133,7 +133,8 @@ int cli_requests_value_append(const CliRequestsNameCtx *args)
         args->value_size + 1u + ((at == args->values->count) ? (args->name_size + 1u) : 0u);
     if (args->values->text == NULL)
     {
-        args->values->text = g_cli_guard->persistent_buf_alloc(CLI_REQUESTS_TEXT, g_cli_requests_owner);
+        // the pool is the call's own, taken once at its most
+        args->values->text = g_cli_guard->temporary_buf_alloc(CLI_REQUESTS_TEXT, g_cli_requests_owner);
         args->values->capacity = (args->values->text != NULL) ? CLI_REQUESTS_TEXT : 0ULL;
     }
     if ((args->values->text == NULL) || (args->values->used + needed > args->values->capacity) ||
@@ -146,7 +147,7 @@ int cli_requests_value_append(const CliRequestsNameCtx *args)
         args->values->name[at].at = args->values->used;
         args->values->name[at].size = args->name_size;
         memor.cpy(&(MemoriaCfg){
-            .dst = args->values->text + args->values->used, .src = args->name, .bytes = (size_t)args->name_size});
+            .dst = args->values->text + args->values->used, .src = args->name, .bytes = (embed_word)args->name_size});
         args->values->text[args->values->used + args->name_size] = '\0';
         args->values->used += args->name_size + 1u;
         args->values->count += 1u;
@@ -154,7 +155,7 @@ int cli_requests_value_append(const CliRequestsNameCtx *args)
     args->values->value[at].at = args->values->used;
     args->values->value[at].size = args->value_size;
     memor.cpy(&(MemoriaCfg){
-        .dst = args->values->text + args->values->used, .src = args->value, .bytes = (size_t)args->value_size});
+        .dst = args->values->text + args->values->used, .src = args->value, .bytes = (embed_word)args->value_size});
     args->values->text[args->values->used + args->value_size] = '\0';
     args->values->used += args->value_size + 1u;
     return 1;
@@ -167,7 +168,7 @@ const CliRequestsText *cli_requests_value(const CliRequestsSizeNameCtx *args)
         if ((args->values_read->name[at].size == args->size) &&
             (memor.cmp(&(MemoriaCfg){.src = args->values_read->text + args->values_read->name[at].at,
                                      .other = args->name,
-                                     .bytes = (size_t)args->size}) == 0))
+                                     .bytes = (embed_word)args->size}) == 0))
         {
             return &args->values_read->value[at];
         }
@@ -178,7 +179,7 @@ const CliRequestsText *cli_requests_value(const CliRequestsSizeNameCtx *args)
 // the reason the values of an environment did not fit
 EMBED_INLINE void values_full_err(const RequestsValuesCtx *args)
 {
-    mmgr_line_put(args->err_msg, "the values of the environment are larger than orior_cli supports");
+    mmgr_line_put(args->err_msg, "the values of the environment are larger than impero supports");
 }
 
 // the names of the environments of the file at `path` put in s_names, the lock acquired, and the tree's paths of the
@@ -287,20 +288,20 @@ EMBED_INLINE int values_member_append(const RequestsValuesCtx *args)
                           .name_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}), .value = text,
                           .value_size = length);
     }
-    char *const written_cell = g_cli_guard->temporary_buf_alloc(CLI_REQUESTS_OBJECT_CAPACITY, g_cli_requests_owner);
-    VerbaLinea written = mmgr_line_over(written_cell, CLI_REQUESTS_OBJECT_CAPACITY);
-    if (written.out == NULL)
+    CliGrownLine written;
+    cli_grown_begin(&written, CLI_REQUESTS_OBJECT_CAPACITY, g_cli_requests_owner);
+    if (written.cell == NULL)
     {
         return 0;
     }
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &s_json, .node = args->member,
-               .out = &written, .indent = 0u, .sorted = 0);
+               .out = &written.line, .indent = 0u, .sorted = 0);
     const int put =
-        mmgr_line_ok(&written) &&
+        mmgr_line_ok(&written.line) &&
         EMBED_CALL(cli_requests_name_internal.value_append, CliRequestsNameCtx, .values = values, .name = key,
-                   .name_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}), .value = written.out,
-                   .value_size = written.at);
-    g_cli_guard->persistent_buf_release(written.out, g_cli_requests_owner);
+                   .name_size = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}),
+                   .value = written.cell, .value_size = cli_grown_size(&written));
+    cli_grown_end(&written);
     return put;
 }
 
@@ -409,13 +410,14 @@ EMBED_INLINE int values_ignore(const RequestsValuesCtx *args)
         static const char *const names[3] = {CLI_REQUESTS_PRIVATE, "/" CLI_REQUESTS_PRIVATE, "*.private.env.json"};
         for (unsigned int name = 0u; name < 3u; name += 1u)
         {
-            named = named ||
-                    ((cellul.len(&(CatenaFinitaCfg){.src = names[name], .cap = CLI_POOL_BYTES}) == end - start) &&
-                     (memor.cmp(&(MemoriaCfg){
-                          .src = list_entries + start, .other = names[name], .bytes = (size_t)(end - start)}) == 0));
+            named =
+                named ||
+                ((cellul.len(&(CatenaFinitaCfg){.src = names[name], .cap = CLI_POOL_BYTES}) == end - start) &&
+                 (memor.cmp(&(MemoriaCfg){
+                      .src = list_entries + start, .other = names[name], .bytes = (embed_word)(end - start)}) == 0));
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_requests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
     return named;
 }
 
@@ -423,29 +425,30 @@ EMBED_INLINE int values_ignore(const RequestsValuesCtx *args)
 // where none is, as serde_json's pretty writer lays the object out: 1, or 0 where it could not be written
 EMBED_INLINE int values_private_write(const RequestsValuesCtx *args)
 {
-    char *const object_cell = g_cli_guard->temporary_buf_alloc(CLI_REQUESTS_OBJECT_CAPACITY, g_cli_requests_owner);
-    VerbaLinea object = mmgr_line_over(object_cell, CLI_REQUESTS_OBJECT_CAPACITY);
-    if (object.out == NULL)
+    CliGrownLine object_grown;
+    cli_grown_begin(&object_grown, CLI_REQUESTS_OBJECT_CAPACITY, g_cli_requests_owner);
+    VerbaLinea *const object_line = &object_grown.line;
+    if (object_grown.cell == NULL)
     {
         return 0;
     }
-    mmgr_line_ch(&object, '{');
+    mmgr_line_ch(object_line, '{');
     for (unsigned int at = 0u; at < s_names.count; at += 1u)
     {
-        mmgr_line_put(&object, (at > 0u) ? ",\n  " : "\n  ");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &object,
+        mmgr_line_put(object_line, (at > 0u) ? ",\n  " : "\n  ");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = object_line,
                    .text = s_names.text + s_names.name[at].at, .length = s_names.name[at].size);
-        mmgr_line_put(&object, ": {}");
+        mmgr_line_put(object_line, ": {}");
     }
     if (s_names.count == 0u)
     {
-        mmgr_line_put(&object, "\n  \"dev\": {}");
+        mmgr_line_put(object_line, "\n  \"dev\": {}");
     }
-    mmgr_line_put(&object, "\n}\n");
-    const int written =
-        mmgr_line_ok(&object) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
-                                            .path = args->file, .bytes = object.out, .size = object.at);
-    g_cli_guard->persistent_buf_release(object.out, g_cli_requests_owner);
+    mmgr_line_put(object_line, "\n}\n");
+    const int written = mmgr_line_ok(object_line) &&
+                        EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = args->file,
+                                   .bytes = object_grown.cell, .size = cli_grown_size(&object_grown));
+    cli_grown_end(&object_grown);
     return written;
 }
 

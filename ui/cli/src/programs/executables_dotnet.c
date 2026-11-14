@@ -294,8 +294,8 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
         ((options != CLI_JSON_NONE) &&
          (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = options,
                      .name = "includedFrameworks") == CLI_JSON_NONE))
-            ? g_cli_guard->persistent_buf_alloc((unsigned long long)CLI_DOTNET_POSITIONS * CLI_PATH_MAX_LEN,
-                                                g_cli_executables_owner)
+            ? g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_DOTNET_POSITIONS * CLI_PATH_MAX_LEN,
+                                               g_cli_executables_owner)
             : NULL;
     if (positions == NULL)
     {

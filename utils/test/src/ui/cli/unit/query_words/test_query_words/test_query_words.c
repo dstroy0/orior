@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_query_words.c: the words of `orior_cli protocol`: the list names every loop once; leave is read off the words; a loop missing a program reports
+// test_query_words.c: the words of `imp protocol`: the list names every loop once; leave is read off the words; a loop missing a program reports
 // it and starts no run; an unknown command is refused with the list; the table's whole names are those with every type; the steps run the protocol in
 // order; the base is the one word the cross accepts; the readings of a table are distinguished from a pull; the version and the architectures are read
 // off nvcc; the query's words are read and a file not there is reported; and the writers read their words

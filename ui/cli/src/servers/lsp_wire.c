@@ -51,6 +51,29 @@ EMBED_INLINE unsigned long long wire_piece_end(const LspWireCtx *args)
 EMBED_INLINE unsigned long long wire_part(const LspWireCtx *args)
 {
     int *failed = args->failed;
+    if (args->part->cell != NULL)
+    {
+        // a part in a movable cell goes on the wire a window at a time, read out of the cell as it goes, a letter
+        // never cut between windows
+        char window[CLI_LSP_PIECE + 4u];
+        unsigned long long count = 0ULL;
+        unsigned long long at = 0ULL;
+        while (at < args->part->size)
+        {
+            const unsigned long long left = args->part->size - at;
+            const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->part->cell,
+                                                                    .offset = (embed_word)(args->part->offset + at),
+                                                                    .dst = window,
+                                                                    .bytes = (embed_word)bytes});
+            const unsigned long long end =
+                EMBED_CALL(wire_piece_end, LspWireCtx, .text = window, .size = bytes, .at = 0ULL);
+            const CliLspPart piece = {window, end, args->part->quoted, NULL, 0ULL};
+            count += EMBED_CALL(wire_part, LspWireCtx, .writer = args->writer, .part = &piece, .failed = failed);
+            at += end;
+        }
+        return count;
+    }
     if (!args->part->quoted)
     {
         *failed = *failed || ((args->writer != NULL) &&
@@ -385,8 +408,8 @@ void cli_lsp_uri_get(const CliLspCapacityPathCfg *args)
         const unsigned long long stop =
             EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->path, .at = at,
                        .size = integer, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "-._~/:\\");
-        const size_t from = out.at;
-        const size_t reserved = mmgr_line_put_n(&out, args->path + at, (size_t)(stop - at));
+        const embed_word from = out.at;
+        const embed_word reserved = mmgr_line_put_n(&out, args->path + at, (embed_word)(stop - at));
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = out.out + from, .size = reserved,
                    .from = '\\', .to = '/');
         if (stop < integer)

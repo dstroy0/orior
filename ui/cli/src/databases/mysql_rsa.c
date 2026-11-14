@@ -59,7 +59,7 @@ int cli_big_from_be(const CliMysqlCtx *args)
 // a number as `length` bytes, big-endian, into `out`
 void cli_big_to_be(const CliMysqlBigOutCtx *args)
 {
-    memor.set(&(MemoriaCfg){.dst = args->out, .val = 0, .bytes = (size_t)args->length});
+    memor.set(&(MemoriaCfg){.dst = args->out, .val = 0, .bytes = (embed_word)args->length});
     for (unsigned int index = 0u; index < args->big->count; index += 1u)
     {
         for (unsigned int shift = 0u; shift < 4u; shift += 1u)
@@ -365,7 +365,7 @@ void cli_mysql_mgf1(const CliMysqlSizeOutCtx *args)
 {
     unsigned char input[CLI_RSA_BYTES + 4u];
     unsigned char digest[20];
-    memor.cpy(&(MemoriaCfg){.dst = input, .src = args->seed, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = input, .src = args->seed, .bytes = (embed_word)args->size});
     for (unsigned int counter = 0u; ((unsigned long long)counter * 20ULL) < args->length; counter += 1u)
     {
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)
@@ -376,7 +376,7 @@ void cli_mysql_mgf1(const CliMysqlSizeOutCtx *args)
                    .digest = digest);
         const unsigned long long at = (unsigned long long)counter * 20ULL;
         const unsigned long long piece = ((args->length - at) < 20u) ? (args->length - at) : 20ULL;
-        memor.cpy(&(MemoriaCfg){.dst = args->out + at, .src = digest, .bytes = (size_t)piece});
+        memor.cpy(&(MemoriaCfg){.dst = args->out + at, .src = digest, .bytes = (embed_word)piece});
     }
 }
 
@@ -389,7 +389,8 @@ void cli_mysql_oaep(const CliMysqlSizeLengthCtx *args)
     memor.set(&(MemoriaCfg){.dst = block, .val = 0, .bytes = sizeof(block)});
     EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = "", .size = 0ULL, .digest = block);
     block[block_size - args->size - 1u] = 1u;
-    memor.cpy(&(MemoriaCfg){.dst = block + block_size - args->size, .src = args->message, .bytes = (size_t)args->size});
+    memor.cpy(
+        &(MemoriaCfg){.dst = block + block_size - args->size, .src = args->message, .bytes = (embed_word)args->size});
     EMBED_CALL(cli_mysql_size_out_internal.mgf1, CliMysqlSizeOutCtx, .seed = args->seed, .size = 20ULL,
                .out = mask_bits, .length = block_size);
     for (unsigned long long at = 0ULL; at < block_size; at += 1ULL)
@@ -441,7 +442,7 @@ int cli_mysql_rsa_seal(const CliMysqlSizeCtx *args)
     }
     if (!sealed)
     {
-        mmgr_line_put(args->err_msg, "the server's RSA key is longer than orior_cli takes");
+        mmgr_line_put(args->err_msg, "the server's RSA key is longer than impero takes");
     }
     return sealed;
 }

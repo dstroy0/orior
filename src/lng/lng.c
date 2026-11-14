@@ -3,8 +3,8 @@
 // lng.c: the three language tables read, and each checked against the tree and against the others (lng.h)
 #include "lng.h"
 
-#include "../cu/includes/file_defs/klang/klang.h"
-#include "../cu/includes/parsers/who.h"
+#include "../../includes/file_defs/klang/klang.h"
+#include "../../includes/parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
 
 #include <stdarg.h>

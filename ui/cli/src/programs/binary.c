@@ -161,7 +161,7 @@ int cli_pe_imports(const CliBinaryErrMsgCfg *args)
                                                 .size = size, .at = optional, .width = 2u);
     if ((magic != 0x20bu) && (magic != 0x10bu))
     {
-        mmgr_line_put(args->err_msg, "the file's optional header is of no kind orior_cli reads");
+        mmgr_line_put(args->err_msg, "the file's optional header is of no kind impero reads");
         return -1;
     }
     const unsigned long long directories = optional + ((magic == 0x20bu) ? 112ULL : 96ULL);
@@ -445,7 +445,7 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
                 queued += 1u;
                 at += 1;
             }
-            g_cli_guard->persistent_buf_release((void *)(uintptr_t)more, (g_cli_programs_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)more, (g_cli_programs_owner));
         }
         next += 1u;
     }
@@ -489,14 +489,14 @@ int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
                               (memor.cmp(&(MemoriaCfg){.src = bytes, .other = "\xca\xfe\xba\xbe", .bytes = 4u}) == 0)))
     {
         mmgr_line_put(err_msg,
-                      "orior_cli reads the libraries of Windows and Linux programs; a macOS program's are read with "
+                      "impero reads the libraries of Windows and Linux programs; a macOS program's are read with "
                       "otool -L");
     }
     else
     {
         mmgr_line_put(err_msg, path);
-        mmgr_line_put(err_msg, " is no program orior_cli reads");
+        mmgr_line_put(err_msg, " is no program impero reads");
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_programs_owner));
     return read;
 }

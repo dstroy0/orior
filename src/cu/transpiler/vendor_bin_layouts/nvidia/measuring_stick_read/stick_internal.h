@@ -6,7 +6,7 @@
 #ifndef STICK_INTERNAL_H
 #define STICK_INTERNAL_H
 
-#include "../../../../includes/file_defs/kfile_lines/kfile_lines.h"
+#include "../../../../../../includes/file_defs/kfile_lines/kfile_lines.h"
 
 #include <stdio.h>
 #include <stdlib.h>

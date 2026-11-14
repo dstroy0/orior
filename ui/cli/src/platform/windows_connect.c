@@ -12,8 +12,6 @@
 
 #include <windows.h>
 
-#include <stdint.h>
-
 unsigned long long cli_clock_microseconds(void)
 {
     LARGE_INTEGER frequency;

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// disasm_verify.h: `orior_cli run disasm-verify <module.c> [--function <name>]...`, the sound hardware and compiler
+// disasm_verify.h: `imp run disasm-verify <module.c> [--function <name>]...`, the sound hardware and compiler
 // analysis loop's verification of one C module of the tree: the tree's command line built with link-time optimization
 // through ui/cli/build.sh, the module's bitcode object lifted to IR with llvm-dis, the functions the IR defines listed,
 // their instructions in the linked program read with llvm-objdump and with Ghidra's headless analyzer running the

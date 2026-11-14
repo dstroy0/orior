@@ -190,8 +190,8 @@ static void main_dialog_open(const CliViewOrder *order)
     char error_text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     s_dialog = EMBED_CALL(gui_system_position_title.owner_open, GuiSystemPositionTitleCfg, .owner = owner,
-                          .place = &place, .title = "orior", .events = &s_events,
-                          .context = (void *)&s_dialog_surface, .err_msg = &why, .modal = 1);
+                          .place = &place, .title = "orior", .events = &s_events, .context = (void *)&s_dialog_surface,
+                          .err_msg = &why, .modal = 1);
     if (s_dialog == NULL)
     {
         const CliViewEvent refused = {.type = CLI_VIEW_EVENT_REFUSED, .surface = CLI_VIEW_DIALOG};

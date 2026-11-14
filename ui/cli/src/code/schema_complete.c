@@ -292,7 +292,7 @@ EMBED_INLINE void complete_key_reached(const SchemaCompleteCtx *args)
     char key[1u << 12u];
     const unsigned long long key_size =
         (step->to - step->from < sizeof(key)) ? step->to - step->from : sizeof(key) - 1u;
-    memor.cpy(&(MemoriaCfg){.dst = key, .src = args->text + step->from, .bytes = (size_t)key_size});
+    memor.cpy(&(MemoriaCfg){.dst = key, .src = args->text + step->from, .bytes = (embed_word)key_size});
     key[key_size] = '\0';
     int any = 0;
     const unsigned int named = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,

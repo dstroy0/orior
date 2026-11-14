@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter_specs.c: every kernel the machine has, each name once, in Jupyter's order: the specs in the folders Jupyter
-// stores its data in, then a kernel for each Python orior_cli finds that has no spec of its own
+// stores its data in, then a kernel for each Python impero finds that has no spec of its own
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
+#include "../text/sort.h"
 #include "../toolchains/toolchains.h"
 #include "jupyter_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 typedef struct
 {
@@ -247,7 +247,8 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
     s_listing.entry_count = 0u;
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = kernels,
                      .each = jupyter_entry, .context_bytess = NULL);
-    qsort(s_listing.entries, s_listing.entry_count, CLI_KERNEL_ENTRY, jupyter_entry_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_listing.entries, .count = s_listing.entry_count,
+               .size = CLI_KERNEL_ENTRY, .order = jupyter_entry_order);
     for (unsigned int entry = 0u; entry < s_listing.entry_count; entry += 1u)
     {
         const char *const name = s_listing.entries[entry];
@@ -282,7 +283,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
                 : CLI_JSON_NONE;
         const int read = (root != CLI_JSON_NONE) &&
                          EMBED_CALL(jupyter_spec_read, JupyterSpecsCtx, .root = root, .name = name, .folder = folder);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_notebook_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_notebook_owner));
         if (read && !jupyter_list(args))
         {
             return 0;
@@ -365,7 +366,7 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
 EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
 {
     s_listing.list_entries = 0u;
-    s_listing.names = g_cli_guard->persistent_buf_alloc(
+    s_listing.names = g_cli_guard->temporary_buf_alloc(
         (unsigned long long)CLI_KERNEL_LISTING * (CLI_KERNEL_ENTRY + CLI_PATH_MAX_LEN), g_cli_notebook_owner);
     if (s_listing.names == NULL)
     {

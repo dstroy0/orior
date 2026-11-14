@@ -29,8 +29,8 @@ typedef struct CliDeployIndexPathCtx CliDeployIndexPathCtx;
 typedef struct CliDeployOutSecondsCtx CliDeployOutSecondsCtx;
 typedef struct CliDeployCtx CliDeployCtx;
 
-// the bytes of each page of a pool, a text longer taking a page of its own
-#define CLI_DEPLOY_PAGE (64u << 10u)
+// the bytes a pool holds, fixed, outside the cellblock
+#define CLI_DEPLOY_POOL_BYTES (8u << 20u)
 
 // the most bytes of a shell line a deployment runs and of the listing of a machine's releases, and of the hashes of the
 // files a place has
@@ -51,7 +51,7 @@ typedef struct
     int in_position;
 } CliDeployment;
 
-// A place a deployment sends to: a machine orior_cli reaches, or a folder on this one, by its path
+// A place a deployment sends to: a machine impero reaches, or a folder on this one, by its path
 typedef struct
 {
     int here;
@@ -82,19 +82,12 @@ typedef struct CliDeployPairNodeStruct
     CliDeployPair pair;
 } CliDeployPairNode;
 
-// A page of a pool, a cell of its own: the page taken before it, its bytes and those used, and the bytes
-typedef struct CliDeployPageStruct
-{
-    struct CliDeployPageStruct *before;
-    unsigned long long size;
-    unsigned long long used;
-    char bytes[];
-} CliDeployPage;
-
-// A pool: its pages, taken as they are needed, the newest first, and whether one could not be taken
+// A pool: its bytes, fixed and standing with the pool outside the cellblock, so they punch no hole in the persistent
+// tier, those used, and whether a place did not fit
 typedef struct
 {
-    CliDeployPage *page;
+    char bytes[CLI_DEPLOY_POOL_BYTES];
+    unsigned long long used;
     int refused;
 } CliDeployPool;
 

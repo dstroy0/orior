@@ -44,7 +44,8 @@ EMBED_INLINE CliByteBuffer *cli_archive_buffers(const ArchivePathCtx *args)
 
 int cli_archive_lock(const CliArchiveErrMsgPartsCtx *args)
 {
-    g_cli_archive_levels = g_cli_guard->persistent_buf_alloc(sizeof(*g_cli_archive_levels), g_cli_editor_owner);
+    // the levels live from the lock to its unlock within one call: a cell of the temporary tier
+    g_cli_archive_levels = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_archive_levels), g_cli_editor_owner);
     if (g_cli_archive_levels == NULL)
     {
         mmgr_line_put(args->err_msg, "the archives a path runs through could not be taken");
@@ -78,10 +79,10 @@ int cli_archive_buffer_reserve(const CliArchiveErrMsgBufferCtx *args)
     if (args->need > CLI_ARCHIVE_MAX)
     {
         mmgr_line_put(args->err_msg, args->what);
-        mmgr_line_put(args->err_msg, " is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, " is larger than impero supports");
         return 0;
     }
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(args->need, g_cli_editor_owner);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(args->need, g_cli_editor_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, args->what);
@@ -301,22 +302,6 @@ EMBED_INLINE unsigned int cli_text_store(const ArchivePathCtx *args)
     return at;
 }
 
-// whether a text sorts before another, ASCII's case aside
-EMBED_INLINE int cli_before(const ArchivePathCtx *args)
-{
-    const char *one = args->one;
-    const char *other = args->other;
-    for (;; one += 1, other += 1)
-    {
-        const char left = ((one[0] >= 'A') && (one[0] <= 'Z')) ? (char)(one[0] + 32) : one[0];
-        const char right = ((other[0] >= 'A') && (other[0] <= 'Z')) ? (char)(other[0] + 32) : other[0];
-        if ((left != right) || (left == '\0'))
-        {
-            return (unsigned char)left < (unsigned char)right;
-        }
-    }
-}
-
 // the children of the folder the path's parts from `left` lead to within the archive at `descent`, its members read,
 // each path prefixed with `prefix`, folders first, then by name, case aside
 EMBED_INLINE void cli_children(const ArchivePathCtx *args)
@@ -407,10 +392,11 @@ EMBED_INLINE void cli_children(const ArchivePathCtx *args)
         while (place > 0u)
         {
             const CliChild *const before = &args->found->item[place - 1u];
-            const int first = (swap.dir && !before->dir) ||
-                              ((swap.dir == before->dir) &&
-                               EMBED_CALL(cli_before, ArchivePathCtx, .one = args->found->text + swap.name,
-                                          .other = args->found->text + before->name));
+            const int first =
+                (swap.dir && !before->dir) ||
+                ((swap.dir == before->dir) &&
+                 EMBED_CALL(cli_text_size_one.before_folded, CliTextSizeOneCfg, .one = args->found->text + swap.name,
+                            .other_pointer = args->found->text + before->name));
             if (!first)
             {
                 break;
@@ -508,7 +494,7 @@ int cli_archive_list(const CliArchiveErrMsgRootCfg *args)
         EMBED_CALL(cli_children, ArchivePathCtx, .descent = &descent, .parts = &s_parts, .prefix = prefix,
                    .found = args->found);
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_editor_owner));
     cli_archive_release();
     return done;
 }
@@ -566,9 +552,9 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
     char *const cell = done ? g_cli_guard->temporary_buf_alloc(data_size + 1ULL, args->owner) : NULL;
     if (cell != NULL)
     {
-        // a member unpacked whole, which a size_t counts
+        // a member unpacked whole, which a embed_word counts
         memor.cpy(
-            &(MemoriaCfg){.dst = cell, .src = g_cli_archive_levels->written[0].bytes, .bytes = (size_t)data_size});
+            &(MemoriaCfg){.dst = cell, .src = g_cli_archive_levels->written[0].bytes, .bytes = (embed_word)data_size});
         cell[data_size] = '\0';
         *size = data_size;
     }
@@ -576,7 +562,7 @@ char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
     {
         mmgr_line_put(args->err_msg, "the file read out of the archive could not be stored");
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_editor_owner));
     cli_archive_release();
     return cell;
 }

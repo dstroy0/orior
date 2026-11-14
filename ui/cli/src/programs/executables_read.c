@@ -73,7 +73,7 @@ char *cli_text_alloc(const CliExecutablesWalkCtx *args)
     unsigned long long size = 0ULL;
     char *const text =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
-            ? g_cli_guard->persistent_buf_alloc(size + 1ULL, g_cli_executables_owner)
+            ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_executables_owner)
             : NULL;
     if ((text != NULL) && !EMBED_CALL(cli_executables_capacity_internal.text_read, CliExecutablesCapacityCtx,
                                       .path = args->path, .bytes = text, .capacity = size + 1ULL))
@@ -474,10 +474,10 @@ void cli_executables_read(const CliExecutablesFoundCtx *args)
     g_cli_guard->persistent_buf_release(args->found->item, g_cli_executables_owner);
     g_cli_guard->persistent_buf_release(args->found->order, g_cli_executables_owner);
     *args->found = (CliExecutables){NULL, 0u, 0u, NULL};
-    args->found->item = g_cli_guard->persistent_buf_alloc(
+    args->found->item = g_cli_guard->temporary_buf_alloc(
         (unsigned long long)CLI_EXECUTABLES_MAX * sizeof(*args->found->item), g_cli_executables_owner);
     args->found->capacity = (args->found->item != NULL) ? CLI_EXECUTABLES_MAX : 0u;
-    s_scripts = g_cli_guard->persistent_buf_alloc(sizeof(*s_scripts), g_cli_executables_owner);
+    s_scripts = g_cli_guard->temporary_buf_alloc(sizeof(*s_scripts), g_cli_executables_owner);
     if (s_scripts == NULL)
     {
         return;

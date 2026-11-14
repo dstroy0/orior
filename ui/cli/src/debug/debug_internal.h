@@ -97,7 +97,8 @@ typedef struct
 // lldb; the native session whose breakpoints of a step across go at the next stop; the process the adapter reports it
 // debugs; whether the adapter reported it is initialized; where its events go; the threads that let the adapter go and
 // take a step across's breakpoints away, and the session whose breakpoints they take; and the tree the session's start
-// is made in. The two lists are cells at their most, and they and the tree are given back with the place
+// is made in. The two lists are movable cells at their most, a data breakpoint CLI_NAME_MAX_LEN bytes and a placed
+// breakpoint a number, read out by copy, and they and the tree are given back with the place
 typedef struct
 {
     int reserved;
@@ -107,10 +108,10 @@ typedef struct
     CliDebugInfo info;
     CliDap *dap;
     char program[CLI_PATH_MAX_LEN];
-    char (*data)[CLI_NAME_MAX_LEN];
+    const CarcerMovableEntry *data_cell;
     unsigned int data_count;
     unsigned int data_capacity;
-    long long *positioned;
+    const CarcerMovableEntry *positioned_cell;
     unsigned int positioned_count;
     unsigned int positioned_capacity;
     int watching;
@@ -125,7 +126,7 @@ typedef struct
     CliThread clearer;
     int clearing;
     unsigned long long cleared;
-    CliJson start;
+    CliJsonStored start;
 } CliDebugSession;
 
 // a place freed, its lists and its tree given back, under the sessions' lock (debug_position.c)
@@ -140,12 +141,12 @@ typedef struct
 
 extern CliDebugWorkState g_cli_debug;
 
-// A request sent to an adapter: whether it is taken; the line its arguments are written on, over a cell of the most
-// they hold; and the answer's body read as a tree taken to its size, its root
+// A request sent to an adapter: whether it is taken; the line its arguments are written on, grown to them; and the
+// answer's body read as a tree taken to its size, its root
 typedef struct
 {
     int reserved;
-    VerbaLinea args;
+    CliGrownLine args;
     CliJson json;
     unsigned int root;
 } CliDebugAnswer;
@@ -164,6 +165,8 @@ void cli_debug_answer_free(const CliDebugSessionCommandCtx *args);
 CliDebugSession *cli_debug_alloc(const CliDebugErrMsgIdCtx *args);
 void cli_debug_let_go(const CliDebugSessionErrMsgCtx *args);
 CliDebugSession *cli_debug_position(void);
+// a session's two lists' cells released and the lists empty
+void cli_debug_lists_released(const CliDebugSessionErrMsgCtx *args);
 void cli_debug_info_write(const CliDebugInfoCtx *args);
 // the native session debugging the same process as Python session `id`, taken, NULL where there is none
 CliDebugSession *cli_debug_native_get(const CliDebugErrMsgIdCtx *args);
@@ -378,12 +381,14 @@ EMBED_TABLE_STORAGE CliDebugErrMsgIdNs cli_debug_err_msg_id_internal EMBED_UNUSE
 typedef struct
 {
     void (*let_go)(const CliDebugSessionErrMsgCtx *args);
+    void (*lists_released)(const CliDebugSessionErrMsgCtx *args);
     int (*lldb_command)(const CliDebugSessionErrMsgCtx *args);
     int (*lldb_script)(const CliDebugSessionErrMsgCtx *args);
 } CliDebugSessionErrMsgNs;
-EMBED_TABLE_LAYOUT(CliDebugSessionErrMsgNs, let_go, lldb_command, lldb_script);
+EMBED_TABLE_LAYOUT(CliDebugSessionErrMsgNs, let_go, lists_released, lldb_command, lldb_script);
 EMBED_TABLE_STORAGE CliDebugSessionErrMsgNs cli_debug_session_err_msg_internal EMBED_UNUSED = {
     .let_go = cli_debug_let_go,
+    .lists_released = cli_debug_lists_released,
     .lldb_command = cli_debug_lldb_command,
     .lldb_script = cli_debug_lldb_script,
 };

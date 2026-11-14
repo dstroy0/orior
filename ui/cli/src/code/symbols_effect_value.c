@@ -99,7 +99,7 @@ EMBED_INLINE long long cli_effect_number(const SymbolsEffectValueCtx *args)
 EMBED_INLINE CliEffectToken *cli_effect_tokens_get(const SymbolsEffectValueCtx *args)
 {
     const CliEffect *effect = args->effect;
-    CliEffectToken *const tokens = g_cli_guard->persistent_buf_alloc(
+    CliEffectToken *const tokens = g_cli_guard->temporary_buf_alloc(
         (unsigned long long)(args->count + 1u) * sizeof(CliEffectToken), g_cli_code_owner);
     for (unsigned int at = 0u; (tokens != NULL) && (at < args->count); at += 1u)
     {

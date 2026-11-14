@@ -3,7 +3,7 @@
 // plugins_bundle.c: the program that builds into the command line what comes with orior: the plugins, each folder
 // under ui/plugins that contains a plugin.json by the folder's name, written as plugins_bundled.c, the table
 // g_cli_bundled of each one's id and bytes, and a script plugin's code read as the window reads a reader's, in the
-// order of their names; the toolchains orior_cli knows, the bytes of toolchains.json as g_cli_toolchains_json; and the
+// order of their names; the toolchains impero knows, the bytes of toolchains.json as g_cli_toolchains_json; and the
 // menus and the command line's words, the bytes of commands.json as g_cli_commands_json. Run as
 // `plugins_bundle <plugins> <toolchains.json> <commands.json> <out.c>`
 #include "../command_line/callback_cfg.h"

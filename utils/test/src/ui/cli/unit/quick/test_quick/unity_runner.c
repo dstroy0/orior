@@ -94,12 +94,12 @@ int main(void)
   run_test(test_a_hash_lists_the_trees_declarations_with_path_and_line, "test_a_hash_lists_the_trees_declarations_with_path_and_line", 225);
   run_test(test_a_path_with_line_and_column_opens_the_place_counted_from_0, "test_a_path_with_line_and_column_opens_the_place_counted_from_0", 244);
   run_test(test_search_everywhere_answers_each_type_under_its_heading, "test_search_everywhere_answers_each_type_under_its_heading", 269);
-  run_test(test_a_step_passes_over_a_heading_and_stops_at_the_first, "test_a_step_passes_over_a_heading_and_stops_at_the_first", 300);
-  run_test(test_the_keys_edit_the_typed_text_and_move_its_caret, "test_the_keys_edit_the_typed_text_and_move_its_caret", 327);
-  run_test(test_the_keys_of_a_command_open_the_box_as_it_does, "test_the_keys_of_a_command_open_the_box_as_it_does", 354);
-  run_test(test_shift_twice_within_its_time_opens_search_everywhere, "test_shift_twice_within_its_time_opens_search_everywhere", 362);
-  run_test(test_a_command_chosen_answers_its_word_and_runs_first_after, "test_a_command_chosen_answers_its_word_and_runs_first_after", 373);
-  run_test(test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row, "test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row", 388);
+  run_test(test_a_step_passes_over_a_heading_and_stops_at_the_first, "test_a_step_passes_over_a_heading_and_stops_at_the_first", 301);
+  run_test(test_the_keys_edit_the_typed_text_and_move_its_caret, "test_the_keys_edit_the_typed_text_and_move_its_caret", 328);
+  run_test(test_the_keys_of_a_command_open_the_box_as_it_does, "test_the_keys_of_a_command_open_the_box_as_it_does", 357);
+  run_test(test_shift_twice_within_its_time_opens_search_everywhere, "test_shift_twice_within_its_time_opens_search_everywhere", 365);
+  run_test(test_a_command_chosen_answers_its_word_and_runs_first_after, "test_a_command_chosen_answers_its_word_and_runs_first_after", 376);
+  run_test(test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row, "test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row", 393);
 
   return UNITY_END();
 }

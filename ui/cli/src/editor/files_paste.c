@@ -220,7 +220,8 @@ EMBED_INLINE int cli_pending_entries(const FilesPasteCtx *args)
 
 int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
 {
-    s_pending = g_cli_guard->persistent_buf_alloc(sizeof(*s_pending), g_cli_editor_owner);
+    // the walk's pending list lives for the one walk: a cell of the temporary tier
+    s_pending = g_cli_guard->temporary_buf_alloc(sizeof(*s_pending), g_cli_editor_owner);
     if (s_pending == NULL)
     {
         mmgr_line_put(args->err_msg, "a paste's walk could not be taken");

@@ -22,7 +22,7 @@ typedef struct
     unsigned long long *length;
 } MysqlRowsCtx;
 
-// the type name of MySQL's column types, and whether their values are numbers: "" where orior_cli names it by its code
+// the type name of MySQL's column types, and whether their values are numbers: "" where impero names it by its code
 EMBED_INLINE const char *rows_type_name(const MysqlRowsCtx *args)
 {
     int *numeric = args->numeric;
@@ -233,7 +233,7 @@ static int rows_head(const MysqlRowsCtx *args)
                          .size = 0ULL, .failure = failure);
         (void)EMBED_CALL(cli_mysql_failure_internal.packet, CliMysqlFailureCtx, .mysql = mysql, .failure = failure);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "orior_cli sends no file to LOAD DATA LOCAL INFILE");
+                   .message = "impero sends no file to LOAD DATA LOCAL INFILE");
         return 0;
     }
     unsigned long long at = 0ULL;

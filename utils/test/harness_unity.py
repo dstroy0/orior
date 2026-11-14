@@ -1,6 +1,6 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""harness.py cli test: orior_cli's Unity suites generated, built and run.
+"""harness.py cli test: impero's Unity suites generated, built and run.
 
     harness.py cli test [name...]        every suite, or the suites named
     harness.py cli test --sanitize address|thread   the same built and run under that sanitizer, a report failing its suite
@@ -112,24 +112,25 @@ def link_words(root):
 
 def compile_words(root):
     """The include roots and MMgr's configuration, matching what ui/cli/build.sh compiles the library with."""
-    mmgr = os.path.join(root, "src", "cu", "includes", "mmgr")
-    return ["-I", root, "-I", os.path.join(mmgr, "include"), "-I", os.path.join(mmgr, "src"), "-I", os.path.join(root, "src", "cu", "includes", "embedded_types", "include"),
-            "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", "-DMMGR_CARCER_OWNERS=1024u"]
+    mmgr = os.path.join(root, "includes", "mmgr")
+    return ["-I", root, "-I", os.path.join(mmgr, "include"), "-I", os.path.join(mmgr, "src"), "-I", os.path.join(root, "includes", "embedded_types", "include"),
+            "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", "-DMMGR_MOVABLE_READ_MS=10u", "-DMMGR_MOVABLE_QUIET_READINGS=2u", "-DMMGR_CARCER_OWNERS=1024u"]
 
 
 def suite_dirs(root, names, suites=SUITES, extension=".c"):
-    """Each suite's folder, sorted: those named, or every one under `suites`."""
-    base = os.path.join(root, suites)
+    """Each suite's folder, sorted: those named, or every one under `suites`, one folder or a tuple of folders."""
+    bases = (suites,) if isinstance(suites, str) else tuple(suites)
     found = {}
-    for folder, _, files in os.walk(base):
-        leaf = os.path.basename(folder)
-        if leaf.startswith("test_") and (leaf + extension) in files:
-            found[leaf[len("test_"):]] = folder
+    for base in bases:
+        for folder, _, files in os.walk(os.path.join(root, base)):
+            leaf = os.path.basename(folder)
+            if leaf.startswith("test_") and (leaf + extension) in files:
+                found[leaf[len("test_"):]] = folder
     if not names:
         return [found[name] for name in sorted(found)]
     missing = [name for name in names if name not in found]
     if missing:
-        raise SystemExit("unit: no suite named %s under %s" % (", ".join(missing), suites))
+        raise SystemExit("unit: no suite named %s under %s" % (", ".join(missing), " or ".join(bases)))
     return [found[name] for name in names]
 
 
@@ -261,7 +262,7 @@ def totals_printed(suites, tests, failures, failing, label="cli"):
 
 
 def run_suites(root, names, library_built, sanitize=""):
-    """Every suite named built and run, under the sanitizer named where one is. `library_built(target)` builds orior_cli for the target
+    """Every suite named built and run, under the sanitizer named where one is. `library_built(target)` builds impero for the target
     and answers its archive, or None. Prints a line for each suite and the totals, and answers the process's exit code."""
     lowered_priority()
     target, suffix, libraries = host_target()
@@ -298,7 +299,7 @@ def coverage_folders(root, target):
 
 def coverage_built(root, names, library_built):
     """Every suite named built for coverage and not run, for a build wrapper to record without recording what a test compiles.
-    `library_built(target)` builds orior_cli for coverage and answers its archive, or None. Answers the process's exit code."""
+    `library_built(target)` builds impero for coverage and answers its archive, or None. Answers the process's exit code."""
     lowered_priority()
     target, suffix, libraries = host_target()
     library = library_built(target)
@@ -351,7 +352,7 @@ def coverage_report(root):
     target = host_target()[0]
     os.makedirs(os.path.join(root, "build", "sonarqube"), exist_ok=True)
     command = [sys.executable, "-m", "gcovr", "--root", ".", "--gcov-executable", "llvm-cov gcov", "--sonarqube", "build/sonarqube/coverage.xml",
-               "--exclude", "utils/test/", "--exclude", "build/", "--exclude", "src/cu/includes/mmgr/", "--exclude", "src/cu/includes/embedded_types/",
+               "--exclude", "utils/test/", "--exclude", "build/", "--exclude", "includes/mmgr/", "--exclude", "includes/embedded_types/",
                "--print-summary", "-j", str(os.cpu_count() or 1), *coverage_folders(root, target)]
     return subprocess.run(command, cwd=root, check=False).returncode
 

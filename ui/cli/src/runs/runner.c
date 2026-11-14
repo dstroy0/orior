@@ -36,7 +36,7 @@ typedef struct
     char letter;
     const char *variable;
     char *text_out;
-    size_t capacity;
+    embed_word capacity;
     CliWords *words;
     const CliValues *values;
     const char *key;
@@ -103,44 +103,104 @@ void cli_command_folder(const CliRunnerCommandFolderCfg *args)
     args->command->has_folder = 1;
 }
 
+void cli_lines_clear(CliRunLines *lines)
+{
+    (void)anularis.init(&(AnularisCfg){
+        .ring = &lines->text, .buf = lines->text_bytes, .capacity = CLI_LINES_TEXT, .segment_count = 1u});
+    (void)anularis.init(&(AnularisCfg){.ring = &lines->line,
+                                       .buf = (embed_u8 *)(void *)lines->line_bytes,
+                                       .capacity = (unsigned long long)CLI_LINES_MAX * sizeof(CliRunnerLine),
+                                       .segment_count = CLI_LINES_MAX,
+                                       .segment_bytes = sizeof(CliRunnerLine)});
+    lines->text_put = 0u;
+    lines->text_taken = 0u;
+    lines->laid = 1;
+}
+
 void cli_lines_append(const CliRunnerLinesCfg *args)
 {
-    if ((args->length + 1ULL) > CLI_LINES_TEXT)
+    CliRunLines *const lines = args->lines;
+    // the text ring keeps one byte back, so a line fills it less that byte at the most
+    if (args->length >= CLI_LINES_TEXT)
     {
         return;
     }
-    if ((args->lines->count >= CLI_LINES_MAX) || ((args->lines->used + args->length + 1ULL) > CLI_LINES_TEXT))
+    if (!lines->laid)
     {
-        // the oldest half let go, the newer moved down
-        const unsigned int half = args->lines->count / 2u;
-        const unsigned int from = args->lines->start[args->lines->count - half];
-        for (unsigned int at = 0u; at < half; at += 1u)
-        {
-            args->lines->start[at] = args->lines->start[args->lines->count - half + at] - from;
-        }
-        for (unsigned int byte = from; byte < args->lines->used; byte += 1u)
-        {
-            args->lines->text[byte - from] = args->lines->text[byte];
-        }
-        args->lines->used -= from;
-        args->lines->count = half;
-        if ((args->lines->used + args->length + 1ULL) > CLI_LINES_TEXT)
-        {
-            args->lines->count = 0u;
-            args->lines->used = 0u;
-        }
+        cli_lines_clear(lines);
     }
-    args->lines->start[args->lines->count] = args->lines->used;
-    memor.cpy(&(MemoriaCfg){.dst = args->lines->text + args->lines->used, .src = args->text, .bytes = args->length});
-    args->lines->text[args->lines->used + args->length] = '\0';
+    // the oldest lines let go until the rings have the room: a line's record released and its bytes consumed
+    while ((anularis.seg_inflight(&(AnularisCfg){.ring = &lines->line}) != 0u) &&
+           ((anularis.seg_inflight(&(AnularisCfg){.ring = &lines->line}) == CLI_LINES_MAX) ||
+            (anularis.vacant(&(AnularisCfg){.ring = &lines->text}) < args->length)))
+    {
+        size_t front = 0u;
+        (void)anularis.seg_front(&(AnularisCfg){.ring = &lines->line, .out_index = &front});
+        const unsigned int oldest = lines->line_bytes[front].length;
+        anularis.consume(&(AnularisCfg){.ring = &lines->text, .bytes = oldest});
+        lines->text_taken += oldest;
+        anularis.seg_release(&(AnularisCfg){.ring = &lines->line});
+    }
+    const unsigned int start = lines->text_put;
+    (void)anularis.put(
+        &(AnularisCfg){.ring = &lines->text, .src = (const embed_u8 *)(const void *)args->text, .bytes = args->length});
     // a line is below CLI_LINES_TEXT, checked above
-    args->lines->used += (unsigned int)args->length + 1u;
-    args->lines->count += 1u;
+    lines->text_put += (unsigned int)args->length;
+    size_t segment = 0u;
+    (void)anularis.seg_next(&(AnularisCfg){.ring = &lines->line, .out_index = &segment});
+    lines->line_bytes[segment] = (CliRunnerLine){start, (unsigned int)args->length};
+    anularis.seg_publish(&(AnularisCfg){.ring = &lines->line});
 }
 
-const char *cli_lines_at(const CliRunnerLinesIndexCfg *args)
+unsigned int cli_lines_count(const CliRunnerLinesIndexCfg *args)
 {
-    return args->lines_read->text + args->lines_read->start[args->index];
+    // the lines in flight are at most CLI_LINES_MAX, inside an unsigned int; the ring's entries take the ring's
+    // address unqualified, and a count moves nothing
+    return args->lines_read->laid
+               ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &((CliRunLines *)args->lines_read)->line})
+               : 0u;
+}
+
+// the record of the line `index` past the oldest: the segment that far past the line ring's front
+EMBED_INLINE CliRunnerLine cli_lines_record(const CliRunnerLinesIndexCfg *args)
+{
+    // the ring's entries take the ring's address unqualified, and a front read moves nothing
+    CliRunLines *const lines = (CliRunLines *)args->lines_read;
+    size_t front = 0u;
+    (void)anularis.seg_front(&(AnularisCfg){.ring = &lines->line, .out_index = &front});
+    return lines->line_bytes[MMGR_RING_WRAP(front + args->index, CLI_LINES_MAX)];
+}
+
+unsigned long long cli_lines_longest(const CliRunnerLinesIndexCfg *args)
+{
+    const unsigned int count = cli_lines_count(args);
+    unsigned long long longest = 0ULL;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        const CliRunnerLine line =
+            EMBED_CALL(cli_lines_record, CliRunnerLinesIndexCfg, .lines_read = args->lines_read, .index = at);
+        longest = (line.length > longest) ? line.length : longest;
+    }
+    return longest;
+}
+
+unsigned long long cli_lines_read(const CliRunnerLinesIndexCfg *args)
+{
+    // the ring's entries take the ring's address unqualified, and a peek moves nothing
+    CliRunLines *const lines = (CliRunLines *)args->lines_read;
+    const CliRunnerLine line = cli_lines_record(args);
+    if ((args->out != NULL) && (args->capacity != 0ULL))
+    {
+        // the line's bytes out of the text ring, ahead of its tail by the bytes put before them less the bytes
+        // consumed since, a difference that wraps right in the unsigned int
+        const unsigned long long copied = (line.length < args->capacity) ? line.length : args->capacity - 1ULL;
+        anularis.peek(&(AnularisCfg){.ring = &lines->text,
+                                     .offset = line.start - lines->text_taken,
+                                     .dst = (embed_u8 *)(void *)args->out,
+                                     .bytes = copied});
+        args->out[copied] = '\0';
+    }
+    return line.length;
 }
 
 #if defined(_WIN32)
@@ -347,7 +407,7 @@ int cli_runner_program_words(const CliRunnerVariableCfg *args)
 EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args)
 {
     char *text = args->text_out;
-    size_t capacity = args->capacity;
+    embed_word capacity = args->capacity;
     CliWords *words = args->words;
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = args->variable,
                     .value_out = text, .capacity = capacity))

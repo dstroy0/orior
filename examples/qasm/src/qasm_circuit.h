@@ -5,7 +5,7 @@
 #define QASM_CIRCUIT_H
 
 #include "../../../src/cu/engine/engine_config.h"
-#include "../../../src/cu/includes/types/integers/exact_integer.h"
+#include "../../../includes/exact_types/integers/exact_integer.h"
 
 #include <stddef.h>
 

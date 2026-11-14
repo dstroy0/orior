@@ -4,7 +4,7 @@
 #include "hadamard_order.h"
 #include "../counterexample/ladder.h"
 
-#include "../../../../includes/types/integers/exact_integer.h"
+#include "../../../../../../includes/exact_types/integers/exact_integer.h"
 
 #include <string.h>
 

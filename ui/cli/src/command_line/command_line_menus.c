@@ -66,7 +66,7 @@ typedef struct
     unsigned int count;
     unsigned int depth;
 } CommandLineChainsCtx;
-// each of `count` rows written as `orior_cli <words> <command> <args>`, marked where it acts in the window, a row with
+// each of `count` rows written as `imp <words> <command> <args>`, marked where it acts in the window, a row with
 // rows under it written by its rows in its place, its command added to the words
 static void menus_chains(const CommandLineChainsCtx *args)
 {
@@ -105,7 +105,7 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
                                           .menu = args->menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
     char words[CLI_LABEL_MAX_LEN];
     VerbaLinea first = {words, sizeof(words), 0ULL};
-    mmgr_line_put(&first, "orior_cli ");
+    mmgr_line_put(&first, "imp ");
     mmgr_line_put(&first, word_text);
     (void)mmgr_line_finish(&first);
     menus_chains(&(CommandLineChainsCtx){.words = words, .items = s_items, .count = items, .depth = 0u});
@@ -197,7 +197,7 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
             mmgr_line_put(&err_msg, title);
             mmgr_line_put(&err_msg, " has no ");
             mmgr_line_put(&err_msg, name);
-            mmgr_line_put(&err_msg, ": orior_cli ");
+            mmgr_line_put(&err_msg, ": imp ");
             mmgr_line_put(&err_msg, word_text);
             mmgr_line_put(&err_msg, " names what it has");
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,

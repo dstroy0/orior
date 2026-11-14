@@ -13,6 +13,7 @@
 #include "../command_line/pool.h"
 #include "../machine/recent.h"
 #include "files.h"
+#include "files_internal.h"
 #include "view.h"
 
 // the sentences of the rows that go nowhere, the details, and the field's sentences while the text is empty
@@ -86,13 +87,6 @@ typedef struct
     CliItem item;
 } QuickCommand;
 
-// A row in a bounded list: its score and its place among what it was found in
-typedef struct
-{
-    double score;
-    unsigned int at;
-} QuickTop;
-
 // The rows of one ask as they are written, in a cell for that ask alone: the rows and how many, the marks and how many
 // numbers of them, the text, and whether the tree is still being read
 typedef struct
@@ -106,11 +100,11 @@ typedef struct
 } QuickBuild;
 
 // The quick open: whether it is open and is Search Everywhere; the tree, and the shown view's key and its file's path,
-// empty for none; the typed text in a cell sized to it with its end, its bytes and the caret's byte; the rows' cell,
-// the rows, their marks and text, and how many; the chosen row, the rows scrolled off the top and the rows the box
-// shows; whether the rows were asked while the tree was read and the millisecond they were; the first Shift's
-// millisecond, 0 for none; the menus' commands in a cell sized to them, how many, and whether they were read; and the
-// texts of the last choice
+// empty for none; the typed text, bounded by CLI_QUICK_TEXT_MAX and ended, its bytes and the caret's byte; the rows'
+// movable cell, the rows first in it, their marks from `marks_at` and their text from `text_at`, and how many; the
+// chosen row, the rows scrolled off the top and the rows the box shows; whether the rows were asked while the tree was
+// read and the millisecond they were; the first Shift's millisecond, 0 for none; the menus' commands in a movable
+// cell sized to them, how many, and whether they were read; and the texts of the last choice
 typedef struct
 {
     int open;
@@ -118,13 +112,12 @@ typedef struct
     const char *root;
     char key[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    char *text;
+    char text[CLI_QUICK_TEXT_MAX + 1u];
     unsigned long long length;
     unsigned long long caret;
-    unsigned char *cell;
-    const QuickRow *row;
-    const unsigned int *mark;
-    const char *row_text;
+    const CarcerMovableEntry *cell;
+    unsigned long long marks_at;
+    unsigned long long text_at;
     unsigned int rows;
     unsigned int chosen;
     unsigned int scroll;
@@ -132,7 +125,7 @@ typedef struct
     int reading;
     unsigned long long asked_ms;
     unsigned long long shift_ms;
-    QuickCommand *command;
+    const CarcerMovableEntry *command;
     unsigned int commands;
     int commands_read;
     char chosen_path[CLI_PATH_MAX_LEN];
@@ -143,7 +136,7 @@ typedef struct
 static Quick s_quick;
 
 // the bounded list and the places of a match's letters, for one ask at a time on the view's thread
-static QuickTop s_top[CLI_QUICK_MOST];
+static CliTopPlace s_top[CLI_QUICK_MOST];
 static unsigned int s_hit[CLI_FUZZY_LETTERS];
 
 typedef struct
@@ -185,37 +178,6 @@ EMBED_INLINE unsigned int quick_letters(const QuickCtx *args)
         letters += (((unsigned char)args->text[at] & 0xC0u) != 0x80u) ? 1u : 0u;
     }
     return letters;
-}
-
-// the row `at` with `score` put in the bounded list of `count` rows, at most `most`, after every row scoring as much or
-// more, its place found by a binary search, the last let go where the list is full: the list's count
-EMBED_INLINE unsigned int quick_put(const QuickCtx *args)
-{
-    unsigned int low = 0u;
-    unsigned int high = args->count;
-    while (low < high)
-    {
-        const unsigned int middle = low + ((high - low) / 2u);
-        if (s_top[middle].score >= args->score)
-        {
-            low = middle + 1u;
-        }
-        else
-        {
-            high = middle;
-        }
-    }
-    if (low >= args->most)
-    {
-        return args->count;
-    }
-    const unsigned int count = (args->count < args->most) ? (args->count + 1u) : args->most;
-    for (unsigned int at = count - 1u; at > low; at -= 1u)
-    {
-        s_top[at] = s_top[at - 1u];
-    }
-    s_top[low] = (QuickTop){args->score, args->at};
-    return count;
 }
 
 // a row of `type` begun after the build's rows, its texts empty at the text's end and its marks after the build's:
@@ -384,8 +346,10 @@ EMBED_INLINE void quick_files(const QuickCtx *args)
     EMBED_CALL(quick_place, QuickCtx, .text = args->text, .length = args->length, .path_length = &path_length,
                .line = &line, .column = &column);
     const char *recent[CLI_RECENT_MOST];
-    const unsigned int recents = EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_FILES,
-                                            .most = CLI_RECENT_MOST, .rows_out = recent);
+    char *recent_cell = NULL;
+    const unsigned int recents =
+        EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_FILES, .most = CLI_RECENT_MOST, .rows_out = recent,
+                   .cell_out = &recent_cell, .owner = g_cli_quick_owner);
     if (path_length == 0ULL)
     {
         for (unsigned int at = 0u; (at < recents) && (at < args->most); at += 1u)
@@ -394,6 +358,7 @@ EMBED_INLINE void quick_files(const QuickCtx *args)
                        .length = cellul.len(&(CatenaFinitaCfg){.src = recent[at], .cap = CLI_PATH_MAX_LEN}),
                        .opened = 1, .line = &line, .column = &column);
         }
+        g_cli_guard->persistent_buf_release(recent_cell, g_cli_quick_owner);
         return;
     }
     char query[CLI_QUICK_TEXT_MAX + 1u];
@@ -418,6 +383,7 @@ EMBED_INLINE void quick_files(const QuickCtx *args)
         EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_READING, .text = QUICK_READING);
     }
     g_cli_guard->persistent_buf_release(ranked.cell, g_cli_quick_owner);
+    g_cli_guard->persistent_buf_release(recent_cell, g_cli_quick_owner);
 }
 
 // the menus' commands read once into a cell sized to them, every item of a menu the bar shows that runs a command,
@@ -478,11 +444,15 @@ EMBED_INLINE void quick_commands_read(const QuickCtx *args)
             }
         }
     }
-    QuickCommand *const cell =
-        (count != 0u) ? g_cli_guard->persistent_buf_alloc(count * sizeof(QuickCommand), g_cli_quick_owner) : NULL;
+    // the commands kept in a movable cell of their bytes
+    const CarcerMovableEntry *const cell =
+        (count != 0u) ? g_cli_guard->movable_buf_alloc((embed_word)count * sizeof(QuickCommand), g_cli_quick_owner)
+                      : NULL;
     if (cell != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = cell, .src = found, .bytes = count * sizeof(QuickCommand)});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .src = found, .bytes = (embed_word)count * sizeof(QuickCommand)});
+        (void)g_cli_guard->movable_buf_release(s_quick.command, g_cli_quick_owner);
         s_quick.command = cell;
         s_quick.commands = count;
         s_quick.commands_read = 1;
@@ -494,11 +464,15 @@ EMBED_INLINE void quick_commands_read(const QuickCtx *args)
 // its bytes
 EMBED_INLINE unsigned long long quick_command_label(const QuickCtx *args)
 {
-    const QuickCommand *const command = &s_quick.command[args->at];
+    QuickCommand command = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.command,
+                                                            .offset = (unsigned long long)args->at * sizeof(command),
+                                                            .dst = &command,
+                                                            .bytes = sizeof(command)});
     VerbaLinea label = {args->label_out, 2ULL * CLI_LABEL_MAX_LEN, 0ULL};
-    mmgr_line_put(&label, command->title);
+    mmgr_line_put(&label, command.title);
     mmgr_line_put(&label, ": ");
-    mmgr_line_put(&label, command->item.label);
+    mmgr_line_put(&label, command.item.label);
     return mmgr_line_finish(&label);
 }
 
@@ -513,13 +487,20 @@ EMBED_INLINE void quick_commands(const QuickCtx *args)
     mmgr_line_put_n(&typed, args->text, args->length);
     (void)mmgr_line_finish(&typed);
     const char *recent[CLI_RECENT_MOST];
-    const unsigned int recents = EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS,
-                                            .most = CLI_RECENT_MOST, .rows_out = recent);
+    char *recent_cell = NULL;
+    const unsigned int recents =
+        EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .most = CLI_RECENT_MOST,
+                   .rows_out = recent, .cell_out = &recent_cell, .owner = g_cli_quick_owner);
     char label[2u * CLI_LABEL_MAX_LEN];
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < s_quick.commands; at += 1u)
     {
-        const CliItem *const item = &s_quick.command[at].item;
+        QuickCommand command = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.command,
+                                                                .offset = (unsigned long long)at * sizeof(command),
+                                                                .dst = &command,
+                                                                .bytes = sizeof(command)});
+        const CliItem *const item = &command.item;
         if ((g_cli_menus_open.disabled != NULL) && g_cli_menus_open.disabled(item))
         {
             continue;
@@ -537,17 +518,25 @@ EMBED_INLINE void quick_commands(const QuickCtx *args)
         {
             (void)EMBED_CALL(quick_command_label, QuickCtx, .at = at, .label_out = label);
             if (!EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = label,
-                            .from_u64 = s_quick.command[at].title_letters + 2ULL, .score = &score, .hits = s_hit,
+                            .from_u64 = command.title_letters + 2ULL, .score = &score, .hits = s_hit,
                             .count_pointer = &hits))
             {
                 continue;
             }
         }
-        count = EMBED_CALL(quick_put, QuickCtx, .at = at, .score = score, .count = count, .most = args->most);
+        count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = s_top, .at = at, .score = score,
+                           .count = count, .most = args->most);
     }
+    g_cli_guard->persistent_buf_release(recent_cell, g_cli_quick_owner);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const QuickCommand *const command = &s_quick.command[s_top[at].at];
+        QuickCommand chosen = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_quick.command,
+                                .offset = (unsigned long long)s_top[at].at * sizeof(chosen),
+                                .dst = &chosen,
+                                .bytes = sizeof(chosen)});
+        const QuickCommand *const command = &chosen;
         QuickRow *const row = EMBED_CALL(quick_row_begun, QuickCtx, .build = build, .type = CLI_QUICK_ROW_COMMAND);
         if (row == NULL)
         {
@@ -734,7 +723,8 @@ EMBED_INLINE void quick_outline(const QuickCtx *args)
                 continue;
             }
         }
-        count = EMBED_CALL(quick_put, QuickCtx, .at = at, .score = score, .count = count, .most = args->most);
+        count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = s_top, .at = at, .score = score,
+                           .count = count, .most = args->most);
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -852,16 +842,20 @@ EMBED_INLINE unsigned int quick_mode(const QuickCtx *args)
 EMBED_INLINE int quick_same(const QuickCtx *args)
 {
     const QuickBuild *const build = args->build;
-    const QuickRow *const was = &s_quick.row[args->at];
+    QuickRow was = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_quick.cell, .offset = (unsigned long long)args->at * sizeof(was), .dst = &was, .bytes = sizeof(was)});
     const QuickRow *const now = &build->row[args->count];
-    return (was->type == now->type) && (was->label_length == now->label_length) &&
-           (was->detail_length == now->detail_length) &&
-           (memor.cmp(&(MemoriaCfg){.src = s_quick.row_text + was->label,
-                                    .other = build->text.out + now->label,
-                                    .bytes = was->label_length}) == 0) &&
-           (memor.cmp(&(MemoriaCfg){.src = s_quick.row_text + was->detail,
-                                    .other = build->text.out + now->detail,
-                                    .bytes = was->detail_length}) == 0);
+    return (was.type == now->type) && (was.label_length == now->label_length) &&
+           (was.detail_length == now->detail_length) &&
+           (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                                 .offset = (embed_word)(s_quick.text_at + was.label),
+                                                                 .src = build->text.out + now->label,
+                                                                 .bytes = was.label_length}) == 0) &&
+           (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                                 .offset = (embed_word)(s_quick.text_at + was.detail),
+                                                                 .src = build->text.out + now->detail,
+                                                                 .bytes = was.detail_length}) == 0);
 }
 
 // the chosen row standing in sight of the rows the box shows, the scroll no further than the last rows fill the box
@@ -908,7 +902,7 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
     {
         to -= 1ULL;
     }
-    const char *const query = (s_quick.text != NULL) ? (s_quick.text + from) : "";
+    const char *const query = s_quick.text + from;
     switch (mode)
     {
     case CLI_QUICK_COMMANDS:
@@ -948,23 +942,27 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
     {
         chosen = (build.row[at].type != CLI_QUICK_ROW_HEADING) ? at : chosen;
     }
-    const unsigned long long rows_bytes = (unsigned long long)build.rows * sizeof(QuickRow);
-    const unsigned long long marks_bytes = (unsigned long long)build.marks * sizeof(unsigned int);
-    unsigned char *const cell =
-        g_cli_guard->persistent_buf_alloc(rows_bytes + marks_bytes + build.text.at, g_cli_quick_owner);
+    // the rows, their marks and their text written into a movable cell of their bytes
+    const embed_word rows_bytes = (embed_word)build.rows * sizeof(QuickRow);
+    const embed_word marks_bytes = (embed_word)build.marks * sizeof(unsigned int);
+    const CarcerMovableEntry *const cell =
+        g_cli_guard->movable_buf_alloc(rows_bytes + marks_bytes + (embed_word)build.text.at, g_cli_quick_owner);
     if (cell != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = cell, .src = build.row, .bytes = rows_bytes});
-        if (marks_bytes != 0ULL)
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = build.row, .bytes = rows_bytes});
+        if (marks_bytes != 0u)
         {
-            memor.cpy(&(MemoriaCfg){.dst = cell + rows_bytes, .src = build.mark, .bytes = marks_bytes});
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = cell, .offset = rows_bytes, .src = build.mark, .bytes = marks_bytes});
         }
-        memor.cpy(&(MemoriaCfg){.dst = cell + rows_bytes + marks_bytes, .src = build.text.out, .bytes = build.text.at});
-        g_cli_guard->persistent_buf_release(s_quick.cell, g_cli_quick_owner);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell,
+                                                                 .offset = rows_bytes + marks_bytes,
+                                                                 .src = build.text.out,
+                                                                 .bytes = (embed_word)build.text.at});
+        (void)g_cli_guard->movable_buf_release(s_quick.cell, g_cli_quick_owner);
         s_quick.cell = cell;
-        s_quick.row = (const QuickRow *)(const void *)cell;
-        s_quick.mark = (const unsigned int *)(const void *)(cell + rows_bytes);
-        s_quick.row_text = (const char *)(cell + rows_bytes + marks_bytes);
+        s_quick.marks_at = rows_bytes;
+        s_quick.text_at = rows_bytes + marks_bytes;
         s_quick.rows = build.rows;
         s_quick.chosen = (chosen < build.rows) ? chosen : 0u;
         s_quick.reading = build.reading;
@@ -978,19 +976,13 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
 // its end, none where it is empty; the text as it was where the cells cannot meet it
 EMBED_INLINE void quick_text_laid(const QuickCtx *args)
 {
-    char *const cell =
-        (args->length != 0ULL) ? g_cli_guard->persistent_buf_alloc(args->length + 1ULL, g_cli_quick_owner) : NULL;
-    if ((args->length != 0ULL) && (cell == NULL))
+    // the typed text is bounded by CLI_QUICK_TEXT_MAX and lives in the store itself
+    if (args->length > CLI_QUICK_TEXT_MAX)
     {
         return;
     }
-    if (cell != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->text, .bytes = args->length});
-        cell[args->length] = '\0';
-    }
-    g_cli_guard->persistent_buf_release(s_quick.text, g_cli_quick_owner);
-    s_quick.text = cell;
+    memor.cpy(&(MemoriaCfg){.dst = s_quick.text, .src = args->text, .bytes = args->length});
+    s_quick.text[args->length] = '\0';
     s_quick.length = args->length;
     s_quick.caret = (args->first < args->length) ? args->first : args->length;
 }
@@ -1013,10 +1005,9 @@ EMBED_INLINE void quick_text_put(const QuickCtx *args)
     }
     char joined[CLI_QUICK_TEXT_MAX + 1u];
     VerbaLinea line = {joined, sizeof(joined), 0ULL};
-    mmgr_line_put_n(&line, (s_quick.text != NULL) ? s_quick.text : "", s_quick.caret);
+    mmgr_line_put_n(&line, s_quick.text, s_quick.caret);
     mmgr_line_put_n(&line, args->text, length);
-    mmgr_line_put_n(&line, (s_quick.text != NULL) ? (s_quick.text + s_quick.caret) : "",
-                    s_quick.length - s_quick.caret);
+    mmgr_line_put_n(&line, s_quick.text + s_quick.caret, s_quick.length - s_quick.caret);
     EMBED_CALL(quick_text_laid, QuickCtx, .text = joined, .length = s_quick.length + length,
                .first = s_quick.caret + length);
 }
@@ -1208,12 +1199,23 @@ void cli_quick_step(const CliQuickCfg *args)
         const int way = (args->by > 0) ? 1 : -1;
         int next = (int)s_quick.chosen + args->by;
         next = (next < 0) ? 0 : ((next >= count) ? (count - 1) : next);
-        // the next is among the rows, as clamped
-        while ((s_quick.row[next].type == CLI_QUICK_ROW_HEADING) && ((next + way) >= 0) && ((next + way) < count))
+        // the next is among the rows, as clamped; a heading is passed over for the row after it
+        QuickRow next_row = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_quick.cell,
+                                .offset = (embed_word)(unsigned int)next * sizeof(next_row),
+                                .dst = &next_row,
+                                .bytes = sizeof(next_row)});
+        while ((next_row.type == CLI_QUICK_ROW_HEADING) && ((next + way) >= 0) && ((next + way) < count))
         {
             next += way;
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = s_quick.cell,
+                                    .offset = (embed_word)(unsigned int)next * sizeof(next_row),
+                                    .dst = &next_row,
+                                    .bytes = sizeof(next_row)});
         }
-        s_quick.chosen = (s_quick.row[next].type != CLI_QUICK_ROW_HEADING) ? (unsigned int)next : s_quick.chosen;
+        s_quick.chosen = (next_row.type != CLI_QUICK_ROW_HEADING) ? (unsigned int)next : s_quick.chosen;
         EMBED_CALL(quick_followed, QuickCtx, .now_ms = 0ULL);
     }
     if (args->scroll_by != 0)
@@ -1232,12 +1234,46 @@ int cli_quick_row(const CliQuickCfg *args)
     {
         return 0;
     }
-    const QuickRow *const row = &s_quick.row[args->at];
-    const unsigned int *const marks = s_quick.mark + row->marks;
-    *args->row_out = (CliQuickRow){
-        row->type,          s_quick.row_text + row->label,   row->label_length, s_quick.row_text + row->detail,
-        row->detail_length, s_quick.row_text + row->keys,    row->keys_length,  marks,
-        row->label_marks,   marks + (2u * row->label_marks), row->detail_marks};
+    QuickRow row = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_quick.cell, .offset = (unsigned long long)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
+    CliQuickRow *const out = args->row_out;
+    out->type = row.type;
+    // each text read off the rows' cell, cut to its field less the end
+    out->label_length =
+        (row.label_length < (sizeof(out->label) - 1ULL)) ? row.label_length : (sizeof(out->label) - 1ULL);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                            .offset = (embed_word)(s_quick.text_at + row.label),
+                                                            .dst = out->label,
+                                                            .bytes = (embed_word)out->label_length});
+    out->label[out->label_length] = '\0';
+    out->detail_length =
+        (row.detail_length < (sizeof(out->detail) - 1ULL)) ? row.detail_length : (sizeof(out->detail) - 1ULL);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                            .offset = (embed_word)(s_quick.text_at + row.detail),
+                                                            .dst = out->detail,
+                                                            .bytes = (embed_word)out->detail_length});
+    out->detail[out->detail_length] = '\0';
+    out->keys_length = (row.keys_length < (sizeof(out->keys) - 1ULL)) ? row.keys_length : (sizeof(out->keys) - 1ULL);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                            .offset = (embed_word)(s_quick.text_at + row.keys),
+                                                            .dst = out->keys,
+                                                            .bytes = (embed_word)out->keys_length});
+    out->keys[out->keys_length] = '\0';
+    // the marks are pairs, no more than CLI_QUICK_MARKS a text
+    out->label_mark_count = (row.label_marks < CLI_QUICK_MARKS) ? row.label_marks : CLI_QUICK_MARKS;
+    out->detail_mark_count = (row.detail_marks < CLI_QUICK_MARKS) ? row.detail_marks : CLI_QUICK_MARKS;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_quick.cell,
+                            .offset = (embed_word)s_quick.marks_at + ((embed_word)row.marks * sizeof(unsigned int)),
+                            .dst = out->label_marks,
+                            .bytes = (embed_word)out->label_mark_count * 2u * sizeof(unsigned int)});
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_quick.cell,
+                            .offset = (embed_word)s_quick.marks_at +
+                                      ((embed_word)(row.marks + (2u * row.label_marks)) * sizeof(unsigned int)),
+                            .dst = out->detail_marks,
+                            .bytes = (embed_word)out->detail_mark_count * 2u * sizeof(unsigned int)});
     return 1;
 }
 
@@ -1256,16 +1292,10 @@ void cli_quick_view(const CliQuickCfg *args)
         placeholder = QUICK_PLACEHOLDER_COMMANDS;
         placeholder_length = sizeof(QUICK_PLACEHOLDER_COMMANDS) - 1ULL;
     }
-    *args->view_out = (CliQuickView){s_quick.open,
-                                     mode,
-                                     (s_quick.text != NULL) ? s_quick.text : "",
-                                     s_quick.length,
-                                     s_quick.caret,
-                                     placeholder,
-                                     placeholder_length,
-                                     s_quick.open ? s_quick.rows : 0u,
-                                     s_quick.chosen,
-                                     s_quick.scroll};
+    *args->view_out =
+        (CliQuickView){s_quick.open,   mode,          s_quick.text,       s_quick.length,
+                       s_quick.caret,  placeholder,   placeholder_length, s_quick.open ? s_quick.rows : 0u,
+                       s_quick.chosen, s_quick.scroll};
 }
 
 int cli_quick_choose(const CliQuickCfg *args)
@@ -1275,7 +1305,12 @@ int cli_quick_choose(const CliQuickCfg *args)
     {
         return 0;
     }
-    const QuickRow *const row = &s_quick.row[at];
+    QuickRow chosen_row = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                            .offset = (unsigned long long)at * sizeof(chosen_row),
+                                                            .dst = &chosen_row,
+                                                            .bytes = sizeof(chosen_row)});
+    const QuickRow *const row = &chosen_row;
     const int path = ((row->type == CLI_QUICK_ROW_FILE) || (row->type == CLI_QUICK_ROW_LINE) ||
                       (row->type == CLI_QUICK_ROW_SYMBOL)) &&
                      (row->target_length != 0u) && (row->target_length < sizeof(s_quick.chosen_path));
@@ -1286,11 +1321,22 @@ int cli_quick_choose(const CliQuickCfg *args)
         return 0;
     }
     char *const into = path ? s_quick.chosen_path : s_quick.chosen_command;
-    memor.cpy(&(MemoriaCfg){.dst = into, .src = s_quick.row_text + row->target, .bytes = row->target_length});
-    into[row->target_length] = '\0';
-    memor.cpy(
-        &(MemoriaCfg){.dst = s_quick.chosen_keys, .src = s_quick.row_text + row->keys, .bytes = row->keys_length});
-    s_quick.chosen_keys[row->keys_length] = '\0';
+    const unsigned long long into_capacity = path ? sizeof(s_quick.chosen_path) : sizeof(s_quick.chosen_command);
+    const unsigned long long target_read =
+        (row->target_length < (into_capacity - 1ULL)) ? row->target_length : (into_capacity - 1ULL);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                            .offset = (embed_word)(s_quick.text_at + row->target),
+                                                            .dst = into,
+                                                            .bytes = (embed_word)target_read});
+    into[target_read] = '\0';
+    const unsigned long long keys_read = (row->keys_length < (sizeof(s_quick.chosen_keys) - 1ULL))
+                                             ? row->keys_length
+                                             : (sizeof(s_quick.chosen_keys) - 1ULL);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_quick.cell,
+                                                            .offset = (embed_word)(s_quick.text_at + row->keys),
+                                                            .dst = s_quick.chosen_keys,
+                                                            .bytes = (embed_word)keys_read});
+    s_quick.chosen_keys[keys_read] = '\0';
     *args->choice_out = (CliQuickChoice){path ? CLI_QUICK_CHOSE_PATH : CLI_QUICK_CHOSE_COMMAND,
                                          path ? s_quick.chosen_path : "",
                                          {row->line, row->column},
@@ -1339,14 +1385,12 @@ int cli_quick_shift(const CliQuickCfg *args)
 void cli_quick_close(const CliQuickCfg *args)
 {
     (void)args;
-    g_cli_guard->persistent_buf_release(s_quick.cell, g_cli_quick_owner);
-    g_cli_guard->persistent_buf_release(s_quick.text, g_cli_quick_owner);
+    (void)g_cli_guard->movable_buf_release(s_quick.cell, g_cli_quick_owner);
     s_quick.cell = NULL;
-    s_quick.row = NULL;
-    s_quick.mark = NULL;
-    s_quick.row_text = NULL;
+    s_quick.marks_at = 0ULL;
+    s_quick.text_at = 0ULL;
     s_quick.rows = 0u;
-    s_quick.text = NULL;
+    s_quick.text[0] = '\0';
     s_quick.length = 0ULL;
     s_quick.caret = 0ULL;
     s_quick.chosen = 0u;

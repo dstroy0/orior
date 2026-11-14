@@ -12,8 +12,6 @@
 
 #include <ntsecapi.h>
 
-#include <stdint.h>
-
 int cli_random_bytes(const CliSizeBytesCtx *args)
 {
     unsigned char *const into = (unsigned char *)args->bytes_out;
@@ -38,6 +36,17 @@ void *cli_pages_alloc(const CliSizeBytesCtx *args)
     return VirtualAlloc(NULL, (SIZE_T)args->size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
+void *cli_pages_reserve(const CliSizeBytesCtx *args)
+{
+    // the reserve names the addresses and commits none of the pages; a commit of a span inside it backs that span
+    return VirtualAlloc(NULL, (SIZE_T)args->size, MEM_RESERVE, PAGE_NOACCESS);
+}
+
+int cli_pages_commit(const CliSizeBytesCtx *args)
+{
+    return VirtualAlloc(args->bytes_out, (SIZE_T)args->size, MEM_COMMIT, PAGE_READWRITE) != NULL;
+}
+
 void cli_pages_free(const CliSizeBytesCtx *args)
 {
     VirtualFree(args->bytes_out, 0u, MEM_RELEASE);
@@ -53,9 +62,9 @@ void cli_temp_folder(const CliFolderCtx *args)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_POOL_BYTES}) + 1u});
         return;
     }
-    size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_POOL_BYTES});
-    end = (size_t)(3u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
-                                   .text = args->folder_out + 3u, .at = end - 3u, .set = "\\/"));
+    embed_word end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_POOL_BYTES});
+    end = (embed_word)(3u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                       .text = args->folder_out + 3u, .at = end - 3u, .set = "\\/"));
     args->folder_out[end] = '\0';
 }
 
@@ -64,19 +73,19 @@ unsigned long long cli_event_inheritable(void)
     SECURITY_ATTRIBUTES attributes = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
     const HANDLE event = CreateEventW(&attributes, FALSE, FALSE, NULL);
     // a handle is a pointer's width, which an unsigned long long stores
-    return (event != NULL) ? (unsigned long long)(uintptr_t)event : 0ull;
+    return (event != NULL) ? (unsigned long long)(embed_word)event : 0ull;
 }
 
 int cli_event_set(const CliEventCtx *args)
 {
-    return (args->event != 0ull) && SetEvent((HANDLE)(uintptr_t)args->event);
+    return (args->event != 0ull) && SetEvent((HANDLE)(embed_word)args->event);
 }
 
 void cli_event_close(const CliEventCtx *args)
 {
     if (args->event != 0ull)
     {
-        CloseHandle((HANDLE)(uintptr_t)args->event);
+        CloseHandle((HANDLE)(embed_word)args->event);
     }
 }
 

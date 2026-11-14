@@ -11,7 +11,7 @@ REPOSITORY="$(cd "$TOP/.." && pwd)"
 source "$REPOSITORY/utils/maint/engine/build_stamp.sh"
 TOP="$REPOSITORY" build_stamp tessera_test
 
-source "$TOP/cu/includes/file_defs/file_defs.sh"
+source "$TOP/../includes/file_defs/file_defs.sh"
 OBSIGNATIO="$TOP/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$TOP/cu/engine/runtime/obsignatio"
 INCLUDES=(-I "$TOP/cu/engine" -I "$MODULE" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")

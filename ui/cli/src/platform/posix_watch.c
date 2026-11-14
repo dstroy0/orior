@@ -121,7 +121,7 @@ EMBED_INLINE unsigned int inotify_watch(const PosixWatchCtx *args)
         s_watch.refused = 1;
         return 0u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_watch.names + s_watch.names_used, .src = args->name, .bytes = (size_t)length});
+    memor.cpy(&(MemoriaCfg){.dst = s_watch.names + s_watch.names_used, .src = args->name, .bytes = (embed_word)length});
     s_watch.folder[at] = (CliInotifyFolder){args->parent, s_watch.names_used, 1};
     // the names' bytes are bounded by CLI_INOTIFY_NAMES, which an unsigned int counts
     s_watch.names_used += (unsigned int)length;
@@ -242,8 +242,8 @@ static int inotify_open(void)
     {
         return 0;
     }
-    memor.set(
-        &(MemoriaCfg){.dst = s_watch.folder, .val = 0, .bytes = (size_t)s_watch.folder_max * sizeof(CliInotifyFolder)});
+    memor.set(&(MemoriaCfg){
+        .dst = s_watch.folder, .val = 0, .bytes = (embed_word)s_watch.folder_max * sizeof(CliInotifyFolder)});
     s_watch.names_used = 1u;
     s_watch.names[0] = '\0';
     s_watch.refused = 0;
@@ -393,10 +393,14 @@ int cli_watch_system_start(const CliRootContextCtx *args)
         return 0;
     }
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
+    // the folders and their names are the reader thread's tables, so they stand fixed outside the pool, where they
+    // punch no hole in the persistent tier
+    static CliInotifyFolder s_folders[CLI_INOTIFY_FOLDERS];
+    static char s_names[CLI_INOTIFY_NAMES];
     s_watch.folder_max = CLI_INOTIFY_FOLDERS;
-    s_watch.folder = g_cli_guard->persistent_buf_alloc(
-        (unsigned long long)CLI_INOTIFY_FOLDERS * sizeof(CliInotifyFolder), g_cli_watch_folders_owner);
-    s_watch.names = g_cli_guard->persistent_buf_alloc(CLI_INOTIFY_NAMES, g_cli_watch_folders_owner);
+    s_watch.folder = s_folders;
+    s_watch.names = s_names;
+    memor.set(&(MemoriaCfg){.dst = s_folders, .val = 0, .bytes = sizeof(s_folders)});
     s_watch.emit = emit;
     s_watch.context = context;
     s_watch.inotify = -1;
@@ -407,8 +411,6 @@ int cli_watch_system_start(const CliRootContextCtx *args)
         {
             (void)close(s_watch.stopped);
         }
-        g_cli_guard->persistent_buf_release(s_watch.folder, g_cli_watch_folders_owner);
-        g_cli_guard->persistent_buf_release(s_watch.names, g_cli_watch_folders_owner);
         s_watch.folder = NULL;
         s_watch.names = NULL;
         return 0;
@@ -419,8 +421,6 @@ int cli_watch_system_start(const CliRootContextCtx *args)
     {
         (void)close(s_watch.inotify);
         (void)close(s_watch.stopped);
-        g_cli_guard->persistent_buf_release(s_watch.folder, g_cli_watch_folders_owner);
-        g_cli_guard->persistent_buf_release(s_watch.names, g_cli_watch_folders_owner);
         s_watch.folder = NULL;
         s_watch.names = NULL;
         return 0;
@@ -441,8 +441,6 @@ void cli_watch_system_stop(void)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watch.wake);
     }
-    g_cli_guard->persistent_buf_release(s_watch.folder, g_cli_watch_folders_owner);
-    g_cli_guard->persistent_buf_release(s_watch.names, g_cli_watch_folders_owner);
     s_watch.folder = NULL;
     s_watch.names = NULL;
     s_watch.running = 0;

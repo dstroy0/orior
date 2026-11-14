@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // klq_decoder_wrap.cu: src/cu/transpiler/lstar/protocol/table/klq_decoder.cu as a translation unit a Unity suite includes, every function of the source in reach of the suite
 #define main klq_decoder_main
-#include "transpiler/lstar/protocol/table/klq_decoder.cu"
+#include "src/cu/transpiler/lstar/protocol/table/klq_decoder.cu"
 #undef main

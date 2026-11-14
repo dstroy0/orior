@@ -75,11 +75,11 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notebook_edit\\test_notebook_edit\\test_notebook_edit.c");
-  run_test(test_one_cell_at_a_time_has_a_view, "test_one_cell_at_a_time_has_a_view", 63);
-  run_test(test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not, "test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not", 78);
-  run_test(test_the_notebooks_keys_are_taken_and_others_are_not, "test_the_notebooks_keys_are_taken_and_others_are_not", 96);
-  run_test(test_cells_added_changed_moved_cleared_and_deleted, "test_cells_added_changed_moved_cleared_and_deleted", 118);
-  run_test(test_the_cell_menu_refuses_a_move_past_either_end, "test_the_cell_menu_refuses_a_move_past_either_end", 159);
+  run_test(test_one_cell_at_a_time_has_a_view, "test_one_cell_at_a_time_has_a_view", 64);
+  run_test(test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not, "test_a_line_put_in_grows_the_cells_rows_and_a_letter_typed_does_not", 79);
+  run_test(test_the_notebooks_keys_are_taken_and_others_are_not, "test_the_notebooks_keys_are_taken_and_others_are_not", 97);
+  run_test(test_cells_added_changed_moved_cleared_and_deleted, "test_cells_added_changed_moved_cleared_and_deleted", 119);
+  run_test(test_the_cell_menu_refuses_a_move_past_either_end, "test_the_cell_menu_refuses_a_move_past_either_end", 164);
 
   return UNITY_END();
 }

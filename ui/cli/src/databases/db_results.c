@@ -8,8 +8,6 @@
 #include "../text/text.h"
 #include "db_internal.h"
 
-#include <stdint.h>
-
 typedef struct
 {
     CliDbResults *results;
@@ -228,7 +226,7 @@ int cli_db_results_begin(const CliDbLinkFailureDoneCtx *args)
         mmgr_line_put(&named, "orior-db-");
         mmgr_line_decimal(&named, cli_process_own(), 1u);
         mmgr_line_ch(&named, '-');
-        mmgr_line_decimal(&named, (unsigned long long)(uintptr_t)args->open % 100000ULL, 1u);
+        mmgr_line_decimal(&named, (unsigned long long)(embed_word)args->open % 100000ULL, 1u);
         mmgr_line_put(&named, ".jsonl");
         mmgr_line_finish(&named);
         EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
@@ -303,7 +301,7 @@ void cli_db_results_lines(const CliDbContextCtx *args)
         row += 1ULL;
         at = line_end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_db_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_db_owner));
 }
 
 // a buffered row's line written into the page after those before it

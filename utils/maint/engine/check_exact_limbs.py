@@ -171,11 +171,11 @@ def version_lock(out):
     Returns 1 where they agree, 0 where they do not.
     """
     limbs = constant(
-        "src/cu/includes/types/integers/exact_integer.h",
+        "includes/exact_types/integers/exact_integer.h",
         r"#define\s+ORIOR_EXACT_LIMBS\s+(\d+)",
     )
     floor = constant(
-        "src/cu/includes/types/integers/exact_integer.h",
+        "includes/exact_types/integers/exact_integer.h",
         r"#define\s+ORIOR_EXACT_DIGITS\s+(\d+)",
     )
     scale = constant(

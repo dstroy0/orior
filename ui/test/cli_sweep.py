@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Sweeps every command and option of orior_cli, as `orior_cli help` lists them, on a window of the
+# Sweeps every command and option of impero, as `imp help` lists them, on a window of the
 # sweep's own (isolated.py): the released window in C on a tree and a home of the sweep's own, so a
 # command that acts in the window acts in that one, on the display the sweep is given, where it is seen
 # as each command lands. Each command is run bare, with each of its words filled and each option given,
@@ -41,7 +41,7 @@ import isolated  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 TOP = HERE.parents[1]
-CLI = TOP / "build" / "cli" / harness_window.host_target() / ("orior_cli.exe" if os.name == "nt" else "orior_cli")
+CLI = TOP / "build" / "cli" / harness_window.host_target() / ("imp.exe" if os.name == "nt" else "imp")
 
 # The forms after which the window is put back on the sweep's tree, as they open another
 OPENERS = ("open-folder", "open-repository", "open-workspace", "create-repository", "add-folder", "environment")
@@ -91,7 +91,7 @@ def usages():
     told = subprocess.run([str(CLI), "help"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
     joined = []
     for line in told.splitlines():
-        if line.startswith("  orior_cli ") or line.startswith("  orior "):
+        if line.startswith("  imp ") or line.startswith("  orior "):
             joined.append(line.strip())
         elif line.startswith("    ") and joined and not line.strip().startswith("*") and not re.match(r"^\s{20,}", line):
             joined[-1] += " " + line.strip()
@@ -286,7 +286,7 @@ class CliSweeper:
             ("Ended with an error", failed, lambda one: f"exit {one['code']}: {said(one)[0][:300]}"),
             ("Not run", blocked, lambda one: one["blocked"]),
         ):
-            lines += [f"## {title}", ""] + [f"- `orior_cli {' '.join(one['words'])}`: {detail(one)}" for one in records] + [""]
+            lines += [f"## {title}", ""] + [f"- `imp {' '.join(one['words'])}`: {detail(one)}" for one in records] + [""]
         (self.out / "cli_sweep.md").write_text("\n".join(lines), encoding="utf-8")
         print(f"the report is {self.out / 'cli_sweep.md'}")
 
@@ -294,7 +294,7 @@ class CliSweeper:
 def main():
     # each line said as it is printed, a run's output read as it goes where it is kept in a file
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-    parser = argparse.ArgumentParser(description="Sweep every command and option of orior_cli on a window of the sweep's own.")
+    parser = argparse.ArgumentParser(description="Sweep every command and option of impero on a window of the sweep's own.")
     parser.add_argument("--display", default="\\\\.\\DISPLAY1", help="the display the window is put on")
     parser.add_argument("--wait", type=float, default=60.0, help="seconds a form is given to end")
     parser.add_argument("--settle", type=float, default=1.0, help="seconds a form that acts in the window is given before its picture")

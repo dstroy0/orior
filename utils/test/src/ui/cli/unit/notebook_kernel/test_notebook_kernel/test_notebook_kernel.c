@@ -8,6 +8,7 @@
 #include "ui/cli/src/notebooks/notebook_kernel.h"
 #include "ui/query/src/query_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
+#include "utils/test/src/ui/cli/unit/support/notebook_model_unity.h"
 
 // how long a run is waited for, and the pause between two steps, in milliseconds
 #define KERNEL_PATIENCE 60000ULL
@@ -61,7 +62,7 @@ static int python_found(void)
     {
         CliNotebookKernelRow row;
         if (EMBED_CALL(cli_notebook_kernel_pick.kernel, CliNotebookKernelPickCfg, .at = at, .row = &row) &&
-            (row.install == NULL) &&
+            !row.lacks &&
             cellul.eq(&(CatenaFinitaCfg){.src = row.language, .other = "python", .cap = CLI_NAME_MAX_LEN}))
         {
             return 1;
@@ -80,7 +81,7 @@ static int runs_waited(const CliNotebookModel *model)
         int running = 0;
         for (unsigned int at = 0u; at < model->cells; at += 1u)
         {
-            running = running || model->cell[at].running;
+            running = running || notebook_cell_at(model, at).running;
         }
         if (!running)
         {
@@ -146,7 +147,7 @@ void test_the_kernels_the_machine_has_are_a_row_each(void)
         TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_kernel_pick.kernel, CliNotebookKernelPickCfg, .at = at,
                                             .row = &row));
         TEST_ASSERT_TRUE(row.name[0] != '\0');
-        TEST_ASSERT_TRUE((row.install == NULL) || (row.install[0] != '\0'));
+        TEST_ASSERT_TRUE(!row.lacks || (row.install[0] != '\0'));
     }
     CliNotebookKernelRow past;
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_kernel_pick.kernel, CliNotebookKernelPickCfg, .at = kernels,
@@ -164,19 +165,19 @@ void test_a_code_cell_runs_on_a_kernel_started_for_it(void)
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_kernel_run.run, CliNotebookKernelRunCfg, .key = "kernel:a",
                                         .cell = 0u, .err_msg = &s_err_msg));
     TEST_ASSERT_NOT_NULL(model->kernel);
-    TEST_ASSERT_EQUAL_INT(1, model->cell[0].running);
-    TEST_ASSERT_TRUE(model->cell[0].last_run != 0u);
+    TEST_ASSERT_EQUAL_INT(1, notebook_cell_at(model, 0u).running);
+    TEST_ASSERT_TRUE(notebook_cell_at(model, 0u).last_run != 0u);
     TEST_ASSERT_TRUE((EMBED_CALL(cli_notebook_kernel_state.tools, CliNotebookKernelStateCfg, .key = "kernel:a") &
                       CLI_NOTEBOOK_TOOL_STOP) != 0u);
     TEST_ASSERT_EQUAL_INT(1, runs_waited(model));
-    TEST_ASSERT_TRUE(model->cell[0].count != CLI_NOTEBOOK_NONE);
+    TEST_ASSERT_TRUE(notebook_cell_at(model, 0u).count != CLI_NOTEBOOK_NONE);
     TEST_ASSERT_EQUAL_INT(1, output_shows(model, 0u, "hi"));
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_kernel_run.run_all, CliNotebookKernelRunCfg, .key = "kernel:a",
                                         .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_INT(1, runs_waited(model));
-    TEST_ASSERT_TRUE(model->cell[2].count > model->cell[0].count);
+    TEST_ASSERT_TRUE(notebook_cell_at(model, 2u).count > notebook_cell_at(model, 0u).count);
     TEST_ASSERT_EQUAL_INT(1, output_shows(model, 2u, "2"));
-    TEST_ASSERT_EQUAL_UINT(1u, model->cell[0].outputs);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(model, 0u).outputs);
 }
 
 void test_restart_and_stop_leave_no_cell_running(void)
@@ -193,8 +194,8 @@ void test_restart_and_stop_leave_no_cell_running(void)
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_kernel_stop.restart, CliNotebookKernelStopCfg, .key = "kernel:a",
                                         .err_msg = &s_err_msg));
     TEST_ASSERT_NOT_NULL(model->kernel);
-    TEST_ASSERT_EQUAL_INT(0, model->cell[0].running);
-    TEST_ASSERT_EQUAL_UINT(0u, model->cell[0].last_run);
+    TEST_ASSERT_EQUAL_INT(0, notebook_cell_at(model, 0u).running);
+    TEST_ASSERT_EQUAL_UINT(0u, notebook_cell_at(model, 0u).last_run);
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_kernel_run.restart_run_all, CliNotebookKernelRunCfg,
                                         .key = "kernel:a", .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_kernel_stop.stop, CliNotebookKernelStopCfg, .key = "kernel:a",
@@ -202,7 +203,7 @@ void test_restart_and_stop_leave_no_cell_running(void)
     TEST_ASSERT_NULL(model->kernel);
     for (unsigned int at = 0u; at < model->cells; at += 1u)
     {
-        TEST_ASSERT_EQUAL_INT(0, model->cell[at].running);
+        TEST_ASSERT_EQUAL_INT(0, notebook_cell_at(model, at).running);
     }
     unsigned long long length = 0ULL;
     const char *const label = EMBED_CALL(cli_notebook_kernel_state.label, CliNotebookKernelStateCfg,

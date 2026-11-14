@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The menu bar, as commands.json lists it: the list the command line reads too, so that each item
-// here is `orior_gui <menu> <command>` there. What each command does in the window is COMMANDS below,
+// here is `tab <menu> <command>` there. What each command does in the window is COMMANDS below,
 // what it needs before it can act is NEEDS, whether an item that is on or off is on is CHECKS, and
 // the keys an item lists are bound here as well, with its `also`, a second key that does the same. A
 // key the editor or the terminal takes first stays theirs, and the keys of a command for the editor

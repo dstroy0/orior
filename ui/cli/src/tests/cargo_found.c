@@ -7,7 +7,6 @@
 #include "cargo_tests_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 // What the search of one package records: the tree, where the tests go, the manifest, package and target, and the files
 // followed, where each starts in their texts, both in cells at their most
@@ -30,8 +29,8 @@ int cli_cargo_is_rust(const CliCargoTestsIdCfg *args)
 {
     const char *const path = cellul.find(
         &(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES, .other = "::", .other_cap = CLI_POOL_BYTES});
-    const size_t length = (path != NULL) ? (size_t)(path - args->id)
-                                         : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES});
+    const embed_word length = (path != NULL) ? (embed_word)(path - args->id)
+                                             : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES});
     return (length >= 3u) &&
            (memor.cmp(&(MemoriaCfg){.src = args->id + length - 3u, .other = ".rs", .bytes = 3u}) == 0);
 }
@@ -61,7 +60,8 @@ EMBED_INLINE const char *found_append(const CargoFoundCtx *args)
     {
         const unsigned long long capacity =
             ((args->length + 1ULL) > CLI_CARGO_PIECE) ? (args->length + 1ULL) : CLI_CARGO_PIECE;
-        piece = g_cli_guard->persistent_buf_alloc(sizeof(*piece) + capacity, g_cli_cargo_owner);
+        // the piece is the find's own, given back as the call that found the tests ends
+        piece = g_cli_guard->temporary_buf_alloc(sizeof(*piece) + capacity, g_cli_cargo_owner);
         if (piece == NULL)
         {
             args->tests->full = 1;
@@ -89,7 +89,7 @@ EMBED_INLINE int found_visit(const CargoFoundCtx *args)
             return 1;
         }
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}) + 1u;
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}) + 1u;
     if ((args->walk->seen_count < args->walk->seen_capacity) &&
         (args->walk->seen_used + length <= args->walk->seen_text_capacity))
     {
@@ -171,7 +171,7 @@ static void found_walk(const CargoFoundCtx *args)
         EMBED_CALL(cli_cargo_tests_internal.cargo_tokens, CliCargoTestsCtx, .text = (const char *)bytes, .size = size);
         count = EMBED_CALL(cli_cargo_tests_internal.cargo_scan, CliCargoTestsCtx, .text = (const char *)bytes);
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_cargo_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_cargo_owner));
     for (unsigned int at = first; at < first + count; at += 1u)
     {
         if (g_cli_cargo_scan.items[at].test)
@@ -184,9 +184,9 @@ static void found_walk(const CargoFoundCtx *args)
     const char *const slash = EMBED_CALL(
         cli_text_byte.last, CliTextByteCfg, .text = args->file,
         .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}), .byte = '/');
-    const size_t folder_size = (slash != NULL) ? (size_t)(slash - args->file) : 0u;
-    size_t stem_size = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}) -
-                       ((slash != NULL) ? folder_size + 1u : 0u);
+    const embed_word folder_size = (slash != NULL) ? (embed_word)(slash - args->file) : 0u;
+    embed_word stem_size = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}) -
+                           ((slash != NULL) ? folder_size + 1u : 0u);
     const char *const stem = (slash != NULL) ? slash + 1 : args->file;
     while ((stem_size >= 3u) &&
            (memor.cmp(&(MemoriaCfg){.src = stem + stem_size - 3u, .other = ".rs", .bytes = 3u}) == 0))
@@ -220,8 +220,9 @@ static void found_walk(const CargoFoundCtx *args)
         {
             const char *const next = cellul.find(
                 &(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES, .other = "::", .other_cap = CLI_POOL_BYTES});
-            const size_t length = (next != NULL) ? (size_t)(next - one)
-                                                 : cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES});
+            const embed_word length = (next != NULL)
+                                          ? (embed_word)(next - one)
+                                          : cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES});
             mmgr_line_put(&dir_line, (dir_line.at > 0ULL) ? "/" : "");
             mmgr_line_put_n(&dir_line, one, length);
             one += length + ((next != NULL) ? 2u : 0u);
@@ -279,7 +280,8 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
     g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
     g_cli_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);
     memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
-    args->tests->found = g_cli_guard->persistent_buf_alloc(
+    // the tests found are the call's own: its caller gives them back as it ends
+    args->tests->found = g_cli_guard->temporary_buf_alloc(
         (unsigned long long)CLI_CARGO_FOUND * sizeof(*args->tests->found), g_cli_cargo_owner);
     args->tests->capacity = (args->tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
     const unsigned long long seen_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(*walk.seen);
@@ -295,7 +297,7 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
         const char *const manifest = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = index);
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = manifest, .cap = CLI_POOL_BYTES});
+        const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = manifest, .cap = CLI_POOL_BYTES});
         if (!((length == 10u) &&
               (cellul.eq(&(CatenaFinitaCfg){.src = manifest, .other = "Cargo.toml", .cap = CLI_POOL_BYTES}))) &&
             !((length > 10u) && (cellul.eq(&(CatenaFinitaCfg){
@@ -307,8 +309,9 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
         for (const char *part = manifest; searched && (*part != '\0');)
         {
             const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = '/'});
-            const size_t size = (slash != NULL) ? (size_t)(slash - part)
-                                                : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
+            const embed_word size = (slash != NULL)
+                                        ? (embed_word)(slash - part)
+                                        : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
             for (unsigned int skipped = 0u; skipped < 4u; skipped += 1u)
             {
                 searched =
@@ -333,9 +336,9 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
         char package[CLI_NAME_MAX_LEN];
         char folder[CLI_PATH_MAX_LEN];
         VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
-        size_t folder_size = length - 10u;
-        folder_size = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = manifest,
-                                         .at = folder_size, .set = "/");
+        embed_word folder_size = length - 10u;
+        folder_size = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                             .text = manifest, .at = folder_size, .set = "/");
         mmgr_line_put_n(&folder_line, manifest, folder_size);
         mmgr_line_finish(&folder_line);
         const int read =
@@ -351,7 +354,7 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
                               .folder = package_folder, .text = (const char *)bytes, .size = size, .package = package,
                               .count = &target_count)
                  : NULL;
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_cargo_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_cargo_owner));
         if (!read)
         {
             continue;

@@ -7,7 +7,7 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 MODULE_CU="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 TOP="$(cd "$MODULE/../../../.." && pwd)"
-source "$TOP/cu/includes/file_defs/file_defs.sh"
+source "$TOP/../includes/file_defs/file_defs.sh"
 # utils/maint/ is at the repository's root, one above src/
 source "$(cd "$TOP/.." && pwd)/utils/maint/engine/build_stamp.sh"
 build_stamp obsignatio_test

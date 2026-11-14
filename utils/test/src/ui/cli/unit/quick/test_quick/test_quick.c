@@ -99,8 +99,8 @@ static int text_is(const char *text, unsigned long long length, const char *requ
 // whether `length` bytes of `text` contain `part`
 static int text_holds(const char *text, unsigned long long length, const char *part)
 {
-    return cellul.find(&(CatenaFinitaCfg){.src = text, .cap = length, .other = part, .other_cap = CLI_UNITY_LENGTH(part)}) !=
-           NULL;
+    return cellul.find(&(CatenaFinitaCfg){
+               .src = text, .cap = length, .other = part, .other_cap = CLI_UNITY_LENGTH(part)}) != NULL;
 }
 
 // the box opened by `command` for the tree, the view shown where `shown_view`, with `text` typed after
@@ -271,7 +271,8 @@ void test_search_everywhere_answers_each_type_under_its_heading(void)
     opened("search-everywhere", 1, NULL);
     const CliQuickView view = viewed();
     TEST_ASSERT_EQUAL_UINT(CLI_QUICK_EVERYWHERE, view.mode);
-    TEST_ASSERT_TRUE(text_is(view.placeholder, view.placeholder_length, "Search everywhere: files, symbols and actions"));
+    TEST_ASSERT_TRUE(
+        text_is(view.placeholder, view.placeholder_length, "Search everywhere: files, symbols and actions"));
     unsigned int headings = 0u;
     unsigned int run = 0u;
     for (unsigned int at = 0u; at < view.rows; at += 1u)
@@ -347,7 +348,9 @@ void test_the_keys_edit_the_typed_text_and_move_its_caret(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_quick.key, CliQuickCfg, .name = "End"));
     EMBED_CALL(cli_quick.type, CliQuickCfg, .text = "z\ny", .length = 3ULL);
     view = viewed();
-    TEST_ASSERT_TRUE(text_is(view.text, view.length, "\xc3\xa9" "az"));
+    TEST_ASSERT_TRUE(text_is(view.text, view.length,
+                             "\xc3\xa9"
+                             "az"));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_quick.key, CliQuickCfg, .name = "F7"));
 }
 
@@ -380,9 +383,11 @@ void test_a_command_chosen_answers_its_word_and_runs_first_after(void)
     TEST_ASSERT_EQUAL_UINT(CLI_QUICK_CHOSE_COMMAND, choice.type);
     TEST_ASSERT_EQUAL_STRING("close-all", choice.command);
     const char *recent[2];
+    char *recent_cell = NULL;
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .most = 1u,
-                                          .rows_out = recent));
+                                          .rows_out = recent, .cell_out = &recent_cell, .owner = g_cli_machine_owner));
     TEST_ASSERT_EQUAL_STRING("close-all", recent[0]);
+    g_cli_guard->persistent_buf_release(recent_cell, g_cli_machine_owner);
 }
 
 void test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row(void)
@@ -396,8 +401,8 @@ void test_the_rows_asked_again_while_the_tree_is_read_keep_the_chosen_row(void)
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_FILES, .entry = "onex.c");
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_FILES, .entry = "one.c");
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = s_tree);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_quick.open, CliQuickCfg, .command = "file", .root = s_unread, .shown = 8u,
-                                .now_ms = 5000ULL));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_quick.open, CliQuickCfg, .command = "file", .root = s_unread, .shown = 8u, .now_ms = 5000ULL));
     EMBED_CALL(cli_quick.type, CliQuickCfg, .text = "one", .length = 3ULL, .now_ms = 5000ULL);
     const CliQuickView view = viewed();
     TEST_ASSERT_EQUAL_UINT(3u, view.rows);

@@ -91,18 +91,19 @@ EMBED_TABLE_STORAGE CliVimNs cli_vim_view EMBED_UNUSED = {
 };
 
 // The view's own steps Vim acts through, defined beside the views (view.c), each on the view under `key`: how many
-// lines its text has; the units of its line `line`, their count into `count`, which stand until its next line is
-// read, NULL past the last; how many rows it shows; the bytes of UTF-8 the span from `from` to `to` takes, and that
-// span's UTF-8 written into `out`; the span from `from` to `to` replaced by `length` bytes of `text`, a step of its
-// own, the cursor after the text: 1, or 0 with why written into `err_msg`; the lines from `from.line` to `to.line` a
-// step of indentation deeper where `deeper`, else a step shallower, a step of its own: 1, or 0 with why; the cursor put
-// at `cursor` and the anchor at `anchor`, the view's top following; the last step undone, or the next redone where
-// `redo`: 1, or 0 with why; and the next place from `from` where the view's find finds `length` bytes of `text`, as a
-// pattern and where that reads as none as the text itself, or with `word_text` as a whole word, before it going back
-// where `back`, round the text's ends: 1 with the place into `place`, or 0 where it finds none. Each answers 0, or
-// nothing, where no view is open under the key
+// lines its text has; the units of its line `line` copied into a temporary cell, their count into `count`, NULL past
+// the last or where the cell could not be taken, and that copy given back as `units`; how many rows it shows; the bytes
+// of UTF-8 the span from `from` to `to` takes, and that span's UTF-8 written into `out`; the span from `from` to `to`
+// replaced by `length` bytes of `text`, a step of its own, the cursor after the text: 1, or 0 with why written into
+// `err_msg`; the lines from `from.line` to `to.line` a step of indentation deeper where `deeper`, else a step
+// shallower, a step of its own: 1, or 0 with why; the cursor put at `cursor` and the anchor at `anchor`, the view's top
+// following; the last step undone, or the next redone where `redo`: 1, or 0 with why; and the next place from `from`
+// where the view's find finds `length` bytes of `text`, as a pattern and where that reads as none as the text itself,
+// or with `word_text` as a whole word, before it going back where `back`, round the text's ends: 1 with the place into
+// `place`, or 0 where it finds none. Each answers 0, or nothing, where no view is open under the key
 unsigned long long cli_view_vim_lines(const CliViewVimCfg *args);
 const unsigned short *cli_view_vim_line(const CliViewVimCfg *args);
+void cli_view_vim_line_end(const CliViewVimCfg *args);
 unsigned int cli_view_vim_rows(const CliViewVimCfg *args);
 unsigned long long cli_view_vim_span_bytes(const CliViewVimCfg *args);
 void cli_view_vim_span(const CliViewVimCfg *args);
@@ -129,12 +130,14 @@ struct CliViewVimCfg
     CliPosition *place;
     VerbaLinea *out;
     VerbaLinea *err_msg;
+    const unsigned short *units;
 };
 
 typedef struct
 {
     unsigned long long (*lines)(const CliViewVimCfg *args);
     const unsigned short *(*line)(const CliViewVimCfg *args);
+    void (*line_end)(const CliViewVimCfg *args);
     unsigned int (*rows)(const CliViewVimCfg *args);
     unsigned long long (*span_bytes)(const CliViewVimCfg *args);
     void (*span)(const CliViewVimCfg *args);
@@ -144,10 +147,11 @@ typedef struct
     int (*step)(const CliViewVimCfg *args);
     int (*find)(const CliViewVimCfg *args);
 } CliViewVimNs;
-EMBED_TABLE_LAYOUT(CliViewVimNs, lines, line, rows, span_bytes, span, edit, indent, place, step, find);
+EMBED_TABLE_LAYOUT(CliViewVimNs, lines, line, line_end, rows, span_bytes, span, edit, indent, place, step, find);
 EMBED_TABLE_STORAGE CliViewVimNs cli_view_vim EMBED_UNUSED = {
     .lines = cli_view_vim_lines,
     .line = cli_view_vim_line,
+    .line_end = cli_view_vim_line_end,
     .rows = cli_view_vim_rows,
     .span_bytes = cli_view_vim_span_bytes,
     .span = cli_view_vim_span,

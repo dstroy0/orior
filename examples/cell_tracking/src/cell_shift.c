@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../../src/cu/includes/types/integers/arm.h"
-#include "../../../src/cu/includes/types/integers/exact_integer.h"
+#include "../../../includes/exact_types/integers/arm.h"
+#include "../../../includes/exact_types/integers/exact_integer.h"
 
 #define SHIFT_TEXT 64u
 

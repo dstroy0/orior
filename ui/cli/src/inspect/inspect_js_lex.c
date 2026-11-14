@@ -75,7 +75,7 @@ int cli_js_is(const CliInspectJsAtWordCfg *args)
         return 0;
     }
     const CliInspectTok *const tok = &g_cli_inspect_tok[args->at];
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
     return (tok->end - tok->start == length) &&
            (memor.cmp(&(MemoriaCfg){.src = src + tok->start, .other = args->word_text, .bytes = length}) == 0);
 }
@@ -185,10 +185,10 @@ EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
     CliInspectScan *scan = args->scan;
     const unsigned long long start = scan->pos;
     const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
-    size_t length = 1u;
+    embed_word length = 1u;
     for (unsigned int at = 0u; at < 52u; at += 1u)
     {
-        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = s_puncts[at], .cap = CLI_POOL_BYTES});
+        const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = s_puncts[at], .cap = CLI_POOL_BYTES});
         if ((scan->size - start >= size) &&
             (memor.cmp(&(MemoriaCfg){.src = scan->src + start, .other = s_puncts[at], .bytes = size}) == 0))
         {
@@ -196,7 +196,7 @@ EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
             break;
         }
     }
-    for (size_t at = 0u; at < length; at += 1u)
+    for (embed_word at = 0u; at < length; at += 1u)
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }

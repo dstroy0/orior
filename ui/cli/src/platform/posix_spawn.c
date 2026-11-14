@@ -14,7 +14,6 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <signal.h>
-#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -36,25 +35,72 @@ typedef struct
     VerbaLinea *err_msg;
     int leader;
     char *name;
-    size_t capacity;
+    embed_word capacity;
     pid_t child;
+    const char *entry;
 #endif
 } PosixSpawnCtx;
 
-// the settings made in this process's environment, as a child makes them before it runs its program
-EMBED_INLINE void cli_spawn_settings(const PosixSpawnCtx *args)
+// the entries a child's environment holds at most, and the bytes its settings' pairs take at most
+#define CLI_SPAWN_ENVIRONMENT 4096u
+#define CLI_SPAWN_PAIRS (64u << 10u)
+
+extern char **environ;
+
+// whether the environment entry `entry`, name=value, is named by one of the settings
+EMBED_INLINE int cli_spawn_entry_named(const PosixSpawnCtx *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (args->settings[at].value != NULL)
+        const char *const name = args->settings[at].name;
+        const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
+        if ((args->entry[length] == '=') &&
+            cellul.starts(
+                &(CatenaFinitaCfg){.src = args->entry, .cap = CLI_POOL_BYTES, .other = name, .other_cap = length}))
         {
-            setenv(args->settings[at].name, args->settings[at].value, 1);
-        }
-        else
-        {
-            unsetenv(args->settings[at].name);
+            return 1;
         }
     }
+    return 0;
+}
+
+// the environment a child runs its program in, made in the child before it runs: this process's entries without
+// those the settings name, then each setting with a value as name=value; an entry past the bounds is dropped
+EMBED_INLINE void cli_spawn_settings(const PosixSpawnCtx *args)
+{
+    static char *s_entries[CLI_SPAWN_ENVIRONMENT + 1u];
+    static char s_pairs[CLI_SPAWN_PAIRS];
+    unsigned int entries = 0u;
+    for (char **entry = environ; (*entry != NULL) && (entries < CLI_SPAWN_ENVIRONMENT); entry += 1)
+    {
+        if (!EMBED_CALL(cli_spawn_entry_named, PosixSpawnCtx, .settings = args->settings, .count = args->count,
+                        .entry = *entry))
+        {
+            s_entries[entries] = *entry;
+            entries += 1u;
+        }
+    }
+    VerbaLinea pairs = {s_pairs, sizeof(s_pairs), 0ULL, NULL, NULL, 0ULL};
+    for (unsigned int at = 0u; (at < args->count) && (entries < CLI_SPAWN_ENVIRONMENT); at += 1u)
+    {
+        if (args->settings[at].value == NULL)
+        {
+            continue;
+        }
+        const unsigned long long start = pairs.at;
+        mmgr_line_put(&pairs, args->settings[at].name);
+        mmgr_line_ch(&pairs, '=');
+        mmgr_line_put(&pairs, args->settings[at].value);
+        mmgr_line_ch(&pairs, '\0');
+        if (!mmgr_line_ok(&pairs))
+        {
+            break;
+        }
+        s_entries[entries] = s_pairs + start;
+        entries += 1u;
+    }
+    s_entries[entries] = NULL;
+    environ = s_entries;
 }
 
 int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
@@ -70,7 +116,7 @@ int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
     {
         EMBED_CALL(cli_spawn_settings, PosixSpawnCtx, .settings = args->settings, .count = args->count);
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
+        execvp(args->words[0], (char *const *)(embed_word)args->words);
         _exit(127);
     }
     int status = 0;
@@ -163,7 +209,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
             _exit(127);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
+        execvp(args->words[0], (char *const *)(embed_word)args->words);
         _exit(127);
     }
     close(out[1]);
@@ -289,7 +335,7 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
             _exit(127);
         }
         // exec takes its words as it was declared; it writes to none of them
-        execvp(args->words[0], (char *const *)(uintptr_t)args->words);
+        execvp(args->words[0], (char *const *)(embed_word)args->words);
         _exit(127);
     }
     // a process number and descriptors are not negative here, stored one past so 0 stands for none
@@ -326,7 +372,7 @@ int cli_spawn_write(const CliPipeHandleCtx *args)
     const unsigned char *at = (const unsigned char *)args->bytes;
     while ((size > 0ULL) && (args->pipe_handle != 0ULL))
     {
-        const ssize_t written = write((int)(args->pipe_handle - 1ULL), at, (size_t)size);
+        const ssize_t written = write((int)(args->pipe_handle - 1ULL), at, (embed_word)size);
         if (written <= 0)
         {
             return 0;
@@ -353,7 +399,7 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
     {
         return 0ULL;
     }
-    const ssize_t read_count = read((int)(args->pipe_handle - 1ULL), args->piece, (size_t)args->capacity);
+    const ssize_t read_count = read((int)(args->pipe_handle - 1ULL), args->piece, (embed_word)args->capacity);
     // a count read is not negative here
     return (read_count > 0) ? (unsigned long long)read_count : 0ULL;
 }

@@ -76,7 +76,7 @@ EMBED_INLINE void check_elements(const MavenCheckCtx *args)
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             known |= (cellul.len(&(CatenaFinitaCfg){.src = allowed[at], .cap = CLI_POOL_BYTES}) == size) &&
-                     (memor.cmp(&(MemoriaCfg){.src = allowed[at], .other = name, .bytes = (size_t)size}) == 0);
+                     (memor.cmp(&(MemoriaCfg){.src = allowed[at], .other = name, .bytes = (embed_word)size}) == 0);
         }
         if (known)
         {

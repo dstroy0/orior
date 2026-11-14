@@ -5,9 +5,10 @@
 // Structure group's title, a row its number of rows under the pane's head, the row of the declaration the cursor stands
 // in on the idle selection's ground and the row pointed on a ground of its own; a press lands on a row and on no row
 // over the group's title; the head offers no action; and a key with no text under it leaves no rows
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/code/symbols.h"
 #include "../../../../../ui/cli/src/editor/document.h"
-#include "../../../../../ui/cli/src/view/parts/structure.h"
+#include "../../../../../ui/gui/src/structure.h"
 #include "../cli/cli_check.h"
 
 static const char s_key[] = "structure_check";
@@ -29,16 +30,19 @@ static int row_with_name(const char *name, CliOutlineRow *row)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
@@ -91,7 +95,7 @@ int main(void)
 
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Structure", .tree = "", .cursor_line = 7ULL);
@@ -138,10 +142,10 @@ int main(void)
     EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = "check:none", .path = "none.c");
     cli_check(EMBED_CALL(cli_outline.rows, CliOutlineCfg, .at = 0u) == 0u, "no text under a key leaves no rows");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

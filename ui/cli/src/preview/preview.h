@@ -3,9 +3,10 @@
 // preview.h: the live preview of the view shown, as the window draws it beside the text or alone over it: the type of
 // preview a file's path has, the mode chosen once for every file and saved, the view the preview is bound to, and the
 // step that lays the view's text out again as it changes, at most once a look, a Markdown text as items (preview.c,
-// preview_markdown.c). The items stand in three cells sized to them, the items with the blocks after them, the text the
-// items draw, and the points of the shapes, each item a row of the first cell sorted by its top: a run of text, a box,
-// a rule, a line segment, or a block's rectangle, outlined while the cursor's line stands in the block. The preview's
+// preview_markdown.c). The items stand in two movable cells sized to them, the items with the blocks after them and the
+// text the items draw, read out by copy at each site, each item a row of the first cell sorted by its top: a run of
+// text, a box, a rule, a line segment, or a block's rectangle, outlined while the cursor's line stands in the block.
+// The item row handed out is a copy, with its text copied beside it, that the next row read replaces. The preview's
 // scroll top stands here alone: the wheel moves it and leads the view's top along, the view's top moved by the editor
 // moves it in turn and leads nothing back, and the source line at a top and the top of a source line answer each other
 // between two blocks. A press on a link answers where it goes: a place in the preview, scrolled to, a file of the tree
@@ -116,21 +117,25 @@ typedef struct
     int heading;
 } CliPreviewBlock;
 
-// The items of a preview in their three cells: the items and how many, the blocks after them in the same cell and how
-// many, the text and its bytes, the points and how many, and the height every item fills in the page's pixels, counted
-// as items are added
+// The items of a preview in their two movable cells: the items' cell and how many items, where its first block starts
+// and how many blocks, the text's cell and its bytes, and the height every item fills in the page's pixels, counted as
+// items are added; a cell is NULL where it carries nothing. The item `at_` starts CLI_PREVIEW_ITEM_AT(at_) bytes into
+// the items' cell and the block `at_` CLI_PREVIEW_BLOCK_AT(items_, at_)
 typedef struct
 {
-    CliPreviewItem *item;
+    const CarcerMovableEntry *cell;
     unsigned int items;
-    CliPreviewBlock *block;
+    unsigned long long block_at;
     unsigned int blocks;
-    char *text;
+    const CarcerMovableEntry *text_cell;
     unsigned int text_bytes;
-    int *point;
-    unsigned int points;
     int height;
 } CliPreviewItems;
+#define CLI_PREVIEW_ITEM_AT(at_) ((unsigned long long)(at_) * sizeof(CliPreviewItem))
+#define CLI_PREVIEW_BLOCK_AT(items_, at_) ((items_)->block_at + ((unsigned long long)(at_) * sizeof(CliPreviewBlock)))
+
+// the most bytes of a run's text the item row hands out beside the row, the run's `length` cut to them
+#define CLI_PREVIEW_ROW_TEXT 4096u
 
 // Where a press goes: the file's path from the tree's top, the line to open it at where `placed`, the target, one of
 // CLI_PREVIEW_OPEN_*, and the preview's top a place in it scrolled to
@@ -193,8 +198,9 @@ EMBED_TABLE_STORAGE CliPreviewNs cli_preview EMBED_UNUSED = {
     .deadline_ms = cli_preview_deadline_ms,
 };
 
-// how many items the preview has; the item `at`, its text's first byte into `text_out` where it is not NULL: the
-// item, NULL past the last; the first item a draw from the top `top_px` starts at, the first item of the outermost
+// how many items the preview has; the item `at` copied out of its cell, its text copied beside it and its first byte
+// into `text_out` where it is not NULL, the copy standing until the next row is read: the item, NULL past the last;
+// the first item a draw from the top `top_px` starts at, the first item of the outermost
 // block standing at that top, found by a binary search over the blocks' tops; and the height every item fills, in the
 // page's pixels
 unsigned int cli_preview_item_count(const CliPreviewItemCfg *args);

@@ -17,14 +17,14 @@ export QRY_TOP
 
 qry_writer_built() {
     QRY_WRITER="$1/orior_qry_writer"
-    local binary="$QRY_WRITER" sources=("$QRY_TOP/src/cu/includes/file_defs/qry/qry_writer.c" "$QRY_TOP/src/cu/includes/file_defs/qry/writer"/*.c "$QRY_TOP/src/cu/includes/file_defs/qry/writer"/platform/*.c
-        "$QRY_TOP/src/cu/includes/file_defs/qry/qry_read.c" "$QRY_TOP/src/cu/includes/file_defs/ksg/ksg_seal.c"
-        "$QRY_TOP/src/cu/includes/file_defs/ksg/ksg_writing.c")
+    local binary="$QRY_WRITER" sources=("$QRY_TOP/includes/file_defs/qry/qry_writer.c" "$QRY_TOP/includes/file_defs/qry/writer"/*.c "$QRY_TOP/includes/file_defs/qry/writer"/platform/*.c
+        "$QRY_TOP/includes/file_defs/qry/qry_read.c" "$QRY_TOP/includes/file_defs/ksg/ksg_seal.c"
+        "$QRY_TOP/includes/file_defs/ksg/ksg_writing.c")
     [ -f "$binary.exe" ] && binary="$binary.exe"
     local stale=0 source
     [ -f "$binary" ] || stale=1
-    for source in "${sources[@]}" "$QRY_TOP/src/cu/includes/file_defs/qry/writer"/*.h "$QRY_TOP/src/cu/includes/file_defs/qry/qry.h" \
-        "$QRY_TOP/src/cu/includes/file_defs/qry/qry_read.h"; do
+    for source in "${sources[@]}" "$QRY_TOP/includes/file_defs/qry/writer"/*.h "$QRY_TOP/includes/file_defs/qry/qry.h" \
+        "$QRY_TOP/includes/file_defs/qry/qry_read.h"; do
         [ "$source" -nt "$binary" ] && stale=1
     done
     if [ "$stale" -eq 1 ]; then

@@ -43,7 +43,7 @@ EMBED_INLINE int object_has(const SchemaObjectCtx *args)
             (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
                                                        .read = read, .at = member->key_at),
                                      .other = args->name,
-                                     .bytes = (size_t)args->size}) == 0))
+                                     .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
@@ -126,7 +126,7 @@ EMBED_INLINE void object_dependent(const SchemaObjectCtx *args)
                      (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
                                                                 .read = read, .at = one->key_at),
                                               .other = name,
-                                              .bytes = (size_t)size}) == 0))
+                                              .bytes = (embed_word)size}) == 0))
                         ? at
                         : member;
             }

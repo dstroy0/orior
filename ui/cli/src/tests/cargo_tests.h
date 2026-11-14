@@ -5,7 +5,7 @@
 // Each Cargo.toml of the tree that makes a package gives its targets: the library, each binary and each test, by its
 // [lib], [[bin]] and [[test]] tables and by the files Cargo finds on its own. Each target's modules are followed from
 // its first file, `mod name;` by `mod name;`, and in each file every function marked `#[test]`, or with an attribute
-// whose path ends in `test` as `#[tokio::test]`, is a test. A test is named as orior_cli names a Python one, its file
+// whose path ends in `test` as `#[tokio::test]`, is a test. A test is named as impero names a Python one, its file
 // first, `src/files.rs::listing::name`, and runs by the name the harness gives it, `files::listing::name`.
 //
 // A run gives each target its own cargo test, every target's at once, with the words rust-analyzer gives an editor
@@ -66,7 +66,7 @@ typedef struct CliCargoPieceStruct
 
 // The Rust tests of a tree and the texts they take, with 1 in `full` where one did not fit: the tests in a cell at
 // their most, CLI_CARGO_FOUND at the most, and their texts in pieces that never move, the newest first, CLI_CARGO_TEXT
-// bytes at the most, each released through persistent_buf_release
+// bytes at the most, every cell the temporary tier's, the call that finds the tests giving each back as it ends
 typedef struct
 {
     CliCargoFound *found;

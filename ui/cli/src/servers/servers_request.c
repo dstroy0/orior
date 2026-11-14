@@ -15,7 +15,6 @@
 #include "servers_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 // One usage: its path in the paths' pool, its span, and its place among the usages
 typedef struct
@@ -116,7 +115,8 @@ int cli_servers_hover(const CliServersPathOutCfg *args)
         }
         g_cli_guard->persistent_buf_release(displayed, g_cli_servers_owner);
     }
-    g_cli_guard->persistent_buf_release(s_quick.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
+    g_cli_guard->persistent_buf_release(s_quick.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return requested;
@@ -133,8 +133,8 @@ EMBED_INLINE CliServerItems *request_items_alloc(const ServersRequestCtx *args)
         bytes += (unsigned long long)one->label_size + one->detail_size + one->insert_size + 3ULL +
                  cellul.len(&(CatenaFinitaCfg){.src = one->type, .cap = CLI_POOL_BYTES}) + 1ULL;
     }
-    CliServerItems *const items = g_cli_guard->persistent_buf_alloc(
-        sizeof(*items) + (s_items.count * sizeof(CliServerItem)) + bytes, args->owner);
+    CliServerItems *const items =
+        g_cli_guard->temporary_buf_alloc(sizeof(*items) + (s_items.count * sizeof(CliServerItem)) + bytes, args->owner);
     if (items == NULL)
     {
         return NULL;
@@ -282,19 +282,20 @@ CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args)
     }
     CliServerItems *const answered =
         requested ? EMBED_CALL(request_items_alloc, ServersRequestCtx, .owner = args->owner) : NULL;
-    g_cli_guard->persistent_buf_release(s_quick.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
+    g_cli_guard->persistent_buf_release(s_quick.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return answered;
 }
 
-CliSignaturePanel *cli_servers_signature_alloc(const CliServersAskCfg *args)
+int cli_servers_signature_read(const CliServersAskCfg *args)
 {
     CliLsp *const server =
         EMBED_CALL(cli_servers_path_lsp_internal.owner_answering, CliServersPathLspCtx, .path = args->path);
     if (server == NULL)
     {
-        return NULL;
+        return 0;
     }
     EMBED_CALL(cli_servers_read_state_answer_internal.read_state_lock, CliServersReadStateAnswerCtx,
                .read_state = &s_quick);
@@ -303,12 +304,12 @@ CliSignaturePanel *cli_servers_signature_alloc(const CliServersAskCfg *args)
                                          .method = "textDocument/signatureHelp", .path = args->path, .line = args->line,
                                          .col = args->col, .added = NULL, .wait = CLI_SERVERS_REQUEST_TIMEOUT_MS,
                                          .requested = &requested, .err_msg = args->err_msg);
-    CliSignaturePanel *const panel =
-        requested ? EMBED_CALL(cli_servers_json_out_help_internal.signature_get, CliServersJsonOutHelpCtx,
-                               .json = &s_quick.json, .help = root, .owner = args->owner)
-                  : NULL;
-    g_cli_guard->persistent_buf_release(s_quick.json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
+    const int written =
+        requested && EMBED_CALL(cli_servers_json_out_help_internal.signature_get, CliServersJsonOutHelpCtx,
+                                .json = &s_quick.json, .help = root, .store = args->store);
+    g_cli_guard->persistent_buf_release(s_quick.json.node,
+                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_quick.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_quick.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    return panel;
+    return written;
 }

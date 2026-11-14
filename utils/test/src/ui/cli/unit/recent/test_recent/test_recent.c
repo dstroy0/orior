@@ -27,10 +27,13 @@ void tearDown(void)
 {
 }
 
-// the list `list` into `rows`, sized for CLI_RECENT_MOST: how many
+// the list `list` into `rows`, sized for CLI_RECENT_MOST: how many; the rows stand in one cell let go at the next call
+static char *s_listed_cell;
 static unsigned int listed(unsigned int list, const char **rows)
 {
-    return EMBED_CALL(cli_recent.list, CliRecentCfg, .list = list, .most = CLI_RECENT_MOST, .rows_out = rows);
+    g_cli_guard->persistent_buf_release(s_listed_cell, g_cli_machine_owner);
+    return EMBED_CALL(cli_recent.list, CliRecentCfg, .list = list, .most = CLI_RECENT_MOST, .rows_out = rows,
+                      .cell_out = &s_listed_cell, .owner = g_cli_machine_owner);
 }
 
 void test_a_push_puts_the_newest_first(void)
@@ -57,7 +60,8 @@ void test_a_repeat_moves_to_the_front_and_stands_once(void)
     TEST_ASSERT_EQUAL_STRING("src/two.c", rows[1]);
     for (unsigned int at = 1u; at < after; at += 1u)
     {
-        TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = rows[at], .other = "src/one.c", .cap = CLI_PATH_MAX_LEN}));
+        TEST_ASSERT_FALSE(
+            cellul.eq(&(CatenaFinitaCfg){.src = rows[at], .other = "src/one.c", .cap = CLI_PATH_MAX_LEN}));
     }
 }
 
@@ -84,7 +88,11 @@ void test_the_files_and_the_commands_stand_apart(void)
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "palette");
     const char *commands[CLI_RECENT_MOST];
     const char *files[CLI_RECENT_MOST];
-    const unsigned int command_count = listed(CLI_RECENT_COMMANDS, commands);
+    // the commands' rows in a cell of this test's own, since the helper's cell goes as the files are listed
+    char *commands_cell = NULL;
+    const unsigned int command_count =
+        EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .most = CLI_RECENT_MOST,
+                   .rows_out = commands, .cell_out = &commands_cell, .owner = g_cli_machine_owner);
     const unsigned int file_count = listed(CLI_RECENT_FILES, files);
     TEST_ASSERT_EQUAL_UINT(2u, command_count);
     TEST_ASSERT_EQUAL_STRING("palette", commands[0]);
@@ -93,29 +101,37 @@ void test_the_files_and_the_commands_stand_apart(void)
     {
         TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = files[at], .other = "palette", .cap = CLI_PATH_MAX_LEN}));
     }
+    g_cli_guard->persistent_buf_release(commands_cell, g_cli_machine_owner);
 }
 
 void test_an_empty_entry_or_one_with_a_line_end_changes_nothing(void)
 {
     const char *rows[CLI_RECENT_MOST];
     const unsigned int before = listed(CLI_RECENT_COMMANDS, rows);
-    const char *const first = rows[0];
+    char first[CLI_PATH_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){.dst = first,
+                            .src = rows[0],
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = rows[0], .cap = CLI_PATH_MAX_LEN}) + 1u});
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "");
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "two\nlines");
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_LISTS, .entry = "no list");
     TEST_ASSERT_EQUAL_UINT(before, listed(CLI_RECENT_COMMANDS, rows));
-    TEST_ASSERT_EQUAL_PTR(first, rows[0]);
+    TEST_ASSERT_EQUAL_STRING(first, rows[0]);
+    char *none = NULL;
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_LISTS, .most = 3u,
-                                          .rows_out = rows));
+                                          .rows_out = rows, .cell_out = &none, .owner = g_cli_machine_owner));
+    TEST_ASSERT_NULL(none);
 }
 
 void test_a_list_asked_for_fewer_answers_its_newest(void)
 {
     EMBED_CALL(cli_recent.push, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .entry = "line");
     const char *rows[2];
+    char *cell = NULL;
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_recent.list, CliRecentCfg, .list = CLI_RECENT_COMMANDS, .most = 1u,
-                                          .rows_out = rows));
+                                          .rows_out = rows, .cell_out = &cell, .owner = g_cli_machine_owner));
     TEST_ASSERT_EQUAL_STRING("line", rows[0]);
+    g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
 }
 
 void test_each_list_stands_in_orior_folder_a_line_an_entry(void)

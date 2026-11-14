@@ -171,7 +171,7 @@ static int config_read(const DbConfigCtx *args)
                                      .json = &json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                      .text_more = 0ULL, .err_msg = &read_err_msg, .owner = g_cli_db_owner)
                         : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_db_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_db_owner));
     const unsigned int connections = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = &json, .object = root_node, .name = "connections");
     unsigned int named = 0u;
@@ -181,7 +181,7 @@ static int config_read(const DbConfigCtx *args)
     {
         named += 1u;
     }
-    s_connections = g_cli_guard->persistent_buf_alloc((named + 1ULL) * sizeof(*s_connections), g_cli_db_owner);
+    s_connections = g_cli_guard->temporary_buf_alloc((named + 1ULL) * sizeof(*s_connections), g_cli_db_owner);
     if (s_connections == NULL)
     {
         g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
@@ -301,20 +301,21 @@ EMBED_INLINE int config_write(const DbConfigCtx *args)
     const char *root = args->root;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "databases.json", .joined = path);
-    char *const out_cell = g_cli_guard->temporary_buf_alloc(CLI_DB_CONFIG_CAPACITY, g_cli_db_owner);
-    VerbaLinea out = mmgr_line_over(out_cell, CLI_DB_CONFIG_CAPACITY);
-    mmgr_line_put(&out, (args->count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
+    CliGrownLine out_grown;
+    cli_grown_begin(&out_grown, CLI_DB_CONFIG_CAPACITY, g_cli_db_owner);
+    VerbaLinea *const out_line = &out_grown.line;
+    mmgr_line_put(out_line, (args->count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        mmgr_line_put(&out, "    ");
+        mmgr_line_put(out_line, "    ");
         EMBED_CALL(config_on_write, DbConfigCtx, .connection = &s_connections[at], .pretty = 1, .indent = "    ",
-                   .out_verba_linea_pointer = &out);
-        mmgr_line_put(&out, (at + 1u < args->count) ? ",\n" : "\n  ]\n}\n");
+                   .out_verba_linea_pointer = out_line);
+        mmgr_line_put(out_line, (at + 1u < args->count) ? ",\n" : "\n  ]\n}\n");
     }
     const int written =
-        mmgr_line_ok(&out) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
-                                         .bytes = out.out, .size = out.at);
-    g_cli_guard->persistent_buf_release(out.out, g_cli_db_owner);
+        mmgr_line_ok(out_line) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
+                                             .path = path, .bytes = out_grown.cell, .size = cli_grown_size(&out_grown));
+    cli_grown_end(&out_grown);
     if (!written)
     {
         mmgr_line_put(args->err_msg, "databases.json: it could not be written");
@@ -367,7 +368,7 @@ int cli_db_save(const CliDbConnectionCfg *args)
         (!cellul.eq(&(CatenaFinitaCfg){.src = args->connection->type, .other = "sqlite", .cap = CLI_POOL_BYTES})))
     {
         mmgr_line_put(args->err_msg, args->connection->type);
-        mmgr_line_put(args->err_msg, " is no kind of database orior_cli supports: postgres, mysql or sqlite");
+        mmgr_line_put(args->err_msg, " is no kind of database impero supports: postgres, mysql or sqlite");
         return 0;
     }
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
@@ -401,7 +402,7 @@ int cli_db_save(const CliDbConnectionCfg *args)
     {
         g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
         s_connections = NULL;
-        mmgr_line_put(args->err_msg, "databases.json names as many connections as orior_cli reads");
+        mmgr_line_put(args->err_msg, "databases.json names as many connections as impero reads");
         return 0;
     }
     s_connections[(found >= 0) ? found : count] = *args->connection;

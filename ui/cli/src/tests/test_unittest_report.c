@@ -49,8 +49,8 @@ EMBED_INLINE void report_failure_emit(const TestUnittestReportCtx *args)
         cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES, .other = "::", .other_cap = CLI_POOL_BYTES});
     memor.cpy(&(MemoriaCfg){
         .dst = required, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES}) + 1u});
-    required[(path != NULL) ? (size_t)(path - id) : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES})] =
-        '\0';
+    required[(path != NULL) ? (embed_word)(path - id)
+                            : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES})] = '\0';
     unsigned long long body = size;
     unsigned long long body_end = size;
     while (EMBED_CALL(cli_test_runs_text_size_internal.report_line, CliTestRunsTextSizeCtx, .text = args->block,

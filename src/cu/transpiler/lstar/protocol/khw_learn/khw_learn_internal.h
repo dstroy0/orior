@@ -6,16 +6,16 @@
 #ifndef KHW_LEARN_INTERNAL_H
 #define KHW_LEARN_INTERNAL_H
 
-#include "../../../../includes/file_defs/khw/khw_write/khw_write.h"
+#include "../../../../../../includes/file_defs/khw/khw_write/khw_write.h"
 #include "../gate/survivors.h"
 #include "../order/scheduler.h"
 #include "../query/answer_read.h"
 #include "../teacher/run_channel.h"
 #include "frame_relation.h"
 
-#include "../../../../includes/file_defs/kernel_blob/kernel_blob.h"
-#include "../../../../includes/file_defs/krf/krf.h"
-#include "../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../includes/file_defs/kernel_blob/kernel_blob.h"
+#include "../../../../../../includes/file_defs/krf/krf.h"
+#include "../../../../../../includes/file_defs/ksc/ksc.h"
 #include "../../../vendor_bin_layouts/container_layout.h"
 
 #include <stdarg.h>

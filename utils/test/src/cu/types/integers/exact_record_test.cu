@@ -15,7 +15,7 @@
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 #include <string.h>
-#include "../../../../../../src/cu/includes/types/integers/exact_record/exact_record.h"
+#include "../../../../../../includes/exact_types/integers/exact_record/exact_record.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

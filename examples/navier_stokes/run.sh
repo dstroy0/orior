@@ -21,9 +21,9 @@ source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 
 SIMS_CU="$SRC/sims/cu"
-source "$SRC/cu/includes/file_defs/file_defs.sh"
-NO_ROUNDING="$SRC/cu/includes/types/integers"
-CFG_JSON="$SRC/cu/includes/formats/cfg_json"
+source "$SRC/../includes/file_defs/file_defs.sh"
+NO_ROUNDING="$SRC/../includes/exact_types/integers"
+CFG_JSON="$SRC/../includes/formats/cfg_json"
 DAEMON_DIRECTORY="$SRC/cu/engine/runtime/daemon"
 OBSIGNATIO="$SRC/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$SRC/cu/engine/runtime/obsignatio"

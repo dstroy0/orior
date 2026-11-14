@@ -154,7 +154,7 @@ EMBED_INLINE unsigned int report_declared_at(const ValidateAxiomsCtx *args)
 EMBED_INLINE void report_explained(const ValidateAxiomsCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     for (unsigned int member = (tool->explains != CLI_JSON_NONE) ? json->node[tool->explains].first : CLI_JSON_NONE;
          member != CLI_JSON_NONE; member = json->node[member].next)
     {
@@ -175,7 +175,7 @@ EMBED_INLINE void report_explained(const ValidateAxiomsCtx *args)
 EMBED_INLINE int report_axioms_listed(const ValidateAxiomsCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
-    const CliTool *const tool = &g_cli_validate->tool;
+    const GuiTool *const tool = &g_cli_validate->tool;
     const char *const list = g_cli_validate->last.text + s_axioms[args->answer].list;
     const unsigned long long list_size = s_axioms[args->answer].list_size;
     int others = 0;

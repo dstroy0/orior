@@ -18,7 +18,7 @@
         "+<cu/transpiler/lstar/protocol/*>",
         "+<cu/transpiler/lstar/parser/*>",
         "+<cu/transpiler/vendor_bin_layouts/nvidia/*>",
-        "+<cu/includes/file_defs/*>"
+        "+<../includes/file_defs/*>"
       ],
       "tests": [
         "src/cu/transpiler/lstar/protocol",
@@ -29,32 +29,32 @@
     },
     "sha256": {
       "desc": "sha256 against NIST's published SHA-256 vectors.",
-      "script": "utils/test/src/cu/includes/codecs/sha256/sha256_check.sh",
+      "script": "utils/test/includes/codecs/sha256/sha256_check.sh",
       "src": [
-        "+<cu/includes/codecs/sha256/*>"
+        "+<../includes/codecs/sha256/*>"
       ],
       "tests": [
-        "src/cu/includes/codecs/sha256"
+        "includes/codecs/sha256"
       ]
     },
     "ed25519": {
       "desc": "SHA-512 against FIPS 180-4's examples and Ed25519 against RFC 8032's test vectors.",
-      "script": "utils/test/src/cu/includes/codecs/ed25519/ed25519_check.sh",
+      "script": "utils/test/includes/codecs/ed25519/ed25519_check.sh",
       "src": [
-        "+<cu/includes/codecs/ed25519/*>"
+        "+<../includes/codecs/ed25519/*>"
       ],
       "tests": [
-        "src/cu/includes/codecs/ed25519"
+        "includes/codecs/ed25519"
       ]
     },
     "ksg": {
       "desc": "A file's seal against what ksg.h specifies.",
-      "script": "utils/test/src/cu/includes/file_defs/ksg/ksg_check.sh",
+      "script": "utils/test/includes/file_defs/ksg/ksg_check.sh",
       "src": [
-        "+<cu/includes/file_defs/ksg/*>"
+        "+<../includes/file_defs/ksg/*>"
       ],
       "tests": [
-        "src/cu/includes/file_defs/ksg"
+        "includes/file_defs/ksg"
       ]
     },
     "cli": {
@@ -75,7 +75,7 @@
         "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
         "+<cu/transpiler/lstar/interface/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>"
+        "+<../includes/parsers/*>"
       ],
       "tests": [
         "src/cu/transpiler/lstar/interface"
@@ -88,7 +88,7 @@
         "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
         "+<cu/transpiler/lstar/interface/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>"
+        "+<../includes/parsers/*>"
       ],
       "tests": [
         "src/cu/transpiler/lstar/interface"
@@ -99,7 +99,7 @@
       "script": "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cubin_safe_check.sh",
       "src": [
         "+<cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/*>",
-        "+<cu/includes/parsers/*>"
+        "+<../includes/parsers/*>"
       ],
       "tests": [
       ]
@@ -108,9 +108,9 @@
       "desc": "The compiler on the device held to the compiler on the host: layout, each language's instructions as the lane runs and scheduled into states, and the text, byte for byte; then the bootstrap in PTX, C and VHDL.",
       "script": "utils/test/src/cu/engine/rmc/codegen_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
-        "+<cu/includes/codecs/crc/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/exact_types/integers/*>",
+        "+<../includes/codecs/crc/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
@@ -124,7 +124,7 @@
       "desc": "The alphabet web and the word web read once each and held to what a tree is: a node reaches only nodes below it, a node's children are as many as its precept takes, and a leaf is an operand the word reads.",
       "script": "utils/test/src/cu/engine/rmc/web_check.sh",
       "src": [
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/rmc/*>"
       ],
       "tests": [
@@ -135,7 +135,7 @@
       "desc": "Every ruleset read against its code generator's schema, and sass.krs's forms held to the machine code the cell's probes read back.",
       "script": "utils/test/src/cu/engine/rmc/ruleset_read_test.sh",
       "src": [
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/rmc/*>"
       ],
       "tests": [
@@ -148,7 +148,7 @@
       "src": [
         "+<cu/engine/runtime/obsignatio/*>",
         "+<cu/engine/runtime/daemon/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/daemon",
@@ -159,9 +159,9 @@
       "desc": "The device pool.",
       "script": "utils/test/src/cu/engine/runtime/device_pool/device_pool_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/device_pool"
@@ -169,29 +169,29 @@
     },
     "atomic_device": {
       "desc": "embedded_types' atomics on the GPU: a grid adding to counters in global memory, each block adding to a counter in shared memory, and the grid claiming slots by compare-and-swap, every add counted and every slot taken once; and the host arm compiled as C++ beside the device arm.",
-      "script": "utils/test/src/cu/includes/embedded_types/atomic_device_test.sh",
+      "script": "utils/test/includes/embedded_types/atomic_device_test.sh",
       "src": [
-        "+<cu/includes/embedded_types/include/*>"
+        "+<../includes/embedded_types/include/*>"
       ],
       "tests": [
-        "src/cu/includes/embedded_types"
+        "includes/embedded_types"
       ]
     },
     "double_fields": {
       "desc": "double_fields' ribosome, its four functions as one record program swept on the device and run on the host, held 1:1 against double_fields.c on the edges of a double and 4096 drawn words.",
       "script": "utils/test/src/cu/types/integerfloats/double_fields/double_fields_test.sh",
       "src": [
-        "+<cu/includes/types/integerfloats/double_fields/*>",
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integerfloats/double_fields/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
-        "src/cu/includes/types/integerfloats/double_fields"
+        "includes/exact_types/integerfloats/double_fields"
       ]
     },
     "engine_c": {
@@ -208,29 +208,29 @@
       "desc": "Exact division on the device.",
       "script": "utils/test/src/cu/types/integers/exact_divide_test.sh",
       "src": [
-        "+<cu/includes/types/*>"
+        "+<../includes/exact_types/*>"
       ],
       "tests": [
-        "src/cu/includes/types/integers",
-        "src/cu/includes/types/integers"
+        "includes/exact_types/integers",
+        "includes/exact_types/integers"
       ]
     },
     "exact_transform": {
       "desc": "The exact transform product.",
       "script": "utils/test/src/cu/types/integers/exact_transform_test.sh",
       "src": [
-        "+<cu/includes/types/*>"
+        "+<../includes/exact_types/*>"
       ],
       "tests": [
-        "src/cu/includes/types/integers",
-        "src/cu/includes/types/integers"
+        "includes/exact_types/integers",
+        "includes/exact_types/integers"
       ]
     },
     "max_tree": {
       "desc": "The max tree.",
       "script": "utils/test/src/cu/engine/nbody/max_tree/run.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/engine/nbody/max_tree/*>"
       ],
       "tests": [
@@ -242,7 +242,7 @@
       "script": "utils/test/src/cu/engine/runtime/obsignatio/run.sh",
       "src": [
         "+<cu/engine/runtime/obsignatio/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/obsignatio",
@@ -254,9 +254,9 @@
       "script": "utils/test/src/cu/engine/analysis/period/period_test.sh",
       "src": [
         "+<cu/engine/analysis/period/*>",
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/period"
@@ -276,13 +276,13 @@
       "desc": "The record bitwise test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_bitwise_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -297,13 +297,13 @@
       "desc": "The record bitwise test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_bitwise_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -319,13 +319,13 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: written, read_off, top, counted_forward.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -341,13 +341,13 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: floors.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -363,13 +363,13 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: counted_inverse.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -385,13 +385,13 @@
       "desc": "The record boundary test, its lanes compiled as PTX; every compiled launch held to the interpreter. Parts: redundant.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -407,13 +407,13 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: written, read_off, top, counted_forward.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -430,13 +430,13 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: floors.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -453,13 +453,13 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: counted_inverse.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -476,13 +476,13 @@
       "desc": "The record boundary test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter. Parts: redundant.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_boundary_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -499,14 +499,14 @@
       "desc": "Each record program's lane as C source, compiled by the host compiler and held to the host oracle. Runs under WSL: Strawberry MinGW cannot link it.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_c_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
-        "+<cu/includes/codecs/crc/*>",
+        "+<../includes/exact_types/integers/*>",
+        "+<../includes/codecs/crc/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -518,13 +518,13 @@
       "desc": "The record coherence test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_coherence_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -539,13 +539,13 @@
       "desc": "The record coherence test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_coherence_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -561,13 +561,13 @@
       "desc": "The record divide test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_divide_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -582,13 +582,13 @@
       "desc": "The record divide test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_divide_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -604,13 +604,13 @@
       "desc": "The record gaussian test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_gaussian_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -625,13 +625,13 @@
       "desc": "The record gaussian test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_gaussian_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -647,13 +647,13 @@
       "desc": "The record guide test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_guide_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -668,13 +668,13 @@
       "desc": "The record guide test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_guide_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -690,11 +690,11 @@
       "desc": "The record machine's host oracle.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -705,13 +705,13 @@
       "desc": "The record lane test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_lane_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -726,13 +726,13 @@
       "desc": "The record lane test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_lane_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -748,13 +748,13 @@
       "desc": "The record sum test: a field summed exactly across lanes on the device, word for word against the host's serial sum and against closed forms; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_sum_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -769,13 +769,13 @@
       "desc": "The record order test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_order_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -790,13 +790,13 @@
       "desc": "The record order test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_order_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -812,13 +812,13 @@
       "desc": "The record speed test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_speed_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -833,13 +833,13 @@
       "desc": "The record speed test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_speed_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -855,13 +855,13 @@
       "desc": "The record table test, its lanes compiled as PTX; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_table_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -876,13 +876,13 @@
       "desc": "The record table test, its lanes compiled as C source by the host's compiler and run on the host; every compiled launch held to the interpreter.",
       "script": "utils/test/src/cu/engine/analysis/cycle/record_table_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -899,14 +899,14 @@
       "script": "utils/test/src/cu/engine/analysis/cycle/record_tower_test.sh",
       "src": [
         "+<cu/engine/analysis/tower/*>",
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -923,14 +923,14 @@
       "script": "utils/test/src/cu/engine/analysis/cycle/record_tower_test.sh",
       "src": [
         "+<cu/engine/analysis/tower/*>",
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -947,15 +947,15 @@
       "script": "src/cu/scaffolding/record_vhdl_test.sh",
       "src": [
         "+<cu/scaffolding/*>",
-        "+<cu/includes/types/integers/*>",
-        "+<cu/includes/codecs/crc/*>",
+        "+<../includes/exact_types/integers/*>",
+        "+<../includes/codecs/crc/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/file_defs/krep/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/file_defs/krep/*>",
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -969,13 +969,13 @@
       "src": [
         "+<cu/engine/analysis/residual/*>",
         "+<cu/engine/analysis/unit_sweep/*>",
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/residual"
@@ -996,9 +996,9 @@
       "desc": "The device's tessera held to the host daemon's ledger, answer for answer.",
       "script": "utils/test/src/cu/engine/runtime/daemon/tessera_test.sh",
       "src": [
-        "+<cu/includes/types/integers/*>",
+        "+<../includes/exact_types/integers/*>",
         "+<cu/engine/runtime/daemon/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/daemon",
@@ -1021,8 +1021,8 @@
       "script": "utils/test/src/cu/engine/analysis/unit_sweep/unit_sweep_planes_test.sh",
       "src": [
         "+<cu/engine/analysis/unit_sweep/*>",
-        "+<cu/includes/types/integers/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/exact_types/integers/*>",
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/unit_sweep"
@@ -1033,15 +1033,15 @@
       "script": "src/cu/scaffolding/vhdl_construction_set.sh",
       "src": [
         "+<cu/scaffolding/*>",
-        "+<cu/includes/types/integers/*>",
-        "+<cu/includes/codecs/crc/*>",
+        "+<../includes/exact_types/integers/*>",
+        "+<../includes/codecs/crc/*>",
         "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>",
+        "+<../includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/includes/file_defs/krep/*>",
-        "+<cu/includes/mmgr/src/verba_scribo/*>"
+        "+<../includes/file_defs/krep/*>",
+        "+<../includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/transpiler/codegen",

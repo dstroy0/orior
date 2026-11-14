@@ -16,8 +16,6 @@
 #include <shellapi.h>
 #include <tlhelp32.h>
 
-#include <stdint.h>
-
 // the job this process heads, open as long as the process is: its closing as the process ends is what ends every
 // member; NULL where none was made
 static HANDLE s_job;

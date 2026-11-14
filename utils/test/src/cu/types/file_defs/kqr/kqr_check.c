@@ -25,10 +25,10 @@
 //     kqr_check <folder> [<a part's .kqr>]...
 //
 // It runs in a query run (qry_run.sh): every record it writes is handed to the run's writer.
-#include "../../../../../../../src/cu/includes/file_defs/kqr/kqr_record.h"
-#include "../../../../../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
+#include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 
-#include "../../../../../../../src/cu/includes/parsers/who.h"
+#include "../../../../../../../includes/parsers/who.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include "verba_scribo/verba_scribo.h"
 #include <stdio.h>

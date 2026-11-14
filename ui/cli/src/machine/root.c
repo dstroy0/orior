@@ -241,9 +241,9 @@ int cli_inside(const CliRootCtx *args)
     {
         const char *const slash =
             cellul.chr(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_POOL_BYTES, .byte = '/'});
-        const size_t length = (slash != NULL)
-                                  ? (size_t)(slash - args->relative - 1)
-                                  : cellul.len(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_POOL_BYTES});
+        const embed_word length =
+            (slash != NULL) ? (embed_word)(slash - args->relative - 1)
+                            : cellul.len(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_POOL_BYTES});
         int found = 0;
         unsigned int at = 0u;
         while (!found && (at < s_mounts))
@@ -280,7 +280,7 @@ int cli_inside(const CliRootCtx *args)
     const char *part = rest;
     while (!rooted && (*part != '\0'))
     {
-        const size_t length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = part, .set = "/\\");
+        const embed_word length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = part, .set = "/\\");
         if ((length == 2u) && (part[0] == '.') && (part[1] == '.'))
         {
             break;
@@ -323,7 +323,7 @@ void cli_full(const CliRootCtx *args)
 // 1 where `path` is `base` or stands under it
 EMBED_INLINE int cli_starts_with(const RootCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_POOL_BYTES});
     return EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->path, .other_pointer = args->base,
                       .size = length) &&
            ((args->path[length] == '\0') || (args->path[length] == '/') || (args->path[length] == '\\'));
@@ -337,10 +337,10 @@ void cli_relative(const CliPathRootCtx *args)
     {
         // the mount whose folder is the longest that contains the path
         unsigned int found = s_mounts;
-        size_t longest = 0u;
+        embed_word longest = 0u;
         for (unsigned int at = 0u; at < s_mounts; at += 1u)
         {
-            const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_mount_path[at], .cap = CLI_POOL_BYTES});
+            const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = s_mount_path[at], .cap = CLI_POOL_BYTES});
             if (EMBED_CALL(cli_starts_with, RootCtx, .path = args->path, .base = s_mount_path[at]) &&
                 (length >= longest))
             {

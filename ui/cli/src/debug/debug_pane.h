@@ -63,11 +63,15 @@ typedef struct CliDebugPaneInputCfg CliDebugPaneInputCfg;
 #define CLI_DEBUG_FIELD_MAX 4096u
 #define CLI_DEBUG_DEPTH 12u
 
+// the most bytes of a row's text with its end
+#define CLI_DEBUG_ROW_TEXT 4096u
+
 // A row of a view: its type; its depth under the scopes, 0 for a scope; whether it opens, a scope's or a variable's
 // children under it, and whether they are open; whether it is the frame chosen; whether its value failed, a watch's
 // that could not be evaluated or a line of errors; a console line's type; three texts with their bytes, a frame's
 // function, its file and line and its path, a variable's name, value and type, a watch's expression and value, a
-// line's text, a notice's sentence; and a frame's line counted from 0
+// line's text, a notice's sentence; a frame's line counted from 0; and the row's own bytes the three texts are copied
+// into
 typedef struct
 {
     unsigned int type;
@@ -84,6 +88,9 @@ typedef struct
     const char *third;
     unsigned long long third_length;
     unsigned int line;
+    char text_copied[CLI_DEBUG_ROW_TEXT];
+    char second_copied[CLI_DEBUG_ROW_TEXT];
+    char third_copied[CLI_DEBUG_ROW_TEXT];
 } CliDebugPaneRow;
 
 // What a row pressed opens: the path in the tree, its end after it, and the line counted from 0 where `placed`

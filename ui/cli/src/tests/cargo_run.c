@@ -344,7 +344,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     char package[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char manifest[CLI_PATH_MAX_LEN];
-    const size_t folder_size = cellul.len(&(CatenaFinitaCfg){.src = first->manifest, .cap = CLI_POOL_BYTES}) - 10u;
+    const embed_word folder_size = cellul.len(&(CatenaFinitaCfg){.src = first->manifest, .cap = CLI_POOL_BYTES}) - 10u;
     VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
     mmgr_line_put_n(&folder_line, first->manifest, folder_size);
     mmgr_line_finish(&folder_line);

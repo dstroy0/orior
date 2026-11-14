@@ -106,7 +106,7 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
                          .tokens_max = tokens_max, .err_msg = &err_msg)
             : CLI_JSON_NONE;
     g_cli_guard->persistent_buf_release(tokens, g_cli_toolchains_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)added_text, (g_cli_toolchains_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)added_text, (g_cli_toolchains_owner));
     if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json_out, .node = tools,
                     .type = CFG_JSON_ARRAY))
     {
@@ -159,9 +159,9 @@ unsigned int cli_toolchains_tool(const CliToolchainsJsonManifestCfg *args)
             return tool;
         }
     }
-    mmgr_line_put(args->err_msg, "orior_cli knows no toolchain ");
+    mmgr_line_put(args->err_msg, "impero knows no toolchain ");
     mmgr_line_put(args->err_msg, args->id);
-    mmgr_line_put(args->err_msg, ": orior_cli file toolchains lists them");
+    mmgr_line_put(args->err_msg, ": imp file toolchains lists them");
     return CLI_JSON_NONE;
 }
 

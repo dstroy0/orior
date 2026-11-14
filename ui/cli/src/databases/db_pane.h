@@ -26,6 +26,9 @@ typedef struct CliDbPaneInputCfg CliDbPaneInputCfg;
 #define CLI_DB_PANE_PAGE 200ULL
 #define CLI_DB_PANE_ANSWER (1ULL << 22u)
 
+// the most bytes of one statement the pane runs
+#define CLI_DB_PANE_STATEMENT (1ULL << 16u)
+
 // the rows' types: a sentence, a node of the schema, a field of the form, a choice of the form stepped by a press, a
 // box of the form turned by a press, the form's buttons, and a row of the ask
 #define CLI_DB_PANE_ROW_NOTE 0u
@@ -52,11 +55,14 @@ typedef struct CliDbPaneInputCfg CliDbPaneInputCfg;
 #define CLI_DB_PANE_FIRST_TOOL CLI_DB_PANE_CONNECT
 #define CLI_DB_PANE_LAST_TOOL CLI_DB_PANE_ROLLBACK
 
+// the most bytes of a node row's text or detail with its end
+#define CLI_DB_PANE_ROW_TEXT 2048u
+
 // A row of the pane: its type and its depth in the schema; its text and its bytes, a node's label, a sentence, or a
 // form row's label; its detail and its bytes, a node's type or column type, a field's text, NULL for a password's, or
 // a choice's word; whether a node opens and whether it is open, whether a sentence or a level is a failure, whether a
-// field has the keys, whether a box is on, how many letters a password's field carries, and an ask's row or the form's
-// buttons
+// field has the keys, whether a box is on, how many letters a password's field carries, an ask's row or the form's
+// buttons; and the row's own bytes a node's text and detail are copied into
 typedef struct
 {
     unsigned int type;
@@ -73,6 +79,8 @@ typedef struct
     int secret;
     unsigned long long letters;
     CliPromptRow prompt;
+    char text_copied[CLI_DB_PANE_ROW_TEXT];
+    char detail_copied[CLI_DB_PANE_ROW_TEXT];
 } CliDbPaneRow;
 
 // the pane begun, `woken` waking the view's thread as a run on its own thread ends; the connections of the tree at

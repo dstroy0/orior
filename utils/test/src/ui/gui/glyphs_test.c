@@ -3,7 +3,8 @@
 // glyphs_test.c: the glyphs' check: the system's code font is read, a letter's glyph is drawn once and saved, a space
 // has an advance and no pixels, the code face's cell is its glyphs' advance, and a text drawn lands its pixels where
 // its letters stand and ends where its width says
-#include "../../../../../ui/cli/src/view/glyphs.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/glyphs.h"
 #include "../cli/cli_check.h"
 
 // whether any pixel of `rect` on the raster is not `background_fill`
@@ -31,10 +32,13 @@ static float off(float one, float other)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    const int made = EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why);
+    const int made = EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why);
     cli_check(made, "the system's fonts are read");
     if (!made)
     {
@@ -47,14 +51,14 @@ int main(void)
     cli_check(EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_HEAD_BOLD) != GUI_FACE_HEAD_BOLD, "the interface's bold is not read until it is asked for");
     float regular_width = 0.0f;
     (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD, .letter = (unsigned int)'o', .size = 88u, .advance = &regular_width);
-    const int bold_read = EMBED_CALL(cli_glyphs.head_bold_read, GuiGlyphsCfg, .glyphs = &glyphs);
+    const int bold_read = EMBED_CALL(gui_glyphs.head_bold_read, GuiGlyphsCfg, .glyphs = &glyphs);
     cli_check(!bold_read || (EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_HEAD_BOLD) == GUI_FACE_HEAD_BOLD), "asked for, it is read where the system has it");
     float bold_width = 0.0f;
     (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD_BOLD, .letter = (unsigned int)'o', .size = 88u, .advance = &bold_width);
     cli_check(!bold_read || (bold_width > regular_width), "the bold's letters stand wider than the regular's");
     if (bold_read)
     {
-        EMBED_CALL(cli_glyphs.head_bold_free, GuiGlyphsCfg, .glyphs = &glyphs);
+        EMBED_CALL(gui_glyphs.head_bold_free, GuiGlyphsCfg, .glyphs = &glyphs);
     }
     cli_check((EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_HEAD_BOLD) != GUI_FACE_HEAD_BOLD) && (glyphs.data[GUI_FACE_HEAD_BOLD] == NULL), "given back it holds no file");
 
@@ -118,7 +122,7 @@ int main(void)
     GuiRaster raster;
     const GuiColor black = GUI_RGB(0u, 0u, 0u);
     const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 64u, .height = 24u), "a raster for the text is made");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 64u, .height = 24u), "a raster for the text is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 64, 24}, .color = black);
     const float after = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = &raster, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = 13u, .x_f32 = 2.0f, .y = 18, .text = "Hi", .length = 2ull, .color = white, .clip = (GuiRect){0, 0, 64, 24});
     cli_check(off(after, 2.0f + (2.0f * advance)) < 0.01f, "a text drawn ends two cells on");
@@ -135,11 +139,11 @@ int main(void)
     EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = &raster, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = 13u, .x_f32 = 2.0f, .y = 18, .text = "\xc3\xa9", .length = 2ull, .color = white, .clip = (GuiRect){0, 0, 64, 24});
     cli_check(painted(&raster, (GuiRect){2, 2, (int)advance, 16}, black), "a letter of two bytes draws one glyph");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
     cli_check(glyphs.entry == NULL, "the glyphs given back keep no slots");
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

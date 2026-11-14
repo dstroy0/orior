@@ -6,9 +6,10 @@
 // pane's showing and a save and not on the view's change; the next commit takes the files whose boxes are lit; the
 // bar pushes, pulls and rolls back against a remote of the check's own, its tools and the all box found under the
 // pointer; and no tree leaves no rows
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/code/git.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
-#include "../../../../../ui/cli/src/view/parts/changes.h"
+#include "../../../../../ui/gui/src/changes.h"
 #include "../cli/cli_check.h"
 
 // the row whose name is `name`, into `row`: 1, or 0 where none is
@@ -111,16 +112,19 @@ static void file_written(const char *root, const char *relative, const char *tex
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
@@ -158,7 +162,7 @@ int main(void)
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     const GuiRect first =
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u);
@@ -220,19 +224,18 @@ int main(void)
                              .out = &out, .count = 3u, .err_msg = &why, .request = email_set),
               "the repository has a committer");
     unsigned long long length = 0ULL;
+    char refusal[CLI_CHANGES_REFUSAL_MAX];
     cli_check(!EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &length),
-                      .cap = CLI_POOL_BYTES,
-                      .other = "The commit message is empty.",
-                      .other_cap = 29u}),
+                  (EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal) != 0ULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = refusal,
+                                               .cap = CLI_POOL_BYTES,
+                                               .other = "The commit message is empty.",
+                                               .other_cap = 29u}),
               "a commit with no message is refused with why");
     EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "first", .size = 5ULL);
-    cli_check(cellul.eq(&(CatenaFinitaCfg){
-                  .src = EMBED_CALL(cli_changes.message, CliGitChangesCfg, .length_out = &length),
-                  .cap = CLI_POOL_BYTES,
-                  .other = "first",
-                  .other_cap = 6u}) &&
+    char message[CLI_CHANGES_MESSAGE_MAX];
+    length = EMBED_CALL(cli_changes.message, CliGitChangesCfg, .text_out = message);
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES, .other = "first", .other_cap = 6u}) &&
                   (length == 5ULL),
               "the text typed is the message");
     unsigned int deep_row = 0u;
@@ -249,14 +252,14 @@ int main(void)
                   row_with_name("deep.txt", &deep) && !deep.taken && row_with_name("fresh.txt", &fresh) && fresh.taken,
               "a press on the deeper file's box leaves it out of the commit, the other file taken");
     const int committed = EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root);
-    cli_check(committed, committed ? "Commit commits the file taken"
-                                   : EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &length));
+    (void)EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal);
+    cli_check(committed, committed ? "Commit commits the file taken" : refusal);
     cli_check((EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("deep.txt", &deep) &&
                   !deep.taken,
               "the file left out stands alone in the list, left out still");
-    cli_check((EMBED_CALL(cli_changes.message, CliGitChangesCfg, .length_out = &length) != NULL) && (length == 0ULL),
+    cli_check(EMBED_CALL(cli_changes.message, CliGitChangesCfg, .text_out = message) == 0ULL,
               "the commit clears the message");
-    cli_check((EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &length) != NULL) && (length == 0ULL),
+    cli_check(EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal) == 0ULL,
               "a commit taken leaves no refusal");
 
     // the bar: the branch follows no remote until one is set and pushed to; a commit without a push stands ahead and
@@ -357,11 +360,8 @@ int main(void)
     EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 30000ULL);
     cli_check(EMBED_CALL(cli_changes.rollback, CliGitChangesCfg, .root = s_root, .now_ms = 31000ULL),
               "the roll back of a file the last commit does not contain goes through");
-    unsigned long long refused = 0ULL;
-    cli_check((cellul.len(&(CatenaFinitaCfg){
-                   .src = EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &refused),
-                   .cap = CLI_POOL_BYTES}) == refused) &&
-                  (refused != 0ULL),
+    const unsigned long long refused = EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal);
+    cli_check((cellul.len(&(CatenaFinitaCfg){.src = refusal, .cap = CLI_POOL_BYTES}) == refused) && (refused != 0ULL),
               "the file the last commit does not contain is refused with why");
 
     // a file's changes opened under its row: a line changed and a line put in are one change of three lines; the line
@@ -396,9 +396,8 @@ int main(void)
                .glyphs = &glyphs, .palette = palette, .title = "Commit", .tree = s_root);
     EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "part", .size = 4ULL);
     const int part_committed = EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root);
-    cli_check(part_committed, part_committed
-                                  ? "the commit takes the file in part and the other whole"
-                                  : EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .length_out = &length));
+    (void)EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal);
+    cli_check(part_committed, part_committed ? "the commit takes the file in part and the other whole" : refusal);
     char head_text[64];
     head_read(s_root, "fresh.txt", head_text, sizeof(head_text));
     cli_check(cellul.eq(&(CatenaFinitaCfg){
@@ -441,34 +440,34 @@ int main(void)
               "the file left out stands after the other's commit");
     EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = 0u);
 
-    const int bar_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_CHOICE / 2);
+    const int top_menu_y = frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + (GUI_PANE_CHOICE / 2);
     const int left = frame.side.x + GUI_PANE_PAD_LEFT;
     const int right = frame.side.x + frame.side.width - GUI_PANE_PAD_LEFT;
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
-                         .glyphs = &glyphs, .x = left + (GUI_CHANGES_TOOL / 2), .y = bar_y) == CLI_CHANGES_READ,
+                         .glyphs = &glyphs, .x = left + (GUI_CHANGES_TOOL / 2), .y = top_menu_y) == CLI_CHANGES_READ,
               "a press on the bar's first tool reads the tree again");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = left + GUI_CHANGES_TOOL + GUI_CHANGES_TOOL_GAP + (GUI_CHANGES_TOOL / 2),
-                         .y = bar_y) == CLI_CHANGES_ROLLBACK,
+                         .y = top_menu_y) == CLI_CHANGES_ROLLBACK,
               "a press on the bar's second tool rolls back");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = right - GUI_CHANGES_COUNT - (GUI_CHANGES_TOOL / 2),
-                         .y = bar_y) == CLI_CHANGES_PUSH,
+                         .y = top_menu_y) == CLI_CHANGES_PUSH,
               "a press on the bar's last tool pushes");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs,
                          .x = right - GUI_CHANGES_COUNT - GUI_CHANGES_TOOL - GUI_CHANGES_TOOL_GAP - GUI_CHANGES_COUNT -
                               (GUI_CHANGES_TOOL / 2),
-                         .y = bar_y) == CLI_CHANGES_PULL,
+                         .y = top_menu_y) == CLI_CHANGES_PULL,
               "a press on the tool before it pulls");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
-                         .glyphs = &glyphs, .x = left + 4, .y = bar_y + GUI_PANE_CHOICE) == CLI_CHANGES_ALL,
+                         .glyphs = &glyphs, .x = left + 4, .y = top_menu_y + GUI_PANE_CHOICE) == CLI_CHANGES_ALL,
               "a press on the taken row takes or leaves every file");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = left + 20,
-                         .y = bar_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + (GUI_PANE_BOX / 2)) == CLI_CHANGES_FIELD,
+                         .y = top_menu_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + (GUI_PANE_BOX / 2)) == CLI_CHANGES_FIELD,
               "a press in the message box lands on it");
-    const int buttons_y = bar_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + GUI_PANE_BOX + (GUI_PANE_CHOICE / 2);
+    const int buttons_y = top_menu_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + GUI_PANE_BOX + (GUI_PANE_CHOICE / 2);
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = left + 20, .y = buttons_y) == CLI_CHANGES_COMMIT,
               "a press in the buttons' left half lands on Commit");
@@ -481,10 +480,10 @@ int main(void)
     EMBED_CALL(gui_pane.read, GuiPaneCfg, .table = table, .event = GUI_PANE_SAVED, .root = NULL);
     cli_check(EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 0u, "no tree leaves no rows");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

@@ -66,7 +66,7 @@ void setUp(void)
     cli_unity_begun();
     TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_validate.tool_for, CliValidateCfg, .language = "lean", .id = s_lean), "the tool for a language is found with no validation's memory allocated");
     TEST_ASSERT_TRUE_MESSAGE(cli_validate_lock(), "a validation's memory is allocated");
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_validate_id_internal.tool_read, CliValidateIdCtx, .id = s_lean), "orior_cli comes with a tool for Lean");
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_validate_id_internal.tool_read, CliValidateIdCtx, .id = s_lean), "impero comes with a tool for Lean");
 }
 
 void tearDown(void)

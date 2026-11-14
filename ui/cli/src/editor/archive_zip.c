@@ -327,7 +327,7 @@ int cli_zip_data(const CliArchiveBytesSizeErrMsgMembersCtx *args)
         if (record.packed > capacity)
         {
             mmgr_line_put(err_msg, name);
-            mmgr_line_put(err_msg, " is larger than orior_cli supports");
+            mmgr_line_put(err_msg, " is larger than impero supports");
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = out, .src = packed, .bytes = record.packed});
@@ -347,7 +347,7 @@ int cli_zip_data(const CliArchiveBytesSizeErrMsgMembersCtx *args)
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " is packed by method ");
         mmgr_line_decimal(err_msg, record.method, 1u);
-        mmgr_line_put(err_msg, ", which orior_cli does not read");
+        mmgr_line_put(err_msg, ", which impero does not read");
         return 0;
     }
     if (EMBED_CALL(cli_archive_bytes_size.crc32, CliArchiveBytesSizeCfg, .bytes = out, .size = *out_size) != record.crc)
@@ -411,7 +411,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
                           .err_msg = args->err_msg);
         if (done && ((record.packed > 0xffffffffULL) || (record.size > 0xffffffffULL) || (used > 0xffffffffULL)))
         {
-            mmgr_line_put(args->err_msg, "the zip is too large for orior_cli to write back");
+            mmgr_line_put(args->err_msg, "the zip is too large for impero to write back");
             done = 0;
         }
         unsigned long long name_length = 0ULL;
@@ -468,7 +468,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         // the local header as it was, its sizes and check set here, and no record after the data
         if ((used + head_length + packed) > capacity)
         {
-            mmgr_line_put(args->err_msg, "the zip is larger than orior_cli supports");
+            mmgr_line_put(args->err_msg, "the zip is larger than impero supports");
             done = 0;
             going = 0;
             continue;
@@ -491,7 +491,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         used += packed;
         if ((directory + record.length) > directory_capacity)
         {
-            mmgr_line_put(args->err_msg, "the zip's directory is larger than orior_cli supports");
+            mmgr_line_put(args->err_msg, "the zip's directory is larger than impero supports");
             done = 0;
             going = 0;
             continue;
@@ -520,7 +520,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
     const unsigned long long tail = size - end;
     if (done && ((used + directory + tail) > capacity))
     {
-        mmgr_line_put(args->err_msg, "the zip is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the zip is larger than impero supports");
         done = 0;
     }
     if (done)

@@ -63,7 +63,7 @@ void cli_db_pane_form_laid(const CliDbPaneCtx *args)
     }
     form->row_place[rows] = CLI_DB_FORM_BUTTONS;
     rows += 1u;
-    if (form->refusal != NULL)
+    if (form->refused)
     {
         form->row_place[rows] = CLI_DB_FORM_REFUSAL;
         rows += 1u;
@@ -75,8 +75,7 @@ void cli_db_pane_form_laid(const CliDbPaneCtx *args)
 EMBED_INLINE void field_set(const DbFormCtx *args)
 {
     CliDbPaneForm *const form = &g_cli_db_pane_state.form;
-    g_cli_guard->persistent_buf_release(form->field[args->at].bytes, g_cli_db_pane_owner);
-    form->field[args->at] = (CliTyped){NULL, 0ULL};
+    EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &form->field[args->at], .owner = g_cli_db_pane_owner);
     if (args->size != 0ULL)
     {
         EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &form->field[args->at], .text = args->text, .size = args->size,
@@ -90,9 +89,8 @@ void cli_db_pane_form_close(const CliDbPaneCtx *args)
     CliDbPaneForm *const form = &g_cli_db_pane_state.form;
     for (unsigned int at = 0u; at < CLI_DB_FORM_FIELDS; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(form->field[at].bytes, g_cli_db_pane_owner);
+        EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &form->field[at], .owner = g_cli_db_pane_owner);
     }
-    g_cli_guard->persistent_buf_release(form->refusal, g_cli_db_pane_owner);
     memor.set(&(MemoriaCfg){.dst = form, .val = 0, .bytes = sizeof(*form)});
     form->focused = CLI_DB_PANE_NONE;
 }
@@ -108,7 +106,13 @@ void cli_db_pane_form_open(const CliDbPaneCtx *args)
     form->editing = editing;
     if (editing)
     {
-        const CliDbConnection *const connection = &pane->connection[pane->chosen];
+        // the chosen connection read out of the connections cell
+        CliDbConnection connection_read;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->connections_cell,
+                                                                .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
+                                                                .dst = &connection_read,
+                                                                .bytes = sizeof(connection_read)});
+        const CliDbConnection *const connection = &connection_read;
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = form->was, .src = connection->name, .cap = CLI_NAME_MAX_LEN});
         const char *const texts[CLI_DB_FORM_FIELDS] = {connection->name, connection->host,     "",
                                                        connection->user, connection->database, connection->file,
@@ -152,8 +156,12 @@ int cli_db_pane_form_row(const CliDbPaneCtx *args)
         row->type = CLI_DB_PANE_ROW_FIELD;
         row->text = s_field_labels[place];
         row->text_length = cellul.len(&(CatenaFinitaCfg){.src = row->text, .cap = 32ULL});
-        row->detail = (form->field[place].bytes != NULL) ? form->field[place].bytes : "";
-        row->detail_length = form->field[place].length;
+        // the field's text copied out of the typed text's cell into the form's own buffer, which the caller reads
+        // before the next row
+        static char s_detail[FORM_FIELD_MAX];
+        row->detail_length = EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed_read = &form->field[place], .dst = s_detail,
+                                        .capacity = sizeof(s_detail));
+        row->detail = s_detail;
         row->focused = form->focused == place;
         return 1;
     }
@@ -201,29 +209,28 @@ int cli_db_pane_form_row(const CliDbPaneCtx *args)
     return 1;
 }
 
-// the refusal of the last save set to `size` bytes of `text` in a cell sized to it, none where `text` is NULL
+// the refusal of the last save set to `size` bytes of `text`, cut to the form's refusal bytes, none where `text` is
+// NULL
 EMBED_INLINE void refusal_set(const DbFormCtx *args)
 {
     CliDbPaneForm *const form = &g_cli_db_pane_state.form;
-    char *const refusal =
-        (args->text != NULL) ? g_cli_guard->persistent_buf_alloc(args->size + 1ULL, g_cli_db_pane_owner) : NULL;
-    if (refusal != NULL)
+    const unsigned long long size =
+        (args->size < sizeof(form->refusal) - 1ULL) ? args->size : sizeof(form->refusal) - 1ULL;
+    form->refused = args->text != NULL;
+    if (form->refused)
     {
-        memor.cpy(&(MemoriaCfg){.dst = refusal, .src = args->text, .bytes = args->size});
-        refusal[args->size] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = form->refusal, .src = args->text, .bytes = size});
     }
-    g_cli_guard->persistent_buf_release(form->refusal, g_cli_db_pane_owner);
-    form->refusal = refusal;
-    form->refusal_length = (refusal != NULL) ? args->size : 0ULL;
+    form->refusal[size] = '\0';
+    form->refusal_length = form->refused ? size : 0ULL;
     EMBED_CALL(cli_db_pane_internal.form_laid, CliDbPaneCtx, .at = 0u);
 }
 
 // the field `at`'s text, with its end, copied into `dst` sized for `size` bytes
 EMBED_INLINE void field_copied(const DbFormCtx *args)
 {
-    const CliTyped *const field = &g_cli_db_pane_state.form.field[args->at];
-    (void)cellul.copy(
-        &(CatenaFinitaCfg){.dst = args->dst, .src = (field->bytes != NULL) ? field->bytes : "", .cap = args->size});
+    (void)EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = &g_cli_db_pane_state.form.field[args->at], .dst = args->dst,
+                     .capacity = args->size);
 }
 
 // the form saved into databases.json of the tree at `root`, the connection it edits renamed where its name changed,
@@ -248,11 +255,14 @@ EMBED_INLINE void form_saved(const DbFormCtx *args)
         EMBED_CALL(field_copied, DbFormCtx, .at = CLI_DB_FORM_DATABASE, .dst = connection.database,
                    .size = CLI_NAME_MAX_LEN);
         EMBED_CALL(field_copied, DbFormCtx, .at = CLI_DB_FORM_SSH, .dst = connection.ssh, .size = CLI_NAME_MAX_LEN);
-        const CliTyped *const port = &form->field[CLI_DB_FORM_PORT];
+        char port[FORM_FIELD_MAX];
+        const unsigned long long port_length =
+            EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = &form->field[CLI_DB_FORM_PORT], .dst = port,
+                       .capacity = sizeof(port));
         unsigned int value = 0u;
-        for (unsigned long long at = 0ULL; at < port->length; at += 1ULL)
+        for (unsigned long long at = 0ULL; at < port_length; at += 1ULL)
         {
-            const char digit = port->bytes[at];
+            const char digit = port[at];
             // a digit's value is 0 to 9, and a port past five digits is no port
             value = ((digit >= '0') && (digit <= '9') && (value < 100000u))
                         ? (value * 10u) + (unsigned int)(digit - '0')

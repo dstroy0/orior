@@ -76,15 +76,16 @@ EMBED_INLINE int help_before(const BuildsNearCtx *args)
     }
     const unsigned long long min =
         (args->size < args->adjacent->adjacent_size[args->at]) ? args->size : args->adjacent->adjacent_size[args->at];
-    const embed_iword order =
-        memor.cmp(&(MemoriaCfg){.src = args->one, .other = args->adjacent->adjacent[args->at], .bytes = (size_t)min});
+    const embed_iword order = memor.cmp(
+        &(MemoriaCfg){.src = args->one, .other = args->adjacent->adjacent[args->at], .bytes = (embed_word)min});
     return (order != 0) ? (order < 0) : (args->size < args->adjacent->adjacent_size[args->at]);
 }
 
 void cli_build_adjacent_offer(const CliBuildsSizeAdjacentCfg *args)
 {
     if ((args->size == args->adjacent->name_size) &&
-        (memor.cmp(&(MemoriaCfg){.src = args->one, .other = args->adjacent->name, .bytes = (size_t)args->size}) == 0))
+        (memor.cmp(&(MemoriaCfg){.src = args->one, .other = args->adjacent->name, .bytes = (embed_word)args->size}) ==
+         0))
     {
         return;
     }
@@ -103,7 +104,7 @@ void cli_build_adjacent_offer(const CliBuildsSizeAdjacentCfg *args)
     {
         if ((far == args->adjacent->far[at]) && (args->size == args->adjacent->adjacent_size[at]) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = args->one, .other = args->adjacent->adjacent[at], .bytes = (size_t)args->size}) == 0))
+                 .src = args->one, .other = args->adjacent->adjacent[at], .bytes = (embed_word)args->size}) == 0))
         {
             return;
         }

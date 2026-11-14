@@ -42,9 +42,9 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
     args->names_out->most = (unsigned int)((count < CLI_VERSIONS_NAMES) ? count : CLI_VERSIONS_NAMES);
     args->names_out->capacity =
         (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
-    args->names_out->at = g_cli_guard->persistent_buf_alloc(
-        2ULL * (args->names_out->most + 1ULL) * sizeof(unsigned int), g_cli_versions_owner);
-    args->names_out->text = g_cli_guard->persistent_buf_alloc(args->names_out->capacity, g_cli_versions_owner);
+    args->names_out->at = g_cli_guard->temporary_buf_alloc(2ULL * (args->names_out->most + 1ULL) * sizeof(unsigned int),
+                                                           g_cli_versions_owner);
+    args->names_out->text = g_cli_guard->temporary_buf_alloc(args->names_out->capacity, g_cli_versions_owner);
     if ((args->names_out->at == NULL) || (args->names_out->text == NULL))
     {
         g_cli_guard->persistent_buf_release(args->names_out->text, g_cli_versions_owner);

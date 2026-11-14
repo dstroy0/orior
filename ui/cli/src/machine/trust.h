@@ -29,7 +29,7 @@ typedef struct CliTrustFolderInnerCfg CliTrustFolderInnerCfg;
 typedef struct CliTrustCfg CliTrustCfg;
 
 // The files of a tree found to run as code, as the tree's paths: one after another, each with its zero after it, in a
-// cell of their bytes released through persistent_buf_release, and their count
+// cell of the temporary tier, the caller's for its one call, released through persistent_buf_release, and their count
 typedef struct
 {
     char *paths;
@@ -40,6 +40,9 @@ typedef struct
 // the reader's answer for `tree`, the answer stored for the nearest folder that is the tree or contains it: 1 with
 // whether it is trusted into `trusted`, or 0 where no answer is stored
 int cli_trust_answer(const CliTrustTreeCfg *args);
+// the answer `trusted_value` stored for `folder` in the file at `path`, the home's file where `path` is NULL, an
+// answer the folder had taken out first: 1, or 0 with why given
+int cli_trust_answer_set(const CliTrustFolderCfg *args);
 // the files of `tree` its tools run as code as they read it into `code`, cached for ten seconds before the tree is
 // looked through again: 1, or 0 with none into `code` where the cellblock could not meet them; and their cell given
 // back, `code` left containing none
@@ -102,6 +105,15 @@ struct CliTrustFolderInnerCfg
 struct CliTrustCfg
 {
     const char *config;
+};
+
+typedef struct
+{
+    int (*answer_set)(const CliTrustFolderCfg *args);
+} CliTrustFolderNs;
+EMBED_TABLE_LAYOUT(CliTrustFolderNs, answer_set);
+EMBED_TABLE_STORAGE CliTrustFolderNs cli_trust_folder EMBED_UNUSED = {
+    .answer_set = cli_trust_answer_set,
 };
 
 typedef struct

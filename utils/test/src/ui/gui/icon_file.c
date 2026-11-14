@@ -3,7 +3,7 @@
 // icon_file.c: the program's icon file, orior.ico, written into the folder it runs in: the eye the window draws as
 // its icon, at every size the system shows an icon, each image a 32-bit bitmap with its alpha and an empty mask
 #include "../../../../../ui/cli/src/command_line/cli_internal.h"
-#include "../../../../../ui/cli/src/view/window.h"
+#include "../../../../../ui/gui/src/window.h"
 
 #include <stdio.h>
 

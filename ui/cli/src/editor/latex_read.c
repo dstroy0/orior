@@ -93,7 +93,7 @@ void cli_tex_names_init(const CliLatexNamesRootCtx *args)
     EMBED_CALL(latex_slash, LatexReadCtx, .text = args->root,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}), .plain = 1,
                .out_capacity = args->names_out->root);
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->names_out->root, .cap = CLI_POOL_BYTES});
+    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->names_out->root, .cap = CLI_POOL_BYTES});
     if (((size == 0u) || (args->names_out->root[size - 1u] != '/')) && (size + 1u < CLI_PATH_MAX_LEN))
     {
         args->names_out->root[size] = '/';
@@ -115,7 +115,7 @@ int cli_tex_names_get(const CliLatexLengthCtx *args)
         mmgr_line_finish(&line);
         return 1;
     }
-    const size_t root = cellul.len(&(CatenaFinitaCfg){.src = args->names->root, .cap = CLI_POOL_BYTES});
+    const embed_word root = cellul.len(&(CatenaFinitaCfg){.src = args->names->root, .cap = CLI_POOL_BYTES});
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = supplied, .other_pointer = args->names->root,
                     .size = root))
     {

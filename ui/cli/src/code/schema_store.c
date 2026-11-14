@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema_store.c: the schemas a check reaches: each read once, by its URL among the meta-schemas orior_cli bundles or
+// schema_store.c: the schemas a check reaches: each read once, by its URL among the meta-schemas impero bundles or
 // those stored from a fetch, or by its path, its file mapped where it lies, its comments taken out in a cell of its
 // size and read in a cell of the tokens it contains, into one tree. A document larger than CLI_SCHEMA_DOCUMENT_TEXT, of
 // more tokens than CLI_SCHEMA_TOKENS, or whose values the tree cannot represent, is one that could not be read
@@ -33,7 +33,7 @@ typedef struct
     unsigned long long *size_pointer;
     int *mapped;
 } SchemaStoreCtx;
-// a URL as a key among those orior_cli bundles, no scheme and no `#` and no `/` at its end, into `out`
+// a URL as a key among those impero bundles, no scheme and no `#` and no `/` at its end, into `out`
 EMBED_INLINE void store_url_key(const SchemaStoreCtx *args)
 {
     const char *const scheme = cellul.find(
@@ -108,7 +108,7 @@ EMBED_INLINE void store_strip(const SchemaStoreCtx *args)
                              .required = "\n", .size = 1u, .at_pointer = &end)
                       ? at + end
                       : size;
-            memor.set(&(MemoriaCfg){.dst = args->stripped + at, .val = ' ', .bytes = (size_t)(end - at)});
+            memor.set(&(MemoriaCfg){.dst = args->stripped + at, .val = ' ', .bytes = (embed_word)(end - at)});
             at = end;
             continue;
         }
@@ -195,7 +195,7 @@ EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
                                                   .size_pointer = size, .owner = g_cli_schema_owner);
     if ((bytes != NULL) && (*size > CLI_SCHEMA_DOCUMENT_TEXT))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_schema_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_schema_owner));
         return NULL;
     }
     *mapped = (bytes != NULL);
@@ -260,7 +260,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
             : CLI_JSON_NONE;
     if (mapped)
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)text), (g_cli_schema_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), (g_cli_schema_owner));
     }
     if (root == CLI_JSON_NONE)
     {

@@ -24,7 +24,7 @@ typedef struct
     CliOutcome *outcome;
     int code;
     char *into;
-    size_t capacity;
+    embed_word capacity;
     const char *text;
     const char *root;
     const char *menu;
@@ -71,7 +71,7 @@ EMBED_INLINE void run_launch(const CommandLineRunCtx *args)
     args->outcome->used = 0u;
     for (unsigned int at = 0u; (at < args->count) && (at < CLI_LAUNCH_ARGS); at += 1u)
     {
-        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = arguments[at], .cap = CLI_POOL_BYTES});
+        const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = arguments[at], .cap = CLI_POOL_BYTES});
         if (args->outcome->used + size + 1u > CLI_LAUNCH_TEXT)
         {
             break;
@@ -155,27 +155,27 @@ static void run_window(const CommandLineRunCtx *args)
         if (!found && !EMBED_CALL(cli_path_capacity_internal.folder_current, CliPathCapacityCtx, .path_out = s_found,
                                   .capacity_bytes = sizeof(s_found)))
         {
-            EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "orior_cli finds no folder to run in");
+            EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "impero finds no folder to run in");
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
-        char *const out_cell = g_cli_guard->temporary_buf_alloc(CLI_RUN_OUT_CAPACITY, g_cli_command_line_owner);
-        VerbaLinea out = mmgr_line_over(out_cell, CLI_RUN_OUT_CAPACITY);
+        CliGrownLine out;
+        cli_grown_begin(&out, CLI_RUN_OUT_CAPACITY, g_cli_command_line_owner);
         err_msg.at = 0ULL;
         const int run_result =
             EMBED_CALL(cli_at_terminal_command.run, CliAtTerminalCommandCfg, .root = s_found, .command = command,
-                       .request = arguments, .count = count, .out = &out, .err_msg = &err_msg);
+                       .request = arguments, .count = count, .out = &out.line, .err_msg = &err_msg);
         if (!run_result)
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
                        .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         }
-        if (run_result && mmgr_line_ok(&out) && (out.at > 0ULL))
+        if (run_result && mmgr_line_ok(&out.line) && (cli_grown_size(&out) > 0ULL))
         {
-            EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = out.out,
-                       .size = out.at);
+            EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = out.cell,
+                       .size = cli_grown_size(&out));
         }
-        g_cli_guard->persistent_buf_release(out.out, g_cli_command_line_owner);
+        cli_grown_end(&out);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = run_result ? 0 : CLI_WRONG);
         return;
     }
@@ -196,15 +196,15 @@ static void run_window(const CommandLineRunCtx *args)
 // the help written to the output, its spaces at the end not
 static void run_help(void)
 {
-    char *const help_cell = g_cli_guard->temporary_buf_alloc(CLI_RUN_HELP_CAPACITY, g_cli_command_line_owner);
-    VerbaLinea help = mmgr_line_over(help_cell, CLI_RUN_HELP_CAPACITY);
-    EMBED_CALL(cli_command_line_out_err_msg_shell_internal.help, CliCommandLineOutErrMsgShellCtx, .out = &help);
-    const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ULL;
-    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = help.out,
-               .size = (help.out != NULL) ? EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg,
-                                                       .text = help.out, .size = size)
-                                          : 0ULL);
-    g_cli_guard->persistent_buf_release(help.out, g_cli_command_line_owner);
+    CliGrownLine help;
+    cli_grown_begin(&help, CLI_RUN_HELP_CAPACITY, g_cli_command_line_owner);
+    EMBED_CALL(cli_command_line_out_err_msg_shell_internal.help, CliCommandLineOutErrMsgShellCtx, .out = &help.line);
+    const unsigned long long size = mmgr_line_ok(&help.line) ? cli_grown_size(&help) : 0ULL;
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = help.cell,
+               .size = (help.cell != NULL) ? EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg,
+                                                        .text = help.cell, .size = size)
+                                           : 0ULL);
+    cli_grown_end(&help);
 }
 
 // the words run as the menus run them; the words before the menus were the command line's, and each still names what it
@@ -248,9 +248,9 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
             return;
         }
         VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
-        mmgr_line_put(&line, "orior_cli takes no ");
+        mmgr_line_put(&line, "impero takes no ");
         mmgr_line_put(&line, first);
-        mmgr_line_put(&line, ": orior_cli help names what it takes");
+        mmgr_line_put(&line, ": imp help names what it takes");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
@@ -379,7 +379,7 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
     mmgr_line_put(&line, title);
     mmgr_line_put(&line, " has no ");
     mmgr_line_put(&line, words[1]);
-    mmgr_line_put(&line, ": orior_cli ");
+    mmgr_line_put(&line, ": imp ");
     mmgr_line_put(&line, first);
     mmgr_line_put(&line, " names what it has");
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
@@ -445,7 +445,7 @@ EMBED_INLINE int run_own(const CommandLineRunCtx *args)
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--version", .cap = CLI_POOL_BYTES})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "-V", .cap = CLI_POOL_BYTES})))
     {
-        EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "orior_cli " CLI_VERSION);
+        EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "imp " CLI_VERSION);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = 0);
         return 1;
     }

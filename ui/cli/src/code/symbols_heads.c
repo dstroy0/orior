@@ -77,8 +77,8 @@ EMBED_INLINE void cli_type_append(const SymbolsHeadsCtx *args)
     }
     const unsigned long long capacity = CLI_SYMBOLS_TYPE - 1ULL - *at;
     const unsigned long long copied = (length < capacity) ? length : capacity;
-    // a type's text is under CLI_SYMBOLS_TYPE bytes, which a size_t holds
-    memor.cpy(&(MemoriaCfg){.dst = args->type->text + *at, .src = text, .bytes = (size_t)copied});
+    // a type's text is under CLI_SYMBOLS_TYPE bytes, which a embed_word holds
+    memor.cpy(&(MemoriaCfg){.dst = args->type->text + *at, .src = text, .bytes = (embed_word)copied});
     *at += copied;
     args->type->text[*at] = '\0';
     args->type->is |= read->leaf[leaf].is & (CLI_LEAF_OF_NUMBER | CLI_LEAF_OF_STRING | CLI_LEAF_MEMORY);
@@ -524,6 +524,6 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
         read.count = 0u;
         read.capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_code_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_code_owner));
     return found;
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers.h: the language servers the editor talks to, one for each toolchain whose `server` in toolchains.json names a
 // program, such as clangd for C, C++ and CUDA. A server starts with the first file of its languages the editor opens,
-// at the tree's top folder, and stops when another tree is opened or orior_cli ends. One that cannot be found or does
+// at the tree's top folder, and stops when another tree is opened or impero ends. One that cannot be found or does
 // not start is not tried again until the tree changes, and the file opens without it.
 //
 // What the servers return comes back as orior's own shapes: a hover as Markdown, a definition as a path and a place, a
@@ -67,34 +67,47 @@ typedef struct
     unsigned long long message_length;
 } CliServerDiagnostic;
 
-// A file's report decoded once where the servers store it: the tree its stored texts are read into, the server's, the
-// inspections' and the checkers' in that order, its path as the sink's tree writes it, and its diagnostics, whose
-// messages lie in the tree's texts. The head, the diagnostics and the path are one cell, and the tree is a cell of its
-// own; cli_servers_report_release releases both
+// A file's report, decoded once where the servers store it, in one movable cell its holder reaches by the cell's token:
+// its head first, then its diagnostics, each with its message's place in the cell, then its path as the sink's tree
+// writes it, at `path_at` with a 0 after it, then the messages, each with a 0 after it. cli_servers_report_release
+// releases the cell
 typedef struct
 {
-    CliJson json;
-    const char *path;
     unsigned int count;
-    CliServerDiagnostic item[];
-} CliServerReport;
+    unsigned long long path_at;
+} CliServerReportHead;
+
+typedef struct
+{
+    unsigned long long from_line;
+    unsigned long long from_col;
+    unsigned long long to_line;
+    unsigned long long to_col;
+    unsigned int severity;
+    unsigned long long message_at;
+    unsigned long long message_length;
+} CliServerStoredDiagnostic;
+
+// where the diagnostic `at_` of a report stands in its cell
+#define CLI_SERVER_REPORT_ITEM_AT(at_)                                                                                 \
+    (sizeof(CliServerReportHead) + ((unsigned long long)(at_) * sizeof(CliServerStoredDiagnostic)))
 
 // A file's diagnostics handed to the sink's function, in place of those it stood with, on the thread that found
-// them: its path, its diagnostics and the report they stand in, NULL with none. A sink that reads the report after the
-// call returns sets `*taken` to 1 and releases the report itself; the report of any other sink is released as the call
-// returns
+// them: its path, its diagnostics, which stand for the call, and the token of the report cell they are stored in, NULL
+// with none. A sink that reads the report after the call returns sets `*taken` to 1 and releases the report itself; the
+// report of any other sink is released as the call returns
 typedef struct
 {
     void *context;
     const char *path;
     const CliServerDiagnostic *item;
     unsigned int count;
-    CliServerReport *report;
+    const CarcerMovableEntry *report;
     int *taken;
 } CliServerDiagnosticsCfg;
 
-// a report's cell and its tree's cell released (servers_emit.c)
-void cli_servers_report_release(CliServerReport *report);
+// a report's cell released (servers_emit.c)
+void cli_servers_report_release(const CarcerMovableEntry *report);
 
 // How far the tree's check has gone, the total 0 where it is over
 typedef struct
@@ -296,8 +309,8 @@ typedef struct
 } CliServerItems;
 // the completion items at `line`, `col` of the file at `path`, those of the tree where the file is a slice's, of a
 // build's or a schema's where it is one, and its server's, in a cell of `owner`: the cell, or NULL where none is to be
-// asked or the cells cannot meet it, with why given. And the signature at the place, the server's, in a cell of
-// `owner`: the cell, or NULL where it gives none
+// asked or the cells cannot meet it, with why given. And the signature at the place, the server's, written into
+// `store`: 1, or 0 where it gives none
 typedef struct
 {
     const char *path;
@@ -305,9 +318,10 @@ typedef struct
     unsigned int col;
     const CellOwner *owner;
     VerbaLinea *err_msg;
+    CliSignatureStore *store;
 } CliServersAskCfg;
 CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args);
-CliSignaturePanel *cli_servers_signature_alloc(const CliServersAskCfg *args);
+int cli_servers_signature_read(const CliServersAskCfg *args);
 
 // the lines `from` to `to` of the parse of `path`, orior's own or its server's semantic tokens, and its folds,
 // `{"whole", "from", "lines", "folds"}` or `null`; the spans that contain `from` to `to` and are more than it, the
@@ -341,6 +355,8 @@ void cli_servers_let_go(void);
 // diagnostics (servers_check.c, servers_changed.c)
 unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args);
 void cli_servers_stop_check(void);
+// the jobs ring laid over its slots, its part of the rings block, as the pool is made (servers_jobs.c)
+void cli_servers_jobs_laid(void);
 int cli_servers_checking(void);
 void cli_servers_on_change(const CliServersRootSinkCountCfg *args);
 
@@ -596,12 +612,12 @@ EMBED_TABLE_STORAGE CliServersRootSinkCountNs cli_servers_root_sink_count EMBED_
 typedef struct
 {
     CliServerItems *(*items_alloc)(const CliServersAskCfg *args);
-    CliSignaturePanel *(*signature_alloc)(const CliServersAskCfg *args);
+    int (*signature_read)(const CliServersAskCfg *args);
 } CliServersAskNs;
-EMBED_TABLE_LAYOUT(CliServersAskNs, items_alloc, signature_alloc);
+EMBED_TABLE_LAYOUT(CliServersAskNs, items_alloc, signature_read);
 EMBED_TABLE_STORAGE CliServersAskNs cli_servers_ask EMBED_UNUSED = {
     .items_alloc = cli_servers_items_alloc,
-    .signature_alloc = cli_servers_signature_alloc,
+    .signature_read = cli_servers_signature_read,
 };
 
 #endif

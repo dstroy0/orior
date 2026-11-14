@@ -113,7 +113,7 @@ EMBED_INLINE void check_notation(const GradleCheckCtx *args)
     const char *const newline =
         (args->after < g_cli_gradle.size)
             ? memor.chr(&(MemoriaCfg){
-                  .src = text + args->after, .val = '\n', .bytes = (size_t)(g_cli_gradle.size - args->after)})
+                  .src = text + args->after, .val = '\n', .bytes = (embed_word)(g_cli_gradle.size - args->after)})
             : NULL;
     const unsigned long long line_end = (newline != NULL) ? (unsigned long long)(newline - text) : g_cli_gradle.size;
     unsigned long long at = args->after;
@@ -143,11 +143,11 @@ EMBED_INLINE void check_notation(const GradleCheckCtx *args)
     const unsigned long long inner_to = ((end > 0u) && (end - 1u > at + 1u)) ? end - 1u : at + 1u;
     const char *const supplied = text + inner_from;
     const unsigned long long input_size = inner_to - inner_from;
-    if (memor.chr(&(MemoriaCfg){.src = supplied, .val = '$', .bytes = (size_t)input_size}) != NULL)
+    if (memor.chr(&(MemoriaCfg){.src = supplied, .val = '$', .bytes = (embed_word)input_size}) != NULL)
     {
         return;
     }
-    const char *const at_sign = memor.chr(&(MemoriaCfg){.src = supplied, .val = '@', .bytes = (size_t)input_size});
+    const char *const at_sign = memor.chr(&(MemoriaCfg){.src = supplied, .val = '@', .bytes = (embed_word)input_size});
     const unsigned long long bare = (at_sign != NULL) ? (unsigned long long)(at_sign - supplied) : input_size;
     unsigned long long third = 0ULL;
     unsigned long long third_size = 0ULL;
@@ -187,7 +187,8 @@ static void check_dependency(const CliGradleStatementCfg *args)
     {
         removed =
             ((cellul.len(&(CatenaFinitaCfg){.src = s_removed[at][0], .cap = CLI_POOL_BYTES}) == args->word_size) &&
-             (memor.cmp(&(MemoriaCfg){.src = s_removed[at][0], .other = name, .bytes = (size_t)args->word_size}) == 0))
+             (memor.cmp(&(MemoriaCfg){.src = s_removed[at][0], .other = name, .bytes = (embed_word)args->word_size}) ==
+              0))
                 ? at
                 : removed;
     }
@@ -333,7 +334,7 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                           EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases,
                                      CliVersionCatalogTextSizeAliasesCtx, .text = (const char *)catalog, .size = read,
                                      .aliases = &aliases);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)catalog, (g_cli_gradle_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)catalog, (g_cli_gradle_owner));
         if (!whole)
         {
             continue;

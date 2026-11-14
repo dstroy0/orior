@@ -89,12 +89,13 @@ void tearDown(void)
 {
 }
 
-// the row `at`, the test failed where there is none
-static CliRequestsRow row_at(unsigned int at)
+// the row `at`, in a row of the suite's own whose text stands until the next is read; the test failed where there is
+// none
+static const CliRequestsRow *row_at(unsigned int at)
 {
-    CliRequestsRow row;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_pane.row, CliRequestsPaneCfg, .at = at, .row = &row));
-    return row;
+    static CliRequestsRow s_row;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_pane.row, CliRequestsPaneCfg, .at = at, .row = &s_row));
+    return &s_row;
 }
 
 // the place of the first row of `type` at or after `from`, the rows' count where none is
@@ -102,7 +103,7 @@ static unsigned int row_of(unsigned int type, unsigned int from)
 {
     const unsigned int rows = EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u);
     unsigned int at = from;
-    while ((at < rows) && (row_at(at).type != type))
+    while ((at < rows) && (row_at(at)->type != type))
     {
         at += 1u;
     }
@@ -120,10 +121,10 @@ void test_a_request_with_no_answer_lays_the_row_that_reads_so(void)
 {
     TEST_ASSERT_TRUE(followed(4ULL, 0));
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
-    const CliRequestsRow none = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_NOTE, none.type);
-    CLI_TEST_ASSERT_TEXT("No answer yet. Ctrl+Enter sends the request the cursor stands in.", none.text,
-                         none.text_length);
+    const CliRequestsRow *const none = row_at(0u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_NOTE, none->type);
+    CLI_TEST_ASSERT_TEXT("No answer yet. Ctrl+Enter sends the request the cursor stands in.", none->text,
+                         none->text_length);
     CliRequestsRow past;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.row, CliRequestsPaneCfg, .at = 1u, .row = &past));
 }
@@ -132,33 +133,34 @@ void test_the_line_reads_its_requests_answers_the_last_first(void)
 {
     TEST_ASSERT_TRUE(followed(1ULL, 0));
     TEST_ASSERT_EQUAL_UINT(9u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
-    const CliRequestsRow status = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_STATUS, status.type);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_TONE_FAILED, status.tone);
-    CLI_TEST_ASSERT_TEXT("404 Not Found  0.0 ms, 7 B", status.text, status.text_length);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_TIMES, row_at(1u).type);
-    const CliRequestsRow headers = row_at(2u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_GROUP, headers.type);
-    TEST_ASSERT_FALSE(headers.open);
-    CLI_TEST_ASSERT_TEXT("Headers (1)", headers.text, headers.text_length);
-    const CliRequestsRow sent = row_at(3u);
-    CLI_TEST_ASSERT_TEXT("Sent", sent.text, sent.text_length);
-    const CliRequestsRow body = row_at(4u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_BODY, body.type);
-    CLI_TEST_ASSERT_TEXT("missing", body.text, body.text_length);
-    const CliRequestsRow answers = row_at(5u);
-    TEST_ASSERT_TRUE(answers.open);
-    CLI_TEST_ASSERT_TEXT("Last answers", answers.text, answers.text_length);
-    const CliRequestsRow newer = row_at(6u);
-    const CliRequestsRow older = row_at(7u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_ANSWER, newer.type);
-    TEST_ASSERT_TRUE(newer.shown);
-    TEST_ASSERT_FALSE(older.shown);
-    CLI_TEST_ASSERT_TEXT("00:00:02  404  0.0 ms  7 B", newer.text, newer.text_length);
-    CLI_TEST_ASSERT_TEXT("00:00:01  200  0.0 ms  7 B", older.text, older.text_length);
-    const CliRequestsRow compare = row_at(8u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_COMPARE, compare.type);
-    TEST_ASSERT_TRUE(compare.inert);
+    const CliRequestsRow *const status = row_at(0u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_STATUS, status->type);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_TONE_FAILED, status->tone);
+    CLI_TEST_ASSERT_TEXT("404 Not Found  0.0 ms, 7 B", status->text, status->text_length);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_TIMES, row_at(1u)->type);
+    const CliRequestsRow *const headers = row_at(2u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_GROUP, headers->type);
+    TEST_ASSERT_FALSE(headers->open);
+    CLI_TEST_ASSERT_TEXT("Headers (1)", headers->text, headers->text_length);
+    const CliRequestsRow *const sent = row_at(3u);
+    CLI_TEST_ASSERT_TEXT("Sent", sent->text, sent->text_length);
+    const CliRequestsRow *const body = row_at(4u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_BODY, body->type);
+    CLI_TEST_ASSERT_TEXT("missing", body->text, body->text_length);
+    const CliRequestsRow *const answers = row_at(5u);
+    TEST_ASSERT_TRUE(answers->open);
+    CLI_TEST_ASSERT_TEXT("Last answers", answers->text, answers->text_length);
+    // the two answers' rows read one after the other, each read into the suite's one row
+    const CliRequestsRow *const newer = row_at(6u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_ANSWER, newer->type);
+    TEST_ASSERT_TRUE(newer->shown);
+    CLI_TEST_ASSERT_TEXT("00:00:02  404  0.0 ms  7 B", newer->text, newer->text_length);
+    const CliRequestsRow *const older = row_at(7u);
+    TEST_ASSERT_FALSE(older->shown);
+    CLI_TEST_ASSERT_TEXT("00:00:01  200  0.0 ms  7 B", older->text, older->text_length);
+    const CliRequestsRow *const compare = row_at(8u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_COMPARE, compare->type);
+    TEST_ASSERT_TRUE(compare->inert);
 }
 
 void test_the_same_request_is_not_read_again_unless_forced(void)
@@ -172,9 +174,9 @@ void test_a_group_opened_lays_its_headers_and_closes(void)
 {
     EMBED_CALL(cli_requests_pane.toggle, CliRequestsPaneCfg, .at = 2u);
     TEST_ASSERT_EQUAL_UINT(10u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
-    const CliRequestsRow header = row_at(3u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_HEADER, header.type);
-    CLI_TEST_ASSERT_TEXT("Content-Type: text/plain", header.text, header.text_length);
+    const CliRequestsRow *const header = row_at(3u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_ROW_HEADER, header->type);
+    CLI_TEST_ASSERT_TEXT("Content-Type: text/plain", header->text, header->text_length);
     EMBED_CALL(cli_requests_pane.toggle, CliRequestsPaneCfg, .at = 2u);
     TEST_ASSERT_EQUAL_UINT(9u, EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u));
     EMBED_CALL(cli_requests_pane.toggle, CliRequestsPaneCfg, .at = 0u);
@@ -184,51 +186,51 @@ void test_a_group_opened_lays_its_headers_and_closes(void)
 void test_an_answer_shown_lays_its_json_body_laid_out(void)
 {
     EMBED_CALL(cli_requests_pane.show, CliRequestsPaneCfg, .at = 7u);
-    const CliRequestsRow status = row_at(0u);
-    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_TONE_GOOD, status.tone);
-    CLI_TEST_ASSERT_TEXT("200 OK  0.0 ms, 7 B", status.text, status.text_length);
+    const CliRequestsRow *const status = row_at(0u);
+    TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_TONE_GOOD, status->tone);
+    CLI_TEST_ASSERT_TEXT("200 OK  0.0 ms, 7 B", status->text, status->text_length);
     const unsigned int body = row_of(CLI_REQUESTS_ROW_BODY, 0u);
-    CLI_TEST_ASSERT_TEXT("{", row_at(body).text, row_at(body).text_length);
-    CLI_TEST_ASSERT_TEXT("  \"a\": 1", row_at(body + 1u).text, row_at(body + 1u).text_length);
-    CLI_TEST_ASSERT_TEXT("}", row_at(body + 2u).text, row_at(body + 2u).text_length);
-    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_ANSWER, 0u) + 1u).shown);
+    CLI_TEST_ASSERT_TEXT("{", row_at(body)->text, row_at(body)->text_length);
+    CLI_TEST_ASSERT_TEXT("  \"a\": 1", row_at(body + 1u)->text, row_at(body + 1u)->text_length);
+    CLI_TEST_ASSERT_TEXT("}", row_at(body + 2u)->text, row_at(body + 2u)->text_length);
+    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_ANSWER, 0u) + 1u)->shown);
 }
 
 void test_two_answers_checked_light_compare_and_lay_the_comparison(void)
 {
     const unsigned int first = row_of(CLI_REQUESTS_ROW_ANSWER, 0u);
     EMBED_CALL(cli_requests_pane.check, CliRequestsPaneCfg, .at = first);
-    TEST_ASSERT_TRUE(row_at(first).checked);
-    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_COMPARE, 0u)).inert);
+    TEST_ASSERT_TRUE(row_at(first)->checked);
+    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_COMPARE, 0u))->inert);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.compare, CliRequestsPaneCfg, .at = 0u));
     EMBED_CALL(cli_requests_pane.check, CliRequestsPaneCfg, .at = first + 1u);
-    TEST_ASSERT_FALSE(row_at(row_of(CLI_REQUESTS_ROW_COMPARE, 0u)).inert);
+    TEST_ASSERT_FALSE(row_at(row_of(CLI_REQUESTS_ROW_COMPARE, 0u))->inert);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_pane.compare, CliRequestsPaneCfg, .at = 0u));
     const unsigned int signs = row_of(CLI_REQUESTS_ROW_SIGN, 0u);
     const unsigned int rows = EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u);
     TEST_ASSERT_TRUE(signs < rows);
     // the older answer's status line is taken out first, the newer's put in after, the blank line both have once
-    const CliRequestsRow gone = row_at(signs);
-    TEST_ASSERT_EQUAL_CHAR('-', gone.sign);
-    CLI_TEST_ASSERT_TEXT("HTTP/1.1 200 OK", gone.text, gone.text_length);
+    const CliRequestsRow *const gone = row_at(signs);
+    TEST_ASSERT_EQUAL_CHAR('-', gone->sign);
+    CLI_TEST_ASSERT_TEXT("HTTP/1.1 200 OK", gone->text, gone->text_length);
     unsigned int put_at = signs;
-    while ((put_at < rows) && (row_at(put_at).sign != '+'))
+    while ((put_at < rows) && (row_at(put_at)->sign != '+'))
     {
         put_at += 1u;
     }
     TEST_ASSERT_TRUE(put_at < rows);
-    CLI_TEST_ASSERT_TEXT("HTTP/1.1 404 Not Found", row_at(put_at).text, row_at(put_at).text_length);
+    CLI_TEST_ASSERT_TEXT("HTTP/1.1 404 Not Found", row_at(put_at)->text, row_at(put_at)->text_length);
     unsigned int blank_shared = 0u;
     for (unsigned int at = signs; at < rows; at += 1u)
     {
-        const CliRequestsRow line = row_at(at);
-        blank_shared += ((line.sign == ' ') && (line.text_length == 0ULL)) ? 1u : 0u;
+        const CliRequestsRow *const line = row_at(at);
+        blank_shared += ((line->sign == ' ') && (line->text_length == 0ULL)) ? 1u : 0u;
     }
     TEST_ASSERT_EQUAL_UINT(1u, blank_shared);
     EMBED_CALL(cli_requests_pane.check, CliRequestsPaneCfg, .at = first);
     const unsigned int unchecked = EMBED_CALL(cli_requests_pane.rows, CliRequestsPaneCfg, .at = 0u);
     TEST_ASSERT_EQUAL_UINT(unchecked, row_of(CLI_REQUESTS_ROW_SIGN, 0u));
-    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_COMPARE, 0u)).inert);
+    TEST_ASSERT_TRUE(row_at(row_of(CLI_REQUESTS_ROW_COMPARE, 0u))->inert);
 }
 
 void test_the_environments_are_the_heads_choices_the_one_chosen_lit(void)
@@ -306,6 +308,6 @@ void test_a_send_runs_on_its_worker_send_reading_sending_until_its_answers_come(
                                 .row = &choice));
     CLI_TEST_ASSERT_TEXT("Send", choice.text, choice.text_length);
     TEST_ASSERT_FALSE(choice.inert);
-    CLI_TEST_ASSERT_TEXT("404 Not Found  0.0 ms, 7 B", row_at(0u).text, row_at(0u).text_length);
+    CLI_TEST_ASSERT_TEXT("404 Not Found  0.0 ms, 7 B", row_at(0u)->text, row_at(0u)->text_length);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.step, CliRequestsPaneCfg, .root = s_root, .shown = 0));
 }

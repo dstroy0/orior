@@ -183,7 +183,7 @@ void cli_hmac_sha256_bytes(const CliDigestKeyCfg *args)
     }
     else
     {
-        memor.cpy(&(MemoriaCfg){.dst = block, .src = args->key, .bytes = (size_t)args->key_size});
+        memor.cpy(&(MemoriaCfg){.dst = block, .src = args->key, .bytes = (embed_word)args->key_size});
     }
     unsigned char pad[64];
     for (unsigned int at = 0u; at < 64u; at += 1u)
@@ -220,7 +220,7 @@ void cli_pbkdf2_sha256(const CliDigestPasswordCfg *args)
     // the salt and the block's number, 1, big-endian, as the first round's message
     static unsigned char s_first[4096u + 4u];
     const unsigned long long salt_len = (args->salt_size < 4096ULL) ? args->salt_size : 4096ULL;
-    memor.cpy(&(MemoriaCfg){.dst = s_first, .src = args->salt, .bytes = (size_t)salt_len});
+    memor.cpy(&(MemoriaCfg){.dst = s_first, .src = args->salt, .bytes = (embed_word)salt_len});
     s_first[salt_len] = 0u;
     s_first[salt_len + 1u] = 0u;
     s_first[salt_len + 2u] = 0u;

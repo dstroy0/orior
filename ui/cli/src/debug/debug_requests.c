@@ -178,18 +178,18 @@ int cli_debug_exceptions(const CliDebugJsonCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"filters\":[");
+    mmgr_line_put(&answer->args.line, "{\"filters\":[");
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = args->json, .array = on, .index = at) != CLI_JSON_NONE;
          at += 1u)
     {
-        mmgr_line_put(&answer->args, (at > 0u) ? "," : "");
+        mmgr_line_put(&answer->args.line, (at > 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json,
                    .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                       .json_read = args->json, .array = on, .index = at),
-                   .out = &answer->args, .indent = 0u, .sorted = 0);
+                   .out = &answer->args.line, .indent = 0u, .sorted = 0);
     }
-    mmgr_line_put(&answer->args, "]}");
+    mmgr_line_put(&answer->args.line, "]}");
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "setExceptionBreakpoints",
                     .answer = answer, .err_msg = args->err_msg))
     {
@@ -227,9 +227,9 @@ int cli_debug_raise(const CliDebugOutErrMsgIdThreadHowCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"threadId\":");
-    mmgr_line_decimal_signed(&answer->args, args->thread);
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_put(&answer->args.line, "{\"threadId\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->thread);
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "exceptionInfo", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -291,9 +291,9 @@ int cli_debug_stack(const CliDebugOutErrMsgIdThreadCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"threadId\":");
-    mmgr_line_decimal_signed(&answer->args, args->thread);
-    mmgr_line_put(&answer->args, ",\"startFrame\":0,\"levels\":200}");
+    mmgr_line_put(&answer->args.line, "{\"threadId\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->thread);
+    mmgr_line_put(&answer->args.line, ",\"startFrame\":0,\"levels\":200}");
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "stackTrace", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -363,9 +363,9 @@ int cli_debug_scopes(const CliDebugOutErrMsgCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"frameId\":");
-    mmgr_line_decimal_signed(&answer->args, args->frame);
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_put(&answer->args.line, "{\"frameId\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->frame);
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "scopes", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -406,9 +406,9 @@ int cli_debug_variables(const CliDebugOutCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"variablesReference\":");
-    mmgr_line_decimal_signed(&answer->args, args->reference);
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_put(&answer->args.line, "{\"variablesReference\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->reference);
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "variables", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -442,20 +442,20 @@ int cli_debug_evaluate(const CliDebugOutErrMsgCfg *args)
         return 0;
     }
     // with no frame chosen the frame is left out, which an adapter takes as its global scope
-    mmgr_line_put(&answer->args, "{\"expression\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    mmgr_line_put(&answer->args.line, "{\"expression\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)args->expression,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->expression, .cap = CLI_POOL_BYTES}));
-    mmgr_line_put(&answer->args, ",\"context\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    mmgr_line_put(&answer->args.line, ",\"context\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)args->context_text,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->context_text, .cap = CLI_POOL_BYTES}));
     if (args->has_frame)
     {
-        mmgr_line_put(&answer->args, ",\"frameId\":");
-        mmgr_line_decimal_signed(&answer->args, args->frame);
+        mmgr_line_put(&answer->args.line, ",\"frameId\":");
+        mmgr_line_decimal_signed(&answer->args.line, args->frame);
     }
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "evaluate", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -475,13 +475,13 @@ int cli_debug_history(const CliDebugOutErrMsgIdCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"frameId\":");
-    mmgr_line_decimal_signed(&answer->args, args->frame);
-    mmgr_line_put(&answer->args, ",\"name\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    mmgr_line_put(&answer->args.line, "{\"frameId\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->frame);
+    mmgr_line_put(&answer->args.line, ",\"name\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)args->name,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}));
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "orior/history", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -538,9 +538,9 @@ int cli_debug_goto(const CliDebugOutErrMsgIdStepCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"step\":");
-    mmgr_line_decimal(&answer->args, args->step, 1u);
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_put(&answer->args.line, "{\"step\":");
+    mmgr_line_decimal(&answer->args.line, args->step, 1u);
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "orior/goto", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -559,15 +559,15 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"memoryReference\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    mmgr_line_put(&answer->args.line, "{\"memoryReference\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)args->reference_text,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->reference_text, .cap = CLI_POOL_BYTES}));
-    mmgr_line_put(&answer->args, ",\"offset\":");
-    mmgr_line_decimal_signed(&answer->args, args->offset);
-    mmgr_line_put(&answer->args, ",\"count\":");
-    mmgr_line_decimal(&answer->args, args->count, 1u);
-    mmgr_line_ch(&answer->args, '}');
+    mmgr_line_put(&answer->args.line, ",\"offset\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->offset);
+    mmgr_line_put(&answer->args.line, ",\"count\":");
+    mmgr_line_decimal(&answer->args.line, args->count, 1u);
+    mmgr_line_ch(&answer->args.line, '}');
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "readMemory", .answer = answer,
                     .err_msg = args->err_msg))
     {
@@ -618,15 +618,15 @@ int cli_debug_instructions(const CliDebugOutErrMsgIdReferenceCfg *args)
     {
         return 0;
     }
-    mmgr_line_put(&answer->args, "{\"memoryReference\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    mmgr_line_put(&answer->args.line, "{\"memoryReference\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)args->reference_text,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->reference_text, .cap = CLI_POOL_BYTES}));
-    mmgr_line_put(&answer->args, ",\"instructionOffset\":");
-    mmgr_line_decimal_signed(&answer->args, args->offset);
-    mmgr_line_put(&answer->args, ",\"instructionCount\":");
-    mmgr_line_decimal_signed(&answer->args, args->count_i64);
-    mmgr_line_put(&answer->args, ",\"resolveSymbols\":true}");
+    mmgr_line_put(&answer->args.line, ",\"instructionOffset\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->offset);
+    mmgr_line_put(&answer->args.line, ",\"instructionCount\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->count_i64);
+    mmgr_line_put(&answer->args.line, ",\"resolveSymbols\":true}");
     if (!EMBED_CALL(requests_send, DebugRequestsCtx, .session = session, .command = "disassemble", .answer = answer,
                     .err_msg = args->err_msg))
     {

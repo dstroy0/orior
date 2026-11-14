@@ -425,7 +425,7 @@ export async function putBackAsFound() {
     await invoke("tree_unmount", { name: mounted.name }).catch(() => {});
   }
   asFound();
-  // Key by key, as orior_gui keeps each change in its own folder through the page's own setItem and
+  // Key by key, as tabvla keeps each change in its own folder through the page's own setItem and
   // removeItem.
   const stored = new Map(STORED);
   for (const key of Object.keys(localStorage).filter((one) => !stored.has(one))) {
@@ -435,6 +435,6 @@ export async function putBackAsFound() {
     localStorage.setItem(key, value);
   }
   assert.deepEqual(Object.entries(localStorage).sort(), [...STORED].sort());
-  // orior_gui keeps the settings in its own folder once they rest, which the next page reads.
+  // tabvla keeps the settings in its own folder once they rest, which the next page reads.
   await ui.rest(1500);
 }

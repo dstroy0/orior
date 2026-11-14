@@ -5,7 +5,7 @@
 #include "../../analysis/cycle/cycle.h"
 #include "../../engine.h"
 #include "../max_tree/max_tree.h"
-#include "../../../includes/file_defs/krep/krep.h"
+#include "../../../../../includes/file_defs/krep/krep.h"
 
 #include <cuda_runtime.h>
 

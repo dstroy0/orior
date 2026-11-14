@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record.cu: the fields of the part's .ksc the walks read, the stall and the registers, the cases a question is put over, and the query record opened and closed
 #include "identity_internal.h"
-#include "../../../../../includes/parsers/who.h"
+#include "../../../../../../../includes/parsers/who.h"
 
 // the instructions' bits `field` takes at instruction `index` of `code`, sixteen bytes an instruction
 unsigned long long stall_bits(const std::vector<unsigned char> &code, size_t index, const StallField &field)
@@ -207,7 +207,7 @@ std::string s_record_ksc;
 // query or sample that follows it and nowhere where none follows: a cycle the record answers whole adds no line to it
 KqrRecord s_query_record;
 
-// the flags of the trace's choices, read from their table (src/cu/includes/file_defs/klq/query_trace.tsv) when the pair
+// the flags of the trace's choices, read from their table (includes/file_defs/klq/query_trace.tsv) when the pair
 // mode opens
 QueryTrace s_query_trace;
 

@@ -7,7 +7,7 @@
 // or the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer
 // reports which clock timed them
 #include "cubin_run_internal.h"
-#include "../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../../includes/file_defs/ksc/ksc.h"
 
 #if defined(_WIN32)
 #include "../scaffolding/mmio_read.h"

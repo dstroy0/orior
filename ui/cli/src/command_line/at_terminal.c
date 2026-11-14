@@ -8,15 +8,15 @@
 #include "at_terminal.h"
 #include "../code/git.h"
 #include "../machine/settings_sync.h"
-#include "commands.h"
 #include "../tests/testing.h"
 #include "../text/text.h"
+#include "commands.h"
 
-// The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, on a line over
-// a cell of the most their bytes are, the last path put, and how many are put
+// The files of the tree's tests as a run of them is gathered, each once: their paths, each ended by a 0, on a line
+// grown to them up to the most their bytes are, the last path put, and how many are put
 typedef struct
 {
-    VerbaLinea line;
+    CliGrownLine line;
     char last[CLI_PATH_MAX_LEN];
     unsigned int count;
 } CliTerminalFiles;
@@ -61,7 +61,7 @@ EMBED_INLINE int at_terminal_home(const AtTerminalCtx *args)
 {
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = args->home))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own");
         return 0;
     }
     return 1;
@@ -93,10 +93,7 @@ EMBED_INLINE void at_terminal_branches(const AtTerminalCtx *args)
             mmgr_line_put(args->out, subject);
         }
     }
-    g_cli_guard->persistent_buf_release(found->text.bytes, g_cli_git_owner);
-    found->text.bytes = NULL;
-    found->text.used = 0ULL;
-    found->text.capacity = 0ULL;
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &found->text);
     g_cli_guard->persistent_buf_release(found, g_cli_git_owner);
 }
 
@@ -120,10 +117,7 @@ EMBED_INLINE void at_terminal_stashes(const AtTerminalCtx *args)
         mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
                                             .at = found->item[at].subject));
     }
-    g_cli_guard->persistent_buf_release(found->text.bytes, g_cli_git_owner);
-    found->text.bytes = NULL;
-    found->text.used = 0ULL;
-    found->text.capacity = 0ULL;
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &found->text);
     g_cli_guard->persistent_buf_release(found, g_cli_git_owner);
 }
 
@@ -142,17 +136,14 @@ EMBED_INLINE void at_terminal_elsewhere(const AtTerminalCtx *args)
     {
         const char *const id = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
                                           .at = found->item[at].id);
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES});
+        const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES});
         mmgr_line_put(args->out, (at > 0u) ? "\n" : "");
         mmgr_line_put_n(args->out, id, (length < 7u) ? length : 7u);
         mmgr_line_put(args->out, "  ");
         mmgr_line_put(args->out, EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &found->text,
                                             .at = found->item[at].subject));
     }
-    g_cli_guard->persistent_buf_release(found->text.bytes, g_cli_git_owner);
-    found->text.bytes = NULL;
-    found->text.used = 0ULL;
-    found->text.capacity = 0ULL;
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &found->text);
     g_cli_guard->persistent_buf_release(found, g_cli_git_owner);
 }
 
@@ -199,14 +190,14 @@ EMBED_INLINE int at_terminal_branch_delete(const AtTerminalCtx *args)
 static void at_terminal_test_file(const CliTestEachCfg *args)
 {
     CliTerminalFiles *const found = args->context;
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->test->file, .cap = CLI_POOL_BYTES}) + 1u;
+    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->test->file, .cap = CLI_POOL_BYTES}) + 1u;
     if (((found->count > 0u) &&
          (cellul.eq(&(CatenaFinitaCfg){.src = found->last, .other = args->test->file, .cap = CLI_POOL_BYTES}))) ||
-        (found->count == CLI_AT_TERMINAL_FILES) || (found->line.at + size > CLI_AT_TERMINAL_FILES_TEXT))
+        (found->count == CLI_AT_TERMINAL_FILES) || (cli_grown_size(&found->line) + size > CLI_AT_TERMINAL_FILES_TEXT))
     {
         return;
     }
-    mmgr_line_put_n(&found->line, args->test->file, size);
+    mmgr_line_put_n(&found->line.line, args->test->file, size);
     found->last[0] = '\0';
     if (size <= sizeof(found->last))
     {
@@ -223,9 +214,9 @@ EMBED_INLINE int at_terminal_files_run(const AtTerminalCtx *args)
     int cover = args->cover;
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
-    const char *const joined = args->found->line.out;
+    const char *const joined = args->found->line.cell;
     const char **const files =
-        mmgr_line_ok(&args->found->line)
+        mmgr_line_ok(&args->found->line.line)
             ? g_cli_guard->temporary_buf_alloc((args->found->count + 1ULL) * sizeof(const char *), g_cli_git_owner)
             : NULL;
     if (files == NULL)
@@ -348,16 +339,14 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cover-tests", .cap = CLI_POOL_BYTES})))
     {
         static CliTerminalFiles s_found;
-        const unsigned long long capacity = CLI_AT_TERMINAL_FILES_TEXT + 1ULL;
-        char *const found_text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_git_owner);
-        s_found.line = mmgr_line_over(found_text, capacity);
+        cli_grown_begin(&s_found.line, CLI_AT_TERMINAL_FILES_TEXT + 1ULL, g_cli_git_owner);
         s_found.last[0] = '\0';
         s_found.count = 0u;
         EMBED_CALL(cli_testing_root.tests_find, CliTestingRootCfg, .root = root, .each = at_terminal_test_file,
                    .context = &s_found);
         const int good = EMBED_CALL(at_terminal_files_run, AtTerminalCtx, .root = root, .found = &s_found,
                                     .cover = cover, .out = out, .err_msg = err_msg);
-        g_cli_guard->persistent_buf_release(found_text, g_cli_git_owner);
+        cli_grown_end(&s_found.line);
         return good;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "test-run", .cap = CLI_POOL_BYTES})) ||

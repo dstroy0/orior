@@ -348,7 +348,7 @@ async function answer(one, data) {
   const run = CALLS[data.call];
   try {
     if (!run) {
-      throw new Error(`orior_gui has no call ${data.call}`);
+      throw new Error(`tabvla has no call ${data.call}`);
     }
     const value = await run(one, ...(data.args ?? []));
     one.worker?.postMessage({ answer: data.id, value: value ?? null });

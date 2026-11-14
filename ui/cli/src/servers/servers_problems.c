@@ -1,81 +1,80 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_problems.c: the problems: each file's diagnostics, worst first, a file replaced whole as its report comes
-// again. A report comes on the thread that read it, decoded once where the servers store it (servers_emit.c), and the
-// files with problems are a table that thread builds over the last inside a pass of its own and publishes whole with a
-// compare and swap, the table it replaced pushed on the retired tables with another; no writer waits on a reader. A
-// reading thread passes through a turnstile from one step to its next and reads the table it found in place; at each
-// step it ends its pass, waits out every other pass begun before the tables it takes off the retired were replaced, and
-// releases them (embed_turnstile.h). A press on a row closes a file's rows or points to the file and the place a
-// diagnostic stands at; the tree's check is started and stopped here
+// again. A report comes on the thread that read it, decoded once where the servers store it (servers_emit.c); that
+// thread builds the file's head and pushes it, in a movable cell whose token rides the reports' ticket ring, under a
+// ticket of its own, and sleeps while every slot is in flight. The view's thread pops the reports in the order of their
+// tickets at each step, builds the table, one movable cell of the files' heads, over the last from each and releases
+// the table and the report each replaced: the table is that thread's alone, and no other thread reads it. A press on a
+// row closes a file's rows or points to the file and the place a diagnostic stands at; the tree's check is started and
+// stopped here
+#include "../text/sort.h"
 #include "servers.h"
+#include "servers_internal.h"
 
 #include "../command_line/pool.h"
+#include "../command_line/rings.h"
 #include "../editor/files.h"
 #include "../text/text.h"
-#include "embed_turnstile.h"
-
-#include <stdlib.h>
 
 // the severity that counts as an error
 #define CLI_PROBLEMS_ERROR 1u
 
-// One file's problems: its report, the place its name starts in its path, how many of its diagnostics are errors, and
-// whether its rows are closed, which a reading thread's press sets
+// One file's problems, a record of the table's cell: the token of its report's cell, the place its name starts in its
+// path, how many of its diagnostics are errors, and whether its rows are closed, which a press sets
 typedef struct
 {
-    CliServerReport *report;
+    const CarcerMovableEntry *report;
     unsigned long long name;
     unsigned int errors;
-    _Atomic int closed;
+    int closed;
 } ServersProblemFile;
 
-// The files with problems, in the order their reports last came, and their errors. Once replaced: the next retired
-// table, and the file the replacing report took out, released with it
-typedef struct ServersProblemsTable
-{
-    struct ServersProblemsTable *retired;
-    ServersProblemFile *removed;
-    unsigned int count;
-    unsigned int errors;
-    ServersProblemFile *file[];
-} ServersProblemsTable;
+// the most bytes of a diagnostic's message a row shows
+#define CLI_PROBLEMS_MESSAGE 4096u
 
-// The problems: the table published last, NULL for none, and how many tables have been published; the tables replaced
-// and not yet released; the check's progress as it was last reported; the turnstiles the readers pass through; and what
-// wakes the window's thread as a report comes
+// the place in the table's cell of the file `at_`
+#define CLI_PROBLEMS_FILE_AT(at_) ((unsigned long long)(at_) * sizeof(ServersProblemFile))
+
+// A report on its way to the view's thread, in a movable cell whose token rides the ring: the file's path, and its
+// head where it has diagnostics, `has_file` 0 where the file is taken out
 typedef struct
 {
-    _Alignas(64) ServersProblemsTable *_Atomic table;
-    _Atomic unsigned long long published;
-    _Alignas(64) ServersProblemsTable *_Atomic retired;
-    _Alignas(64) _Atomic unsigned long long check_done;
-    _Atomic unsigned long long check_total;
-    void (*_Atomic woken)(void);
+    char path[CLI_PATH_MAX_LEN];
+    ServersProblemFile file;
+    int has_file;
+} ServersProblemsReport;
+
+// The problems: the reports' ticket ring, its turnstiles, its slots the problems' part of the rings block, the next
+// ticket a reporting thread takes, the wake a reporting thread sleeps on while every slot is in flight, whether the
+// problems are open to reports, the check's progress as it was last reported, and what wakes the view's thread as a
+// report comes; then, the view's thread's alone: the next ticket it pops, the table's cell, NULL for none, the files in
+// it in the order their reports last came and their errors, and the check's progress as its last step read it
+typedef struct
+{
     EmbedTurnstiles turnstiles;
+    EmbedTicketRing ring;
+    embed_atomic_u32 ticket;
+    CliWake room;
+    embed_atomic_u32 open;
+    embed_atomic_u64 check_done;
+    embed_atomic_u64 check_total;
+    embed_atomic_uptr woken;
+    embed_u32 taken;
+    const CarcerMovableEntry *table;
+    unsigned int count;
+    unsigned int errors;
+    unsigned long long done;
+    unsigned long long total;
 } ServersProblems;
 
 static ServersProblems s_problems;
 
-// A thread's pass through the problems: whether it passes and the turnstile it passes through; and what its last step
-// read: the table, the count of tables published, and the check's progress
-typedef struct
-{
-    int passing;
-    unsigned int at;
-    const ServersProblemsTable *table;
-    unsigned long long published;
-    unsigned long long done;
-    unsigned long long total;
-} ServersProblemsPass;
-
-static _Thread_local ServersProblemsPass t_pass;
-
 // two diagnostics in the order shown: the worse first, then the earlier
 static int problems_order(const void *one, const void *other)
 {
-    const CliServerDiagnostic *const first = (const CliServerDiagnostic *)one;
-    const CliServerDiagnostic *const second = (const CliServerDiagnostic *)other;
+    const CliServerStoredDiagnostic *const first = (const CliServerStoredDiagnostic *)one;
+    const CliServerStoredDiagnostic *const second = (const CliServerStoredDiagnostic *)other;
     if (first->severity != second->severity)
     {
         return (first->severity < second->severity) ? -1 : 1;
@@ -91,188 +90,228 @@ static int problems_order(const void *one, const void *other)
     return 0;
 }
 
-// a file's report and its head released
-static void problems_file_release(ServersProblemFile *file)
+// the file `at` of the table, read out of the table's cell
+static ServersProblemFile problems_file_at(unsigned int at)
 {
-    if (file != NULL)
-    {
-        cli_servers_report_release(file->report);
-        g_cli_guard->persistent_buf_release(file, g_cli_servers_owner);
-    }
-}
-
-// The retired tables taken off whole, every pass through the turnstiles begun before they were replaced waited out,
-// and each released with the file its replacement took out. A thread calls this between its passes, never inside one
-static void problems_reclaimed(void)
-{
-    ServersProblemsTable *table = atomic_exchange_explicit(&s_problems.retired, NULL, memory_order_acquire);
-    if (table == NULL)
-    {
-        return;
-    }
-    embed_turnstiles_drain(&s_problems.turnstiles);
-    while (table != NULL)
-    {
-        ServersProblemsTable *const next = table->retired;
-        problems_file_release(table->removed);
-        g_cli_guard->persistent_buf_release(table, g_cli_servers_owner);
-        table = next;
-    }
-}
-
-// the head of a file whose report has diagnostics: each message cut to its first line where it lies, the diagnostics
-// in the order shown, the errors counted and the name found from the path's end; NULL where its cell could not be taken
-static ServersProblemFile *problems_file_built(CliServerReport *report)
-{
-    ServersProblemFile *const file = g_cli_guard->persistent_buf_alloc(sizeof(*file), g_cli_servers_owner);
-    if (file == NULL)
-    {
-        return NULL;
-    }
-    file->report = report;
-    file->errors = 0u;
-    atomic_init(&file->closed, 0);
-    for (unsigned int at = 0u; at < report->count; at += 1u)
-    {
-        CliServerDiagnostic *const item = &report->item[at];
-        item->message_length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                          .text = item->message, .at = 0ULL, .size = item->message_length, .set = "\n");
-        file->errors += (item->severity == CLI_PROBLEMS_ERROR) ? 1u : 0u;
-    }
-    qsort(report->item, report->count, sizeof(*report->item), problems_order);
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = report->path, .cap = CLI_PATH_MAX_LEN});
-    file->name = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = report->path,
-                            .at = length, .set = "/\\");
+    ServersProblemFile file = {NULL, 0ULL, 0u, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_problems.table, .offset = CLI_PROBLEMS_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
     return file;
 }
 
-// The table `table` with the file of `path` taken out and `file` put at the end where it is not NULL, the place the
-// file of `path` stood in into `found`, the count where none did: the new table, or NULL where nothing changes or its
-// cell could not be taken
-static ServersProblemsTable *problems_table_built(const ServersProblemsTable *table, const char *path,
-                                                  ServersProblemFile *file, unsigned int *found)
+// the head of a report's cell, and the diagnostic `at` of it, each read out of the cell
+static CliServerReportHead problems_head(const CarcerMovableEntry *report)
 {
-    const unsigned int count = (table != NULL) ? table->count : 0u;
-    *found = count;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    CliServerReportHead head = {0u, 0ULL};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+    return head;
+}
+
+static CliServerStoredDiagnostic problems_item(const CarcerMovableEntry *report, unsigned int at)
+{
+    CliServerStoredDiagnostic item = {0ULL, 0ULL, 0ULL, 0ULL, 0u, 0ULL, 0ULL};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
+    return item;
+}
+
+// the path of a report read out of its cell into `out`, CLI_PATH_MAX_LEN bytes: its length
+static unsigned long long problems_path(const CarcerMovableEntry *report, char *out)
+{
+    const CliServerReportHead head = problems_head(report);
+    const unsigned long long length = g_cli_guard->movable_buf_measure(
+        &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .bytes = CLI_PATH_MAX_LEN - 1ULL});
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .dst = out, .bytes = length});
+    out[length] = '\0';
+    return length;
+}
+
+// the message of the diagnostic `item` read out of its report's cell into `out`, `capacity` bytes, cut to the first
+// line and to what fits: its length
+static unsigned long long problems_message(const CarcerMovableEntry *report, const CliServerStoredDiagnostic *item,
+                                           char *out, unsigned long long capacity)
+{
+    const unsigned long long length =
+        (item->message_length < (capacity - 1ULL)) ? item->message_length : (capacity - 1ULL);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = report, .offset = item->message_at, .dst = out, .bytes = length});
+    out[length] = '\0';
+    return length;
+}
+
+// the head of a file whose report has diagnostics: each message cut to its first line where it lies, the diagnostics
+// in the order shown, written back into the report's cell, the errors counted and the name found from the path's end
+static void problems_file_built(const CarcerMovableEntry *report, ServersProblemFile *file)
+{
+    file->report = report;
+    file->errors = 0u;
+    file->closed = 0;
+    const CliServerReportHead head = problems_head(report);
+    // the diagnostics read into a cell of this call, cut, sorted and written back
+    CliServerStoredDiagnostic *const items = g_cli_guard->temporary_buf_alloc(
+        ((unsigned long long)head.count + 1ULL) * sizeof(CliServerStoredDiagnostic), g_cli_servers_owner);
+    for (unsigned int at = 0u; (items != NULL) && (at < head.count); at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = table->file[at]->report->path, .other = path, .cap = CLI_PATH_MAX_LEN}))
+        items[at] = problems_item(report, at);
+        char message[CLI_PROBLEMS_MESSAGE];
+        const unsigned long long read = problems_message(report, &items[at], message, sizeof(message));
+        const unsigned long long line = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                   .text = message, .at = 0ULL, .size = read, .set = "\n");
+        items[at].message_length = (line < read) ? line : items[at].message_length;
+        file->errors += (items[at].severity == CLI_PROBLEMS_ERROR) ? 1u : 0u;
+    }
+    if (items != NULL)
+    {
+        EMBED_CALL(cli_sort, CliSortCfg, .base = items, .count = head.count, .size = sizeof(items[0]),
+                   .order = problems_order);
+        for (unsigned int at = 0u; at < head.count; at += 1u)
+        {
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = report,
+                                                                     .offset = CLI_SERVER_REPORT_ITEM_AT(at),
+                                                                     .src = &items[at],
+                                                                     .bytes = sizeof(items[at])});
+        }
+    }
+    g_cli_guard->persistent_buf_release(items, g_cli_servers_owner);
+    char path[CLI_PATH_MAX_LEN];
+    const unsigned long long length = problems_path(report, path);
+    file->name = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path, .at = length,
+                            .set = "/\\");
+}
+
+// whether the report `report` is of the file at `path`
+static int problems_report_is(const CarcerMovableEntry *report, const char *path)
+{
+    const CliServerReportHead head = problems_head(report);
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
+    return g_cli_guard->movable_buf_compare(
+               &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .src = path, .bytes = length + 1ULL}) == 0;
+}
+
+// The table with the file of `path` taken out and `file` put at the end where `has_file`, the place the file of
+// `path` stood in into `found`, the count where none did, the new table's files and errors into `count` and `errors`:
+// the new table's cell, or NULL where nothing changes or its cell could not be taken
+static const CarcerMovableEntry *problems_table_built(const char *path, const ServersProblemFile *file, int has_file,
+                                                      unsigned int *found, unsigned int *count, unsigned int *errors)
+{
+    const unsigned int had = s_problems.count;
+    *found = had;
+    for (unsigned int at = 0u; at < had; at += 1u)
+    {
+        const ServersProblemFile one = problems_file_at(at);
+        if (problems_report_is(one.report, path))
         {
             *found = at;
             break;
         }
     }
-    if ((*found == count) && (file == NULL))
+    if ((*found == had) && !has_file)
     {
         return NULL;
     }
-    ServersProblemsTable *const built = g_cli_guard->persistent_buf_alloc(
-        sizeof(*built) + (((unsigned long long)count + 1ULL) * sizeof(built->file[0])), g_cli_servers_owner);
+    const CarcerMovableEntry *const built =
+        g_cli_guard->movable_buf_alloc(CLI_PROBLEMS_FILE_AT(had + 1u), g_cli_servers_owner);
     if (built == NULL)
     {
         return NULL;
     }
-    built->retired = NULL;
-    built->removed = NULL;
-    built->count = 0u;
-    built->errors = 0u;
-    for (unsigned int at = 0u; at < count; at += 1u)
+    *count = 0u;
+    *errors = 0u;
+    for (unsigned int at = 0u; at < had; at += 1u)
     {
         if (at != *found)
         {
-            built->file[built->count] = table->file[at];
-            built->errors += table->file[at]->errors;
-            built->count += 1u;
+            const ServersProblemFile one = problems_file_at(at);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = built, .offset = CLI_PROBLEMS_FILE_AT(*count), .src = &one, .bytes = sizeof(one)});
+            *errors += one.errors;
+            *count += 1u;
         }
     }
-    if (file != NULL)
+    if (has_file)
     {
-        built->file[built->count] = file;
-        built->errors += file->errors;
-        built->count += 1u;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = built, .offset = CLI_PROBLEMS_FILE_AT(*count), .src = file, .bytes = sizeof(*file)});
+        *errors += file->errors;
+        *count += 1u;
     }
     return built;
 }
 
-// from any thread: a file's report taken and published in the table in place of the file's last, or the file taken out
-// where it has no diagnostics; the table replaced pushed on the retired
-// a pass entered at the table's turnstiles from the address of a word on this thread's stack: each thread's stack has
-// its own place, so the threads start at lanes of their own, and the entry spills where a lane is busy
-static unsigned int problems_entered(void)
+// the view's thread woken, where the problems have a wake
+static void problems_woken(void)
 {
-    const unsigned int here = 0u;
-
-    // Explicit cast carries the address of the stack word as the entry's integer
-    return embed_turnstile_enter(&s_problems.turnstiles, (embed_atomic_uptr_value)(uintptr_t)&here);
-}
-
-static void problems_reported(const CliServerDiagnosticsCfg *args)
-{
-    ServersProblemFile *file = NULL;
-    if ((args->report != NULL) && (args->report->count != 0u) && (args->taken != NULL))
-    {
-        file = problems_file_built(args->report);
-        *args->taken = (file != NULL);
-        if (file == NULL)
-        {
-            return;
-        }
-    }
-    // the table read and built over inside a pass, so no reader releases it while it is read, and none of its
-    // addresses comes back as another table's before the compare and swap
-    const unsigned int pass = problems_entered();
-    ServersProblemsTable *old = atomic_load_explicit(&s_problems.table, memory_order_acquire);
-    ServersProblemsTable *built = NULL;
-    unsigned int found = 0u;
-    for (;;)
-    {
-        built = problems_table_built(old, args->path, file, &found);
-        if (built == NULL)
-        {
-            embed_turnstile_leave(&s_problems.turnstiles, pass);
-            problems_file_release(file);
-            return;
-        }
-        // the compare and swap is the publish: it fails where another report published first, and the table is built
-        // again over that one
-        if (atomic_compare_exchange_strong_explicit(&s_problems.table, &old, built, memory_order_acq_rel,
-                                                    memory_order_acquire))
-        {
-            break;
-        }
-        g_cli_guard->persistent_buf_release(built, g_cli_servers_owner);
-    }
-    (void)atomic_fetch_add_explicit(&s_problems.published, 1ULL, memory_order_release);
-    if (old != NULL)
-    {
-        // the table replaced is this thread's alone now: no other swap can replace it again
-        old->removed = (found < old->count) ? old->file[found] : NULL;
-        ServersProblemsTable *head = atomic_load_explicit(&s_problems.retired, memory_order_relaxed);
-        // the compare and swap is the push: it fails where another table was pushed first, and the link is set again
-        do
-        {
-            old->retired = head;
-        } while (!atomic_compare_exchange_weak_explicit(&s_problems.retired, &head, old, memory_order_release,
-                                                        memory_order_relaxed));
-    }
-    embed_turnstile_leave(&s_problems.turnstiles, pass);
-    void (*const woken)(void) = atomic_load_explicit(&s_problems.woken, memory_order_acquire);
+    // Explicit cast reads the word as the function pointer stored in it
+    void (*const woken)(void) = (void (*)(void))(embed_word)embed_atomic_uptr_load(&s_problems.woken);
     if (woken != NULL)
     {
         woken();
     }
+}
+
+// From any thread: a file's report taken and its head built where it has diagnostics, the report pushed on the ring
+// under a ticket of its own, this thread asleep while every slot is in flight; a report that comes once the problems
+// are closed is let go
+static void problems_reported(const CliServerDiagnosticsCfg *args)
+{
+    ServersProblemsReport report = {{0}, {NULL, 0ULL, 0u, 0}, 0};
+    if ((args->report != NULL) && (problems_head(args->report).count != 0u) && (args->taken != NULL))
+    {
+        problems_file_built(args->report, &report.file);
+        report.has_file = 1;
+        *args->taken = 1;
+    }
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(sizeof(report), g_cli_servers_owner);
+    if (cell == NULL)
+    {
+        if (report.has_file)
+        {
+            cli_servers_report_release(report.file.report);
+        }
+        return;
+    }
+    VerbaLinea path = {report.path, sizeof(report.path), 0ULL};
+    mmgr_line_put(&path, args->path);
+    (void)mmgr_line_finish(&path);
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &report, .bytes = sizeof(report)});
+    const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_problems.ticket, 1u);
+    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
+    embed_u64 seen = 0u;
+    for (;;)
+    {
+        const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_problems.room);
+        if (cli_ticket_room(&s_problems.ring, ticket) &&
+            embed_ticket_ring_granted(&s_problems.turnstiles, address, &s_problems.ring, stamp, &seen))
+        {
+            break;
+        }
+        if (embed_atomic_u32_load(&s_problems.open) == 0u)
+        {
+            if (report.has_file)
+            {
+                cli_servers_report_release(report.file.report);
+            }
+            (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
+            return;
+        }
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_problems.room, .seen = room);
+    }
+    (void)embed_ticket_ring_pushed(&s_problems.turnstiles, address, &s_problems.ring, stamp, (void *)(embed_word)cell,
+                                   &seen);
+    problems_woken();
 }
 
 // from any thread: how far the tree's check has gone
 static void problems_check_moved(const CliServerCheckCfg *args)
 {
-    atomic_store_explicit(&s_problems.check_done, args->done, memory_order_relaxed);
-    atomic_store_explicit(&s_problems.check_total, args->total, memory_order_release);
-    void (*const woken)(void) = atomic_load_explicit(&s_problems.woken, memory_order_acquire);
-    if (woken != NULL)
-    {
-        woken();
-    }
+    embed_atomic_u64_store(&s_problems.check_done, args->done);
+    embed_atomic_u64_store(&s_problems.check_total, args->total);
+    problems_woken();
 }
 
 CliServersSink cli_servers_problems_sink(const char *root)
@@ -289,94 +328,150 @@ CliServersSink cli_servers_problems_sink(const char *root)
 
 void cli_servers_problems_begin(void (*woken)(void))
 {
-    atomic_store_explicit(&s_problems.check_done, 0ULL, memory_order_relaxed);
-    atomic_store_explicit(&s_problems.check_total, 0ULL, memory_order_relaxed);
-    atomic_store_explicit(&s_problems.woken, woken, memory_order_release);
-    t_pass = (ServersProblemsPass){0, 0u, NULL, 0ULL, 0ULL, 0ULL};
+    memor.set(&(MemoriaCfg){.dst = &s_problems.turnstiles, .val = 0, .bytes = sizeof(s_problems.turnstiles)});
+    EmbedTicketRingSlot *const slots =
+        (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_PROBLEMS);
+    memor.set(&(MemoriaCfg){.dst = slots, .val = 0, .bytes = CLI_PROBLEMS_RING_BYTES});
+    embed_ticket_ring_begin(&s_problems.ring, slots, CLI_PROBLEMS_RING_SHIFT);
+    embed_atomic_u32_store(&s_problems.ticket, 0u);
+    s_problems.room = (CliWake)CLI_WAKE_INIT;
+    embed_atomic_u64_store(&s_problems.check_done, 0ULL);
+    embed_atomic_u64_store(&s_problems.check_total, 0ULL);
+    // Explicit cast stores the function pointer as the word that holds it
+    embed_atomic_uptr_store(&s_problems.woken, (embed_atomic_uptr_value)(embed_word)woken);
+    s_problems.taken = 0u;
+    s_problems.table = NULL;
+    s_problems.count = 0u;
+    s_problems.errors = 0u;
+    s_problems.done = 0ULL;
+    s_problems.total = 0ULL;
+    embed_atomic_u32_store(&s_problems.open, 1u);
 }
 
-// this thread's pass ended, where it passes
-static void problems_pass_ended(void)
+// On the view's thread: every report pushed popped in the order of its ticket and the table built over it, the
+// table's cell and the report each replaces released, each slot released and a reporting thread waiting for room
+// woken: whether a report came
+static int problems_taken(void)
 {
-    if (t_pass.passing)
+    int moved = 0;
+    // Explicit cast carries the problems' address as the pass's entry
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_problems;
+    embed_u64 stamp = 0u;
+    while (cli_ticket_pushed(&s_problems.ring, s_problems.taken, &stamp))
     {
-        embed_turnstile_leave(&s_problems.turnstiles, t_pass.at);
-        t_pass.passing = 0;
-        t_pass.table = NULL;
+        void *job = NULL;
+        embed_u64 seen = 0u;
+        if (!embed_ticket_ring_popped(&s_problems.turnstiles, address, &s_problems.ring, stamp, &job, &seen))
+        {
+            break;
+        }
+        const CarcerMovableEntry *const cell = job;
+        ServersProblemsReport report;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = &report, .bytes = sizeof(report)});
+        unsigned int found = 0u;
+        unsigned int count = 0u;
+        unsigned int errors = 0u;
+        const CarcerMovableEntry *const built =
+            problems_table_built(report.path, &report.file, report.has_file, &found, &count, &errors);
+        if (built != NULL)
+        {
+            if (found < s_problems.count)
+            {
+                cli_servers_report_release(problems_file_at(found).report);
+            }
+            if (s_problems.table != NULL)
+            {
+                (void)g_cli_guard->movable_buf_release(s_problems.table, g_cli_servers_owner);
+            }
+            s_problems.table = built;
+            s_problems.count = count;
+            s_problems.errors = errors;
+            moved = 1;
+        }
+        else if (report.has_file)
+        {
+            cli_servers_report_release(report.file.report);
+        }
+        (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
+        (void)embed_ticket_ring_released(&s_problems.turnstiles, &s_problems.ring, stamp, &seen);
+        s_problems.taken += 1u;
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_problems.room);
     }
+    return moved;
 }
 
 int cli_servers_problems_step(void)
 {
-    problems_pass_ended();
-    problems_reclaimed();
-    t_pass.at = problems_entered();
-    t_pass.passing = 1;
-    // the count read before the table: a publish between the two is seen again at the next step, never missed
-    const unsigned long long published = atomic_load_explicit(&s_problems.published, memory_order_acquire);
-    t_pass.table = atomic_load_explicit(&s_problems.table, memory_order_acquire);
-    const unsigned long long total = atomic_load_explicit(&s_problems.check_total, memory_order_acquire);
-    const unsigned long long done = atomic_load_explicit(&s_problems.check_done, memory_order_relaxed);
-    const int moved = (published != t_pass.published) || (done != t_pass.done) || (total != t_pass.total);
-    t_pass.published = published;
-    t_pass.done = done;
-    t_pass.total = total;
+    int moved = problems_taken();
+    const unsigned long long total = embed_atomic_u64_load(&s_problems.check_total);
+    const unsigned long long done = embed_atomic_u64_load(&s_problems.check_done);
+    moved = moved || (done != s_problems.done) || (total != s_problems.total);
+    s_problems.done = done;
+    s_problems.total = total;
     return moved;
 }
 
 void cli_servers_problems_end(void)
 {
     cli_servers_stop_check();
-    problems_pass_ended();
-    ServersProblemsTable *const last = atomic_exchange_explicit(&s_problems.table, NULL, memory_order_acq_rel);
-    problems_reclaimed();
-    embed_turnstiles_drain(&s_problems.turnstiles);
-    for (unsigned int at = 0u; (last != NULL) && (at < last->count); at += 1u)
+    embed_atomic_u32_store(&s_problems.open, 0u);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_problems.room);
+    (void)problems_taken();
+    for (unsigned int at = 0u; at < s_problems.count; at += 1u)
     {
-        problems_file_release(last->file[at]);
+        cli_servers_report_release(problems_file_at(at).report);
     }
-    g_cli_guard->persistent_buf_release(last, g_cli_servers_owner);
-    atomic_store_explicit(&s_problems.woken, NULL, memory_order_release);
-    t_pass = (ServersProblemsPass){0, 0u, NULL, 0ULL, 0ULL, 0ULL};
+    if (s_problems.table != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_problems.table, g_cli_servers_owner);
+    }
+    s_problems.table = NULL;
+    s_problems.count = 0u;
+    s_problems.errors = 0u;
+    embed_atomic_uptr_store(&s_problems.woken, 0u);
 }
 
 CliProblemsCounts cli_servers_problems_counts(void)
 {
-    const ServersProblemsTable *const table = t_pass.table;
-    CliProblemsCounts counts = {0u, 0u, (table != NULL) ? table->errors : 0u, t_pass.done, t_pass.total, 0u};
-    for (unsigned int at = 0u; (table != NULL) && (at < table->count); at += 1u)
+    CliProblemsCounts counts = {0u, 0u, s_problems.errors, s_problems.done, s_problems.total, 0u};
+    for (unsigned int at = 0u; at < s_problems.count; at += 1u)
     {
-        const ServersProblemFile *const file = table->file[at];
+        const ServersProblemFile file = problems_file_at(at);
+        const CliServerReportHead head = problems_head(file.report);
         counts.files += 1u;
-        counts.items += file->report->count;
-        counts.rows += 1u + (atomic_load_explicit(&file->closed, memory_order_relaxed) ? 0u : file->report->count);
+        counts.items += head.count;
+        counts.rows += 1u + (file.closed ? 0u : head.count);
     }
     return counts;
 }
 
 int cli_servers_problems_checking(void)
 {
-    return (t_pass.total != 0ULL) && (t_pass.done < t_pass.total);
+    return (s_problems.total != 0ULL) && (s_problems.done < s_problems.total);
 }
 
 int cli_servers_problems_row(unsigned int at, CliProblemRow *row)
 {
-    const ServersProblemsTable *const table = t_pass.table;
+    // a row's texts are read out of the report's cell into the view's thread's own buffers, which stand until its next
+    // row
+    static char s_path[CLI_PATH_MAX_LEN];
+    static char s_message[CLI_PROBLEMS_MESSAGE];
     unsigned int first = 0u;
-    for (unsigned int place = 0u; (table != NULL) && (place < table->count); place += 1u)
+    for (unsigned int place = 0u; place < s_problems.count; place += 1u)
     {
-        const ServersProblemFile *const file = table->file[place];
-        const CliServerReport *const report = file->report;
-        const int closed = atomic_load_explicit(&file->closed, memory_order_relaxed);
-        const unsigned int under = closed ? 0u : report->count;
+        const ServersProblemFile file = problems_file_at(place);
+        const CliServerReportHead head = problems_head(file.report);
+        const unsigned int under = file.closed ? 0u : head.count;
         if (at == first)
         {
+            (void)problems_path(file.report, s_path);
             *row = (CliProblemRow){1,
-                                   report->path,
-                                   report->path + file->name,
-                                   (file->name != 0ULL) ? (file->name - 1ULL) : 0ULL,
-                                   report->count,
-                                   closed,
+                                   s_path,
+                                   s_path + file.name,
+                                   (file.name != 0ULL) ? (file.name - 1ULL) : 0ULL,
+                                   head.count,
+                                   file.closed,
                                    0u,
                                    "",
                                    0ULL,
@@ -386,18 +481,11 @@ int cli_servers_problems_row(unsigned int at, CliProblemRow *row)
         }
         if (at < (first + 1u + under))
         {
-            const CliServerDiagnostic *const item = &report->item[at - first - 1u];
-            *row = (CliProblemRow){0,
-                                   report->path,
-                                   "",
-                                   0ULL,
-                                   0u,
-                                   0,
-                                   item->severity,
-                                   item->message,
-                                   item->message_length,
-                                   item->from_line,
-                                   item->from_col};
+            const CliServerStoredDiagnostic item = problems_item(file.report, at - first - 1u);
+            (void)problems_path(file.report, s_path);
+            const unsigned long long length = problems_message(file.report, &item, s_message, sizeof(s_message));
+            *row = (CliProblemRow){0,      s_path,         "",           0ULL, 0u, 0, item.severity, s_message,
+                                   length, item.from_line, item.from_col};
             return 1;
         }
         first += 1u + under;
@@ -407,18 +495,17 @@ int cli_servers_problems_row(unsigned int at, CliProblemRow *row)
 
 int cli_servers_problems_span(const char *path, unsigned int at, CliProblemSpan *span)
 {
-    const ServersProblemsTable *const table = t_pass.table;
-    for (unsigned int place = 0u; (path != NULL) && (table != NULL) && (place < table->count); place += 1u)
+    for (unsigned int place = 0u; (path != NULL) && (place < s_problems.count); place += 1u)
     {
-        const CliServerReport *const report = table->file[place]->report;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = report->path, .other = path, .cap = CLI_PATH_MAX_LEN}))
+        const CarcerMovableEntry *const report = problems_file_at(place).report;
+        if (problems_report_is(report, path))
         {
-            if (at >= report->count)
+            if (at >= problems_head(report).count)
             {
                 return 0;
             }
-            const CliServerDiagnostic *const item = &report->item[at];
-            *span = (CliProblemSpan){item->severity, item->from_line, item->from_col, item->to_line, item->to_col};
+            const CliServerStoredDiagnostic item = problems_item(report, at);
+            *span = (CliProblemSpan){item.severity, item.from_line, item.from_col, item.to_line, item.to_col};
             return 1;
         }
     }
@@ -427,18 +514,18 @@ int cli_servers_problems_span(const char *path, unsigned int at, CliProblemSpan 
 
 int cli_servers_problems_press(unsigned int at, CliProblemRow *row)
 {
-    const ServersProblemsTable *const table = t_pass.table;
     unsigned int first = 0u;
-    for (unsigned int place = 0u; (table != NULL) && (place < table->count); place += 1u)
+    for (unsigned int place = 0u; place < s_problems.count; place += 1u)
     {
-        ServersProblemFile *const file = table->file[place];
-        const int closed = atomic_load_explicit(&file->closed, memory_order_relaxed);
+        ServersProblemFile file = problems_file_at(place);
         if (at == first)
         {
-            atomic_store_explicit(&file->closed, !closed, memory_order_relaxed);
+            file.closed = !file.closed;
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = s_problems.table, .offset = CLI_PROBLEMS_FILE_AT(place), .src = &file, .bytes = sizeof(file)});
             return 0;
         }
-        first += 1u + (closed ? 0u : file->report->count);
+        first += 1u + (file.closed ? 0u : problems_head(file.report).count);
     }
     return cli_servers_problems_row(at, row) && !row->is_file;
 }

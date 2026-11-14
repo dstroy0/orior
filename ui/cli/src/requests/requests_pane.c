@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // requests_pane.c: the Requests view of the Comms pane as the window reads it. The answers stored for the request the
 // shown view's cursor stands in stand as one tree in a cell sized to them, read again only where the cursor moves into
-// another request; the file's environments as another. The answer shown has its body laid out in a cell of its own
-// where it is JSON, and two answers compared have their texts and their lines in one more. The rows stand in one cell
-// with every text they compose: they are counted with their texts in a line that only counts, then laid once into a
-// cell of that size, each text a pointer into one of those cells and a length, laid again only as the answers, the
-// groups opened, the answer shown, the boxes checked or the comparison change. A send runs on a worker of its own,
-// which hands the answers it read to the view's thread through one word and a wake, the step taking them in
+// another request; the file's environments as another. Two answers compared have their lines and their texts in one
+// movable cell. The rows stand in one movable cell with every text they show: they are counted with their texts in a
+// line that only counts, then laid once into a cell of this call of that size and written into the movable cell, each
+// text an offset into the rows' text and a length, read by copy into a row's own bytes; the answer shown has its body
+// laid out in a cell of the laying alone where it is JSON. The rows are laid again only as the answers, the groups
+// opened, the answer shown, the boxes checked or the comparison change. A send runs on a worker of its own, which
+// hands the answers it read to the view's thread through one word and a wake, the step taking them in
 #include "../command_line/command_line.h"
 #include "../editor/document.h"
 #include "../editor/view.h"
@@ -22,15 +23,14 @@
 #define REQUESTS_BODY_MOST (1ULL << 20u)
 #define REQUESTS_DAY_SECONDS 86400ULL
 
-// A row laid: its type, tone, group and answer, its text as a pointer where the text stands elsewhere, else as its
-// offset into the rows' text, and its bytes; its sign, and whether it is open, checked, inert and the answer shown
+// A row laid: its type, tone, group and answer, its text as its offset into the rows' text and its bytes; its sign,
+// and whether it is open, checked, inert and the answer shown
 typedef struct
 {
     unsigned int type;
     unsigned int tone;
     unsigned int group;
     unsigned int answer;
-    const char *text;
     unsigned long long offset;
     unsigned long long length;
     char sign;
@@ -39,6 +39,9 @@ typedef struct
     int inert;
     int shown;
 } RequestsLaid;
+
+// the place of the row `at_`'s record in the rows cell
+#define REQUESTS_LAID_AT(at_) ((unsigned long long)(at_) * sizeof(RequestsLaid))
 
 // A line of a comparison: its sign, and its text as an offset into the comparison's texts and its bytes
 typedef struct
@@ -51,8 +54,10 @@ typedef struct
 // The view: the file of requests followed with its path, the view's key and the line followed, and the key of the
 // request shown with its bytes; the answers' tree and its array, how many answers; the environments' tree and its
 // names, how many, the one chosen, 0 for none; the answer shown, a bit an answer checked, a byte a group open; the
-// body shown laid out, its bytes and whether it was cut; the comparison's cell, its lines and texts and how many
-// lines; the rows' cell, the rows and their text, how many rows; and the last send's refusal with its bytes
+// body shown as it is laid out, its bytes and whether it was cut, which stand while the rows are laid; the
+// comparison's movable cell with its bytes, its lines then its texts from `compared_text_at`, how many lines, and the
+// two read into a cell of the laying while the rows are laid; the rows' movable cell, the rows then their text from
+// `text_at`, how many rows; and the last send's refusal with its bytes
 typedef struct
 {
     char path[CLI_PATH_MAX_LEN];
@@ -71,19 +76,19 @@ typedef struct
     unsigned int shown;
     unsigned int checked;
     unsigned char open[CLI_REQUESTS_GROUPS];
-    char *body;
     const char *body_text;
     unsigned long long body_length;
     int body_cut;
-    unsigned char *compared_cell;
-    RequestsCompared *compared;
-    const char *compared_text;
+    const CarcerMovableEntry *compared_cell;
+    unsigned long long compared_bytes;
+    unsigned long long compared_text_at;
     unsigned int compared_count;
-    unsigned char *rows_cell;
-    RequestsLaid *row;
-    const char *text;
+    const RequestsCompared *compared;
+    const char *compared_text;
+    const CarcerMovableEntry *rows_cell;
+    unsigned long long text_at;
     unsigned int rows;
-    char *refusal;
+    char refusal[CLI_ERR_MSG_MAX_LEN];
     unsigned long long refusal_length;
 } RequestsPane;
 
@@ -99,7 +104,7 @@ typedef struct
     char *text;
     unsigned long long size;
     unsigned long long line;
-    char *answer;
+    const CarcerMovableEntry *answer;
     unsigned long long answer_length;
     char why[CLI_ERR_MSG_MAX_LEN];
     unsigned long long why_length;
@@ -132,6 +137,7 @@ typedef struct
     VerbaLinea *err_msg;
     unsigned int at;
     CliRequestsPaneCfg *asked;
+    RequestsLaid *laid_out;
 } RequestsPaneCtx;
 
 // the changes a diff hands, put after one another into `hunk`, `count` of them so far
@@ -142,7 +148,7 @@ typedef struct
 } RequestsHunks;
 
 // a counting line's bytes taken and let go, its flushed count the bytes of every text written to it
-static int requests_counted(void *context, const char *bytes, size_t size)
+static int requests_counted(void *context, const char *bytes, embed_word size)
 {
     (void)context;
     (void)bytes;
@@ -164,6 +170,28 @@ EMBED_INLINE void requests_laid_put(const RequestsPaneCtx *args)
         args->row[*args->count] = args->laid;
     }
     *args->count += 1u;
+}
+
+// the row `laid` put with `length` bytes of `text` written into `line` as its text
+EMBED_INLINE void requests_text_laid(const RequestsPaneCtx *args)
+{
+    RequestsLaid laid = args->laid;
+    laid.offset = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line);
+    if (args->length != 0ULL)
+    {
+        (void)mmgr_line_put_n(args->line, args->text, args->length);
+    }
+    laid.length = EMBED_CALL(requests_place, RequestsPaneCtx, .line = args->line) - laid.offset;
+    EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count, .laid = laid);
+}
+
+// the row `at`'s record read out of the rows cell into `laid_out`
+EMBED_INLINE void requests_laid_read(const RequestsPaneCtx *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
+                                                            .offset = REQUESTS_LAID_AT(args->at),
+                                                            .dst = args->laid_out,
+                                                            .bytes = sizeof(RequestsLaid)});
 }
 
 // the member `name` of the object `node` of the tree `json`
@@ -339,7 +367,7 @@ EMBED_INLINE void requests_pairs_laid(const RequestsPaneCtx *args)
     }
 }
 
-// a row each line of `length` bytes of `text`, of the row `laid`'s type, each a pointer into the text, its carriage
+// a row each line of `length` bytes of `text`, of the row `laid`'s type, each written into `line`, its carriage
 // return before the newline left out
 EMBED_INLINE void requests_lines_laid(const RequestsPaneCtx *args)
 {
@@ -350,11 +378,10 @@ EMBED_INLINE void requests_lines_laid(const RequestsPaneCtx *args)
         {
             continue;
         }
-        RequestsLaid laid = args->laid;
-        laid.text = args->text + start;
-        laid.length = at - start;
-        laid.length -= ((laid.length != 0ULL) && (args->text[at - 1ULL] == '\r')) ? 1ULL : 0ULL;
-        EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count, .laid = laid);
+        unsigned long long length = at - start;
+        length -= ((length != 0ULL) && (args->text[at - 1ULL] == '\r')) ? 1ULL : 0ULL;
+        EMBED_CALL(requests_text_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
+                   .laid = args->laid, .text = args->text + start, .length = length);
         start = at + 1ULL;
     }
 }
@@ -390,9 +417,8 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
     RequestsLaid status = {.type = CLI_REQUESTS_ROW_STATUS, .tone = CLI_REQUESTS_TONE_FAILED};
     if (failed != NULL)
     {
-        status.text = failed;
-        status.length = failed_length;
-        EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count, .laid = status);
+        EMBED_CALL(requests_text_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
+                   .laid = status, .text = failed, .length = failed_length);
     }
     else
     {
@@ -493,10 +519,10 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
                                             .name = "body", .length_out = &length_of);
         if ((body != NULL) && (length_of != 0u))
         {
-            EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-                       .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SENT, .text = ""});
-            EMBED_CALL(requests_lines_laid, RequestsPaneCtx, .row = args->row, .count = args->count, .text = body,
-                       .length = length_of, .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SENT});
+            EMBED_CALL(requests_text_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
+                       .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SENT}, .text = "", .length = 0ULL);
+            EMBED_CALL(requests_lines_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
+                       .text = body, .length = length_of, .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SENT});
         }
     }
     if (failed != NULL)
@@ -536,7 +562,7 @@ EMBED_INLINE void requests_answer_laid(const RequestsPaneCtx *args)
     }
     if (s_requests.body_text != NULL)
     {
-        EMBED_CALL(requests_lines_laid, RequestsPaneCtx, .row = args->row, .count = args->count,
+        EMBED_CALL(requests_lines_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
                    .text = s_requests.body_text, .length = s_requests.body_length,
                    .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_BODY});
     }
@@ -567,23 +593,19 @@ EMBED_INLINE unsigned int requests_checked_count(const RequestsPaneCtx *args)
 // every row of the view laid, into `row` where it is not NULL, its composed texts written into `line`
 EMBED_INLINE void requests_rows_written(const RequestsPaneCtx *args)
 {
-    if (s_requests.refusal != NULL)
+    if (s_requests.refusal_length != 0ULL)
     {
-        EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_REFUSAL,
-                                          .tone = CLI_REQUESTS_TONE_FAILED,
-                                          .text = s_requests.refusal,
-                                          .length = s_requests.refusal_length});
+        EMBED_CALL(requests_text_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
+                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_REFUSAL, .tone = CLI_REQUESTS_TONE_FAILED},
+                   .text = s_requests.refusal, .length = s_requests.refusal_length);
     }
     const unsigned int answer = EMBED_CALL(requests_answer, RequestsPaneCtx, .at = s_requests.shown);
     if (answer == CLI_JSON_NONE)
     {
         static const char s_none[] = "No answer yet. Ctrl+Enter sends the request the cursor stands in.";
-        EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
-                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_NOTE,
-                                          .tone = CLI_REQUESTS_TONE_QUIET,
-                                          .text = s_none,
-                                          .length = sizeof(s_none) - 1ULL});
+        EMBED_CALL(requests_text_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
+                   .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_NOTE, .tone = CLI_REQUESTS_TONE_QUIET},
+                   .text = s_none, .length = sizeof(s_none) - 1ULL);
         return;
     }
     EMBED_CALL(requests_answer_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
@@ -643,69 +665,36 @@ EMBED_INLINE void requests_rows_written(const RequestsPaneCtx *args)
         EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count, .laid = laid);
     }
     static const char s_compare[] = "Compare";
-    EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
+    EMBED_CALL(requests_text_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
                .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_COMPARE,
-                                      .text = s_compare,
-                                      .length = sizeof(s_compare) - 1ULL,
-                                      .inert = EMBED_CALL(requests_checked_count, RequestsPaneCtx, .at = 0u) != 2u});
-    for (unsigned int at = 0u; at < s_requests.compared_count; at += 1u)
+                                      .inert = EMBED_CALL(requests_checked_count, RequestsPaneCtx, .at = 0u) != 2u},
+               .text = s_compare, .length = sizeof(s_compare) - 1ULL);
+    for (unsigned int at = 0u; (s_requests.compared != NULL) && (at < s_requests.compared_count); at += 1u)
     {
         const RequestsCompared *const compared = &s_requests.compared[at];
-        EMBED_CALL(requests_laid_put, RequestsPaneCtx, .row = args->row, .count = args->count,
+        EMBED_CALL(requests_text_laid, RequestsPaneCtx, .line = args->line, .row = args->row, .count = args->count,
                    .laid = (RequestsLaid){.type = CLI_REQUESTS_ROW_SIGN,
                                           .tone = (compared->sign == '-')   ? CLI_REQUESTS_TONE_FAILED
                                                   : (compared->sign == '+') ? CLI_REQUESTS_TONE_GOOD
                                                                             : CLI_REQUESTS_TONE_PLAIN,
-                                          .sign = compared->sign,
-                                          .text = s_requests.compared_text + compared->offset,
-                                          .length = compared->length});
+                                          .sign = compared->sign},
+                   .text = s_requests.compared_text + compared->offset, .length = compared->length);
     }
 }
 
-// the rows laid again into a cell sized to them and their texts, the cell they had released; the rows as they were
-// where the cells cannot meet them
-EMBED_INLINE void requests_rows_laid(const RequestsPaneCtx *args)
+// the body of the answer shown laid out: JSON as the page lays it, two spaces a level, into a cell of this call, which
+// is returned, NULL for none; any other text read in place in the answers' tree; the first REQUESTS_BODY_MOST bytes of
+// it shown, cut past them
+EMBED_INLINE char *requests_body_laid(const RequestsPaneCtx *args)
 {
     (void)args;
-    char counting_bytes[REQUESTS_COUNTING];
-    VerbaLinea counting = {counting_bytes, sizeof(counting_bytes), 0ULL, requests_counted, NULL, 0ULL};
-    unsigned int count = 0u;
-    EMBED_CALL(requests_rows_written, RequestsPaneCtx, .line = &counting, .count = &count);
-    const unsigned long long text_bytes = counting.flushed + counting.at;
-    const unsigned long long row_bytes = (unsigned long long)count * sizeof(RequestsLaid);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(row_bytes + text_bytes + 1ULL, g_cli_requests_owner);
-    if (cell == NULL)
-    {
-        return;
-    }
-    RequestsLaid *const row = (RequestsLaid *)(void *)cell;
-    char *const text = (char *)(cell + row_bytes);
-    VerbaLinea text_line = {text, text_bytes + 1ULL, 0ULL};
-    unsigned int laid = 0u;
-    // the rows are laid again from what they were counted from, so no more of them come than were counted
-    EMBED_CALL(requests_rows_written, RequestsPaneCtx, .line = &text_line, .row = row, .count = &laid);
-    (void)mmgr_line_finish(&text_line);
-    g_cli_guard->persistent_buf_release(s_requests.rows_cell, g_cli_requests_owner);
-    s_requests.rows_cell = cell;
-    s_requests.row = row;
-    s_requests.text = text;
-    s_requests.rows = laid;
-}
-
-// the body of the answer shown laid out: JSON as the page lays it, two spaces a level, in a cell of its own sized to
-// it; any other text read in place in the answers' tree; the first REQUESTS_BODY_MOST bytes of it shown, cut past them
-EMBED_INLINE void requests_body_laid(const RequestsPaneCtx *args)
-{
-    (void)args;
-    g_cli_guard->persistent_buf_release(s_requests.body, g_cli_requests_owner);
-    s_requests.body = NULL;
     s_requests.body_text = NULL;
     s_requests.body_length = 0ULL;
     s_requests.body_cut = 0;
     const unsigned int answer = EMBED_CALL(requests_answer, RequestsPaneCtx, .at = s_requests.shown);
     if (answer == CLI_JSON_NONE)
     {
-        return;
+        return NULL;
     }
     CliJson *const json = &s_requests.answers;
     unsigned long long length_of = 0ULL;
@@ -714,7 +703,7 @@ EMBED_INLINE void requests_body_laid(const RequestsPaneCtx *args)
     const unsigned long long length = length_of;
     if (body == NULL)
     {
-        return;
+        return NULL;
     }
     const char *const type = EMBED_CALL(
         requests_header, RequestsPaneCtx,
@@ -737,26 +726,26 @@ EMBED_INLINE void requests_body_laid(const RequestsPaneCtx *args)
         EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                    .node = EMBED_CALL(requests_member, RequestsPaneCtx, .json = json, .node = answer, .name = "cut"),
                    .type = CFG_JSON_TRUE);
+    char *cell = NULL;
     if (is_json)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         CliJson laid_out = {0};
-        const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary,
-                                             CliJsonTreeTextSizeErrMsgCfg, .json = &laid_out, .text = body,
-                                             .size = length, .err_msg = &err_msg, .owner = g_cli_requests_owner);
+        const unsigned int root =
+            EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &laid_out,
+                       .text = body, .size = length, .err_msg = &err_msg, .owner = g_cli_requests_owner);
         if (root != CLI_JSON_NONE)
         {
             const unsigned long long capacity =
                 EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity, CliJsonTreeNodeOutCfg, .json_read = &laid_out,
                            .node = root, .indent = 2u);
-            char *const cell = g_cli_guard->persistent_buf_alloc(capacity + 1ULL, g_cli_requests_owner);
+            cell = g_cli_guard->temporary_buf_alloc(capacity + 1ULL, g_cli_requests_owner);
             if (cell != NULL)
             {
                 VerbaLinea pretty = {cell, capacity + 1ULL, 0ULL};
                 EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &laid_out,
                            .node = root, .out = &pretty, .indent = 2u);
-                s_requests.body = cell;
                 s_requests.body_text = cell;
                 s_requests.body_length = mmgr_line_ok(&pretty) ? pretty.at : 0ULL;
             }
@@ -768,16 +757,76 @@ EMBED_INLINE void requests_body_laid(const RequestsPaneCtx *args)
         s_requests.body_length = REQUESTS_BODY_MOST;
         s_requests.body_cut = 1;
     }
+    return cell;
+}
+
+// the rows laid again: the body laid out and the comparison read into cells of this call, the rows counted with their
+// texts, laid once into a cell of this call of that size and written into a movable cell sized to them, the cell they
+// had released; the rows as they were where the cells cannot meet them
+EMBED_INLINE void requests_rows_laid(const RequestsPaneCtx *args)
+{
+    (void)args;
+    char *const body = EMBED_CALL(requests_body_laid, RequestsPaneCtx, .at = 0u);
+    const unsigned long long compared_bytes = (s_requests.compared_cell != NULL) ? s_requests.compared_bytes : 0ULL;
+    unsigned char *const compared =
+        (compared_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(compared_bytes, g_cli_requests_owner) : NULL;
+    if (compared != NULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_requests.compared_cell, .offset = 0ULL, .dst = compared, .bytes = compared_bytes});
+        s_requests.compared = (const RequestsCompared *)(const void *)compared;
+        s_requests.compared_text = (const char *)compared + s_requests.compared_text_at;
+    }
+    char counting_bytes[REQUESTS_COUNTING];
+    VerbaLinea counting = {counting_bytes, sizeof(counting_bytes), 0ULL, requests_counted, NULL, 0ULL};
+    unsigned int count = 0u;
+    EMBED_CALL(requests_rows_written, RequestsPaneCtx, .line = &counting, .count = &count);
+    const unsigned long long text_bytes = counting.flushed + counting.at;
+    const unsigned long long row_bytes = REQUESTS_LAID_AT(count);
+    const unsigned long long bytes = row_bytes + text_bytes + 1ULL;
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_requests_owner);
+    if (cell != NULL)
+    {
+        RequestsLaid *const row = (RequestsLaid *)(void *)cell;
+        char *const text = (char *)(cell + row_bytes);
+        VerbaLinea text_line = {text, text_bytes + 1ULL, 0ULL};
+        unsigned int laid = 0u;
+        // the rows are laid again from what they were counted from, so no more of them come than were counted
+        EMBED_CALL(requests_rows_written, RequestsPaneCtx, .line = &text_line, .row = row, .count = &laid);
+        (void)mmgr_line_finish(&text_line);
+        const CarcerMovableEntry *const rows_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_requests_owner);
+        if (rows_cell != NULL)
+        {
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = rows_cell, .offset = 0ULL, .src = cell, .bytes = bytes});
+            if (s_requests.rows_cell != NULL)
+            {
+                (void)g_cli_guard->movable_buf_release(s_requests.rows_cell, g_cli_requests_owner);
+            }
+            s_requests.rows_cell = rows_cell;
+            s_requests.text_at = row_bytes;
+            s_requests.rows = laid;
+        }
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_requests_owner);
+    g_cli_guard->persistent_buf_release(compared, g_cli_requests_owner);
+    g_cli_guard->persistent_buf_release(body, g_cli_requests_owner);
+    s_requests.compared = NULL;
+    s_requests.compared_text = NULL;
+    s_requests.body_text = NULL;
 }
 
 // the comparison let go, none standing
 EMBED_INLINE void requests_compared_released(const RequestsPaneCtx *args)
 {
     (void)args;
-    g_cli_guard->persistent_buf_release(s_requests.compared_cell, g_cli_requests_owner);
+    if (s_requests.compared_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_requests.compared_cell, g_cli_requests_owner);
+    }
     s_requests.compared_cell = NULL;
-    s_requests.compared = NULL;
-    s_requests.compared_text = NULL;
+    s_requests.compared_bytes = 0ULL;
+    s_requests.compared_text_at = 0ULL;
     s_requests.compared_count = 0u;
 }
 
@@ -837,13 +886,12 @@ EMBED_INLINE void requests_answers_taken(const RequestsPaneCtx *args)
     s_requests.shown = 0u;
     s_requests.checked = 0u;
     EMBED_CALL(requests_compared_released, RequestsPaneCtx, .at = 0u);
-    EMBED_CALL(requests_body_laid, RequestsPaneCtx, .at = 0u);
     EMBED_CALL(requests_rows_laid, RequestsPaneCtx, .at = 0u);
 }
 
 // what a call writes into a line read whole: the call run once into a line that only counts, a cell taken of that
 // size, and the call run again into it: its bytes into `out`'s place, the cell, or NULL where the call failed or the
-// cells cannot meet it. `at` names the call: the answers, 0, or the environments, 1
+// cells cannot meet it. `at` names the call: the answers, 0, or the environments, 1. The cell is of this call
 EMBED_INLINE char *requests_written(const RequestsPaneCtx *args)
 {
     char counting_bytes[REQUESTS_COUNTING];
@@ -868,7 +916,7 @@ EMBED_INLINE char *requests_written(const RequestsPaneCtx *args)
         return NULL;
     }
     const unsigned long long bytes = counting.flushed + counting.at;
-    char *const cell = g_cli_guard->persistent_buf_alloc(bytes + 1ULL, g_cli_requests_owner);
+    char *const cell = g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner);
     if (cell == NULL)
     {
         return NULL;
@@ -922,16 +970,24 @@ EMBED_INLINE const char *requests_env_name(const RequestsPaneCtx *args)
                : NULL;
 }
 
-// a send's worker: the answers stored for its request read into a cell of their own, or why not, then handed to the
-// view's thread through the arrived word, and the view's thread woken; the file's text it was handed let go
+// a send's worker: the answers stored for its request read into a cell of the call's own, written into a movable cell
+// the send owns, or why not, then handed to the view's thread through the arrived word, and the view's thread woken;
+// the file's text it was handed let go
 static void requests_send_run(void *context)
 {
     RequestsSend *const send = context;
     unsigned long long length_of = 0ULL;
     VerbaLinea why = {send->why, sizeof(send->why), 0ULL};
-    send->answer =
+    char *const written =
         EMBED_CALL(requests_written, RequestsPaneCtx, .root = send->root, .path = send->path, .text = send->text,
                    .length = send->size, .line_at = send->line, .at = 0u, .length_out = &length_of, .err_msg = &why);
+    send->answer = (written != NULL) ? g_cli_guard->movable_buf_alloc(length_of + 1ULL, g_cli_requests_owner) : NULL;
+    if (send->answer != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = send->answer, .offset = 0ULL, .src = written, .bytes = length_of + 1ULL});
+    }
+    g_cli_guard->persistent_buf_release(written, g_cli_requests_owner);
     send->answer_length = (send->answer != NULL) ? length_of : 0ULL;
     send->why_length = (send->answer == NULL) ? why.at : 0ULL;
     g_cli_guard->persistent_buf_release(send->text, g_cli_requests_owner);
@@ -966,9 +1022,15 @@ EMBED_INLINE void requests_view_taken(const RequestsPaneCtx *args)
     {
         return;
     }
-    // the view shown is among the views
-    asked->key = cli_view_key((unsigned int)shown);
-    asked->path = cli_view_path_at((unsigned int)shown);
+    // the view shown is among the views; its key and path are copied into the pane's own buffers, which the ask reads
+    static char s_asked_key[CLI_NAME_MAX_LEN];
+    static char s_asked_path[CLI_PATH_MAX_LEN];
+    if (!cli_view_key((unsigned int)shown, s_asked_key) || !cli_view_path_at((unsigned int)shown, s_asked_path))
+    {
+        return;
+    }
+    asked->key = s_asked_key;
+    asked->path = s_asked_path;
     CliPosition cursor = {0ULL, 0ULL};
     (void)EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = asked->key, .cursor = &cursor);
     asked->line = cursor.line;
@@ -1035,24 +1097,27 @@ int cli_requests_pane_step(const CliRequestsPaneCfg *args)
     if (EMBED_ATOMIC_EXCHANGE_32(&s_arrived, 0u) != 0u)
     {
         // the worker has let go of the send: its answers and its refusal are the view's now
-        g_cli_guard->persistent_buf_release(s_requests.refusal, g_cli_requests_owner);
-        s_requests.refusal = NULL;
+        s_requests.refusal[0] = '\0';
         s_requests.refusal_length = 0ULL;
         if ((s_send.answer == NULL) && (s_send.why_length != 0ULL))
         {
-            s_requests.refusal = g_cli_guard->persistent_buf_alloc(s_send.why_length + 1ULL, g_cli_requests_owner);
-            if (s_requests.refusal != NULL)
-            {
-                memor.cpy(&(MemoriaCfg){.dst = s_requests.refusal, .src = s_send.why, .bytes = s_send.why_length});
-                s_requests.refusal[s_send.why_length] = '\0';
-                s_requests.refusal_length = s_send.why_length;
-            }
+            memor.cpy(&(MemoriaCfg){.dst = s_requests.refusal, .src = s_send.why, .bytes = s_send.why_length});
+            s_requests.refusal[s_send.why_length] = '\0';
+            s_requests.refusal_length = s_send.why_length;
         }
         if (s_send.answer != NULL)
         {
-            EMBED_CALL(requests_answers_taken, RequestsPaneCtx, .text = s_send.answer, .length = s_send.answer_length);
+            // the answers read out of the send's cell into a cell of this call, then both given back
+            char *const answer = g_cli_guard->temporary_buf_alloc(s_send.answer_length + 1ULL, g_cli_requests_owner);
+            if (answer != NULL)
+            {
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = s_send.answer, .offset = 0ULL, .dst = answer, .bytes = s_send.answer_length + 1ULL});
+                EMBED_CALL(requests_answers_taken, RequestsPaneCtx, .text = answer, .length = s_send.answer_length);
+            }
+            g_cli_guard->persistent_buf_release(answer, g_cli_requests_owner);
+            (void)g_cli_guard->movable_buf_release(s_send.answer, g_cli_requests_owner);
         }
-        g_cli_guard->persistent_buf_release(s_send.answer, g_cli_requests_owner);
         s_send.answer = NULL;
         EMBED_ATOMIC_STORE(&s_running, 0u);
         EMBED_CALL(requests_rows_laid, RequestsPaneCtx, .at = 0u);
@@ -1068,11 +1133,11 @@ int cli_requests_pane_step(const CliRequestsPaneCfg *args)
     {
         return changed;
     }
-    // the view shown is among the views
-    const char *const key = cli_view_key((unsigned int)shown);
-    const char *const path = cli_view_path_at((unsigned int)shown);
+    // the view shown is among the views; its key and path are copied out of the views table
+    char key[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     CliPosition cursor = {0ULL, 0ULL};
-    if ((key == NULL) || (path == NULL) ||
+    if (!cli_view_key((unsigned int)shown, key) || !cli_view_path_at((unsigned int)shown, path) ||
         !EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = key, .cursor = &cursor))
     {
         return changed;
@@ -1166,45 +1231,72 @@ int cli_requests_pane_row(const CliRequestsPaneCfg *args)
     {
         return 0;
     }
-    const RequestsLaid *const laid = &s_requests.row[args->at];
-    *args->row = (CliRequestsRow){laid->type,
-                                  laid->tone,
-                                  laid->group,
-                                  laid->answer,
-                                  (laid->text != NULL) ? laid->text : s_requests.text + laid->offset,
-                                  laid->length,
-                                  laid->sign,
-                                  laid->open,
-                                  laid->checked,
-                                  laid->inert,
-                                  laid->shown};
+    RequestsLaid laid;
+    EMBED_CALL(requests_laid_read, RequestsPaneCtx, .at = args->at, .laid_out = &laid);
+    CliRequestsRow *const row = args->row;
+    *row = (CliRequestsRow){.type = laid.type,
+                            .tone = laid.tone,
+                            .group = laid.group,
+                            .answer = laid.answer,
+                            .sign = laid.sign,
+                            .open = laid.open,
+                            .checked = laid.checked,
+                            .inert = laid.inert,
+                            .shown = laid.shown};
+    // the row's text copied into its own bytes, cut to them
+    const unsigned long long copied =
+        (laid.length < CLI_REQUESTS_ROW_TEXT) ? laid.length : CLI_REQUESTS_ROW_TEXT - 1ULL;
+    if (copied != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
+                                                                .offset = s_requests.text_at + laid.offset,
+                                                                .dst = row->text_copied,
+                                                                .bytes = copied});
+    }
+    row->text_copied[copied] = '\0';
+    row->text = row->text_copied;
+    row->text_length = copied;
     return 1;
 }
 
 void cli_requests_pane_toggle(const CliRequestsPaneCfg *args)
 {
-    if ((args->at < s_requests.rows) && (s_requests.row[args->at].type == CLI_REQUESTS_ROW_GROUP))
+    RequestsLaid laid = {0};
+    if (args->at < s_requests.rows)
     {
-        s_requests.open[s_requests.row[args->at].group] ^= 1u;
+        EMBED_CALL(requests_laid_read, RequestsPaneCtx, .at = args->at, .laid_out = &laid);
+    }
+    if ((args->at < s_requests.rows) && (laid.type == CLI_REQUESTS_ROW_GROUP))
+    {
+        s_requests.open[laid.group] ^= 1u;
         EMBED_CALL(requests_rows_laid, RequestsPaneCtx, .at = 0u);
     }
 }
 
 void cli_requests_pane_show(const CliRequestsPaneCfg *args)
 {
-    if ((args->at < s_requests.rows) && (s_requests.row[args->at].type == CLI_REQUESTS_ROW_ANSWER))
+    RequestsLaid laid = {0};
+    if (args->at < s_requests.rows)
     {
-        s_requests.shown = s_requests.row[args->at].answer;
-        EMBED_CALL(requests_body_laid, RequestsPaneCtx, .at = 0u);
+        EMBED_CALL(requests_laid_read, RequestsPaneCtx, .at = args->at, .laid_out = &laid);
+    }
+    if ((args->at < s_requests.rows) && (laid.type == CLI_REQUESTS_ROW_ANSWER))
+    {
+        s_requests.shown = laid.answer;
         EMBED_CALL(requests_rows_laid, RequestsPaneCtx, .at = 0u);
     }
 }
 
 void cli_requests_pane_check(const CliRequestsPaneCfg *args)
 {
-    if ((args->at < s_requests.rows) && (s_requests.row[args->at].type == CLI_REQUESTS_ROW_ANSWER))
+    RequestsLaid laid = {0};
+    if (args->at < s_requests.rows)
     {
-        s_requests.checked ^= 1u << s_requests.row[args->at].answer;
+        EMBED_CALL(requests_laid_read, RequestsPaneCtx, .at = args->at, .laid_out = &laid);
+    }
+    if ((args->at < s_requests.rows) && (laid.type == CLI_REQUESTS_ROW_ANSWER))
+    {
+        s_requests.checked ^= 1u << laid.answer;
         EMBED_CALL(requests_compared_released, RequestsPaneCtx, .at = 0u);
         EMBED_CALL(requests_rows_laid, RequestsPaneCtx, .at = 0u);
     }
@@ -1415,9 +1507,10 @@ int cli_requests_pane_compare(const CliRequestsPaneCfg *args)
     {
         listed += hunks[hunk].now_to - hunks[hunk].now_from;
     }
+    // the lines then the texts laid in a cell of this call, written once into a movable cell of the comparison
     const unsigned long long compared_bytes = (unsigned long long)listed * sizeof(RequestsCompared);
     unsigned char *const cell =
-        diffed ? g_cli_guard->persistent_buf_alloc(compared_bytes + text_bytes, g_cli_requests_owner) : NULL;
+        diffed ? g_cli_guard->temporary_buf_alloc(compared_bytes + text_bytes, g_cli_requests_owner) : NULL;
     if (cell == NULL)
     {
         g_cli_guard->persistent_buf_release(work, g_cli_requests_owner);
@@ -1462,12 +1555,18 @@ int cli_requests_pane_compare(const CliRequestsPaneCfg *args)
     g_cli_guard->persistent_buf_release(work, g_cli_requests_owner);
     g_cli_guard->persistent_buf_release(texts, g_cli_requests_owner);
     EMBED_CALL(requests_compared_released, RequestsPaneCtx, .at = 0u);
-    s_requests.compared_cell = cell;
-    s_requests.compared = compared;
-    s_requests.compared_text = compared_text;
-    s_requests.compared_count = put;
+    s_requests.compared_cell = g_cli_guard->movable_buf_alloc(compared_bytes + text_bytes, g_cli_requests_owner);
+    if (s_requests.compared_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_requests.compared_cell, .offset = 0ULL, .src = cell, .bytes = compared_bytes + text_bytes});
+        s_requests.compared_bytes = compared_bytes + text_bytes;
+        s_requests.compared_text_at = compared_bytes;
+        s_requests.compared_count = put;
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_requests_owner);
     EMBED_CALL(requests_rows_laid, RequestsPaneCtx, .at = 0u);
-    return 1;
+    return s_requests.compared_cell != NULL;
 }
 
 int cli_requests_pane_curl(const CliRequestsPaneCfg *args)
@@ -1507,9 +1606,8 @@ int cli_requests_pane_curl(const CliRequestsPaneCfg *args)
     char json_why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea json_err = {json_why, sizeof(json_why), 0ULL};
     const unsigned int root =
-        curled ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
-                            .json = &read, .text = quoted, .size = quoted_line.at, .err_msg = &json_err,
-                            .owner = g_cli_requests_owner)
+        curled ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &read,
+                            .text = quoted, .size = quoted_line.at, .err_msg = &json_err, .owner = g_cli_requests_owner)
                : CLI_JSON_NONE;
     unsigned long long length = 0ULL;
     const char *const letters = (root != CLI_JSON_NONE)

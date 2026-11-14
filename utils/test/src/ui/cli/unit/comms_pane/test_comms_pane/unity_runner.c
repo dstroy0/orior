@@ -78,15 +78,15 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\comms_pane\\test_comms_pane\\test_comms_pane.c");
-  run_test(test_no_parts_and_no_channels_list_two_empty_groups, "test_no_parts_and_no_channels_list_two_empty_groups", 68);
-  run_test(test_two_parts_and_a_channel_list_by_name_with_their_counts, "test_two_parts_and_a_channel_list_by_name_with_their_counts", 86);
-  run_test(test_a_part_refused_is_marked_and_one_with_none_is_not, "test_a_part_refused_is_marked_and_one_with_none_is_not", 120);
-  run_test(test_the_layer_is_listed_again_only_as_its_stamp_moves, "test_the_layer_is_listed_again_only_as_its_stamp_moves", 136);
-  run_test(test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes, "test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes", 145);
-  run_test(test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not, "test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not", 169);
-  run_test(test_a_view_chosen_is_the_view_shown_and_channels_returns, "test_a_view_chosen_is_the_view_shown_and_channels_returns", 176);
-  run_test(test_the_heads_labels_are_the_views_and_read_again, "test_the_heads_labels_are_the_views_and_read_again", 188);
-  run_test(test_the_eight_comms_commands_run_by_name_and_no_other, "test_the_eight_comms_commands_run_by_name_and_no_other", 201);
+  run_test(test_no_parts_and_no_channels_list_two_empty_groups, "test_no_parts_and_no_channels_list_two_empty_groups", 67);
+  run_test(test_two_parts_and_a_channel_list_by_name_with_their_counts, "test_two_parts_and_a_channel_list_by_name_with_their_counts", 87);
+  run_test(test_a_part_refused_is_marked_and_one_with_none_is_not, "test_a_part_refused_is_marked_and_one_with_none_is_not", 126);
+  run_test(test_the_layer_is_listed_again_only_as_its_stamp_moves, "test_the_layer_is_listed_again_only_as_its_stamp_moves", 145);
+  run_test(test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes, "test_a_channel_opened_lists_its_messages_the_oldest_first_and_closes", 154);
+  run_test(test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not, "test_the_deadline_is_a_second_on_while_in_sight_and_none_while_not", 185);
+  run_test(test_a_view_chosen_is_the_view_shown_and_channels_returns, "test_a_view_chosen_is_the_view_shown_and_channels_returns", 192);
+  run_test(test_the_heads_labels_are_the_views_and_read_again, "test_the_heads_labels_are_the_views_and_read_again", 204);
+  run_test(test_the_eight_comms_commands_run_by_name_and_no_other, "test_the_eight_comms_commands_run_by_name_and_no_other", 217);
 
   return UNITY_END();
 }

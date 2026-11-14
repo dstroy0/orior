@@ -20,15 +20,15 @@ import sys
 ROOT = os.path.dirname(os.path.abspath(__file__))
 while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "src", "cu", "engine")):
     ROOT = os.path.dirname(ROOT)
-TREES = ("src", os.path.join("utils", "test"), os.path.join("utils", "bench"), "examples")
+TREES = ("src", "includes", os.path.join("utils", "test"), os.path.join("utils", "bench"), "examples")
 SKIPPED = {"python", "build", "node_modules", ".git"}
 INCLUDE = re.compile(r'^[ \t]*#[ \t]*include[ \t]*"([^"]+)"', re.MULTILINE)
 OUT = os.path.join(ROOT, "build", "compile_commands.json")
 # MMgr and the embedded types under it keep a library's own layout, each include named from its include and src
 # folders, where two headers may share a name: their headers stand outside the union and are read as C, and every
 # entry is given the folders and settings file_defs.sh gives a program that links MMgr (FILE_DEFS_MMGR_FLAGS)
-LIBRARIES = tuple(os.path.join(ROOT, "src", "cu", "includes", name) for name in ("mmgr", "embedded_types"))
-FILE_DEFS = os.path.join(ROOT, "src", "cu", "includes", "file_defs", "file_defs.sh")
+LIBRARIES = tuple(os.path.join(ROOT, "includes", name) for name in ("mmgr", "embedded_types"))
+FILE_DEFS = os.path.join(ROOT, "includes", "file_defs", "file_defs.sh")
 ASSIGNED = re.compile(r'^([A-Z_]+)="([^"]*)"$', re.MULTILINE)
 MMGR_FLAGS = re.compile(r"^FILE_DEFS_MMGR_FLAGS=\(([^)]*)\)", re.MULTILINE)
 

@@ -15,7 +15,7 @@ void cli_ipp_begin(const CliIppMessageCodeCfg *args)
     const unsigned long long attribute_bytes = (unsigned long long)CLI_IPP_ATTRIBUTES * sizeof(CliIppAttribute);
     const unsigned long long value_bytes = (unsigned long long)CLI_IPP_VALUES * sizeof(CliIppValue);
     char *const cell =
-        g_cli_guard->persistent_buf_alloc(group_bytes + attribute_bytes + value_bytes + CLI_IPP_BYTES, g_cli_ipp_owner);
+        g_cli_guard->temporary_buf_alloc(group_bytes + attribute_bytes + value_bytes + CLI_IPP_BYTES, g_cli_ipp_owner);
     if (cell == NULL)
     {
         args->message->full = 1;
@@ -349,7 +349,7 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
     args->message->data_length = args->size - at;
     if (args->message->full)
     {
-        mmgr_line_put(args->err_msg, "the printer's answer contains more than orior_cli reads");
+        mmgr_line_put(args->err_msg, "the printer's answer contains more than impero reads");
         return 0;
     }
     return 1;

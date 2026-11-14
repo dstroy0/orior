@@ -16,11 +16,11 @@
 #include <shellapi.h>
 #include <shlobj.h>
 
-#include <limits.h>
-
 // how many times the clipboard is asked for while another program holds it, and the milliseconds apart
 #define CLI_CLIPBOARD_TRIES 10u
 #define CLI_CLIPBOARD_APART 5u
+// the largest size the system's text calls count, an int
+#define CLI_CLIPBOARD_INT_MOST 0x7FFFFFFFULL
 
 // the drop effects a file manager reads: a copy, a move, and a link to the file
 #define CLI_CLIPBOARD_COPY 1u
@@ -131,7 +131,7 @@ EMBED_INLINE int clipboard_append(const WindowsClipboardCtx *args)
 
 int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
-    if (args->size > INT_MAX)
+    if (args->size > CLI_CLIPBOARD_INT_MOST)
     {
         return 0;
     }

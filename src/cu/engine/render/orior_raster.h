@@ -26,7 +26,7 @@
  *
  * HOST AND DEVICE PRODUCE THE SAME BYTES. That is the contract, and it is gradeable and not
  * aspirational: the raster is integer valued throughout. Agreement is exact and a difference of
- * one in one pixel is a defect. This is the same contract src/cu/includes/types/integers/arm.h states for the arms,
+ * one in one pixel is a defect. This is the same contract includes/exact_types/integers/arm.h states for the arms,
  * applied for the same reason.
  *
  * @note Downsampling takes the MINIMUM death level over the alignments mapping to a pixel. Minimum

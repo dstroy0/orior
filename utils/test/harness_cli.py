@@ -178,7 +178,7 @@ def checks_env(a):
 
 
 def library_archive(folder):
-    """The path of orior_cli's archive in build/cli/<folder>."""
+    """The path of impero's archive in build/cli/<folder>."""
     with open(os.path.join(ROOT, "bin_names.tsv"), encoding="utf-8") as names:
         cli_name = next(line.split("\t")[1] for line in names if line.startswith("cli\t"))
     return os.path.join(ROOT, "build", "cli", folder, "lib" + cli_name + ".a")
@@ -192,7 +192,7 @@ def cmd_cli_test(a):
         os.environ["ORIOR_CELLS_OWNERS"] = "1"
 
     def library_built(target):
-        """orior_cli's library built for `target` through ui/cli/build.sh: its archive, or None where the build failed."""
+        """impero's library built for `target` through ui/cli/build.sh: its archive, or None where the build failed."""
         code = streamed([bash(), CLI_BUILD, "library", target], env=build_env)
         if code != 0:
             print("the library's build ended with %d" % code, flush=True)
@@ -208,7 +208,7 @@ def coverage_env():
 
 
 def coverage_library_built(target):
-    """orior_cli's library built for coverage for `target`: its archive, or None where the build failed."""
+    """impero's library built for coverage for `target`: its archive, or None where the build failed."""
     if streamed([bash(), CLI_BUILD, "library", target], env=coverage_env()) != 0:
         return None
     return library_archive(target + "-coverage")

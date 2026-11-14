@@ -3,7 +3,8 @@
 // preview_markdown.c: a Markdown text as the preview's items. The text is split into lines once, into a cell for the
 // layout alone, and its blocks are read as markdown.js reads them, a quote's or a list item's lines read again as a
 // container of their own with their marks taken off. The layout runs twice: once counting the items, the blocks and the
-// text's bytes, then again writing them into cells taken at those counts, so each cell is the size of what it carries.
+// text's bytes, then again writing them into this call's cells taken at those counts, written once into movable cells
+// the size of what they carry.
 // A block's inline text flows a word at a time: a word's letters wait with their marks until a space or the line's end,
 // the word moves to the next line where it passes the width, and a run of letters of one mark on one line is one item
 #include "preview_markdown.h"
@@ -119,11 +120,25 @@ typedef struct
     unsigned long long number;
 } MarkdownItem;
 
+// The items as a pass lays them, in this call's cells: the items and how many, the blocks and how many, the text and
+// its bytes, and the height every item fills; the count pass carries the counts alone, its pointers NULL
+typedef struct
+{
+    CliPreviewItem *item;
+    unsigned int items;
+    CliPreviewBlock *block;
+    unsigned int blocks;
+    char *text;
+    unsigned int text_bytes;
+    int height;
+} MarkdownLaid;
+
 typedef struct
 {
     const char *text;
-    CliPreviewItems *items;
+    MarkdownLaid *items;
     int writing;
+    const CarcerMovableEntry *cell;
     MarkdownFlow *flow;
     const MarkdownLine *lines;
     unsigned int count;
@@ -156,10 +171,19 @@ typedef struct
     int quoted;
 } MarkdownCtx;
 
+// the movable cell `cell` released, none where it is NULL
+EMBED_INLINE void cell_released(const MarkdownCtx *args)
+{
+    if (args->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(args->cell, g_cli_preview_owner);
+    }
+}
+
 // the item `item` put after the items laid, the height every item fills grown to its foot: its row
 EMBED_INLINE unsigned int item_put(const MarkdownCtx *args)
 {
-    CliPreviewItems *const items = args->items;
+    MarkdownLaid *const items = args->items;
     const unsigned int at = items->items;
     if (args->writing)
     {
@@ -174,7 +198,7 @@ EMBED_INLINE unsigned int item_put(const MarkdownCtx *args)
 // the item at the row `at` stretched to `height`, its foot growing the height every item fills
 EMBED_INLINE void item_height_put(const MarkdownCtx *args)
 {
-    CliPreviewItems *const items = args->items;
+    MarkdownLaid *const items = args->items;
     if (args->writing)
     {
         items->item[args->at].height = args->height;
@@ -186,7 +210,7 @@ EMBED_INLINE void item_height_put(const MarkdownCtx *args)
 // `length` bytes of `bytes` put after the text laid: where they start in the text cell
 EMBED_INLINE unsigned int text_put(const MarkdownCtx *args)
 {
-    CliPreviewItems *const items = args->items;
+    MarkdownLaid *const items = args->items;
     const unsigned int at = items->text_bytes;
     if (args->writing && (args->length != 0u))
     {
@@ -201,7 +225,7 @@ EMBED_INLINE unsigned int text_put(const MarkdownCtx *args)
 // block is laid: the item's row
 EMBED_INLINE unsigned int block_put(const MarkdownCtx *args)
 {
-    CliPreviewItems *const items = args->items;
+    MarkdownLaid *const items = args->items;
     if (args->writing)
     {
         items->block[items->blocks] = (CliPreviewBlock){args->line, *args->y, items->items, args->depth, args->heading};
@@ -1843,57 +1867,83 @@ int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args)
     const int width = args->width_px - (2 * CLI_PREVIEW_PAD);
     const int first_top = (items->height > 0) ? items->height : CLI_PREVIEW_PAD_TOP;
     // the count pass over the counts the items have, writing nothing
-    CliPreviewItems counted = {NULL, items->items,  NULL,         items->blocks, NULL, items->text_bytes,
-                               NULL, items->points, items->height};
+    MarkdownLaid counted = {NULL, items->items, NULL, items->blocks, NULL, items->text_bytes, items->height};
     int y = first_top;
     EMBED_CALL(blocks_laid, MarkdownCtx, .text = text, .items = &counted, .writing = 0, .flow = &flow, .lines = lines,
                .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
                .role = CLI_PREVIEW_ROLE_TEXT);
-    const unsigned long long item_bytes = ((unsigned long long)counted.items * sizeof(CliPreviewItem)) +
-                                          ((unsigned long long)counted.blocks * sizeof(CliPreviewBlock));
-    unsigned char *const cell =
-        (item_bytes != 0ULL) ? g_cli_guard->persistent_buf_alloc(item_bytes, g_cli_preview_owner) : NULL;
-    char *const laid_text =
-        (counted.text_bytes != 0u) ? g_cli_guard->persistent_buf_alloc(counted.text_bytes, g_cli_preview_owner) : NULL;
-    if (((item_bytes != 0ULL) && (cell == NULL)) || ((counted.text_bytes != 0u) && (laid_text == NULL)))
+    // the write pass lays into this call's cells, the items carried before copied out of their cells first
+    const unsigned long long item_bytes = CLI_PREVIEW_ITEM_AT(counted.items);
+    const unsigned long long cell_bytes = item_bytes + ((unsigned long long)counted.blocks * sizeof(CliPreviewBlock));
+    unsigned char *const laying =
+        (cell_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
+    char *const laying_text =
+        (counted.text_bytes != 0u) ? g_cli_guard->temporary_buf_alloc(counted.text_bytes, g_cli_preview_owner) : NULL;
+    if (((cell_bytes != 0ULL) && (laying == NULL)) || ((counted.text_bytes != 0u) && (laying_text == NULL)))
     {
-        g_cli_guard->persistent_buf_release(cell, g_cli_preview_owner);
-        g_cli_guard->persistent_buf_release(laid_text, g_cli_preview_owner);
+        g_cli_guard->persistent_buf_release(laying, g_cli_preview_owner);
+        g_cli_guard->persistent_buf_release(laying_text, g_cli_preview_owner);
         g_cli_guard->persistent_buf_release(lines, g_cli_preview_owner);
         return 0;
     }
-    CliPreviewItems laid = {(CliPreviewItem *)(void *)cell,
-                            items->items,
-                            (cell != NULL) ? (CliPreviewBlock *)(void *)(cell + ((unsigned long long)counted.items *
-                                                                                 sizeof(CliPreviewItem)))
-                                           : NULL,
-                            items->blocks,
-                            laid_text,
-                            items->text_bytes,
-                            items->point,
-                            items->points,
-                            items->height};
+    MarkdownLaid laid = {(CliPreviewItem *)(void *)laying,
+                         items->items,
+                         (laying != NULL) ? (CliPreviewBlock *)(void *)(laying + item_bytes) : NULL,
+                         items->blocks,
+                         laying_text,
+                         items->text_bytes,
+                         items->height};
     if (items->items != 0u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = laid.item, .src = items->item, .bytes = items->items * sizeof(CliPreviewItem)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = items->cell, .offset = 0u, .dst = laid.item, .bytes = CLI_PREVIEW_ITEM_AT(items->items)});
     }
     if (items->blocks != 0u)
     {
-        memor.cpy(
-            &(MemoriaCfg){.dst = laid.block, .src = items->block, .bytes = items->blocks * sizeof(CliPreviewBlock)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = items->cell,
+                                                                .offset = items->block_at,
+                                                                .dst = laid.block,
+                                                                .bytes = items->blocks * sizeof(CliPreviewBlock)});
     }
     if (items->text_bytes != 0u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = laid.text, .src = items->text, .bytes = items->text_bytes});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = items->text_cell, .offset = 0u, .dst = laid.text, .bytes = items->text_bytes});
     }
     y = first_top;
     EMBED_CALL(blocks_laid, MarkdownCtx, .text = text, .items = &laid, .writing = 1, .flow = &flow, .lines = lines,
                .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
                .role = CLI_PREVIEW_ROLE_TEXT);
     laid.height = ((y + CLI_PREVIEW_PAD_FOOT) > laid.height) ? y + CLI_PREVIEW_PAD_FOOT : laid.height;
-    g_cli_guard->persistent_buf_release(items->item, g_cli_preview_owner);
-    g_cli_guard->persistent_buf_release(items->text, g_cli_preview_owner);
-    *items = laid;
+    // the cells the items stand in, written once, the cells they stood in before released
+    const CarcerMovableEntry *const cell =
+        (cell_bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
+    const CarcerMovableEntry *const text_cell =
+        (counted.text_bytes != 0u) ? g_cli_guard->movable_buf_alloc(counted.text_bytes, g_cli_preview_owner) : NULL;
+    const int stored = ((cell_bytes == 0ULL) || (cell != NULL)) && ((counted.text_bytes == 0u) || (text_cell != NULL));
+    if (stored)
+    {
+        if (cell != NULL)
+        {
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = cell, .offset = 0u, .src = laying, .bytes = cell_bytes});
+        }
+        if (text_cell != NULL)
+        {
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = text_cell, .offset = 0u, .src = laying_text, .bytes = counted.text_bytes});
+        }
+        EMBED_CALL(cell_released, MarkdownCtx, .cell = items->cell);
+        EMBED_CALL(cell_released, MarkdownCtx, .cell = items->text_cell);
+        *items = (CliPreviewItems){cell, laid.items, item_bytes, laid.blocks, text_cell, laid.text_bytes, laid.height};
+    }
+    else
+    {
+        EMBED_CALL(cell_released, MarkdownCtx, .cell = cell);
+        EMBED_CALL(cell_released, MarkdownCtx, .cell = text_cell);
+    }
+    g_cli_guard->persistent_buf_release(laying, g_cli_preview_owner);
+    g_cli_guard->persistent_buf_release(laying_text, g_cli_preview_owner);
     g_cli_guard->persistent_buf_release(lines, g_cli_preview_owner);
-    return 1;
+    return stored;
 }

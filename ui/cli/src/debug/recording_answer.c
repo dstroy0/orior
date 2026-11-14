@@ -54,10 +54,13 @@ EMBED_INLINE void answer_threads(const RecordingAnswerCtx *args)
     }
     for (unsigned int at = 0u; at < recording->thread_count; at += 1u)
     {
-        const char *const name = EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
-                                            .at = recording->thread_names[at]);
+        char name[CLI_RECORDING_NAME_BYTES];
+        (void)EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
+                         .at = EMBED_CALL(cli_recording_index_internal.thread_name, CliRecordingIndexCtx, .index = at),
+                         .name_out = name, .name_capacity = sizeof(name));
         mmgr_line_put(args->body, (at > 0u) ? ",{\"id\":" : "{\"id\":");
-        mmgr_line_decimal(args->body, recording->thread_ids[at], 1u);
+        mmgr_line_decimal(args->body,
+                          EMBED_CALL(cli_recording_index_internal.thread_id, CliRecordingIndexCtx, .index = at), 1u);
         mmgr_line_put(args->body, ",\"name\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                    .text_bytes = (const unsigned char *)name,
@@ -162,7 +165,9 @@ EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
     for (unsigned int frame = 0u; frame <= count; frame += 1u)
     {
         const unsigned int one = (frame == 0u) ? serial : s_existing[frame - 1u][0];
-        if ((frame > 0u) && !(recording->frames[one].seen && (recording->frames[one].parent == 0u)))
+        const CliRecordedFrame standing =
+            EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = one);
+        if ((frame > 0u) && !(standing.seen && (standing.parent == 0u)))
         {
             continue;
         }
@@ -197,12 +202,16 @@ EMBED_INLINE int answer_exception(const RecordingAnswerCtx *args)
     const CliRecording *const recording = &g_cli_replay->recording;
     for (unsigned int at = 0u; at < recording->raised_count; at += 1u)
     {
-        if (recording->raised[at].step == g_cli_replay->at)
+        const CliRecordedRaise raised =
+            EMBED_CALL(cli_recording_index_internal.raise, CliRecordingIndexCtx, .index = at);
+        if (raised.step == g_cli_replay->at)
         {
-            const char *const type = EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
-                                                .at = recording->raised[at].type);
-            const char *const message = EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
-                                                   .at = recording->raised[at].message);
+            char type[CLI_RECORDING_NAME_BYTES];
+            char message[CLI_RECORDING_NAME_BYTES];
+            (void)EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx, .at = raised.type,
+                             .name_out = type, .name_capacity = sizeof(type));
+            (void)EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx, .at = raised.message,
+                             .name_out = message, .name_capacity = sizeof(message));
             mmgr_line_put(args->body, "{\"exceptionId\":");
             EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->body,
                        .text_bytes = (const unsigned char *)type,
@@ -287,9 +296,10 @@ EMBED_INLINE void answer_history(const RecordingAnswerCtx *args)
                    .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                     .object = args->arguments, .name = "frameId"));
     char path[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_recording_relative_internal.replay_full, CliRecordingRelativeCtx,
                .relative = EMBED_CALL(cli_recording_serial_step_internal.replay_file_get, CliRecordingSerialStepCtx,
-                                      .serial = serial),
+                                      .serial = serial, .path_out = file),
                .full = path);
     CliReplayHistory history = {args->body, path, 0};
     mmgr_line_put(args->body, "{\"changes\":[");

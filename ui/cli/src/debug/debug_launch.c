@@ -26,13 +26,13 @@ typedef struct
     unsigned long long milliseconds;
 } DebugLaunchCtx;
 
-// the adapter started as the plan specifies: run in orior_cli for a recorded run, connected to where a debugger already
+// the adapter started as the plan specifies: run in impero for a recorded run, connected to where a debugger already
 // listens, else its program started with the spec's words and PATH: the adapter, or NULL with why given
-EMBED_INLINE CliDap *launch_adapter(const DebugLaunchCtx *args)
+EMBED_INLINE CliDap *launch_adapter_from(const DebugLaunchCtx *args)
 {
     const char *root = args->root;
     VerbaLinea *err_msg = args->err_msg;
-    const CliJson *const json = &args->place->start;
+    const CliJson *const json = args->json;
     if (args->plan->recording)
     {
         void *const replay = EMBED_CALL(cli_recording.begin, CliRecordingCfg, .root = root);
@@ -83,6 +83,22 @@ EMBED_INLINE CliDap *launch_adapter(const DebugLaunchCtx *args)
                       .emit = cli_debug_event, .context = args->place, .err_msg = err_msg);
 }
 
+// the adapter started as above, the session's start read out of its stored cell into a tree of this call
+EMBED_INLINE CliDap *launch_adapter(const DebugLaunchCtx *args)
+{
+    CliJson start;
+    if (!EMBED_CALL(cli_json_tree_stored.json_pinned, CliJsonTreeStoredCfg, .stored_read = &args->place->start,
+                    .json = &start))
+    {
+        mmgr_line_put(args->err_msg, "the session's start could not be read");
+        return NULL;
+    }
+    CliDap *const adapter = EMBED_CALL(launch_adapter_from, DebugLaunchCtx, .place = args->place, .root = args->root,
+                                       .plan = args->plan, .err_msg = args->err_msg, .json = &start);
+    g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
+    return adapter;
+}
+
 // a start that failed after its adapter started: the adapter's last complaint and the line that installs it given after
 // why, the adapter stopped, and the session's place let go
 EMBED_INLINE int launch_fail(const DebugLaunchCtx *args)
@@ -96,11 +112,16 @@ EMBED_INLINE int launch_fail(const DebugLaunchCtx *args)
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, complaint_line.out, complaint_line.at);
     }
+    // the session's start read out of its stored cell into a tree of this call
+    CliJson start;
+    const int pinned = EMBED_CALL(cli_json_tree_stored.json_pinned, CliJsonTreeStoredCfg,
+                                  .stored_read = &args->place->start, .json = &start);
     const char *const setup =
-        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &args->place->start,
-                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                      .json_read = &args->place->start, .object = args->plan->spec, .name = "setup"),
-                   .length_pointer = NULL);
+        pinned ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &start,
+                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = &start, .object = args->plan->spec, .name = "setup"),
+                            .length_pointer = NULL)
+               : NULL;
     if (setup != NULL)
     {
         mmgr_line_ch(args->err_msg, '\n');
@@ -108,11 +129,14 @@ EMBED_INLINE int launch_fail(const DebugLaunchCtx *args)
         mmgr_line_put(args->err_msg, " installs ");
         mmgr_line_put(args->err_msg,
                       EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx,
-                                 .json = &args->place->start,
+                                 .json = &start,
                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                    .json_read = &args->place->start, .object = args->plan->spec,
-                                                    .name = "program"),
+                                                    .json_read = &start, .object = args->plan->spec, .name = "program"),
                                  .fallback = ""));
+    }
+    if (pinned)
+    {
+        g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
     }
     EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = args->place);
     return 0;
@@ -261,21 +285,21 @@ static void launch_configure(const DebugLaunchCtx *args)
                          .json = json, .breakpoints = file, .out = &positioned, .err_msg = &err_msg);
     }
     CliDebugAnswer *const answer = cli_debug_answer_alloc();
-    mmgr_line_put(&answer->args, "{\"filters\":[");
+    mmgr_line_put(&answer->args.line, "{\"filters\":[");
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < args->info_read->filter_count; at += 1u)
     {
         if (args->info_read->filters[at].on)
         {
-            mmgr_line_put(&answer->args, (written > 0u) ? "," : "");
-            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+            mmgr_line_put(&answer->args.line, (written > 0u) ? "," : "");
+            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                        .text_bytes = (const unsigned char *)args->info_read->filters[at].filter,
                        .length = cellul.len(
                            &(CatenaFinitaCfg){.src = args->info_read->filters[at].filter, .cap = CLI_POOL_BYTES}));
             written += 1u;
         }
     }
-    mmgr_line_put(&answer->args, "]}");
+    mmgr_line_put(&answer->args.line, "]}");
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = args->place,
@@ -313,17 +337,8 @@ int cli_debug_start(const CliDebugRootCfg *args)
                     .json = args->json, .start = args->start, .options = args->options, .plan = &plan,
                     .err_msg = err_msg))
     {
-        g_cli_guard->persistent_buf_release(place->positioned, g_cli_debug_owner);
-        place->data = NULL;
-        place->data_count = 0u;
-        place->data_capacity = 0u;
-        place->positioned = NULL;
-        place->positioned_count = 0u;
-        place->positioned_capacity = 0u;
-        g_cli_guard->persistent_buf_release(place->start.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), place->start.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = place);
+        cli_json_stored_release(&place->start);
         place->reserved = 0;
         return 0;
     }
@@ -335,34 +350,39 @@ int cli_debug_start(const CliDebugRootCfg *args)
                             .err_msg = err_msg);
     if (place->dap == NULL)
     {
-        g_cli_guard->persistent_buf_release(place->positioned, g_cli_debug_owner);
-        place->data = NULL;
-        place->data_count = 0u;
-        place->data_capacity = 0u;
-        place->positioned = NULL;
-        place->positioned_count = 0u;
-        place->positioned_capacity = 0u;
-        g_cli_guard->persistent_buf_release(place->start.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), place->start.node));
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&place->start),
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+        EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = place);
+        cli_json_stored_release(&place->start);
         place->reserved = 0;
         return 0;
     }
+    // the session's start read out of its stored cell into a tree of this call, given back once the launch is sent
+    CliJson start;
+    if (!EMBED_CALL(cli_json_tree_stored.json_pinned, CliJsonTreeStoredCfg, .stored_read = &place->start,
+                    .json = &start))
+    {
+        mmgr_line_put(err_msg, "the session's start could not be read");
+        return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
+    }
     CliDebugAnswer *const answer = cli_debug_answer_alloc();
-    mmgr_line_put(&answer->args, "{\"clientID\":\"orior\",\"clientName\":\"orior\",\"adapterID\":");
-    const char *const adapter_id =
-        EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = &place->start,
-                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                      .json_read = &place->start, .object = plan.spec, .name = "program"),
+    mmgr_line_put(&answer->args.line, "{\"clientID\":\"orior\",\"clientName\":\"orior\",\"adapterID\":");
+    const char *const adapter_program =
+        EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = &start,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &start,
+                                      .object = plan.spec, .name = "program"),
                    .fallback = "");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    char adapter_id[CLI_PATH_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){
+        .dst = adapter_id,
+        .src = adapter_program,
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = adapter_program, .cap = sizeof(adapter_id) - 1u}) + 1u});
+    adapter_id[sizeof(adapter_id) - 1u] = '\0';
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)adapter_id,
                .length = cellul.len(&(CatenaFinitaCfg){.src = adapter_id, .cap = CLI_POOL_BYTES}));
-    mmgr_line_put(&answer->args, ",\"locale\":\"en\",\"linesStartAt1\":true,\"columnsStartAt1\":true,"
-                                 "\"pathFormat\":\"path\",\"supportsVariableType\":true,"
-                                 "\"supportsRunInTerminalRequest\":false,\"supportsMemoryReferences\":true,"
-                                 "\"supportsStartDebuggingRequest\":false}");
+    mmgr_line_put(&answer->args.line, ",\"locale\":\"en\",\"linesStartAt1\":true,\"columnsStartAt1\":true,"
+                                      "\"pathFormat\":\"path\",\"supportsVariableType\":true,"
+                                      "\"supportsRunInTerminalRequest\":false,\"supportsMemoryReferences\":true,"
+                                      "\"supportsStartDebuggingRequest\":false}");
     const unsigned long long before = err_msg->at;
     if (!EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = place,
                     .command = "initialize", .answer = answer,
@@ -377,6 +397,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
             mmgr_line_put(err_msg, plan.name);
             mmgr_line_put(err_msg, " took the connection and did not answer; it may be serving another debugger");
         }
+        g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
     }
     CliDebugInfo info;
@@ -392,17 +413,18 @@ int cli_debug_start(const CliDebugRootCfg *args)
         EMBED_CALL(launch_configure, DebugLaunchCtx, .place = place, .root = args->root, .json = args->json,
                    .options = args->options, .info_read = &info);
     }
-    // the launch's arguments in a cell of the most they hold, given back once sent
-    char *const written = g_cli_guard->temporary_buf_alloc(CLI_DEBUG_ARGS, g_cli_debug_owner);
-    VerbaLinea arguments = mmgr_line_over(written, CLI_DEBUG_ARGS);
-    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &place->start,
-               .node = plan.arguments, .out = &arguments, .indent = 0u, .sorted = 0);
+    // the launch's arguments on a line grown to them, ended once sent
+    CliGrownLine arguments;
+    cli_grown_begin(&arguments, CLI_DEBUG_ARGS, g_cli_debug_owner);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &start, .node = plan.arguments,
+               .out = &arguments.line, .indent = 0u, .sorted = 0);
     unsigned long long seq = 0ULL;
-    const int sent =
-        mmgr_line_ok(&arguments) &&
-        EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = place->dap, .command = plan.request,
-                   .arguments = written, .length = arguments.at, .seq_pointer = &seq, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(written, g_cli_debug_owner);
+    const int sent = mmgr_line_ok(&arguments.line) &&
+                     EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = place->dap,
+                                .command = plan.request, .arguments = arguments.cell,
+                                .length = cli_grown_size(&arguments), .seq_pointer = &seq, .err_msg = err_msg);
+    cli_grown_end(&arguments);
+    g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
     if (!sent)
     {
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);

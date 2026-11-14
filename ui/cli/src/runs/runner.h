@@ -15,7 +15,9 @@
 #define RUNNER_H
 #include "../command_line/callback_cfg.h"
 #include "../command_line/catalog.h"
+#include "../command_line/rings.h"
 #include "embed_dispatch_layout.h"
+#include "memoria_anularis/memoria_anularis.h"
 
 typedef struct CliRunnerErrMsgCfg CliRunnerErrMsgCfg;
 typedef struct CliRunnerCommandCfg CliRunnerCommandCfg;
@@ -55,19 +57,44 @@ typedef struct
     unsigned int used;
 } CliCommand;
 
-// the most lines and bytes of them a run retains of what its steps wrote
+// the most runs open at once; the most lines and bytes of them a run retains of what its steps wrote; the bytes one
+// run's rings take in the rings block, its text then its line records each on the block's boundary; and the bytes
+// every run's take, the runner's part of the block
+#define CLI_RUNS_MAX 16u
 #define CLI_LINES_MAX 16384u
 
 #define CLI_LINES_TEXT (1u << 20u)
 
-// The lines a run's steps wrote, each where it starts in the text, the oldest let go where there is no more capacity
+// A line a run's step wrote: the count of the text bytes put before its first, and its bytes
 typedef struct
 {
-    unsigned int start[CLI_LINES_MAX];
-    unsigned int count;
-    char text[CLI_LINES_TEXT];
-    unsigned int used;
-} CliLines;
+    unsigned int start;
+    unsigned int length;
+} CliRunnerLine;
+
+// The lines a run's steps wrote, in MMgr's rings over the run's span of the rings block: the text, a byte ring; the
+// line records, a segment ring with a record a segment; the text bytes ever put and ever consumed, whose difference
+// places a line's bytes ahead of the text ring's tail; whether the rings are laid; and the bytes each ring streams.
+// The oldest lines are let go as a new one needs the room
+typedef struct
+{
+    mmgr_ring text;
+    mmgr_ring line;
+    unsigned int text_put;
+    unsigned int text_taken;
+    int laid;
+    embed_u8 *text_bytes;
+    CliRunnerLine *line_bytes;
+} CliRunLines;
+#define CLI_RUN_LINES_TEXT_AT 0ULL
+#define CLI_RUN_LINES_LINE_AT CLI_RINGS_ALIGNED(CLI_LINES_TEXT)
+#define CLI_RUN_LINES_SET_BYTES                                                                                        \
+    (CLI_RUN_LINES_LINE_AT + CLI_RINGS_ALIGNED((unsigned long long)CLI_LINES_MAX * sizeof(CliRunnerLine)))
+#define CLI_RUNNER_LINES_RING_BYTES ((unsigned long long)CLI_RUNS_MAX * CLI_RUN_LINES_SET_BYTES)
+
+// the ring lays its byte stream and its segments only over counts of two's powers
+EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_LINES_TEXT), "the lines' text ring's bytes are a power of two");
+EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_LINES_MAX), "the lines' record ring's segments are a power of two");
 
 // what a run reports as it goes: its start, each line, then its end, in that order
 enum
@@ -121,9 +148,14 @@ void cli_command_set(const CliRunnerCommandNameCfg *args);
 int cli_command_sets(const CliRunnerNameCommandCfg *args);
 void cli_command_folder(const CliRunnerCommandFolderCfg *args);
 
-// a line put after the lines; and the line at `index`
+// a line put after the lines, the rings laid where they are not yet and the oldest lines let go for the room; the
+// lines emptied; how many lines stand; the bytes of the longest; and the line at `index` copied into `out`, cut to
+// `capacity` with its 0, where `out` is set: its bytes
 void cli_lines_append(const CliRunnerLinesCfg *args);
-const char *cli_lines_at(const CliRunnerLinesIndexCfg *args);
+void cli_lines_clear(CliRunLines *lines);
+unsigned int cli_lines_count(const CliRunnerLinesIndexCfg *args);
+unsigned long long cli_lines_longest(const CliRunnerLinesIndexCfg *args);
+unsigned long long cli_lines_read(const CliRunnerLinesIndexCfg *args);
 
 // the bash that runs the tree's scripts into `path`, sized for CLI_PATH_MAX_LEN: ORIOR_BASH, else the one Toolchains
 // names, else bash off Windows and Git's on it: 1, or 0 with why given; and the Python that runs them: ORIOR_PYTHON,
@@ -208,7 +240,7 @@ struct CliRunnerCommandNameCfg
 
 struct CliRunnerLinesCfg
 {
-    CliLines *lines;
+    CliRunLines *lines;
     const char *text;
     unsigned long long length;
 };
@@ -246,8 +278,10 @@ struct CliRunnerCommandWordCfg
 
 struct CliRunnerLinesIndexCfg
 {
-    const CliLines *lines_read;
+    const CliRunLines *lines_read;
     unsigned int index;
+    char *out;
+    unsigned long long capacity;
 };
 
 struct CliRunnerEventCfg
@@ -324,11 +358,15 @@ EMBED_TABLE_STORAGE CliRunnerLinesNs cli_runner_lines EMBED_UNUSED = {
 
 typedef struct
 {
-    const char *(*lines_at)(const CliRunnerLinesIndexCfg *args);
+    unsigned int (*lines_count)(const CliRunnerLinesIndexCfg *args);
+    unsigned long long (*lines_longest)(const CliRunnerLinesIndexCfg *args);
+    unsigned long long (*lines_read)(const CliRunnerLinesIndexCfg *args);
 } CliRunnerLinesIndexNs;
-EMBED_TABLE_LAYOUT(CliRunnerLinesIndexNs, lines_at);
+EMBED_TABLE_LAYOUT(CliRunnerLinesIndexNs, lines_count, lines_longest, lines_read);
 EMBED_TABLE_STORAGE CliRunnerLinesIndexNs cli_runner_lines_index EMBED_UNUSED = {
-    .lines_at = cli_lines_at,
+    .lines_count = cli_lines_count,
+    .lines_longest = cli_lines_longest,
+    .lines_read = cli_lines_read,
 };
 
 typedef struct

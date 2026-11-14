@@ -63,14 +63,14 @@ EMBED_INLINE void tar_octal(const DeployTarCtx *args)
 EMBED_INLINE void tar_header(const DeployTarCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->header, .bytes = CLI_DEPLOY_BLOCK, .val = 0u});
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     memor.cpy(&(MemoriaCfg){.dst = args->header, .src = args->name, .bytes = (length < 100u) ? length : 100u});
     EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 100, .width = 8u, .value = args->mode, .digits = 7u);
     memor.cpy(&(MemoriaCfg){.dst = args->header + 108, .src = "0000000", .bytes = 8u});
     memor.cpy(&(MemoriaCfg){.dst = args->header + 116, .src = "0000000", .bytes = 8u});
     EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 124, .width = 12u, .value = args->size, .digits = 11u);
     EMBED_CALL(tar_octal, DeployTarCtx, .field = args->header + 136, .width = 12u, .value = args->time, .digits = 11u);
-    memor.set(&(MemoriaCfg){.dst = args->header + 148, .bytes = 8u, .val = (uint8_t)' '});
+    memor.set(&(MemoriaCfg){.dst = args->header + 148, .bytes = 8u, .val = (embed_u8)' '});
     args->header[156] = (unsigned char)args->type;
     memor.cpy(&(MemoriaCfg){.dst = args->header + 257, .src = "ustar", .bytes = 6u});
     memor.cpy(&(MemoriaCfg){.dst = args->header + 263, .src = "00", .bytes = 2u});
@@ -188,7 +188,7 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
              EMBED_CALL(tar_pax, DeployTarCtx, .path = args->path, .name = file->path, .time = args->time)) &&
             EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
             EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = bytes, .size = size);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
         if (!written)
         {
             mmgr_line_put(args->err_msg, args->path);

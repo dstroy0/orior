@@ -209,7 +209,7 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ULL};
     const unsigned int themes =
-        (text != NULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
+        (text != NULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                     .json = &json, .text = text, .size = length, .nodes_more = 0u, .text_more = 0ULL,
                                     .err_msg = &unread, .owner = g_cli_state_owner)
                        : CLI_JSON_NONE;
@@ -415,13 +415,14 @@ int cli_state_save(const CliStateFolderCfg *args)
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &supplied,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int changed =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
-                   .json = &supplied, .text = args->changes, .size = args->length, .nodes_more = 0u, .text_more = 0ULL,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &supplied,
+                   .text = args->changes, .size = args->length, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = args->err_msg, .owner = g_cli_state_owner);
     if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &supplied, .node = changed,
                     .type = CFG_JSON_OBJECT))
     {
-        g_cli_guard->persistent_buf_release(supplied.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), supplied.node));
+        g_cli_guard->persistent_buf_release(supplied.node,
+                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), supplied.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&supplied),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;

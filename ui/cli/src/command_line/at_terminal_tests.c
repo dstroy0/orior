@@ -11,10 +11,10 @@
 #include "at_terminal.h"
 #include "callback_cfg.h"
 
-// Lines a run prints, buffered through the run: the line over a cell of the most they hold, and how many are buffered
+// Lines a run prints, buffered through the run: the line grown to them, and how many are buffered
 typedef struct
 {
-    VerbaLinea line;
+    CliGrownLine line;
     unsigned long long lines;
 } CliTestLines;
 // the most files and settings one import takes; the most bytes of the lines a run's failed tests or its coverage print;
@@ -44,43 +44,39 @@ typedef struct
     const char *name;
     unsigned int done;
     CliJson *json_out;
-    char *cell;
-    const VerbaLinea *line;
+    CliGrownLine *grown;
 } AtTerminalTestsCtx;
 // `size` bytes of `text` put after the lines buffered, a line of its own, a line past the most the lines contain left
 // out
 EMBED_INLINE void tests_line_append(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
-    if (lines->line.at + args->size + 1ULL > CLI_AT_TERMINAL_LINES)
+    if (cli_grown_size(&lines->line) + args->size + 1ULL > CLI_AT_TERMINAL_LINES)
     {
         return;
     }
-    mmgr_line_put(&lines->line, (lines->lines > 0ULL) ? "\n" : "");
-    mmgr_line_put_n(&lines->line, args->text, args->size);
+    mmgr_line_put(&lines->line.line, (lines->lines > 0ULL) ? "\n" : "");
+    mmgr_line_put_n(&lines->line.line, args->text, args->size);
     lines->lines += 1ULL;
 }
 
-// the line of the lines buffered begun over a cell of the most they hold
+// the line of the lines buffered begun, grown to them up to the most they hold
 EMBED_INLINE void tests_lines_begin(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
-    const unsigned long long capacity = CLI_AT_TERMINAL_LINES + 1ULL;
-    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_command_line_owner);
-    lines->line = mmgr_line_over(text, capacity);
+    cli_grown_begin(&lines->line, CLI_AT_TERMINAL_LINES + 1ULL, g_cli_command_line_owner);
     lines->lines = 0ULL;
 }
 
 // the lines buffered written into `into` and a line's end after them, where any are buffered, and their cell given back
 EMBED_INLINE void tests_lines_write(const AtTerminalTestsCtx *args)
 {
-    if (mmgr_line_ok(&args->lines->line) && (args->lines->lines > 0ULL))
+    if (mmgr_line_ok(&args->lines->line.line) && (args->lines->lines > 0ULL))
     {
-        (void)mmgr_line_put_n(args->into, args->lines->line.out, args->lines->line.at);
+        (void)mmgr_line_put_n(args->into, args->lines->line.cell, cli_grown_size(&args->lines->line));
         mmgr_line_ch(args->into, '\n');
     }
-    g_cli_guard->persistent_buf_release(args->lines->line.out, g_cli_command_line_owner);
-    args->lines->line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+    cli_grown_end(&args->lines->line);
     args->lines->lines = 0ULL;
 }
 
@@ -284,11 +280,9 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
     if (!EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = root, .supplied = supplied, .count = count,
                     .parallel = 1, .cover = cover, .sink = sink, .number = &run, .err_msg = err_msg))
     {
-        g_cli_guard->persistent_buf_release(s_failed.line.out, g_cli_command_line_owner);
-        s_failed.line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        cli_grown_end(&s_failed.line);
         s_failed.lines = 0ULL;
-        g_cli_guard->persistent_buf_release(s_covered.line.out, g_cli_command_line_owner);
-        s_covered.line = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
+        cli_grown_end(&s_covered.line);
         s_covered.lines = 0ULL;
         return 0;
     }
@@ -304,13 +298,7 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
     return good;
 }
 
-// a cell of the most what is synced writes to
-static char *tests_transferred_alloc(void)
-{
-    return g_cli_guard->temporary_buf_alloc(CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
-}
-
-// what `line` wrote read into `json`, a tree of its size, and the cell it wrote in given back: the tree's root, or
+// what the line `grown` wrote read into `json`, a tree of its size, and the line ended: the tree's root, or
 // CLI_JSON_NONE with the tree containing nothing where the text or its tree could not be parsed
 EMBED_INLINE unsigned int tests_tree_get(const AtTerminalTestsCtx *args)
 {
@@ -320,12 +308,12 @@ EMBED_INLINE unsigned int tests_tree_get(const AtTerminalTestsCtx *args)
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ULL};
     const unsigned int root =
-        mmgr_line_ok(args->line)
-            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
-                         .json = json, .text = args->line->out, .size = args->line->at, .nodes_more = 0u,
+        mmgr_line_ok(&args->grown->line)
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json,
+                         .text = args->grown->cell, .size = cli_grown_size(args->grown), .nodes_more = 0u,
                          .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_command_line_owner)
             : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(args->cell, g_cli_command_line_owner);
+    cli_grown_end(args->grown);
     return root;
 }
 
@@ -342,14 +330,13 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     {
         return 0;
     }
-    char *const differences_text = tests_transferred_alloc();
-    VerbaLinea differences = mmgr_line_over(differences_text, CLI_AT_TERMINAL_TRANSFERRED);
+    CliGrownLine differences;
+    cli_grown_begin(&differences, CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
     EMBED_CALL(cli_settings_sync_home.differences, CliSettingsSyncHomeCfg, .home = home, .there = &s_there,
-               .out = &differences);
+               .out = &differences.line);
     CliJson tree;
     CliJson *const json = &tree;
-    const unsigned int all = EMBED_CALL(tests_tree_get, AtTerminalTestsCtx, .json_out = json, .cell = differences_text,
-                                        .line = &differences);
+    const unsigned int all = EMBED_CALL(tests_tree_get, AtTerminalTestsCtx, .json_out = json, .grown = &differences);
     // a place and a key are each a node of the differences: as many as their nodes, and settings.json, contain them
     const unsigned int capacity =
         ((json->nodes + 1u) < CLI_AT_TERMINAL_ALLOCATED) ? (json->nodes + 1u) : CLI_AT_TERMINAL_ALLOCATED;
@@ -440,14 +427,14 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     }
     else
     {
-        char *const allocating_text = tests_transferred_alloc();
-        VerbaLinea allocating = mmgr_line_over(allocating_text, CLI_AT_TERMINAL_TRANSFERRED);
+        CliGrownLine allocating;
+        cli_grown_begin(&allocating, CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
         done = EMBED_CALL(cli_settings_sync_home.take, CliSettingsSyncHomeCfg, .home = home, .from = from,
                           .there = &s_there, .positions = chosen_positions, .count = positions, .keys = chosen_keys,
-                          .key_count = keys, .out = &allocating, .err_msg = err_msg);
+                          .key_count = keys, .out = &allocating.line, .err_msg = err_msg);
         CliJson consumed_tree;
-        const unsigned int consumed = EMBED_CALL(tests_tree_get, AtTerminalTestsCtx, .json_out = &consumed_tree,
-                                                 .cell = allocating_text, .line = &allocating);
+        const unsigned int consumed =
+            EMBED_CALL(tests_tree_get, AtTerminalTestsCtx, .json_out = &consumed_tree, .grown = &allocating);
         if (done)
         {
             const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -488,13 +475,13 @@ int cli_at_terminal_undo(const CliAtTerminalCfg *args)
     const char *id = args->id;
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
-    char *const allocating_text = tests_transferred_alloc();
-    VerbaLinea allocating = mmgr_line_over(allocating_text, CLI_AT_TERMINAL_TRANSFERRED);
-    const int done = EMBED_CALL(cli_settings_sync_home_out.undo, CliSettingsSyncHomeOutCfg, .home = home,
-                                .id = id, .out = &allocating, .err_msg = err_msg);
+    CliGrownLine allocating;
+    cli_grown_begin(&allocating, CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
+    const int done = EMBED_CALL(cli_settings_sync_home_out.undo, CliSettingsSyncHomeOutCfg, .home = home, .id = id,
+                                .out = &allocating.line, .err_msg = err_msg);
     CliJson tree;
     const unsigned int consumed =
-        EMBED_CALL(tests_tree_get, AtTerminalTestsCtx, .json_out = &tree, .cell = allocating_text, .line = &allocating);
+        EMBED_CALL(tests_tree_get, AtTerminalTestsCtx, .json_out = &tree, .grown = &allocating);
     if (done)
     {
         unsigned long long size = 0ULL;

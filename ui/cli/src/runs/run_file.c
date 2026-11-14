@@ -37,8 +37,8 @@ void cli_run_file_quote(const CliRunFileCfg *args)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->path, .at = at, .size = whole, .set = "'");
-        const size_t from = args->out->at;
-        const size_t reserved = mmgr_line_put_n(args->out, args->path + at, (size_t)(stop - at));
+        const embed_word from = args->out->at;
+        const embed_word reserved = mmgr_line_put_n(args->out, args->path + at, (embed_word)(stop - at));
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out->out + from, .size = reserved,
                    .from = '\\', .to = '/');
         if (stop < whole)
@@ -335,7 +335,7 @@ int cli_run_file_line(const CliRunFileCfg *args)
     int done = 0;
     if (named == 0u)
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no way to run a ");
+        mmgr_line_put(args->err_msg, "impero has no way to run a ");
         mmgr_line_put(args->err_msg, args->language);
         mmgr_line_put(args->err_msg, " file");
     }

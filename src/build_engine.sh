@@ -43,7 +43,7 @@ echo "  architectures: $ARCHES"
 
 rm -f "$LIBRARY"
 
-EXACT_ROOT="${ORIOR_EXACT_ROOT:-$TOP/src/cu/includes/types/integers}"
+EXACT_ROOT="${ORIOR_EXACT_ROOT:-$TOP/includes/exact_types/integers}"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$TOP/src/cu/engine"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 QUESTION_LIMBS=$((RESIDUAL_LIMBS + 1))
@@ -64,14 +64,14 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXA
 
 DEFINES=(-DBODY_OVERLAP_BUILD_DLL=1 -DHEAVIEST_MATCHING_BUILD_DLL=1
          -DSHIFT_AGREEMENT_BUILD_DLL=1)
-MODULES=(engine/formats/stack cu/includes/formats/stack cu/includes/file_defs/krep
+MODULES=(engine/formats/stack ../includes/formats/stack ../includes/file_defs/krep
          engine/analysis/compression cu/engine/analysis/compression engine/analysis/tower
          cu/engine/analysis/tower engine/runtime/device_pool cu/engine/runtime/device_pool
          engine/analysis/entropy_history cu/engine/analysis/entropy_history engine/analysis/noise_detector
          cu/engine/analysis/noise_detector engine/runtime/schedule cu/engine/runtime/schedule
          engine/compiler/keymath cu/engine/analysis/keymath engine/compiler/key_schedule
          cu/engine/analysis/key_schedule engine/compiler/cycle cu/engine/analysis/cycle
-         engine/compiler/codegen cu/engine/rmc cu/includes/parsers cu/includes/file_defs/klq engine/runtime/radix_keys
+         engine/compiler/codegen cu/engine/rmc ../includes/parsers ../includes/file_defs/klq engine/runtime/radix_keys
          engine/analysis/unit_sweep cu/engine/analysis/unit_sweep engine/runtime/obsignatio
          cu/engine/runtime/obsignatio engine/analysis/residual cu/engine/analysis/residual
          engine/nbody/max_tree cu/engine/nbody/max_tree engine/nbody/flatten cu/engine/nbody/flatten
@@ -83,17 +83,17 @@ MODULES=(engine/formats/stack cu/includes/formats/stack cu/includes/file_defs/kr
          cu/engine/nbody/print_pair engine/nbody/velocity cu/engine/nbody/velocity engine/nbody/division
          cu/engine/nbody/division engine/nbody/marginal cu/engine/nbody/marginal engine/nbody/contact_side
          cu/engine/nbody/contact_side engine/nbody/box_history cu/engine/nbody/box_history
-         engine/nbody/heaviest_matching engine/arithmetic/double_fields cu/includes/types/integerfloats/double_fields engine/arithmetic/decimal_double
+         engine/nbody/heaviest_matching engine/arithmetic/double_fields ../includes/exact_types/integerfloats/double_fields engine/arithmetic/decimal_double
          engine/analysis/period cu/engine/analysis/period)
-INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate
-        cu/includes/codecs/deflate cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc
-        cu/includes/formats/tiff cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom
-        cu/includes/formats/npy cu/includes/formats/nrrd cu/includes/formats/nifti
-        cu/includes/formats/parquet)
+INGEST=(../includes/formats/cfg_json ../includes/formats/zarr ../includes/codecs/zstd ../includes/codecs/inflate
+        ../includes/codecs/deflate ../includes/codecs/lz4 ../includes/codecs/snappy ../includes/codecs/blosc
+        ../includes/formats/tiff ../includes/formats/hdf5 ../includes/codecs/zip ../includes/formats/dicom
+        ../includes/formats/npy ../includes/formats/nrrd ../includes/formats/nifti
+        ../includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
-MODULE_INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc")
+MODULE_INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/includes/codecs/crc")
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources built with the C ones
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+source "$TOP/includes/file_defs/file_defs.sh"
 MODULE_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 MODULE_SOURCES=("$TOP/src/cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
@@ -183,8 +183,8 @@ for source in "${MODULE_SOURCES[@]}"; do
 done
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/marginal \
-                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double \
-                cu/includes/types/integers/exact_record "${INGEST[@]}"; do
+                ../includes/exact_types/integerfloats/double_fields ../includes/exact_types/integerfloats/decimal_double \
+                ../includes/exact_types/integers/exact_record "${INGEST[@]}"; do
     # A folder with no C file leaves the pattern unexpanded, and it names no file to build.
     for source in "$TOP/src/$portable"/*.c; do
         [ -f "$source" ] && listed "$source" "${C_WORDS[@]}"

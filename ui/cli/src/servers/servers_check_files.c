@@ -88,7 +88,7 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         text_bytes +=
             root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_POOL_BYTES}) + 2ULL;
     }
-    s_batch = g_cli_guard->persistent_buf_alloc(sizeof(*s_batch), g_cli_servers_check_owner);
+    s_batch = g_cli_guard->temporary_buf_alloc(sizeof(*s_batch), g_cli_servers_check_owner);
     char *const text = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_servers_check_owner);
     const char **const paths =
         g_cli_guard->temporary_buf_alloc(((unsigned long long)most + 1ULL) * sizeof(*paths), g_cli_servers_check_owner);
@@ -148,7 +148,7 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         {
             continue;
         }
-        memor.cpy(&(MemoriaCfg){.dst = text + used, .src = full, .bytes = (size_t)length});
+        memor.cpy(&(MemoriaCfg){.dst = text + used, .src = full, .bytes = (embed_word)length});
         paths[waiting] = text + used;
         used += length;
         EMBED_CALL(cli_servers_path_language_internal.id_get, CliServersPathLanguageCtx, .spec_read = &language->spec,

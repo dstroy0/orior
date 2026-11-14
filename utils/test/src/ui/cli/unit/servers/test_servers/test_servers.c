@@ -185,13 +185,16 @@ static void release_run_result(void)
     diagnostics_published(s_uri, 1u);
     diagnostics_published(s_written, 0u);
     memor.cpy(&(MemoriaCfg){.dst = s_passed_on_after_clear, .src = s_passed_on, .bytes = sizeof(s_passed_on)});
-    const char *adjacent = NULL;
-    unsigned long long size = 0ull;
-    const char *const published = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_published, .key = key, .adjacent = &adjacent, .size = &size);
-    if (published != NULL)
+    const unsigned int place = EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_published, .key = key);
+    if (place != CLI_KEYED_NONE)
     {
+        // the diagnostics published read out of their cell into the check's own bytes for the parse
+        static char s_published[1u << 16u];
+        const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_published, .at = place);
+        TEST_ASSERT_TRUE(one.text_size < sizeof(s_published));
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one.cell, .offset = (embed_word)one.text_at, .dst = s_published, .bytes = (embed_word)one.text_size});
         unsigned int read = CLI_JSON_NONE;
-        const CliJson *const json = cli_unity_parsed(published, size, &read);
+        const CliJson *const json = cli_unity_parsed(s_published, one.text_size, &read);
         s_release_items = json->node[read].count;
     }
     diagnostics_published(s_uri, 0u);
@@ -523,4 +526,70 @@ void test_another_report_names_no_attribute(void)
     unsigned long long name_size = 0ull;
     unsigned long long class_size = 0ull;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_servers_length_internal.attribute_get, CliServersLengthCtx, .message = s_other, .length = sizeof(s_other) - 1u, .name_pointer = &name, .name_size = &name_size, .class_name = &class_name, .class_size = &class_size));
+}
+
+// the jobs handed over: how many ran with their bytes, how many ran with none, and each value's count of runs
+#define JOBS_THREADS 4u
+#define JOBS_EACH 64u
+static _Atomic unsigned int s_jobs_run;
+static _Atomic unsigned int s_jobs_empty;
+static _Atomic unsigned int s_jobs_refused;
+static _Atomic unsigned int s_jobs_value[JOBS_THREADS * JOBS_EACH];
+static CliThread s_jobs_thread[JOBS_THREADS];
+static unsigned int s_jobs_first[JOBS_THREADS];
+
+// a job: its value counted, or the run counted as empty where the bytes are gone
+static void jobs_counted(const CliServersJobCfg *args)
+{
+    if ((args->job == NULL) || (args->size != sizeof(unsigned int)))
+    {
+        (void)atomic_fetch_add(&s_jobs_empty, 1u);
+        return;
+    }
+    const unsigned int value = *(const unsigned int *)args->job;
+    (void)atomic_fetch_add(&s_jobs_value[value], 1u);
+    (void)atomic_fetch_add(&s_jobs_run, 1u);
+}
+
+// a thread that hands JOBS_EACH jobs over, each a value of its own, and counts the hand-overs refused
+static void jobs_handed(void *context)
+{
+    const unsigned int first = *(const unsigned int *)context;
+    for (unsigned int at = 0u; at < JOBS_EACH; at += 1u)
+    {
+        unsigned int value = first + at;
+        if (!EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = jobs_counted, .job = &value, .size = sizeof(value)))
+        {
+            (void)atomic_fetch_add(&s_jobs_refused, 1u);
+        }
+    }
+}
+
+void test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes(void)
+{
+    atomic_store(&s_jobs_run, 0u);
+    atomic_store(&s_jobs_empty, 0u);
+    atomic_store(&s_jobs_refused, 0u);
+    for (unsigned int at = 0u; at < JOBS_THREADS * JOBS_EACH; at += 1u)
+    {
+        atomic_store(&s_jobs_value[at], 0u);
+    }
+    for (unsigned int at = 0u; at < JOBS_THREADS; at += 1u)
+    {
+        s_jobs_first[at] = at * JOBS_EACH;
+        s_jobs_thread[at] = (CliThread){jobs_handed, &s_jobs_first[at], CLI_PRIORITY_WORK};
+        TEST_ASSERT_TRUE(EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_jobs_thread[at]));
+    }
+    const unsigned long long until = cli_clock_milliseconds() + 10000ull;
+    while ((atomic_load(&s_jobs_run) + atomic_load(&s_jobs_empty) < JOBS_THREADS * JOBS_EACH) && (cli_clock_milliseconds() < until))
+    {
+        cli_thread_yield();
+    }
+    TEST_ASSERT_EQUAL_UINT(0u, atomic_load(&s_jobs_refused));
+    TEST_ASSERT_EQUAL_UINT(0u, atomic_load(&s_jobs_empty));
+    TEST_ASSERT_EQUAL_UINT(JOBS_THREADS * JOBS_EACH, atomic_load(&s_jobs_run));
+    for (unsigned int at = 0u; at < JOBS_THREADS * JOBS_EACH; at += 1u)
+    {
+        TEST_ASSERT_EQUAL_UINT(1u, atomic_load(&s_jobs_value[at]));
+    }
 }

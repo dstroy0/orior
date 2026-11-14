@@ -320,9 +320,9 @@ int query_writer_records_import_list(const QueryFromWriterCtx *args)
         }
         line += length + gap;
     }
-    const int carried = (count == 0u) || EMBED_CALL(query_count_name_internal.writer_records_import,
-                                                    QueryCountNameCtx, .writer = args->writer, .from = args->from,
-                                                    .names = named, .count = count, .err_msg = args->err_msg);
+    const int carried = (count == 0u) || EMBED_CALL(query_count_name_internal.writer_records_import, QueryCountNameCtx,
+                                                    .writer = args->writer, .from = args->from, .names = named,
+                                                    .count = count, .err_msg = args->err_msg);
     if (count == 0u)
     {
         mmgr_line_put(args->err_msg, "no records carried from ");

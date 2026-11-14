@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // page.c: a listing read, the page it prints on, and the listing laid out in pages, each line with its number and a
 // long line going on under itself
+#include "../../../../includes/arith/arith.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
 #include "print.h"
-
-#include <math.h>
 
 // The listing, its layout and the letters a run is laid out from, sized to the longest run: the work state, a cell
 // taken with the lock printing is done under, its lists cells of their own at their most, every one given back with the
@@ -32,16 +31,16 @@ void cli_print_alloc(void)
     const unsigned long long piece_bytes = (unsigned long long)CLI_PRINT_PIECES * sizeof(CliPrintPiece);
     const unsigned long long letter_bytes = (unsigned long long)CLI_PRINT_LETTERS * sizeof(unsigned int);
     const unsigned long long list_bytes = line_bytes + run_bytes + row_bytes + piece_bytes + letter_bytes;
-    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_print_owner);
-    char *const cell = (s_work_state != NULL)
-                           ? g_cli_guard->persistent_buf_alloc(list_bytes + (2ULL * CLI_PRINT_TEXT), g_cli_print_owner)
-                           : NULL;
-    if (cell == NULL)
-    {
-        g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
-        s_work_state = NULL;
-        return;
-    }
+    // the work state and its lists are the printer's own for as long as printing stands, at their most, so they
+    // stand fixed outside the pool, where they punch no hole in the persistent tier
+    static CliPrintWorkState s_state;
+    static char s_lists[((unsigned long long)CLI_PRINT_LINES * sizeof(CliPrintLine)) +
+                        ((unsigned long long)CLI_PRINT_RUNS * sizeof(CliPrintRun)) +
+                        ((unsigned long long)CLI_PRINT_ROWS * sizeof(CliPrintRow)) +
+                        ((unsigned long long)CLI_PRINT_PIECES * sizeof(CliPrintPiece)) +
+                        ((unsigned long long)CLI_PRINT_LETTERS * sizeof(unsigned int)) + (2ULL * CLI_PRINT_TEXT)];
+    s_work_state = &s_state;
+    char *const cell = s_lists;
     memor.set(&(MemoriaCfg){.dst = s_work_state, .val = 0, .bytes = sizeof(*s_work_state)});
     s_work_state->listing.line = (CliPrintLine *)(void *)cell;
     s_work_state->listing.lines_capacity = CLI_PRINT_LINES;
@@ -61,11 +60,6 @@ void cli_print_alloc(void)
 
 void cli_print_release(void)
 {
-    if (s_work_state != NULL)
-    {
-        g_cli_guard->persistent_buf_release(s_work_state->listing.line, g_cli_print_owner);
-    }
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
     s_work_state = NULL;
 }
 
@@ -224,7 +218,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
     full = full || ((longest + 1u) > s_work_state->letters_capacity);
     if (full)
     {
-        mmgr_line_put(args->err_msg, "the listing contains more than orior_cli prints");
+        mmgr_line_put(args->err_msg, "the listing contains more than impero prints");
         return 0;
     }
     *listing = listing_at;
@@ -456,24 +450,6 @@ unsigned int cli_print_ranges(const CliPrintLayoutLowCfg *args)
     return ranges.count;
 }
 
-// a hex digit's value, or 16 where the byte is none
-EMBED_INLINE unsigned int cli_hex(const PageCtx *args)
-{
-    if ((args->digit >= '0') && (args->digit <= '9'))
-    {
-        return (unsigned int)(args->digit - '0');
-    }
-    if ((args->digit >= 'a') && (args->digit <= 'f'))
-    {
-        return (unsigned int)(args->digit - 'a') + 10u;
-    }
-    if ((args->digit >= 'A') && (args->digit <= 'F'))
-    {
-        return (unsigned int)(args->digit - 'A') + 10u;
-    }
-    return 16u;
-}
-
 void cli_print_color(const CliPrintTextCfg *args)
 {
     const char *from = args->text;
@@ -485,15 +461,17 @@ void cli_print_color(const CliPrintTextCfg *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         const unsigned long long place = 2ULL * at;
-        const unsigned int high = (place + 1ULL < size) ? EMBED_CALL(cli_hex, PageCtx, .digit = from[place]) : 16u;
-        const unsigned int low = (place + 1ULL < size) ? EMBED_CALL(cli_hex, PageCtx, .digit = from[place + 1u]) : 16u;
+        const unsigned int high =
+            (place + 1ULL < size) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg, .byte = from[place]) : 16u;
+        const unsigned int low =
+            (place + 1ULL < size) ? EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg, .byte = from[place + 1u]) : 16u;
         // a byte is two hex digits, 0x22 where they are none
         args->rgb[at] = ((size >= 6ULL) && (high < 16u) && (low < 16u)) ? (unsigned char)((high << 4u) | low) : 0x22u;
     }
     if (args->gray)
     {
-        const float level =
-            roundf((0.2126f * (float)args->rgb[0]) + (0.7152f * (float)args->rgb[1]) + (0.0722f * (float)args->rgb[2]));
+        const float level = arith_round_f32((0.2126f * (float)args->rgb[0]) + (0.7152f * (float)args->rgb[1]) +
+                                            (0.0722f * (float)args->rgb[2]));
         // a lightness of three bytes is a byte
         args->rgb[0] = (unsigned char)level;
         args->rgb[1] = args->rgb[0];
@@ -649,11 +627,12 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
                .height = &height);
     laid->number_columns = EMBED_CALL(cli_number_columns, PageCtx, .listing_read = args->listing);
     // a page's columns and rows are whole and not negative, the floor of what fits
-    const unsigned long long fit = (unsigned long long)floorf((width - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_ADVANCE);
+    const unsigned long long fit =
+        (unsigned long long)arith_floor_f32((width - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_ADVANCE);
     const unsigned long long left = (fit > laid->number_columns) ? (fit - laid->number_columns) : 0ULL;
     const unsigned long long columns = (left > 8ULL) ? left : 8ULL;
     const unsigned long long rows =
-        (unsigned long long)floorf((height - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_LEADING);
+        (unsigned long long)arith_floor_f32((height - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_LEADING);
     // a page contains far fewer rows than an unsigned int counts
     laid->rows_per_page = (rows > 1ULL) ? (unsigned int)rows : 1u;
     const unsigned long long tab = args->listing->tab;

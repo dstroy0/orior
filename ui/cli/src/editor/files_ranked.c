@@ -24,22 +24,15 @@ int cli_files_unread(const CliFilesRootPathsCfg *args)
     return !EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = root);
 }
 
-// A file in the bounded list: its place among the files, or among the recent paths while the tree is not listed, and
-// its score
-typedef struct
-{
-    unsigned int at;
-    double score;
-} RankedTop;
-
 // the query's letters, a path's letters as they are and in lower case, the latest place each letter of a match may
-// take, the places a match took, and the bounded list, for one find at a time on the view's thread
+// take, the places a match took, and the bounded list, each file's place among the files, or among the recent paths
+// while the tree is not listed, with its score, for one find at a time on the view's thread
 static unsigned int s_required[CLI_FUZZY_LETTERS];
 static unsigned int s_shown[CLI_FUZZY_LETTERS];
 static unsigned int s_lower[CLI_FUZZY_LETTERS];
 static unsigned int s_latest[CLI_FUZZY_LETTERS];
 static unsigned int s_hit[CLI_FUZZY_LETTERS];
-static RankedTop s_top[CLI_FILES_RANKED_MOST];
+static CliTopPlace s_top[CLI_FILES_RANKED_MOST];
 
 typedef struct
 {
@@ -120,37 +113,6 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
     return 1;
 }
 
-// the file `at` with `score` put in the bounded list of `count` files, at most `most`, after every file scoring as much
-// or more, found by a binary search, the last let go where the list is full: the list's count
-EMBED_INLINE unsigned int ranked_put(const FilesRankedCtx *args)
-{
-    unsigned int low = 0u;
-    unsigned int high = args->count;
-    while (low < high)
-    {
-        const unsigned int middle = low + ((high - low) / 2u);
-        if (s_top[middle].score >= args->score)
-        {
-            low = middle + 1u;
-        }
-        else
-        {
-            high = middle;
-        }
-    }
-    if (low >= args->most)
-    {
-        return args->count;
-    }
-    const unsigned int count = (args->count < args->most) ? (args->count + 1u) : args->most;
-    for (unsigned int at = count - 1u; at > low; at -= 1u)
-    {
-        s_top[at] = s_top[at - 1u];
-    }
-    s_top[low] = (RankedTop){args->at, args->score};
-    return count;
-}
-
 int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
 {
     CliFilesRanked *const rows = args->rows;
@@ -175,7 +137,8 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
         if (EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .path = path, .required = required,
                        .score_out = &score, .hits_out = &hits))
         {
-            count = EMBED_CALL(ranked_put, FilesRankedCtx, .at = at, .score = score, .count = count, .most = most);
+            count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = s_top, .at = at, .score = score,
+                               .count = count, .most = most);
         }
     }
     // the answer's bytes: the rows, every row's places, and the paths with their ends
@@ -196,7 +159,7 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     const unsigned long long row_bytes = (unsigned long long)count * sizeof(CliFileRanked);
     const unsigned long long place_bytes = places * sizeof(unsigned int);
     unsigned char *const cell =
-        (count != 0u) ? g_cli_guard->persistent_buf_alloc(row_bytes + place_bytes + text, args->owner) : NULL;
+        (count != 0u) ? g_cli_guard->temporary_buf_alloc(row_bytes + place_bytes + text, args->owner) : NULL;
     if ((count != 0u) && (cell == NULL))
     {
         if (files != NULL)

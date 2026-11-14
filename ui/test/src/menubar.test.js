@@ -157,11 +157,11 @@ test("a command given at a command line on the tree runs in this window, as its 
   newTerminal();
   const screen = () => document.getElementById("term-views").textContent;
   try {
-    runInTerminal("orior_gui view word-wrap on");
+    runInTerminal("tab view word-wrap on");
     await ui.waitFor(() => editing().wordWrap(), 30000, "the window to wrap its words").catch((error) => {
       throw new Error(`${error.message}; the terminal shows: ${screen().trim().slice(-600)}`);
     });
-    runInTerminal("orior_gui view word-wrap off");
+    runInTerminal("tab view word-wrap off");
     await ui.waitFor(() => !editing().wordWrap(), 30000, "the window to stop wrapping");
     assert.ok(document.querySelectorAll("#tabs .tab").length > 0, "the same window, its tabs still open");
   } finally {

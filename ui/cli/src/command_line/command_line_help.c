@@ -3,7 +3,7 @@
 // command_line_help.c: the help, made from the menus: a line for each command, the ones that act in the window marked,
 // its usage in a left column and what it does wrapped beside it; the keys of every command that has some, by menu;
 // the words that can follow a menu, its commands and its jobs or their subjects; and the completion script for bash,
-// zsh, fish or PowerShell, which queries orior_cli itself for the words after the first
+// zsh, fish or PowerShell, which queries impero itself for the words after the first
 #include "../text/text.h"
 #include "callback_cfg.h"
 #include "command_line_internal.h"
@@ -162,7 +162,7 @@ static void help_rows(const CommandLineHelpCtx *args)
     static char s_usage[CLI_HELP_ROW];
     static char s_desc_buf[CLI_HELP_ROW];
     static char s_groups[CLI_HELP_GROUPS][CLI_LABEL_MAX_LEN];
-    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "orior", .desc = "open the window");
+    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "imp", .desc = "open the window");
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
     {
         char word_text[CLI_LABEL_MAX_LEN];
@@ -172,7 +172,7 @@ static void help_rows(const CommandLineHelpCtx *args)
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             VerbaLinea usage = {s_usage, sizeof(s_usage), 0ULL};
-            mmgr_line_put(&usage, "orior_cli ");
+            mmgr_line_put(&usage, "imp ");
             mmgr_line_put(&usage, word_text);
             mmgr_line_ch(&usage, ' ');
             mmgr_line_put(&usage, s_items[at].command);
@@ -194,7 +194,7 @@ static void help_rows(const CommandLineHelpCtx *args)
             char split[CLI_LABEL_MAX_LEN];
             EMBED_CALL(cli_commands_menu_split.menu_split, CliCommandsMenuSplitCfg, .menu = menu, .split = split);
             VerbaLinea usage = {s_usage, sizeof(s_usage), 0ULL};
-            mmgr_line_put(&usage, "orior_cli ");
+            mmgr_line_put(&usage, "imp ");
             mmgr_line_put(&usage, word_text);
             if (split[0] != '\0')
             {
@@ -216,15 +216,15 @@ static void help_rows(const CommandLineHelpCtx *args)
             EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = s_usage, .desc = s_desc_buf);
         }
     }
-    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "orior_cli run <job> [key=value] [-- words]",
-               .desc = "start a job, as orior_cli run start");
-    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "orior_cli list | show <job> | bridge [key]",
-               .desc = "as orior_cli run list, run show and go bridge");
-    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "orior_cli <file>[:line[:column]]",
+    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "imp run <job> [key=value] [-- words]",
+               .desc = "start a job, as imp run start");
+    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "imp list | show <job> | bridge [key]",
+               .desc = "as imp run list, run show and go bridge");
+    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "imp <file>[:line[:column]]",
                .desc = "* open a file of the tree in the window, at a line and column");
-    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "orior_cli --completions <shell>",
+    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "imp --completions <shell>",
                .desc = "the completions for bash, zsh, fish or powershell");
-    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "orior_cli help", .desc = "this");
+    EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = "imp help", .desc = "this");
 }
 
 void cli_help(const CliCommandLineOutErrMsgShellCtx *args)
@@ -383,7 +383,7 @@ EMBED_INLINE void help_bash(const CommandLineHelpCtx *args)
     mmgr_line_put(args->out, "_orior() {\n  local cur=${COMP_WORDS[COMP_CWORD]}\n  if [ \"$COMP_CWORD\" -eq 1 ]; then\n"
                              "    COMPREPLY=($(compgen -W \"");
     EMBED_CALL(help_first, CommandLineHelpCtx, .out = args->out, .quoted = 0);
-    mmgr_line_put(args->out, "\" -- \"$cur\"))\n  else\n    COMPREPLY=($(compgen -W \"$(orior_cli __words "
+    mmgr_line_put(args->out, "\" -- \"$cur\"))\n  else\n    COMPREPLY=($(compgen -W \"$(imp __words "
                              "\"${COMP_WORDS[1]}\" 2>/dev/null)\" -- \"$cur\"))\n  fi\n}\n"
                              "complete -o default -F _orior orior\n");
 }
@@ -403,27 +403,27 @@ int cli_completions(const CliCommandLineOutErrMsgShellCtx *args)
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "fish", .cap = CLI_POOL_BYTES}))
     {
-        mmgr_line_put(args->out, "complete -c orior_cli -n __fish_use_subcommand -a \"");
+        mmgr_line_put(args->out, "complete -c imp -n __fish_use_subcommand -a \"");
         EMBED_CALL(help_first, CommandLineHelpCtx, .out = args->out, .quoted = 0);
-        mmgr_line_put(args->out, "\"\ncomplete -c orior_cli -n 'not __fish_use_subcommand' -a "
-                                 "'(orior_cli __words (commandline -opc)[2])'\n");
+        mmgr_line_put(args->out, "\"\ncomplete -c imp -n 'not __fish_use_subcommand' -a "
+                                 "'(imp __words (commandline -opc)[2])'\n");
         return 1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->shell, .other = "powershell", .cap = CLI_POOL_BYTES}))
     {
-        mmgr_line_put(args->out, "Register-ArgumentCompleter -Native -CommandName orior_cli -ScriptBlock {\n"
+        mmgr_line_put(args->out, "Register-ArgumentCompleter -Native -CommandName imp -ScriptBlock {\n"
                                  "  param($word, $ast, $at)\n"
                                  "  $given = @($ast.CommandElements | ForEach-Object { $_.ToString() })\n"
                                  "  if ($given.Count -le 1 -or ($given.Count -eq 2 -and $word)) { $all = @(");
         EMBED_CALL(help_first, CommandLineHelpCtx, .out = args->out, .quoted = 1);
         mmgr_line_put(args->out,
-                      ") } else { $all = @(& orior_cli __words $given[1]) }\n"
+                      ") } else { $all = @(& imp __words $given[1]) }\n"
                       "  $all | Where-Object { $_ -like \"$word*\" } | ForEach-Object { "
                       "[System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }\n"
                       "}\n");
         return 1;
     }
-    mmgr_line_put(args->err_msg, "orior_cli has no completions for ");
+    mmgr_line_put(args->err_msg, "impero has no completions for ");
     mmgr_line_put(args->err_msg, args->shell);
     mmgr_line_put(args->err_msg, ": bash, zsh, fish or powershell");
     return 0;

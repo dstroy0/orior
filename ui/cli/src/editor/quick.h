@@ -9,6 +9,7 @@
 // them, each a set of offsets into its text and its marks; the window draws them and hands the input on (quick.c)
 #ifndef QUICK_H
 #define QUICK_H
+#include "../command_line/commands.h"
 #include "document.h"
 #include "embed_dispatch_layout.h"
 
@@ -49,21 +50,21 @@ typedef struct CliQuickCfg CliQuickCfg;
 #define CLI_QUICK_MARKS 32u
 #define CLI_QUICK_CHOSEN 0xFFFFFFFFu
 
-// A row as the window draws it: its type; its label, its detail drawn quieter after it and the keys of a command at
-// the right end, each with its bytes; and the marks of the letters that matched, pairs of a byte offset and bytes,
-// `label_mark_count` pairs into the label and `detail_mark_count` into the detail
+// A row as the window draws it, copied out of the rows' cell: its type; its label, its detail drawn quieter after it
+// and the keys of a command at the right end, each ended, with its bytes; and the marks of the letters that matched,
+// pairs of a byte offset and bytes, `label_mark_count` pairs into the label and `detail_mark_count` into the detail
 typedef struct
 {
     unsigned int type;
-    const char *label;
+    char label[CLI_PATH_MAX_LEN];
     unsigned long long label_length;
-    const char *detail;
+    char detail[CLI_PATH_MAX_LEN];
     unsigned long long detail_length;
-    const char *keys;
+    char keys[CLI_LABEL_MAX_LEN];
     unsigned long long keys_length;
-    const unsigned int *label_marks;
+    unsigned int label_marks[2u * CLI_QUICK_MARKS];
     unsigned int label_mark_count;
-    const unsigned int *detail_marks;
+    unsigned int detail_marks[2u * CLI_QUICK_MARKS];
     unsigned int detail_mark_count;
 } CliQuickRow;
 

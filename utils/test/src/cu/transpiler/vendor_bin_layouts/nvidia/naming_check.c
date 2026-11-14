@@ -13,7 +13,7 @@
 //   operand
 //
 //     naming_check <mnemonics>
-#include "../../../../../../../src/cu/includes/file_defs/khw/khw_machine_write/khw_machine_write_internal.h"
+#include "../../../../../../../includes/file_defs/khw/khw_machine_write/khw_machine_write_internal.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;

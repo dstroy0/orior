@@ -67,17 +67,17 @@ void test_a_fingerprint_differs_by_category(void)
 
 void test_a_panic_in_the_library_is_categorized_library(void)
 {
-    TEST_ASSERT_EQUAL_STRING("library", EMBED_CALL(cli_report.panic_category, CliReportCfg, .trace = "std::panicking\n  orior_cli::files::read\n  orior_gui_lib::run"));
+    TEST_ASSERT_EQUAL_STRING("library", EMBED_CALL(cli_report.panic_category, CliReportCfg, .trace = "std::panicking\n  impero::files::read\n  tabvla_lib::run"));
 }
 
 void test_a_panic_in_the_command_line_is_categorized_cli(void)
 {
-    TEST_ASSERT_EQUAL_STRING("cli", EMBED_CALL(cli_report.panic_category, CliReportCfg, .trace = "std::panicking\n  orior_cli::cli::run"));
+    TEST_ASSERT_EQUAL_STRING("cli", EMBED_CALL(cli_report.panic_category, CliReportCfg, .trace = "std::panicking\n  impero::cli::run"));
 }
 
 void test_a_panic_in_the_window_is_categorized_ui(void)
 {
-    TEST_ASSERT_EQUAL_STRING("ui", EMBED_CALL(cli_report.panic_category, CliReportCfg, .trace = "std::panicking\n  orior_gui_lib::start"));
+    TEST_ASSERT_EQUAL_STRING("ui", EMBED_CALL(cli_report.panic_category, CliReportCfg, .trace = "std::panicking\n  tabvla_lib::start"));
 }
 
 void test_a_panic_outside_orior_is_categorized_unknown(void)

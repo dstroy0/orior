@@ -10,8 +10,7 @@
 #include "../toolchains/toolchains.h"
 
 // A profile: whether its place is taken, where it reports, its process and whether it still waits to be waited on, its
-// readers still reading, under the profiles' lock, the code the shim reported the program ended with, and the cells its
-// words and the PATH it runs with are allocated in, taken with its place and given back with it
+// readers still reading, under the profiles' lock, and the code the shim reported the program ended with
 typedef struct
 {
     int reserved;
@@ -23,8 +22,6 @@ typedef struct
     long long code;
     CliThread output_thread;
     CliThread error_thread;
-    CliWords *words;
-    char *path;
 } CliProfile;
 typedef struct
 {
@@ -176,7 +173,7 @@ static void profile_lines(const ProfileCtx *args)
                 EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = piece, .at = at, .size = count).stop;
             const unsigned long long left = capacity - used;
             const unsigned long long fits = ((stop - at) < left) ? (stop - at) : left;
-            memor.cpy(&(MemoriaCfg){.dst = line + used, .src = piece + at, .bytes = (size_t)fits});
+            memor.cpy(&(MemoriaCfg){.dst = line + used, .src = piece + at, .bytes = (embed_word)fits});
             used += fits;
             at += fits;
             if (at < stop)
@@ -218,10 +215,6 @@ EMBED_INLINE void profile_reader_end(const ProfileCtx *args)
     if (args->profile->going == 0u)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->profile->spawned);
-        g_cli_guard->persistent_buf_release(args->profile->words, g_cli_profile_owner);
-        g_cli_guard->persistent_buf_release(args->profile->path, g_cli_profile_owner);
-        args->profile->words = NULL;
-        args->profile->path = NULL;
         args->profile->reserved = 0;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
@@ -313,24 +306,12 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
     profile->has_code = 0;
     profile->code = 0LL;
     memor.set(&(MemoriaCfg){.dst = &profile->spawned, .val = 0, .bytes = sizeof(profile->spawned)});
-    profile->words = g_cli_guard->persistent_buf_alloc(sizeof(*profile->words), g_cli_profile_owner);
-    profile->path = NULL;
-    if (profile->words != NULL)
-    {
-        profile->words->count = 0u;
-        profile->words->used = 0u;
-        profile->words->full = 0;
-    }
     return profile;
 }
 
 // a profile's place given back where its process did not start
 EMBED_INLINE void profile_let_go(const ProfileCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->profile->words, g_cli_profile_owner);
-    g_cli_guard->persistent_buf_release(args->profile->path, g_cli_profile_owner);
-    args->profile->words = NULL;
-    args->profile->path = NULL;
     args->profile->reserved = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
@@ -367,21 +348,27 @@ int cli_profile_start(const CliProfileCfg *args)
         return 0;
     }
     CliProfile *const profile = EMBED_CALL(profile_alloc, ProfileCtx, .sink = args->sink);
-    // the PATH a program here runs with, as long as the system lets an environment's value be
-    profile->path = ((profile->words != NULL) && !far)
-                        ? g_cli_guard->persistent_buf_alloc(CLI_PATH_TEXT, g_cli_profile_owner)
-                        : NULL;
-    if ((profile->words == NULL) || (!far && (profile->path == NULL)))
+    // the words the program is started with, and the PATH a program here runs with, as long as the system lets an
+    // environment's value be: cells of this call, given back once the program is started
+    CliWords *const words = g_cli_guard->temporary_buf_alloc(sizeof(*words), g_cli_profile_owner);
+    char *const path =
+        ((words != NULL) && !far) ? g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_profile_owner) : NULL;
+    if ((words == NULL) || (!far && (path == NULL)))
     {
+        g_cli_guard->persistent_buf_release(path, g_cli_profile_owner);
+        g_cli_guard->persistent_buf_release(words, g_cli_profile_owner);
         EMBED_CALL(profile_let_go, ProfileCtx, .profile = profile);
         mmgr_line_put(args->err_msg, "the cells a profile is run in could not be taken");
         return 0;
     }
+    words->count = 0u;
+    words->used = 0u;
+    words->full = 0;
     char host[CLI_PATH_MAX_LEN];
     char shell[CLI_PATH_MAX_LEN * 3u];
     char full[CLI_PATH_MAX_LEN];
     unsigned int settings_count = 1u;
-    CliSetting settings[2] = {{"PYTHONUNBUFFERED", "1"}, {"PATH", profile->path}};
+    CliSetting settings[2] = {{"PYTHONUNBUFFERED", "1"}, {"PATH", path}};
     if (far)
     {
         VerbaLinea host_line = {host, sizeof(host), 0ULL};
@@ -393,29 +380,32 @@ int cli_profile_start(const CliProfileCfg *args)
         mmgr_line_put(&shell_line, " && exec python3 - - ");
         EMBED_CALL(profile_quote, ProfileCtx, .out = &shell_line, .text = args->file);
         mmgr_line_finish(&shell_line);
-        const char *const words[5] = {"ssh", "-o", "BatchMode=yes", host, shell};
+        const char *const texts[5] = {"ssh", "-o", "BatchMode=yes", host, shell};
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
-            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = profile->words,
-                       .word_text = words[at]);
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word_text = texts[at]);
         }
     }
     else
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->file, .joined = full);
-        EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = profile->path,
-                   .size = CLI_PATH_TEXT);
+        EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = CLI_PATH_TEXT);
         settings_count = 2u;
-        const char *const words[4] = {python, "-", args->root, full};
+        const char *const texts[4] = {python, "-", args->root, full};
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = profile->words,
-                       .word_text = words[at]);
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word_text = texts[at]);
         }
     }
-    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &profile->spawned,
-                    .words = profile->words->word_text, .folder = far ? NULL : args->root, .settings = settings,
-                    .count = settings_count, .detached = 1, .err_msg = args->err_msg))
+    const int started =
+        EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &profile->spawned,
+                   .words = words->word_text, .folder = far ? NULL : args->root, .settings = settings,
+                   .count = settings_count, .detached = 1, .err_msg = args->err_msg);
+    g_cli_guard->persistent_buf_release(path, g_cli_profile_owner);
+    g_cli_guard->persistent_buf_release(words, g_cli_profile_owner);
+    if (!started)
     {
         EMBED_CALL(profile_let_go, ProfileCtx, .profile = profile);
         return 0;

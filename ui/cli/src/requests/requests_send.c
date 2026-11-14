@@ -8,9 +8,15 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// the most requests sent at once, each in a work state that is a cell of its own; how many are, their lock, and the
-// wake of a request waiting for one to end
+// the most requests sent at once, each in a fixed work state outside the pool with its body, its raw answer and the
+// answer undone, where they punch no hole in the persistent tier; how many are taken, and the wake of a request waiting
+// for one to end
 #define CLI_REQUESTS_WORK_STATES 2u
+#define REQUESTS_WORK_BYTES                                                                                            \
+    ((unsigned long long)CLI_REQUESTS_READ_STATE + (3ULL * ((unsigned long long)CLI_REQUESTS_BODY + 1ULL)))
+static CliRequestsWorkState s_work_states[CLI_REQUESTS_WORK_STATES];
+static unsigned char s_work_bytes[CLI_REQUESTS_WORK_STATES][REQUESTS_WORK_BYTES];
+static unsigned char s_work_taken[CLI_REQUESTS_WORK_STATES];
 
 static unsigned int s_capacities_used;
 static CliWake s_wake = CLI_WAKE_INIT;
@@ -21,26 +27,24 @@ CliRequestsWorkState *cli_requests_work_state_alloc(void)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
-    CliRequestsWorkState *work_state = g_cli_guard->persistent_buf_alloc(
-        sizeof(CliRequestsWorkState) + (unsigned long long)CLI_REQUESTS_READ_STATE, g_cli_requests_owner);
-    if (work_state != NULL)
+    // a free work state: its read state, the body, the raw answer and the answer undone in its fixed bytes, which the
+    // request's thread reads and writes while the request goes
+    unsigned int place = 0u;
+    while ((place < CLI_REQUESTS_WORK_STATES) && (s_work_taken[place] != 0u))
     {
-        work_state->read_state = (unsigned char *)(void *)(work_state + 1);
-        work_state->unpacked = NULL;
-        work_state->unpacked_capacity = 0ULL;
-        char *const body_cell = g_cli_guard->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ULL, g_cli_requests_owner);
-        char *const raw_cell = g_cli_guard->temporary_buf_alloc(CLI_REQUESTS_BODY + 1ULL, g_cli_requests_owner);
-        work_state->body = mmgr_line_over(body_cell, CLI_REQUESTS_BODY + 1ULL);
-        work_state->raw = mmgr_line_over(raw_cell, CLI_REQUESTS_BODY + 1ULL);
-        if ((body_cell == NULL) || (raw_cell == NULL))
-        {
-            g_cli_guard->persistent_buf_release(work_state->raw.out, g_cli_requests_owner);
-            g_cli_guard->persistent_buf_release(work_state->body.out, g_cli_requests_owner);
-            g_cli_guard->persistent_buf_release(work_state, g_cli_requests_owner);
-            work_state = NULL;
-        }
+        place += 1u;
     }
-    s_capacities_used += (work_state != NULL) ? 1u : 0u;
+    const unsigned long long body_bytes = (unsigned long long)CLI_REQUESTS_BODY + 1ULL;
+    CliRequestsWorkState *const work_state = &s_work_states[place];
+    s_work_taken[place] = 1u;
+    memor.set(&(MemoriaCfg){.dst = work_state, .val = 0, .bytes = sizeof(*work_state)});
+    work_state->read_state = s_work_bytes[place];
+    char *const body_cell = (char *)(void *)(work_state->read_state + CLI_REQUESTS_READ_STATE);
+    work_state->body = mmgr_line_over(body_cell, body_bytes);
+    work_state->raw = mmgr_line_over(body_cell + body_bytes, body_bytes);
+    work_state->unpacked = (unsigned char *)(void *)(body_cell + (2ULL * body_bytes));
+    work_state->unpacked_capacity = CLI_REQUESTS_BODY;
+    s_capacities_used += 1u;
     return work_state;
 }
 
@@ -50,14 +54,13 @@ void cli_requests_work_state_free(const CliRequestsSizeErrMsgCtx *args)
     {
         return;
     }
-    g_cli_guard->persistent_buf_release(args->work_state->unpacked, g_cli_requests_owner);
-    // what a request sent and what came back may carry a secret, and the pool leaves a cell as it is
+    // what a request sent and what came back may carry a secret, so its bytes are zeroed before the place is free
     mmgr_zero_buf(args->work_state->raw.out, args->work_state->raw.at);
     mmgr_zero_buf(args->work_state->body.out, args->work_state->body.at);
-    g_cli_guard->persistent_buf_release(args->work_state->raw.out, g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release(args->work_state->body.out, g_cli_requests_owner);
+    mmgr_zero_buf(args->work_state->unpacked, args->work_state->answer.size);
+    const unsigned int place = (unsigned int)(args->work_state - s_work_states);
     mmgr_zero_buf(args->work_state, sizeof(*args->work_state));
-    g_cli_guard->persistent_buf_release(args->work_state, g_cli_requests_owner);
+    s_work_taken[place] = 0u;
     s_capacities_used -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }

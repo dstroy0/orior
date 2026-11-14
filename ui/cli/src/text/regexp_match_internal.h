@@ -7,8 +7,6 @@
 #include "embed_dispatch_layout.h"
 #include "regexp.h"
 
-#include <stdint.h>
-
 typedef struct CliRegexpMatchIndexCtx CliRegexpMatchIndexCtx;
 typedef struct CliRegexpMatchThenCtx CliRegexpMatchThenCtx;
 typedef struct CliRegexpMatchIndexAtCtx CliRegexpMatchIndexAtCtx;
@@ -33,7 +31,7 @@ typedef struct
     CliRegexpSpan *groups;
     unsigned long long steps;
     unsigned long long end;
-    uintptr_t base;
+    embed_word base;
     unsigned int *ends;
     unsigned long long ends_top;
     unsigned long long ends_capacity;

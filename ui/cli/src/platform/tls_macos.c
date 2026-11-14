@@ -18,8 +18,8 @@ static CliTls s_sessions[CLI_TLS_MAX];
 
 long long cli_tls_write(const CliTlsDataCfg *args)
 {
-    size_t processed = 0u;
-    const OSStatus status = SSLWrite(args->tls->context, args->data, (size_t)args->size, &processed);
+    embed_word processed = 0u;
+    const OSStatus status = SSLWrite(args->tls->context, args->data, (embed_word)args->size, &processed);
     if (status == noErr)
     {
         return (long long)processed;

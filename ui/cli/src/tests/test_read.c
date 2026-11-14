@@ -147,7 +147,7 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
     if ((bytes != NULL) &&
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = *size))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_tests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_tests_owner));
         *size = 0ULL;
         return NULL;
     }
@@ -156,5 +156,5 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
 
 void cli_test_file_let_go(const CliTestRunsTextWorkerCtx *args)
 {
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)((const unsigned char *)args->text), (g_cli_tests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->text), (g_cli_tests_owner));
 }

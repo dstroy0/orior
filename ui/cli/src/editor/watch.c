@@ -76,8 +76,15 @@ typedef struct
     unsigned int index;
     CliBatch *batch;
 } WatchCtx;
-// the change of `type` at `path` put after the list's: 1, or 0 where it contains `most` or the cellblock could not meet
-// the capacity for it
+// The lists of changes stand fixed outside the pool, where they punch no hole in the persistent tier: the changes
+// waiting and their paths, and the batcher's bundle with its changes and their paths
+static CliChange s_waiting_change[CLI_WATCH_QUEUE];
+static char s_waiting_text[CLI_WATCH_TEXT_CAPACITY];
+static CliBatch s_batch;
+static CliChange s_batch_change[CLI_WATCH_GATHERED];
+static char s_batch_text[CLI_WATCH_TEXT_CAPACITY];
+
+// the change of `type` at `path` put after the list's: 1, or 0 where it contains `most` or its cells cannot hold it
 EMBED_INLINE int cli_change_append(const WatchCtx *args)
 {
     if (args->changes->count >= args->most)
@@ -85,15 +92,6 @@ EMBED_INLINE int cli_change_append(const WatchCtx *args)
         return 0;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1ULL;
-    if (args->changes->text == NULL)
-    {
-        args->changes->text = g_cli_guard->persistent_buf_alloc(CLI_WATCH_TEXT_CAPACITY, g_cli_watch_owner);
-        args->changes->change =
-            g_cli_guard->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliChange), g_cli_watch_owner);
-        args->changes->bytes = (args->changes->text != NULL) ? CLI_WATCH_TEXT_CAPACITY : 0ULL;
-        args->changes->change_bytes =
-            (args->changes->change != NULL) ? ((unsigned long long)args->most * sizeof(CliChange)) : 0ULL;
-    }
     if ((args->changes->change == NULL) || ((args->changes->used + length) > args->changes->bytes))
     {
         return 0;
@@ -267,15 +265,12 @@ static int cli_gather(const WatchCtx *args)
 static void cli_batch(void *context)
 {
     (void)context;
-    // the bundle a cell for as long as the batcher runs, past any one call; with no capacity for it the batcher ends at
-    // once
-    CliBatch *const batch = g_cli_guard->persistent_buf_alloc(sizeof(CliBatch), g_cli_watch_owner);
-    if (batch != NULL)
-    {
-        batch->changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
-    }
+    // the bundle is the batcher's own for as long as it runs, past any one call
+    CliBatch *const batch = &s_batch;
+    memor.set(&(MemoriaCfg){.dst = batch, .val = 0, .bytes = sizeof(*batch)});
+    batch->changes = (CliChanges){s_batch_change, 0u, sizeof(s_batch_change), s_batch_text, 0ULL, sizeof(s_batch_text)};
     int going = 1;
-    while (going && (batch != NULL))
+    while (going)
     {
         while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop)
         {
@@ -331,18 +326,10 @@ static void cli_batch(void *context)
             continue;
         }
     }
-    g_cli_guard->persistent_buf_release(s_watching.waiting.change, g_cli_watch_owner);
-    g_cli_guard->persistent_buf_release(s_watching.waiting.text, g_cli_watch_owner);
-    *(&s_watching.waiting) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
+    EMBED_CALL(cli_changes_clear, WatchCtx, .changes = &s_watching.waiting);
     s_watching.ended += 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
-    if (batch != NULL)
-    {
-        g_cli_guard->persistent_buf_release(batch->changes.change, g_cli_watch_owner);
-        g_cli_guard->persistent_buf_release(batch->changes.text, g_cli_watch_owner);
-        *(&batch->changes) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
-    }
-    g_cli_guard->persistent_buf_release(batch, g_cli_watch_owner);
+    EMBED_CALL(cli_changes_clear, WatchCtx, .changes = &batch->changes);
 }
 
 void cli_watch_stop(void)
@@ -372,9 +359,8 @@ void cli_watch_start(const CliWatchCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     s_watching.take = take;
     s_watching.context = context;
-    g_cli_guard->persistent_buf_release(s_watching.waiting.change, g_cli_watch_owner);
-    g_cli_guard->persistent_buf_release(s_watching.waiting.text, g_cli_watch_owner);
-    *(&s_watching.waiting) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
+    s_watching.waiting =
+        (CliChanges){s_waiting_change, 0u, sizeof(s_waiting_change), s_waiting_text, 0ULL, sizeof(s_waiting_text)};
     s_watching.overflowed = 0;
     s_watching.stop = 0;
     s_watching.ended = 0u;
@@ -406,13 +392,21 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
+    // the bundle, its changes and their paths are the call's own
     CliBatch *const batch = g_cli_guard->temporary_buf_alloc(sizeof(CliBatch), g_cli_watch_owner);
-    if (batch == NULL)
+    CliChange *const change =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_WATCH_GATHERED * sizeof(CliChange), g_cli_watch_owner);
+    char *const text = g_cli_guard->temporary_buf_alloc(CLI_WATCH_TEXT_CAPACITY, g_cli_watch_owner);
+    if ((batch == NULL) || (change == NULL) || (text == NULL))
     {
+        g_cli_guard->persistent_buf_release(text, g_cli_watch_owner);
+        g_cli_guard->persistent_buf_release(change, g_cli_watch_owner);
+        g_cli_guard->persistent_buf_release(batch, g_cli_watch_owner);
         return 0;
     }
-    batch->changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
-    batch->lost = 0;
+    memor.set(&(MemoriaCfg){.dst = batch, .val = 0, .bytes = sizeof(*batch)});
+    batch->changes = (CliChanges){change, 0u,   (unsigned long long)CLI_WATCH_GATHERED * sizeof(CliChange),
+                                  text,   0ULL, CLI_WATCH_TEXT_CAPACITY};
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         batch->lost =
@@ -427,9 +421,8 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     }
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
-    g_cli_guard->persistent_buf_release(batch->changes.change, g_cli_watch_owner);
-    g_cli_guard->persistent_buf_release(batch->changes.text, g_cli_watch_owner);
-    *(&batch->changes) = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
+    g_cli_guard->persistent_buf_release(text, g_cli_watch_owner);
+    g_cli_guard->persistent_buf_release(change, g_cli_watch_owner);
     g_cli_guard->persistent_buf_release(batch, g_cli_watch_owner);
     return any;
 }

@@ -6,54 +6,42 @@
 // list of them ends at NULL
 #include "tools_internal.h"
 
-// the sources of the file definitions, which every program of a run links (src/cu/includes/file_defs)
-const char *const g_query_file_defs[] = {"src/cu/includes/file_defs/qry/writer/qry_member.c",
-                                         "src/cu/includes/file_defs/qry/writer/platform/*.c",
-                                         "src/cu/includes/parsers/line_read.c",
-                                         "src/cu/includes/file_defs/qry/qry_read.c",
-                                         "src/cu/includes/parsers/who.c",
+// the sources of the file definitions, which every program of a run links (includes/file_defs)
+const char *const g_query_file_defs[] = {"includes/file_defs/qry/writer/qry_member.c",
+                                         "includes/file_defs/qry/writer/platform/*.c",
+                                         "includes/parsers/line_read.c",
+                                         "includes/file_defs/qry/qry_read.c",
+                                         "includes/parsers/who.c",
                                          "src/cu/transpiler/lstar/protocol/table_text.c",
-                                         "src/cu/includes/file_defs/krep/krep_records/*.c",
-                                         "src/cu/includes/file_defs/kfile_lines/kfile_lines.c",
-                                         "src/cu/includes/file_defs/kqr/kqr_record/*.c",
-                                         "src/cu/includes/file_defs/ksc/ksc.c",
-                                         "src/cu/includes/file_defs/kdm/kdm.c",
-                                         "src/cu/includes/file_defs/krf/krf.c",
+                                         "includes/file_defs/krep/krep_records/*.c",
+                                         "includes/file_defs/kfile_lines/kfile_lines.c",
+                                         "includes/file_defs/kqr/kqr_record/*.c",
+                                         "includes/file_defs/ksc/ksc.c",
+                                         "includes/file_defs/kdm/kdm.c",
+                                         "includes/file_defs/krf/krf.c",
                                          NULL};
 
 // MMgr, which every program of the tree writes, copies, compares and scans its text through: its modules' sources,
 // each folder's, and of impensa_ancorae_acus's profiles, each a source of its own, the one MMgr's build takes where
 // none is named, generic
-const char *const g_query_mmgr[] = {"src/cu/includes/mmgr/src/ascii_persona_bitorum/*.c",
-                                    "src/cu/includes/mmgr/src/bitorum_introitus_exitus/*.c",
-                                    "src/cu/includes/mmgr/src/cellularum_laboro/*.c",
-                                    "src/cu/includes/mmgr/src/clz/*.c",
-                                    "src/cu/includes/mmgr/src/confinium_exclusivum_infinitas/*.c",
-                                    "src/cu/includes/mmgr/src/confinium_externum/*.c",
-                                    "src/cu/includes/mmgr/src/endian/*.c",
-                                    "src/cu/includes/mmgr/src/fractio/*.c",
-                                    "src/cu/includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c",
-                                    "src/cu/includes/mmgr/src/locus_carcerum/*.c",
-                                    "src/cu/includes/mmgr/src/memoria_anularis/*.c",
-                                    "src/cu/includes/mmgr/src/memoria_externa/*.c",
-                                    "src/cu/includes/mmgr/src/memoria_operor/*.c",
-                                    "src/cu/includes/mmgr/src/memoriam_praetereo/*.c",
-                                    "src/cu/includes/mmgr/src/numeros_scribo/*.c",
-                                    "src/cu/includes/mmgr/src/octetus_introitus_exitus/*.c",
-                                    "src/cu/includes/mmgr/src/proximus_operor/*.c",
-                                    "src/cu/includes/mmgr/src/spatium/*.c",
-                                    "src/cu/includes/mmgr/src/transformo/*.c",
-                                    "src/cu/includes/mmgr/src/verba_scribo/*.c",
-                                    "src/cu/includes/mmgr/src/verbum_scrutor/*.c",
-                                    // the host's address wait, wake and clock, which LocusCarcerum's turnstiles
-                                    // sleep, wake and stamp through and the program is to define
-                                    "src/cu/includes/mmgr/test/support/host_wait.c",
-                                    NULL};
+const char *const g_query_mmgr[] = {
+    "includes/mmgr/src/ascii_persona_bitorum/*.c", "includes/mmgr/src/bitorum_introitus_exitus/*.c",
+    "includes/mmgr/src/cellularum_laboro/*.c", "includes/mmgr/src/clz/*.c",
+    "includes/mmgr/src/confinium_exclusivum_infinitas/*.c", "includes/mmgr/src/confinium_externum/*.c",
+    "includes/mmgr/src/endian/*.c", "includes/mmgr/src/fractio/*.c",
+    "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c", "includes/mmgr/src/locus_carcerum/*.c",
+    "includes/mmgr/src/memoria_anularis/*.c", "includes/mmgr/src/memoria_externa/*.c",
+    "includes/mmgr/src/memoria_operor/*.c", "includes/mmgr/src/memoriam_praetereo/*.c",
+    "includes/mmgr/src/numeros_scribo/*.c", "includes/mmgr/src/octetus_introitus_exitus/*.c",
+    "includes/mmgr/src/proximus_operor/*.c", "includes/mmgr/src/spatium/*.c", "includes/mmgr/src/transformo/*.c",
+    "includes/mmgr/src/verba_scribo/*.c", "includes/mmgr/src/verbum_scrutor/*.c",
+    // the host's address wait, wake and clock, which LocusCarcerum's turnstiles
+    // sleep, wake and stamp through and the program is to define
+    "includes/mmgr/test/support/host_wait.c", NULL};
 
 // MMgr's include folders, from the top of the tree, and the settings it is built with, given every compile
-const char *const g_query_mmgr_includes[] = {"src/cu/includes/mmgr/include", "src/cu/includes/mmgr/src",
-                                             "src/cu/includes/embedded_types/include",
-                                             "src/cu/includes/mmgr/test/support", NULL};
+const char *const g_query_mmgr_includes[] = {"includes/mmgr/include", "includes/mmgr/src",
+                                             "includes/embedded_types/include", "includes/mmgr/test/support", NULL};
 
 // the words every program's link ends with: on Windows the library the address wait is in
 #if defined(_WIN32)
@@ -62,11 +50,16 @@ const char *const g_query_mmgr_link[] = {"-lsynchronization", NULL};
 const char *const g_query_mmgr_link[] = {NULL};
 #endif
 
-const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32",
-                                             "-DMMGR_CARCER_OWNERS=1024u", NULL};
+const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0",
+                                             "-DMMGR_ENABLE_EXTRAM=0",
+                                             "-DMMGR_ALIGN_BYTES=32",
+                                             "-DMMGR_MOVABLE_READ_MS=10u",
+                                             "-DMMGR_MOVABLE_QUIET_READINGS=2u",
+                                             "-DMMGR_CARCER_OWNERS=1024u",
+                                             NULL};
 
 // the folders the file definitions' headers stand in beyond their sources' own
-const char *const g_query_file_defs_headers[] = {"src/cu/includes/file_defs", "src/cu/includes/parsers",
+const char *const g_query_file_defs_headers[] = {"includes/file_defs", "includes/parsers",
                                                  "src/cu/transpiler/lstar/protocol", NULL};
 
 // the interface every program that starts a probe links
@@ -75,8 +68,8 @@ static const char *const s_interface[] = {"src/cu/transpiler/lstar/interface/int
                                           "src/cu/transpiler/lstar/interface/interface_names.c", NULL};
 
 // the code generator, compiled as C++, and the sources every reader of it skips
-static const char *const s_codegen[] = {"src/cu/engine/rmc/*.cu", "src/cu/includes/parsers/*.cu",
-                                        "src/cu/includes/file_defs/krs/ruleset_flat/*.cu", NULL};
+static const char *const s_codegen[] = {"src/cu/engine/rmc/*.cu", "includes/parsers/*.cu",
+                                        "includes/file_defs/krs/ruleset_flat/*.cu", NULL};
 
 static const char *const s_codegen_skipped[] = {"asm_printer_", "codegen", NULL};
 
@@ -101,12 +94,12 @@ static const char *const s_bus_clock[] = {"src/cu/transpiler/vendor_bin_layouts/
 static const char *const s_bus_clock_headers[] = {"src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding",
                                                   "src/cu/transpiler/lstar/protocol/query", NULL};
 
-static const char *const s_qry_writer[] = {"src/cu/includes/file_defs/qry/qry_writer.c",
-                                           "src/cu/includes/file_defs/qry/writer/*.c",
-                                           "src/cu/includes/file_defs/qry/writer/platform/*.c",
-                                           "src/cu/includes/file_defs/qry/qry_read.c",
-                                           "src/cu/includes/file_defs/ksg/ksg_seal.c",
-                                           "src/cu/includes/file_defs/ksg/ksg_writing.c",
+static const char *const s_qry_writer[] = {"includes/file_defs/qry/qry_writer.c",
+                                           "includes/file_defs/qry/writer/*.c",
+                                           "includes/file_defs/qry/writer/platform/*.c",
+                                           "includes/file_defs/qry/qry_read.c",
+                                           "includes/file_defs/ksg/ksg_seal.c",
+                                           "includes/file_defs/ksg/ksg_writing.c",
                                            NULL};
 
 static const char *const s_protocol[] = {"src/cu/transpiler/lstar/protocol", NULL};
@@ -141,7 +134,8 @@ static const char *const s_pthread_c[] = {"-std=c11", "-O2", "-Wall", "-Wextra",
 static const char *const s_pthread[] = {"-pthread", NULL};
 
 static const char *const s_khw_learn[] = {"src/cu/transpiler/lstar/protocol/khw_learn/*.c",
-                                          "src/cu/includes/file_defs/khw/khw_write/*.c",
+                                          "includes/file_defs/khw/khw_write/*.c",
+                                          "includes/file_defs/vendor_writer_run.c",
                                           "src/cu/transpiler/lstar/protocol/teacher/run_channel/*.c",
                                           "src/cu/transpiler/lstar/protocol/overseer/*.c",
                                           "src/cu/transpiler/lstar/protocol/query/answer_read.c",
@@ -154,8 +148,8 @@ static const char *const s_khw_learn_headers[] = {
     "src/cu/transpiler/lstar/protocol/teacher", "src/cu/transpiler/lstar/protocol/query",
     "src/cu/transpiler/lstar/protocol/gate", "src/cu/transpiler/lstar/protocol/order", NULL};
 
-static const char *const s_khw_machine_write[] = {"src/cu/includes/file_defs/khw/khw_machine_write.c",
-                                                  "src/cu/includes/file_defs/khw/khw_machine_write/*.c",
+static const char *const s_khw_machine_write[] = {"includes/file_defs/khw/khw_machine_write.c",
+                                                  "includes/file_defs/khw/khw_machine_write/*.c",
                                                   "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c",
                                                   "src/cu/transpiler/vendor_bin_layouts/container_write.c",
                                                   "src/cu/transpiler/vendor_bin_layouts/container_pattern.c",
@@ -167,21 +161,22 @@ static const char *const s_khw_machine_write[] = {"src/cu/includes/file_defs/khw
 static const char *const s_sass_listing_seeds[] = {"src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c",
                                                    NULL};
 
-static const char *const s_krs_write[] = {"src/cu/includes/file_defs/krs/krs_write.c",
-                                          "src/cu/includes/file_defs/krs/krs_write/*.c", NULL};
+static const char *const s_krs_write[] = {"includes/file_defs/krs/krs_write.c", "includes/file_defs/krs/krs_write/*.c",
+                                          "includes/file_defs/vendor_writer_run.c", NULL};
 
 // the word web and the precepts the words are written over
 static const char *const s_rmc[] = {"src/cu/engine/rmc", NULL};
 
-static const char *const s_gsm_write[] = {"src/cu/includes/file_defs/gsm/gsm_write.c", NULL};
+static const char *const s_gsm_write[] = {"includes/file_defs/gsm/gsm_write.c",
+                                          "includes/file_defs/vendor_writer_run.c", NULL};
 
-static const char *const s_member_c[] = {"src/cu/includes/file_defs/qry/writer/qry_member.c",
-                                         "src/cu/includes/file_defs/qry/writer/platform/*.c",
-                                         "src/cu/includes/file_defs/qry/qry_read.c", NULL};
+static const char *const s_member_c[] = {"includes/file_defs/qry/writer/qry_member.c",
+                                         "includes/file_defs/qry/writer/platform/*.c",
+                                         "includes/file_defs/qry/qry_read.c", NULL};
 
-static const char *const s_klq_write[] = {"src/cu/includes/file_defs/klq/klq_write/klq_write.cu", NULL};
+static const char *const s_klq_write[] = {"includes/file_defs/klq/klq_write/klq_write.cu", NULL};
 
-static const char *const s_klq_includes[] = {"src/cu/engine", "src/cu/engine/rmc", "src/cu/includes/parsers",
+static const char *const s_klq_includes[] = {"src/cu/engine", "src/cu/engine/rmc", "includes/parsers",
                                              "src/cu/transpiler/lstar/protocol", NULL};
 
 static const char *const s_klq_write_headers[] = {"src/cu/transpiler/lstar/protocol",
@@ -195,7 +190,7 @@ static const char *const s_klq_identity_cxx[] = {"src/cu/transpiler/lstar/protoc
 
 static const char *const s_klq_identity_includes[] = {"src/cu/engine",
                                                       "src/cu/engine/rmc",
-                                                      "src/cu/includes/parsers",
+                                                      "includes/parsers",
                                                       "src/cu/transpiler/lstar/protocol",
                                                       "src/cu/transpiler/lstar/protocol/table",
                                                       NULL};
@@ -205,19 +200,19 @@ static const char *const s_klq_identity_headers[] = {"src/cu/transpiler/lstar/pr
 
 static const char *const s_klq_decoder_cxx[] = {"src/cu/transpiler/lstar/protocol/table/klq_decoder.cu",
                                                 "src/cu/transpiler/lstar/protocol/table/decoder/*.cu",
-                                                "src/cu/includes/file_defs/klq/query_trace.cu", NULL};
+                                                "includes/file_defs/klq/query_trace.cu", NULL};
 
-static const char *const s_klq_decoder_includes[] = {
-    "src/cu/transpiler/lstar/protocol/table", "src/cu/includes/parsers", "src/cu/transpiler/lstar/protocol", NULL};
+static const char *const s_klq_decoder_includes[] = {"src/cu/transpiler/lstar/protocol/table", "includes/parsers",
+                                                     "src/cu/transpiler/lstar/protocol", NULL};
 
 static const char *const s_tables_funnel[] = {"src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_funnel.c",
                                               "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c",
-                                              "src/cu/includes/parsers/line_read.c", NULL};
+                                              "includes/parsers/line_read.c", NULL};
 
 static const char *const s_tables_read[] = {"src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_read.c",
                                             "src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c",
                                             "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c",
-                                            "src/cu/includes/parsers/line_read.c", NULL};
+                                            "includes/parsers/line_read.c", NULL};
 
 static const char *const s_tables_read_headers[] = {"src/cu/transpiler/vendor_bin_layouts/nvidia/tables",
                                                     "src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe", NULL};
@@ -226,8 +221,7 @@ static const char *const s_kdecode[] = {"src/cu/transpiler/lstar/protocol/kdecod
                                         "src/cu/transpiler/lstar/protocol/kdecode/kdecode/*.c", NULL};
 
 static const char *const s_kdecode_headers[] = {"src/cu/transpiler/lstar/protocol/kdecode/orior_kdecode",
-                                                "src/cu/transpiler/lstar/protocol", "src/cu/includes/file_defs/kqr",
-                                                NULL};
+                                                "src/cu/transpiler/lstar/protocol", "includes/file_defs/kqr", NULL};
 
 static const char *const s_stick_read[] = {"src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_read.c",
                                            "src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_read/*.c",
@@ -237,13 +231,13 @@ static const char *const s_stick_engine_c[] = {
     "src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c",
     "src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c",
     "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c",
-    "src/cu/includes/types/integers/exact_integer_add.c",
-    "src/cu/includes/types/integers/exact_integer_limbs.c",
-    "src/cu/includes/types/integers/exact_integer_multiply.c",
-    "src/cu/includes/types/integers/exact_integer_divide.c",
-    "src/cu/includes/types/integers/exact_integer_gcd.c",
-    "src/cu/includes/types/integers/exact_integer_decimal.c",
-    "src/cu/includes/types/integers/exact_integer_hash.c",
+    "includes/exact_types/integers/exact_integer_add.c",
+    "includes/exact_types/integers/exact_integer_limbs.c",
+    "includes/exact_types/integers/exact_integer_multiply.c",
+    "includes/exact_types/integers/exact_integer_divide.c",
+    "includes/exact_types/integers/exact_integer_gcd.c",
+    "includes/exact_types/integers/exact_integer_decimal.c",
+    "includes/exact_types/integers/exact_integer_hash.c",
     NULL};
 
 static const char *const s_stick_engine_keys[] = {"src/cu/engine/analysis/keymath/keymath.cu",
@@ -260,10 +254,10 @@ static const char *const s_stick_engine_includes[] = {"src/cu/engine",
                                                       "src/cu/engine/includes/codecs/crc",
                                                       "src/cu/engine/analysis/cycle",
                                                       "src/cu/engine/rmc",
-                                                      "src/cu/includes/parsers",
+                                                      "includes/parsers",
                                                       "src/cu/engine/analysis/keymath",
                                                       "src/cu/engine/analysis/key_schedule",
-                                                      "src/cu/includes/types/integers",
+                                                      "includes/exact_types/integers",
                                                       "src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding",
                                                       "utils/test/src/cu/engine/analysis/cycle",
                                                       "src/cu/transpiler/lstar/interface",

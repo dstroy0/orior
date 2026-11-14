@@ -7,24 +7,30 @@
 #include "comms.h"
 #include "door_internal.h"
 #include "embed_dispatch_layout.h"
+#include "embed_ticket_ring.h"
 
 typedef struct CliIpcServeCfg CliIpcServeCfg;
 typedef struct CliIpcServeChannelCfg CliIpcServeChannelCfg;
 typedef struct CliIpcServeErrorCfg CliIpcServeErrorCfg;
 
-// the most processes joined at once; the messages queued for one process; the channels one process listens on; and the
-// bytes of an answer waiting to be written
+// the most processes joined at once; the messages queued for one process, a power of two; the channels one process
+// listens on; and the bytes of an answer waiting to be written
 #define CLI_IPC_JOINED 16u
-#define CLI_IPC_ENTRIES 128u
+#define CLI_IPC_ENTRIES_SHIFT 7u
+#define CLI_IPC_ENTRIES (1u << CLI_IPC_ENTRIES_SHIFT)
 #define CLI_IPC_LISTENS 32u
+// the bytes the joined processes' rings' slots take, the joined part of the rings block
+#define CLI_DOOR_JOINED_RING_BYTES ((unsigned long long)CLI_IPC_JOINED * CLI_IPC_ENTRIES * sizeof(EmbedTicketRingSlot))
 #define CLI_IPC_SERVE_ANSWER (CLI_ERR_MSG_MAX_LEN + CLI_NAME_MAX_LEN + 8u)
 
 // A joined process's place, a cell of the cellblock from its join to the end of its last thread: where it stands among
 // the places and how many of its two threads go on; its end and the process at the other end; its key; the frame read;
-// the messages queued for it, any thread claiming the next place, the writer of the end taking them in turn; the answer
-// its reader has for the writer, and whether one waits; the wake of the two threads; whether its reader goes on and
-// whether its end still takes what is written; the listeners it owns; and its two threads. The end has one writer, the
-// thread that sends the messages, which writes the reader's answers too, a frame never falling inside another
+// the messages queued for it on a ticket ring, any thread taking a ticket and pushing the entry of its slot, the writer
+// of the end popping them in the order of their tickets, the ring's turnstiles and slots, the next ticket taken and the
+// next popped; the answer its reader has for the writer, and whether one waits; the wake of the two threads; whether
+// its reader goes on and whether its end still takes what is written; the listeners it owns; and its two threads. The
+// end has one writer, the thread that sends the messages, which writes the reader's answers too, a frame never falling
+// inside another
 typedef struct
 {
     unsigned int place;
@@ -35,9 +41,10 @@ typedef struct
     char key[CLI_COMMS_KEY];
     char *frame;
     CliIpcEntry entries[CLI_IPC_ENTRIES];
-    unsigned int first;
+    EmbedTurnstiles turnstiles;
+    EmbedTicketRing ring;
     embed_atomic_u32 claimed;
-    embed_atomic_u32 taken;
+    embed_u32 taken;
     char *answer;
     unsigned long long answer_size;
     embed_atomic_u32 answer_waits;

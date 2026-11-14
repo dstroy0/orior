@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cli_unity.h: what orior_cli's Unity suites share: the memory pool started once, a clean folder for a test, and JSON parsed
+// cli_unity.h: what impero's Unity suites share: the memory pool started once, a clean folder for a test, and JSON parsed
 // for a test to read (cli_unity.c)
 #ifndef CLI_UNITY_H
 #define CLI_UNITY_H

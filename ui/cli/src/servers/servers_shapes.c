@@ -22,7 +22,7 @@ unsigned int cli_servers_read(const CliServersReadStateCtx *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
-    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                       .json = &args->read_state->json, .text = args->text, .size = args->size, .nodes_more = 0u,
                       .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_servers_owner);
 }

@@ -3,9 +3,9 @@
 // qry_queue.c: the backend's channels to a run. Each party of the window stores what it gathers in its own buffer and
 // queues it here at once; each channel's thread appends each record to the run in the order queued. A record waits for
 // capacity in its channel's ring, never behind the records of another channel, and one larger than half a ring, a whole
-// file as a rule, is appended to the run as it is queued, the party waiting on it. A channel's ring is a cell of the
-// cellblock, counted to the queue, taken as the channel is first queued to and retained while its thread runs, so a
-// channel never queued to contains nothing
+// file as a rule, is appended to the run as it is queued, the party waiting on it. A channel's ring stands fixed
+// outside the pool, laid as the channel is first queued to and retained while its thread runs, so a channel never
+// queued to contains nothing
 #include "../text/json_tree.h"
 #include "qry.h"
 
@@ -126,18 +126,9 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
         }
         return;
     }
-    channel->ring =
-        (channel->ring != NULL) ? channel->ring : g_cli_guard->persistent_buf_alloc(CLI_QUEUE_BYTES, g_cli_queue_owner);
-    if (channel->ring == NULL)
-    {
-        s_failed += 1ULL;
-        memor.cpy(&(MemoriaCfg){.dst = s_last_err,
-                                .src = "no ring could be taken for the channel",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "no ring could be taken for the channel",
-                                                                       .cap = CLI_POOL_BYTES}) +
-                                         1u});
-        return;
-    }
+    // each channel's ring stands fixed, outside the pool, where it punches no hole in the persistent tier
+    static unsigned long long s_rings[CLI_CHANNELS][CLI_QUEUE_BYTES / sizeof(unsigned long long)];
+    channel->ring = s_rings[channel - s_channels];
     if (!channel->started)
     {
         channel->thread.run = cli_channel_run;

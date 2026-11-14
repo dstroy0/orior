@@ -3,11 +3,11 @@
 // raster.c: the pages laid out as pixels, for a printer that takes no PDF: each drawn on white at a printer's
 // resolution with the system's monospace font, its own bold and italic where it has them and made from the regular
 // face where it does not. A page laid on its side is turned onto the paper as it feeds
+#include "../../../../includes/arith/arith.h"
+#include "../../../includes/font/font.h"
 #include "../command_line/pool.h"
 #include "../text/regexp.h"
-#include "font.h"
-
-#include <math.h>
+#include "font_families.h"
 
 // the most bytes of a page's pixels, the most glyphs cached drawn, and the most coverage they cover
 #define CLI_PAGE_BYTES (1u << 26u)
@@ -29,18 +29,18 @@ typedef struct
     unsigned int glyph;
     int bold;
     int slant;
-    CliMask mask_bits;
+    FontMask mask_bits;
 } CliCachedGlyph;
 
-// The faces drawn with, a cell taken as they are read and given back as they are read again: regular, bold, italic
-// and bold italic, each where the system has it, each face's bytes a cell of its file's size; and the glyphs cached
-// drawn with them and their coverage
+// The faces drawn with, a print's own: temporary cells taken as the faces are read and given back as the render ends,
+// or as the faces are read again before one. Regular, bold, italic and bold italic, each where the system has it, each
+// face's bytes a cell of its file's size; and the glyphs cached drawn with them and their coverage
 typedef struct
 {
     const unsigned char *face_data[4];
     unsigned long long face_size[4];
-    unsigned int face_ranges[4][CLI_FONT_RANGES][3];
-    CliFont faces[4];
+    unsigned int face_ranges[4][FONT_RANGES][3];
+    Font faces[4];
     int has[4];
     CliCachedGlyph glyphs[CLI_GLYPH_CACHE];
     float *cover;
@@ -54,7 +54,7 @@ typedef struct
 typedef struct
 {
     unsigned char *page;
-    CliContours contours;
+    FontContours contours;
     float scratch[1u << 20u];
     unsigned int letters[CLI_PATH_MAX_LEN * 4u];
 } CliRenderWorkState;
@@ -62,38 +62,46 @@ typedef struct
 static CliTypefaces *s_typefaces;
 static CliRenderWorkState *s_work_state;
 
-int cli_print_faces(const CliPrintJsonCfg *args)
+// the faces' cells given back: each face's file, the coverage cache and the record
+static void raster_faces_release(void)
 {
     if (s_typefaces != NULL)
     {
         for (unsigned int face = 0u; face < 4u; face += 1u)
         {
-            g_cli_guard->persistent_buf_release((void *)(uintptr_t)(s_typefaces->face_data[face]), (g_cli_print_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)(s_typefaces->face_data[face]),
+                                                (g_cli_print_owner));
         }
         g_cli_guard->persistent_buf_release(s_typefaces->cover, g_cli_print_owner);
     }
     g_cli_guard->persistent_buf_release(s_typefaces, g_cli_print_owner);
-    s_typefaces = g_cli_guard->persistent_buf_alloc(sizeof(*s_typefaces), g_cli_print_owner);
+    s_typefaces = NULL;
+}
+
+int cli_print_faces(const CliPrintJsonCfg *args)
+{
+    raster_faces_release();
+    s_typefaces = g_cli_guard->temporary_buf_alloc(sizeof(*s_typefaces), g_cli_print_owner);
     if (s_typefaces == NULL)
     {
         mmgr_line_put(args->err_msg, "the faces drawn with could not be taken");
         return 0;
     }
-    s_typefaces->cover = g_cli_guard->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), g_cli_print_owner);
+    s_typefaces->cover = g_cli_guard->temporary_buf_alloc(CLI_COVER_CACHE * sizeof(float), g_cli_print_owner);
     s_typefaces->cover_capacity = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ULL;
     s_typefaces->cover_used = 0ULL;
     char paths[4][CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_font_families.monospace, CliFontFamiliesCfg, .paths = paths);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
-        // a face's file read whole and saved as long as it is drawn from, in a persistent cell of its size and the
-        // slack, a file past CLI_FONT_BYTES let go unread
+        // a face's file read whole and kept as long as the print draws from it, in a temporary cell of its size and the
+        // slack, a file past FONT_BYTES let go unread
         unsigned long long size = 0ULL;
         unsigned char *data =
             ((paths[face][0] != '\0') &&
              EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = paths[face], .size_pointer = &size) &&
-             (size <= CLI_FONT_BYTES))
-                ? g_cli_guard->persistent_buf_alloc(size + CLI_FILE_SLACK, g_cli_print_owner)
+             (size <= FONT_BYTES))
+                ? g_cli_guard->temporary_buf_alloc(size + CLI_FILE_SLACK, g_cli_print_owner)
                 : NULL;
         if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = paths[face],
                                           .from = 0ULL, .bytes_bytes = data, .count_u64 = size, .got = &size))
@@ -109,7 +117,7 @@ int cli_print_faces(const CliPrintJsonCfg *args)
         s_typefaces->face_data[face] = data;
         s_typefaces->face_size[face] = size;
         s_typefaces->has[face] =
-            (data != NULL) && EMBED_CALL(cli_font_data.read, CliFontDataCfg, .font_out = &s_typefaces->faces[face],
+            (data != NULL) && EMBED_CALL(font_data.read, FontDataCfg, .font_out = &s_typefaces->faces[face],
                                          .data = data, .size = size, .ranges = s_typefaces->face_ranges[face]);
     }
     for (unsigned int at = 0u; at < CLI_GLYPH_CACHE; at += 1u)
@@ -120,7 +128,7 @@ int cli_print_faces(const CliPrintJsonCfg *args)
     if (!s_typefaces->has[0])
     {
         mmgr_line_put(args->err_msg,
-                      "the system has no monospace font orior_cli reads: Consolas, Cascadia Mono, DejaVu Sans Mono, "
+                      "the system has no monospace font impero reads: Consolas, Cascadia Mono, DejaVu Sans Mono, "
                       "Liberation Mono, Menlo or Courier New");
         return 0;
     }
@@ -129,17 +137,17 @@ int cli_print_faces(const CliPrintJsonCfg *args)
 
 typedef struct
 {
-    CliMask *mask_bits;
+    FontMask *mask_bits;
     unsigned long long by;
     unsigned long long capacity;
     unsigned int key_face;
-    const CliFont *font;
+    const Font *font;
     unsigned int glyph;
     int bold;
     int slant;
     float em;
     CliPixels *page;
-    const CliMask *mask_read;
+    const FontMask *mask_read;
     long long left;
     long long top;
     const unsigned char *color;
@@ -205,9 +213,9 @@ static int cli_cover_capacity(void)
 }
 
 // the mask of a glyph of a face, made bolder or slanted, drawn once and cached: NULL where it cannot be drawn
-EMBED_INLINE const CliMask *cli_mask_get(const RasterCtx *args)
+EMBED_INLINE const FontMask *cli_mask_get(const RasterCtx *args)
 {
-    const CliFont *font = args->font;
+    const Font *font = args->font;
     unsigned int glyph = args->glyph;
     int bold = args->bold;
     int slant = args->slant;
@@ -245,12 +253,14 @@ EMBED_INLINE const CliMask *cli_mask_get(const RasterCtx *args)
     const float matrix[6] = {font_scale, 0.0f, shear, font_scale, 0.0f, 0.0f};
     s_work_state->contours.points = 0u;
     s_work_state->contours.contours = 0u;
-    EMBED_CALL(cli_font_glyph_matrix.outline, CliFontGlyphMatrixCfg, .font = font, .glyph = glyph, .matrix = matrix,
+    EMBED_CALL(font_glyph_matrix.outline, FontGlyphMatrixCfg, .font = font, .glyph = glyph, .matrix = matrix,
                .depth = 0u, .out = &s_work_state->contours);
     CliCachedGlyph *const cached = &s_typefaces->glyphs[bucket];
-    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_work_state->contours,
+    // the edges lie in the work's scratch, which the bolder takes only after the glyph is drawn
+    EMBED_CALL(font_contours.rasterize, FontContoursCfg, .contours = &s_work_state->contours,
                .mask_bits = &cached->mask_bits, .cover = s_typefaces->cover + s_typefaces->cover_used,
-               .capacity = s_typefaces->cover_capacity - s_typefaces->cover_used);
+               .capacity = s_typefaces->cover_capacity - s_typefaces->cover_used, .scratch = s_work_state->scratch,
+               .scratch_bytes = sizeof(s_work_state->scratch));
     if (bold)
     {
         const float spread = args->em / 28.0f;
@@ -296,8 +306,8 @@ EMBED_INLINE void cli_blend(const RasterCtx *args)
             {
                 const float level = (float)args->color[channel];
                 // a blend of two bytes by a share from 0 to 1 is a byte
-                args->page->data[at + channel] =
-                    (unsigned char)roundf(((float)args->page->data[at + channel] * (1.0f - cover)) + (level * cover));
+                args->page->data[at + channel] = (unsigned char)arith_round_f32(
+                    ((float)args->page->data[at + channel] * (1.0f - cover)) + (level * cover));
             }
         }
     }
@@ -312,7 +322,7 @@ EMBED_INLINE void cli_draw(const RasterCtx *args)
     const unsigned int face = s_typefaces->has[want] ? want : 0u;
     const int make_bold = !s_typefaces->has[want] && args->bold;
     const int slant = !s_typefaces->has[want] && args->italic;
-    const CliFont *const font = &s_typefaces->faces[face];
+    const Font *const font = &s_typefaces->faces[face];
     const float em = CLI_PRINT_SIZE * scale;
     const float cell = CLI_PRINT_ADVANCE * scale;
     const float font_scale = em / font->units;
@@ -326,21 +336,21 @@ EMBED_INLINE void cli_draw(const RasterCtx *args)
             continue;
         }
         const unsigned int glyph =
-            EMBED_CALL(cli_font.glyph, CliFontCfg, .font = font, .letter = s_work_state->letters[offset]);
-        const CliMask *const mask_bits = EMBED_CALL(cli_mask_get, RasterCtx, .key_face = face, .font = font,
-                                                    .glyph = glyph, .bold = make_bold, .slant = slant, .em = em);
+            EMBED_CALL(font_letter.glyph, FontCfg, .font = font, .letter = s_work_state->letters[offset]);
+        const FontMask *const mask_bits = EMBED_CALL(cli_mask_get, RasterCtx, .key_face = face, .font = font,
+                                                     .glyph = glyph, .bold = make_bold, .slant = slant, .em = em);
         if (mask_bits == NULL)
         {
             continue;
         }
         const float advance =
-            EMBED_CALL(cli_font_glyph_table.advance, CliFontGlyphCfg, .font = font, .glyph = glyph) * font_scale;
+            EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = font, .glyph = glyph) * font_scale;
         const float x =
             (CLI_PRINT_MARGIN * scale) + ((float)(args->column + offset) * cell) + ((cell - advance) / 2.0f);
         // a pixel's place, rounded, is far inside what a long long represents
         EMBED_CALL(cli_blend, RasterCtx, .page = args->page, .mask_read = mask_bits,
-                   .left = (long long)roundf(x) + mask_bits->left,
-                   .top = (long long)roundf(args->baseline) - mask_bits->top, .color = args->color);
+                   .left = (long long)arith_round_f32(x) + mask_bits->left,
+                   .top = (long long)arith_round_f32(args->baseline) - mask_bits->top, .color = args->color);
     }
 }
 
@@ -361,8 +371,8 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     float height = 0.0f;
     EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = layout, .width = &width,
                .height = &height);
-    CliPixels page = {(unsigned long long)roundf(width * scale), (unsigned long long)roundf(height * scale),
-                      layout->gray ? 1ULL : 3ULL, NULL};
+    CliPixels page = {(unsigned long long)arith_round_f32(width * scale),
+                      (unsigned long long)arith_round_f32(height * scale), layout->gray ? 1ULL : 3ULL, NULL};
     // the page's pixels a cell of their own, sized to the page at the resolution asked
     const unsigned long long bytes = page.width * page.height * page.channels;
     s_work_state->page = (bytes <= CLI_PAGE_BYTES) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_print_owner) : NULL;
@@ -432,6 +442,8 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     g_cli_guard->persistent_buf_release(s_work_state->page, g_cli_print_owner);
     g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
     s_work_state = NULL;
+    // the print is drawn: its faces go back with its work state
+    raster_faces_release();
 }
 
 void cli_print_turn(const CliPrintPageCfg *args)

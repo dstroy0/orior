@@ -138,7 +138,7 @@ int cli_scons_read(const CliSconsTextSizeClassOfCtx *args)
     file->text = text;
     file->size = size;
     file->class_of = class_of;
-    memor.set(&(MemoriaCfg){.dst = class_of, .val = CLI_SCONS_CODE, .bytes = (size_t)size});
+    memor.set(&(MemoriaCfg){.dst = class_of, .val = CLI_SCONS_CODE, .bytes = (embed_word)size});
     for (unsigned long long at = 0ULL; at < size;)
     {
         const char *const rest = text + at;
@@ -163,7 +163,7 @@ int cli_scons_read(const CliSconsTextSizeClassOfCtx *args)
             at += 1u;
             continue;
         }
-        memor.set(&(MemoriaCfg){.dst = class_of + at, .val = type, .bytes = (size_t)(end - at)});
+        memor.set(&(MemoriaCfg){.dst = class_of + at, .val = type, .bytes = (embed_word)(end - at)});
         at = end;
     }
     return 1;
@@ -174,7 +174,7 @@ void cli_scons_calls(const CliSconsNameCtx *args)
     const char *const text = g_cli_scons.text;
     const unsigned long long size = g_cli_scons.size;
     const unsigned char *const class_of = g_cli_scons.class_of;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     while (at + length <= size)
     {
@@ -288,7 +288,8 @@ int cli_scons_keyword(const CliSconsFromCtx *args)
     unsigned long long *name_size = args->name_size;
     unsigned long long *value = args->value;
     const char *const part = g_cli_scons.text + args->from;
-    const char *const eq = memor.chr(&(MemoriaCfg){.src = part, .val = '=', .bytes = (size_t)(args->to - args->from)});
+    const char *const eq =
+        memor.chr(&(MemoriaCfg){.src = part, .val = '=', .bytes = (embed_word)(args->to - args->from)});
     if (eq == NULL)
     {
         return 0;

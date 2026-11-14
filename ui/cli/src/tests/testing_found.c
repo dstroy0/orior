@@ -76,7 +76,7 @@ EMBED_INLINE unsigned int found_lines(const TestingFoundCtx *args)
     for (const char *at = args->text; at < args->text + args->size; lines += 1u)
     {
         const char *const newline = memor.chr(&(MemoriaCfg){
-            .src = at, .val = '\n', .bytes = (size_t)(args->size - (unsigned long long)(at - args->text))});
+            .src = at, .val = '\n', .bytes = (embed_word)(args->size - (unsigned long long)(at - args->text))});
         if (newline == NULL)
         {
             break;
@@ -107,7 +107,7 @@ EMBED_INLINE void *found_part_alloc(const TestingFoundCtx *args)
         (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
         ((unsigned long long)counted.classes * sizeof(unsigned int)) +
         (2ULL * counted.functions * sizeof(unsigned int)) + (12ULL * 8ULL);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(bytes, g_cli_tests_owner);
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
     if (cell == NULL)
     {
         return NULL;
@@ -391,7 +391,7 @@ static void found_in(const TestingFoundCtx *args)
 EMBED_INLINE int found_search(const TestingFoundCtx *args)
 {
     const CliTestRules *rules = args->rules;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES});
     if ((length < 3u) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = args->file + length - 3u, .other = ".py", .cap = CLI_POOL_BYTES})))
     {
@@ -400,8 +400,8 @@ EMBED_INLINE int found_search(const TestingFoundCtx *args)
     for (const char *part = args->file; *part != '\0';)
     {
         const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = '/'});
-        const size_t size = (slash != NULL) ? (size_t)(slash - part)
-                                            : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
+        const embed_word size = (slash != NULL) ? (embed_word)(slash - part)
+                                                : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
         for (unsigned int at = 0u; at < 10u; at += 1u)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = s_not_searched[at], .cap = CLI_POOL_BYTES}) == size) &&
@@ -427,10 +427,10 @@ EMBED_INLINE int found_search(const TestingFoundCtx *args)
     {
         const char *const place = EMBED_CALL(cli_testing_rules_rule.test_rule_value, CliTestingRulesRuleCfg,
                                              .rules_read = rules, .rule = &rules->paths, .at = at);
-        size_t position_size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES});
+        embed_word position_size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_POOL_BYTES});
         inside = (cellul.eq(&(CatenaFinitaCfg){.src = args->file, .other = place, .cap = CLI_POOL_BYTES}));
-        position_size = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = place,
-                                           .at = position_size, .set = "/");
+        position_size = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                               .text = place, .at = position_size, .set = "/");
         inside =
             inside || ((length > position_size) &&
                        (memor.cmp(&(MemoriaCfg){.src = args->file, .other = place, .bytes = position_size}) == 0) &&

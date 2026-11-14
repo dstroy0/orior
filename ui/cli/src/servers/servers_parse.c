@@ -39,7 +39,7 @@ typedef struct
 typedef struct
 {
     unsigned int count;
-    size_t size;
+    embed_word size;
     const char *what;
     unsigned int runs;
     unsigned int lines;
@@ -81,14 +81,17 @@ void cli_servers_forget_tokens(void)
 {
     for (unsigned int at = 0u; at < g_cli_servers_parses.entries; at += 1u)
     {
-        CliKeyedEntry *const one =
+        const CliKeyedEntry one =
             EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_parses, .at = at);
         CliServersParseHead head = {0ULL, 1u, 0u, 0u, 0u, 0u};
-        const unsigned long long text_at = (unsigned long long)one->key_size + 1u + one->adjacent_size + 1u;
-        if (one->used && (one->size - text_at - 1u >= sizeof(head)))
+        if (one.used && (one.text_size >= sizeof(head)))
         {
-            memor.cpy(&(MemoriaCfg){.dst = &head, .src = one->cell + text_at, .bytes = sizeof(head)});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = one.cell, .offset = (embed_word)one.text_at, .dst = &head, .bytes = sizeof(head)});
         }
-        one->used = one->used && head.integer;
+        if (one.used && !head.integer)
+        {
+            EMBED_CALL(cli_keyed_table.remove_at, CliKeyedCfg, .keyed_out = &g_cli_servers_parses, .at = at);
+        }
     }
 }

@@ -4,10 +4,10 @@
 // folder of the build a file belongs to, the program that runs it, and the catalogs of its `gradle` folder, at most
 // CLI_GRADLE_CATALOGS of them
 #include "../command_line/callback_cfg.h"
+#include "../text/sort.h"
 #include "gradle_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
 {
@@ -15,8 +15,9 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_configurations[at], .cap = CLI_POOL_BYTES}) ==
              args->size) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = g_cli_gradle_configurations[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = g_cli_gradle_configurations[at],
+                                     .other = args->word_text,
+                                     .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
@@ -32,7 +33,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
         }
         if ((length == args->size) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = g_cli_gradle_helpers[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
+                 .src = g_cli_gradle_helpers[at], .other = args->word_text, .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
@@ -41,14 +42,15 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
     {
         if ((g_cli_gradle.declared_size[at] == args->size) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = g_cli_gradle.declared[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
+                 .src = g_cli_gradle.declared[at], .other = args->word_text, .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
     }
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_suffixes[at], .cap = CLI_POOL_BYTES});
+        const embed_word length =
+            cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_suffixes[at], .cap = CLI_POOL_BYTES});
         if ((args->size > length) && (memor.cmp(&(MemoriaCfg){.src = args->word_text + args->size - length,
                                                               .other = g_cli_gradle_suffixes[at],
                                                               .bytes = length}) == 0))
@@ -70,7 +72,7 @@ typedef struct
 // whether `folder` is `root` or lies inside it
 EMBED_INLINE int gradle_inside(const GradleBuildCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
                     .size = length))
     {
@@ -158,7 +160,7 @@ static void gradle_catalog_visit(const CliEachNameIsFolderCfg *args)
 {
     const CliGradleGathered *const gathered = args->context;
     CliGradleCatalogs *const catalogs = gathered->catalogs;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (length < 14u) ||
         (!cellul.eq(
             &(CatenaFinitaCfg){.src = args->name + length - 14u, .other = ".versions.toml", .cap = CLI_POOL_BYTES})) ||
@@ -199,7 +201,8 @@ void cli_gradle_catalogs(const CliGradleFolderCtx *args)
         s_pairs[at][0] = args->catalogs->name[at];
         s_pairs[at][1] = args->catalogs->path[at];
     }
-    qsort(s_pairs, args->catalogs->count, sizeof(s_pairs[0]), gradle_catalog_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_pairs, .count = args->catalogs->count, .size = sizeof(s_pairs[0]),
+               .order = gradle_catalog_order);
     for (unsigned int at = 0u; at < args->catalogs->count; at += 1u)
     {
         EMBED_CALL(gradle_copy, GradleBuildCtx, .from = s_pairs[at][0], .out = s_sorted.name[at]);

@@ -152,7 +152,7 @@ unsigned int cli_shape_bind(const CliShapeCtx *args)
     {
         const CliShapeHole *const hole = &args->matcher_read->holes->hole[args->matcher_read->bound[at]];
         if ((hole->name_size == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = hole->name, .other = args->name, .bytes = (size_t)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = hole->name, .other = args->name, .bytes = (embed_word)args->size}) == 0))
         {
             return at;
         }
@@ -179,7 +179,7 @@ EMBED_INLINE int match_same(const ShapeMatchCtx *args)
         const char *const other = EMBED_CALL(match_text, ShapeMatchCtx, .matcher = args->matcher,
                                              .at = args->at + offset, .size = &other_size);
         if ((one_size != other_size) ||
-            (memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = (size_t)one_size}) != 0))
+            (memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = (embed_word)one_size}) != 0))
         {
             return 0;
         }
@@ -217,7 +217,7 @@ int cli_shape_from(const CliShapeMatcherCtx *args)
             ((own_size != size) ||
              (memor.cmp(&(MemoriaCfg){.src = own,
                                       .other = args->matcher->pattern + args->matcher->parts->start[args->part],
-                                      .bytes = (size_t)size}) != 0)))
+                                      .bytes = (embed_word)size}) != 0)))
         {
             return 0;
         }

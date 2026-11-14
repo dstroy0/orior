@@ -85,10 +85,11 @@ EMBED_INLINE unsigned long long view_files_relative(const ViewFilesCtx *args)
 EMBED_INLINE int view_files_by_path(const ViewFilesCtx *args)
 {
     const unsigned int count = cli_view_count();
+    char path[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const char *const path = cli_view_path_at(at);
-        if ((cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) == args->length) &&
+        if (cli_view_path_at(at, path) &&
+            (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) == args->length) &&
             (memor.cmp(&(MemoriaCfg){.src = path, .other = args->path, .bytes = args->length}) == 0))
         {
             // the views are fewer than an int counts
@@ -184,26 +185,23 @@ int cli_view_file_open(const char *root, const char *path, unsigned int rows, un
     }
     // the view is among the views
     cli_view_show((unsigned int)at);
-    if (placed_at != NULL)
+    char opened_key[CLI_NAME_MAX_LEN];
+    if ((placed_at != NULL) && cli_view_key((unsigned int)at, opened_key))
     {
         const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = placed_at->line, .column = placed_at->col};
-        (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = cli_view_key((unsigned int)at),
-                         .input = &placed, .err_msg = err_msg);
+        (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = opened_key, .input = &placed,
+                         .err_msg = err_msg);
     }
     return at;
 }
 
 void cli_view_file_close(unsigned int at)
 {
-    const char *const shown = cli_view_key(at);
-    if (shown == NULL)
+    char key[CLI_NAME_MAX_LEN];
+    if (!cli_view_key(at, key))
     {
         return;
     }
-    char key[CLI_PATH_MAX_LEN + sizeof(CLI_VIEW_KEY_HEAD)];
-    VerbaLinea keyed = {key, sizeof(key), 0ULL};
-    mmgr_line_put(&keyed, shown);
-    (void)mmgr_line_finish(&keyed);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
 }
@@ -218,12 +216,19 @@ void cli_view_session_save(const char *root)
     const unsigned int count = cli_view_count();
     const int shown = cli_view_shown();
     unsigned long long bytes = 2ULL;
+    char path[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        bytes += cellul.len(&(CatenaFinitaCfg){.src = cli_view_path_at(at), .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+        bytes +=
+            (cli_view_path_at(at, path) ? cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) : 0ULL) +
+            1ULL;
     }
     // the view shown is among the views
-    const char *const shown_path = (shown >= 0) ? cli_view_path_at((unsigned int)shown) : "";
+    char shown_path[CLI_PATH_MAX_LEN];
+    if ((shown < 0) || !cli_view_path_at((unsigned int)shown, shown_path))
+    {
+        shown_path[0] = '\0';
+    }
     bytes += cellul.len(&(CatenaFinitaCfg){.src = shown_path, .cap = CLI_PATH_MAX_LEN});
     char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_views_owner);
     if (cell == NULL)
@@ -235,7 +240,10 @@ void cli_view_session_save(const char *root)
     mmgr_line_ch(&text, '\n');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        mmgr_line_put(&text, cli_view_path_at(at));
+        if (cli_view_path_at(at, path))
+        {
+            mmgr_line_put(&text, path);
+        }
         mmgr_line_ch(&text, '\n');
     }
     (void)mmgr_line_finish(&text);
@@ -259,14 +267,17 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
     VerbaLinea keyed = {key, sizeof(key), 0ULL};
     mmgr_line_put(&keyed, CLI_VIEW_SESSION_KEY);
     mmgr_line_put(&keyed, (root != NULL) ? root : "");
-    const char *const session =
-        ((entries != NULL) && (mmgr_line_finish(&keyed) != 0ULL)) ? cli_state_entry_value(entries, key) : NULL;
-    if (session == NULL)
+    // the session's text read out of the entries' cell into a cell of this call
+    const unsigned long long size =
+        (mmgr_line_finish(&keyed) != 0ULL) ? cli_state_entry_size(entries, key) : CLI_STATE_NONE;
+    char *const session =
+        (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_editor_owner) : NULL;
+    if ((session == NULL) || (cli_state_entry_value(entries, key, session, size + 1ULL) == NULL))
     {
+        g_cli_guard->persistent_buf_release(session, g_cli_editor_owner);
         return;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = session, .cap = CLI_POOL_BYTES});
     const unsigned long long shown_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                     .text = session, .at = 0ULL, .size = size, .set = "\n");
     for (unsigned long long at = shown_end + 1ULL; at < size;)
@@ -291,4 +302,5 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
     {
         (void)cli_view_file_open(root, shown, rows, columns, NULL, &err_msg);
     }
+    g_cli_guard->persistent_buf_release(session, g_cli_editor_owner);
 }

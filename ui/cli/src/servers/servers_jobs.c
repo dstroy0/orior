@@ -1,112 +1,159 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_jobs.c: the servers' work done off the thread that requests it: a server stopped, a file checked by a
-// checker or by orior's own reading, the tree checked whole, and the tree read. Each job takes a place of its
-// own as it is handed over, its bytes a cell sized to them, copied there or handed over whole by the caller who filled
-// it, and is taken by the first of the servers' threads free, which gives the cell back once the job is done; the
-// threads started as the first jobs come; a job handed over while every place is taken waits for one
+// checker or by orior's own reading, the tree checked whole, and the tree read. The jobs wait on one ticket ring of
+// embedded_types': a dispatcher writes the job's bytes into a movable cell of their size, takes a ticket, waits for
+// its slot's room, grants the slot and pushes the cell's token under the ticket; the workers take tickets in turn, and
+// each waits for its ticket's push, pops the token, reads the job into a cell of its own call, runs it, gives both
+// cells back and releases the slot. So the jobs
+// run in the order the dispatchers took their tickets, the ring's proofs hold each slot to one pop, and no take
+// contends with another dispatcher's claim. The workers start as the first jobs come; a dispatcher whose slot still
+// holds the ticket a lap back waits for its release
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "servers_internal.h"
 
-// the threads that take the jobs, and the places jobs wait in
-#define CLI_SERVERS_WORKERS 8u
-#define CLI_SERVERS_POSITIONS 16u
+#include "../command_line/rings.h"
 
-// A job waiting: whether its place is taken, the function that does it, and its bytes, a cell of `size`
+// the threads that take the jobs
+#define CLI_SERVERS_WORKERS 8u
+
+// A job's head as its movable cell holds it, the job's bytes after it: what runs it and its bytes' size
 typedef struct
 {
-    int used;
     CliServersJob run;
     unsigned long long size;
-    char *bytes;
-} CliServersPosition;
+} JobsCell;
 
-// the places, the order they were taken in, and the threads, under the jobs' lock
-static CliServersPosition s_position[CLI_SERVERS_POSITIONS];
-static unsigned int s_order[CLI_SERVERS_POSITIONS];
-static unsigned int s_waiting;
+// the ring over its slots, the jobs' part of the rings block, laid as the process starts; its turnstiles, zeros at
+// rest; the next ticket a dispatcher takes and the next a worker takes; how many workers have started; the wake the
+// waiters sleep on; and the threads with their places
+static EmbedTicketRing s_ring = {.mask = (1u << CLI_SERVERS_JOBS_RING_SHIFT) - 1u};
+static EmbedTurnstiles s_turnstiles;
+static embed_atomic_u32 s_ticket;
+static embed_atomic_u32 s_taken;
+static embed_atomic_u32 s_started;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliThread s_thread[CLI_SERVERS_WORKERS];
-static unsigned int s_index[CLI_SERVERS_WORKERS];
-static unsigned int s_started;
-static unsigned int s_idle;
+static unsigned int s_worker_index[CLI_SERVERS_WORKERS];
 
-// a thread of the servers': each job taken in the order it was handed over and its place given back, then done and
-// its cell given back
+// a thread of the servers': a ticket taken, its push waited for, its cell's token popped, the job read into a cell of
+// this call and run, both cells given back and the slot released, then the next ticket
 static void jobs_worker(void *context)
 {
-    (void)context;
+    const unsigned int worker = *(const unsigned int *)context;
+    // Explicit cast carries the worker's place as the pass's entry
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_worker_index[worker];
     for (;;)
     {
-        s_idle += 1u;
-        while (s_waiting == 0u)
+        const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_taken, 1u);
+        embed_u64 stamp = 0u;
+        for (;;)
         {
-            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+            const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
+            if (cli_ticket_pushed(&s_ring, ticket, &stamp))
+            {
+                break;
+            }
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = seen);
         }
-        s_idle -= 1u;
-        CliServersPosition *const place = &s_position[s_order[0]];
-        s_waiting -= 1u;
-        memor.move_down(&(MemoriaCfg){.dst = s_order, .src = s_order + 1u, .bytes = s_waiting * sizeof(s_order[0])});
-        const CliServersJob run = place->run;
-        const unsigned long long size = place->size;
-        char *const bytes = place->bytes;
-        place->bytes = NULL;
-        place->used = 0;
-        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
-        EMBED_CALL(run, CliServersJobCfg, .job = bytes, .size = size);
+        void *popped = NULL;
+        embed_u64 seen_word = 0u;
+        (void)embed_ticket_ring_popped(&s_turnstiles, address, &s_ring, stamp, &popped, &seen_word);
+        const CarcerMovableEntry *const cell = popped;
+        JobsCell job = {NULL, 0ULL};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = &job, .bytes = sizeof(job)});
+        char *const bytes = g_cli_guard->temporary_buf_alloc((job.size != 0ULL) ? job.size : 1ULL, g_cli_servers_owner);
+        if ((bytes != NULL) && (job.size != 0ULL))
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = cell, .offset = sizeof(job), .dst = bytes, .bytes = (embed_word)job.size});
+        }
+        if (bytes != NULL)
+        {
+            EMBED_CALL(job.run, CliServersJobCfg, .job = bytes, .size = job.size);
+        }
         g_cli_guard->persistent_buf_release(bytes, g_cli_servers_owner);
+        (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
+        (void)embed_ticket_ring_released(&s_turnstiles, &s_ring, stamp, &seen_word);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
+    }
+}
+
+// a worker started where one of the eight has not: its place claimed by one compare-and-swap on the count, so each
+// place starts once; a thread that could not start leaves its place empty, and the others serve
+static void jobs_worker_started(void)
+{
+    for (;;)
+    {
+        embed_u32 count = EMBED_ATOMIC_LOAD(&s_started);
+        if (count >= CLI_SERVERS_WORKERS)
+        {
+            return;
+        }
+        if (EMBED_ATOMIC_CAS_32(&s_started, &count, count + 1u))
+        {
+            s_worker_index[count] = count;
+            s_thread[count] = (CliThread){jobs_worker, &s_worker_index[count], CLI_PRIORITY_WORK};
+            (void)EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread[count]);
+            return;
+        }
     }
 }
 
 int cli_servers_later(const CliServersRunCtx *args)
 {
-    char *const bytes = g_cli_guard->persistent_buf_alloc(args->size, g_cli_servers_owner);
-    if (bytes != NULL)
+    const CarcerMovableEntry *const cell =
+        g_cli_guard->movable_buf_alloc(sizeof(JobsCell) + args->size, g_cli_servers_owner);
+    if (cell == NULL)
     {
-        // a size the cell stores fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = bytes, .src = args->job, .bytes = (size_t)args->size});
+        return 0;
+    }
+    const JobsCell head = {args->run, args->size};
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
+    if (args->size != 0ULL)
+    {
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = cell, .offset = sizeof(head), .src = args->job, .bytes = (embed_word)args->size});
     }
     return EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = args->run,
-                      .bytes = bytes, .size = args->size);
+                      .cell = cell, .size = args->size);
 }
 
 int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
 {
-    CliServersJob run = args->run;
-    char *bytes = args->bytes;
-    unsigned long long size = args->size;
-    if (bytes == NULL)
+    const CarcerMovableEntry *const cell = args->cell;
+    if (cell == NULL)
     {
         return 0;
     }
+    const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_ticket, 1u);
+    // the slot of the ticket a lap back released first, which keeps every live ticket within one lap of the ring, as
+    // the ring's proofs need; a worker's release wakes the wait
     for (;;)
     {
-        unsigned int free = 0u;
-        while ((free < CLI_SERVERS_POSITIONS) && s_position[free].used)
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
+        if (cli_ticket_room(&s_ring, ticket))
         {
-            free += 1u;
-        }
-        if (free < CLI_SERVERS_POSITIONS)
-        {
-            CliServersPosition *const place = &s_position[free];
-            place->used = 1;
-            place->run = run;
-            place->size = size;
-            place->bytes = bytes;
-            s_order[s_waiting] = free;
-            s_waiting += 1u;
             break;
         }
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = seen);
     }
-    if ((s_idle < s_waiting) && (s_started < CLI_SERVERS_WORKERS))
-    {
-        s_index[s_started] = s_started;
-        s_thread[s_started] = (CliThread){jobs_worker, &s_index[s_started]};
-        s_started +=
-            EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread[s_started]) ? 1u : 0u;
-    }
+    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
+    embed_u64 seen_word = 0u;
+    (void)embed_ticket_ring_granted(&s_turnstiles, address, &s_ring, stamp, &seen_word);
+    (void)embed_ticket_ring_pushed(&s_turnstiles, address, &s_ring, stamp, (void *)(embed_word)cell, &seen_word);
+    jobs_worker_started();
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     return 1;
+}
+
+void cli_servers_jobs_laid(void)
+{
+    s_ring.slots =
+        (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_SERVERS_JOBS);
 }

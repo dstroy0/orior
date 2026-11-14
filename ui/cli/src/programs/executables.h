@@ -52,14 +52,14 @@ struct CliExecutablesPathCfg
     const CliValues *values;
     const char *root;
     const char *id;
-    const CliLines *lines;
+    const CliRunLines *lines;
 };
 
 struct CliExecutablesRootCfg
 {
     const char *root;
     const char *id;
-    const CliLines *lines;
+    const CliRunLines *lines;
     QuerySink sink;
     int has_code;
     long long code;

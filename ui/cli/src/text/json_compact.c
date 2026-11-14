@@ -5,8 +5,6 @@
 #include "json_tree.h"
 #include "text.h"
 
-#include <stdlib.h>
-
 // A reading: the text, its size, where it stands, and how deep it is
 typedef struct
 {
@@ -43,33 +41,11 @@ EMBED_INLINE unsigned int cli_compact_hex(const JsonCompactCtx *args)
     {
         return 0x10000u;
     }
-    unsigned int value = 0u;
-    for (unsigned long long digit = args->at; digit < args->at + 4ULL; digit += 1ULL)
-    {
-        const char letter = args->read_read->text[digit];
-        unsigned int part;
-        if ((letter >= '0') && (letter <= '9'))
-        {
-            part = (unsigned int)(letter - '0');
-        }
-        else if ((letter >= 'a') && (letter <= 'f'))
-        {
-            part = (unsigned int)(letter - 'a' + 10);
-        }
-        else if ((letter >= 'A') && (letter <= 'F'))
-        {
-            part = (unsigned int)(letter - 'A' + 10);
-        }
-        else
-        {
-            part = 16u;
-        }
-        if (part > 15u)
-        {
-            return 0x10000u;
-        }
-        value = (value << 4u) | part;
-    }
+    unsigned long long end = 0ULL;
+    const unsigned long long read = EMBED_CALL(cli_text_at_size.hex, CliTextAtSizeCfg, .text = args->read_read->text,
+                                               .at = args->at, .size = args->at + 4ULL, .end = &end);
+    // Explicit cast narrows four digits' value, below 0x10000, to the answer's width
+    const unsigned int value = (end == args->at + 4ULL) ? (unsigned int)read : 0x10000u;
     return value;
 }
 
@@ -308,7 +284,7 @@ EMBED_INLINE int cli_compact_number(const JsonCompactCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = copy, .src = args->read->text + start, .bytes = length});
     copy[length] = '\0';
-    const double number = strtod(copy, NULL);
+    const double number = cellul.to_double(&(TransfiguroCfg){.src = copy});
     unsigned long long bits = 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = &bits, .src = &number, .bytes = sizeof(bits)});
     if (((bits >> 52u) & 0x7ffULL) == 0x7ffULL)

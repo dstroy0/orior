@@ -68,7 +68,7 @@ EMBED_INLINE void export_append(const DbExportCtx *args)
         return;
     }
     memor.cpy(&(MemoriaCfg){
-        .dst = args->export->pending + args->export->pending_size, .src = args->text, .bytes = (size_t)size});
+        .dst = args->export->pending + args->export->pending_size, .src = args->text, .bytes = (embed_word)size});
     args->export->pending_size += size;
 }
 
@@ -277,7 +277,7 @@ EMBED_INLINE void export_order(const DbExportCtx *args)
         }
         memor.move_up(&(MemoriaCfg){.dst = &args->export->order[at + 1u],
                                     .src = &args->export->order[at],
-                                    .bytes = (size_t)(count - at) * sizeof(args->export->order[0])});
+                                    .bytes = (embed_word)(count - at) * sizeof(args->export->order[0])});
         args->export->order[at] = column;
         count += 1u;
     }

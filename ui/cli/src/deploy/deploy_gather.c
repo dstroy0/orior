@@ -3,12 +3,11 @@
 // deploy_gather.c: whether a file is left out by a deployment's patterns, the mode git's index gives a file, else the
 // one it has here, and a release's name by the time it is made
 #include "../command_line/pool.h"
+#include "../text/sort.h"
 #include "../text/text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
-
-#include <stdlib.h>
 
 // the modes git's index gives the tree's files, by their paths in the tree, sorted by path, in the pool they were read
 // into
@@ -49,9 +48,10 @@ int cli_deploy_fits(const CliDeploySizePatternCtx *args)
         const unsigned long long pattern_letter =
             (p < length) ? EMBED_CALL(gather_letter, DeployGatherCtx, .text = args->pattern, .size = length, .at = p)
                          : 0ULL;
-        const int same = (p < length) && (pattern_letter == name_letter) &&
-                         (memor.cmp(&(MemoriaCfg){
-                              .src = args->pattern + p, .other = args->name + n, .bytes = (size_t)name_letter}) == 0);
+        const int same =
+            (p < length) && (pattern_letter == name_letter) &&
+            (memor.cmp(&(MemoriaCfg){
+                 .src = args->pattern + p, .other = args->name + n, .bytes = (embed_word)name_letter}) == 0);
         if ((p < length) && ((args->pattern[p] == '?') || same))
         {
             p += (args->pattern[p] == '?') ? 1u : pattern_letter;
@@ -89,7 +89,7 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = named, .src = args->folder, .bytes = (size_t)args->folder_size});
+    memor.cpy(&(MemoriaCfg){.dst = named, .src = args->folder, .bytes = (embed_word)args->folder_size});
     named[args->folder_size] = '\0';
     unsigned long long starts[CLI_PATH_MAX_LEN / 2u];
     unsigned int parts = 0u;
@@ -106,7 +106,7 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
             at += 1u;
         }
     }
-    if (memor.chr(&(MemoriaCfg){.src = named, .bytes = (size_t)args->folder_size, .val = (uint8_t)'/'}) == NULL)
+    if (memor.chr(&(MemoriaCfg){.src = named, .bytes = (embed_word)args->folder_size, .val = (embed_u8)'/'}) == NULL)
     {
         for (unsigned int part = 0u; part + 1u < parts; part += 1u)
         {
@@ -118,7 +118,8 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
         }
         return 0;
     }
-    if (cellul.starts(&(CatenaFinitaCfg){.src = args->path, .other = named, .cap = (size_t)args->folder_size + 1u}) &&
+    if (cellul.starts(
+            &(CatenaFinitaCfg){.src = args->path, .other = named, .cap = (embed_word)args->folder_size + 1u}) &&
         (args->path[args->folder_size] == '/'))
     {
         return 1;
@@ -156,7 +157,7 @@ const char *cli_deploy_left_out_by(const CliDeployPatternsCtx *args)
             }
             continue;
         }
-        if (memor.chr(&(MemoriaCfg){.src = pattern, .bytes = (size_t)size, .val = (uint8_t)'/'}) != NULL)
+        if (memor.chr(&(MemoriaCfg){.src = pattern, .bytes = (embed_word)size, .val = (embed_u8)'/'}) != NULL)
         {
             const char *trimmed = pattern;
             trimmed +=
@@ -172,7 +173,7 @@ const char *cli_deploy_left_out_by(const CliDeployPatternsCtx *args)
         for (unsigned long long start = 0ULL; start <= length;)
         {
             const char *const slash = memor.chr(
-                &(MemoriaCfg){.src = args->path + start, .bytes = (size_t)(length - start), .val = (uint8_t)'/'});
+                &(MemoriaCfg){.src = args->path + start, .bytes = (embed_word)(length - start), .val = (embed_u8)'/'});
             const unsigned long long end = (slash != NULL) ? (unsigned long long)(slash - args->path) : length;
             if (EMBED_CALL(cli_deploy_size_pattern_internal.fits, CliDeploySizePatternCtx, .pattern = pattern,
                            .name = args->path + start, .size = end - start))
@@ -247,12 +248,14 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
         {
             const char *const line = run_result->out + at;
             const char *const newline = memor.chr(
-                &(MemoriaCfg){.src = line, .bytes = (size_t)(run_result->out_size - at), .val = (uint8_t)'\n'});
+                &(MemoriaCfg){.src = line, .bytes = (embed_word)(run_result->out_size - at), .val = (embed_u8)'\n'});
             const unsigned long long size =
                 (newline != NULL) ? (unsigned long long)(newline - line) : (run_result->out_size - at);
             at += size + 1u;
-            const char *const tab = memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)size, .val = (uint8_t)'\t'});
-            const char *const space = memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)size, .val = (uint8_t)' '});
+            const char *const tab =
+                memor.chr(&(MemoriaCfg){.src = line, .bytes = (embed_word)size, .val = (embed_u8)'\t'});
+            const char *const space =
+                memor.chr(&(MemoriaCfg){.src = line, .bytes = (embed_word)size, .val = (embed_u8)' '});
             unsigned long long mode = 0ULL;
             int read = (tab != NULL) && (space != NULL) && (space < tab) && (space > line);
             const char *digit = line;
@@ -273,7 +276,8 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
         }
     }
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
-    qsort(s_modes, s_mode_count, sizeof(s_modes[0]), gather_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_modes, .count = s_mode_count, .size = sizeof(s_modes[0]),
+               .order = gather_order);
 }
 
 // the mode of the file at `in_tree` in the tree, at `full` here

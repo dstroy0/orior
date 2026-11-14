@@ -138,7 +138,7 @@ test("the lock at the end of the editor's line stands as far in from the work's 
 
 test("the RAM reading on the bar is orior's own, its process and its web view's, and the hover has the whole with the tools it started", async () => {
   const read = await invoke("memory_usage");
-  const own = read.parts.filter((part) => part.name === "orior_gui" || part.name === "web view");
+  const own = read.parts.filter((part) => part.name === "tabvla" || part.name === "web view");
   assert.ok(own.some((part) => part.name === "web view"), `the web view among the parts: ${JSON.stringify(read.parts.map((part) => part.name))}`);
   assert.equal(read.orior.working, own.reduce((sum, part) => sum + part.working, 0), "orior's share is its own process and the web view's");
   assert.ok(read.orior.working <= read.working, "and no more than the whole");

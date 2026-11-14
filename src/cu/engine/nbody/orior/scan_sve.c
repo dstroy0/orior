@@ -18,7 +18,7 @@
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract OriorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
+ * the contract OriorSteerEngine carries, the same one the exact arms carry in includes/exact_types/integers/arm.h.
  *
  * @note No part in this project has SVE. The Raspberry Pi 5 is a Cortex-A76, NEON only. This arm
  *       has never been run. It is compiled for armv8.2-a+sve and its emitted instructions are read by

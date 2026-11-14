@@ -6,7 +6,7 @@
 #include "../cycle/cycle.h"
 #include "../key_schedule/key_schedule.h"
 #include "../keymath/keymath.h"
-#include "../../../includes/types/integers/exact_record/exact_record.h"
+#include "../../../../../includes/exact_types/integers/exact_record/exact_record.h"
 
 // a sweep's index names a voxel by an output one bit wider than its register, 32 bits a limb
 #define PERIOD_RECORD_VOXELS_MAX (1ull << 31u)

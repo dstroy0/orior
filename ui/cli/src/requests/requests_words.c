@@ -48,7 +48,8 @@ EMBED_INLINE int words_append(const RequestsWordsCtx *args)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = args->words->text + args->words->used, .src = bytes, .bytes = (size_t)args->size});
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->words->text + args->words->used, .src = bytes, .bytes = (embed_word)args->size});
     args->words->used += args->size;
     return 1;
 }
@@ -194,7 +195,7 @@ int cli_requests_words(const CliRequestsSizeCtx *args)
         else if (letter == '\'')
         {
             const char *const close = memor.chr(
-                &(MemoriaCfg){.src = args->line + at + 1u, .val = '\'', .bytes = (size_t)(args->size - at - 1u)});
+                &(MemoriaCfg){.src = args->line + at + 1u, .val = '\'', .bytes = (embed_word)(args->size - at - 1u)});
             if (close == NULL)
             {
                 read = -1;
@@ -248,7 +249,7 @@ int cli_requests_words(const CliRequestsSizeCtx *args)
     }
     else if (read == 0)
     {
-        mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the curl line is larger than impero supports");
     }
     return read == 1;
 }

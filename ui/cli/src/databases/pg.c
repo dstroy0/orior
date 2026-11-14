@@ -37,8 +37,8 @@ EMBED_INLINE int pg_read(const PgCtx *args)
         const unsigned long long piece = (have < args->size - at) ? have : args->size - at;
         if (args->out != NULL)
         {
-            memor.cpy(
-                &(MemoriaCfg){.dst = args->out + at, .src = args->pg->in + args->pg->start, .bytes = (size_t)piece});
+            memor.cpy(&(MemoriaCfg){
+                .dst = args->out + at, .src = args->pg->in + args->pg->start, .bytes = (embed_word)piece});
         }
         args->pg->start += piece;
         at += piece;
@@ -68,7 +68,7 @@ int cli_pg_message(const CliPgTypeCtx *args)
         VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ULL};
         mmgr_line_put(&line, "a message of ");
         mmgr_line_decimal(&line, size, 1u);
-        mmgr_line_put(&line, " bytes is past the capacity of the buffer orior_cli reads one in");
+        mmgr_line_put(&line, " bytes is past the capacity of the buffer impero reads one in");
         mmgr_line_finish(&line);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = msg_buf);
         return 0;
@@ -120,7 +120,7 @@ void cli_pg_failure_get(const CliPgCtx *args)
     for (unsigned long long at = 0ULL; at < args->size;)
     {
         const unsigned char *const nul =
-            memor.chr(&(MemoriaCfg){.src = args->body + at, .val = 0, .bytes = (size_t)(args->size - at)});
+            memor.chr(&(MemoriaCfg){.src = args->body + at, .val = 0, .bytes = (embed_word)(args->size - at)});
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - args->body) : args->size;
         const unsigned long long type = at;
         at = end + 1ULL;
@@ -180,7 +180,8 @@ void cli_pg_failure_get(const CliPgCtx *args)
 
 void cli_pg_parameter_store(const CliPgBodyCtx *args)
 {
-    const unsigned char *const nul = memor.chr(&(MemoriaCfg){.src = args->body, .val = 0, .bytes = (size_t)args->size});
+    const unsigned char *const nul =
+        memor.chr(&(MemoriaCfg){.src = args->body, .val = 0, .bytes = (embed_word)args->size});
     if ((nul == NULL) || (args->pg->parameters == CLI_PG_PARAMETERS))
     {
         return;
@@ -188,16 +189,17 @@ void cli_pg_parameter_store(const CliPgBodyCtx *args)
     const unsigned long long key = (unsigned long long)(nul - args->body);
     const unsigned char *const value = nul + 1;
     const unsigned char *const value_end =
-        memor.chr(&(MemoriaCfg){.src = value, .val = 0, .bytes = (size_t)(args->size - key - 1u)});
+        memor.chr(&(MemoriaCfg){.src = value, .val = 0, .bytes = (embed_word)(args->size - key - 1u)});
     const unsigned long long value_size =
         (value_end != NULL) ? (unsigned long long)(value_end - value) : args->size - key - 1u;
     unsigned int place = args->pg->parameters;
     for (unsigned int at = 0u; at < args->pg->parameters; at += 1u)
     {
-        place = ((cellul.len(&(CatenaFinitaCfg){.src = args->pg->names[at], .cap = CLI_POOL_BYTES}) == key) &&
-                 (memor.cmp(&(MemoriaCfg){.src = args->pg->names[at], .other = args->body, .bytes = (size_t)key}) == 0))
-                    ? at
-                    : place;
+        place =
+            ((cellul.len(&(CatenaFinitaCfg){.src = args->pg->names[at], .cap = CLI_POOL_BYTES}) == key) &&
+             (memor.cmp(&(MemoriaCfg){.src = args->pg->names[at], .other = args->body, .bytes = (embed_word)key}) == 0))
+                ? at
+                : place;
     }
     VerbaLinea name = {args->pg->names[place], CLI_PG_PARAMETER, 0ULL};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name, .text_bytes = args->body,
@@ -248,16 +250,20 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     {
         at += 1u;
     }
-    pg = (at < CLI_PG_LINKS) ? g_cli_guard->persistent_buf_alloc(sizeof(CliPg), g_cli_db_owner) : NULL;
+    // a link's record holds its socket, so the records stand fixed outside the pool, one for each link open at once,
+    // where they punch no hole in the persistent tier
+    static CliPg s_places[CLI_PG_LINKS];
+    pg = (at < CLI_PG_LINKS) ? &s_places[at] : NULL;
     if (pg != NULL)
     {
+        memor.set(&(MemoriaCfg){.dst = pg, .val = 0, .bytes = sizeof(*pg)});
         pg->place = at;
         s_links[at] = pg;
     }
     if (pg == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "orior_cli has as many PostgreSQL connections as it can");
+                   .message = "impero has as many PostgreSQL connections as it can");
         return NULL;
     }
     pg->start = 0ULL;
@@ -277,7 +283,6 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = why);
         s_links[pg->place] = NULL;
         mmgr_zero_buf(pg, sizeof(*pg));
-        g_cli_guard->persistent_buf_release(pg, g_cli_db_owner);
         return NULL;
     }
     EMBED_CALL(cli_sock_internal.socket_wait, CliSockCtx, .sock = &pg->socket, .milliseconds = within);
@@ -288,7 +293,6 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
         EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &pg->socket);
         s_links[pg->place] = NULL;
         mmgr_zero_buf(pg, sizeof(*pg));
-        g_cli_guard->persistent_buf_release(pg, g_cli_db_owner);
         return NULL;
     }
     EMBED_CALL(cli_sock_internal.socket_wait, CliSockCtx, .sock = &pg->socket, .milliseconds = 0u);
@@ -303,5 +307,4 @@ void cli_pg_close(const CliPgFailureSqlCfg *args)
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->pg->socket);
     s_links[args->pg->place] = NULL;
     mmgr_zero_buf(args->pg, sizeof(*args->pg));
-    g_cli_guard->persistent_buf_release(args->pg, g_cli_db_owner);
 }

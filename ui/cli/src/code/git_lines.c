@@ -8,7 +8,7 @@
 typedef struct
 {
     const char *strip;
-    unsigned long long strip_length;
+    unsigned long long side_menu_length;
     const char *add;
     unsigned long long add_length;
 } CliUnder;
@@ -54,16 +54,16 @@ EMBED_INLINE int cli_under(const GitLinesCtx *args)
 {
     unsigned long long length = args->length;
     unsigned int *at = args->at;
-    if ((length < args->under->strip_length) ||
-        (memor.cmp(&(MemoriaCfg){.src = args->path, .other = args->under->strip, .bytes = args->under->strip_length}) !=
-         0))
+    if ((length < args->under->side_menu_length) ||
+        (memor.cmp(&(MemoriaCfg){
+             .src = args->path, .other = args->under->strip, .bytes = args->under->side_menu_length}) != 0))
     {
         return 0;
     }
     char joined[CLI_PATH_MAX_LEN];
     VerbaLinea line = {joined, sizeof(joined), 0ULL};
     mmgr_line_put_n(&line, args->under->add, args->under->add_length);
-    mmgr_line_put_n(&line, args->path + args->under->strip_length, length - args->under->strip_length);
+    mmgr_line_put_n(&line, args->path + args->under->side_menu_length, length - args->under->side_menu_length);
     const unsigned long long size = mmgr_line_finish(&line);
     *at =
         EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = joined, .length = size);
@@ -283,13 +283,13 @@ int cli_git_line_history(const CliGitLengthCfg *args)
     else if (EMBED_CALL(cli_ends_with, GitLinesCtx, .text = from_repo, .tail = from_tree))
     {
         under.strip = from_repo;
-        under.strip_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_POOL_BYTES}) -
-                             cellul.len(&(CatenaFinitaCfg){.src = from_tree, .cap = CLI_POOL_BYTES});
+        under.side_menu_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_POOL_BYTES}) -
+                                 cellul.len(&(CatenaFinitaCfg){.src = from_tree, .cap = CLI_POOL_BYTES});
     }
     else
     {
         under.strip = from_repo;
-        under.strip_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_POOL_BYTES});
+        under.side_menu_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_POOL_BYTES});
     }
     const char *const arguments[6] = {"blame", "--porcelain", "--contents", "-", "--", displayed};
     char why[CLI_NAME_MAX_LEN];

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_clone.c: `orior_cli file clone`, a repository cloned into a new folder, git's progress written over one
+// command_line_clone.c: `imp file clone`, a repository cloned into a new folder, git's progress written over one
 // line as git writes it
 #include "../code/git.h"
 #include "../text/text.h"
@@ -85,7 +85,7 @@ int cli_clone_words(const CliCommandLineWordsCountCtx *args)
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
                .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     line.at = 0ULL;
-    mmgr_line_put(&line, "orior_cli --root \"");
+    mmgr_line_put(&line, "imp --root \"");
     mmgr_line_put(&line, target);
     mmgr_line_put(&line, "\" opens it in the window.");
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,

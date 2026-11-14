@@ -48,7 +48,7 @@ void cli_binary_report_print(const CliBinaryReportCfg *args)
         case CLI_FOUND_ORIOR_PATH:
             EMBED_CALL(
                 cli_report_line_print, BinaryReportCtx, .sink = args->sink, .first = "", .name = one->name,
-                .by = one->by, .middle = "is found through the folders orior_cli puts on its PATH, at ", .at = where,
+                .by = one->by, .middle = "is found through the folders impero puts on its PATH, at ", .at = where,
                 .last = ", and not where the program is opened on its own: Copy Libraries Beside It puts it beside "
                         "the program");
             break;

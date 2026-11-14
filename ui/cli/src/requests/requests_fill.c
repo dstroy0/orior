@@ -65,7 +65,8 @@ void cli_requests_iso(const CliRequestsOutSecondsCtx *args)
 EMBED_INLINE int fill_is(const RequestsFillCtx *args)
 {
     return (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES}) == args->size) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->word_text, .bytes = (size_t)args->size}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->word_text, .bytes = (embed_word)args->size}) ==
+            0);
 }
 
 // the value JetBrains' HTTP Client makes for `name` written into `out`: 1, 0 where it makes none, or -1 with why

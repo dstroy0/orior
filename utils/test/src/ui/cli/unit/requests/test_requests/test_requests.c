@@ -73,6 +73,16 @@ static const char *value_of(const char *name)
     return (value != NULL) ? EMBED_CALL(cli_requests_pool_internal.text, CliRequestsPoolCtx, .pool = s_values.text, .text_requests_text = *value) : "";
 }
 
+// the values' cell given back and the values emptied
+static void values_released(void)
+{
+    g_cli_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
+    s_values.text = NULL;
+    s_values.capacity = 0ULL;
+    s_values.used = 0ULL;
+    s_values.count = 0u;
+}
+
 // a tree with a shared environment file and a .gitignore, and the private file made
 static void private_created(VerbaLinea *out)
 {
@@ -315,11 +325,7 @@ void test_the_private_values_are_over_the_shared_and_shared_reaches_every_enviro
     TEST_ASSERT_EQUAL_STRING("localhost:1", value_of("host"));
     TEST_ASSERT_EQUAL_STRING("secret", value_of("token"));
     TEST_ASSERT_EQUAL_STRING("all", value_of("who"));
-    g_cli_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
-    s_values.text = NULL;
-    s_values.capacity = 0ULL;
-    s_values.used = 0ULL;
-    s_values.count = 0u;
+    values_released();
 }
 
 void test_the_environments_and_their_values_are_read_in_cells_each_released(void)
@@ -327,11 +333,7 @@ void test_the_environments_and_their_values_are_read_in_cells_each_released(void
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_err_msg_root_internal.values, CliRequestsErrMsgRootCtx, .root = s_root, .path = "api/v1/calls.http", .env = "dev", .values = &s_values, .err_msg = &err_msg));
-    g_cli_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
-    s_values.text = NULL;
-    s_values.capacity = 0ULL;
-    s_values.used = 0ULL;
-    s_values.count = 0u;
+    values_released();
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_requests_owner));
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_requests_owner));
 }

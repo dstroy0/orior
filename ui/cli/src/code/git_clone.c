@@ -203,9 +203,8 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
     if (!EMBED_CALL(cli_toolchains_id_path.chosen_program, CliToolchainsIdPathCfg, .id = "git", .path = program) &&
         !EMBED_CALL(cli_git_on, GitCloneCtx, .path = s_run_path, .program = program))
     {
-        mmgr_line_put(err_msg,
-                      "git is not installed, or not on the PATH: File, Toolchains, or orior_cli file toolchains "
-                      "install git, opens its install page");
+        mmgr_line_put(err_msg, "git is not installed, or not on the PATH: File, Toolchains, or imp file toolchains "
+                               "install git, opens its install page");
         return 0;
     }
     const char *const words[7] = {program, "clone", "--progress", "--", args->url, args->target, NULL};

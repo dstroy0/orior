@@ -6,6 +6,36 @@
 #include "../text/regexp.h"
 #include "files_internal.h"
 
+unsigned int cli_top_put(const CliFilesTopCtx *args)
+{
+    CliTopPlace *const top = args->top;
+    unsigned int low = 0u;
+    unsigned int high = args->count;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (top[middle].score >= args->score)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    if (low >= args->most)
+    {
+        return args->count;
+    }
+    const unsigned int count = (args->count < args->most) ? (args->count + 1u) : args->most;
+    for (unsigned int at = count - 1u; at > low; at -= 1u)
+    {
+        top[at] = top[at - 1u];
+    }
+    top[low] = (CliTopPlace){args->score, args->at};
+    return count;
+}
+
 // whether a letter is whitespace
 int cli_fuzzy_white(const CliFilesLetterCtx *args)
 {

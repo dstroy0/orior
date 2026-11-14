@@ -8,18 +8,17 @@
 #include "git_internal.h"
 
 #include "../text/text.h"
-#include <stddef.h>
 
 // the most words git is started with
 #define CLI_GIT_WORDS 8192u
-// A work state a run of git takes: what it gave and the bytes it points into, the process, the threads that read its
-// errors and write its input and the count of them ended, and the words it is started with; its output stands after it
-// in its cell
+// A work state a run of git takes: what it gave, what it wrote in a line grown to it, the process, the threads that
+// read its errors and write its input and the count of them ended, and the words it is started with
 typedef struct
 {
     CliWake wake;
     unsigned int ended;
     char err[CLI_GIT_ERR];
+    CliGrownLine out;
     CliSpawned spawned;
     CliThread reader;
     CliThread writer;
@@ -35,8 +34,9 @@ static CliGitResult s_refused = {s_nothing, 0ULL, 1, s_nothing, 0ULL, 0};
 
 void cli_git_text_begin(const CliGitTextCfg *args)
 {
-    args->text->bytes = args->text->standing ? g_cli_guard->persistent_buf_alloc(CLI_GIT_TEXT, g_cli_git_owner)
-                                             : g_cli_guard->temporary_buf_alloc(CLI_GIT_TEXT, g_cli_git_owner);
+    // the read writes into a work cell of the temporary tier; a list read before had its texts released by its holder
+    args->text->bytes = g_cli_guard->temporary_buf_alloc(CLI_GIT_TEXT, g_cli_git_owner);
+    args->text->cell = NULL;
     args->text->capacity = 0ULL;
     args->text->used = 0ULL;
     args->text->full = 0;
@@ -46,6 +46,39 @@ void cli_git_text_begin(const CliGitTextCfg *args)
         args->text->used = 1ULL;
         args->text->bytes[0] = '\0';
     }
+}
+
+void cli_git_text_end(const CliGitTextCfg *args)
+{
+    CliGitText *const text = args->text;
+    if (!text->standing || (text->bytes == NULL))
+    {
+        return;
+    }
+    // the texts moved into a movable cell sized to them; where the cells cannot meet it the list holds none
+    text->cell = g_cli_guard->movable_buf_alloc(text->used, g_cli_git_owner);
+    if (text->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = text->cell, .src = text->bytes, .bytes = text->used});
+    }
+    g_cli_guard->persistent_buf_release(text->bytes, g_cli_git_owner);
+    text->bytes = NULL;
+    text->capacity = 0ULL;
+    text->used = (text->cell != NULL) ? text->used : 0ULL;
+    text->full = (text->cell != NULL) ? text->full : 1;
+}
+
+void cli_git_text_release(const CliGitTextCfg *args)
+{
+    CliGitText *const text = args->text;
+    g_cli_guard->persistent_buf_release(text->bytes, g_cli_git_owner);
+    (void)g_cli_guard->movable_buf_release(text->cell, g_cli_git_owner);
+    text->bytes = NULL;
+    text->cell = NULL;
+    text->used = 0ULL;
+    text->capacity = 0ULL;
+    text->full = 0;
 }
 
 unsigned int cli_git_text_append(const CliGitTextCfg *args)
@@ -66,23 +99,44 @@ unsigned int cli_git_text_append(const CliGitTextCfg *args)
 
 const char *cli_git_text_get(const CliGitTextAtCfg *args)
 {
-    return (args->text_read->bytes != NULL) ? (args->text_read->bytes + args->at) : "";
+    const CliGitText *const text = args->text_read;
+    if (text->bytes != NULL)
+    {
+        return text->bytes + args->at;
+    }
+    if ((text->cell == NULL) || (args->dst == NULL) || (args->capacity == 0ULL) || (args->at >= text->used))
+    {
+        return "";
+    }
+    // the text's bytes up to its end copied out of the movable cell, cut where `dst` is smaller
+    const embed_word measured =
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = text->cell, .offset = args->at});
+    const unsigned long long length = (measured < args->capacity) ? measured : (args->capacity - 1ULL);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = text->cell, .offset = args->at, .dst = args->dst, .bytes = length});
+    args->dst[length] = '\0';
+    return args->dst;
 }
 
 CliGitResult *cli_git_alloc(void)
 {
-    CliGitWorkState *const work_state =
-        g_cli_guard->persistent_buf_alloc(sizeof(*work_state) + CLI_GIT_OUT, g_cli_git_owner);
+    // the run's cell lives for the one call that takes it and gives it back: a take of the temporary tier
+    CliGitWorkState *const work_state = g_cli_guard->temporary_buf_alloc(sizeof(*work_state), g_cli_git_owner);
     if (work_state == NULL)
     {
         return &s_refused;
     }
-    char *const out = (char *)(void *)(work_state + 1);
+    cli_grown_begin(&work_state->out, CLI_GIT_OUT, g_cli_git_owner);
+    if (work_state->out.cell == NULL)
+    {
+        g_cli_guard->persistent_buf_release(work_state, g_cli_git_owner);
+        return &s_refused;
+    }
     const CliWake wake = CLI_WAKE_INIT;
     work_state->wake = wake;
-    out[0] = '\0';
+    work_state->out.cell[0] = '\0';
     work_state->err[0] = '\0';
-    work_state->result = (CliGitResult){out, 0ULL, 1, work_state->err, 0ULL, 0};
+    work_state->result = (CliGitResult){work_state->out.cell, 0ULL, 1, work_state->err, 0ULL, 0};
     return &work_state->result;
 }
 
@@ -101,8 +155,9 @@ void cli_git_free(const CliGitResultCtx *args)
 {
     if (args->result != &s_refused)
     {
-        g_cli_guard->persistent_buf_release(EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result),
-                                            g_cli_git_owner);
+        CliGitWorkState *const work_state = EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result);
+        cli_grown_end(&work_state->out);
+        g_cli_guard->persistent_buf_release(work_state, g_cli_git_owner);
     }
 }
 
@@ -157,6 +212,15 @@ int cli_git_result(const CliGitResultCtx *args)
         return 0;
     }
     CliGitWorkState *const work_state = EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result);
+    // a run after another on the same state starts its output's line over, at its first cell
+    cli_grown_end(&work_state->out);
+    cli_grown_begin(&work_state->out, CLI_GIT_OUT, g_cli_git_owner);
+    if (work_state->out.cell == NULL)
+    {
+        mmgr_line_put(args->err_msg, "git: the cells cannot meet a run of git");
+        return 0;
+    }
+    args->result->out = work_state->out.cell;
     args->result->out_size = 0ULL;
     args->result->out_untruncated = 1;
     args->result->err_size = 0ULL;
@@ -219,23 +283,23 @@ int cli_git_result(const CliGitResultCtx *args)
     {
         cli_input_write(work_state);
     }
+    // what git writes read a piece at a time onto the line, which grows to it up to CLI_GIT_OUT and fills past that
     for (;;)
     {
-        char reserve[CLI_GIT_READ];
-        const unsigned long long capacity_remaining = CLI_GIT_OUT - 1ULL - args->result->out_size;
-        char *const into = (capacity_remaining != 0ULL) ? (args->result->out + args->result->out_size) : reserve;
+        char piece[CLI_GIT_READ];
         const unsigned long long got =
             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
-                       .pipe_handle = work_state->spawned.out, .piece = into,
-                       .capacity = (capacity_remaining != 0ULL) ? capacity_remaining : sizeof(reserve));
+                       .pipe_handle = work_state->spawned.out, .piece = piece, .capacity = sizeof(piece));
         if (got == 0ULL)
         {
             break;
         }
-        args->result->out_size += (capacity_remaining != 0ULL) ? got : 0ULL;
-        args->result->out_untruncated = args->result->out_untruncated && (capacity_remaining != 0ULL);
+        (void)mmgr_line_put_n(&work_state->out.line, piece, got);
     }
-    args->result->out[args->result->out_size] = '\0';
+    args->result->out = work_state->out.cell;
+    args->result->out_size = cli_grown_size(&work_state->out);
+    args->result->out_untruncated = mmgr_line_ok(&work_state->out.line) ? 1 : 0;
+    (void)mmgr_line_finish(&work_state->out.line);
     if (!read_state)
     {
         cli_errors_read(work_state);

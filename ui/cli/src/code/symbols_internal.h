@@ -311,7 +311,6 @@ typedef struct
     unsigned int seen;
 } CliEffectMacro;
 
-
 // what a slice's walk meets in an active region: a define or undefine, a declaration a branch's leaves name, and an
 // include of no file of the tree
 #define CLI_SEEN_MACRO 0u
@@ -377,12 +376,12 @@ typedef int (*CliEffectReached)(const CliEffectReachedCfg *args);
 
 // A walk from a branch's first line to a line of it: the languages, the tree's top, the branch it starts from and its
 // text where the editor's stands in for the disk's, NULL where none does, and how many bytes, its texts a line, the
-// macros met with the leaves of their values and the branches walked, each in a cell at their most, the name sought, the last declaration of it the walk reached in an active
-// region, its branch and its line's text places among the texts, its line, and whether one was reached, and the first,
-// its branch and its line, and whether one was; whether it is a slice's walk, and if so each branch it read whole and
-// what it met, each in a cell at their most; where each leaf of the name in the branch it starts from goes, NULL for
-// nowhere; where each line of that branch goes as the walk reaches it, NULL for nowhere; and whether the cells refused
-// it
+// macros met with the leaves of their values and the branches walked, each in a cell at their most, the name sought,
+// the last declaration of it the walk reached in an active region, its branch and its line's text places among the
+// texts, its line, and whether one was reached, and the first, its branch and its line, and whether one was; whether it
+// is a slice's walk, and if so each branch it read whole and what it met, each in a cell at their most; where each leaf
+// of the name in the branch it starts from goes, NULL for nowhere; where each line of that branch goes as the walk
+// reaches it, NULL for nowhere; and whether the cells refused it
 typedef struct
 {
     CliSymbolsLanguages *languages;

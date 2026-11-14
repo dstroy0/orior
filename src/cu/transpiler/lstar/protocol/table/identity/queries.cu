@@ -14,7 +14,7 @@ thread_local QueryLog *s_trace_log = NULL;
 // the order of the cases, `=` alike, `x` apart and `-` where the host gives no bracket, or `recorded` or `refused`
 // where the part answered it nothing here. A mode writes what it put after the query, and every choice a pair's put
 // makes at a link as `choice <flags> <link>`, the flags of the trace's table ORed into one word, `-` for the link where
-// the choice is the put's own (src/cu/includes/file_defs/klq/query_trace.tsv). NULL where nothing is traced. The trace
+// the choice is the put's own (includes/file_defs/klq/query_trace.tsv). NULL where nothing is traced. The trace
 // and the log of the thread that carries the queries are the two below; a pair put in a thread of its own writes its
 // trace and its log into logs of its own, each handed whole once the pair is put, so that every put stands in one piece
 thread_local QueryLog *s_query_log = NULL;

@@ -27,8 +27,10 @@ typedef struct
     const char *tree;
     const CliJson *from;
     unsigned int into;
+    VerbaLinea *out;
+    int add;
 } TrustCtx;
-// the file of answers into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where orior_cli has no home folder
+// the file of answers into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where impero has no home folder
 EMBED_INLINE int cli_trust_file(const TrustCtx *args)
 {
     char home[CLI_PATH_MAX_LEN];
@@ -157,4 +159,85 @@ int cli_trust_answer(const CliTrustTreeCfg *args)
     *trusted = 0;
     return EMBED_CALL(cli_trust_file, TrustCtx, .path = path) &&
            EMBED_CALL(cli_trust_tree.answer_in, CliTrustTreeCfg, .path = path, .tree = args->tree, .trusted = trusted);
+}
+
+// the folders of `list` written into `out` as JSON strings with commas between, the folder `tree` left out, and `tree`
+// itself written last where `add` is 1
+EMBED_INLINE void cli_list_write(const TrustCtx *args)
+{
+    const CliJson *json = args->json_read;
+    int first = 1;
+    for (unsigned int item = (args->list != CLI_JSON_NONE) ? json->node[args->list].first : CLI_JSON_NONE;
+         item != CLI_JSON_NONE; item = json->node[item].next)
+    {
+        unsigned long long length = 0ULL;
+        const char *const folder = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                              .json_read = json, .node = item, .length_pointer = &length);
+        if ((folder == NULL) ||
+            cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = args->tree, .cap = CLI_PATH_MAX_LEN}))
+        {
+            continue;
+        }
+        mmgr_line_put(args->out, first ? "" : ", ");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = folder,
+                   .length = length);
+        first = 0;
+    }
+    if (args->add)
+    {
+        mmgr_line_put(args->out, first ? "" : ", ");
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = args->tree,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_PATH_MAX_LEN}));
+    }
+}
+
+int cli_trust_answer_set(const CliTrustFolderCfg *args)
+{
+    char path[CLI_PATH_MAX_LEN];
+    if (args->path != NULL)
+    {
+        VerbaLinea line = {path, sizeof(path), 0ULL};
+        mmgr_line_put(&line, args->path);
+        (void)mmgr_line_finish(&line);
+    }
+    else if (!EMBED_CALL(cli_trust_file, TrustCtx, .path = path))
+    {
+        mmgr_line_put(args->err_msg, "impero finds no folder of its own");
+        return 0;
+    }
+    char key[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_key, TrustCtx, .folder = args->folder, .key = key);
+    CliJson json = {0};
+    unsigned int yes = CLI_JSON_NONE;
+    unsigned int no = CLI_JSON_NONE;
+    EMBED_CALL(cli_state_read, TrustCtx, .json = &json, .path_read = path, .trusted = &yes, .refused = &no);
+    // the answers written anew: each list's folders as they stand, less this folder, and this folder in the list its
+    // answer names; each folder's bytes escape to six at the most
+    const unsigned long long capacity = (json.used * 6ULL) + (CLI_PATH_MAX_LEN * 6ULL) + 64ULL;
+    char *const cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_machine_owner);
+    if (cell == NULL)
+    {
+        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        mmgr_line_put(args->err_msg, "the cellblock could not meet the answers");
+        return 0;
+    }
+    VerbaLinea out = mmgr_line_over(cell, capacity);
+    mmgr_line_put(&out, "{\n  \"trusted\": [");
+    EMBED_CALL(cli_list_write, TrustCtx, .json_read = &json, .list = yes, .tree = key, .out = &out,
+               .add = args->trusted_value != 0);
+    mmgr_line_put(&out, "],\n  \"refused\": [");
+    EMBED_CALL(cli_list_write, TrustCtx, .json_read = &json, .list = no, .tree = key, .out = &out,
+               .add = args->trusted_value == 0);
+    mmgr_line_put(&out, "]\n}\n");
+    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    const int written =
+        mmgr_line_ok(&out) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
+                                         .bytes = out.out, .size = out.at);
+    if (!written)
+    {
+        mmgr_line_put(args->err_msg, "the answers could not be written to ");
+        mmgr_line_put(args->err_msg, path);
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
+    return written;
 }

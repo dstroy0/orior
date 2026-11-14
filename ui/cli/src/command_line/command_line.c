@@ -108,11 +108,11 @@ void cli_wrap(const CliCommandLineTextCtx *args)
 
 int cli_contains_word(const CliCommandLineCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
-    for (size_t at = 0u; at + length <= size; at += 1u)
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_POOL_BYTES});
+    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
+    for (embed_word at = 0u; at + length <= size; at += 1u)
     {
-        size_t same = 0u;
+        embed_word same = 0u;
         while (same < length)
         {
             const char one = args->text[at + same];
@@ -142,19 +142,31 @@ void cli_quoted_word(const CliCommandLineOutCtx *args)
     mmgr_line_ch(out, '"');
 }
 
-CliCatalog *cli_command_line_catalog(const CliCommandLineWordCtx *args)
+void cli_command_line_catalog_alloc(void)
 {
-    const char *root = args->root;
-    const CellOwner *const cells = s_catalog.cells;
-    if (cells != NULL)
+    if (s_catalog.job != NULL)
     {
-        g_cli_guard->persistent_buf_release(s_catalog.job, cells);
+        return;
     }
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = (&s_catalog), .jobs = NULL, .jobs_max = 0u,
                .params = NULL, .params_max = 0u, .steps = NULL, .steps_max = 0u, .request = NULL, .args_max = 0u,
                .lists = NULL, .lists_max = 0u, .text_out = NULL, .text_max = 0u);
     EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &s_catalog, .cells = g_cli_line_catalog_owner,
                .jobs_max = CLI_LINE_JOBS);
+}
+
+CliCatalog *cli_command_line_catalog(const CliCommandLineWordCtx *args)
+{
+    const char *root = args->root;
+    // the catalog's cell stands for the process: each read empties it and reads the tree's jobs into it again
+    if (s_catalog.job == NULL)
+    {
+        cli_command_line_catalog_alloc();
+    }
+    else
+    {
+        EMBED_CALL(cli_catalog_cells.emptied, CliCatalogCellsCfg, .catalog = &s_catalog);
+    }
     EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = root, .catalog = &s_catalog);
     return &s_catalog;
 }
@@ -174,7 +186,7 @@ unsigned int cli_job_by_name(const CliCommandLineCatalogAmongCtx *args)
             return at;
         }
     }
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     unsigned int found = CLI_CATALOG_NONE;
     unsigned int count = 0u;
     static unsigned int s_many[CLI_LINE_JOBS];
@@ -183,7 +195,7 @@ unsigned int cli_job_by_name(const CliCommandLineCatalogAmongCtx *args)
         const unsigned int at = (args->among != NULL) ? args->among[one] : one;
         const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                           .text_u32 = catalog->job[at].id);
-        const size_t size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES});
+        const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_POOL_BYTES});
         const int tail =
             (size > length) && (id[size - length - 1u] == '/') &&
             (cellul.eq(&(CatenaFinitaCfg){.src = id + size - length, .other = args->name, .cap = CLI_POOL_BYTES}));
@@ -206,7 +218,7 @@ unsigned int cli_job_by_name(const CliCommandLineCatalogAmongCtx *args)
     {
         mmgr_line_put(args->err_msg, "no job ");
         mmgr_line_put(args->err_msg, args->name);
-        mmgr_line_put(args->err_msg, ": orior_cli list names them");
+        mmgr_line_put(args->err_msg, ": imp list names them");
         return CLI_CATALOG_NONE;
     }
     mmgr_line_put(args->err_msg, args->name);
@@ -301,7 +313,7 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
             return 0;
         }
         char key[CLI_NAME_MAX_LEN];
-        const size_t size = (size_t)(equals - args->words[at]);
+        const embed_word size = (embed_word)(equals - args->words[at]);
         if (size >= sizeof(key))
         {
             mmgr_line_put(args->err_msg, args->words[at]);
@@ -347,9 +359,9 @@ void cli_job_subject(const CliCommandLineCatalogJobCtx *args)
     const char *const from = (slash != NULL) ? slash + 1 : file;
     const char *const end =
         (slash != NULL) ? cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES, .byte = '/'}) : NULL;
-    const size_t size =
-        (end != NULL) ? (size_t)(end - from) : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
-    const size_t copied_len = (size < CLI_NAME_MAX_LEN) ? size : CLI_NAME_MAX_LEN - 1u;
+    const embed_word size =
+        (end != NULL) ? (embed_word)(end - from) : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_POOL_BYTES});
+    const embed_word copied_len = (size < CLI_NAME_MAX_LEN) ? size : CLI_NAME_MAX_LEN - 1u;
     memor.cpy(&(MemoriaCfg){.dst = args->subject, .src = from, .bytes = copied_len});
     args->subject[copied_len] = '\0';
 }

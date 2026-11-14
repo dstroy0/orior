@@ -108,9 +108,9 @@ typedef struct
 // whether `text` ends with `ending`, case aside
 EMBED_INLINE int arguments_ends_with(const DebugArgumentsCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->ending, .cap = CLI_POOL_BYTES});
-    for (size_t at = 0u; (size <= length) && (at < size); at += 1u)
+    const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
+    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->ending, .cap = CLI_POOL_BYTES});
+    for (embed_word at = 0u; (size <= length) && (at < size); at += 1u)
     {
         char one = args->text[length - size + at];
         one = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;

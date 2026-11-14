@@ -158,3 +158,39 @@ void test_a_required_argument_after_an_optional_group_is_required(void)
 {
     assert_arguments_required(1u, "[<from> [<words>]] <place>");
 }
+
+// the item of the list `list` whose command is `command`, into `item_out`: 1, or 0 where the list has none
+static int list_item(unsigned int list, const char *command, CliItem *item_out)
+{
+    const unsigned int count = cli_menu_rows(list, s_items, CLI_ITEMS_MAX);
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        if ((s_items[at].command != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = command, .cap = CLI_POOL_BYTES}))
+        {
+            *item_out = s_items[at];
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void test_the_preferences_list_the_terminals_folder_and_lines_as_settings(void)
+{
+    unsigned int preferences = cli_menus();
+    for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
+    {
+        preferences = cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(menu), .other = "Preferences", .cap = CLI_POOL_BYTES}) ? menu : preferences;
+    }
+    TEST_ASSERT_LESS_THAN_UINT(cli_menus(), preferences);
+    CliItem terminal;
+    TEST_ASSERT_TRUE(list_item(cli_menu_list(preferences), "terminal", &terminal));
+    TEST_ASSERT_NOT_EQUAL_UINT(0u, terminal.list);
+    CliItem folder;
+    TEST_ASSERT_TRUE(list_item(terminal.list, "folder", &folder));
+    TEST_ASSERT_TRUE(folder.setting);
+    TEST_ASSERT_EQUAL_STRING("[path]", folder.args);
+    CliItem lines;
+    TEST_ASSERT_TRUE(list_item(terminal.list, "lines", &lines));
+    TEST_ASSERT_TRUE(lines.setting);
+    TEST_ASSERT_EQUAL_STRING("<count>", lines.args);
+}

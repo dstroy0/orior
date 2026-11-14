@@ -27,15 +27,36 @@ extern "C"
     // returns NULL, which the caller reports where and as it chooses. Read once the pool is made
     extern const MinimumSecurityGuard *const g_cli_guard;
 
-    // the pool emptied for a request of `bytes`, which the pool declared has to cover: 1, or 0 where a cell is still
-    // allocated, the mover reads the pool or the request is past it; every program empties its pool before its first
-    // take
+    // the pool emptied for a request of `bytes`, which the pool declared has to cover, the mover ended first and
+    // started again with it: 1, or 0 where a cell is still allocated or the request is past it; every program empties
+    // its pool before its first take
     int cli_pool_made(unsigned long long bytes);
     // the cellblock's record: what mmgr_owner_of_buf and the peak readers take
     const SeriesCellularum *cli_pool_series_cellularum(void);
-    // MMgr's movable option assigned to the pool, once, and given the thread its mover runs on. A module that stores
-    // movable cells calls this before its first take
+    // MMgr's movable option assigned to the pool, once, and given the thread its mover runs on. cli_pool_made calls
+    // this as the pool is made; a module that stores movable cells may call it again before its first take, to no
+    // effect past the first
     void cli_pool_movable_ready(void);
+
+    // A line written into one cell of the temporary tier taken once at `most` bytes: its text stands whole in `cell`,
+    // and past `most` the line fills as a line with no flush fills. `line.out` is where the next
+    // write goes, inside `cell`; the text is read at `cell` for cli_grown_size bytes, terminated. Written through the
+    // line's own entries, as any line; begun before its first write and ended after its last read
+    typedef struct
+    {
+        char *cell;
+        unsigned long long capacity;
+        unsigned long long most;
+        const CellOwner *owner;
+        VerbaLinea line;
+    } CliGrownLine;
+
+    void cli_grown_begin(CliGrownLine *grown, unsigned long long most, const CellOwner *owner);
+    // the bytes the text holds, what fit where a write did not; mmgr_line_ok over `line` says whether every write fit
+    unsigned long long cli_grown_size(const CliGrownLine *grown);
+    // the line begun over again at its cell's start, the cell kept at the size it grew to
+    void cli_grown_reset(CliGrownLine *grown);
+    void cli_grown_end(CliGrownLine *grown);
 
     // the pool's bytes and the cellblock's two peaks, read off its state, each 0 where the build tracks none
     void cli_pool_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary);

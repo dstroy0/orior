@@ -16,7 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../.." && pwd)"
 CLI_CHECKS="$TOP/utils/test/src/ui/cli"
 WINDOW="$TOP/ui/gui/src"
-VIEW="$TOP/ui/cli/src/view"
+VIEW=("$TOP/includes/arith" "$TOP/includes/utf8" "$TOP/includes/coverage" "$TOP/includes/font" "$TOP/includes/raster" "$TOP/includes/frame_buffer" "$TOP/includes/glass" "$TOP/includes/window")
 CC="${CC:-clang}"
 
 # the system's body for this machine joins the modules, with the libraries it links: the body is checked too
@@ -33,10 +33,13 @@ fi
 
 # MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with, as ui/cli/build.sh
 # gives them: a check reaching a CLI header sees the module layouts the library was compiled to
-MMGR="$TOP/src/cu/includes/mmgr"
-MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
+MMGR="$TOP/includes/mmgr"
+MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
     -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
-    -DMMGR_CARCER_OWNERS=1024u)
+    -DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u -DMMGR_CARCER_OWNERS=1024u)
+# the window block's parts of the program's own, as ui/cli/build.sh gives them: a check sees the block the library
+# was compiled to
+WINDOW_WORDS=('-DGUI_BLOCK_PARTS_OWN(part_)=part_(TAB_BEADS,2u)')
 
 source "$HERE/../sanitized.sh"
 source "$TOP/ui/cli/lto_words.sh"
@@ -64,7 +67,7 @@ while IFS= read -r source; do
         */system_*.c) [ "$(basename "$source")" = "$BODY" ] && MODULES+=("$source") ;;
         *) MODULES+=("$source") ;;
     esac
-done < <(find "$WINDOW" "$VIEW" -name '*.c' | sort)
+done < <(find "$WINDOW" "${VIEW[@]}" -name '*.c' | sort)
 
 # a name is a check, `<name>_test.c`, or a program of its own here, `<name>.c`, as the frame bench is
 TESTS=()
@@ -85,7 +88,7 @@ for test in "${TESTS[@]}"; do
         *_test.c) OPTIMIZED=-O1 ;;
         *) OPTIMIZED=-O2 ;;
     esac
-    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -Dcli_clock_milliseconds=test_clock_milliseconds -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" "$HERE/test_clock.c" \
+    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" "${WINDOW_WORDS[@]}" -Dcli_clock_milliseconds=test_clock_milliseconds -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" "$HERE/test_clock.c" \
         "${MODULES[@]}" "$LIBRARY" "${LIBRARIES[@]}" > "$RUN/$name.log" 2>&1; then
         echo "  build failed: $name did not compile"
         tail -20 "$RUN/$name.log"

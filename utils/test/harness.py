@@ -21,6 +21,7 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py docs ste                   every technical document checked against ASD-STE100 (harness_docs.py)
     harness.py evidence r                 the R hypotheses' CSVs written from build/corpora and each script run (harness_evidence.py)
     harness.py source ...               the C sources read by the compiler and the linker's tools (harness_build.py)
+    harness.py package [--check]          the install bundle: imp, tab and the license texts archived, installed and removed (harness_package.py)
     harness.py sonarqube ...              the server's project, scan and duplications (harness_sonarqube.py)
     harness.py window ...                 the released window started, ended, pictured, measured, its suite run (harness_window.py)
     harness.py wsl ...                    the ext4 test volume under WSL, the tree copied onto it, commands run there (harness_wsl.py)
@@ -86,6 +87,7 @@ import harness_cu  # noqa: E402
 import harness_docs  # noqa: E402
 import harness_evidence  # noqa: E402
 import harness_wsl  # noqa: E402
+import harness_package  # noqa: E402
 import harness_sonarqube  # noqa: E402
 import harness_window  # noqa: E402
 
@@ -781,7 +783,7 @@ def build_parser():
     p.add_argument("--at", metavar="HASH", help="run the suites of orior as it was at this commit (fetched from origin if need be)")
     p.add_argument("--idle", type=int, default=IDLE_SECONDS, metavar="SECONDS", help="end a suite whose log has not grown this long once admitted (0: never)")
     p.set_defaults(fn=cmd_run)
-    for module in (harness_build, harness_cli, harness_container, harness_cu, harness_docs, harness_evidence, harness_sonarqube, harness_window, harness_wsl):
+    for module in (harness_build, harness_cli, harness_container, harness_cu, harness_docs, harness_evidence, harness_package, harness_sonarqube, harness_window, harness_wsl):
         module.register(sub)
     return ap
 

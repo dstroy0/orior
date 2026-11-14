@@ -240,7 +240,7 @@ int cli_data_get(const CliArchiveBytesCtx *args)
         if (!mmgr_line_ok(&line))
         {
             mmgr_line_put(args->err_msg, name);
-            mmgr_line_put(args->err_msg, " is larger than orior_cli supports");
+            mmgr_line_put(args->err_msg, " is larger than impero supports");
             return 0;
         }
         *out_size = line.at;

@@ -5,7 +5,7 @@
 #include "measured.h"
 
 // the pieces a measuring line fills handed on and let go
-static int measured_append(void *context, const char *bytes, size_t size)
+static int measured_append(void *context, const char *bytes, embed_word size)
 {
     (void)context;
     (void)bytes;

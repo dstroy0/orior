@@ -6,7 +6,6 @@
 #include "schema_internal.h"
 
 #include "../text/text.h"
-#include <stdlib.h>
 
 // the schema files of these names follow where they name none, by the SchemaStore's URL
 static const char *const s_known[8][2] = {
@@ -40,11 +39,10 @@ EMBED_INLINE void resolve_percent_decode(const SchemaResolveCtx *args)
     {
         if ((args->text[at] == '%') && (at + 2u < args->size))
         {
-            char hex[3] = {args->text[at + 1u], args->text[at + 2u], '\0'};
-            char *end = NULL;
-            const unsigned long value = strtoul(hex, &end, 16);
-            const int spaced = (hex[0] == ' ') || ((hex[0] >= '\t') && (hex[0] <= '\r')) || (hex[0] == '-');
-            if ((end == hex + 2) && !spaced)
+            unsigned long long end = 0ULL;
+            const unsigned long long value = EMBED_CALL(cli_text_at_size.hex, CliTextAtSizeCfg, .text = args->text,
+                                                        .at = at + 1ULL, .size = at + 3ULL, .end = &end);
+            if (end == at + 3ULL)
             {
                 mmgr_line_ch(args->out, (char)value);
                 at += 3u;
@@ -105,8 +103,8 @@ EMBED_INLINE unsigned int resolve_pointer(const SchemaResolveCtx *args)
         else if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = at,
                             .type = CFG_JSON_ARRAY))
         {
-            char *stop = NULL;
-            const unsigned long index = strtoul(token, &stop, 10);
+            const char *stop = NULL;
+            const unsigned long long index = cellul.to_ulong(&(TransfiguroCfg){.src = token, .end = &stop});
             const int digits = (line.at > 0u) && (token[0] >= '0') && (token[0] <= '9') && (*stop == '\0') &&
                                !((line.at > 1u) && (token[0] == '0'));
             at = digits ? EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
@@ -136,7 +134,7 @@ static unsigned int resolve_anchor(const SchemaResolveCtx *args)
         const char *const anchor = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
                                               .map = node, .name = "$anchor", .size_pointer = &length);
         if ((anchor != NULL) && (length == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = anchor, .other = name, .bytes = (size_t)size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = anchor, .other = name, .bytes = (embed_word)size}) == 0))
         {
             return node;
         }
@@ -146,7 +144,7 @@ static unsigned int resolve_anchor(const SchemaResolveCtx *args)
                           : EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json, .map = node,
                                        .name = "id", .size_pointer = &length);
         if ((id != NULL) && (length == size + 1u) && (id[0] == '#') &&
-            (memor.cmp(&(MemoriaCfg){.src = id + 1, .other = name, .bytes = (size_t)size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = id + 1, .other = name, .bytes = (embed_word)size}) == 0))
         {
             return node;
         }

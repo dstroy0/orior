@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// settings_sync.c: the files of orior's own folder that travel, packed and sent to a file or a folder, and read back from one
+// settings_sync.c: the files of orior's own folder that travel, packed and sent to a file or a folder, and read back
+// from one
 #include "../code/git.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/commands.h"
@@ -74,8 +75,8 @@ typedef struct
 EMBED_INLINE void settings_sync_release(const SettingsSyncCtx *args)
 {
     CliSettingsSyncWorkState *work_state = args->work_state;
-    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
-               CliSettingsSyncTransferredPositionCtx, .transferred_out = args->paths);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear, CliSettingsSyncTransferredPositionCtx,
+               .transferred_out = args->paths);
     g_cli_guard->persistent_buf_release(work_state->json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&work_state->json),
@@ -86,12 +87,12 @@ EMBED_INLINE void settings_sync_release(const SettingsSyncCtx *args)
 EMBED_INLINE char *cli_transferred_cell(const SettingsSyncCtx *args)
 {
     char *const cell = (args->size < CLI_TRANSFERRED_TEXT)
-                           ? g_cli_guard->persistent_buf_alloc(args->size + 1ULL, g_cli_machine_owner)
+                           ? g_cli_guard->temporary_buf_alloc(args->size + 1ULL, g_cli_machine_owner)
                            : NULL;
     if (cell != NULL)
     {
-        // a size below CLI_TRANSFERRED_TEXT fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->text, .bytes = (size_t)args->size});
+        // a size below CLI_TRANSFERRED_TEXT fits a embed_word
+        memor.cpy(&(MemoriaCfg){.dst = cell, .src = args->text, .bytes = (embed_word)args->size});
         cell[args->size] = '\0';
     }
     return cell;
@@ -123,8 +124,8 @@ int cli_transferred_append(const CliSettingsSyncTransferredPositionCtx *args)
     {
         return 0;
     }
-    char *const pooled_value = EMBED_CALL(cli_transferred_cell, SettingsSyncCtx, .text = args->value, .size = args->size,
-                                          .what = "a synced file's text");
+    char *const pooled_value = EMBED_CALL(cli_transferred_cell, SettingsSyncCtx, .text = args->value,
+                                          .size = args->size, .what = "a synced file's text");
     char *const pooled_position =
         there ? args->transferred_out->place[at]
               : EMBED_CALL(cli_transferred_cell, SettingsSyncCtx, .text = args->place,
@@ -182,8 +183,8 @@ static unsigned int settings_sync_plain_read(const SettingsSyncCtx *args)
     unsigned int root = CLI_JSON_NONE;
     if (args->fresh)
     {
-        g_cli_guard->persistent_buf_release(args->work_state->json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), args->work_state->json.node));
+        g_cli_guard->persistent_buf_release(
+            args->work_state->json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), args->work_state->json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->work_state->json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         root = (plain_text != NULL)
@@ -329,8 +330,8 @@ static void cli_under_each(const CliEachNameIsFolderCfg *args)
 
 void cli_settings_sync_files(const CliSettingsSyncFolderCtx *args)
 {
-    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
-               CliSettingsSyncTransferredPositionCtx, .transferred_out = args->found);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear, CliSettingsSyncTransferredPositionCtx,
+               .transferred_out = args->found);
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
@@ -386,8 +387,8 @@ int cli_settings_sync_pack(const CliSettingsSyncCfg *args)
     static CliSettingsSyncWorkState s_work_state;
     EMBED_CALL(cli_settings_sync_capacity_object_internal.capacity_begin, CliSettingsSyncWorkStateObjectCtx,
                .work_state = &s_work_state);
-    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
-               CliSettingsSyncTransferredPositionCtx, .transferred_out = args->packed);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear, CliSettingsSyncTransferredPositionCtx,
+               .transferred_out = args->packed);
     EMBED_CALL(cli_settings_sync_folder_internal.files, CliSettingsSyncFolderCtx, .folder = args->home,
                .found = &s_paths);
     for (unsigned int at = 0u; at < s_paths.count; at += 1u)
@@ -424,9 +425,8 @@ int cli_settings_sync_pack(const CliSettingsSyncCfg *args)
                                            ? g_cli_guard->temporary_buf_alloc(written_capacity, g_cli_machine_owner)
                                            : NULL;
             VerbaLinea written = mmgr_line_over(written_cell, written_capacity);
-            EMBED_CALL(cli_settings_sync_capacity_object_internal.settings_write,
-                       CliSettingsSyncWorkStateObjectCtx, .work_state = &s_work_state, .object = object,
-                       .out = &written);
+            EMBED_CALL(cli_settings_sync_capacity_object_internal.settings_write, CliSettingsSyncWorkStateObjectCtx,
+                       .work_state = &s_work_state, .object = object, .out = &written);
             if (mmgr_line_ok(&written))
             {
                 EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_append,
@@ -441,7 +441,7 @@ int cli_settings_sync_pack(const CliSettingsSyncCfg *args)
                        CliSettingsSyncTransferredPositionCtx, .transferred_out = args->packed, .place = place,
                        .value = (const char *)bytes, .size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
     }
     EMBED_CALL(settings_sync_release, SettingsSyncCtx, .paths = &s_paths, .work_state = &s_work_state);
     return 1;
@@ -466,8 +466,8 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
     static CliSettingsSyncWorkState s_work_state;
     EMBED_CALL(cli_settings_sync_capacity_object_internal.capacity_begin, CliSettingsSyncWorkStateObjectCtx,
                .work_state = &s_work_state);
-    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear,
-               CliSettingsSyncTransferredPositionCtx, .transferred_out = args->there_out);
+    EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear, CliSettingsSyncTransferredPositionCtx,
+               .transferred_out = args->there_out);
     if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->from))
     {
         char git[CLI_PATH_MAX_LEN];
@@ -500,7 +500,7 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
                            .place = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position,
                                                CliSettingsSyncTransferredAtCtx, .synced = &s_paths, .at = at),
                            .value = (const char *)bytes, .size = size);
-                g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
+                g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
             }
         }
         EMBED_CALL(settings_sync_release, SettingsSyncCtx, .paths = &s_paths, .work_state = &s_work_state);
@@ -522,7 +522,7 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_work_state.json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread,
                    .owner = g_cli_machine_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
     const char *const mark =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state.json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -530,11 +530,10 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
                    .length_pointer = NULL);
     const unsigned int files = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = &s_work_state.json, .object = root, .name = "files");
-    int read =
-        (root != CLI_JSON_NONE) && (mark != NULL) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = mark, .other = CLI_SETTINGS_SYNC_MARK, .cap = CLI_POOL_BYTES})) &&
-        EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state.json,
-                   .node = files, .type = CFG_JSON_OBJECT);
+    int read = (root != CLI_JSON_NONE) && (mark != NULL) &&
+               (cellul.eq(&(CatenaFinitaCfg){.src = mark, .other = CLI_SETTINGS_SYNC_MARK, .cap = CLI_POOL_BYTES})) &&
+               EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_work_state.json,
+                          .node = files, .type = CFG_JSON_OBJECT);
     for (unsigned int member = read ? s_work_state.json.node[files].first : CLI_JSON_NONE; member != CLI_JSON_NONE;
          member = s_work_state.json.node[member].next)
     {
@@ -543,8 +542,8 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
                                             .json_read = &s_work_state.json, .node = member, .length_pointer = &length);
         const char *const place = s_work_state.json.text + s_work_state.json.node[member].key;
         read = read && (text != NULL);
-        if ((text != NULL) && EMBED_CALL(cli_settings_sync_transferred_internal.allow,
-                                         CliSettingsSyncTransferredCtx, .place = place))
+        if ((text != NULL) &&
+            EMBED_CALL(cli_settings_sync_transferred_internal.allow, CliSettingsSyncTransferredCtx, .place = place))
         {
             EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_append,
                        CliSettingsSyncTransferredPositionCtx, .transferred_out = args->there_out, .place = place,
@@ -555,7 +554,7 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
     {
         mmgr_line_put(args->err_msg, args->from);
         mmgr_line_put(args->err_msg,
-                      (root == CLI_JSON_NONE) ? ": it is no JSON" : " contains no settings orior_cli synced");
+                      (root == CLI_JSON_NONE) ? ": it is no JSON" : " contains no settings impero synced");
     }
     EMBED_CALL(settings_sync_release, SettingsSyncCtx, .paths = &s_paths, .work_state = &s_work_state);
     return read;

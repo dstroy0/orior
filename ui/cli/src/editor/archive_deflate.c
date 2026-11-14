@@ -178,7 +178,7 @@ static int cli_codes(const ArchiveDeflateCtx *args)
         {
             if (*size >= args->capacity)
             {
-                mmgr_line_put(args->err_msg, "the inflated data is larger than orior_cli supports");
+                mmgr_line_put(args->err_msg, "the inflated data is larger than impero supports");
                 return 0;
             }
             // a literal is below 256, a byte
@@ -220,7 +220,7 @@ static int cli_codes(const ArchiveDeflateCtx *args)
         }
         if ((*size + length) > args->capacity)
         {
-            mmgr_line_put(args->err_msg, "the inflated data is larger than orior_cli supports");
+            mmgr_line_put(args->err_msg, "the inflated data is larger than impero supports");
             return 0;
         }
         const unsigned long long from = *size - distance;
@@ -262,7 +262,7 @@ static int cli_block_stored(const ArchiveDeflateCtx *args)
     }
     if ((*args->size + length) > args->capacity)
     {
-        mmgr_line_put(args->err_msg, "the inflated data is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the inflated data is larger than impero supports");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = args->out + *args->size, .src = args->data + at + 4ULL, .bytes = length});

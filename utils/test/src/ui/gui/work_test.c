@@ -4,7 +4,8 @@
 // wheel of no rows, draws in the frame's editor rectangle alone, answers the hits on the editor with its index and on
 // the map with none, and takes the presses, the wheel, the keys and the text there, a press it answers closing closing
 // it; Escape closes it; and a second table opened closes the first
-#include "../../../../../ui/cli/src/view/parts/work.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/work.h"
 #include "../cli/cli_check.h"
 
 // what the check's tables were asked: how many draws, wheels and closes, the last wheel's rows, and the last press's,
@@ -120,13 +121,16 @@ static int rect_touched(const GuiRaster *raster, GuiRect rect, GuiColor ground)
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     const GuiColor ground = 0xFF102030u;
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster,
@@ -204,9 +208,9 @@ int main(void)
                   (work.scroll == 0u),
               "Escape closes the view");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

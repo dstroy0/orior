@@ -6,8 +6,8 @@
 #define CARRY_INTERNAL_H
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
-#include "settings_sync.h"
 #include "embed_dispatch_layout.h"
+#include "settings_sync.h"
 
 typedef struct CliSettingsSyncTransferredPositionCtx CliSettingsSyncTransferredPositionCtx;
 typedef struct CliSettingsSyncWorkStateCtx CliSettingsSyncWorkStateCtx;

@@ -106,7 +106,7 @@ unsigned int cli_cores_on_reserve(void)
     {
         reserved = CLI_CORES_RESERVED_MIN;
     }
-    g_cli_guard->persistent_buf_release(read->layers.text, g_cli_settings_owner);
+    cli_grown_end(&read->layers.grown);
     read->layers.text = NULL;
     read->layers.used = 0ULL;
     read->layers.capacity = 0ULL;

@@ -4,7 +4,7 @@
 // half its way by half its time and leaves less at each moment after, and at GUI_DOCKS_ARRIVING_MS it has arrived and
 // the arrival ends; the arrival's end stands while it runs and not after; a panel shown while motion is still stands
 // at once; and no arrival stands before any panel shows
-#include "../../../../../ui/cli/src/view/docks.h"
+#include "../../../../../includes/window/docks.h"
 #include "../cli/cli_check.h"
 
 // the share of its way the panel has left at `time_ms`, and when its arrival ends

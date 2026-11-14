@@ -25,7 +25,7 @@
 #include "rank_internal.h"
 
 #include "../../../../../src/cu/engine/engine.h"
-#include "../../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../mass/mass.h"
 
 #include <stdio.h>

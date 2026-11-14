@@ -87,7 +87,7 @@ EMBED_INLINE void parse_request_write(const RequestsWrittenCtx *args)
 // the reason a file of requests was not read whole
 void cli_requests_full_err(const CliRequestsTextCtx *args)
 {
-    mmgr_line_put(args->err_msg, "the file of requests is larger than orior_cli supports");
+    mmgr_line_put(args->err_msg, "the file of requests is larger than impero supports");
 }
 
 int cli_requests_on_parse(const CliRequestsTextCfg *args)

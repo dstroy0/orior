@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// net.c: an address reached requested, refused where orior_cli is blocked from the network, and logged where it is let
+// net.c: an address reached requested, refused where impero is blocked from the network, and logged where it is let
 // on
 #include "net.h"
 #include "../command_line/pool.h"
@@ -13,8 +13,8 @@
 
 #define CLI_NET_LINE_MORE (4ULL << 10u)
 
-// Whether the window blocks orior_cli from the network: 0 where the window has not set it, and settings.json is read; 1
-// where it lets orior_cli on; 2 where it blocks orior_cli from it. Read and set under the lock, which also guards the
+// Whether the window blocks impero from the network: 0 where the window has not set it, and settings.json is read; 1
+// where it lets impero on; 2 where it blocks impero from it. Read and set under the lock, which also guards the
 // file of addresses
 static int s_disabled;
 
@@ -26,7 +26,7 @@ typedef struct
     const char *address;
     const char *purpose;
 } NetCtx;
-// the tokens `size` bytes of JSON make, in a cell of their count given back with g_cli_guard->persistent_buf_release,
+// the tokens `size` bytes of JSON make, in a temporary cell of their count the caller gives back as its call ends,
 // NULL where it is refused; their count into `count`
 EMBED_INLINE CfgJsonToken *cli_net_tokens(const NetCtx *args)
 {
@@ -34,7 +34,7 @@ EMBED_INLINE CfgJsonToken *cli_net_tokens(const NetCtx *args)
     unsigned long long size = args->size;
     unsigned int *count = args->count;
     *count = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size) + 1u;
-    return g_cli_guard->persistent_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken), g_cli_machine_owner);
+    return g_cli_guard->temporary_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken), g_cli_machine_owner);
 }
 
 void cli_net_disable(const CliNetCfg *args)
@@ -68,7 +68,7 @@ static int cli_settings_off(void)
     VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
     unsigned int count = 0u;
     CfgJsonToken *const tokens =
         (plain_text != NULL) ? EMBED_CALL(cli_net_tokens, NetCtx, .text = plain_text, .size = plain.at, .count = &count)
@@ -257,7 +257,7 @@ int cli_net_reach(const CliNetAddressCfg *args)
     }
     if (cli_net_is_disable())
     {
-        mmgr_line_put(args->err_msg, "orior_cli is blocked from the network, and ");
+        mmgr_line_put(args->err_msg, "impero is blocked from the network, and ");
         mmgr_line_put(args->err_msg, args->purpose);
         mmgr_line_put(args->err_msg, " did not reach ");
         mmgr_line_put(args->err_msg, args->address);

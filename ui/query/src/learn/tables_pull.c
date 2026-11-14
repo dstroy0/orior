@@ -317,7 +317,7 @@ int query_tables_run(const QueryLoopCfg *args)
         {
             mmgr_line_put(&failed, "no table for ");
             mmgr_line_put(&failed, words[1]);
-            mmgr_line_put(&failed, ": run orior_cli protocol tables ");
+            mmgr_line_put(&failed, ": run imp protocol tables ");
             mmgr_line_put(&failed, words[1]);
             mmgr_line_put(&failed, " first");
         }

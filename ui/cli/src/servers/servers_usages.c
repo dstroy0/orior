@@ -8,8 +8,6 @@
 #include "../command_line/callback_cfg.h"
 #include "servers_internal.h"
 
-#include <stdlib.h>
-
 // The usages read: the tree's top, the usages, their paths and their lines' texts, each a line, and how many
 typedef struct
 {

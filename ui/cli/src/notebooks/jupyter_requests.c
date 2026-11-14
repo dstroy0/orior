@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// jupyter_requests.c: what orior_cli requests of a running kernel: requests sent and their replies waited for, code
+// jupyter_requests.c: what impero requests of a running kernel: requests sent and their replies waited for, code
 // run, what it runs interrupted, whether it still runs, and the kernel stopped, its process ended where it does not
 // stop
 #include "jupyter_internal.h"
@@ -126,7 +126,7 @@ int cli_jupyter_execute(const CliJupyterErrMsgKernelLengthCfg *args)
     int sent = 0;
     if (!mmgr_line_ok(&content))
     {
-        mmgr_line_put(args->err_msg, "the code is larger than orior_cli supports");
+        mmgr_line_put(args->err_msg, "the code is larger than impero supports");
     }
     else
     {

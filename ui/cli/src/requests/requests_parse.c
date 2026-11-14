@@ -53,8 +53,8 @@ EMBED_INLINE int parse_begins(const RequestsParseCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->prefix, .cap = CLI_POOL_BYTES});
     return (args->end - args->start >= size) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->text + args->start, .other = args->prefix, .bytes = (size_t)size}) ==
-            0);
+           (memor.cmp(
+                &(MemoriaCfg){.src = args->text + args->start, .other = args->prefix, .bytes = (embed_word)size}) == 0);
 }
 
 // whether a word is all capitals, as a method is
@@ -82,7 +82,8 @@ EMBED_INLINE CliRequestsText parse_store(const RequestsParseCtx *args)
     }
     text_span.at = args->parsed->used;
     text_span.size = size;
-    memor.cpy(&(MemoriaCfg){.dst = args->parsed->text + args->parsed->used, .src = args->text, .bytes = (size_t)size});
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->parsed->text + args->parsed->used, .src = args->text, .bytes = (embed_word)size});
     args->parsed->text[args->parsed->used + size] = '\0';
     args->parsed->used += size + 1u;
     return text_span;
@@ -97,7 +98,7 @@ EMBED_INLINE int parse_pair(const RequestsParseCtx *args)
     CliRequestsText *name = args->name;
     CliRequestsText *value = args->value;
     const char *const at =
-        memor.chr(&(MemoriaCfg){.src = text + start, .val = args->split, .bytes = (size_t)(end - start)});
+        memor.chr(&(MemoriaCfg){.src = text + start, .val = args->split, .bytes = (embed_word)(end - start)});
     if (at == NULL)
     {
         return 0;
@@ -250,7 +251,7 @@ EMBED_INLINE unsigned long long parse_url_lines(const RequestsParseCtx *args)
     CliRequestsText url = {args->parsed->used, size};
     memor.cpy(&(MemoriaCfg){.dst = args->parsed->text + args->parsed->used,
                             .src = args->parsed->text + args->request->url.at,
-                            .bytes = (size_t)args->request->url.size});
+                            .bytes = (embed_word)args->request->url.size});
     args->parsed->used += args->request->url.size;
     for (unsigned long long line = first; line < at; line += 1ULL)
     {
@@ -259,7 +260,7 @@ EMBED_INLINE unsigned long long parse_url_lines(const RequestsParseCtx *args)
         EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = text, .start = &start,
                    .end = &end);
         memor.cpy(&(MemoriaCfg){
-            .dst = args->parsed->text + args->parsed->used, .src = text + start, .bytes = (size_t)(end - start)});
+            .dst = args->parsed->text + args->parsed->used, .src = text + start, .bytes = (embed_word)(end - start)});
         args->parsed->used += end - start;
     }
     args->parsed->text[args->parsed->used] = '\0';
@@ -364,7 +365,7 @@ EMBED_INLINE void parse_body(const RequestsParseCtx *args)
         }
         memor.cpy(&(MemoriaCfg){.dst = args->parsed->text + args->parsed->used,
                                 .src = text + s_line_start[line],
-                                .bytes = (size_t)(s_line_end[line] - s_line_start[line])});
+                                .bytes = (embed_word)(s_line_end[line] - s_line_start[line])});
         args->parsed->used += s_line_end[line] - s_line_start[line];
     }
     args->parsed->text[args->parsed->used] = '\0';
@@ -474,7 +475,7 @@ EMBED_INLINE int parse_read(const RequestsParseCtx *args)
     }
     parts = (parts < CLI_REQUESTS_MAX) ? parts : CLI_REQUESTS_MAX;
     args->parsed->requests =
-        g_cli_guard->persistent_buf_alloc((parts + 1ULL) * sizeof(*args->parsed->requests), g_cli_requests_owner);
+        g_cli_guard->temporary_buf_alloc((parts + 1ULL) * sizeof(*args->parsed->requests), g_cli_requests_owner);
     if (args->parsed->requests == NULL)
     {
         args->parsed->full = 1;
@@ -525,12 +526,12 @@ int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args)
     const unsigned long long lines = EMBED_CALL(parse_lines_count, RequestsParseCtx, .text = text, .size = args->size);
     const unsigned long long pool = (2ULL * args->size) + CLI_REQUESTS_POOL_MORE;
     args->parsed->text_capacity = (pool < CLI_REQUESTS_TEXT) ? pool : CLI_REQUESTS_TEXT;
-    args->parsed->text = g_cli_guard->persistent_buf_alloc(args->parsed->text_capacity, g_cli_requests_owner);
+    args->parsed->text = g_cli_guard->temporary_buf_alloc(args->parsed->text_capacity, g_cli_requests_owner);
     s_line_start = (args->parsed->text != NULL)
-                       ? g_cli_guard->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_start), g_cli_requests_owner)
+                       ? g_cli_guard->temporary_buf_alloc((lines + 1ULL) * sizeof(*s_line_start), g_cli_requests_owner)
                        : NULL;
     s_line_end = (s_line_start != NULL)
-                     ? g_cli_guard->persistent_buf_alloc((lines + 1ULL) * sizeof(*s_line_end), g_cli_requests_owner)
+                     ? g_cli_guard->temporary_buf_alloc((lines + 1ULL) * sizeof(*s_line_end), g_cli_requests_owner)
                      : NULL;
     const int read = (s_line_end != NULL) &&
                      EMBED_CALL(parse_read, RequestsParseCtx, .text = text, .size = args->size, .parsed = args->parsed);

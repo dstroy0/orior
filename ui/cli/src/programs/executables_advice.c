@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_advice.c: what a build that failed can be reported of its cause, where its lines show one orior_cli
+// executables_advice.c: what a build that failed can be reported of its cause, where its lines show one impero
 // knows, and what a run of the program a build made can be reported of how it ended: on Windows, the codes the system
 // ends a program with that cannot load its DLLs; and a frozen Python program's module that is not in it, as one
 // PyInstaller found nowhere or as one the program imports by its name as it runs, which PyInstaller cannot see
@@ -12,7 +12,7 @@ typedef struct
 {
     QuerySink sink;
     const char *text;
-    const CliLines *lines;
+    const CliRunLines *lines;
     const char *mark;
     const char *id;
     char *script;
@@ -28,19 +28,23 @@ EMBED_INLINE void cli_print(const ExecutablesAdviceCtx *args)
 // whether a line of the build contains `mark`
 EMBED_INLINE int cli_has(const ExecutablesAdviceCtx *args)
 {
-    const CliLines *lines = args->lines;
-    for (unsigned int at = 0u; at < lines->count; at += 1u)
+    const CliRunLines *lines = args->lines;
+    const unsigned int count =
+        EMBED_CALL(cli_runner_lines_index.lines_count, CliRunnerLinesIndexCfg, .lines_read = lines);
+    const unsigned long long longest =
+        EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
+    // each line read out of the run's rings into one temporary cell sized for the longest
+    char *const read = (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+    int found = 0;
+    for (unsigned int at = 0u; !found && (read != NULL) && (at < count); at += 1u)
     {
-        if (cellul.find(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg,
-                                                             .lines_read = lines, .index = at),
-                                           .cap = CLI_POOL_BYTES,
-                                           .other = args->mark,
-                                           .other_cap = CLI_POOL_BYTES}) != NULL)
-        {
-            return 1;
-        }
+        (void)EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines, .index = at,
+                         .out = read, .capacity = longest + 1ULL);
+        found = cellul.find(&(CatenaFinitaCfg){
+                    .src = read, .cap = CLI_POOL_BYTES, .other = args->mark, .other_cap = CLI_POOL_BYTES}) != NULL;
     }
-    return 0;
+    g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
+    return found;
 }
 
 // the script of an executable's job id into `script`, sized for CLI_PATH_MAX_LEN, and its name: NULL where the id
@@ -63,7 +67,7 @@ EMBED_INLINE const char *cli_id_parts(const ExecutablesAdviceCtx *args)
 
 void cli_executables_advice(const CliExecutablesRootCfg *args)
 {
-    const CliLines *lines = args->lines;
+    const CliRunLines *lines = args->lines;
     char script[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(cli_id_parts, ExecutablesAdviceCtx, .id = args->id, .script = script) == NULL)
     {
@@ -113,10 +117,19 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
         // the target Rust's standard library is missing for, as the line that reports so names it
         const char *target = NULL;
         unsigned long long target_length = 0ULL;
-        for (unsigned int at = 0u; (target == NULL) && (at < lines->count); at += 1u)
+        const unsigned int count =
+            EMBED_CALL(cli_runner_lines_index.lines_count, CliRunnerLinesIndexCfg, .lines_read = lines);
+        const unsigned long long longest =
+            EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
+        // each line read out of the run's rings into one temporary cell sized for the longest, which holds the target's
+        // name until it is printed
+        char *const read =
+            (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+        for (unsigned int at = 0u; (target == NULL) && (read != NULL) && (at < count); at += 1u)
         {
-            const char *const line =
-                EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg, .lines_read = lines, .index = at);
+            (void)EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines,
+                             .index = at, .out = read, .capacity = longest + 1ULL);
+            const char *const line = read;
             const char *const opened = cellul.find(
                 &(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .other = "the `", .other_cap = CLI_POOL_BYTES});
             if ((opened == NULL) || (cellul.find(&(CatenaFinitaCfg){.src = line,
@@ -153,6 +166,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
                            "linking for the target chosen needs that system's linker: the musl targets link here with "
                            "rust-lld, and a Linux GNU or macOS target links with cargo-zigbuild where it is installed");
         }
+        g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
     }
     if ((type == CLI_TYPE_PYINSTALLER) &&
         EMBED_CALL(cli_has, ExecutablesAdviceCtx, .lines = lines, .mark = "No module named PyInstaller"))
@@ -377,7 +391,7 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
 
 void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
 {
-    const CliLines *lines = args->lines;
+    const CliRunLines *lines = args->lines;
     static CliFullest s_fullest;
     char print_buf[CLI_PATH_MAX_LEN * 2u];
 #if defined(_WIN32)
@@ -429,14 +443,18 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
     char *const warned = EMBED_CALL(cli_executables_spec_internal.pyinstaller_warn, CliExecutablesSpecCtx, .spec = path,
                                     .folder_out = folder);
     const char *const warn = (warned != NULL) ? warned : "";
-    for (unsigned int at = 0u; at < lines->count; at += 1u)
+    const unsigned int count =
+        EMBED_CALL(cli_runner_lines_index.lines_count, CliRunnerLinesIndexCfg, .lines_read = lines);
+    const unsigned long long longest =
+        EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
+    // each line read out of the run's rings into one temporary cell sized for the longest
+    char *const read = (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+    for (unsigned int at = 0u; (read != NULL) && (at < count); at += 1u)
     {
-        const char *const rest =
-            cellul.find(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg,
-                                                             .lines_read = lines, .index = at),
-                                           .cap = CLI_POOL_BYTES,
-                                           .other = "No module named ",
-                                           .other_cap = CLI_POOL_BYTES});
+        (void)EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines, .index = at,
+                         .out = read, .capacity = longest + 1ULL);
+        const char *const rest = cellul.find(&(CatenaFinitaCfg){
+            .src = read, .cap = CLI_POOL_BYTES, .other = "No module named ", .other_cap = CLI_POOL_BYTES});
         if (rest == NULL)
         {
             continue;
@@ -499,5 +517,6 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
         mmgr_line_finish(&line);
         EMBED_CALL(cli_print, ExecutablesAdviceCtx, .sink = args->sink, .text = print_buf);
     }
+    g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
     g_cli_guard->persistent_buf_release(warned, g_cli_executables_owner);
 }

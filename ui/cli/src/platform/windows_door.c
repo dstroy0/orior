@@ -9,8 +9,6 @@
 #define NOMINMAX
 #include <windows.h>
 
-#include <stdint.h>
-
 // the bytes each instance of the pipe buffers one way, and how long a process joining waits while every instance is
 // taken, in milliseconds
 #define CLI_IPC_PIPE_CAPACITY 65536u
@@ -113,8 +111,8 @@ EMBED_INLINE int ipc_end_open(const WindowsDoorCtx *args)
         CloseHandle(handle);
         return 0;
     }
-    args->end->handle = (unsigned long long)(uintptr_t)handle;
-    args->end->shut = (unsigned long long)(uintptr_t)shut;
+    args->end->handle = (unsigned long long)(embed_word)handle;
+    args->end->shut = (unsigned long long)(embed_word)shut;
     args->end->open = 1;
     return 1;
 }
@@ -140,7 +138,7 @@ int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
     (void)MultiByteToWideChar(CP_UTF8, 0u, args->address, -1, args->listener->name, CLI_PATH_MAX_LEN);
     const HANDLE waiting = EMBED_CALL(ipc_instance, WindowsDoorCtx, .listener = args->listener, .first = 1);
     const DWORD error = GetLastError();
-    args->listener->waiting = (unsigned long long)(uintptr_t)waiting;
+    args->listener->waiting = (unsigned long long)(embed_word)waiting;
     if (waiting == INVALID_HANDLE_VALUE)
     {
         mmgr_line_put(args->err_msg, "the door's pipe was not made: Windows reported ");
@@ -155,14 +153,14 @@ int cli_ipc_accept(const CliIpcListenerCtx *args)
     int *has_peer = args->has_peer;
     unsigned int *peer = args->peer;
     // the waiting instance's handle was a pointer's width when it was stored
-    const HANDLE joined = (HANDLE)(uintptr_t)args->listener->waiting;
+    const HANDLE joined = (HANDLE)(embed_word)args->listener->waiting;
     DWORD moved = 0u;
     const int joining = EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .type = 2,
                                    .bytes = NULL, .size = 0u, .moved = &moved);
     const DWORD error = GetLastError();
     // the next instance waits for the process after, whether this one was joined or not
-    args->listener->waiting =
-        (unsigned long long)(uintptr_t)EMBED_CALL(ipc_instance, WindowsDoorCtx, .listener = args->listener, .first = 0);
+    args->listener->waiting = (unsigned long long)(embed_word)EMBED_CALL(ipc_instance, WindowsDoorCtx,
+                                                                         .listener = args->listener, .first = 0);
     if (!joining)
     {
         CloseHandle(joined);
@@ -220,8 +218,8 @@ int cli_ipc_read(const CliIpcEndBytesCtx *args)
         const unsigned long long left = args->size - at;
         // a piece is at most what a DWORD counts
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
-        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
-                        .shut = (HANDLE)(uintptr_t)args->end->shut, .type = 0, .bytes = into + at, .size = piece,
+        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(embed_word)args->end->handle,
+                        .shut = (HANDLE)(embed_word)args->end->shut, .type = 0, .bytes = into + at, .size = piece,
                         .moved = &moved) ||
             (moved == 0u))
         {
@@ -242,9 +240,9 @@ int cli_ipc_write(const CliIpcEndSizeCtx *args)
         const unsigned long long left = args->size - at;
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
         // the bytes are only read, as WriteFile takes them
-        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
-                        .shut = (HANDLE)(uintptr_t)args->end->shut, .type = 1, .bytes = (void *)(uintptr_t)(from + at),
-                        .size = piece, .moved = &moved) ||
+        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(embed_word)args->end->handle,
+                        .shut = (HANDLE)(embed_word)args->end->shut, .type = 1,
+                        .bytes = (void *)(embed_word)(from + at), .size = piece, .moved = &moved) ||
             (moved == 0u))
         {
             return 0;
@@ -264,8 +262,8 @@ void cli_ipc_shut(const CliIpcCtx *args)
 {
     if (args->end->open)
     {
-        (void)SetEvent((HANDLE)(uintptr_t)args->end->shut);
-        (void)CancelIoEx((HANDLE)(uintptr_t)args->end->handle, NULL);
+        (void)SetEvent((HANDLE)(embed_word)args->end->shut);
+        (void)CancelIoEx((HANDLE)(embed_word)args->end->handle, NULL);
     }
 }
 
@@ -273,8 +271,8 @@ void cli_ipc_close(const CliIpcCtx *args)
 {
     if (args->end->open)
     {
-        CloseHandle((HANDLE)(uintptr_t)args->end->handle);
-        CloseHandle((HANDLE)(uintptr_t)args->end->shut);
+        CloseHandle((HANDLE)(embed_word)args->end->handle);
+        CloseHandle((HANDLE)(embed_word)args->end->shut);
     }
     args->end->open = 0;
     args->end->handle = 0ull;

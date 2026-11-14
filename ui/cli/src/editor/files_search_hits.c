@@ -26,9 +26,8 @@ EMBED_INLINE CliHitCell *hits_cell(const FilesSearchHitsCtx *args)
     {
         return last;
     }
-    // a store that stands after the search takes its cells in the persistent tier
-    CliHitCell *const cell = hits->standing ? g_cli_guard->persistent_buf_alloc(CLI_HIT_CELL_BYTES, g_cli_search_owner)
-                                            : g_cli_guard->temporary_buf_alloc(CLI_HIT_CELL_BYTES, g_cli_search_owner);
+    // a store lasts the search: its cells are the temporary tier's, given back as the lines are read out
+    CliHitCell *const cell = g_cli_guard->temporary_buf_alloc(CLI_HIT_CELL_BYTES, g_cli_search_owner);
     if (cell == NULL)
     {
         return NULL;

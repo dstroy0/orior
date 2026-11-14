@@ -31,17 +31,44 @@ void tearDown(void)
 {
 }
 
-// the item of `items` that is a run of text reading `text` whole: its row, or NULL where none is
+// the item `at` of `items`, read out of its cell
+static CliPreviewItem item_of(const CliPreviewItems *items, unsigned int at)
+{
+    CliPreviewItem item = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = items->cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
+    return item;
+}
+
+// the block `at` of `items`, read out of its cell
+static CliPreviewBlock block_of(const CliPreviewItems *items, unsigned int at)
+{
+    CliPreviewBlock block = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = items->cell, .offset = CLI_PREVIEW_BLOCK_AT(items, at), .dst = &block, .bytes = sizeof(block)});
+    return block;
+}
+
+// whether the `length` bytes at `at` of the text of `items` read `text`
+static int text_reads(const CliPreviewItems *items, unsigned int at, unsigned int length, const char *text)
+{
+    return g_cli_guard->movable_buf_compare(
+               &(CarcerMovableCfg){.cell = items->text_cell, .offset = at, .src = text, .bytes = length}) == 0;
+}
+
+// the item of `items` that is a run of text reading `text` whole: a copy of its row, standing until the next is read,
+// or NULL where none is
 static const CliPreviewItem *run_reading(const CliPreviewItems *items, const char *text)
 {
+    static CliPreviewItem s_run;
     const unsigned long long length = CLI_UNITY_LENGTH(text);
     for (unsigned int at = 0u; at < items->items; at += 1u)
     {
-        const CliPreviewItem *const item = &items->item[at];
-        if ((item->type == CLI_PREVIEW_ITEM_TEXT) && (item->length == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = items->text + item->text, .other = text, .bytes = length}) == 0))
+        s_run = item_of(items, at);
+        if ((s_run.type == CLI_PREVIEW_ITEM_TEXT) && (s_run.length == length) &&
+            text_reads(items, s_run.text, s_run.length, text))
         {
-            return item;
+            return &s_run;
         }
     }
     return NULL;
@@ -53,10 +80,8 @@ static unsigned int items_of(const CliPreviewItems *items, unsigned int type, un
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < items->items; at += 1u)
     {
-        count += ((items->item[at].type == type) && (items->item[at].role == role) &&
-                  (items->item[at].stroke == stroke))
-                     ? 1u
-                     : 0u;
+        const CliPreviewItem item = item_of(items, at);
+        count += ((item.type == type) && (item.role == role) && (item.stroke == stroke)) ? 1u : 0u;
     }
     return count;
 }
@@ -72,9 +97,23 @@ static void laid(const char *text, CliPreviewItems *items)
 // the cells of `items` released
 static void released(CliPreviewItems *items)
 {
-    g_cli_guard->persistent_buf_release(items->item, g_cli_preview_owner);
-    g_cli_guard->persistent_buf_release(items->text, g_cli_preview_owner);
+    if (items->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(items->cell, g_cli_preview_owner);
+    }
+    if (items->text_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(items->text_cell, g_cli_preview_owner);
+    }
     *items = (CliPreviewItems){0};
+}
+
+// the bound items' item `at`, a copy of its row
+static CliPreviewItem bound_item(unsigned int at)
+{
+    const CliPreviewItem *const row = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = at);
+    TEST_ASSERT_NOT_NULL(row);
+    return *row;
 }
 
 // the view the preview is bound to showing `text`, the mode beside, and a step a look later laying it
@@ -199,15 +238,16 @@ void test_mode_reads_its_word_turns_off_where_it_stands_and_is_saved(void)
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OFF, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
     EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode = CLI_PREVIEW_BESIDE, .word = "alone");
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ALONE, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
-    CliStateEntries *const entries =
+    CliStateEntries entries =
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_cli_preview_owner});
-    TEST_ASSERT_NOT_NULL(entries);
-    CLI_TEST_ASSERT_TEXT("alone", cli_state_entry_value(entries, CLI_PREVIEW_MODE_KEY), 5ULL);
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    char mode_text[CLI_NAME_MAX_LEN];
+    CLI_TEST_ASSERT_TEXT("alone", cli_state_entry_value(&entries, CLI_PREVIEW_MODE_KEY, mode_text, sizeof(mode_text)), 5ULL);
     EMBED_CALL(cli_preview.begin, CliPreviewCfg, .entries = NULL);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OFF, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
-    EMBED_CALL(cli_preview.begin, CliPreviewCfg, .entries = entries);
+    EMBED_CALL(cli_preview.begin, CliPreviewCfg, .entries = &entries);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ALONE, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
-    g_cli_guard->persistent_buf_release(entries, g_cli_preview_owner);
+    cli_state_entries_release(&entries);
 }
 
 void test_markdown_lays_every_block_as_items_sorted_by_top(void)
@@ -244,8 +284,8 @@ void test_markdown_lays_every_block_as_items_sorted_by_top(void)
     TEST_ASSERT_NOT_NULL(title);
     TEST_ASSERT_EQUAL_UINT(26u, title->size);
     TEST_ASSERT_TRUE((title->flags & CLI_PREVIEW_BOLD) != 0u);
-    TEST_ASSERT_EQUAL_INT(1, items.block[0].heading);
-    TEST_ASSERT_EQUAL_UINT(0u, items.block[0].line);
+    TEST_ASSERT_EQUAL_INT(1, block_of(&items, 0u).heading);
+    TEST_ASSERT_EQUAL_UINT(0u, block_of(&items, 0u).line);
     TEST_ASSERT_TRUE((run_reading(&items, "word")->flags & CLI_PREVIEW_ITALIC) != 0u);
     TEST_ASSERT_TRUE((run_reading(&items, "strong")->flags & CLI_PREVIEW_BOLD) != 0u);
     TEST_ASSERT_TRUE((run_reading(&items, "gone")->flags & CLI_PREVIEW_STRIKE) != 0u);
@@ -253,7 +293,8 @@ void test_markdown_lays_every_block_as_items_sorted_by_top(void)
     TEST_ASSERT_NOT_NULL(link);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ROLE_LINK, link->role);
     TEST_ASSERT_TRUE((link->flags & CLI_PREVIEW_UNDERLINE) != 0u);
-    CLI_TEST_ASSERT_TEXT("other.md", items.text + link->link, link->link_length);
+    TEST_ASSERT_EQUAL_UINT(8u, link->link_length);
+    TEST_ASSERT_TRUE(text_reads(&items, link->link, link->link_length, "other.md"));
     TEST_ASSERT_EQUAL_UINT(2u, run_reading(&items, "word")->line);
     TEST_ASSERT_EQUAL_UINT(0u, run_reading(&items, "here.")->flags);
     // the bullets two discs, the numbers runs, the tasks a box each, the checked one lit with its tick
@@ -283,16 +324,18 @@ void test_markdown_lays_every_block_as_items_sorted_by_top(void)
     int top = 0;
     for (unsigned int at = 0u; at < items.blocks; at += 1u)
     {
-        TEST_ASSERT_TRUE(items.block[at].top >= top);
-        TEST_ASSERT_TRUE((at == 0u) || (items.block[at].line >= items.block[at - 1u].line));
-        TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ITEM_BLOCK, items.item[items.block[at].item].type);
-        top = items.block[at].top;
+        const CliPreviewBlock block = block_of(&items, at);
+        TEST_ASSERT_TRUE(block.top >= top);
+        TEST_ASSERT_TRUE((at == 0u) || (block.line >= block_of(&items, at - 1u).line));
+        TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ITEM_BLOCK, item_of(&items, block.item).type);
+        top = block.top;
     }
     int block_top = 0;
     for (unsigned int at = 0u; at < items.items; at += 1u)
     {
-        block_top = (items.item[at].type == CLI_PREVIEW_ITEM_BLOCK) ? items.item[at].y : block_top;
-        TEST_ASSERT_TRUE(items.item[at].y >= block_top);
+        const CliPreviewItem item = item_of(&items, at);
+        block_top = (item.type == CLI_PREVIEW_ITEM_BLOCK) ? item.y : block_top;
+        TEST_ASSERT_TRUE(item.y >= block_top);
     }
     TEST_ASSERT_TRUE(items.height > top);
     released(&items);
@@ -307,24 +350,24 @@ void test_markdown_cells_are_the_size_of_what_they_carry(void)
     unsigned int link = 0xffffffffu;
     for (unsigned int at = 0u; at < items.items; at += 1u)
     {
-        const CliPreviewItem *const item = &items.item[at];
-        bytes += (item->type == CLI_PREVIEW_ITEM_TEXT) ? item->length : 0u;
-        if ((item->link_length != 0u) && (item->link != link))
+        const CliPreviewItem item = item_of(&items, at);
+        bytes += (item.type == CLI_PREVIEW_ITEM_TEXT) ? item.length : 0u;
+        if ((item.link_length != 0u) && (item.link != link))
         {
-            bytes += item->link_length;
-            link = item->link;
+            bytes += item.link_length;
+            link = item.link;
         }
     }
     TEST_ASSERT_EQUAL_UINT(items.text_bytes, bytes);
     TEST_ASSERT_EQUAL_UINT(2u, items.blocks);
-    TEST_ASSERT_EQUAL_PTR((void *)(items.item + items.items), (void *)items.block);
+    TEST_ASSERT_EQUAL_UINT64(CLI_PREVIEW_ITEM_AT(items.items), items.block_at);
     CliPreviewItems more = items;
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_preview_markdown.layout, CliPreviewMarkdownCfg, .text = "six\n",
                                         .length = 4ULL, .first_line = 4u, .width_px = PREVIEW_WIDTH, .items = &more));
     TEST_ASSERT_EQUAL_UINT(items.items + 2u, more.items);
     TEST_ASSERT_EQUAL_UINT(3u, more.blocks);
-    TEST_ASSERT_EQUAL_UINT(4u, more.block[2].line);
-    TEST_ASSERT_TRUE(more.block[2].top >= items.height);
+    TEST_ASSERT_EQUAL_UINT(4u, block_of(&more, 2u).line);
+    TEST_ASSERT_TRUE(block_of(&more, 2u).top >= items.height);
     TEST_ASSERT_NOT_NULL(run_reading(&more, "two"));
     TEST_ASSERT_NOT_NULL(run_reading(&more, "six"));
     released(&more);
@@ -339,7 +382,7 @@ void test_an_address_that_runs_script_is_no_link(void)
     unsigned int links = 0u;
     for (unsigned int at = 0u; at < items.items; at += 1u)
     {
-        links += (items.item[at].link_length != 0u) ? 1u : 0u;
+        links += (item_of(&items, at).link_length != 0u) ? 1u : 0u;
     }
     TEST_ASSERT_EQUAL_UINT(1u, links);
     // the four labels whose addresses run script stand as one run of plain text
@@ -354,16 +397,16 @@ void test_first_starts_at_the_outermost_block_at_a_top(void)
     TEST_ASSERT_EQUAL_INT(1, bound("Intro\n\n> one\n>\n> two\n\nOutro\n"));
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = 0));
     const unsigned int quote = bound_block(2u);
-    const CliPreviewItem *const quoted = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = quote);
+    const CliPreviewItem quoted = bound_item(quote);
     const unsigned int inner = bound_block(4u);
-    const CliPreviewItem *const deep = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = inner);
-    TEST_ASSERT_TRUE(deep->y > quoted->y);
-    TEST_ASSERT_EQUAL_UINT(quote, EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = deep->y + 1));
+    const CliPreviewItem deep = bound_item(inner);
+    TEST_ASSERT_TRUE(deep.y > quoted.y);
+    TEST_ASSERT_EQUAL_UINT(quote, EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = deep.y + 1));
     const unsigned int outro = bound_block(6u);
-    const CliPreviewItem *const last = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = outro);
-    TEST_ASSERT_EQUAL_UINT(outro, EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = last->y));
+    const CliPreviewItem last = bound_item(outro);
+    TEST_ASSERT_EQUAL_UINT(outro, EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = last.y));
     TEST_ASSERT_EQUAL_INT(EMBED_CALL(cli_preview_item.extent, CliPreviewItemCfg, .at = 0u),
-                          last->y + last->height + CLI_PREVIEW_PAD_FOOT);
+                          last.y + last.height + CLI_PREVIEW_PAD_FOOT);
     TEST_ASSERT_NULL(EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg,
                                 .at = EMBED_CALL(cli_preview_item.count, CliPreviewItemCfg, .at = 0u)));
 }
@@ -426,35 +469,34 @@ void test_the_cursor_line_marks_its_block(void)
     const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = 5ULL, .column = 0ULL};
     view_input(&placed);
     TEST_ASSERT_EQUAL_INT(1, stepped());
-    const CliPreviewItem *const fourth = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = bound_block(4u));
-    const CliPreviewItem *const fifth = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = bound_block(6u));
-    TEST_ASSERT_TRUE((fourth->flags & CLI_PREVIEW_HERE) != 0u);
-    TEST_ASSERT_EQUAL_UINT(0u, fifth->flags & CLI_PREVIEW_HERE);
+    const unsigned int fourth = bound_block(4u);
+    const unsigned int fifth = bound_block(6u);
+    TEST_ASSERT_TRUE((bound_item(fourth).flags & CLI_PREVIEW_HERE) != 0u);
+    TEST_ASSERT_EQUAL_UINT(0u, bound_item(fifth).flags & CLI_PREVIEW_HERE);
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_preview_mark.mark, CliPreviewMarkCfg, .line = 4ULL));
     const CliViewInput moved = {.type = CLI_VIEW_POSITION, .row = 6ULL, .column = 0ULL};
     view_input(&moved);
     TEST_ASSERT_EQUAL_INT(1, stepped());
-    TEST_ASSERT_EQUAL_UINT(0u, fourth->flags & CLI_PREVIEW_HERE);
-    TEST_ASSERT_TRUE((fifth->flags & CLI_PREVIEW_HERE) != 0u);
+    TEST_ASSERT_EQUAL_UINT(0u, bound_item(fourth).flags & CLI_PREVIEW_HERE);
+    TEST_ASSERT_TRUE((bound_item(fifth).flags & CLI_PREVIEW_HERE) != 0u);
 }
 
 void test_a_press_follows_its_link_and_elsewhere_nothing(void)
 {
     (void)bound("[next](sub/other.md#part) and [up](../top.md) and [here](#heading-two)\n\n## Heading Two\n");
     CliPreviewOpen open;
-    const CliPreviewItem *const next =
-        EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = bound_run("next"));
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_FILE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg,
-                                                             .x = next->x + 1, .y = next->y + 1, .open_out = &open));
+    const CliPreviewItem next = bound_item(bound_run("next"));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_FILE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = next.x + 1,
+                                                             .y = next.y + 1, .open_out = &open));
     CLI_TEST_ASSERT_TEXT("notes/sub/other.md", open.path, CLI_UNITY_LENGTH(open.path));
     TEST_ASSERT_EQUAL_INT(0, open.placed);
-    const CliPreviewItem *const up = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = bound_run("up"));
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_FILE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = up->x + 1,
-                                                             .y = up->y + 1, .open_out = &open));
+    const CliPreviewItem up = bound_item(bound_run("up"));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_FILE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = up.x + 1,
+                                                             .y = up.y + 1, .open_out = &open));
     CLI_TEST_ASSERT_TEXT("top.md", open.path, CLI_UNITY_LENGTH(open.path));
-    const CliPreviewItem *const here = EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = bound_run("here"));
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_PLACE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg,
-                                                              .x = here->x + 1, .y = here->y + 1, .open_out = &open));
+    const CliPreviewItem here = bound_item(bound_run("here"));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_PLACE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = here.x + 1,
+                                                              .y = here.y + 1, .open_out = &open));
     TEST_ASSERT_EQUAL_INT(open.top_px, EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0));
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_NONE,
                            EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = 1, .y = 1, .open_out = &open));

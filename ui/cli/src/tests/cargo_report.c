@@ -62,20 +62,12 @@ EMBED_INLINE int report_line(const CargoReportCtx *args)
 // `length` bytes from `start` trimmed of ASCII whitespace, as their start and length
 EMBED_INLINE void report_trim(const CargoReportCtx *args)
 {
-    unsigned long long *start = args->start;
-    unsigned long long *length = args->length;
-    while ((*length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                    .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start]}) != NULL))
-    {
-        *start += 1ULL;
-        *length -= 1ULL;
-    }
-    while ((*length > 0ULL) &&
-           (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\r\n\f\v", .cap = CLI_POOL_BYTES, .byte = args->text[*start + *length - 1ULL]}) != NULL))
-    {
-        *length -= 1ULL;
-    }
+    unsigned long long from = 0ULL;
+    unsigned long long to = 0ULL;
+    EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->text + *args->start,
+               .size = *args->length, .from_u64s = &from, .to_u64s = &to);
+    *args->start += from;
+    *args->length = to - from;
 }
 
 // whether `length` bytes from `start` begin with `head`
@@ -448,7 +440,7 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = folder,
                             .src = args->package,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->package, .cap = CLI_POOL_BYTES}) + 1u});
-    const size_t root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
+    const embed_word root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
     int going = 1;
     while (going)
     {
@@ -480,7 +472,7 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
                 (length == 11ULL) &&
                 (memor.cmp(&(MemoriaCfg){.src = bytes + start, .other = "[workspace]", .bytes = 11u}) == 0);
         }
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_tests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_tests_owner));
         if (workspace_table)
         {
             memor.cpy(

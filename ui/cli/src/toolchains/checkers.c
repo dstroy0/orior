@@ -24,7 +24,7 @@ static CliCheckWorkState *s_work_state;
 // the lock taken and the work state a cell under it: 1, or 0 with the lock given back where no cell is left
 static int checkers_lock(void)
 {
-    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
+    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
     if (s_work_state == NULL)
     {
         return 0;
@@ -460,7 +460,7 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
     const int checked =
         EMBED_CALL(cli_on_check, CheckersCtx, .tool = tool, .args_key = "args", .file = args->path, .root = args->root,
                    .input = input, .length = input_length, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)mapped, (g_cli_toolchains_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_toolchains_owner));
     if (checked)
     {
         EMBED_CALL(cli_checkers_path_internal.file, CliCheckersPathCtx, .findings = &s_work_state->findings,

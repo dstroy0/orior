@@ -5,10 +5,11 @@
 // tree's name, a folder's row pressed opens it and a file's opens the file; the problems' table draws its own head in
 // place of the pane's, the whole head offering the check, its rows of two heights; and a pointer leaving the side
 // marks no row
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/cli/src/text/text.h"
-#include "../../../../../ui/cli/src/view/parts/explorer.h"
-#include "../../../../../ui/cli/src/view/parts/problems.h"
+#include "../../../../../ui/gui/src/explorer.h"
+#include "../../../../../ui/gui/src/problems.h"
 #include "../cli/cli_check.h"
 
 // the file `relative` of the tree at `root` written with `text`, its folder put in place first
@@ -34,24 +35,27 @@ static void file_written(const char *root, const char *relative, const char *tex
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
     GuiIcons icons;
-    EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &icons);
+    EMBED_CALL(gui_icons.init, GuiIconsCfg, .icons = &icons);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
 
     cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "more") == NULL, "a tool without a pane has no table");
@@ -151,7 +155,6 @@ int main(void)
                           .x = frame.side.x + 20, .y = frame.side.y + frame.side.height - 10, .row_pointer = &hit_row),
               "no problem stands, so no row is pressed");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
@@ -159,12 +162,12 @@ int main(void)
     {
         if (icons.entry[at].used)
         {
-            g_cli_guard->persistent_buf_release(icons.entry[at].mask_bits.cover, g_gui_icons_owner);
             icons.entry[at].mask_bits.cover = NULL;
             icons.entry[at].used = 0;
         }
     }
     icons.count = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

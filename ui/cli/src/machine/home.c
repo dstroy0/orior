@@ -7,18 +7,18 @@
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
-// what menus.json contains when orior_cli makes it: a note on what each part is for, and nothing laid out
+// what menus.json contains when impero makes it: a note on what each part is for, and nothing laid out
 #define CLI_MENUS                                                                                                      \
-    "{\n  \"about\": \"Each item is a command's name, as orior_cli <menu> <command> names it, or { \\\"command\\\": "  \
+    "{\n  \"about\": \"Each item is a command's name, as imp <menu> <command> names it, or { \\\"command\\\": "        \
     "name, "                                                                                                           \
     "\\\"label\\\": text, \\\"icon\\\": name }, or \\\"-\\\" for a line; { \\\"label\\\": text, \\\"items\\\": [...] " \
     "} "                                                                                                               \
     "contains more. A menu named as one of orior's stands in its place, the others stand before Help, and hide takes " \
     "orior's away by name.\",\n  \"menus\": [],\n  \"hide\": [],\n  \"toolbar\": []\n}\n"
 
-// what user.css contains when orior_cli makes it: a note on what it is for
+// what user.css contains when impero makes it: a note on what it is for
 #define CLI_USER_CSS                                                                                                   \
-    "/* orior_cli lays this stylesheet over its own, last, and reads it again each time the window\n"                  \
+    "/* impero lays this stylesheet over its own, last, and reads it again each time the window\n"                     \
     "   comes back to the front. Every color and font the app uses is a variable, named as\n"                          \
     "   Preferences lists them. This rule sets two of them for both schemes:\n\n"                                      \
     "   :root[data-scheme] { --fuse-fire: #ff7a1a; --code: \"Fira Code\", monospace; }\n\n"                            \
@@ -71,7 +71,7 @@ typedef struct
     const char *text;
     VerbaLinea *err_msg;
 } HomeCtx;
-// `name` in orior's own folder into `path`: 1, or 0 where orior_cli has no folder of its own
+// `name` in orior's own folder into `path`: 1, or 0 where impero has no folder of its own
 EMBED_INLINE int cli_home_by_name(const HomeCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
@@ -147,7 +147,7 @@ int cli_home_ensure_menus(const CliPathErrMsgTypeCtx *args)
 {
     if (!cli_path_err_msg_type_internal.home_menus(args))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store menus in");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own to store menus in");
         return 0;
     }
     return EMBED_CALL(cli_home_ensure, HomeCtx, .path_read = args->path_out, .text = CLI_MENUS,
@@ -164,7 +164,7 @@ int cli_home_ensure_user_css(const CliPathErrMsgTypeCtx *args)
 {
     if (!cli_path_err_msg_type_internal.home_user_css(args))
     {
-        mmgr_line_put(args->err_msg, "orior_cli has no folder of its own to store a stylesheet in");
+        mmgr_line_put(args->err_msg, "impero has no folder of its own to store a stylesheet in");
         return 0;
     }
     return EMBED_CALL(cli_home_ensure, HomeCtx, .path_read = args->path_out, .text = CLI_USER_CSS,
@@ -180,7 +180,7 @@ int cli_home_reveal(const CliPathErrMsgNameCtx *args)
 #else
     const char *const words[3] = {"xdg-open", args->path, NULL};
 #endif
-    // the file manager or the program it opens in is the reader's, and stays as orior_cli ends
+    // the file manager or the program it opens in is the reader's, and stays as impero ends
     unsigned int id = 0u;
     if (!EMBED_CALL(cli_words_id_internal.started_outside, CliWordsIdCtx, .words = words, .id = &id))
     {

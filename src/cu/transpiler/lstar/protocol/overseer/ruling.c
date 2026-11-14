@@ -5,8 +5,8 @@
 #include "overseer_internal.h"
 #include "verba_scribo/verba_scribo.h"
 #include "../table_text.h"
-#include "../../../../includes/parsers/who.h"
-#include "../../../../includes/parsers/line_read.h"
+#include "../../../../../../includes/parsers/who.h"
+#include "../../../../../../includes/parsers/line_read.h"
 
 // the lesson of `cause` at `carrier` applying `standing` stored, once: 1 where it is new
 static int overseer_lesson_stored(unsigned int cause, const char *carrier, const char *standing)

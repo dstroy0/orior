@@ -20,7 +20,6 @@
     owner_(g_cli_command_line_owner, "cli_command_line")                 \
     owner_(g_cli_comms_owner, "cli_comms")                               \
     owner_(g_cli_compile_owner, "cli_compile_db")                        \
-    owner_(g_cli_coverage_owner, "cli_coverage")                         \
     owner_(g_cli_db_owner, "cli_databases")                              \
     owner_(g_cli_db_pane_owner, "cli_db_pane")                           \
     owner_(g_cli_debug_owner, "cli_debug")                               \
@@ -98,7 +97,6 @@
     owner_(g_gui_base_owner, "gui_base")                                 \
     owner_(g_gui_owner, "gui")                                           \
     owner_(g_gui_framebuffer_owner, "gui_framebuffer")                   \
-    owner_(g_gui_glyphs_owner, "gui_glyphs")                             \
     owner_(g_gui_icons_owner, "gui_icons")                               \
     owner_(g_gui_lattice_owner, "gui_lattice")                           \
     owner_(g_gui_raster_owner, "gui_raster")                             \

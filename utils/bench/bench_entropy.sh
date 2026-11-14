@@ -13,5 +13,5 @@ OUT="$TOP/build/bench"
 mkdir -p "$OUT"
 
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/bench_entropy" "$HERE/bench_entropy.c" \
-    "$TOP/src/cu/includes/codecs/sha256/sha256.c" -lm || exit 1
+    "$TOP/includes/codecs/sha256/sha256.c" -lm || exit 1
 "$OUT/bench_entropy"

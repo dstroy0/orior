@@ -24,12 +24,12 @@ typedef struct CliCrumbsCfg CliCrumbsCfg;
 #define CLI_CRUMBS_MOST 64u
 #define CLI_CRUMBS_KEY "breadcrumbs"
 
-// A crumb: its type, its text, `length` bytes, standing until the crumbs are read again, and how deep it stands, a
-// folder's place in the path or a declaration's depth in the outline
+// A crumb: its type, its text copied out of the crumbs' cell, `length` bytes, and how deep it stands, a folder's place
+// in the path or a declaration's depth in the outline
 typedef struct
 {
     unsigned int type;
-    const char *text;
+    char text[CLI_PATH_MAX_LEN];
     unsigned long long length;
     unsigned int depth;
 } CliCrumbRow;

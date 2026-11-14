@@ -15,10 +15,10 @@ int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args)
     VerbaLinea command = {expression, sizeof(expression), 0ULL};
     mmgr_line_ch(&command, '`');
     mmgr_line_put(&command, args->text);
-    mmgr_line_put(&answer->args, "{\"expression\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
+    mmgr_line_put(&answer->args.line, "{\"expression\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                .text_bytes = (const unsigned char *)command.out, .length = command.at);
-    mmgr_line_put(&answer->args, ",\"context\":\"repl\"}");
+    mmgr_line_put(&answer->args.line, ",\"context\":\"repl\"}");
     if (!EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = args->session,
                     .command = "evaluate", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
                     .err_msg = args->err_msg))
@@ -117,9 +117,9 @@ EMBED_INLINE int step_out_to_python(const DebugStepCtx *args)
     CliDebugSession *session = args->session;
     VerbaLinea *err_msg = args->err_msg;
     CliDebugAnswer *const answer = cli_debug_answer_alloc();
-    mmgr_line_put(&answer->args, "{\"threadId\":");
-    mmgr_line_decimal_signed(&answer->args, args->thread);
-    mmgr_line_put(&answer->args, ",\"startFrame\":0,\"levels\":200}");
+    mmgr_line_put(&answer->args.line, "{\"threadId\":");
+    mmgr_line_decimal_signed(&answer->args.line, args->thread);
+    mmgr_line_put(&answer->args.line, ",\"startFrame\":0,\"levels\":200}");
     if (!EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = session,
                     .command = "stackTrace", .answer = answer, .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS,
                     .err_msg = err_msg))

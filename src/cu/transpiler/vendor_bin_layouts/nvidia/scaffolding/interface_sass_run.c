@@ -21,9 +21,9 @@
 // adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that line. A
 // pause after each launch prevents a run of launches from flooding the part and taking the display down with it. Exit 0
 // where every line ran, 2 where the list or the device was not reached.
-#include "../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../cubin_safe.h"
-#include "../../../../includes/parsers/line_read.h"
+#include "../../../../../../includes/parsers/line_read.h"
 
 #include <cuda.h>
 #include <windows.h>

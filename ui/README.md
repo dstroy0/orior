@@ -19,7 +19,7 @@ The app reads all of it from the tree each time:
 | the viewers | every `build_*_view.py` under `examples/` |
 | the stages and the pipelines | `examples/<subject>/<n>_<stage>/*.py` |
 | the tests | every `run.sh` under `utils/test/` and each example's `test/` |
-| the languages and file types | `src/lng/*.tsv` and `src/cu/includes/file_defs/*/*.oracle.tsv` |
+| the languages and file types | `src/lng/*.tsv` and `includes/file_defs/*/*.oracle.tsv` |
 
 A job's description is the opening comment or docstring of its own file.
 
@@ -90,7 +90,7 @@ there.
 cargo run --release --manifest-path ui/gui/src-tauri/Cargo.toml
 ```
 
-The program is `build/cargo/release/orior_gui`. The installers come from the Tauri command, which cargo
+The program is `build/cargo/release/tab`. The installers come from the Tauri command, which cargo
 installs once and which finds `src-tauri` under the folder it is run in:
 
 ```
@@ -101,8 +101,8 @@ cargo tauri build
 
 They land under `build/cargo/release/bundle/`, for the platform the build runs on. Each
 published release carries them for Windows, macOS and Linux, built by `.github/workflows/app.yml`.
-Without a clone, `cargo install --git https://github.com/dstroy0/orior orior_gui --locked` builds and
-installs the program `orior_gui`. A plain cargo build puts the page inside the program, as the installers
+Without a clone, `cargo install --git https://github.com/dstroy0/orior tab --locked` builds and
+installs the program `tab`. A plain cargo build puts the page inside the program, as the installers
 do; `cargo tauri dev` serves it from `gui/src-js/` as it changes.
 
 orior files the errors it meets as issues on dstroy0/orior on its own, and asks once whether to,

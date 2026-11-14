@@ -36,6 +36,7 @@ extern void test_an_import_names_a_module(void);
 extern void test_a_name_set_does_not_name_a_module(void);
 extern void test_a_report_of_an_attribute_names_it_and_its_class(void);
 extern void test_another_report_names_no_attribute(void);
+extern void test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes(void);
 
 
 /*=======Mock Management=====*/
@@ -97,34 +98,35 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers\\test_servers\\test_servers.c");
-  run_test(test_params_that_did_not_fit_their_line_are_refused_with_no_server_reached, "test_params_that_did_not_fit_their_line_are_refused_with_no_server_reached", 231);
-  run_test(test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order, "test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order", 244);
-  run_test(test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_done, "test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_done", 283);
-  run_test(test_clangd_serves_c, "test_clangd_serves_c", 303);
-  run_test(test_clangd_names_cuda_files_as_cuda, "test_clangd_names_cuda_files_as_cuda", 310);
-  run_test(test_plain_text_has_no_server, "test_plain_text_has_no_server", 321);
-  run_test(test_zig_mojo_ansible_rust_and_python_each_have_a_server, "test_zig_mojo_ansible_rust_and_python_each_have_a_server", 326);
-  run_test(test_a_hover_of_markdown_reads_as_markdown, "test_a_hover_of_markdown_reads_as_markdown", 335);
-  run_test(test_a_hover_of_code_and_words_reads_as_markdown, "test_a_hover_of_code_and_words_reads_as_markdown", 343);
-  run_test(test_a_workspace_edits_changes_read_the_first_edit_first, "test_a_workspace_edits_changes_read_the_first_edit_first", 351);
-  run_test(test_a_workspace_edits_document_changes_read_a_file_created_not_among_them, "test_a_workspace_edits_document_changes_read_a_file_created_not_among_them", 368);
-  run_test(test_a_workspace_edit_is_in_a_cell_counted_to_its_files_and_edits_and_released, "test_a_workspace_edit_is_in_a_cell_counted_to_its_files_and_edits_and_released", 383);
-  run_test(test_edits_are_written_by_utf16_columns_the_line_ends_preserved, "test_edits_are_written_by_utf16_columns_the_line_ends_preserved", 402);
-  run_test(test_a_completion_is_named_by_what_it_inserts, "test_a_completion_is_named_by_what_it_inserts", 414);
-  run_test(test_a_setting_orior_does_not_send_is_left_to_the_servers_default, "test_a_setting_orior_does_not_send_is_left_to_the_servers_default", 427);
-  run_test(test_the_settings_on_by_default_stay_on, "test_the_settings_on_by_default_stay_on", 432);
-  run_test(test_pythons_analysis_is_alike_either_way, "test_pythons_analysis_is_alike_either_way", 439);
-  run_test(test_an_edit_the_server_requests_is_applied_and_passed_on, "test_an_edit_the_server_requests_is_applied_and_passed_on", 453);
-  run_test(test_a_files_diagnostics_wake_the_checker_waiting_on_it, "test_a_files_diagnostics_wake_the_checker_waiting_on_it", 461);
-  run_test(test_diagnostics_after_a_release_pass_on_and_its_clearing_does_not_however_its_uri_is_written, "test_diagnostics_after_a_release_pass_on_and_its_clearing_does_not_however_its_uri_is_written", 467);
-  run_test(test_a_released_files_diagnostics_are_stored, "test_a_released_files_diagnostics_are_stored", 473);
-  run_test(test_a_clearing_after_the_release_ends_passes_on, "test_a_clearing_after_the_release_ends_passes_on", 479);
-  run_test(test_an_include_names_a_file, "test_an_include_names_a_file", 485);
-  run_test(test_a_longer_name_and_a_comment_do_not_name_a_file, "test_a_longer_name_and_a_comment_do_not_name_a_file", 490);
-  run_test(test_an_import_names_a_module, "test_an_import_names_a_module", 495);
-  run_test(test_a_name_set_does_not_name_a_module, "test_a_name_set_does_not_name_a_module", 500);
-  run_test(test_a_report_of_an_attribute_names_it_and_its_class, "test_a_report_of_an_attribute_names_it_and_its_class", 505);
-  run_test(test_another_report_names_no_attribute, "test_another_report_names_no_attribute", 518);
+  run_test(test_params_that_did_not_fit_their_line_are_refused_with_no_server_reached, "test_params_that_did_not_fit_their_line_are_refused_with_no_server_reached", 234);
+  run_test(test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order, "test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order", 247);
+  run_test(test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_done, "test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_done", 286);
+  run_test(test_clangd_serves_c, "test_clangd_serves_c", 306);
+  run_test(test_clangd_names_cuda_files_as_cuda, "test_clangd_names_cuda_files_as_cuda", 313);
+  run_test(test_plain_text_has_no_server, "test_plain_text_has_no_server", 324);
+  run_test(test_zig_mojo_ansible_rust_and_python_each_have_a_server, "test_zig_mojo_ansible_rust_and_python_each_have_a_server", 329);
+  run_test(test_a_hover_of_markdown_reads_as_markdown, "test_a_hover_of_markdown_reads_as_markdown", 338);
+  run_test(test_a_hover_of_code_and_words_reads_as_markdown, "test_a_hover_of_code_and_words_reads_as_markdown", 346);
+  run_test(test_a_workspace_edits_changes_read_the_first_edit_first, "test_a_workspace_edits_changes_read_the_first_edit_first", 354);
+  run_test(test_a_workspace_edits_document_changes_read_a_file_created_not_among_them, "test_a_workspace_edits_document_changes_read_a_file_created_not_among_them", 371);
+  run_test(test_a_workspace_edit_is_in_a_cell_counted_to_its_files_and_edits_and_released, "test_a_workspace_edit_is_in_a_cell_counted_to_its_files_and_edits_and_released", 386);
+  run_test(test_edits_are_written_by_utf16_columns_the_line_ends_preserved, "test_edits_are_written_by_utf16_columns_the_line_ends_preserved", 405);
+  run_test(test_a_completion_is_named_by_what_it_inserts, "test_a_completion_is_named_by_what_it_inserts", 417);
+  run_test(test_a_setting_orior_does_not_send_is_left_to_the_servers_default, "test_a_setting_orior_does_not_send_is_left_to_the_servers_default", 430);
+  run_test(test_the_settings_on_by_default_stay_on, "test_the_settings_on_by_default_stay_on", 435);
+  run_test(test_pythons_analysis_is_alike_either_way, "test_pythons_analysis_is_alike_either_way", 442);
+  run_test(test_an_edit_the_server_requests_is_applied_and_passed_on, "test_an_edit_the_server_requests_is_applied_and_passed_on", 456);
+  run_test(test_a_files_diagnostics_wake_the_checker_waiting_on_it, "test_a_files_diagnostics_wake_the_checker_waiting_on_it", 464);
+  run_test(test_diagnostics_after_a_release_pass_on_and_its_clearing_does_not_however_its_uri_is_written, "test_diagnostics_after_a_release_pass_on_and_its_clearing_does_not_however_its_uri_is_written", 470);
+  run_test(test_a_released_files_diagnostics_are_stored, "test_a_released_files_diagnostics_are_stored", 476);
+  run_test(test_a_clearing_after_the_release_ends_passes_on, "test_a_clearing_after_the_release_ends_passes_on", 482);
+  run_test(test_an_include_names_a_file, "test_an_include_names_a_file", 488);
+  run_test(test_a_longer_name_and_a_comment_do_not_name_a_file, "test_a_longer_name_and_a_comment_do_not_name_a_file", 493);
+  run_test(test_an_import_names_a_module, "test_an_import_names_a_module", 498);
+  run_test(test_a_name_set_does_not_name_a_module, "test_a_name_set_does_not_name_a_module", 503);
+  run_test(test_a_report_of_an_attribute_names_it_and_its_class, "test_a_report_of_an_attribute_names_it_and_its_class", 508);
+  run_test(test_another_report_names_no_attribute, "test_another_report_names_no_attribute", 521);
+  run_test(test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes, "test_jobs_handed_over_from_four_threads_each_run_once_with_their_bytes", 568);
 
   return UNITY_END();
 }

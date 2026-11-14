@@ -61,8 +61,8 @@ struct GuiSystem
     int device_tried;
     DWORD leave_watched;
     int owner;
-    int least_width;
-    int least_height;
+    int min_width;
+    int min_height;
     // the window a modal window disables while it stands, NULL for a window that is not modal
     HWND modal_owner;
     // the wheel's units turned down that add up to no whole notch yet, kept for the next turn's count of rows
@@ -685,10 +685,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     case WM_NCACTIVATE:
         // the window taking or losing the focus: its border colored for the state, and the system told not to paint
         // its own frame over the client, which -1 in place of the update region does
-        if ((system == NULL) || !system->owner)
-        {
-            EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = pixel_width != 0u);
-        }
+        EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = pixel_width != 0u);
         return DefWindowProcW(window, message, pixel_width, (LPARAM)-1);
     case WM_NCPAINT:
         // there is no non-client area to paint
@@ -727,8 +724,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         MINMAXINFO *const limits = (MINMAXINFO *)low;
         const int scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window);
         const int owned = (system != NULL) && system->owner;
-        limits->ptMinTrackSize.x = owned ? (LONG)system->least_width : (LONG)((CLI_POSITION_MIN_WIDTH * scale) / 100);
-        limits->ptMinTrackSize.y = owned ? (LONG)system->least_height : (LONG)((CLI_POSITION_MIN_HEIGHT * scale) / 100);
+        limits->ptMinTrackSize.x = owned ? (LONG)system->min_width : (LONG)((CLI_POSITION_MIN_WIDTH * scale) / 100);
+        limits->ptMinTrackSize.y = owned ? (LONG)system->min_height : (LONG)((CLI_POSITION_MIN_HEIGHT * scale) / 100);
         // maximized it fills the part of its monitor the taskbar leaves, its frame past those edges
         MONITORINFO info;
         info.cbSize = sizeof(info);
@@ -767,10 +764,21 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     }
     case WM_ERASEBKGND:
         return 1;
-    case WM_NCMOUSEMOVE:
+    case WM_NCMOUSEMOVE: {
         EMBED_CALL(system_leave_watch, SystemWindowsCtx, .system = system, .window = window,
                    .flags = TME_LEAVE | TME_NONCLIENT);
+        // The frame is the window's own pixels: its resize edges and the caption the hit test names. A move over them
+        // reaches the window as a move at the client's point, so a pointer that rests on the window's edge is seen
+        // there, and not only inside the edges
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_MOVED,
+                                        .x = at.x,
+                                        .y = at.y,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
         return DefWindowProcW(window, message, pixel_width, low);
+    }
     case WM_MOUSELEAVE:
     case WM_NCMOUSELEAVE:
         system->leave_watched = 0;
@@ -791,8 +799,23 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
                                            EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)));
         return 0;
     case WM_MBUTTONDOWN:
+        // the capture brings the middle button's release and the moves before it in from outside the window
+        SetCapture(window);
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_DOWN,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_MIDDLE,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_MBUTTONUP:
+        // the capture stays while the left button is still down, for its own release
+        if ((pixel_width & MK_LBUTTON) == 0u)
+        {
+            ReleaseCapture();
+        }
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_UP,
                                         .x = GET_X_LPARAM(low),
                                         .y = GET_Y_LPARAM(low),
                                         .button = GUI_BUTTON_MIDDLE,
@@ -834,7 +857,11 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return 0;
     }
     case WM_LBUTTONUP:
-        ReleaseCapture();
+        // the capture stays while the middle button is still down, for its own release
+        if ((pixel_width & MK_MBUTTON) == 0u)
+        {
+            ReleaseCapture();
+        }
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_UP,
                                         .x = GET_X_LPARAM(low),
@@ -1070,11 +1097,8 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
     system->owner = 1;
     // a window owned is dragged no smaller than it opened, the size its owner asked for it; a place's sides are far
     // inside what an int represents
-    system->least_width = (int)args->place->width;
-    system->least_height = (int)args->place->height;
-    // a window owned paints its own border, rounded as the compositor rounds its corners, so the compositor draws none
-    const COLORREF none = DWMWA_COLOR_NONE;
-    DwmSetWindowAttribute(system->window, DWMWA_BORDER_COLOR, &none, sizeof(none));
+    system->min_width = (int)args->place->width;
+    system->min_height = (int)args->place->height;
     ShowWindow(system->window, SW_SHOW);
     // A modal window disables its owner, so the system refuses the owner's input until the modal window closes
     if (args->modal)

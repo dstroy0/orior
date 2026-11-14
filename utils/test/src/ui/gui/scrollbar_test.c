@@ -5,7 +5,8 @@
 // the end for the last; a press lands on an arrow, the thumb or the track before or after it; a thumb dragged to a
 // place puts the line there in view; the thumb is drawn, round at its ends, and the arrows with it; and a layout at
 // the same scale and direction keeps the masks it made
-#include "../../../../../ui/cli/src/view/parts/scrollbar.h"
+#include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/scrollbar.h"
 #include "../cli/cli_check.h"
 
 // the color the raster is filled with before the scrollbar is drawn, which no part of the palette is
@@ -54,7 +55,7 @@ static void scrollbar_checked(GuiRaster *raster, const GuiPalette *palette, GuiS
     const GuiRect end = EMBED_CALL(gui_scrollbar.thumb, GuiScrollbarCfg, .bar_read = bar, .total = 400ull, .shown = 100ull, .first = 300ull);
     cli_check((across ? end.x + end.width : end.y + end.height) == track_start + track_length, "the last lines put it at the track's end");
     const GuiRect least = EMBED_CALL(gui_scrollbar.thumb, GuiScrollbarCfg, .bar_read = bar, .total = 1000000ull, .shown = 10ull);
-    cli_check((across ? least.width : least.height) == GUI_SCROLLBAR_THUMB_LEAST, "a thumb is never shorter than its least");
+    cli_check((across ? least.width : least.height) == GUI_SCROLLBAR_THUMB_MIN, "a thumb is never shorter than its least");
 
     // presses, at a place along the scrollbar's own way
     const GuiRect thumb = EMBED_CALL(gui_scrollbar.thumb, GuiScrollbarCfg, .bar_read = bar, .total = 400ull, .shown = 100ull, .first = 150ull);
@@ -110,13 +111,17 @@ static void scrollbar_checked(GuiRaster *raster, const GuiPalette *palette, GuiS
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 240u, .height = 240u),
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 240u, .height = 240u),
               "a raster to draw on");
     static GuiScrollbar down;
     static GuiScrollbar across;
     scrollbar_checked(&raster, palette, &down, (GuiRect){10, 10, GUI_SCROLLBAR_WIDTH, 200}, 0);
     scrollbar_checked(&raster, palette, &across, (GuiRect){10, 220, 200, GUI_SCROLLBAR_WIDTH}, 1);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

@@ -60,7 +60,7 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
     const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
     const unsigned long long open_bytes = (unsigned long long)elements * sizeof(unsigned int);
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(
+    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
         element_bytes + (2ULL * comment_bytes) + error_bytes + open_bytes + 1ULL, g_cli_xml_owner);
     *xml = (CliXml){args->text, args->size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     if (cell == NULL)
@@ -126,7 +126,7 @@ EMBED_INLINE int xml_same_name(const MavenXmlCtx *args)
     return (one->to - one->from == args->to - args->from) &&
            (memor.cmp(&(MemoriaCfg){.src = args->xml_read->text + one->from,
                                     .other = args->xml_read->text + args->from,
-                                    .bytes = (size_t)(args->to - args->from)}) == 0);
+                                    .bytes = (embed_word)(args->to - args->from)}) == 0);
 }
 
 // a closing tag named `from` to `to`, its `<` at `lt`, closing the nearest element of its name left open
@@ -215,7 +215,7 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
     for (unsigned long long at = 0ULL; at < args->size;)
     {
         const char *const found =
-            memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '<', .bytes = (size_t)(args->size - at)});
+            memor.chr(&(MemoriaCfg){.src = args->text + at, .val = '<', .bytes = (embed_word)(args->size - at)});
         if (found == NULL)
         {
             return;
@@ -344,8 +344,9 @@ int cli_xml_by_name(const CliMavenXmlNameCtx *args)
 {
     const CliXmlElement *const one = &args->xml->element[args->element];
     return (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) == one->to - one->from) &&
-           (memor.cmp(&(MemoriaCfg){
-                .src = args->xml->text + one->from, .other = args->name, .bytes = (size_t)(one->to - one->from)}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = args->xml->text + one->from,
+                                    .other = args->name,
+                                    .bytes = (embed_word)(one->to - one->from)}) == 0);
 }
 
 unsigned int cli_xml_child(const CliMavenXmlOutCtx *args)

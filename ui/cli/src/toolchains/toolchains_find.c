@@ -664,7 +664,7 @@ int cli_toolchains_setup_line(const CliToolchainsIdErrMsgCfg *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                           .object = tool, .name = "name"),
                        .length_pointer = NULL);
-        mmgr_line_put(args->err_msg, "orior_cli has no way to install ");
+        mmgr_line_put(args->err_msg, "impero has no way to install ");
         mmgr_line_put(args->err_msg, (name != NULL) ? name : args->id);
         mmgr_line_put(args->err_msg, " on ");
         mmgr_line_put(args->err_msg, cli_toolchains_system());

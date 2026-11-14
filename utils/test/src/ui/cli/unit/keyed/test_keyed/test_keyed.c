@@ -9,11 +9,15 @@
 static CliKeyed s_keyed;
 
 // a key and its side value written to the line `context`, each with its terminating 0
-static void listing_append(const CliEachKeyAdjacentTextSizeCfg *args)
+static void listing_append(const CliEachKeyedEntryCfg *args)
 {
     VerbaLinea *const line = args->context;
-    (void)mmgr_line_put_n(line, args->key, CLI_UNITY_LENGTH(args->key) + 1ull);
-    (void)mmgr_line_put_n(line, args->adjacent, CLI_UNITY_LENGTH(args->adjacent) + 1ull);
+    char texts[256];
+    const unsigned long long bytes = (unsigned long long)args->entry.key_size + args->entry.adjacent_size + 2ull;
+    TEST_ASSERT_TRUE(bytes <= sizeof(texts));
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = args->entry.cell, .offset = 0u, .dst = texts, .bytes = (embed_word)bytes});
+    (void)mmgr_line_put_n(line, texts, bytes);
 }
 
 // the store lists to `required` bytes: a line of that size and its 0 holds them, and a line a byte shorter does not

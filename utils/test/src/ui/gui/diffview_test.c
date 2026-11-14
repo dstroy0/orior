@@ -8,9 +8,10 @@
 // space box sets white space aside through the CLI and the rows are read again, while the structure box, which the CLI
 // answers cannot be pressed, turns nothing; a file that does not differ draws the CLI's sentence and no row; and Escape
 // closes the view through the host. Every sentence is read from the CLI
+#include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/code/diff_view.h"
 #include "../../../../../ui/cli/src/code/git.h"
-#include "../../../../../ui/cli/src/view/parts/diffview.h"
+#include "../../../../../ui/gui/src/diffview.h"
 #include "../cli/cli_check.h"
 
 // the lines of the check's file, and the bytes they take with their ends at most
@@ -103,23 +104,26 @@ static void drawn(GuiRaster *raster, const GuiWork *work, const GuiFrame *frame,
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
+    cli_check(EMBED_CALL(gui_block_size.init, GuiBlockSizeCfg, .pages = &g_gui_pages, .width = CLI_CHECK_MONITOR_WIDTH,
+                         .height = CLI_CHECK_MONITOR_HEIGHT),
+              "the block is reserved for the monitor");
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     GuiGlyphs glyphs;
-    if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
+    if (!EMBED_CALL(gui_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .faces = &g_gui_faces, .err_msg = &why))
     {
         (void)mmgr_line_finish(&why);
         cli_check(0, error_text);
         return cli_on_check();
     }
-    const GuiPalette *const palette = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
+    const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
     GuiIcons icons;
-    EMBED_CALL(cli_icons.init, GuiIconsCfg, .icons = &icons);
+    EMBED_CALL(gui_icons.init, GuiIconsCfg, .icons = &icons);
     GuiRaster raster;
     cli_check(
-        EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1440u, .height = 920u),
+        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
         "the raster is taken");
     const GuiColor ground = 0xFF102030u;
 
@@ -276,10 +280,10 @@ int main(void)
                          .y = tools_y) == GUI_WORK_OUTSIDE,
               "the editor is the editor's again");
 
-    g_cli_guard->persistent_buf_release(raster.pixels, g_gui_raster_owner);
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
-    EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);
+    EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

@@ -9,6 +9,7 @@
 #include "ui/cli/src/notebooks/notebook_edit.h"
 #include "ui/cli/src/notebooks/notebook_kernel.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
+#include "utils/test/src/ui/cli/unit/support/notebook_model_unity.h"
 
 // a notebook of three cells, code, markdown and code, the first with a stream printed, and the same cells as a
 // percent script and as a notebook with no outputs
@@ -120,7 +121,7 @@ void test_a_row_is_found_among_the_sorted_starts_of_the_cells(void)
     const CliNotebookModel *const model = opened("nb:a", "one.ipynb", s_notebook);
     for (unsigned int at = 0u; at < model->cells; at += 1u)
     {
-        TEST_ASSERT_TRUE(model->first_row[at] < model->first_row[at + 1u]);
+        TEST_ASSERT_TRUE(notebook_first_row_at(model, at) < notebook_first_row_at(model, at + 1u));
     }
     TEST_ASSERT_EQUAL_UINT(8u, EMBED_CALL(cli_notebook_cells_row.rows, CliNotebookCellsRowCfg, .key = "nb:a"));
     const CliNotebookRow first = row_of("nb:a", 0u);
@@ -152,7 +153,9 @@ void test_a_row_is_found_among_the_sorted_starts_of_the_cells(void)
 void test_the_step_applies_each_message_to_the_cell_its_run_answers(void)
 {
     CliNotebookModel *const model = opened("nb:a", "one.ipynb", s_notebook);
-    model->cell[0].running = 1;
+    CliNotebookCell first = notebook_cell_at(model, 0u);
+    first.running = 1;
+    notebook_cell_set(model, 0u, &first);
     EMBED_CALL(cli_notebook_model_internal.bound, CliNotebookModelCtx, .model = model, .cell = 0u, .id = "r1");
     received(model, "clear_output", "r1", "{\"wait\":false}");
     received(model, "execute_input", "r1", "{\"code\":\"x\",\"execution_count\":5}");
@@ -163,18 +166,18 @@ void test_the_step_applies_each_message_to_the_cell_its_run_answers(void)
     received(model, "error", "r1", "{\"ename\":\"E\",\"evalue\":\"v\",\"traceback\":[\"first\",\"second\"]}");
     received(model, "execute_reply", "r1", "{\"status\":\"error\",\"execution_count\":5}");
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL));
-    const CliNotebookCell *const cell = &model->cell[0];
-    TEST_ASSERT_EQUAL_UINT(5u, cell->count);
-    TEST_ASSERT_EQUAL_INT(0, cell->running);
-    TEST_ASSERT_EQUAL_INT(1, cell->failed);
-    TEST_ASSERT_EQUAL_UINT(4u, cell->outputs);
-    TEST_ASSERT_EQUAL_UINT(2u, model->output[cell->output_first].lines);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_RESULT, model->output[cell->output_first + 1u].type);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_DISPLAY, model->output[cell->output_first + 2u].type);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ERROR, model->output[cell->output_first + 3u].type);
-    TEST_ASSERT_EQUAL_UINT(2u, model->output[cell->output_first + 3u].lines);
-    TEST_ASSERT_TRUE(bytes_contain(model->output_text, model->output_used, "\"output_type\":\"display_data\""));
-    TEST_ASSERT_FALSE(bytes_contain(model->output_text, model->output_used, "transient"));
+    const CliNotebookCell cell = notebook_cell_at(model, 0u);
+    TEST_ASSERT_EQUAL_UINT(5u, cell.count);
+    TEST_ASSERT_EQUAL_INT(0, cell.running);
+    TEST_ASSERT_EQUAL_INT(1, cell.failed);
+    TEST_ASSERT_EQUAL_UINT(4u, cell.outputs);
+    TEST_ASSERT_EQUAL_UINT(2u, notebook_output_at(model, cell.output_first).lines);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_RESULT, notebook_output_at(model, cell.output_first + 1u).type);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_DISPLAY, notebook_output_at(model, cell.output_first + 2u).type);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ERROR, notebook_output_at(model, cell.output_first + 3u).type);
+    TEST_ASSERT_EQUAL_UINT(2u, notebook_output_at(model, cell.output_first + 3u).lines);
+    TEST_ASSERT_TRUE(notebook_texts_contain(model, "\"output_type\":\"display_data\""));
+    TEST_ASSERT_FALSE(notebook_texts_contain(model, "transient"));
     const CliNotebookRow printed = row_of("nb:a", 2u);
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_ROW_OUTPUT, printed.type);
     TEST_ASSERT_TRUE((printed.flags & CLI_NOTEBOOK_FLAG_FAILED) != 0u);
@@ -185,12 +188,12 @@ void test_a_message_whose_run_is_not_yet_bound_stands_until_it_is(void)
     CliNotebookModel *const model = opened("nb:a", "one.ipynb", s_notebook);
     received(model, "stream", "r9", "{\"name\":\"stderr\",\"text\":\"late\"}");
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL));
-    TEST_ASSERT_EQUAL_UINT(0u, model->cell[2].outputs);
+    TEST_ASSERT_EQUAL_UINT(0u, notebook_cell_at(model, 2u).outputs);
     TEST_ASSERT_TRUE(model->ring_used != 0ULL);
     EMBED_CALL(cli_notebook_model_internal.bound, CliNotebookModelCtx, .model = model, .cell = 2u, .id = "r9");
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL));
-    TEST_ASSERT_EQUAL_UINT(1u, model->cell[2].outputs);
-    TEST_ASSERT_EQUAL_INT(1, model->output[model->cell[2].output_first].stderr_stream);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(model, 2u).outputs);
+    TEST_ASSERT_EQUAL_INT(1, notebook_output_at(model, notebook_cell_at(model, 2u).output_first).stderr_stream);
     TEST_ASSERT_EQUAL_UINT64(0ULL, model->ring_used);
 }
 
@@ -204,20 +207,21 @@ void test_each_message_reaches_the_model_its_context_is(void)
     received(first, "stream", "same", "{\"name\":\"stdout\",\"text\":\" line\"}");
     received(second, "stream", "same", "{\"name\":\"stdout\",\"text\":\"two\\nlines\"}");
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL));
-    TEST_ASSERT_EQUAL_UINT(1u, first->cell[2].outputs);
-    TEST_ASSERT_EQUAL_UINT(1u, first->output[first->cell[2].output_first].lines);
-    TEST_ASSERT_EQUAL_INT(0, first->output[first->cell[2].output_first].line_ended);
-    TEST_ASSERT_EQUAL_UINT(2u, second->output[second->cell[2].output_first].lines);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(first, 2u).outputs);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_output_at(first, notebook_cell_at(first, 2u).output_first).lines);
+    TEST_ASSERT_EQUAL_INT(0, notebook_output_at(first, notebook_cell_at(first, 2u).output_first).line_ended);
+    TEST_ASSERT_EQUAL_UINT(2u, notebook_output_at(second, notebook_cell_at(second, 2u).output_first).lines);
 }
 
-void test_the_ring_grows_to_the_bytes_pending_and_is_released_drained(void)
+void test_the_ring_grows_to_the_bytes_pending_and_is_given_back_cleared(void)
 {
     CliNotebookModel *const model = opened("nb:a", "one.ipynb", s_notebook);
-    TEST_ASSERT_NULL(model->ring);
-    static char s_long[20000];
+    TEST_ASSERT_NULL(model->ring_cell);
+    // a text past the ring's least capacity, so the second message grows it
+    static char s_long[CLI_NOTEBOOK_RING_LEAST + 4096u];
     VerbaLinea line = {s_long, sizeof(s_long), 0ULL};
     mmgr_line_put(&line, "{\"name\":\"stdout\",\"text\":\"");
-    for (unsigned int at = 0u; at < 1500u; at += 1u)
+    for (unsigned int at = 0u; at < (CLI_NOTEBOOK_RING_LEAST / 10u) + 1u; at += 1u)
     {
         mmgr_line_put(&line, "0123456789");
     }
@@ -227,11 +231,17 @@ void test_the_ring_grows_to_the_bytes_pending_and_is_released_drained(void)
     const unsigned long long small = model->ring_capacity;
     received(model, "stream", "nobody", s_long);
     TEST_ASSERT_TRUE(model->ring_capacity > small);
-    TEST_ASSERT_EQUAL_UINT64(model->ring_used, model->ring_capacity);
+    TEST_ASSERT_TRUE(model->ring_used <= model->ring_capacity);
+    TEST_ASSERT_TRUE(model->ring_used > CLI_NOTEBOOK_RING_LEAST);
+    const unsigned long long pending = model->ring_used;
     (void)EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL);
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_KERNEL_BUSY, model->state);
+    // the status message applied; the stream message, bound to no run, put back to stand in the kept cell
+    TEST_ASSERT_TRUE(model->ring_used < pending);
+    TEST_ASSERT_TRUE(model->ring_used != 0ULL);
+    TEST_ASSERT_NOT_NULL(model->ring_cell);
     cli_notebook_model_ring_cleared(&(CliNotebookModelCtx){.model = model});
-    TEST_ASSERT_NULL(model->ring);
+    TEST_ASSERT_NULL(model->ring_cell);
     TEST_ASSERT_EQUAL_UINT64(0ULL, model->ring_capacity);
 }
 
@@ -239,12 +249,16 @@ void test_a_cell_is_out_of_date_after_a_cell_it_stands_on_changes_runs_again_or_
 {
     CliNotebookModel *const model = opened("nb:a", "one.ipynb", s_notebook);
     model->clock = 2u;
-    model->cell[0].first_run = 1u;
-    model->cell[0].last_run = 1u;
-    model->cell[2].first_run = 2u;
-    model->cell[2].last_run = 2u;
+    CliNotebookCell first = notebook_cell_at(model, 0u);
+    first.first_run = 1u;
+    first.last_run = 1u;
+    notebook_cell_set(model, 0u, &first);
+    CliNotebookCell third = notebook_cell_at(model, 2u);
+    third.first_run = 2u;
+    third.last_run = 2u;
+    notebook_cell_set(model, 2u, &third);
     EMBED_CALL(cli_notebook_model_internal.stale_settled, CliNotebookModelCtx, .model = model);
-    TEST_ASSERT_EQUAL_INT(0, model->cell[2].stale);
+    TEST_ASSERT_EQUAL_INT(0, notebook_cell_at(model, 2u).stale);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_STALE, 2u, CLI_NOTEBOOK_NONE, "");
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -253,16 +267,16 @@ void test_a_cell_is_out_of_date_after_a_cell_it_stands_on_changes_runs_again_or_
     const CliViewInput typed = {.type = CLI_VIEW_TEXT, .text = "z", .length = 1ULL};
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_focus.input, CliNotebookEditFocusCfg, .key = "nb:a",
                                         .input = &typed, .err_msg = &err_msg));
-    TEST_ASSERT_EQUAL_INT(1, model->cell[2].stale);
+    TEST_ASSERT_EQUAL_INT(1, notebook_cell_at(model, 2u).stale);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_STALE, 2u, CLI_NOTEBOOK_NONE,
                 "Out of date: it stands on cell 1, changed, run again or deleted since this cell ran");
     TEST_ASSERT_EQUAL_INT(1,
                           EMBED_CALL(cli_notebook_edit_cell.remove, CliNotebookEditCellCfg, .key = "nb:a", .cell = 0u));
-    TEST_ASSERT_EQUAL_INT(1, model->cell[1].stale);
+    TEST_ASSERT_EQUAL_INT(1, notebook_cell_at(model, 1u).stale);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_STALE, 1u, CLI_NOTEBOOK_NONE,
                 "Out of date: it stands on a cell since deleted, changed, run again or deleted since this cell ran");
     (void)EMBED_CALL(cli_notebook_kernel_stop.restart, CliNotebookKernelStopCfg, .key = "nb:a", .err_msg = &err_msg);
-    TEST_ASSERT_EQUAL_INT(0, model->cell[1].stale);
+    TEST_ASSERT_EQUAL_INT(0, notebook_cell_at(model, 1u).stale);
     TEST_ASSERT_EQUAL_UINT(0u, model->gone_count);
     (void)EMBED_CALL(cli_notebook_kernel_stop.stop, CliNotebookKernelStopCfg, .key = "nb:a", .err_msg = &err_msg);
 }
@@ -273,9 +287,12 @@ void test_the_sentences_the_rows_show(void)
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_COUNT, 0u, CLI_NOTEBOOK_NONE, "[1]");
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_COUNT, 1u, CLI_NOTEBOOK_NONE, "");
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_COUNT, 2u, CLI_NOTEBOOK_NONE, "[ ]");
-    model->cell[2].running = 1;
+    CliNotebookCell third = notebook_cell_at(model, 2u);
+    third.running = 1;
+    notebook_cell_set(model, 2u, &third);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_COUNT, 2u, CLI_NOTEBOOK_NONE, "[*]");
-    model->cell[2].running = 0;
+    third.running = 0;
+    notebook_cell_set(model, 2u, &third);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_STATE, CLI_NOTEBOOK_NONE, CLI_NOTEBOOK_NONE, "no kernel");
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_PLACEHOLDER, 1u, CLI_NOTEBOOK_NONE, "Markdown");
     // an output of a hundred lines cut to its first and last forty
@@ -292,9 +309,9 @@ void test_the_sentences_the_rows_show(void)
     (void)mmgr_line_finish(&line);
     received(model, "stream", "long", s_lines);
     (void)EMBED_CALL(cli_notebook_cells_step.step, CliNotebookCellsStepCfg, .woken = NULL);
-    const unsigned int output = model->cell[2].output_first;
-    TEST_ASSERT_EQUAL_UINT(100u, model->output[output].lines);
-    TEST_ASSERT_EQUAL_UINT((2u * CLI_NOTEBOOK_CUT_LINES) + 1u, model->output[output].rows);
+    const unsigned int output = notebook_cell_at(model, 2u).output_first;
+    TEST_ASSERT_EQUAL_UINT(100u, notebook_output_at(model, output).lines);
+    TEST_ASSERT_EQUAL_UINT((2u * CLI_NOTEBOOK_CUT_LINES) + 1u, notebook_output_at(model, output).rows);
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_CUT, 2u, output, "... 20 lines ...");
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_MORE, 2u, output, "Show all 100 lines");
     const unsigned int rows = EMBED_CALL(cli_notebook_cells_row.rows, CliNotebookCellsRowCfg, .key = "nb:a");
@@ -349,9 +366,9 @@ void test_the_save_writes_the_notebook_and_clears_the_changed_mark(void)
     const CliNotebookModel *const saved = opened("nb:b", full, (const char *)written);
     g_cli_guard->persistent_buf_release(written, g_cli_notebook_open_owner);
     TEST_ASSERT_EQUAL_UINT(4u, saved->cells);
-    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, saved->cell[3].type);
-    TEST_ASSERT_EQUAL_UINT(1u, saved->cell[0].outputs);
-    TEST_ASSERT_EQUAL_UINT(1u, saved->cell[0].count);
+    TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, notebook_cell_at(saved, 3u).type);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(saved, 0u).outputs);
+    TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(saved, 0u).count);
 }
 
 void test_the_frame_lays_the_rows_asked_and_its_release_returns_its_cells(void)

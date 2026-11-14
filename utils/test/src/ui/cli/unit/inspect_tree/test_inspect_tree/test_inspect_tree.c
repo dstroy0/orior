@@ -67,8 +67,12 @@ static void tree_reached(const CliInspectReachedCfg *args)
         {
             s_findings.first_sites = count;
         }
-        const char *const name = EMBED_CALL(cli_inspect_pool.text, CliInspectPoolCfg, .pool = args->facts->text, .text_inspect_text = args->facts->function[args->function].name);
-        memor.cpy(&(MemoriaCfg){.dst = s_findings.item[s_findings.count], .src = name, .bytes = CLI_UNITY_LENGTH(name) + 1u});
+        CliInspectFunction function;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->facts->cell, .offset = CLI_FACTS_FUNCTION_AT(args->facts, args->function), .dst = &function, .bytes = sizeof(function)});
+        char *const name = s_findings.item[s_findings.count];
+        const unsigned int size = (function.name.size < 1023u) ? function.name.size : 1023u;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->facts->cell, .offset = CLI_FACTS_TEXT_AT(args->facts, function.name.at), .dst = name, .bytes = size});
+        name[size] = '\0';
         s_findings.count += 1u;
     }
 }

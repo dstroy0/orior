@@ -17,7 +17,7 @@
  *
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
  * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract OriorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
+ * the contract OriorSteerEngine carries, the same one the exact arms carry in includes/exact_types/integers/arm.h.
  *
  * @note No machine in this project has AVX-512. This arm has never been run. It is compiled for
  *       the target and its emitted instructions are read by utils/maint/engine/verify_arm_asm.sh, which

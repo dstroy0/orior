@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// host.h: orior_cli in a Flatpak's sandbox runs the machine's own programs on the machine, through a stand-in of each
+// host.h: impero in a Flatpak's sandbox runs the machine's own programs on the machine, through a stand-in of each
 // program's name put first on the PATH (host.c)
 #ifndef HOST_H
 #define HOST_H
@@ -10,7 +10,7 @@
 typedef struct CliHostIntoCfg CliHostIntoCfg;
 typedef struct CliHostCfg CliHostCfg;
 
-// whether orior_cli runs inside a Flatpak's sandbox
+// whether impero runs inside a Flatpak's sandbox
 int cli_sandbox(void);
 // the stand-in for the machine's program `name`, written into `line`
 void cli_stand_in(const CliHostCfg *args);
@@ -18,7 +18,7 @@ void cli_stand_in(const CliHostCfg *args);
 // or -1 with why given
 long long cli_stand_ins_write(const CliHostIntoCfg *args);
 // inside a sandbox, a stand-in made for each program on the machine's PATH and their folder put first on orior's own
-// PATH, which all it starts take: how many it made, -1 with why given, or -2 outside a sandbox. Run as orior_cli
+// PATH, which all it starts take: how many it made, -1 with why given, or -2 outside a sandbox. Run as impero
 // starts, before it starts anything else
 long long cli_host_prepare(const CliHostIntoCfg *args);
 

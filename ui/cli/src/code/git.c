@@ -341,8 +341,6 @@ void cli_git_change(const CliGitRootReposCfg *args)
                        .found = args->found_changed_list_pointer);
         }
     }
-    g_cli_guard->persistent_buf_release(s_repositories.text.bytes, g_cli_git_owner);
-    s_repositories.text.bytes = NULL;
-    s_repositories.text.used = 0ULL;
-    s_repositories.text.capacity = 0ULL;
+    EMBED_CALL(cli_git_text.text_end, CliGitTextCfg, .text = &args->found_changed_list_pointer->text);
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &s_repositories.text);
 }

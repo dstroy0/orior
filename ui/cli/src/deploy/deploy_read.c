@@ -10,7 +10,6 @@
 typedef struct
 {
     CliDeployPool *pool;
-    unsigned long long capacity;
     const CliJson *json;
     unsigned int node;
     const char *required;
@@ -23,62 +22,18 @@ typedef struct
     unsigned int letter;
 } DeployReadCtx;
 
-// a page of `capacity` bytes taken for `pool`, NULL with the pool marked refused where it could not be
-EMBED_INLINE CliDeployPage *read_page(const DeployReadCtx *args)
+void *cli_deploy_on_position(const CliDeployPoolCtx *args)
 {
-    CliDeployPage *const page =
-        g_cli_guard->persistent_buf_alloc(sizeof(CliDeployPage) + args->capacity, g_cli_deploy_owner);
-    if (page == NULL)
+    // a place of `size` bytes on a word's alignment in the pool's fixed bytes, NULL with the pool marked refused where
+    // it does not fit
+    const unsigned long long at = (args->pool->used + 7u) & ~7ULL;
+    if ((at > CLI_DEPLOY_POOL_BYTES) || (args->size > CLI_DEPLOY_POOL_BYTES - at))
     {
         args->pool->refused = 1;
         return NULL;
     }
-    page->size = args->capacity;
-    page->used = 0ULL;
-    return page;
-}
-
-void *cli_deploy_on_position(const CliDeployPoolCtx *args)
-{
-    CliDeployPage *const newest = args->pool->page;
-    if (args->size > CLI_DEPLOY_PAGE)
-    {
-        // a page of its own goes behind the newest, which retains the bytes it has left
-        CliDeployPage *const own = EMBED_CALL(read_page, DeployReadCtx, .pool = args->pool, .capacity = args->size);
-        if (own == NULL)
-        {
-            return NULL;
-        }
-        own->used = args->size;
-        own->before = (newest != NULL) ? newest->before : NULL;
-        if (newest != NULL)
-        {
-            newest->before = own;
-        }
-        else
-        {
-            args->pool->page = own;
-        }
-        return own->bytes;
-    }
-    if (newest != NULL)
-    {
-        const unsigned long long at = (newest->used + 7u) & ~7ULL;
-        if ((at <= newest->size) && (args->size <= newest->size - at))
-        {
-            newest->used = at + args->size;
-            return newest->bytes + at;
-        }
-    }
-    CliDeployPage *const page = EMBED_CALL(read_page, DeployReadCtx, .pool = args->pool, .capacity = CLI_DEPLOY_PAGE);
-    if (page == NULL)
-    {
-        return NULL;
-    }
-    page->before = newest;
-    page->used = args->size;
-    args->pool->page = page;
-    return page->bytes;
+    args->pool->used = at + args->size;
+    return args->pool->bytes + at;
 }
 
 const char *cli_deploy_text_store(const CliDeployPoolCtx *args)
@@ -89,17 +44,17 @@ const char *cli_deploy_text_store(const CliDeployPoolCtx *args)
     {
         return "";
     }
-    memor.cpy(&(MemoriaCfg){.dst = stored, .src = args->text, .bytes = (size_t)args->size});
+    memor.cpy(&(MemoriaCfg){.dst = stored, .src = args->text, .bytes = (embed_word)args->size});
     stored[args->size] = '\0';
     return stored;
 }
 
 int cli_deploy_order(const CliDeployLeftCtx *args)
 {
-    const size_t left_length = cellul.len(&(CatenaFinitaCfg){.src = args->left, .cap = CLI_POOL_BYTES});
-    const size_t right_length = cellul.len(&(CatenaFinitaCfg){.src = args->right, .cap = CLI_POOL_BYTES});
+    const embed_word left_length = cellul.len(&(CatenaFinitaCfg){.src = args->left, .cap = CLI_POOL_BYTES});
+    const embed_word right_length = cellul.len(&(CatenaFinitaCfg){.src = args->right, .cap = CLI_POOL_BYTES});
     // the shorter text's terminator is compared too: a text sorts before a longer one that begins with it
-    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const embed_word shorter = (left_length < right_length) ? left_length : right_length;
     const embed_iword order = memor.cmp(&(MemoriaCfg){.src = args->left, .other = args->right, .bytes = shorter + 1u});
     return (order > 0) - (order < 0);
 }
@@ -176,7 +131,7 @@ static int read_texts(const DeployReadCtx *args)
     {
         mmgr_line_put(args->err_msg, "deploy.json: ");
         mmgr_line_put(args->err_msg, args->field);
-        mmgr_line_put(args->err_msg, " names more than orior_cli supports");
+        mmgr_line_put(args->err_msg, " names more than impero supports");
         return 0;
     }
     for (unsigned int at = 0u; at < items; at += 1u)
@@ -296,12 +251,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), args->tree->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->tree->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    while (args->tree->pool.page != NULL)
-    {
-        CliDeployPage *const before = args->tree->pool.page->before;
-        g_cli_guard->persistent_buf_release(args->tree->pool.page, g_cli_deploy_owner);
-        args->tree->pool.page = before;
-    }
+    args->tree->pool.used = 0ULL;
     args->tree->pool.refused = 0;
     *deployments = NULL;
     *count = 0u;
@@ -311,7 +261,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     if ((bytes == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
         return 1;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -320,7 +270,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &read_err_msg, .owner = g_cli_deploy_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_cli_deploy_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
     const CliJson *const json = &args->tree->json;
     if (top == CLI_JSON_NONE)
     {
@@ -360,7 +310,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
                                            .size = (unsigned long long)items * sizeof(read[0]));
     if (read == NULL)
     {
-        mmgr_line_put(args->err_msg, "deploy.json names more deployments than orior_cli supports");
+        mmgr_line_put(args->err_msg, "deploy.json names more deployments than impero supports");
         return 0;
     }
     for (unsigned int at = 0u; at < items; at += 1u)
@@ -406,7 +356,7 @@ int cli_deploy_position(const CliDeployTextCtx *args)
     end = (end < start) ? start : end;
     char trimmed[CLI_PATH_MAX_LEN];
     const unsigned long long size = (end - start < sizeof(trimmed)) ? (end - start) : (sizeof(trimmed) - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = trimmed, .src = args->text + start, .bytes = (size_t)size});
+    memor.cpy(&(MemoriaCfg){.dst = trimmed, .src = args->text + start, .bytes = (embed_word)size});
     trimmed[size] = '\0';
     const int letter_drive =
         ((trimmed[0] >= 'a') && (trimmed[0] <= 'z')) || ((trimmed[0] >= 'A') && (trimmed[0] <= 'Z'));
@@ -494,7 +444,7 @@ int cli_deploy_remote_run(const CliDeploySizeCtx *args)
         mmgr_line_put(args->err_msg, "; ");
         EMBED_CALL(cli_link_out.machine, CliLinkOutCfg, .address = &args->place->address, .out = args->err_msg);
         mmgr_line_put(args->err_msg,
-                      " prompts for a password, which orior_cli does not store: a key the system's ssh agent has "
+                      " prompts for a password, which impero does not store: a key the system's ssh agent has "
                       "reaches it, and ssh-copy-id puts one there");
     }
     return 0;

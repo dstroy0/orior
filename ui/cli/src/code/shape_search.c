@@ -125,7 +125,8 @@ EMBED_INLINE void search_fill(const ShapeSearchCtx *args)
             rest = after;
             continue;
         }
-        const char *const colon = memor.chr(&(MemoriaCfg){.src = after, .val = ':', .bytes = (size_t)(close - after)});
+        const char *const colon =
+            memor.chr(&(MemoriaCfg){.src = after, .val = ':', .bytes = (embed_word)(close - after)});
         const unsigned long long name_size = (unsigned long long)(((colon != NULL) ? colon : close) - after);
         const unsigned int bound = EMBED_CALL(cli_shape_internal.bind, CliShapeCtx,
                                               .matcher_read = &s_work_state->matcher, .name = after, .size = name_size);
@@ -158,8 +159,9 @@ EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
     // the starts and ends of both and each part's hole, then the types of both, then their roles
     const unsigned long long words = (2ULL * args->code_capacity) + (3ULL * args->part_capacity);
     const unsigned long long bytes = 2ULL * ((unsigned long long)args->code_capacity + args->part_capacity);
-    s_work_state = g_cli_guard->persistent_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
-                                                     g_cli_shape_owner);
+    // the work state lives for the one search: a cell of the temporary tier
+    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
+                                                    g_cli_shape_owner);
     if (s_work_state == NULL)
     {
         return 0;

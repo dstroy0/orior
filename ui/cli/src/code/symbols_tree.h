@@ -14,6 +14,7 @@ typedef struct CliSymbolsTreePathCfg CliSymbolsTreePathCfg;
 typedef struct CliSymbolsTreeBranchPathCfg CliSymbolsTreeBranchPathCfg;
 typedef struct CliSymbolsTreeCfg CliSymbolsTreeCfg;
 typedef struct CliSymbolsTreeFileCfg CliSymbolsTreeFileCfg;
+typedef struct CliSymbolsTreeAtCfg CliSymbolsTreeAtCfg;
 
 // the most branches stored; and what a branch's closest parent reads where it stands at the tree's top, and where it
 // is mounted beside the tree, whose folders have no branch
@@ -33,8 +34,9 @@ typedef struct
 // One branch stored, a file or the folder of one: a movable cell of its own containing its declarations, then its path,
 // then their names, reached only through the cells' guard; its bytes, its path's place in the cell, whether it stands,
 // whether it is a folder, whether a walk has read what it declares, the stamp of the file as last seen, 0 until then,
-// its count of declarations, whether a listing or a walk saw it, its closest parent, and how many branches stand under
-// a folder. A place left is reused, so that a branch's place stands for as long as it does
+// its count of declarations, whether a listing or a walk saw it, its closest parent, how many branches stand under a
+// folder, and the next branch of its path's bucket as its place from 1, 0 for none. A place left is reused, so that a
+// branch's place stands for as long as it does
 typedef struct
 {
     const CarcerMovableEntry *cell;
@@ -48,25 +50,29 @@ typedef struct
     int seen;
     unsigned int parent;
     unsigned int below;
+    unsigned int chain;
 } CliTreeBranch;
 
-// the branches stored, in a cell at their most, CLI_BRANCHES_MAX at the most, how many places among them were taken,
-// the lock, and whether a walk goes (symbols.c, symbols_table.c); the folder the tree reads, its top, written under the
-// lock as a tree is opened (symbols.c)
+// the branches stored, their records in chunks each a movable cell taken as a place in it is first used,
+// CLI_BRANCHES_MAX places at the most, how many places among them were taken, the lock, and whether a walk goes
+// (symbols.c, symbols_table.c); the folder the tree reads, its top, written under the lock as a tree is opened
+// (symbols.c)
 extern char g_cli_tree_root[CLI_PATH_MAX_LEN];
-extern CliTreeBranch *g_cli_branches;
 extern unsigned int g_cli_branch_count;
 extern int g_cli_tree_walking;
 
-// a cell for a reader to scan a file's cell in, sized for the largest stored, NULL where the cells cannot meet it; a
-// file's cell copied into it; and it given back. A reader scans its copy: a stored cell moves, and the guard is the
-// only way to it. Then a copy's path and declarations, a stored file's path copied into `path`, sized for
-// CLI_PATH_MAX_LEN, and a cell's bytes counted toward the largest stored; the place of a path's branch,
-// CLI_BRANCHES_MAX where none is stored; the branch of `path` standing, joined where none is, every folder down to it
-// joined as it goes, a cell of its path alone: its place, or CLI_BRANCHES_MAX where the table or the cells cannot meet
-// it; a branch let go, its place taken out of the paths' table and its cell given back, and each folder over it left
-// with nothing under it let go in turn; the files standing, how many and the bytes of their paths with their ends; and
-// every branch let go with the table's cells. Called under the lock (symbols_table.c)
+// the branch at the place `file` read into `branch_out`, and `branch` written at the place `file`; a cell for a reader
+// to scan a file's cell in, sized for the largest stored, NULL where the cells cannot meet it; a file's cell copied
+// into it; and it given back. A reader scans its copy: a stored cell moves, and the guard is the only way to it. Then a
+// copy's path and declarations, a stored file's path copied into `path`, sized for CLI_PATH_MAX_LEN, and a cell's
+// bytes counted toward the largest stored; the place of a path's branch, CLI_BRANCHES_MAX where none is stored; the
+// branch of `path` standing, joined where none is, every folder down to it joined as it goes, a cell of its path alone:
+// its place, or CLI_BRANCHES_MAX where the table or the cells cannot meet it; a branch let go, its place taken out of
+// the paths' table and its cell given back, and each folder over it left with nothing under it let go in turn; the
+// files standing, how many and the bytes of their paths with their ends; and every branch let go with the table's
+// cells. Called under the lock (symbols_table.c)
+void cli_branch_read(const CliSymbolsTreeAtCfg *args);
+void cli_branch_write(const CliSymbolsTreeAtCfg *args);
 char *cli_branch_copy_alloc(void);
 void cli_branch_copy(const CliSymbolsTreeBranchCfg *args);
 const char *cli_branch_copy_path(const CliSymbolsTreeBranchScratchCfg *args);
@@ -117,6 +123,24 @@ struct CliSymbolsTreeCfg
 struct CliSymbolsTreeFileCfg
 {
     unsigned int file;
+};
+
+struct CliSymbolsTreeAtCfg
+{
+    unsigned int file;
+    CliTreeBranch *branch_out;
+    const CliTreeBranch *branch;
+};
+
+typedef struct
+{
+    void (*branch_read)(const CliSymbolsTreeAtCfg *args);
+    void (*branch_write)(const CliSymbolsTreeAtCfg *args);
+} CliSymbolsTreeAtNs;
+EMBED_TABLE_LAYOUT(CliSymbolsTreeAtNs, branch_read, branch_write);
+EMBED_TABLE_STORAGE CliSymbolsTreeAtNs cli_symbols_tree_at EMBED_UNUSED = {
+    .branch_read = cli_branch_read,
+    .branch_write = cli_branch_write,
 };
 
 typedef struct

@@ -4,13 +4,17 @@
 // the folder above its outermost package, and from the tree's top folder, in that order, as its own file or its
 // package's `__init__.py`; a relative one from its package; and a Python import runs each package on the way to its
 // module, the module, and each module a `from` import takes from a package. A JavaScript import is a relative path,
-// with `.js`, `.mjs` or `/index.js` after it where the path names no file
+// with `.js`, `.mjs` or `/index.js` after it where the path names no file. A file's path, an import and a name are
+// read out of its facts cell through the guard, by the file's token
 #include "../command_line/callback_cfg.h"
 #include "../text/text.h"
 #include "inspect_tree_internal.h"
 
 // the most files one import runs that are recorded
 #define CLI_TREE_TARGETS 256u
+
+// the most bytes an import's spec or a name is read into on the stack
+#define CLI_TREE_SPEC_BYTES 1024u
 
 typedef struct
 {
@@ -23,13 +27,43 @@ typedef struct
     unsigned int *count;
     unsigned int file;
     const CliInspectImport *import;
+    const CliTreeFile *tree_file;
+    char *out;
+    unsigned long long out_bytes;
+    CliInspectText text;
 } InspectTreeImportsCtx;
+// the text `text` of the file `tree_file`'s facts read into `out`, `out_bytes` long, a 0 after it: 1, or 0 where it
+// does not fit
+EMBED_INLINE int imports_text(const InspectTreeImportsCtx *args)
+{
+    if (args->text.size >= args->out_bytes)
+    {
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = args->tree_file->facts.cell,
+                            .offset = CLI_FACTS_TEXT_AT(&args->tree_file->facts, args->text.at),
+                            .dst = args->out,
+                            .bytes = args->text.size});
+    args->out[args->text.size] = '\0';
+    return 1;
+}
+
+// the path of the file `tree_file` read into `out`, its 0 after it
+EMBED_INLINE void imports_path(const InspectTreeImportsCtx *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->tree_file->facts.cell,
+                                                            .offset = CLI_TREE_PATH_AT,
+                                                            .dst = args->out,
+                                                            .bytes = args->tree_file->path_size + 1ULL});
+}
+
 // the file a module of `size` bytes of dotted names names from the folder `root`, `root_size` bytes of it: its own file
 // or its package's `__init__.py`, CLI_TREE_NONE where neither is in the tree
 EMBED_INLINE unsigned int imports_module_in(const InspectTreeImportsCtx *args)
 {
     unsigned long long size = args->size;
-    char base[CLI_PATH_MAX_LEN * 2u];
+    char base[CLI_TREE_PATH_BYTES];
     VerbaLinea line = {base, sizeof(base), 0ULL};
     mmgr_line_put_n(&line, args->root, args->root_size);
     mmgr_line_put(&line, ((args->root_size > 0u) && (size > 0u)) ? "/" : "");
@@ -55,8 +89,11 @@ EMBED_INLINE unsigned int imports_module_in(const InspectTreeImportsCtx *args)
 
 unsigned int cli_tree_python_module(const CliInspectTreeSizeFileCtx *args)
 {
-    const char *const path = CLI_TREE_FILE(args->file).path;
-    const unsigned long long path_size = CLI_TREE_FILE(args->file).path_size;
+    CliTreeFile tree_file;
+    CLI_TREE_FILE_READ(args->file, &tree_file);
+    char path[CLI_TREE_PATH_BYTES];
+    EMBED_CALL(imports_path, InspectTreeImportsCtx, .tree_file = &tree_file, .out = path);
+    const unsigned long long path_size = tree_file.path_size;
     unsigned long long dots = 0ULL;
     dots = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->spec, .at = dots,
                       .size = args->size, .set = ".");
@@ -115,14 +152,18 @@ EMBED_INLINE void imports_target(const InspectTreeImportsCtx *args)
 EMBED_INLINE unsigned int imports_python(const InspectTreeImportsCtx *args)
 {
     unsigned int file = args->file;
-    const CliFacts *const facts = &CLI_TREE_FILE(file).facts;
-    const char *const spec = facts->text + args->import->spec.at;
+    char spec[CLI_TREE_SPEC_BYTES];
+    if (!EMBED_CALL(imports_text, InspectTreeImportsCtx, .tree_file = args->tree_file, .text = args->import->spec,
+                    .out = spec, .out_bytes = sizeof(spec)))
+    {
+        return 0u;
+    }
     const unsigned long long size = args->import->spec.size;
     unsigned int count = 0u;
     unsigned long long dots = 0ULL;
     dots = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = spec, .at = dots, .size = size,
                       .set = ".");
-    char joined[CLI_PATH_MAX_LEN * 2u];
+    char joined[CLI_TREE_PATH_BYTES];
     VerbaLinea line = {joined, sizeof(joined), 0ULL};
     mmgr_line_put_n(&line, spec, dots);
     int parts = 0;
@@ -159,11 +200,22 @@ EMBED_INLINE unsigned int imports_python(const InspectTreeImportsCtx *args)
     }
     for (unsigned int at = 0u; at < args->import->names; at += 1u)
     {
-        const CliInspectName *const name = &facts->name[args->import->name_first + at];
+        CliInspectName name;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = args->tree_file->facts.cell,
+                                .offset = CLI_FACTS_NAME_AT(&args->tree_file->facts, args->import->name_first + at),
+                                .dst = &name,
+                                .bytes = sizeof(name)});
+        char taken[CLI_TREE_SPEC_BYTES];
+        if (!EMBED_CALL(imports_text, InspectTreeImportsCtx, .tree_file = args->tree_file, .text = name.name,
+                        .out = taken, .out_bytes = sizeof(taken)))
+        {
+            continue;
+        }
         line.at = 0ULL;
         mmgr_line_put_n(&line, spec, size);
         mmgr_line_put(&line, ((size > 0u) && (spec[size - 1u] == '.')) ? "" : ".");
-        mmgr_line_put_n(&line, facts->text + name->name.at, name->name.size);
+        mmgr_line_put_n(&line, taken, name.name.size);
         if (mmgr_line_ok(&line))
         {
             EMBED_CALL(imports_target, InspectTreeImportsCtx,
@@ -188,18 +240,25 @@ EMBED_INLINE unsigned int imports_python(const InspectTreeImportsCtx *args)
 // the file a JavaScript import names by a relative path: its place, CLI_TREE_NONE where none is
 EMBED_INLINE unsigned int imports_javascript(const InspectTreeImportsCtx *args)
 {
-    const CliTreeFile *const tree_file = &CLI_TREE_FILE(args->file);
-    const char *const spec = tree_file->facts.text + args->import->spec.at;
+    char spec[CLI_TREE_SPEC_BYTES];
+    if (!EMBED_CALL(imports_text, InspectTreeImportsCtx, .tree_file = args->tree_file, .text = args->import->spec,
+                    .out = spec, .out_bytes = sizeof(spec)))
+    {
+        return CLI_TREE_NONE;
+    }
     const unsigned long long size = args->import->spec.size;
-    char base[CLI_PATH_MAX_LEN * 2u];
+    char path[CLI_TREE_PATH_BYTES];
+    EMBED_CALL(imports_path, InspectTreeImportsCtx, .tree_file = args->tree_file, .out = path);
+    char base[CLI_TREE_PATH_BYTES];
     VerbaLinea line = {base, sizeof(base), 0ULL};
-    mmgr_line_put_n(&line, tree_file->path,
-                    EMBED_CALL(cli_inspect_tree_path_internal.tree_parent, CliInspectTreePathCtx,
-                               .path = tree_file->path, .size = tree_file->path_size));
+    mmgr_line_put_n(&line, path,
+                    EMBED_CALL(cli_inspect_tree_path_internal.tree_parent, CliInspectTreePathCtx, .path = path,
+                               .size = args->tree_file->path_size));
     for (unsigned long long at = 0ULL; at <= size;)
     {
         const char *const slash =
-            (at < size) ? memor.chr(&(MemoriaCfg){.src = spec + at, .val = '/', .bytes = (size_t)(size - at)}) : NULL;
+            (at < size) ? memor.chr(&(MemoriaCfg){.src = spec + at, .val = '/', .bytes = (embed_word)(size - at)})
+                        : NULL;
         const unsigned long long end = (slash != NULL) ? (unsigned long long)(slash - spec) : size;
         const unsigned long long part = end - at;
         if ((part == 2u) && (memor.cmp(&(MemoriaCfg){.src = spec + at, .other = "..", .bytes = 2u}) == 0))
@@ -244,20 +303,26 @@ void cli_tree_targets(const CliInspectTreeFileCtx *args)
 {
     unsigned int file = args->file;
     unsigned int import = args->import;
-    const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
-    const CliInspectImport *const one = &tree_file->facts.import[import];
-    if (tree_file->python)
+    CliTreeFile tree_file;
+    CLI_TREE_FILE_READ(file, &tree_file);
+    CliInspectImport one;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = tree_file.facts.cell,
+                                                            .offset = CLI_FACTS_IMPORT_AT(&tree_file.facts, import),
+                                                            .dst = &one,
+                                                            .bytes = sizeof(one)});
+    if (tree_file.python)
     {
         unsigned int targets[CLI_TREE_TARGETS];
-        const unsigned int count =
-            EMBED_CALL(imports_python, InspectTreeImportsCtx, .file = file, .import = one, .targets = targets);
+        const unsigned int count = EMBED_CALL(imports_python, InspectTreeImportsCtx, .file = file,
+                                              .tree_file = &tree_file, .import = &one, .targets = targets);
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             EMBED_CALL(args->each_callback, CliEachTargetCfg, .context = args->context, .target = targets[at]);
         }
         return;
     }
-    const unsigned int found = EMBED_CALL(imports_javascript, InspectTreeImportsCtx, .file = file, .import = one);
+    const unsigned int found =
+        EMBED_CALL(imports_javascript, InspectTreeImportsCtx, .file = file, .tree_file = &tree_file, .import = &one);
     if (found != CLI_TREE_NONE)
     {
         EMBED_CALL(args->each_callback, CliEachTargetCfg, .context = args->context, .target = found);

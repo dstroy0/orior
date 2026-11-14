@@ -14,8 +14,8 @@ KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
-NO_ROUNDING="$TOP/src/cu/includes/types/integers"
-source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+NO_ROUNDING="$TOP/includes/exact_types/integers"
+source "$TOP/includes/file_defs/file_defs.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_test
 

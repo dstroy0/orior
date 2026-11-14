@@ -3,9 +3,8 @@
 // inspect_paint.c: each line's class at each column of a parse, painted span by span, a later span over an earlier,
 // and read back as runs of one class; the regions of a parse that fold; and the spans Expand Selection steps through
 #include "../text/json_tree.h"
+#include "../text/sort.h"
 #include "inspect_internal.h"
-
-#include <stdlib.h>
 
 // the class of each column of the text, line after line, where each line starts among them and how many it contains,
 // and how many lines the text contains
@@ -62,8 +61,9 @@ void cli_inspect_paint_begin(const CliInspectSizeSrcParsedCtx *args)
                          .letter = &letter);
         width += (letter >= 0x10000u) ? 2u : 1u;
     }
-    memor.set(&(MemoriaCfg){
-        .dst = s_column, .val = 0, .bytes = (size_t)((columns < CLI_INSPECT_COLUMNS) ? columns : CLI_INSPECT_COLUMNS)});
+    memor.set(&(MemoriaCfg){.dst = s_column,
+                            .val = 0,
+                            .bytes = (embed_word)((columns < CLI_INSPECT_COLUMNS) ? columns : CLI_INSPECT_COLUMNS)});
 }
 
 void cli_inspect_paint(const CliInspectFromToCtx *args)
@@ -91,7 +91,7 @@ void cli_inspect_paint(const CliInspectFromToCtx *args)
         }
         const unsigned long long begin = (start < end) ? start : end;
         memor.set(&(MemoriaCfg){
-            .dst = s_column + s_line_start[line] + begin, .val = args->class_of, .bytes = (size_t)(end - begin)});
+            .dst = s_column + s_line_start[line] + begin, .val = args->class_of, .bytes = (embed_word)(end - begin)});
     }
 }
 
@@ -207,7 +207,8 @@ unsigned int cli_inspect_folds_get(const CliInspectCountCfg *args)
             fold_count += 1u;
         }
     }
-    qsort(s_folds, fold_count, sizeof(s_folds[0]), paint_fold_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = s_folds, .count = fold_count, .size = sizeof(s_folds[0]),
+               .order = paint_fold_order);
     unsigned int out = 0u;
     for (unsigned int at = 0u; at < fold_count; at += 1u)
     {
@@ -277,7 +278,8 @@ unsigned int cli_inspect_ranges_at(const CliInspectRangesCfg *args)
             range_count += 1u;
         }
     }
-    qsort(args->out_inspect_span_pointer, range_count, sizeof(args->out_inspect_span_pointer[0]), paint_range_order);
+    EMBED_CALL(cli_sort, CliSortCfg, .base = args->out_inspect_span_pointer, .count = range_count,
+               .size = sizeof(args->out_inspect_span_pointer[0]), .order = paint_range_order);
     unsigned int unique = 0u;
     for (unsigned int at = 0u; at < range_count; at += 1u)
     {

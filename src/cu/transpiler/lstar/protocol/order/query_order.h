@@ -17,7 +17,7 @@
 #include "../query/query_put.h"
 #include "hadamard_order.h"
 
-#include "../../../../includes/types/integers/exact_integer.h"
+#include "../../../../../../includes/exact_types/integers/exact_integer.h"
 
 // A clock is anything that turns over, noisily, now and then: its turns frame a run, and the run is read finely by
 // counting reads of the clock between turns. A run's cost is the exact rational numerator / denominator in the clock

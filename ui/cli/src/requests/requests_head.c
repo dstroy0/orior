@@ -17,7 +17,7 @@ int cli_requests_head_store(const CliRequestsTextSizeAnswerCtx *args)
     args->text_span->at = args->answer_out->head_used;
     args->text_span->size = size;
     memor.cpy(&(MemoriaCfg){
-        .dst = args->answer_out->head + args->answer_out->head_used, .src = args->text, .bytes = (size_t)size});
+        .dst = args->answer_out->head + args->answer_out->head_used, .src = args->text, .bytes = (embed_word)size});
     args->answer_out->head[args->answer_out->head_used + size] = '\0';
     args->answer_out->head_used += size + 1u;
     return 1;
@@ -25,7 +25,7 @@ int cli_requests_head_store(const CliRequestsTextSizeAnswerCtx *args)
 
 int cli_requests_head_line(const CliRequestsSizeAnswerCtx *args)
 {
-    const char *const colon = memor.chr(&(MemoriaCfg){.src = args->line, .val = ':', .bytes = (size_t)args->size});
+    const char *const colon = memor.chr(&(MemoriaCfg){.src = args->line, .val = ':', .bytes = (embed_word)args->size});
     if (colon == NULL)
     {
         return 1;
@@ -161,39 +161,6 @@ EMBED_INLINE int head_is(const RequestsHeadCtx *args)
                       .size = args->value_requests_text_pointer->size, .needle = args->lower);
 }
 
-// the work state's unpacked body a cell of `bytes`, CLI_REQUESTS_BODY at the most, the one before given back where it
-// is smaller: 1, or 0 with why given where the cell is refused
-EMBED_INLINE int head_unpacked_capacity(const RequestsHeadCtx *args)
-{
-    unsigned long long required;
-    if (args->bytes < 1ULL)
-    {
-        required = 1ULL;
-    }
-    else if (args->bytes > CLI_REQUESTS_BODY)
-    {
-        required = CLI_REQUESTS_BODY;
-    }
-    else
-    {
-        required = args->bytes;
-    }
-    if ((args->work_state->unpacked != NULL) && (args->work_state->unpacked_capacity >= required))
-    {
-        return 1;
-    }
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(required, g_cli_requests_owner);
-    if (cell == NULL)
-    {
-        mmgr_line_put(args->err_msg, "the answer's body undone could not be stored");
-        return 0;
-    }
-    g_cli_guard->persistent_buf_release(args->work_state->unpacked, g_cli_requests_owner);
-    args->work_state->unpacked = cell;
-    args->work_state->unpacked_capacity = required;
-    return 1;
-}
-
 int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
 {
     unsigned long long size = args->size;
@@ -210,15 +177,8 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
         EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
                    .lower = "x-gzip"))
     {
-        // a gzip ends with its unpacked size, and the work state is taken once at that size
-        const unsigned long long unpacked_size =
-            (size >= 4ULL)
-                ? ((unsigned long long)raw[size - 4ULL] | ((unsigned long long)raw[size - 3ULL] << 8u) |
-                   ((unsigned long long)raw[size - 2ULL] << 16u) | ((unsigned long long)raw[size - 1ULL] << 24u))
-                : 0ULL;
-        if (!EMBED_CALL(head_unpacked_capacity, RequestsHeadCtx, .work_state = args->work_state, .bytes = unpacked_size,
-                        .err_msg = args->err_msg) ||
-            !EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = raw, .size = size,
+        // the work state's undone bytes hold a body at the most, where the gzip's bytes go
+        if (!EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = raw, .size = size,
                         .out = args->work_state->unpacked, .capacity = args->work_state->unpacked_capacity,
                         .out_size = &unpacked, .err_msg = args->err_msg))
         {
@@ -228,13 +188,10 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
     else if (EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
                         .lower = "deflate"))
     {
-        // a deflate gives no size: the work state is taken at the most a body holds
         const int zlib =
             (size > 2u) && ((raw[0] & 0x0fu) == 8u) && ((((unsigned int)raw[0] << 8u) | raw[1]) % 31u == 0u);
         unsigned long long used = 0ULL;
-        if (!EMBED_CALL(head_unpacked_capacity, RequestsHeadCtx, .work_state = args->work_state,
-                        .bytes = CLI_REQUESTS_BODY, .err_msg = args->err_msg) ||
-            !EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = zlib ? (raw + 2) : raw,
+        if (!EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = zlib ? (raw + 2) : raw,
                         .size = zlib ? (size - 2u) : size, .out = args->work_state->unpacked,
                         .capacity = args->work_state->unpacked_capacity, .out_size = &unpacked, .used = &used,
                         .err_msg = args->err_msg))
@@ -253,8 +210,9 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
 
 int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
 {
-    const CliRequestsText *const content_type = EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx,
-                                                   .answer = args->answer, .name = "Content-Type");
+    const CliRequestsText *const content_type =
+        EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx, .answer = args->answer,
+                   .name = "Content-Type");
     const char *type = "";
     unsigned long long size = 0ULL;
     if (content_type != NULL)
@@ -299,5 +257,6 @@ int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
     }
     return EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)args->answer->body,
                       .size = args->answer->size) &&
-           (memor.chr(&(MemoriaCfg){.src = args->answer->body, .val = 0, .bytes = (size_t)args->answer->size}) == NULL);
+           (memor.chr(&(MemoriaCfg){.src = args->answer->body, .val = 0, .bytes = (embed_word)args->answer->size}) ==
+            NULL);
 }
