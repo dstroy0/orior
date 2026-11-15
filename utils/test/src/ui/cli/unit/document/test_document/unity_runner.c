@@ -34,6 +34,7 @@ extern void test_a_small_text_is_searched_while_the_pool_has_little_capacity(voi
 extern void test_a_stored_text_is_found_and_its_joined_lines_created_again_after_an_edit(void);
 extern void test_a_branch_is_colored_by_a_grammar(void);
 extern void test_a_text_read_complete_names_the_lines_the_page_stores(void);
+extern void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(void);
 extern void test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar(void);
 
 
@@ -96,30 +97,31 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\document\\test_document\\test_document.c");
-  run_test(test_a_text_is_split_as_the_page_splits_a_file_a_char_end_the_basic_plane_two_units, "test_a_text_is_split_as_the_page_splits_a_file_a_char_end_the_basic_plane_two_units", 187);
-  run_test(test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit_writes_it, "test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit_writes_it", 196);
-  run_test(test_edits_are_written_from_the_last_to_the_first_with_the_texts_shape_after_them, "test_edits_are_written_from_the_last_to_the_first_with_the_texts_shape_after_them", 234);
-  run_test(test_an_edit_end_the_text_is_refused_and_the_text_released, "test_an_edit_end_the_text_is_refused_and_the_text_released", 246);
-  run_test(test_a_text_is_stored_with_its_shape_until_it_is_released, "test_a_text_is_stored_with_its_shape_until_it_is_released", 258);
-  run_test(test_a_text_is_put_as_its_file_holds_it_its_line_ends_as_they_were_read, "test_a_text_is_put_as_its_file_holds_it_its_line_ends_as_they_were_read", 279);
-  run_test(test_find_with_case, "test_find_with_case", 294);
-  run_test(test_find_without_case, "test_find_without_case", 299);
-  run_test(test_find_complete_words, "test_find_complete_words", 304);
-  run_test(test_find_folds_the_long_s_and_the_kelvin_sign, "test_find_folds_the_long_s_and_the_kelvin_sign", 309);
-  run_test(test_the_line_that_reaches_the_max_is_searched_complete, "test_the_line_that_reaches_the_max_is_searched_complete", 314);
-  run_test(test_find_without_case_finds_a_character_outside_ascii_in_either_case, "test_find_without_case_finds_a_character_outside_ascii_in_either_case", 325);
-  run_test(test_complete_words_adjacent_text_outside_ascii_a_mark_ends_a_word_a_character_does_not, "test_complete_words_adjacent_text_outside_ascii_a_mark_ends_a_word_a_character_does_not", 330);
-  run_test(test_a_pattern_is_found_by_the_regular_expressions_the_colorer_reads, "test_a_pattern_is_found_by_the_regular_expressions_the_colorer_reads", 335);
-  run_test(test_a_patterns_cols_are_in_utf16_units_end_a_character_outside_the_basic_plane, "test_a_patterns_cols_are_in_utf16_units_end_a_character_outside_the_basic_plane", 342);
-  run_test(test_a_pattern_that_does_not_read_is_refused, "test_a_pattern_that_does_not_read_is_refused", 349);
-  run_test(test_a_finds_cols_are_in_utf16_units, "test_a_finds_cols_are_in_utf16_units", 357);
-  run_test(test_a_find_without_case_finds_an_underscored_prefix, "test_a_find_without_case_finds_an_underscored_prefix", 364);
-  run_test(test_nothing_found_runs_over_a_lines_end, "test_nothing_found_runs_over_a_lines_end", 369);
-  run_test(test_a_small_text_is_searched_while_the_pool_has_little_capacity, "test_a_small_text_is_searched_while_the_pool_has_little_capacity", 374);
-  run_test(test_a_stored_text_is_found_and_its_joined_lines_created_again_after_an_edit, "test_a_stored_text_is_found_and_its_joined_lines_created_again_after_an_edit", 403);
-  run_test(test_a_branch_is_colored_by_a_grammar, "test_a_branch_is_colored_by_a_grammar", 418);
-  run_test(test_a_text_read_complete_names_the_lines_the_page_stores, "test_a_text_read_complete_names_the_lines_the_page_stores", 424);
-  run_test(test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar, "test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar", 430);
+  run_test(test_a_text_is_split_as_the_page_splits_a_file_a_char_end_the_basic_plane_two_units, "test_a_text_is_split_as_the_page_splits_a_file_a_char_end_the_basic_plane_two_units", 197);
+  run_test(test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit_writes_it, "test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit_writes_it", 206);
+  run_test(test_edits_are_written_from_the_last_to_the_first_with_the_texts_shape_after_them, "test_edits_are_written_from_the_last_to_the_first_with_the_texts_shape_after_them", 244);
+  run_test(test_an_edit_end_the_text_is_refused_and_the_text_released, "test_an_edit_end_the_text_is_refused_and_the_text_released", 256);
+  run_test(test_a_text_is_stored_with_its_shape_until_it_is_released, "test_a_text_is_stored_with_its_shape_until_it_is_released", 268);
+  run_test(test_a_text_is_put_as_its_file_holds_it_its_line_ends_as_they_were_read, "test_a_text_is_put_as_its_file_holds_it_its_line_ends_as_they_were_read", 289);
+  run_test(test_find_with_case, "test_find_with_case", 304);
+  run_test(test_find_without_case, "test_find_without_case", 309);
+  run_test(test_find_complete_words, "test_find_complete_words", 314);
+  run_test(test_find_folds_the_long_s_and_the_kelvin_sign, "test_find_folds_the_long_s_and_the_kelvin_sign", 319);
+  run_test(test_the_line_that_reaches_the_max_is_searched_complete, "test_the_line_that_reaches_the_max_is_searched_complete", 324);
+  run_test(test_find_without_case_finds_a_character_outside_ascii_in_either_case, "test_find_without_case_finds_a_character_outside_ascii_in_either_case", 335);
+  run_test(test_complete_words_adjacent_text_outside_ascii_a_mark_ends_a_word_a_character_does_not, "test_complete_words_adjacent_text_outside_ascii_a_mark_ends_a_word_a_character_does_not", 340);
+  run_test(test_a_pattern_is_found_by_the_regular_expressions_the_colorer_reads, "test_a_pattern_is_found_by_the_regular_expressions_the_colorer_reads", 345);
+  run_test(test_a_patterns_cols_are_in_utf16_units_end_a_character_outside_the_basic_plane, "test_a_patterns_cols_are_in_utf16_units_end_a_character_outside_the_basic_plane", 352);
+  run_test(test_a_pattern_that_does_not_read_is_refused, "test_a_pattern_that_does_not_read_is_refused", 359);
+  run_test(test_a_finds_cols_are_in_utf16_units, "test_a_finds_cols_are_in_utf16_units", 367);
+  run_test(test_a_find_without_case_finds_an_underscored_prefix, "test_a_find_without_case_finds_an_underscored_prefix", 374);
+  run_test(test_nothing_found_runs_over_a_lines_end, "test_nothing_found_runs_over_a_lines_end", 379);
+  run_test(test_a_small_text_is_searched_while_the_pool_has_little_capacity, "test_a_small_text_is_searched_while_the_pool_has_little_capacity", 384);
+  run_test(test_a_stored_text_is_found_and_its_joined_lines_created_again_after_an_edit, "test_a_stored_text_is_found_and_its_joined_lines_created_again_after_an_edit", 413);
+  run_test(test_a_branch_is_colored_by_a_grammar, "test_a_branch_is_colored_by_a_grammar", 428);
+  run_test(test_a_text_read_complete_names_the_lines_the_page_stores, "test_a_text_read_complete_names_the_lines_the_page_stores", 434);
+  run_test(test_a_lines_entered_state_reads_back_by_its_number_after_the_walk, "test_a_lines_entered_state_reads_back_by_its_number_after_the_walk", 440);
+  run_test(test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar, "test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar", 447);
 
   return UNITY_END();
 }
