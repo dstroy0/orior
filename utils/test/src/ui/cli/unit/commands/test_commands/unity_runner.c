@@ -79,17 +79,17 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\commands\\test_commands\\test_commands.c");
-  run_test(test_no_two_menus_share_a_word, "test_no_two_menus_share_a_word", 32);
-  run_test(test_no_menu_lists_a_command_twice, "test_no_menu_lists_a_command_twice", 44);
-  run_test(test_every_command_is_one_word, "test_every_command_is_one_word", 59);
-  run_test(test_no_command_of_a_job_menu_is_a_job_path, "test_no_command_of_a_job_menu_is_a_job_path", 71);
-  run_test(test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none, "test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none", 88);
-  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open, "test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open", 123);
-  run_test(test_arguments_outside_brackets_are_required, "test_arguments_outside_brackets_are_required", 142);
-  run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 147);
-  run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 152);
-  run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 157);
-  run_test(test_the_preferences_list_the_terminals_folder_and_lines_as_settings, "test_the_preferences_list_the_terminals_folder_and_lines_as_settings", 177);
+  run_test(test_no_two_menus_share_a_word, "test_no_two_menus_share_a_word", 33);
+  run_test(test_no_menu_lists_a_command_twice, "test_no_menu_lists_a_command_twice", 47);
+  run_test(test_every_command_is_one_word, "test_every_command_is_one_word", 66);
+  run_test(test_no_command_of_a_job_menu_is_a_job_path, "test_no_command_of_a_job_menu_is_a_job_path", 81);
+  run_test(test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none, "test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none", 102);
+  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open, "test_a_menu_opened_anew_takes_a_new_serial_and_retains_it_while_it_is_open", 143);
+  run_test(test_arguments_outside_brackets_are_required, "test_arguments_outside_brackets_are_required", 164);
+  run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 169);
+  run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 174);
+  run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 179);
+  run_test(test_the_preferences_list_the_terminals_folder_and_lines_as_settings, "test_the_preferences_list_the_terminals_folder_and_lines_as_settings", 200);
 
   return UNITY_END();
 }

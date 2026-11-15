@@ -359,7 +359,8 @@ int cli_notebook_kernels_menu(const CliNotebookKernelPickCfg *args)
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_kernel_cell, .offset = (unsigned long long)at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
         const char *const label = (row.display[0] != '\0') ? row.display : row.name;
-        cli_menus_own_row(&(CliItem){label, "notebook-kernel", "", row.name, "", "", 0, 0, 0, 0, 0u});
+        cli_menus_own_row(
+            &(CliMenusCfg){.item = &(CliItem){label, "notebook-kernel", "", row.name, "", "", 0, 0, 0, 0, 0u}});
     }
     return 1;
 }

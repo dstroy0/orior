@@ -202,7 +202,7 @@ int main(void)
 
     // a press on the link opens the file it names; one elsewhere does nothing
     (void)EMBED_CALL(gui_preview.wheel, GuiPreviewCfg, .frame = &frame, .rows = -100000);
-    // the rows passed out are copies the next row read replaces, so each is copied before the next read
+    // the rows passed out are copies the next row read replaces: each is copied before the next read
     const CliPreviewItem *const link_row =
         EMBED_CALL(cli_preview_item.item, CliPreviewItemCfg, .at = run_reading("next"));
     const CliPreviewItem link = (link_row != NULL) ? *link_row : (CliPreviewItem){0};

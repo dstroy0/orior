@@ -215,27 +215,28 @@ static int row_chosen(const char *title, const char *label, CliItem *item)
 {
     unsigned int at = 0u;
     while ((at < cli_menu_titles()) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(cli_menu_title_menu(at)),
-                                         .cap = CLI_POOL_BYTES,
-                                         .other = title,
-                                         .other_cap = CLI_POOL_BYTES}))
+           !cellul.eq(&(CatenaFinitaCfg){
+               .src = cli_menu_title_text(&(CliMenusCfg){.menu = cli_menu_title_menu(&(CliMenusCfg){.at = at})}),
+               .cap = CLI_POOL_BYTES,
+               .other = title,
+               .other_cap = CLI_POOL_BYTES}))
     {
         at += 1u;
     }
-    cli_menus_bar(cli_menu_titles(), 0);
-    cli_menus_title_press(at);
+    cli_menus_bar(&(CliMenusCfg){.displayed = cli_menu_titles(), .folded = 0});
+    cli_menus_title_press(&(CliMenusCfg){.at = at});
     int chosen = -1;
     for (unsigned int row = 0u; (g_cli_menus_open.levels != 0u) && (row < g_cli_menus_open.level[0].rows); row += 1u)
     {
-        if (cli_menus_row(0u, row, item) &&
+        if (cli_menus_row(&(CliMenusCfg){.level = 0u, .at = row, .item = item}) &&
             cellul.eq(&(CatenaFinitaCfg){
                 .src = item->label, .cap = CLI_POOL_BYTES, .other = label, .other_cap = CLI_POOL_BYTES}))
         {
-            chosen = cli_menus_selectable(0u, row);
+            chosen = cli_menus_selectable(&(CliMenusCfg){.level = 0u, .at = row});
             break;
         }
     }
-    cli_menus_close(0u);
+    cli_menus_close(&(CliMenusCfg){.level = 0u});
     cli_check(chosen != -1, label);
     return chosen == 1;
 }
@@ -793,7 +794,7 @@ static void terminal_menu_checked(void)
     cli_check(g_cli_menus_open.place == CLI_MENU_PLACE_TERMINAL_KEYS, "at the terminal's key field");
     CliItem first;
     cli_check(
-        cli_menus_row(0u, 0u, &first) &&
+        cli_menus_row(&(CliMenusCfg){.level = 0u, .at = 0u, .item = &first}) &&
             cellul.eq(&(CatenaFinitaCfg){.src = first.label, .cap = CLI_POOL_BYTES, .other = "Copy", .other_cap = 5u}),
         "the terminal's menu, Copy first");
     cli_check(g_cli_menus_open.level[0].pointed == 1, "the first row that can be chosen marked");
@@ -823,15 +824,18 @@ static void tab_menu_checked(void)
               "a right press on the tab opens its menu");
     CliItem row;
     cli_check(
-        cli_menus_row(0u, 0u, &row) &&
+        cli_menus_row(&(CliMenusCfg){.level = 0u, .at = 0u, .item = &row}) &&
             cellul.eq(&(CatenaFinitaCfg){.src = row.label, .cap = CLI_POOL_BYTES, .other = "Close", .other_cap = 6u}),
         "Close first");
-    cli_check(cli_menus_row(0u, 1u, &row) && !cli_menus_selectable(0u, 1u), "Close others is off with one tab open");
-    cli_check(cli_menus_row(0u, 2u, &row) &&
+    cli_check(cli_menus_row(&(CliMenusCfg){.level = 0u, .at = 1u, .item = &row}) &&
+                  !cli_menus_selectable(&(CliMenusCfg){.level = 0u, .at = 1u}),
+              "Close others is off with one tab open");
+    cli_check(cli_menus_row(&(CliMenusCfg){.level = 0u, .at = 2u, .item = &row}) &&
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = row.label, .cap = CLI_POOL_BYTES, .other = "Close All", .other_cap = 10u}),
               "Close All third");
-    cli_check(cli_menus_row(0u, 3u, &row) && row.line, "a line after the closes");
+    cli_check(cli_menus_row(&(CliMenusCfg){.level = 0u, .at = 3u, .item = &row}) && row.line,
+              "a line after the closes");
     cli_check(g_cli_menus_open.level[0].rows == 14u, "fourteen rows, the list's Tab popup");
     key_pressed("Escape");
     cli_check(g_cli_menus_open.levels == 0u, "Escape closes it");

@@ -108,60 +108,93 @@ extern CliMenusOpen g_cli_menus_open;
 // the titles on the bar: how many menus take one, and the menu of the title `at`; and the title of the menu `menu`,
 // located as long as the program runs
 unsigned int cli_menu_titles(void);
-unsigned int cli_menu_title_menu(unsigned int at);
-const char *cli_menu_title_text(unsigned int menu);
+// the menus: the title `at` and the menu `menu`; the row `at` of the open menu `level` into `item`, selectable,
+// pressed into `chosen`, moved to; the menu `level` closed; the bar with `displayed` titles, `folded`; a title or
+// a row opened, `marked`; the part's own `rows`, `count` of them, opened at `place`, `x`, `y`; an own row `item`
+// added, named `command` with `item_args`, the popup `title`, the row `at` relabeled `label`, read into `item`, the
+// word of `item_args`; the key `name`, `chose` where it chose; `keys` named `name`; the menu `menu`'s items, its
+// `list`'s rows into `items` of `capacity`, `count` items taken and released, its list and whether displayed; and
+// the command `command`'s own `keys`
+typedef struct
+{
+    unsigned int at;
+    unsigned int menu;
+    unsigned int level;
+    CliItem *item;
+    CliItem *chosen;
+    unsigned int displayed;
+    int folded;
+    int marked;
+    const CliItem *rows;
+    unsigned int count;
+    unsigned int place;
+    int x;
+    int y;
+    const char *command;
+    const char *item_args;
+    const char *title;
+    const char *label;
+    const char *name;
+    int *chose;
+    const char *keys;
+    unsigned int list;
+    CliItem *items;
+    unsigned int capacity;
+} CliMenusCfg;
+unsigned int cli_menu_title_menu(const CliMenusCfg *args);
+const char *cli_menu_title_text(const CliMenusCfg *args);
 // the row `at` of the menu open at `level` read into `item`: 1, or 0 past its rows; and whether it can be marked: a
 // row of items, or an item that can be chosen
-int cli_menus_row(unsigned int level, unsigned int at, CliItem *item);
-int cli_menus_selectable(unsigned int level, unsigned int at);
-// the menus from `level` on closed; the titles the bar shows, `displayed`, the rest folded into a last where `folded` is 1;
-// the menu of the title `at` opened, the last where the titles fold located for those folded, every other closed, its
-// first row that can be chosen marked where `marked` is 1; the items of the row `at` of the menu at `level` opened
+int cli_menus_row(const CliMenusCfg *args);
+int cli_menus_selectable(const CliMenusCfg *args);
+// the menus from `level` on closed; the titles the bar shows, `displayed`, the rest folded into a last where `folded`
+// is 1; the menu of the title `at` opened, the last where the titles fold located for those folded, every other closed,
+// its first row that can be chosen marked where `marked` is 1; the items of the row `at` of the menu at `level` opened
 // beside it the same way; and `count` rows of a part's own, located while they are open, or the part's own rows
 // built in their cell where `rows` is NULL, opened as its menu at the place `place` names, at x, y where that is
 // its point
-void cli_menus_close(unsigned int level);
-void cli_menus_bar(unsigned int displayed, int folded);
-void cli_menus_title_open(unsigned int at, int marked);
-void cli_menus_row_open(unsigned int level, unsigned int at, int marked);
-void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int place, int x, int y);
+void cli_menus_close(const CliMenusCfg *args);
+void cli_menus_bar(const CliMenusCfg *args);
+void cli_menus_title_open(const CliMenusCfg *args);
+void cli_menus_row_open(const CliMenusCfg *args);
+void cli_menus_own_open(const CliMenusCfg *args);
 // a part's own rows, built as its menu is asked for and located while it is open: begun empty; `item` added after
 // them, its texts the part's own, located while the menu is open; a line added; the catalog's item whose command is
 // `command` added with `args`: 1, or 0 where the catalog has none; the rows of the popup menu titled `title` added,
-// each item's args `args`, its lines retained: 1, or 0 where the list has no such popup; the label of the row `at` written
-// anew; how many rows there are; the row `at` read into `item`, its label and args in the texts of the one row last
-// read, which stand until the next row is read: 1, or 0 past the rows; and the word a chosen row's `args` runs
+// each item's args `args`, its lines retained: 1, or 0 where the list has no such popup; the label of the row `at`
+// written anew; how many rows there are; the row `at` read into `item`, its label and args in the texts of the one row
+// last read, which stand until the next row is read: 1, or 0 past the rows; and the word a chosen row's `args` runs
 // with, NULL where the args are a catalog item's pattern or empty
 void cli_menus_own_begin(void);
-void cli_menus_own_row(const CliItem *item);
+void cli_menus_own_row(const CliMenusCfg *args);
 void cli_menus_own_line(void);
-int cli_menus_own_named(const char *command, const char *args);
-int cli_menus_popup(const char *title, const char *args);
-void cli_menus_own_relabel(unsigned int at, const char *label);
+int cli_menus_own_named(const CliMenusCfg *args);
+int cli_menus_popup(const CliMenusCfg *args);
+void cli_menus_own_relabel(const CliMenusCfg *args);
 unsigned int cli_menus_own_count(void);
-int cli_menus_own_read(unsigned int at, CliItem *item);
-const char *cli_menus_own_word(const char *args);
+int cli_menus_own_read(const CliMenusCfg *args);
+const char *cli_menus_own_word(const CliMenusCfg *args);
 // a press on the title `at`, its menu closed where it is open and else opened; a press on the row `at` of the menu at
 // `level`, its items opened or it chosen, every menu closed: 1 with the row chosen into `chosen`, else 0; and a press
 // on neither, every menu closed
-void cli_menus_title_press(unsigned int at);
-int cli_menus_row_press(unsigned int level, unsigned int at, CliItem *chosen);
+void cli_menus_title_press(const CliMenusCfg *args);
+int cli_menus_row_press(const CliMenusCfg *args);
 // the pointer moved onto the title `at`, its menu opened where another title's is; and onto the row `at` of the menu
 // at `level`, it marked and a rest begun that opens its items or closes a sibling's
-void cli_menus_title_move(unsigned int at);
-void cli_menus_row_move(unsigned int level, unsigned int at);
-// the key `name` taken by the menus: Alt with a title's character opens its menu; while one is open Up, Down, Home and End
-// step the mark, Left and Right step between the menus, Enter and Space choose, Escape closes the last, Tab closes them
-// all and a character marks the next row it begins: 1 where the key was theirs, a row chosen into `chosen` with
+void cli_menus_title_move(const CliMenusCfg *args);
+void cli_menus_row_move(const CliMenusCfg *args);
+// the key `name` taken by the menus: Alt with a title's character opens its menu; while one is open Up, Down, Home and
+// End step the mark, Left and Right step between the menus, Enter and Space choose, Escape closes the last, Tab closes
+// them all and a character marks the next row it begins: 1 where the key was theirs, a row chosen into `chosen` with
 // `*chose` 1
-int cli_menus_key(const char *name, CliItem *chosen, int *chose);
+int cli_menus_key(const CliMenusCfg *args);
 // the rest's end taken where it has come: 1 where a menu opened or closed
 int cli_menus_rest(void);
 // whether `keys` names the key `name`, `Ctrl+` read as `Mod+` and the modifiers in any order; and the item of any menu
 // whose keys are `name` and that can be chosen, or whose command is `name`, into `item`: 1, or 0 where none is
-int cli_menus_keys_name(const char *keys, const char *name);
-int cli_menus_keyed(const char *name, CliItem *item);
-int cli_menus_named(const char *name, CliItem *item);
+int cli_menus_keys_name(const CliMenusCfg *args);
+int cli_menus_keyed(const CliMenusCfg *args);
+int cli_menus_named(const CliMenusCfg *args);
 
 // the bytes of commands.json as built into the program (plugins_bundled.c, written as the program is built)
 extern const unsigned char g_cli_commands_json[];
@@ -179,22 +212,22 @@ unsigned int cli_menu_groups(const CliCommandsMenuGroupsCfg *args);
 // every item of the menu, those of its groups among them, in order: their count; and their count alone, the cell a
 // caller sizes for them
 unsigned int cli_menu_items(const CliCommandsMenuCapacityCfg *args);
-unsigned int cli_menu_items_count(unsigned int menu);
+unsigned int cli_menu_items_count(const CliMenusCfg *args);
 // the rows of the list `list`, a row's own or a menu's, in order and as they are: their count; their count alone, the
 // cell a caller sizes for them; the list of a menu's own rows; and whether a menu takes a title on the window's bar:
 // it has rows, and it is neither the strip's nor a popup
-unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capacity);
-unsigned int cli_rows_count(unsigned int list);
+unsigned int cli_menu_rows(const CliMenusCfg *args);
+unsigned int cli_rows_count(const CliMenusCfg *args);
 // a cell of `count` items for one read of a menu's items or a list's rows, taken from the temporary tier and given
 // back after the read, the reader's own keys' text copied after the items so the items' keys point into it: NULL
 // where the count is 0 or the tier refuses it. cli_menu_items and cli_menu_rows read into such a cell alone
-CliItem *cli_items_alloc(unsigned int count);
-void cli_items_release(CliItem *items);
+CliItem *cli_items_alloc(const CliMenusCfg *args);
+void cli_items_release(const CliMenusCfg *args);
 // the list of the command line's own words, as `line` in the list names them, read by cli_menu_rows; 0 where it has
 // none
 unsigned int cli_line_list(void);
-unsigned int cli_menu_list(unsigned int menu);
-int cli_menu_displayed(unsigned int menu);
+unsigned int cli_menu_list(const CliMenusCfg *args);
+int cli_menu_displayed(const CliMenusCfg *args);
 // the item of the menu whose command is `word`: 1, or 0 where it has none; and the words an item must be given, each
 // `<word>` of its args outside a bracket
 int cli_menu_command(const CliCommandsMenuCfg *args);
@@ -207,9 +240,9 @@ int cli_item_command(const CliCommandsMenuCfg *args);
 int cli_setting_node(const CliCommandsMenuCfg *args);
 // the node of any menu whose chain after the menu's word is `word`, read into `item`: 1, or 0 where none is
 int cli_chain_item(const CliCommandsMenuCfg *args);
-// the reader's own keys of `command`, the setting `keys.<command>`, positioned over the keys the list gives it from here on,
-// in every item read of it
-void cli_commands_keys_own(const char *command, const char *keys);
+// the reader's own keys of `command`, the setting `keys.<command>`, positioned over the keys the list gives it from
+// here on, in every item read of it
+void cli_commands_keys_own(const CliMenusCfg *args);
 unsigned int cli_item_words_need(const CliCommandsItemCfg *args);
 // the menu whose word is `word`: 1, or 0 where none is
 int cli_menu_by_name(const CliCommandsWordCfg *args);

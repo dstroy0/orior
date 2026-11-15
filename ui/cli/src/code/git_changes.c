@@ -1300,10 +1300,11 @@ int cli_changes_menu(const CliGitChangesCfg *args)
     }
     // the rows run with the file's path, which is in the list while the menu is open
     cli_menus_own_begin();
-    cli_menus_own_row(
-        &(CliItem){"Open File", "file-open", "", read.path, (read.state == 'D') ? "never" : "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){"Open File", "file-open", "", read.path,
+                                                        (read.state == 'D') ? "never" : "", "", 0, 0, 0, 0, 0u}});
     cli_menus_own_line();
-    cli_menus_own_row(&(CliItem){"Copy Path", "file-copy-path", "", read.path, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(
+        &(CliMenusCfg){.item = &(CliItem){"Copy Path", "file-copy-path", "", read.path, "", "", 0, 0, 0, 0, 0u}});
     return 1;
 }
 

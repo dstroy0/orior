@@ -31,4 +31,3 @@ utils/test/harness_package.py	1
 utils/test/src/ui/cli/unit/job_runs/test_job_runs/test_job_runs.c	1
 utils/test/src/ui/cli/unit/notebook_cells/test_notebook_cells/test_notebook_cells.c	1
 utils/test/src/ui/gui/menubar_test.c	1
-utils/test/src/ui/gui/preview_test.c	1

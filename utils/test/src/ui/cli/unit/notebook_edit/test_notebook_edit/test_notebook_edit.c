@@ -14,7 +14,8 @@
 static const char s_script[] = "# %%\nx = 1\nprint(x)\n\n# %% [markdown]\n# # Title\n\n# %%\ny = x + 1\n";
 static const char s_notebook[] =
     "{\"cells\":[{\"cell_type\":\"code\",\"execution_count\":1,\"metadata\":{},\"outputs\":[{\"name\":\"stdout\","
-    "\"output_type\":\"stream\",\"text\":[\"hi\\n\"]}],\"source\":[\"x = 1\"]},{\"cell_type\":\"markdown\",\"metadata\":{},"
+    "\"output_type\":\"stream\",\"text\":[\"hi\\n\"]}],\"source\":[\"x = "
+    "1\"]},{\"cell_type\":\"markdown\",\"metadata\":{},"
     "\"source\":[\"# Title\"]},{\"cell_type\":\"code\",\"execution_count\":null,\"metadata\":{},\"outputs\":[],"
     "\"source\":[\"y = x + 1\"]}],\"metadata\":{},\"nbformat\":4,\"nbformat_minor\":5}\n";
 
@@ -107,23 +108,23 @@ void test_a_line_put_in_grows_the_cells_rows_and_a_character_typed_does_not(void
 void test_the_notebooks_keys_are_taken_and_others_are_not(void)
 {
     const CliNotebookModel *const model = opened("edit.py", s_script);
-    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a",
-                                        .word = "Escape"));
+    TEST_ASSERT_EQUAL_INT(
+        0, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Escape"));
     focused(1u, 0ULL, 0ULL);
-    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a",
-                                        .word = "a"));
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a",
-                                        .word = "Shift+Enter"));
+    TEST_ASSERT_EQUAL_INT(0,
+                          EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "a"));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Shift+Enter"));
     TEST_ASSERT_EQUAL_UINT(2u, model->focused);
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a",
-                                        .word = "Escape"));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Escape"));
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_NONE, model->focused);
     focused(1u, 0ULL, 0ULL);
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a",
-                                        .word = "Ctrl+Enter"));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Ctrl+Enter"));
     focused(1u, 0ULL, 0ULL);
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a",
-                                        .word = "Meta+Enter"));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_key.key, CliNotebookEditKeyCfg, .key = "edit:a", .word = "Meta+Enter"));
 }
 
 void test_cells_added_changed_moved_cleared_and_deleted(void)
@@ -131,27 +132,27 @@ void test_cells_added_changed_moved_cleared_and_deleted(void)
     CliNotebookModel *const model = opened("edit.ipynb", s_notebook);
     TEST_ASSERT_EQUAL_INT(0, model->dirty);
     const unsigned int rows = rows_of();
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.add, CliNotebookEditCellCfg, .key = "edit:a",
-                                        .cell = 0u, .type = CLI_NOTEBOOK_CODE));
+    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.add, CliNotebookEditCellCfg, .key = "edit:a", .cell = 0u,
+                                        .type = CLI_NOTEBOOK_CODE));
     TEST_ASSERT_EQUAL_UINT(4u, model->cells);
     TEST_ASSERT_EQUAL_UINT(1u, model->focused);
     TEST_ASSERT_EQUAL_UINT(rows + 2u, rows_of());
     TEST_ASSERT_EQUAL_INT(1, model->dirty);
     model->dirty = 0;
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.retype, CliNotebookEditCellCfg, .key = "edit:a",
-                                        .cell = 1u));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_cell.retype, CliNotebookEditCellCfg, .key = "edit:a", .cell = 1u));
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, notebook_cell_at(model, 1u).type);
     TEST_ASSERT_EQUAL_INT(1, model->dirty);
     const unsigned int serial = notebook_cell_at(model, 0u).serial;
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = "edit:a",
-                                        .cell = 0u, .by = 1));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = "edit:a", .cell = 0u, .by = 1));
     TEST_ASSERT_EQUAL_UINT(serial, notebook_cell_at(model, 1u).serial);
     TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(model, 1u).outputs);
     TEST_ASSERT_EQUAL_UINT(0u, notebook_cell_at(model, 1u).output_first);
-    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = "edit:a",
-                                        .cell = 3u, .by = 1));
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.outputs_clear, CliNotebookEditCellCfg,
-                                        .key = "edit:a", .cell = 1u));
+    TEST_ASSERT_EQUAL_INT(
+        0, EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = "edit:a", .cell = 3u, .by = 1));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_cell.outputs_clear, CliNotebookEditCellCfg, .key = "edit:a", .cell = 1u));
     TEST_ASSERT_EQUAL_UINT(0u, model->outputs);
     // the cell at 1 ran first and the last cell after it; the first deleted, the last is on a cell gone
     model->clock = 2u;
@@ -163,8 +164,8 @@ void test_cells_added_changed_moved_cleared_and_deleted(void)
     fourth.first_run = 2u;
     fourth.last_run = 2u;
     notebook_cell_set(model, 3u, &fourth);
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_cell.remove, CliNotebookEditCellCfg, .key = "edit:a",
-                                        .cell = 1u));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(cli_notebook_edit_cell.remove, CliNotebookEditCellCfg, .key = "edit:a", .cell = 1u));
     TEST_ASSERT_EQUAL_UINT(3u, model->cells);
     TEST_ASSERT_EQUAL_UINT(1u, model->gone_count);
     TEST_ASSERT_EQUAL_UINT(1u, notebook_gone_at(model, 0u).last_run);
@@ -175,39 +176,39 @@ void test_the_cell_menu_refuses_a_move_past_either_end(void)
 {
     (void)opened("edit.py", s_script);
     unsigned int count = 0u;
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_menu.menu, CliNotebookEditMenuCfg, .key = "edit:a",
-                                        .cell = 0u));
+    TEST_ASSERT_EQUAL_INT(1,
+                          EMBED_CALL(cli_notebook_edit_menu.menu, CliNotebookEditMenuCfg, .key = "edit:a", .cell = 0u));
     count = cli_menus_own_count();
     int up_refused = 0;
     int down_refused = 0;
     CliItem row;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (!cli_menus_own_read(at, &row) || row.line || (row.label == NULL))
+        if (!cli_menus_own_read(&(CliMenusCfg){.at = at, .item = &row}) || row.line || (row.label == NULL))
         {
             continue;
         }
         const int refused = cellul.eq(&(CatenaFinitaCfg){.src = row.needs, .other = "never", .cap = 8ULL});
-        up_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Up", .cap = 16ULL}) ? refused
-                                                                                                         : up_refused;
+        up_refused =
+            cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Up", .cap = 16ULL}) ? refused : up_refused;
         down_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Down", .cap = 16ULL})
                            ? refused
                            : down_refused;
     }
     TEST_ASSERT_EQUAL_INT(1, up_refused);
     TEST_ASSERT_EQUAL_INT(0, down_refused);
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_menu.menu, CliNotebookEditMenuCfg, .key = "edit:a",
-                                        .cell = 2u));
+    TEST_ASSERT_EQUAL_INT(1,
+                          EMBED_CALL(cli_notebook_edit_menu.menu, CliNotebookEditMenuCfg, .key = "edit:a", .cell = 2u));
     count = cli_menus_own_count();
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (!cli_menus_own_read(at, &row) || row.line || (row.label == NULL))
+        if (!cli_menus_own_read(&(CliMenusCfg){.at = at, .item = &row}) || row.line || (row.label == NULL))
         {
             continue;
         }
         const int refused = cellul.eq(&(CatenaFinitaCfg){.src = row.needs, .other = "never", .cap = 8ULL});
-        up_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Up", .cap = 16ULL}) ? refused
-                                                                                                         : up_refused;
+        up_refused =
+            cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Up", .cap = 16ULL}) ? refused : up_refused;
         down_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Down", .cap = 16ULL})
                            ? refused
                            : down_refused;
@@ -215,8 +216,7 @@ void test_the_cell_menu_refuses_a_move_past_either_end(void)
     TEST_ASSERT_EQUAL_INT(0, up_refused);
     TEST_ASSERT_EQUAL_INT(1, down_refused);
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_menu.command, CliNotebookEditMenuCfg, .key = "edit:a",
-                                        .cell = CLI_NOTEBOOK_NONE, .output = CLI_NOTEBOOK_NONE,
-                                        .word = "notebook-up"));
+                                        .cell = CLI_NOTEBOOK_NONE, .output = CLI_NOTEBOOK_NONE, .word = "notebook-up"));
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_notebook_edit_menu.command, CliNotebookEditMenuCfg, .key = "edit:a",
                                         .cell = 0u, .output = CLI_NOTEBOOK_NONE, .word = "file-open"));
 }

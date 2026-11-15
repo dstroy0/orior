@@ -18,7 +18,7 @@
 // CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
 static int own_row(unsigned int at, CliItem *item, char *text)
 {
-    if (!cli_menus_own_read(at, item))
+    if (!cli_menus_own_read(&(CliMenusCfg){.at = at, .item = item}))
     {
         return 0;
     }
@@ -49,10 +49,9 @@ static void file_written(const char *relative, const char *text)
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = relative, .joined = path);
     // the place past the path's last slash, 0 where it has none
-    const unsigned long long past_slash = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
-                                                     .text = path,
-                                                     .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)}),
-                                                     .set = "/");
+    const unsigned long long past_slash =
+        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path,
+                   .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = sizeof(path)}), .set = "/");
     if (past_slash != 0ULL)
     {
         path[past_slash - 1ULL] = '\0';
@@ -151,8 +150,8 @@ int main(void)
     cli_check(row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && !row.open && !row.merge &&
                   (row.lane_at == 0u) && (row.across == 1u) && (row.second_length == 0ULL) && (row.refs >= 1u),
               "the newest commit is first in the first column, closed, with no author displayed and a name at it");
-    cli_check((cellul.len(&(CatenaFinitaCfg){.src = row.day, .cap = CLI_GIT_LOG_DAY}) == CLI_GIT_LOG_DAY - 1u) && (row.day[4] == '-') && (row.day[7] == '-') &&
-                  (row.day[0] == '2'),
+    cli_check((cellul.len(&(CatenaFinitaCfg){.src = row.day, .cap = CLI_GIT_LOG_DAY}) == CLI_GIT_LOG_DAY - 1u) &&
+                  (row.day[4] == '-') && (row.day[7] == '-') && (row.day[0] == '2'),
               "the commit's day reads as a year, a month and a day");
     cli_check((row.strokes == 1u) && (row.stroke[0][0] == 0u) && (row.stroke[0][1] == 0u) && (row.stroke[0][2] == 1u),
               "the newest commit's one stroke runs down its column from the middle to its parent");
@@ -172,9 +171,10 @@ int main(void)
     cli_check((EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 4u) &&
                   row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && row.open,
               "the newest commit opened lists the one file it changed under it");
-    cli_check(row_is(2u, CLI_GIT_LOG_ROW_FILE, "a.txt", &row) && (row.state == 'M') && (row.second_length == 0ULL) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = row.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}),
-              "the file changed carries its name, state and path, in no folder");
+    cli_check(
+        row_is(2u, CLI_GIT_LOG_ROW_FILE, "a.txt", &row) && (row.state == 'M') && (row.second_length == 0ULL) &&
+            cellul.eq(&(CatenaFinitaCfg){.src = row.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}),
+        "the file changed carries its name, state and path, in no folder");
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 3u, .root = s_root);
     cli_check(EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 6u,
               "the first commit opened lists the two files it added");
@@ -252,9 +252,8 @@ int main(void)
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     GuiRaster raster;
-    cli_check(
-        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
-        "the raster is taken");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
+              "the raster is taken");
     const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = table, .frame = &frame);
     cli_check(rows_top == frame.side.y + GUI_PANE_SIDE_HEAD + GUI_PANE_LINE + GUI_PANE_HEAD + GUI_PANE_BOX,
               "the rows are under the pane's head and the field, no repository choice for one repository");
@@ -290,20 +289,22 @@ int main(void)
     char own_second_text[OWN_ROW_TEXT];
     char own_third_text[OWN_ROW_TEXT];
     char own_fourth_text[OWN_ROW_TEXT];
-    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
-                  (cli_menus_own_count() == 4u) && own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Open Files", .other_cap = 11u}) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "commit-files", .other_cap = 13u}) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_first.args, .cap = CLI_POOL_BYTES, .other = id, .other_cap = sizeof(id)}) &&
-                  own_second.line && own_row(2u, &own_third, own_third_text) && own_row(3u, &own_fourth, own_fourth_text) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "commit-copy-id", .other_cap = 15u}) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_fourth.command, .cap = CLI_POOL_BYTES, .other = "commit-copy-message", .other_cap = 20u}),
-              "a closed commit's menu opens its files and copies its id and message");
+    cli_check(
+        EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
+            (cli_menus_own_count() == 4u) && own_row(0u, &own_first, own_first_text) &&
+            own_row(1u, &own_second, own_second_text) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Open Files", .other_cap = 11u}) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "commit-files", .other_cap = 13u}) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_first.args, .cap = CLI_POOL_BYTES, .other = id, .other_cap = sizeof(id)}) &&
+            own_second.line && own_row(2u, &own_third, own_third_text) && own_row(3u, &own_fourth, own_fourth_text) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "commit-copy-id", .other_cap = 15u}) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_fourth.command, .cap = CLI_POOL_BYTES, .other = "commit-copy-message", .other_cap = 20u}),
+        "a closed commit's menu opens its files and copies its id and message");
     cli_check(EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = id, .root = s_root) &&
                   row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && row.open &&
                   EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
@@ -326,10 +327,8 @@ int main(void)
     VerbaLinea message = {message_text, sizeof(message_text), 0ULL};
     cli_check(EMBED_CALL(cli_git_log.message, CliGitLogCfg, .name = id, .out = &message, .root = s_root) &&
                   mmgr_line_finish(&message) &&
-                  cellul.starts(&(CatenaFinitaCfg){.src = message_text,
-                                                   .cap = sizeof(message_text),
-                                                   .other = "second commit",
-                                                   .other_cap = 14u}),
+                  cellul.starts(&(CatenaFinitaCfg){
+                      .src = message_text, .cap = sizeof(message_text), .other = "second commit", .other_cap = 14u}),
               "the commit's message is read by its id");
     EMBED_CALL(cli_git_log.toggle, CliGitLogCfg, .at = 1u, .root = s_root);
     const GuiRect first =
@@ -353,11 +352,12 @@ int main(void)
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 2u, .open_out = &open, .root = s_root) &&
                   (EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .at = 0u) == 3u),
               "the first commit's row pressed closes its files and opens no file");
-    cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .open_out = &open, .root = s_root) &&
-                  EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 2u, .open_out = &open, .root = s_root) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = open.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}) &&
-                  !open.placed,
-              "the newest commit's row pressed opens its file's row, which pressed opens the file");
+    cli_check(
+        !EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 1u, .open_out = &open, .root = s_root) &&
+            EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 2u, .open_out = &open, .root = s_root) &&
+            cellul.eq(&(CatenaFinitaCfg){.src = open.path, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}) &&
+            !open.placed,
+        "the newest commit's row pressed opens its file's row, which pressed opens the file");
     cli_check(!EMBED_CALL(gui_pane.press, GuiPaneCfg, .table = table, .row = 0u, .open_out = &open, .root = s_root),
               "the branch's row pressed opens nothing");
 

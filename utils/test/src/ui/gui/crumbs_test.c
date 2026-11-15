@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// crumbs_test.c: the status bar's crumbs: a view on src/code/a.py with the cursor inside a method positions the folders, the
-// file and the declarations it is in, in that order, with the CLI's texts; their rectangles are in the order of
-// x, a press finds the crumb under it and none in a gap; the row cut short leaves out the crumbs that do not fit
-// whole; a folder's crumb lists its entries, each opening its path, and a declaration's its neighbors, each going to
-// its line; and with the setting off nothing is positioned
+// crumbs_test.c: the status bar's crumbs: a view on src/code/a.py with the cursor inside a method positions the
+// folders, the file and the declarations it is in, in that order, with the CLI's texts; their rectangles are in the
+// order of x, a press finds the crumb under it and none in a gap; the row cut short leaves out the crumbs that do not
+// fit whole; a folder's crumb lists its entries, each opening its path, and a declaration's its neighbors, each going
+// to its line; and with the setting off nothing is positioned
 #include "../../../../../includes/window/block.h"
-#include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../includes/window/frame.h"
+#include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/gui/src/crumbs.h"
 #include "../cli/cli_check.h"
 
@@ -15,7 +15,7 @@
 // CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
 static int own_row(unsigned int at, CliItem *item, char *text)
 {
-    if (!cli_menus_own_read(at, item))
+    if (!cli_menus_own_read(&(CliMenusCfg){.at = at, .item = item}))
     {
         return 0;
     }
@@ -109,12 +109,12 @@ int main(void)
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 900u, .height = 40u),
               "the raster is taken");
-    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 12,
-                                                       .scale = 100);
+    const unsigned int size =
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 12, .scale = 100);
     const GuiRect wide = {0, 0, 900, 40};
-    const float after = EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = &raster, .glyphs = &glyphs,
-                                   .palette = palette, .size = size, .x_f32 = 10.0f, .baseline = 26, .clip = wide,
-                                   .scale = 100);
+    const float after =
+        EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = &raster, .glyphs = &glyphs, .palette = palette,
+                   .size = size, .x_f32 = 10.0f, .baseline = 26, .clip = wide, .scale = 100);
     cli_check((EMBED_CALL(gui_crumbs.count, GuiCrumbsCfg, .index = 0u) == 5u) && (after > 10.0f),
               "every crumb is positioned in a wide row");
     int ordered = 1;
@@ -137,8 +137,8 @@ int main(void)
     // a row cut short: the crumbs that fit whole, none drawn in part
     const GuiRect second = EMBED_CALL(gui_crumbs.place, GuiCrumbsCfg, .index = 1u);
     const GuiRect narrow = {0, 0, second.x + second.width + 4, 40};
-    (void)EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = NULL, .glyphs = &glyphs, .palette = palette,
-                     .size = size, .x_f32 = 10.0f, .baseline = 26, .clip = narrow, .scale = 100);
+    (void)EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = NULL, .glyphs = &glyphs, .palette = palette, .size = size,
+                     .x_f32 = 10.0f, .baseline = 26, .clip = narrow, .scale = 100);
     const GuiRect last = EMBED_CALL(gui_crumbs.place, GuiCrumbsCfg, .index = 1u);
     cli_check((EMBED_CALL(gui_crumbs.count, GuiCrumbsCfg, .index = 0u) == 2u) &&
                   (last.x + last.width <= narrow.x + narrow.width),
@@ -158,22 +158,23 @@ int main(void)
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = own_second.args, .cap = CLI_POOL_BYTES, .other = "src/code/b.py", .other_cap = 14u}),
               "a folder's crumb lists its entries, each opening its path");
-    cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 4u, .root = s_root) && (cli_menus_own_count() == 2u) &&
-                  own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "symbol-go", .other_cap = 10u}) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "put", .other_cap = 4u}) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_second.label, .cap = CLI_POOL_BYTES, .other = "take", .other_cap = 5u}) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = own_second.args, .cap = CLI_POOL_BYTES, .other = "6", .other_cap = 2u}),
-              "a declaration's crumb lists those beside it, each going to its line");
+    cli_check(
+        EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 4u, .root = s_root) && (cli_menus_own_count() == 2u) &&
+            own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "symbol-go", .other_cap = 10u}) &&
+            cellul.eq(
+                &(CatenaFinitaCfg){.src = own_first.label, .cap = CLI_POOL_BYTES, .other = "put", .other_cap = 4u}) &&
+            cellul.eq(
+                &(CatenaFinitaCfg){.src = own_second.label, .cap = CLI_POOL_BYTES, .other = "take", .other_cap = 5u}) &&
+            cellul.eq(&(CatenaFinitaCfg){.src = own_second.args, .cap = CLI_POOL_BYTES, .other = "6", .other_cap = 2u}),
+        "a declaration's crumb lists those beside it, each going to its line");
 
     // the setting off: nothing positioned and the row's x unmoved
     EMBED_CALL(cli_crumbs.displayed_set, CliCrumbsCfg, .on = 0);
-    const float bare = EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = &raster, .glyphs = &glyphs,
-                                  .palette = palette, .size = size, .x_f32 = 10.0f, .baseline = 26, .clip = wide,
-                                  .scale = 100);
+    const float bare =
+        EMBED_CALL(gui_crumbs.draw, GuiCrumbsCfg, .raster = &raster, .glyphs = &glyphs, .palette = palette,
+                   .size = size, .x_f32 = 10.0f, .baseline = 26, .clip = wide, .scale = 100);
     cli_check((EMBED_CALL(gui_crumbs.count, GuiCrumbsCfg, .index = 0u) == 0u) && (bare == 10.0f) &&
                   (EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u) == 0u),
               "with the setting off no crumb is positioned");

@@ -938,7 +938,7 @@ EMBED_INLINE void window_view_resize(const GuiWindowCtx *args)
     const unsigned int titles = cli_menu_titles();
     const unsigned int displayed = (window->menubar.folded_from < titles) ? window->menubar.folded_from : titles;
     const unsigned int folded = window->menubar.folded_from < titles;
-    cli_menus_bar(displayed, (int)folded);
+    cli_menus_bar(&(CliMenusCfg){.displayed = displayed, .folded = (int)folded});
     if ((rows == window->rows) && (columns == window->columns))
     {
         return;
@@ -1207,7 +1207,7 @@ EMBED_INLINE void window_menus_close(const GuiWindowCtx *args)
 {
     if (g_cli_menus_open.levels != 0u)
     {
-        cli_menus_close(0u);
+        cli_menus_close(&(CliMenusCfg){.level = 0u});
         args->window->pending = 1;
     }
 }
@@ -1833,7 +1833,8 @@ EMBED_INLINE int window_preference_line_add(const GuiWindowCtx *args)
 EMBED_INLINE void window_preference_keys_under(const GuiWindowCtx *args)
 {
     CliItem items[GUI_WINDOW_PREFERENCE_ITEMS];
-    const unsigned int count = cli_menu_rows(args->at, items, GUI_WINDOW_PREFERENCE_ITEMS);
+    const unsigned int count =
+        cli_menu_rows(&(CliMenusCfg){.list = args->at, .items = items, .capacity = GUI_WINDOW_PREFERENCE_ITEMS});
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliItem *const item = &items[at];
@@ -1875,8 +1876,9 @@ EMBED_INLINE void window_preference_keys_add(const GuiWindowCtx *args)
 {
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
     {
-        EMBED_CALL(window_preference_keys_under, GuiWindowCtx, .window = args->window, .at = cli_menu_list(menu),
-                   .name = cli_menu_title_text(menu));
+        EMBED_CALL(window_preference_keys_under, GuiWindowCtx, .window = args->window,
+                   .at = cli_menu_list(&(CliMenusCfg){.menu = menu}),
+                   .name = cli_menu_title_text(&(CliMenusCfg){.menu = menu}));
     }
 }
 
@@ -2066,7 +2068,8 @@ EMBED_INLINE void window_preference_row_add(const GuiWindowCtx *args)
 EMBED_INLINE void window_preference_rows_under(const GuiWindowCtx *args)
 {
     CliItem items[GUI_WINDOW_PREFERENCE_ITEMS];
-    const unsigned int count = cli_menu_rows(args->at, items, GUI_WINDOW_PREFERENCE_ITEMS);
+    const unsigned int count =
+        cli_menu_rows(&(CliMenusCfg){.list = args->at, .items = items, .capacity = GUI_WINDOW_PREFERENCE_ITEMS});
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliItem *const item = &items[at];
@@ -2134,10 +2137,12 @@ EMBED_INLINE void window_preference_rows_read(const GuiWindowCtx *args)
         preferences->section_first[section] = values->rows;
         for (unsigned int menu = 0u; (section != GUI_PREFERENCES_COLORS) && (menu < cli_menus()); menu += 1u)
         {
-            if (EMBED_CALL(window_is, GuiWindowCtx, .name = cli_menu_title_text(menu), .key = "Preferences"))
+            if (EMBED_CALL(window_is, GuiWindowCtx, .name = cli_menu_title_text(&(CliMenusCfg){.menu = menu}),
+                           .key = "Preferences"))
             {
-                EMBED_CALL(window_preference_rows_under, GuiWindowCtx, .window = window, .at = cli_menu_list(menu),
-                           .name = "", .entries = args->entries, .section = section);
+                EMBED_CALL(window_preference_rows_under, GuiWindowCtx, .window = window,
+                           .at = cli_menu_list(&(CliMenusCfg){.menu = menu}), .name = "", .entries = args->entries,
+                           .section = section);
             }
         }
         if (section == GUI_PREFERENCES_SETTINGS)
@@ -2421,7 +2426,7 @@ EMBED_INLINE void window_preference_keyed(const GuiWindowCtx *args)
     }
     (void)mmgr_line_finish(&value);
     EMBED_CALL(window_setting_save, GuiWindowCtx, .key = row->key, .value = row->value);
-    cli_commands_keys_own(row->key + sizeof(GUI_WINDOW_KEYS_KEY) - 1u, row->value);
+    cli_commands_keys_own(&(CliMenusCfg){.command = row->key + sizeof(GUI_WINDOW_KEYS_KEY) - 1u, .keys = row->value});
 }
 
 // The palette `at` of Preferences' list chosen: the window's shows its own colors from the first; a plugin's shows
@@ -2670,7 +2675,8 @@ EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args)
     }
     else if (cellul.starts(&(CatenaFinitaCfg){.src = args->key, .other = GUI_WINDOW_KEYS_KEY, .cap = 64ULL}))
     {
-        cli_commands_keys_own(args->key + sizeof(GUI_WINDOW_KEYS_KEY) - 1u, args->value);
+        cli_commands_keys_own(
+            &(CliMenusCfg){.command = args->key + sizeof(GUI_WINDOW_KEYS_KEY) - 1u, .keys = args->value});
     }
 }
 
@@ -4129,7 +4135,7 @@ static void window_preferences_key(const GuiInputHandlerCfg *args)
     GuiWindow *window = args->window;
     // the command's own keys close it from its own window as they open it from the main one
     CliItem item;
-    if (cli_menus_keyed(args->input->name, &item) &&
+    if (cli_menus_keyed(&(CliMenusCfg){.name = args->input->name, .item = &item}) &&
         cellul.eq(&(CatenaFinitaCfg){.src = item.command, .other = "preferences", .cap = CLI_LABEL_MAX_LEN}))
     {
         EMBED_CALL(window_preferences_toggle, GuiWindowCtx, .window = window);
@@ -5295,7 +5301,7 @@ static int window_command_named(const char *command, const char *const *words, u
         return 1;
     }
     CliItem item;
-    const int keyed = cli_menus_named(command, &item);
+    const int keyed = cli_menus_named(&(CliMenusCfg){.name = command, .item = &item});
     const int known = keyed ||
                       EMBED_CALL(window_name_among, GuiWindowCtx, .name = command, .words = s_own_commands,
                                  .count = sizeof(s_own_commands) / sizeof(s_own_commands[0])) ||
@@ -5335,7 +5341,7 @@ EMBED_INLINE int window_tool_key(const GuiWindowCtx *args)
     for (unsigned int at = 0u; at < g_gui_tools_count; at += 1u)
     {
         const char *const keys = g_gui_tools[at].keys;
-        if ((keys[0] != '\0') && cli_menus_keys_name(keys, args->name))
+        if ((keys[0] != '\0') && cli_menus_keys_name(&(CliMenusCfg){.keys = keys, .name = args->name}))
         {
             // the tools are fewer than an int counts
             return (int)at;
@@ -5352,7 +5358,7 @@ EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
     if (args->on)
     {
         // a part's own row runs with the word its args carry
-        const char *const word = cli_menus_own_word(args->item->args);
+        const char *const word = cli_menus_own_word(&(CliMenusCfg){.item_args = args->item->args});
         const char *const words[1] = {word};
         (void)EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = args->item->command,
                          .value = args->item->keys, .words = words, .count = (word != NULL) ? 1u : 0u);
@@ -5387,7 +5393,11 @@ static void window_key_take(const GuiWindowCtx *args)
                           EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "Shift+F10"));
     if (menu_key && cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = "terminal-keys"}))
     {
-        cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_TERMINAL_KEYS, 0, 0);
+        cli_menus_own_open(&(CliMenusCfg){.rows = cli_terminal_tabs_menu(),
+                                          .count = CLI_TERMINAL_MENU_ROWS,
+                                          .place = CLI_MENU_PLACE_TERMINAL_KEYS,
+                                          .x = 0,
+                                          .y = 0});
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         return;
     }
@@ -5396,7 +5406,11 @@ static void window_key_take(const GuiWindowCtx *args)
         const GuiRect caret =
             EMBED_CALL(gui_editor_position.caret_rect, GuiEditorPositionCfg, .editor_read = &window->editor,
                        .glyphs = &window->glyphs, .place = window->frame.editor, .scale = window->frame.scale);
-        cli_menus_own_open(NULL, cli_menus_own_count(), CLI_MENU_PLACE_POINT, caret.x, caret.y + caret.height);
+        cli_menus_own_open(&(CliMenusCfg){.rows = NULL,
+                                          .count = cli_menus_own_count(),
+                                          .place = CLI_MENU_PLACE_POINT,
+                                          .x = caret.x,
+                                          .y = caret.y + caret.height});
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         return;
     }
@@ -5407,7 +5421,7 @@ static void window_key_take(const GuiWindowCtx *args)
     }
     CliItem chosen;
     int chose = 0;
-    if (cli_menus_key(name, &chosen, &chose))
+    if (cli_menus_key(&(CliMenusCfg){.name = name, .chosen = &chosen, .chose = &chose}))
     {
         EMBED_CALL(window_menu_chosen, GuiWindowCtx, .window = window, .on = chose, .item = &chosen);
         return;
@@ -5437,7 +5451,7 @@ static void window_key_take(const GuiWindowCtx *args)
         return;
     }
     CliItem item;
-    if (cli_menus_keyed(name, &item) &&
+    if (cli_menus_keyed(&(CliMenusCfg){.name = name, .item = &item}) &&
         EMBED_CALL(window_name_among, GuiWindowCtx, .name = item.command, .words = s_own_commands,
                    .count = sizeof(s_own_commands) / sizeof(s_own_commands[0])))
     {
@@ -6554,15 +6568,15 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
     cli_notices_pointer();
     if (hit->hit == CLI_HIT_MENU_TITLE)
     {
-        cli_menus_title_press(hit->index);
+        cli_menus_title_press(&(CliMenusCfg){.at = hit->index});
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         return;
     }
     if (hit->hit == CLI_HIT_MENU_ROW)
     {
         CliItem chosen;
-        const int chose =
-            (hit->level < g_cli_menus_open.levels) && cli_menus_row_press(hit->level, hit->index, &chosen);
+        const int chose = (hit->level < g_cli_menus_open.levels) &&
+                          cli_menus_row_press(&(CliMenusCfg){.level = hit->level, .at = hit->index, .chosen = &chosen});
         EMBED_CALL(window_menu_chosen, GuiWindowCtx, .window = window, .on = chose, .item = &chosen);
         return;
     }
@@ -6593,7 +6607,11 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         if (EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = hit->index, .root = cli_command_line_root()))
         {
             const GuiRect crumb = EMBED_CALL(gui_crumbs.place, GuiCrumbsCfg, .index = hit->index);
-            cli_menus_own_open(NULL, cli_menus_own_count(), CLI_MENU_PLACE_POINT, crumb.x, crumb.y);
+            cli_menus_own_open(&(CliMenusCfg){.rows = NULL,
+                                              .count = cli_menus_own_count(),
+                                              .place = CLI_MENU_PLACE_POINT,
+                                              .x = crumb.x,
+                                              .y = crumb.y});
             EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         }
         return;
@@ -7573,12 +7591,12 @@ static void window_move(const GuiInputHandlerCfg *args)
     // the menus mark the title or the row the pointer moved onto
     if (moved.hit == CLI_HIT_MENU_TITLE)
     {
-        cli_menus_title_move(moved.index);
+        cli_menus_title_move(&(CliMenusCfg){.at = moved.index});
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
     }
     else if (moved.hit == CLI_HIT_MENU_ROW)
     {
-        cli_menus_row_move(moved.level, moved.index);
+        cli_menus_row_move(&(CliMenusCfg){.level = moved.level, .at = moved.index});
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
     }
     // a drag in the editor chooses in it; else the panels follow the pointer
@@ -7735,7 +7753,7 @@ EMBED_INLINE int window_tab_menu(const GuiWindowCtx *args)
     }
     // the rows the list's Tab popup gives, each run with the view's key
     cli_menus_own_begin();
-    return cli_menus_popup("Tab", key);
+    return cli_menus_popup(&(CliMenusCfg){.title = "Tab", .item_args = key});
 }
 
 // the editor's menu built as the menus' own rows from the catalog's items: Go to Definition, Peek Definition, Find
@@ -7775,7 +7793,7 @@ EMBED_INLINE int window_editor_menu(const GuiWindowCtx *args)
         }
         else
         {
-            (void)cli_menus_own_named(s_items[at], "");
+            (void)cli_menus_own_named(&(CliMenusCfg){.command = s_items[at], .item_args = ""});
         }
     }
     return 1;
@@ -7799,7 +7817,11 @@ static void window_menu(const GuiInputHandlerCfg *args)
     int built = 0;
     if ((asked.hit >= CLI_HIT_TERMINAL) && (asked.hit <= CLI_HIT_TERMINAL_PANEL))
     {
-        cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_POINT, x, y);
+        cli_menus_own_open(&(CliMenusCfg){.rows = cli_terminal_tabs_menu(),
+                                          .count = CLI_TERMINAL_MENU_ROWS,
+                                          .place = CLI_MENU_PLACE_POINT,
+                                          .x = x,
+                                          .y = y});
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         return;
     }
@@ -7835,7 +7857,8 @@ static void window_menu(const GuiInputHandlerCfg *args)
     }
     if (built)
     {
-        cli_menus_own_open(NULL, cli_menus_own_count(), CLI_MENU_PLACE_POINT, x, y);
+        cli_menus_own_open(&(CliMenusCfg){
+            .rows = NULL, .count = cli_menus_own_count(), .place = CLI_MENU_PLACE_POINT, .x = x, .y = y});
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
     }
 }

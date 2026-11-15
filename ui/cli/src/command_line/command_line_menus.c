@@ -81,12 +81,14 @@ static void menus_chains(const CommandLineChainsCtx *args)
         if ((item->list != 0u) && (args->depth < CLI_MENU_CHAIN_DEPTH))
         {
             (void)mmgr_line_finish(&usage);
-            const unsigned int count = cli_rows_count(item->list);
-            CliItem *const under = cli_items_alloc(count);
-            const unsigned int rows = (under != NULL) ? cli_menu_rows(item->list, under, count) : 0u;
+            const unsigned int count = cli_rows_count(&(CliMenusCfg){.list = item->list});
+            CliItem *const under = cli_items_alloc(&(CliMenusCfg){.count = count});
+            const unsigned int rows =
+                (under != NULL) ? cli_menu_rows(&(CliMenusCfg){.list = item->list, .items = under, .capacity = count})
+                                : 0u;
             menus_chains(
                 &(CommandLineChainsCtx){.words = line, .items = under, .count = rows, .depth = args->depth + 1u});
-            cli_items_release(under);
+            cli_items_release(&(CliMenusCfg){.items = under});
             continue;
         }
         mmgr_line_ch(&usage, ' ');
@@ -102,8 +104,8 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
 {
     char word_text[CLI_LABEL_MAX_LEN];
     EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word_text);
-    const unsigned int total = cli_menu_items_count(args->menu);
-    CliItem *const rows = cli_items_alloc(total);
+    const unsigned int total = cli_menu_items_count(&(CliMenusCfg){.menu = args->menu});
+    CliItem *const rows = cli_items_alloc(&(CliMenusCfg){.count = total});
     const unsigned int items = (rows != NULL)
                                    ? EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
                                                 .menu = args->menu, .items = rows, .capacity = total)
@@ -114,7 +116,7 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
     mmgr_line_put(&first, word_text);
     (void)mmgr_line_finish(&first);
     menus_chains(&(CommandLineChainsCtx){.words = words, .items = rows, .count = items, .depth = 0u});
-    cli_items_release(rows);
+    cli_items_release(&(CliMenusCfg){.items = rows});
     char split[CLI_LABEL_MAX_LEN];
     char group[1][CLI_LABEL_MAX_LEN];
     if (EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = args->menu, .groups = group,

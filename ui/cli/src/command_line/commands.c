@@ -323,15 +323,16 @@ static unsigned long long commands_own_keys_at(const char *command)
     return CLI_TEXT_NONE;
 }
 
-void cli_commands_keys_own(const char *command, const char *keys)
+void cli_commands_keys_own(const CliMenusCfg *args)
 {
-    const unsigned long long command_length = cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_LABEL_MAX_LEN});
-    const unsigned long long keys_length = cellul.len(&(CatenaFinitaCfg){.src = keys, .cap = CLI_LABEL_MAX_LEN});
+    const unsigned long long command_length =
+        cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_LABEL_MAX_LEN});
+    const unsigned long long keys_length = cellul.len(&(CatenaFinitaCfg){.src = args->keys, .cap = CLI_LABEL_MAX_LEN});
     if ((command_length == 0ULL) || (keys_length == 0ULL))
     {
         return;
     }
-    // the pair naming the command, where one does, else the count: the pair at `at`, read each in turn
+    // the pair naming the args->command, where one does, else the count: the pair at `at`, read each in turn
     unsigned int at = 0u;
     CommandsOwnKey pair = {0ULL, 0ULL};
     int named_already = 0;
@@ -353,15 +354,15 @@ void cli_commands_keys_own(const char *command, const char *keys)
                                                                 .dst = named,
                                                                 .bytes = (embed_word)named_length});
         named[named_length] = '\0';
-        named_already = cellul.eq(&(CatenaFinitaCfg){.src = named, .other = command, .cap = CLI_LABEL_MAX_LEN});
+        named_already = cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->command, .cap = CLI_LABEL_MAX_LEN});
         at += named_already ? 0u : 1u;
     }
     const unsigned long long pair_at = (at == s_keys_own.count)
                                            ? commands_cell_claim(&s_keys_own.pair, sizeof(CommandsOwnKey))
                                            : (unsigned long long)at * sizeof(CommandsOwnKey);
     const unsigned long long command_at =
-        (at == s_keys_own.count) ? commands_text_put(&s_keys_own.text, command, command_length) : pair.command_at;
-    const unsigned long long keys_at = commands_text_put(&s_keys_own.text, keys, keys_length);
+        (at == s_keys_own.count) ? commands_text_put(&s_keys_own.text, args->command, command_length) : pair.command_at;
+    const unsigned long long keys_at = commands_text_put(&s_keys_own.text, args->keys, keys_length);
     if ((pair_at == CLI_TEXT_NONE) || (command_at == CLI_TEXT_NONE) || (keys_at == CLI_TEXT_NONE))
     {
         return;
@@ -511,11 +512,11 @@ static unsigned int cli_flat_count(const CommandsCtx *args)
     return count;
 }
 
-unsigned int cli_menu_items_count(unsigned int menu)
+unsigned int cli_menu_items_count(const CliMenusCfg *args)
 {
     unsigned int menu_token = 0u;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)menu * sizeof(unsigned int),
+                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
                                                             .dst = &menu_token,
                                                             .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "items");
@@ -524,42 +525,44 @@ unsigned int cli_menu_items_count(unsigned int menu)
                : 0u;
 }
 
-unsigned int cli_rows_count(unsigned int list)
+unsigned int cli_rows_count(const CliMenusCfg *args)
 {
-    return (list != 0u) ? s_tokens[list].count : 0u;
+    return (args->list != 0u) ? s_tokens[args->list].count : 0u;
 }
 
-CliItem *cli_items_alloc(unsigned int count)
+CliItem *cli_items_alloc(const CliMenusCfg *args)
 {
-    if (count == 0u)
+    if (args->count == 0u)
     {
         return NULL;
     }
     // the items, and after them a copy of the own keys' text, which the items' keys point into
     CliItem *const items = g_cli_guard->temporary_buf_alloc(
-        ((unsigned long long)count * sizeof(CliItem)) + s_keys_own.text.used, g_cli_command_line_owner);
+        ((unsigned long long)args->count * sizeof(CliItem)) + s_keys_own.text.used, g_cli_command_line_owner);
     if ((items != NULL) && (s_keys_own.text.used != 0ULL))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_keys_own.text.cell, .dst = (void *)(items + count), .bytes = (embed_word)s_keys_own.text.used});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                .dst = (void *)(items + args->count),
+                                                                .bytes = (embed_word)s_keys_own.text.used});
     }
     return items;
 }
 
-void cli_items_release(CliItem *items)
+void cli_items_release(const CliMenusCfg *args)
 {
-    g_cli_guard->persistent_buf_release(items, g_cli_command_line_owner);
+    g_cli_guard->persistent_buf_release(args->items, g_cli_command_line_owner);
 }
 
-unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capacity)
+unsigned int cli_menu_rows(const CliMenusCfg *args)
 {
     unsigned int count = 0u;
-    unsigned int at = list + 1u;
-    // the own keys' text lies after the items of a cell of cli_items_alloc
-    const char *const keys_tail = (const char *)(const void *)(items + capacity);
-    for (unsigned int each = 0u; (list != 0u) && (each < s_tokens[list].count) && (count < capacity); each += 1u)
+    unsigned int at = args->list + 1u;
+    // the own keys' text lies after the args->items of a cell of cli_items_alloc
+    const char *const keys_tail = (const char *)(const void *)(args->items + args->capacity);
+    for (unsigned int each = 0u; (args->list != 0u) && (each < s_tokens[args->list].count) && (count < args->capacity);
+         each += 1u)
     {
-        CliItem *const item = &items[count];
+        CliItem *const item = &args->items[count];
         if (s_tokens[at].type == CFG_JSON_OBJECT)
         {
             EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = item, .keys_tail = keys_tail);
@@ -582,23 +585,23 @@ unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capac
     return count;
 }
 
-unsigned int cli_menu_list(unsigned int menu)
+unsigned int cli_menu_list(const CliMenusCfg *args)
 {
     unsigned int menu_token = 0u;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)menu * sizeof(unsigned int),
+                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
                                                             .dst = &menu_token,
                                                             .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "items");
     return ((list != 0u) && (s_tokens[list].type == CFG_JSON_ARRAY)) ? list : 0u;
 }
 
-int cli_menu_displayed(unsigned int menu)
+int cli_menu_displayed(const CliMenusCfg *args)
 {
-    const unsigned int list = cli_menu_list(menu);
+    const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = args->menu});
     unsigned int menu_token = 0u;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)menu * sizeof(unsigned int),
+                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
                                                             .dst = &menu_token,
                                                             .bytes = sizeof(menu_token)});
     const unsigned int popup = cfg_json_member(s_text, s_tokens, menu_token, "popup");
@@ -677,8 +680,8 @@ int cli_setting_node(const CliCommandsMenuCfg *args)
     unsigned int menu = 0u;
     return cli_commands_read(&(CliCommandsCfg){.err_msg = &err_msg}) &&
            cli_menu_by_name(&(CliCommandsWordCfg){.word_text = CLI_SETTINGS_MENU, .menu_pointer = &menu}) &&
-           EMBED_CALL(cli_chain_walk, CommandsCtx, .list = cli_menu_list(menu), .word_text = args->word_text,
-                      .item = args->item);
+           EMBED_CALL(cli_chain_walk, CommandsCtx, .list = cli_menu_list(&(CliMenusCfg){.menu = menu}),
+                      .word_text = args->word_text, .item = args->item);
 }
 
 int cli_chain_item(const CliCommandsMenuCfg *args)
@@ -691,8 +694,8 @@ int cli_chain_item(const CliCommandsMenuCfg *args)
     }
     for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
     {
-        if (EMBED_CALL(cli_chain_walk, CommandsCtx, .list = cli_menu_list(menu), .word_text = args->word_text,
-                       .item = args->item))
+        if (EMBED_CALL(cli_chain_walk, CommandsCtx, .list = cli_menu_list(&(CliMenusCfg){.menu = menu}),
+                       .word_text = args->word_text, .item = args->item))
         {
             return 1;
         }
@@ -748,19 +751,19 @@ unsigned int cli_menu_titles(void)
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < s_menus; at += 1u)
     {
-        count += cli_menu_displayed(at) ? 1u : 0u;
+        count += cli_menu_displayed(&(CliMenusCfg){.menu = at}) ? 1u : 0u;
     }
     return count;
 }
 
-unsigned int cli_menu_title_menu(unsigned int at)
+unsigned int cli_menu_title_menu(const CliMenusCfg *args)
 {
     unsigned int seen = 0u;
     for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
     {
-        if (cli_menu_displayed(menu))
+        if (cli_menu_displayed(&(CliMenusCfg){.menu = menu}))
         {
-            if (seen == at)
+            if (seen == args->at)
             {
                 return menu;
             }
@@ -770,15 +773,15 @@ unsigned int cli_menu_title_menu(unsigned int at)
     return 0u;
 }
 
-const char *cli_menu_title_text(unsigned int menu)
+const char *cli_menu_title_text(const CliMenusCfg *args)
 {
-    if (menu >= s_menus)
+    if (args->menu >= s_menus)
     {
         return "";
     }
     unsigned int menu_token = 0u;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)menu * sizeof(unsigned int),
+                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
                                                             .dst = &menu_token,
                                                             .bytes = sizeof(menu_token)});
     return EMBED_CALL(cli_member_string, CommandsCtx, .object = menu_token, .name = "title");
@@ -827,42 +830,42 @@ static unsigned int commands_list_rows(unsigned int list)
     return count;
 }
 
-int cli_menus_row(unsigned int level, unsigned int at, CliItem *item)
+int cli_menus_row(const CliMenusCfg *args)
 {
-    const CliMenuOpen *const menu = &g_cli_menus_open.level[level];
-    if ((level >= g_cli_menus_open.levels) || (at >= menu->rows))
+    const CliMenuOpen *const menu = &g_cli_menus_open.level[args->level];
+    if ((args->level >= g_cli_menus_open.levels) || (args->at >= menu->rows))
     {
         return 0;
     }
     if (menu->own_rows)
     {
-        return cli_menus_own_read(at, item);
+        return cli_menus_own_read(&(CliMenusCfg){.at = args->at, .item = args->item});
     }
     if (menu->own != NULL)
     {
-        *item = menu->own[at];
+        *args->item = menu->own[args->at];
         return 1;
     }
     if (menu->list != 0u)
     {
-        return commands_list_row(menu->list, at, item);
+        return commands_list_row(menu->list, args->at, args->item);
     }
     // the titles folded from the bar, each a row of its menu's items
-    const unsigned int title_menu = cli_menu_title_menu(g_cli_menus_open.displayed + at);
-    *item = (CliItem){.label = cli_menu_title_text(title_menu),
-                      .command = "",
-                      .keys = "",
-                      .args = "",
-                      .needs = "",
-                      .checks = "",
-                      .list = cli_menu_list(title_menu)};
+    const unsigned int title_menu = cli_menu_title_menu(&(CliMenusCfg){.at = g_cli_menus_open.displayed + args->at});
+    *args->item = (CliItem){.label = cli_menu_title_text(&(CliMenusCfg){.menu = title_menu}),
+                            .command = "",
+                            .keys = "",
+                            .args = "",
+                            .needs = "",
+                            .checks = "",
+                            .list = cli_menu_list(&(CliMenusCfg){.menu = title_menu})};
     return 1;
 }
 
-int cli_menus_selectable(unsigned int level, unsigned int at)
+int cli_menus_selectable(const CliMenusCfg *args)
 {
     CliItem item;
-    if (!cli_menus_row(level, at, &item) || item.line)
+    if (!cli_menus_row(&(CliMenusCfg){.level = args->level, .at = args->at, .item = &item}) || item.line)
     {
         return 0;
     }
@@ -882,7 +885,7 @@ static int commands_row_step(unsigned int level, int from, int by)
     for (int step = 0; (rows != 0) && (step < rows); step += 1)
     {
         at = ((at + by) % rows + rows) % rows;
-        if (cli_menus_selectable(level, (unsigned int)at))
+        if (cli_menus_selectable(&(CliMenusCfg){.level = level, .at = (unsigned int)at}))
         {
             return at;
         }
@@ -897,73 +900,77 @@ static void commands_level_open(unsigned int level, unsigned int list, const Cli
     g_cli_menus_open.level[level] = (CliMenuOpen){list, own, 0, rows, -1, -1, g_cli_menus_open.serials};
 }
 
-void cli_menus_close(unsigned int level)
+void cli_menus_close(const CliMenusCfg *args)
 {
     g_cli_menus_open.rest_due_ms = 0ULL;
-    if (level < g_cli_menus_open.levels)
+    if (args->level < g_cli_menus_open.levels)
     {
-        g_cli_menus_open.levels = level;
-        if (level != 0u)
+        g_cli_menus_open.levels = args->level;
+        if (args->level != 0u)
         {
-            g_cli_menus_open.level[level - 1u].opened = -1;
+            g_cli_menus_open.level[args->level - 1u].opened = -1;
         }
     }
-    if (level == 0u)
+    if (args->level == 0u)
     {
         g_cli_menus_open.open = -1;
     }
 }
 
-void cli_menus_bar(unsigned int displayed, int folded)
+void cli_menus_bar(const CliMenusCfg *args)
 {
-    g_cli_menus_open.displayed = displayed;
-    g_cli_menus_open.folded = folded;
+    g_cli_menus_open.displayed = args->displayed;
+    g_cli_menus_open.folded = args->folded;
 }
 
-void cli_menus_title_open(unsigned int at, int marked)
+void cli_menus_title_open(const CliMenusCfg *args)
 {
-    cli_menus_close(0u);
+    cli_menus_close(&(CliMenusCfg){.level = 0u});
     const unsigned int titles = cli_menu_titles();
-    if (g_cli_menus_open.folded && (at >= g_cli_menus_open.displayed))
+    if (g_cli_menus_open.folded && (args->at >= g_cli_menus_open.displayed))
     {
         commands_level_open(0u, 0u, NULL,
                             (titles > g_cli_menus_open.displayed) ? (titles - g_cli_menus_open.displayed) : 0u);
     }
     else
     {
-        const unsigned int list = (at < titles) ? cli_menu_list(cli_menu_title_menu(at)) : 0u;
+        const unsigned int list =
+            (args->at < titles)
+                ? cli_menu_list(&(CliMenusCfg){.menu = cli_menu_title_menu(&(CliMenusCfg){.at = args->at})})
+                : 0u;
         commands_level_open(0u, list, NULL, commands_list_rows(list));
     }
     g_cli_menus_open.levels = 1u;
     // the titles are fewer than an int counts
-    g_cli_menus_open.open = (int)at;
-    g_cli_menus_open.level[0].pointed = marked ? commands_row_step(0u, -1, 1) : -1;
+    g_cli_menus_open.open = (int)args->at;
+    g_cli_menus_open.level[0].pointed = args->marked ? commands_row_step(0u, -1, 1) : -1;
 }
 
-void cli_menus_row_open(unsigned int level, unsigned int at, int marked)
+void cli_menus_row_open(const CliMenusCfg *args)
 {
     CliItem item;
-    if (!cli_menus_row(level, at, &item) || (item.list == 0u) || ((level + 1u) >= CLI_MENU_LEVELS))
+    if (!cli_menus_row(&(CliMenusCfg){.level = args->level, .at = args->at, .item = &item}) || (item.list == 0u) ||
+        ((args->level + 1u) >= CLI_MENU_LEVELS))
     {
         return;
     }
-    cli_menus_close(level + 1u);
-    commands_level_open(level + 1u, item.list, NULL, commands_list_rows(item.list));
-    g_cli_menus_open.levels = level + 2u;
+    cli_menus_close(&(CliMenusCfg){.level = args->level + 1u});
+    commands_level_open(args->level + 1u, item.list, NULL, commands_list_rows(item.list));
+    g_cli_menus_open.levels = args->level + 2u;
     // the row is among the rows, which an int counts
-    g_cli_menus_open.level[level].opened = (int)at;
-    g_cli_menus_open.level[level + 1u].pointed = marked ? commands_row_step(level + 1u, -1, 1) : -1;
+    g_cli_menus_open.level[args->level].opened = (int)args->at;
+    g_cli_menus_open.level[args->level + 1u].pointed = args->marked ? commands_row_step(args->level + 1u, -1, 1) : -1;
 }
 
-void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int place, int x, int y)
+void cli_menus_own_open(const CliMenusCfg *args)
 {
-    cli_menus_close(0u);
-    commands_level_open(0u, 0u, rows, count);
-    g_cli_menus_open.level[0].own_rows = rows == NULL;
+    cli_menus_close(&(CliMenusCfg){.level = 0u});
+    commands_level_open(0u, 0u, args->rows, args->count);
+    g_cli_menus_open.level[0].own_rows = args->rows == NULL;
     g_cli_menus_open.levels = 1u;
-    g_cli_menus_open.place = place;
-    g_cli_menus_open.x = x;
-    g_cli_menus_open.y = y;
+    g_cli_menus_open.place = args->place;
+    g_cli_menus_open.x = args->x;
+    g_cli_menus_open.y = args->y;
     g_cli_menus_open.level[0].pointed = commands_row_step(0u, -1, 1);
 }
 
@@ -1002,15 +1009,15 @@ void cli_menus_own_begin(void)
     s_own.text.used = 0ULL;
 }
 
-void cli_menus_own_row(const CliItem *item)
+void cli_menus_own_row(const CliMenusCfg *args)
 {
     const unsigned long long at = commands_cell_claim(&s_own.row, sizeof(CommandsOwnRow));
     if (at == CLI_TEXT_NONE)
     {
         return;
     }
-    const CommandsOwnRow row = {*item, commands_own_text(item->label, CLI_LABEL_MAX_LEN),
-                                commands_own_text(item->args, CLI_PATH_MAX_LEN)};
+    const CommandsOwnRow row = {*args->item, commands_own_text(args->item->label, CLI_LABEL_MAX_LEN),
+                                commands_own_text(args->item->args, CLI_PATH_MAX_LEN)};
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_own.row.cell, .offset = (embed_word)at, .src = &row, .bytes = sizeof(row)});
     s_own.count += 1u;
@@ -1018,59 +1025,61 @@ void cli_menus_own_row(const CliItem *item)
 
 void cli_menus_own_line(void)
 {
-    cli_menus_own_row(
-        &(CliItem){.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = "", .line = 1});
+    cli_menus_own_row(&(CliMenusCfg){
+        .item = &(CliItem){.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = "", .line = 1}});
 }
 
-int cli_menus_own_named(const char *command, const char *args)
+int cli_menus_own_named(const CliMenusCfg *args)
 {
     CliItem item;
-    if (!cli_menus_named(command, &item))
+    if (!cli_menus_named(&(CliMenusCfg){.name = args->command, .item = &item}))
     {
         return 0;
     }
-    item.args = args;
-    cli_menus_own_row(&item);
+    item.args = args->item_args;
+    cli_menus_own_row(&(CliMenusCfg){.item = &item});
     return 1;
 }
 
-int cli_menus_popup(const char *title, const char *args)
+int cli_menus_popup(const CliMenusCfg *args)
 {
     for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
     {
-        if (cli_menu_displayed(menu) ||
-            !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(menu), .other = title, .cap = CLI_LABEL_MAX_LEN}))
+        if (cli_menu_displayed(&(CliMenusCfg){.menu = menu}) ||
+            !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(&(CliMenusCfg){.menu = menu}),
+                                          .other = args->title,
+                                          .cap = CLI_LABEL_MAX_LEN}))
         {
             continue;
         }
-        const unsigned int list = cli_menu_list(menu);
+        const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = menu});
         const unsigned int rows = commands_list_rows(list);
         for (unsigned int at = 0u; at < rows; at += 1u)
         {
             CliItem item;
             (void)commands_list_row(list, at, &item);
             // a row runs with the part's word in place of the pattern the list gives
-            item.args = item.line ? "" : args;
-            cli_menus_own_row(&item);
+            item.args = item.line ? "" : args->item_args;
+            cli_menus_own_row(&(CliMenusCfg){.item = &item});
         }
         return 1;
     }
     return 0;
 }
 
-void cli_menus_own_relabel(unsigned int at, const char *label)
+void cli_menus_own_relabel(const CliMenusCfg *args)
 {
-    if (at >= s_own.count)
+    if (args->at >= s_own.count)
     {
         return;
     }
     CommandsOwnRow row;
     memor.set(&(MemoriaCfg){.dst = &row, .val = 0, .bytes = sizeof(row)});
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_own.row.cell, .offset = (embed_word)at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
-    row.label_at = commands_own_text(label, CLI_LABEL_MAX_LEN);
+        .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
+    row.label_at = commands_own_text(args->label, CLI_LABEL_MAX_LEN);
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-        .cell = s_own.row.cell, .offset = (embed_word)at * sizeof(row), .src = &row, .bytes = sizeof(row)});
+        .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .src = &row, .bytes = sizeof(row)});
 }
 
 unsigned int cli_menus_own_count(void)
@@ -1078,17 +1087,17 @@ unsigned int cli_menus_own_count(void)
     return s_own.count;
 }
 
-int cli_menus_own_read(unsigned int at, CliItem *item)
+int cli_menus_own_read(const CliMenusCfg *args)
 {
-    if (at >= s_own.count)
+    if (args->at >= s_own.count)
     {
         return 0;
     }
     CommandsOwnRow row;
     memor.set(&(MemoriaCfg){.dst = &row, .val = 0, .bytes = sizeof(row)});
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_own.row.cell, .offset = (embed_word)at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
-    *item = row.item;
+        .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
+    *args->item = row.item;
     if (row.label_at != CLI_TEXT_NONE)
     {
         const unsigned long long label_measured = g_cli_guard->movable_buf_measure(
@@ -1102,7 +1111,7 @@ int cli_menus_own_read(unsigned int at, CliItem *item)
                                                                 .dst = s_row_label,
                                                                 .bytes = (embed_word)label_length});
         s_row_label[label_length] = '\0';
-        item->label = s_row_label;
+        args->item->label = s_row_label;
     }
     if (row.args_at != CLI_TEXT_NONE)
     {
@@ -1117,78 +1126,81 @@ int cli_menus_own_read(unsigned int at, CliItem *item)
                                                                 .dst = s_row_args,
                                                                 .bytes = (embed_word)args_length});
         s_row_args[args_length] = '\0';
-        item->args = s_row_args;
+        args->item->args = s_row_args;
     }
     return 1;
 }
 
-const char *cli_menus_own_word(const char *args)
+const char *cli_menus_own_word(const CliMenusCfg *args)
 {
-    // the catalog's items carry the pattern of their args in the catalog's strings; a part's row carries the word it
-    // runs with, which is in the part's own texts
+    // the catalog's items carry the pattern of their args->item_args in the catalog's strings; a part's row carries the
+    // word it runs with, which is in the part's own texts
     const char *const strings = (s_string != NULL) ? (const char *)(const void *)(s_string + s_count) : NULL;
-    const int catalog = (strings != NULL) && ((embed_word)args >= (embed_word)strings) &&
-                        ((embed_word)args < (embed_word)(strings + s_size + s_count));
-    return ((args == NULL) || (args[0] == '\0') || catalog) ? NULL : args;
+    const int catalog = (strings != NULL) && ((embed_word)args->item_args >= (embed_word)strings) &&
+                        ((embed_word)args->item_args < (embed_word)(strings + s_size + s_count));
+    return ((args->item_args == NULL) || (args->item_args[0] == '\0') || catalog) ? NULL : args->item_args;
 }
 
-void cli_menus_title_press(unsigned int at)
+void cli_menus_title_press(const CliMenusCfg *args)
 {
     // a title's place on the bar is far inside what an int represents
-    if (g_cli_menus_open.open == (int)at)
+    if (g_cli_menus_open.open == (int)args->at)
     {
-        cli_menus_close(0u);
+        cli_menus_close(&(CliMenusCfg){.level = 0u});
     }
     else
     {
-        cli_menus_title_open(at, 1);
+        cli_menus_title_open(&(CliMenusCfg){.at = args->at, .marked = 1});
     }
 }
 
 // the row `at` of the menu at `level` chosen into `chosen`, every menu closed: 1 where it has a command
 static int commands_choose(unsigned int level, unsigned int at, CliItem *chosen)
 {
-    const int read = cli_menus_row(level, at, chosen);
-    cli_menus_close(0u);
+    const int read = cli_menus_row(&(CliMenusCfg){.level = level, .at = at, .item = chosen});
+    cli_menus_close(&(CliMenusCfg){.level = 0u});
     return read && (chosen->command[0] != '\0');
 }
 
-int cli_menus_row_press(unsigned int level, unsigned int at, CliItem *chosen)
+int cli_menus_row_press(const CliMenusCfg *args)
 {
     CliItem item;
-    if (!cli_menus_selectable(level, at) || !cli_menus_row(level, at, &item))
+    if (!cli_menus_selectable(&(CliMenusCfg){.level = args->level, .at = args->at}) ||
+        !cli_menus_row(&(CliMenusCfg){.level = args->level, .at = args->at, .item = &item}))
     {
         return 0;
     }
     if (item.list != 0u)
     {
         // a row's place is far inside what an int represents
-        g_cli_menus_open.level[level].pointed = (int)at;
-        cli_menus_row_open(level, at, 1);
+        g_cli_menus_open.level[args->level].pointed = (int)args->at;
+        cli_menus_row_open(&(CliMenusCfg){.level = args->level, .at = args->at, .marked = 1});
         return 0;
     }
-    return commands_choose(level, at, chosen);
+    return commands_choose(args->level, args->at, args->chosen);
 }
 
-void cli_menus_title_move(unsigned int at)
+void cli_menus_title_move(const CliMenusCfg *args)
 {
     // a title's place on the bar is far inside what an int represents
-    if ((g_cli_menus_open.open >= 0) && ((int)at != g_cli_menus_open.open))
+    if ((g_cli_menus_open.open >= 0) && ((int)args->at != g_cli_menus_open.open))
     {
-        cli_menus_title_open(at, 0);
+        cli_menus_title_open(&(CliMenusCfg){.at = args->at, .marked = 0});
     }
 }
 
-void cli_menus_row_move(unsigned int level, unsigned int at)
+void cli_menus_row_move(const CliMenusCfg *args)
 {
     CliItem item;
-    if ((level >= g_cli_menus_open.levels) || !cli_menus_selectable(level, at) || !cli_menus_row(level, at, &item))
+    if ((args->level >= g_cli_menus_open.levels) ||
+        !cli_menus_selectable(&(CliMenusCfg){.level = args->level, .at = args->at}) ||
+        !cli_menus_row(&(CliMenusCfg){.level = args->level, .at = args->at, .item = &item}))
     {
         return;
     }
-    CliMenuOpen *const menu = &g_cli_menus_open.level[level];
+    CliMenuOpen *const menu = &g_cli_menus_open.level[args->level];
     // a row's place is far inside what an int represents
-    const int index = (int)at;
+    const int index = (int)args->at;
     if (menu->pointed == index)
     {
         return;
@@ -1198,8 +1210,8 @@ void cli_menus_row_move(unsigned int level, unsigned int at)
     // sibling close once it has rested on a row without any; a rest begun before is let go
     const int more = item.list != 0u;
     const int opens = more && (menu->opened != index);
-    const int closes = !more && (g_cli_menus_open.levels > (level + 1u));
-    g_cli_menus_open.rest_level = level;
+    const int closes = !more && (g_cli_menus_open.levels > (args->level + 1u));
+    g_cli_menus_open.rest_level = args->level;
     g_cli_menus_open.rest_index = opens ? index : -1;
     g_cli_menus_open.rest_due_ms = (opens || closes) ? (cli_clock_milliseconds() + CLI_MENU_REST_MS) : 0ULL;
 }
@@ -1214,11 +1226,12 @@ int cli_menus_rest(void)
     if (g_cli_menus_open.rest_index >= 0)
     {
         // the index saved is a row's
-        cli_menus_row_open(g_cli_menus_open.rest_level, (unsigned int)g_cli_menus_open.rest_index, 0);
+        cli_menus_row_open(&(CliMenusCfg){
+            .level = g_cli_menus_open.rest_level, .at = (unsigned int)g_cli_menus_open.rest_index, .marked = 0});
     }
     else
     {
-        cli_menus_close(g_cli_menus_open.rest_level + 1u);
+        cli_menus_close(&(CliMenusCfg){.level = g_cli_menus_open.rest_level + 1u});
     }
     return 1;
 }
@@ -1248,7 +1261,8 @@ static int commands_title_character(const char *name)
     const unsigned int titles = cli_menu_titles();
     for (unsigned int at = 0u; (at < titles) && (at < g_cli_menus_open.displayed); at += 1u)
     {
-        const char *const text = cli_menu_title_text(cli_menu_title_menu(at));
+        const char *const text =
+            cli_menu_title_text(&(CliMenusCfg){.menu = cli_menu_title_menu(&(CliMenusCfg){.at = at})});
         char character = '\0';
         unsigned int byte = 0u;
         while ((character == '\0') && (text[byte] != '\0'))
@@ -1307,17 +1321,18 @@ static int commands_level_key(const char *name, unsigned int level, CliItem *cho
     CliMenuOpen *const menu = &g_cli_menus_open.level[level];
     const unsigned int slots = g_cli_menus_open.displayed + (g_cli_menus_open.folded ? 1u : 0u);
     CliItem row;
-    const int pointed = (menu->pointed >= 0) && cli_menus_row(level, (unsigned int)menu->pointed, &row);
+    const int pointed = (menu->pointed >= 0) &&
+                        cli_menus_row(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed, .item = &row});
     if (commands_is(name, "Right"))
     {
         if (pointed && (row.list != 0u))
         {
-            cli_menus_row_open(level, (unsigned int)menu->pointed, 1);
+            cli_menus_row_open(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed, .marked = 1});
         }
         else if ((level == 0u) && (slots != 0u) && (g_cli_menus_open.open >= 0))
         {
             // the title open is among the titles
-            cli_menus_title_open(((unsigned int)g_cli_menus_open.open + 1u) % slots, 1);
+            cli_menus_title_open(&(CliMenusCfg){.at = ((unsigned int)g_cli_menus_open.open + 1u) % slots, .marked = 1});
         }
         return 1;
     }
@@ -1325,12 +1340,13 @@ static int commands_level_key(const char *name, unsigned int level, CliItem *cho
     {
         if (level > 0u)
         {
-            cli_menus_close(level);
+            cli_menus_close(&(CliMenusCfg){.level = level});
         }
         else if ((slots != 0u) && (g_cli_menus_open.open >= 0))
         {
             // the title open is among the titles
-            cli_menus_title_open(((unsigned int)g_cli_menus_open.open + slots - 1u) % slots, 1);
+            cli_menus_title_open(
+                &(CliMenusCfg){.at = ((unsigned int)g_cli_menus_open.open + slots - 1u) % slots, .marked = 1});
         }
         return 1;
     }
@@ -1338,9 +1354,9 @@ static int commands_level_key(const char *name, unsigned int level, CliItem *cho
     {
         if (pointed && (row.list != 0u))
         {
-            cli_menus_row_open(level, (unsigned int)menu->pointed, 1);
+            cli_menus_row_open(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed, .marked = 1});
         }
-        else if (pointed && cli_menus_selectable(level, (unsigned int)menu->pointed))
+        else if (pointed && cli_menus_selectable(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed}))
         {
             *chose = commands_choose(level, (unsigned int)menu->pointed, chosen);
         }
@@ -1355,7 +1371,8 @@ static int commands_level_key(const char *name, unsigned int level, CliItem *cho
         {
             const int at = ((menu->pointed + step) % rows + rows) % rows;
             CliItem item;
-            if (cli_menus_selectable(level, (unsigned int)at) && cli_menus_row(level, (unsigned int)at, &item) &&
+            if (cli_menus_selectable(&(CliMenusCfg){.level = level, .at = (unsigned int)at}) &&
+                cli_menus_row(&(CliMenusCfg){.level = level, .at = (unsigned int)at, .item = &item}) &&
                 (item.label[0] != '\0') && (commands_lower(item.label[0]) == required))
             {
                 menu->pointed = at;
@@ -1366,19 +1383,19 @@ static int commands_level_key(const char *name, unsigned int level, CliItem *cho
     return 1;
 }
 
-int cli_menus_key(const char *name, CliItem *chosen, int *chose)
+int cli_menus_key(const CliMenusCfg *args)
 {
-    *chose = 0;
+    *args->chose = 0;
     int alt = 0;
     int modded = 0;
-    const char *const key = commands_key_read(name, &alt, &modded);
+    const char *const key = commands_key_read(args->name, &alt, &modded);
     if (alt && !modded)
     {
         const int title = commands_title_character(key);
         if (title >= 0)
         {
             // the title is among the titles
-            cli_menus_title_open((unsigned int)title, 1);
+            cli_menus_title_open(&(CliMenusCfg){.at = (unsigned int)title, .marked = 1});
             return 1;
         }
         return 0;
@@ -1391,7 +1408,7 @@ int cli_menus_key(const char *name, CliItem *chosen, int *chose)
     CliMenuOpen *const menu = &g_cli_menus_open.level[level];
     if (commands_is(key, "Escape") || commands_is(key, "Tab"))
     {
-        cli_menus_close(commands_is(key, "Tab") ? 0u : level);
+        cli_menus_close(&(CliMenusCfg){.level = commands_is(key, "Tab") ? 0u : level});
         return 1;
     }
     if (commands_is(key, "Down") || commands_is(key, "Up"))
@@ -1406,7 +1423,7 @@ int cli_menus_key(const char *name, CliItem *chosen, int *chose)
             commands_is(key, "Home") ? commands_row_step(level, -1, 1) : commands_row_step(level, (int)menu->rows, -1);
         return 1;
     }
-    return commands_level_key(key, level, chosen, chose);
+    return commands_level_key(key, level, args->chosen, args->chose);
 }
 
 // the modifiers of a key's name read off its front, Ctrl and Mod the same bit, into `mods`, and the key's own name
@@ -1440,16 +1457,17 @@ static const char *commands_mods_read(const char *name, unsigned long long lengt
     return name;
 }
 
-int cli_menus_keys_name(const char *keys, const char *name)
+int cli_menus_keys_name(const CliMenusCfg *args)
 {
     unsigned int keys_mods = 0u;
     unsigned long long keys_rest = 0ULL;
-    const char *const keys_key = commands_mods_read(
-        keys, cellul.len(&(CatenaFinitaCfg){.src = keys, .cap = CLI_LABEL_MAX_LEN}), &keys_mods, &keys_rest);
+    const char *const keys_key =
+        commands_mods_read(args->keys, cellul.len(&(CatenaFinitaCfg){.src = args->keys, .cap = CLI_LABEL_MAX_LEN}),
+                           &keys_mods, &keys_rest);
     unsigned int mods = 0u;
     unsigned long long rest = 0ULL;
     const char *const key =
-        commands_mods_read(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = 64ULL}), &mods, &rest);
+        commands_mods_read(args->name, cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = 64ULL}), &mods, &rest);
     return (keys_rest != 0ULL) && (keys_rest == rest) && (keys_mods == mods) &&
            (memor.cmp(&(MemoriaCfg){.src = keys_key, .other = key, .bytes = rest}) == 0);
 }
@@ -1470,7 +1488,8 @@ static int commands_flat_keyed(unsigned int list, const char *name, int by_comma
                 EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = item);
                 const int matched =
                     by_command ? cellul.eq(&(CatenaFinitaCfg){.src = item->command, .other = name, .cap = 64ULL})
-                               : ((item->keys[0] != '\0') && cli_menus_keys_name(item->keys, name) &&
+                               : ((item->keys[0] != '\0') &&
+                                  cli_menus_keys_name(&(CliMenusCfg){.keys = item->keys, .name = name}) &&
                                   ((g_cli_menus_open.disabled == NULL) || !g_cli_menus_open.disabled(item)));
                 if (matched)
                 {
@@ -1488,12 +1507,12 @@ static int commands_flat_keyed(unsigned int list, const char *name, int by_comma
     return 0;
 }
 
-int cli_menus_keyed(const char *name, CliItem *item)
+int cli_menus_keyed(const CliMenusCfg *args)
 {
     for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
     {
-        const unsigned int list = cli_menu_list(menu);
-        if ((list != 0u) && commands_flat_keyed(list, name, 0, item))
+        const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = menu});
+        if ((list != 0u) && commands_flat_keyed(list, args->name, 0, args->item))
         {
             return 1;
         }
@@ -1501,12 +1520,12 @@ int cli_menus_keyed(const char *name, CliItem *item)
     return 0;
 }
 
-int cli_menus_named(const char *name, CliItem *item)
+int cli_menus_named(const CliMenusCfg *args)
 {
     for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
     {
-        const unsigned int list = cli_menu_list(menu);
-        if ((list != 0u) && commands_flat_keyed(list, name, 1, item))
+        const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = menu});
+        if ((list != 0u) && commands_flat_keyed(list, args->name, 1, args->item))
         {
             return 1;
         }

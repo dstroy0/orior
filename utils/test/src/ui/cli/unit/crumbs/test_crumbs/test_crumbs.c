@@ -57,7 +57,7 @@ static void crumb_is(unsigned int at, unsigned int type, const char *text)
 static void menu_row_is(unsigned int at, const char *label, const char *command, const char *word)
 {
     CliItem row;
-    TEST_ASSERT_TRUE(cli_menus_own_read(at, &row));
+    TEST_ASSERT_TRUE(cli_menus_own_read(&(CliMenusCfg){.at = at, .item = &row}));
     TEST_ASSERT_EQUAL_STRING(label, row.label);
     TEST_ASSERT_EQUAL_STRING(command, row.command);
     TEST_ASSERT_EQUAL_STRING(word, row.args);

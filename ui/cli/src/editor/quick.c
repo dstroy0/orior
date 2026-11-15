@@ -103,11 +103,11 @@ typedef struct
     unsigned int *hit;
 } QuickBuild;
 
-// The quick open: whether it is open and is Search Everywhere; the tree, and the displayed view's key and its file's path,
-// empty for none; the typed text, bounded by CLI_QUICK_TEXT_MAX and ended, its bytes and the caret's byte; the rows'
-// movable cell, the rows first in it, their marks from `marks_at` and their text from `text_at`, and how many; the
-// chosen row, the rows scrolled off the top and the rows the box shows; whether the rows were asked while the tree was
-// read and the millisecond they were; the first Shift's millisecond, 0 for none; the menus' commands in a movable
+// The quick open: whether it is open and is Search Everywhere; the tree, and the displayed view's key and its file's
+// path, empty for none; the typed text, bounded by CLI_QUICK_TEXT_MAX and ended, its bytes and the caret's byte; the
+// rows' movable cell, the rows first in it, their marks from `marks_at` and their text from `text_at`, and how many;
+// the chosen row, the rows scrolled off the top and the rows the box shows; whether the rows were asked while the tree
+// was read and the millisecond they were; the first Shift's millisecond, 0 for none; the menus' commands in a movable
 // cell sized to them, how many, and whether they were read; and the texts of the last choice
 typedef struct
 {
@@ -138,7 +138,6 @@ typedef struct
 } Quick;
 
 static Quick s_quick;
-
 
 typedef struct
 {
@@ -203,8 +202,8 @@ EMBED_INLINE unsigned int quick_written(const QuickCtx *args)
 }
 
 // the marks of the characters `hits`, `hit_count` of them in order, that are in the `length` bytes of the build's text
-// at `at`, whose first character is the character `from` of what the hits count in, put after the build's marks as pairs of a
-// byte offset from `at` and bytes, a run of characters side by side one pair, at max `max` pairs: how many
+// at `at`, whose first character is the character `from` of what the hits count in, put after the build's marks as
+// pairs of a byte offset from `at` and bytes, a run of characters side by side one pair, at max `max` pairs: how many
 EMBED_INLINE unsigned int quick_marked(const QuickCtx *args)
 {
     QuickBuild *const build = args->build;
@@ -257,9 +256,9 @@ EMBED_INLINE void quick_said(const QuickCtx *args)
     row->label_length = EMBED_CALL(quick_written, QuickCtx, .build = build, .at = row->label);
 }
 
-// a file's row for `length` bytes of `text`, its path, with the places `hits` of its characters, `hit_count` of them, at
-// the place `line` and `column` from 1 where `line` is not 0, and the detail QUICK_OPENED after its folder where it is
-// one of the files `opened` last: its name the label, its folder the detail, the path what it opens
+// a file's row for `length` bytes of `text`, its path, with the places `hits` of its characters, `hit_count` of them,
+// at the place `line` and `column` from 1 where `line` is not 0, and the detail QUICK_OPENED after its folder where it
+// is one of the files `opened` last: its name the label, its folder the detail, the path what it opens
 EMBED_INLINE void quick_file_row(const QuickCtx *args)
 {
     QuickBuild *const build = args->build;
@@ -407,22 +406,25 @@ EMBED_INLINE void quick_commands_read(const QuickCtx *args)
     unsigned int count = 0u;
     for (unsigned int menu = 0u; menu < menus; menu += 1u)
     {
-        if (!cli_menu_displayed(menu))
+        if (!cli_menu_displayed(&(CliMenusCfg){.menu = menu}))
         {
             continue;
         }
-        const char *const title = cli_menu_title_text(menu);
+        const char *const title = cli_menu_title_text(&(CliMenusCfg){.menu = menu});
         const unsigned int title_characters =
             EMBED_CALL(quick_characters, QuickCtx, .text = title,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_LABEL_MAX_LEN}));
         unsigned int pending = 1u;
-        lists[0] = cli_menu_list(menu);
+        lists[0] = cli_menu_list(&(CliMenusCfg){.menu = menu});
         while (pending != 0u)
         {
             pending -= 1u;
-            const unsigned int rows_count = cli_rows_count(lists[pending]);
-            CliItem *const items = cli_items_alloc(rows_count);
-            const unsigned int rows = (items != NULL) ? cli_menu_rows(lists[pending], items, rows_count) : 0u;
+            const unsigned int rows_count = cli_rows_count(&(CliMenusCfg){.list = lists[pending]});
+            CliItem *const items = cli_items_alloc(&(CliMenusCfg){.count = rows_count});
+            const unsigned int rows =
+                (items != NULL)
+                    ? cli_menu_rows(&(CliMenusCfg){.list = lists[pending], .items = items, .capacity = rows_count})
+                    : 0u;
             for (unsigned int at = 0u; at < rows; at += 1u)
             {
                 const CliItem *const item = &items[at];
@@ -438,7 +440,7 @@ EMBED_INLINE void quick_commands_read(const QuickCtx *args)
                     count += 1u;
                 }
             }
-            cli_items_release(items);
+            cli_items_release(&(CliMenusCfg){.items = items});
         }
     }
     // the commands retained in a movable cell of their bytes
@@ -678,8 +680,9 @@ EMBED_INLINE void quick_symbol_row(const QuickCtx *args)
     row->placed = 1;
 }
 
-// the rows of what the displayed view declares for `length` bytes of `text` typed, at max `max`, the best match first and
-// with nothing typed in the order of their lines, or a sentence where no view is displayed and the rows are not `grouped`
+// the rows of what the displayed view declares for `length` bytes of `text` typed, at max `max`, the best match first
+// and with nothing typed in the order of their lines, or a sentence where no view is displayed and the rows are not
+// `grouped`
 EMBED_INLINE void quick_outline(const QuickCtx *args)
 {
     QuickBuild *const build = args->build;
@@ -770,8 +773,8 @@ EMBED_INLINE void quick_tree(const QuickCtx *args)
 }
 
 // Search Everywhere's rows for `length` bytes of `text`: the files, then with something typed what the tree declares
-// and with nothing what the displayed view declares, then the commands, CLI_QUICK_EACH of each under its heading, a type
-// with no rows located with no heading
+// and with nothing what the displayed view declares, then the commands, CLI_QUICK_EACH of each under its heading, a
+// type with no rows located with no heading
 EMBED_INLINE void quick_everywhere(const QuickCtx *args)
 {
     QuickBuild *const build = args->build;
@@ -862,7 +865,8 @@ EMBED_INLINE void quick_followed(const QuickCtx *args)
     const unsigned int displayed = (s_quick.displayed != 0u) ? s_quick.displayed : 1u;
     const unsigned int max = (s_quick.rows > displayed) ? (s_quick.rows - displayed) : 0u;
     s_quick.scroll = (s_quick.chosen < s_quick.scroll) ? s_quick.chosen : s_quick.scroll;
-    s_quick.scroll = (s_quick.chosen >= (s_quick.scroll + displayed)) ? ((s_quick.chosen + 1u) - displayed) : s_quick.scroll;
+    s_quick.scroll =
+        (s_quick.chosen >= (s_quick.scroll + displayed)) ? ((s_quick.chosen + 1u) - displayed) : s_quick.scroll;
     s_quick.scroll = (s_quick.scroll > max) ? max : s_quick.scroll;
 }
 
@@ -906,15 +910,13 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
     switch (mode)
     {
     case CLI_QUICK_COMMANDS:
-        EMBED_CALL(quick_commands, QuickCtx, .build = &build, .text = query, .length = to - from,
-                   .max = CLI_QUICK_MAX);
+        EMBED_CALL(quick_commands, QuickCtx, .build = &build, .text = query, .length = to - from, .max = CLI_QUICK_MAX);
         break;
     case CLI_QUICK_LINE:
         EMBED_CALL(quick_line, QuickCtx, .build = &build, .text = query, .length = to - from);
         break;
     case CLI_QUICK_SYMBOLS:
-        EMBED_CALL(quick_outline, QuickCtx, .build = &build, .text = query, .length = to - from,
-                   .max = CLI_QUICK_MAX);
+        EMBED_CALL(quick_outline, QuickCtx, .build = &build, .text = query, .length = to - from, .max = CLI_QUICK_MAX);
         break;
     case CLI_QUICK_TREE:
         EMBED_CALL(quick_tree, QuickCtx, .build = &build, .text = query, .length = to - from, .max = CLI_QUICK_MAX);
@@ -972,8 +974,8 @@ EMBED_INLINE void quick_asked(const QuickCtx *args)
     g_cli_guard->persistent_buf_release(scratch, g_cli_quick_owner);
 }
 
-// the typed text positioned anew from `length` bytes of `text` with the caret at the byte `first`, in a cell sized to it with
-// its end, none where it is empty; the text as it was where the cells cannot meet it
+// the typed text positioned anew from `length` bytes of `text` with the caret at the byte `first`, in a cell sized to
+// it with its end, none where it is empty; the text as it was where the cells cannot meet it
 EMBED_INLINE void quick_text_positioned(const QuickCtx *args)
 {
     // the typed text is bounded by CLI_QUICK_TEXT_MAX and lives in the store itself
@@ -1124,7 +1126,7 @@ int cli_quick_key(const CliQuickCfg *args)
     if (!s_quick.open)
     {
         CliItem item;
-        return cli_menus_keyed(args->name, &item) &&
+        return cli_menus_keyed(&(CliMenusCfg){.name = args->name, .item = &item}) &&
                EMBED_CALL(cli_quick.open, CliQuickCfg, .command = item.command, .root = args->root, .key = args->key,
                           .displayed = args->displayed, .now_ms = args->now_ms);
     }

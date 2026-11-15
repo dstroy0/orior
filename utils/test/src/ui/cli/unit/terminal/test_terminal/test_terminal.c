@@ -845,7 +845,7 @@ static void menu_row(const char *label, CliItem *item)
 {
     for (unsigned int at = 0u; (g_cli_menus_open.levels != 0u) && (at < g_cli_menus_open.level[0].rows); at += 1u)
     {
-        if (cli_menus_row(0u, at, item) &&
+        if (cli_menus_row(&(CliMenusCfg){.level = 0u, .at = at, .item = item}) &&
             cellul.eq(&(CatenaFinitaCfg){
                 .src = item->label, .cap = CLI_POOL_BYTES, .other = label, .other_cap = CLI_POOL_BYTES}))
         {
@@ -860,16 +860,17 @@ static void terminal_menu_opened(void)
 {
     unsigned int title = 0u;
     while ((title < cli_menu_titles()) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = cli_menu_title_text(cli_menu_title_menu(title)),
-                                         .cap = CLI_POOL_BYTES,
-                                         .other = "Terminal",
-                                         .other_cap = CLI_POOL_BYTES}))
+           !cellul.eq(&(CatenaFinitaCfg){
+               .src = cli_menu_title_text(&(CliMenusCfg){.menu = cli_menu_title_menu(&(CliMenusCfg){.at = title})}),
+               .cap = CLI_POOL_BYTES,
+               .other = "Terminal",
+               .other_cap = CLI_POOL_BYTES}))
     {
         title += 1u;
     }
     TEST_ASSERT_LESS_THAN_UINT(cli_menu_titles(), title);
-    cli_menus_bar(cli_menu_titles(), 0);
-    cli_menus_title_press(title);
+    cli_menus_bar(&(CliMenusCfg){.displayed = cli_menu_titles(), .folded = 0});
+    cli_menus_title_press(&(CliMenusCfg){.at = title});
 }
 
 void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed(void)
@@ -886,19 +887,23 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_
     menu_row("Toggle Terminal", &toggle);
     TEST_ASSERT_FALSE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is off with one shell displayed");
     TEST_ASSERT_EQUAL_STRING_MESSAGE("", toggle.checks, "Toggle Terminal is neither on nor off");
-    cli_menus_close(0u);
+    cli_menus_close(&(CliMenusCfg){.level = 0u});
     TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "split", .words = NULL, .count = 0u}));
     terminal_menu_opened();
     menu_row("Split Terminal", &split);
     TEST_ASSERT_TRUE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is on while a shell is beside");
-    cli_menus_close(0u);
+    cli_menus_close(&(CliMenusCfg){.level = 0u});
     terminal_ended();
 }
 
 // the panel's menu opened at x, y, as the window opens it where it is asked for on the panel
 static void terminal_menu_asked(int x, int y)
 {
-    cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_POINT, x, y);
+    cli_menus_own_open(&(CliMenusCfg){.rows = cli_terminal_tabs_menu(),
+                                      .count = CLI_TERMINAL_MENU_ROWS,
+                                      .place = CLI_MENU_PLACE_POINT,
+                                      .x = x,
+                                      .y = y});
 }
 
 // the key `name` taken by the menus, a row chosen run as the window runs the terminal's commands
@@ -906,7 +911,7 @@ static void menus_key(const char *name)
 {
     CliItem chosen;
     int chose = 0;
-    (void)cli_menus_key(name, &chosen, &chose);
+    (void)cli_menus_key(&(CliMenusCfg){.name = name, .chosen = &chosen, .chose = &chose});
     if (chose)
     {
         TEST_ASSERT_TRUE(
@@ -933,7 +938,7 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
         CliItem row;
-        TEST_ASSERT_TRUE(cli_menus_row(0u, at, &row));
+        TEST_ASSERT_TRUE(cli_menus_row(&(CliMenusCfg){.level = 0u, .at = at, .item = &row}));
         TEST_ASSERT_EQUAL_STRING(labels[at], row.label);
         TEST_ASSERT_EQUAL_STRING(keys[at], row.keys);
         TEST_ASSERT_EQUAL_STRING_MESSAGE((at == 5u) ? "terminal-split" : "", row.checks,
@@ -941,9 +946,10 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
         TEST_ASSERT_EQUAL_INT_MESSAGE(at == 2u, row.line, "the third row is a line");
     }
     CliItem split;
-    TEST_ASSERT_TRUE(cli_menus_row(0u, 5u, &split));
+    TEST_ASSERT_TRUE(cli_menus_row(&(CliMenusCfg){.level = 0u, .at = 5u, .item = &split}));
     TEST_ASSERT_FALSE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is off with one shell");
-    TEST_ASSERT_FALSE_MESSAGE(cli_menus_selectable(0u, 0u), "Copy cannot be chosen while nothing is chosen");
+    TEST_ASSERT_FALSE_MESSAGE(cli_menus_selectable(&(CliMenusCfg){.level = 0u, .at = 0u}),
+                              "Copy cannot be chosen while nothing is chosen");
     TEST_ASSERT_EQUAL_INT_MESSAGE(1, g_cli_menus_open.level[0].pointed, "the first row that can be chosen is marked");
     // Right opens no title of the bar from a menu asked for, Down marks the next row, and Enter chooses it
     menus_key("Right");

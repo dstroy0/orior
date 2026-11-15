@@ -636,7 +636,8 @@ int cli_db_pane_menu(const CliDbPaneTreeCfg *args)
                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(at),
                                                                     .dst = &connection,
                                                                     .bytes = sizeof(CliDbConnection)});
-            cli_menus_own_row(&(CliItem){pane->label, "db-choose", "", connection.name, "", "", 0, 0, 0, 0, 0u});
+            cli_menus_own_row(&(CliMenusCfg){
+                .item = &(CliItem){pane->label, "db-choose", "", connection.name, "", "", 0, 0, 0, 0, 0u}});
         }
         return 1;
     }
@@ -661,13 +662,16 @@ int cli_db_pane_menu(const CliDbPaneTreeCfg *args)
     char label[CLI_DB_FIELD];
     EMBED_CALL(text_read, DbPaneTreeCtx, .bytes = node.label, .text_out = label, .capacity = sizeof(label));
     cli_menus_own_begin();
-    cli_menus_own_row(&(CliItem){"Copy Name", "db-copy-name", "", label, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(
+        &(CliMenusCfg){.item = &(CliItem){"Copy Name", "db-copy-name", "", label, "", "", 0, 0, 0, 0, 0u}});
     if (EMBED_CALL(node_readable, DbPaneTreeCtx, .at = place))
     {
-        cli_menus_own_row(&(CliItem){"Show Its First Rows", "db-first-rows", "", "", "", "", 0, 0, 0, 0, 0u});
+        cli_menus_own_row(
+            &(CliMenusCfg){.item = &(CliItem){"Show Its First Rows", "db-first-rows", "", "", "", "", 0, 0, 0, 0, 0u}});
     }
     cli_menus_own_line();
-    cli_menus_own_row(&(CliItem){"Read Again", "db-read-again", "", "", "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(
+        &(CliMenusCfg){.item = &(CliItem){"Read Again", "db-read-again", "", "", "", "", 0, 0, 0, 0, 0u}});
     return 1;
 }
 

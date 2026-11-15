@@ -307,7 +307,7 @@ EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = word, .src = row->word, .bytes = row->word_length});
         word[row->word_length] = '\0';
         used += row->label_length + row->word_length + 2ULL;
-        cli_menus_own_row(&(CliItem){label, args->command, "", word, "", "", 0, 0, 0, 0, 0u});
+        cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){label, args->command, "", word, "", "", 0, 0, 0, 0, 0u}});
     }
     g_cli_guard->persistent_buf_release(texts, g_cli_widgets_owner);
     return 1;

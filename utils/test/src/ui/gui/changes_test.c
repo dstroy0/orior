@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // changes_test.c: the Changes pane's check: a repository with two files git does not yet track lists them as rows,
 // each not yet tracked, the deeper one with its folder; the pane's table draws the rows under the Commit group's title
-// on the side, the row pointed on a ground of its own; a press lands on a row and opens its file; the table reads on the
-// pane's showing and a save and not on the view's change; the next commit takes the files whose boxes are lit; the
+// on the side, the row pointed on a ground of its own; a press lands on a row and opens its file; the table reads on
+// the pane's showing and a save and not on the view's change; the next commit takes the files whose boxes are lit; the
 // bar pushes, pulls and rolls back against a remote of the check's own, its tools and the all box found under the
 // pointer; and no tree leaves no rows
 #include "../../../../../includes/window/block.h"
@@ -16,7 +16,7 @@
 // CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
 static int own_row(unsigned int at, CliItem *item, char *text)
 {
-    if (!cli_menus_own_read(at, item))
+    if (!cli_menus_own_read(&(CliMenusCfg){.at = at, .item = item}))
     {
         return 0;
     }
@@ -58,10 +58,11 @@ static int row_with_name(const char *name, CliChangedRow *row)
 static unsigned int row_of(const char *name)
 {
     unsigned int at = 0u;
-    for (CliChangedRow each; EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &each) &&
-                             ((each.type != CLI_CHANGES_ROW_FILE) ||
-                              !cellul.eq(&(CatenaFinitaCfg){
-                                  .src = each.name, .cap = CLI_POOL_BYTES, .other = name, .other_cap = CLI_POOL_BYTES}));)
+    for (CliChangedRow each;
+         EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = at, .row = &each) &&
+         ((each.type != CLI_CHANGES_ROW_FILE) ||
+          !cellul.eq(&(CatenaFinitaCfg){
+              .src = each.name, .cap = CLI_POOL_BYTES, .other = name, .other_cap = CLI_POOL_BYTES}));)
     {
         at += 1u;
     }
@@ -180,17 +181,16 @@ int main(void)
     cli_check(row_with_name("fresh.txt", &fresh) && (fresh.state == 'U') && (fresh.folder_length == 0ULL),
               "the file at the top is not yet tracked and is in no folder");
     cli_check(row_with_name("deep.txt", &deep) && (deep.state == 'U') && (deep.folder_length == 3ULL) &&
-                  cellul.starts(&(CatenaFinitaCfg){
-                      .src = deep.path, .cap = CLI_PATH_MAX_LEN, .other = "sub", .other_cap = 4u}),
+                  cellul.starts(
+                      &(CatenaFinitaCfg){.src = deep.path, .cap = CLI_PATH_MAX_LEN, .other = "sub", .other_cap = 4u}),
               "the deeper file carries its folder");
     cli_check(!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = 2u, .row = &fresh), "no row is past the last");
 
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     GuiRaster raster;
-    cli_check(
-        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
-        "the raster is taken");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
+              "the raster is taken");
     const GuiRect first =
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = 0u);
     const GuiRect second =
@@ -229,18 +229,19 @@ int main(void)
     char own_first_text[OWN_ROW_TEXT];
     char own_second_text[OWN_ROW_TEXT];
     char own_third_text[OWN_ROW_TEXT];
-    cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
-                  (cli_menus_own_count() == 3u) && own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
-                  own_row(2u, &own_third, own_third_text) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Open File", .other_cap = 10u}) &&
-                  (own_first.needs[0] == '\0') &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_first.args, .cap = CLI_POOL_BYTES, .other = pressed.path, .other_cap = CLI_POOL_BYTES}) &&
-                  own_second.line &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}),
-              "a changed file's menu opens it and copies its path");
+    cli_check(
+        EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
+            (cli_menus_own_count() == 3u) && own_row(0u, &own_first, own_first_text) &&
+            own_row(1u, &own_second, own_second_text) && own_row(2u, &own_third, own_third_text) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Open File", .other_cap = 10u}) &&
+            (own_first.needs[0] == '\0') &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_first.args, .cap = CLI_POOL_BYTES, .other = pressed.path, .other_cap = CLI_POOL_BYTES}) &&
+            own_second.line &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}),
+        "a changed file's menu opens it and copies its path");
     cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 2u, .root = s_root),
               "no menu is past the last row");
 
@@ -257,13 +258,12 @@ int main(void)
               "the repository has a committer");
     unsigned long long length = 0ULL;
     char refusal[CLI_CHANGES_REFUSAL_MAX];
-    cli_check(!EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
-                  (EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal) != 0ULL) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = refusal,
-                                               .cap = CLI_POOL_BYTES,
-                                               .other = "The commit message is empty.",
-                                               .other_cap = 29u}),
-              "a commit with no message is refused with why");
+    cli_check(
+        !EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
+            (EMBED_CALL(cli_changes.refusal, CliGitChangesCfg, .text_out = refusal) != 0ULL) &&
+            cellul.eq(&(CatenaFinitaCfg){
+                .src = refusal, .cap = CLI_POOL_BYTES, .other = "The commit message is empty.", .other_cap = 29u}),
+        "a commit with no message is refused with why");
     EMBED_CALL(cli_changes.type, CliGitChangesCfg, .text = "first", .size = 5ULL);
     char message[CLI_CHANGES_MESSAGE_MAX];
     length = EMBED_CALL(cli_changes.message, CliGitChangesCfg, .text_out = message);
@@ -271,9 +271,9 @@ int main(void)
                   (length == 5ULL),
               "the text typed is the message");
     unsigned int deep_row = 0u;
-    for (CliChangedRow each; EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = deep_row, .row = &each) &&
-                             !cellul.eq(&(CatenaFinitaCfg){
-                                 .src = each.name, .cap = CLI_POOL_BYTES, .other = "deep.txt", .other_cap = 9u});)
+    for (CliChangedRow each;
+         EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = deep_row, .row = &each) &&
+         !cellul.eq(&(CatenaFinitaCfg){.src = each.name, .cap = CLI_POOL_BYTES, .other = "deep.txt", .other_cap = 9u});)
     {
         deep_row += 1u;
     }
@@ -341,11 +341,9 @@ int main(void)
     cli_check_folder("changes_other", s_other);
     const char *const cloned[4] = {"clone", "-q", s_remote, "."};
     const char *const added[7] = {"-c", "user.name=Check", "-c", "user.email=check@orior.test", "add", "-A", "."};
-    const char *const elsewhere[10] = {"-c",     "user.name=Check",
-                                       "-c",     "user.email=check@orior.test",
-                                       "-c",     "commit.gpgsign=false",
-                                       "commit", "-q",
-                                       "-m",     "elsewhere"};
+    const char *const elsewhere[10] = {
+        "-c", "user.name=Check", "-c", "user.email=check@orior.test", "-c", "commit.gpgsign=false", "commit", "-q",
+        "-m", "elsewhere"};
     const char *const sent[2] = {"push", "-q"};
     (void)git_ran(s_other, cloned, 4u, "the remote is cloned elsewhere");
     file_written(s_other, "fresh.txt", "from elsewhere\n");
@@ -436,11 +434,12 @@ int main(void)
                   .src = head_text, .cap = sizeof(head_text), .other = "changed\n", .other_cap = 9u}),
               "the last commit has the file with the line left out missing");
     head_read(s_root, "sub/deep.txt", head_text, sizeof(head_text));
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = head_text, .cap = sizeof(head_text), .other = "two\n", .other_cap = 5u}),
-              "the last commit has the other file whole");
+    cli_check(
+        cellul.eq(&(CatenaFinitaCfg){.src = head_text, .cap = sizeof(head_text), .other = "two\n", .other_cap = 5u}),
+        "the last commit has the other file whole");
     cli_check((EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 1u) &&
-                  (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("fresh.txt", &fresh) &&
-                  !fresh.open && (fresh.state == 'M'),
+                  (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 1u) &&
+                  row_with_name("fresh.txt", &fresh) && !fresh.open && (fresh.state == 'M'),
               "the file with the line left out is alone after, its changes closed");
     cli_check(EMBED_CALL(cli_changes.open, CliGitChangesCfg, .root = s_root, .at = 0u) &&
                   (EMBED_CALL(cli_changes.rows, CliGitChangesCfg, .at = 0u) == 3u) &&
@@ -468,7 +467,8 @@ int main(void)
     file_written(s_root, "sub/deep.txt", "two\nthree\n");
     EMBED_CALL(cli_changes.read, CliGitChangesCfg, .root = s_root);
     cli_check(EMBED_CALL(cli_changes.commit, CliGitChangesCfg, .root = s_root) &&
-                  (EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 1u) && row_with_name("fresh.txt", &fresh),
+                  (EMBED_CALL(cli_changes.files, CliGitChangesCfg, .at = 0u) == 1u) &&
+                  row_with_name("fresh.txt", &fresh),
               "the file left out is after the other's commit");
     EMBED_CALL(cli_changes.toggle, CliGitChangesCfg, .at = 0u);
 
@@ -479,7 +479,8 @@ int main(void)
                          .glyphs = &glyphs, .x = left + (GUI_CHANGES_TOOL / 2), .y = top_menu_y) == CLI_CHANGES_READ,
               "a press on the bar's first tool reads the tree again");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
-                         .glyphs = &glyphs, .x = left + GUI_CHANGES_TOOL + GUI_CHANGES_TOOL_GAP + (GUI_CHANGES_TOOL / 2),
+                         .glyphs = &glyphs,
+                         .x = left + GUI_CHANGES_TOOL + GUI_CHANGES_TOOL_GAP + (GUI_CHANGES_TOOL / 2),
                          .y = top_menu_y) == CLI_CHANGES_ROLLBACK,
               "a press on the bar's second tool rolls back");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
@@ -497,7 +498,8 @@ int main(void)
               "a press on the taken row takes or leaves every file");
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,
                          .glyphs = &glyphs, .x = left + 20,
-                         .y = top_menu_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + (GUI_PANE_BOX / 2)) == CLI_CHANGES_FIELD,
+                         .y = top_menu_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + (GUI_PANE_BOX / 2)) ==
+                  CLI_CHANGES_FIELD,
               "a press in the message box lands on it");
     const int buttons_y = top_menu_y + GUI_PANE_CHOICE + (GUI_PANE_CHOICE / 2) + GUI_PANE_BOX + (GUI_PANE_CHOICE / 2);
     cli_check(EMBED_CALL(gui_pane.head_hit, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame,

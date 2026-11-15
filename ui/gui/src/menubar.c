@@ -52,7 +52,8 @@ EMBED_INLINE const char *menubar_title_text(const MenubarCtx *args)
         *length = 3ULL;
         return "\xe2\x80\xa6";
     }
-    const char *const title = cli_menu_title_text(cli_menu_title_menu(args->title->menu));
+    const char *const title =
+        cli_menu_title_text(&(CliMenusCfg){.menu = cli_menu_title_menu(&(CliMenusCfg){.at = args->title->menu})});
     *length = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_LABEL_MAX_LEN});
     return title;
 }
@@ -61,7 +62,7 @@ EMBED_INLINE const char *menubar_title_text(const MenubarCtx *args)
 EMBED_INLINE CliItem menubar_row(const MenubarCtx *args)
 {
     CliItem item = {"", "", "", "", "", "", 0, 1, 0, 0, 0u};
-    (void)cli_menus_row(args->level, args->index, &item);
+    (void)cli_menus_row(&(CliMenusCfg){.level = args->level, .at = args->index, .item = &item});
     return item;
 }
 
@@ -588,7 +589,7 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                 EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_HEAD,
                            .size = size, .top = rect.y, .pixel_height = rect.height);
             // a row of items is never one that cannot be chosen, and a state shows on only as the window answers it
-            const int disabled = (row->list == 0u) && !cli_menus_selectable(level, at);
+            const int disabled = (row->list == 0u) && !cli_menus_selectable(&(CliMenusCfg){.level = level, .at = at});
             const int checked =
                 (row->checks[0] != '\0') && (g_cli_menus_open.checked != NULL) && g_cli_menus_open.checked(row);
             const GuiColor color = disabled ? args->palette->text_3 : args->palette->text;
@@ -608,7 +609,8 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                 cellul.len(&(CatenaFinitaCfg){.src = row->keys, .cap = CLI_LABEL_MAX_LEN});
             const int arm = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 3, .scale = scale);
             const int middle = rect.y + (rect.height / 2);
-            if ((row->list != 0u) && ((middle - arm) >= displayed.y) && ((middle + arm) < (displayed.y + displayed.height)))
+            if ((row->list != 0u) && ((middle - arm) >= displayed.y) &&
+                ((middle + arm) < (displayed.y + displayed.height)))
             {
                 // a chevron pointing to where the items open, drawn where all of it shows
                 const int tip_x = rect.x + rect.width - item_pad;

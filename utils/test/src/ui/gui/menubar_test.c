@@ -5,15 +5,15 @@
 // rows a hundred pixels a notch, no further than its last, a row marked anew is scrolled into view, and a menu opened
 // anew is at its first row
 #include "../../../../../includes/window/block.h"
-#include "../../../../../ui/gui/src/menubar.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
+#include "../../../../../ui/gui/src/menubar.h"
 #include "../cli/cli_check.h"
 
 // the row `at` of the part's own rows read, its label, command and args copied into `text`, sized for
 // CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
 static int own_row(unsigned int at, CliItem *item, char *text)
 {
-    if (!cli_menus_own_read(at, item))
+    if (!cli_menus_own_read(&(CliMenusCfg){.at = at, .item = item}))
     {
         return 0;
     }
@@ -71,7 +71,8 @@ int main(void)
     {
         s_rows[at] = (CliItem){"Row", "row", "", "", "", "", 0, 0, 0, 0, 0u};
     }
-    cli_menus_own_open(s_rows, MENUBAR_TEST_ROWS, CLI_MENU_PLACE_POINT, 300, 100);
+    cli_menus_own_open(
+        &(CliMenusCfg){.rows = s_rows, .count = MENUBAR_TEST_ROWS, .place = CLI_MENU_PLACE_POINT, .x = 300, .y = 100});
     static GuiMenubar menubar;
     EMBED_CALL(gui_menubar.init, GuiMenubarCfg, .menubar = &menubar);
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
@@ -106,7 +107,8 @@ int main(void)
     cli_check(row_at(&menubar, 310, first_y) != 0u,
               "the same row still marked leaves the rows where the wheel moved them");
 
-    cli_menus_own_open(s_rows, MENUBAR_TEST_ROWS, CLI_MENU_PLACE_POINT, 300, 100);
+    cli_menus_own_open(
+        &(CliMenusCfg){.rows = s_rows, .count = MENUBAR_TEST_ROWS, .place = CLI_MENU_PLACE_POINT, .x = 300, .y = 100});
     EMBED_CALL(gui_menubar_bar.menus_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
     cli_check(row_at(&menubar, 310, first_y) == 0u, "a menu opened anew is at its first row");
 
@@ -115,16 +117,22 @@ int main(void)
     static GuiPaletteOwn own;
     EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u), "a raster to draw the menu on");
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920}, .color = own.colors.deep);
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
+              "a raster to draw the menu on");
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920},
+               .color = own.colors.deep);
     g_cli_menus_open.level[0].pointed = -1;
-    EMBED_CALL(gui_menubar_glyphs_frame.menus_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &menubar, .raster = &raster, .glyphs = &glyphs, .palette = &own.colors, .frame = &frame);
+    EMBED_CALL(gui_menubar_glyphs_frame.menus_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &menubar,
+               .raster = &raster, .glyphs = &glyphs, .palette = &own.colors, .frame = &frame);
     const GuiRect drawn = menubar.menu_rect[0];
-    const GuiColor line_pixel = raster.pixels[((unsigned int)(drawn.y + (drawn.height / 2)) * raster.width) + (unsigned int)drawn.x];
+    const GuiColor line_pixel =
+        raster.pixels[((unsigned int)(drawn.y + (drawn.height / 2)) * raster.width) + (unsigned int)drawn.x];
     const GuiColor head_corner = raster.pixels[((unsigned int)drawn.y * raster.width) + (unsigned int)drawn.x];
-    const GuiColor foot_corner = raster.pixels[((unsigned int)(drawn.y + drawn.height - 1) * raster.width) + (unsigned int)drawn.x];
+    const GuiColor foot_corner =
+        raster.pixels[((unsigned int)(drawn.y + drawn.height - 1) * raster.width) + (unsigned int)drawn.x];
     cli_check(line_pixel != own.colors.deep, "the menu's line colors its left edge");
-    cli_check((head_corner != line_pixel) && (foot_corner != line_pixel), "the menu's corners are short of its line's color at the top and the foot alike");
+    cli_check((head_corner != line_pixel) && (foot_corner != line_pixel),
+              "the menu's corners are short of its line's color at the top and the foot alike");
     cli_check(head_corner == foot_corner, "the foot's corner is rounded as the top's is");
 
     // a part's own rows built as its menu is asked for: a row with its words, a line and the catalog's item
@@ -132,9 +140,10 @@ int main(void)
     VerbaLinea read_err_msg = {read_text, sizeof(read_text), 0ULL};
     cli_check(EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &read_err_msg), "the catalog is read");
     cli_menus_own_begin();
-    cli_menus_own_row(&(CliItem){"Open", "file-open", "", "a b.txt", "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){"Open", "file-open", "", "a b.txt", "", "", 0, 0, 0, 0, 0u}});
     cli_menus_own_line();
-    cli_check(cli_menus_own_named("close-all", ""), "the catalog's item is added by its command");
+    cli_check(cli_menus_own_named(&(CliMenusCfg){.command = "close-all", .item_args = ""}),
+              "the catalog's item is added by its command");
     const unsigned int built = cli_menus_own_count();
     CliItem own_first;
     CliItem own_second;
@@ -151,20 +160,25 @@ int main(void)
                       .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "close-all", .other_cap = 10u}) &&
                   (own_third.label[0] != '\0'),
               "the rows are as built, the catalog's with its label");
-    cli_check((cli_menus_own_word(own_first.args) != NULL) &&
-                  cellul.eq(&(CatenaFinitaCfg){
-                      .src = cli_menus_own_word(own_first.args), .cap = CLI_POOL_BYTES, .other = "a b.txt", .other_cap = 8u}),
+    cli_check((cli_menus_own_word(&(CliMenusCfg){.item_args = own_first.args}) != NULL) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = cli_menus_own_word(&(CliMenusCfg){.item_args = own_first.args}),
+                                               .cap = CLI_POOL_BYTES,
+                                               .other = "a b.txt",
+                                               .other_cap = 8u}),
               "a row's word is its args as the part passed them, a path with a space one word");
-    cli_check(cli_menus_own_word(own_third.args) == NULL, "a catalog item's pattern reads as no word");
-    cli_check(cellul.eq(&(CatenaFinitaCfg){
-                  .src = cli_menus_own_word("[on|off]"), .cap = CLI_POOL_BYTES, .other = "[on|off]", .other_cap = 9u}),
+    cli_check(cli_menus_own_word(&(CliMenusCfg){.item_args = own_third.args}) == NULL,
+              "a catalog item's pattern reads as no word");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = cli_menus_own_word(&(CliMenusCfg){.item_args = "[on|off]"}),
+                                           .cap = CLI_POOL_BYTES,
+                                           .other = "[on|off]",
+                                           .other_cap = 9u}),
               "a word located outside the catalog is the row's, whatever it reads as");
-    cli_menus_own_open(NULL, built, CLI_MENU_PLACE_POINT, 300, 100);
+    cli_menus_own_open(&(CliMenusCfg){.rows = NULL, .count = built, .place = CLI_MENU_PLACE_POINT, .x = 300, .y = 100});
     CliItem read;
-    cli_check(cli_menus_row(0u, 0u, &read) &&
+    cli_check(cli_menus_row(&(CliMenusCfg){.level = 0u, .at = 0u, .item = &read}) &&
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = read.command, .cap = CLI_POOL_BYTES, .other = "file-open", .other_cap = 10u}) &&
-                  !cli_menus_selectable(0u, 1u),
+                  !cli_menus_selectable(&(CliMenusCfg){.level = 0u, .at = 1u}),
               "the rows built open as a menu, its line not selectable");
 
     EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);

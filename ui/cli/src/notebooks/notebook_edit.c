@@ -440,19 +440,23 @@ int cli_notebook_cell_menu(const CliNotebookEditMenuCfg *args)
     const int code = one.type == CLI_NOTEBOOK_CODE;
     // the rows run with the notebook's key, which is in its model while the menu is open
     cli_menus_own_begin();
-    cli_menus_own_row(&(CliItem){"Run", "notebook-run", "Shift+Enter", model->key, "", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_row(&(CliItem){"Debug", "notebook-debug", "", model->key, "never", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_row(&(CliItem){code ? "Change to Markdown" : "Change to Code", "notebook-retype", "", model->key, "",
-                                 "", 0, 0, 0, 0, 0u});
-    cli_menus_own_line();
     cli_menus_own_row(
-        &(CliItem){"Move Up", "notebook-up", "", model->key, (args->cell == 0u) ? "never" : "", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_row(&(CliItem){"Move Down", "notebook-down", "", model->key,
-                                 ((args->cell + 1u) >= model->cells) ? "never" : "", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_line();
+        &(CliMenusCfg){.item = &(CliItem){"Run", "notebook-run", "Shift+Enter", model->key, "", "", 0, 0, 0, 0, 0u}});
     cli_menus_own_row(
-        &(CliItem){"Clear Outputs", "notebook-clear", "", model->key, code ? "" : "never", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_row(&(CliItem){"Delete", "notebook-delete", "", model->key, "", "", 0, 0, 0, 0, 0u});
+        &(CliMenusCfg){.item = &(CliItem){"Debug", "notebook-debug", "", model->key, "never", "", 0, 0, 0, 0, 0u}});
+    cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){code ? "Change to Markdown" : "Change to Code",
+                                                        "notebook-retype", "", model->key, "", "", 0, 0, 0, 0, 0u}});
+    cli_menus_own_line();
+    cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){"Move Up", "notebook-up", "", model->key,
+                                                        (args->cell == 0u) ? "never" : "", "", 0, 0, 0, 0, 0u}});
+    cli_menus_own_row(
+        &(CliMenusCfg){.item = &(CliItem){"Move Down", "notebook-down", "", model->key,
+                                          ((args->cell + 1u) >= model->cells) ? "never" : "", "", 0, 0, 0, 0, 0u}});
+    cli_menus_own_line();
+    cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){"Clear Outputs", "notebook-clear", "", model->key,
+                                                        code ? "" : "never", "", 0, 0, 0, 0, 0u}});
+    cli_menus_own_row(
+        &(CliMenusCfg){.item = &(CliItem){"Delete", "notebook-delete", "", model->key, "", "", 0, 0, 0, 0, 0u}});
     return 1;
 }
 

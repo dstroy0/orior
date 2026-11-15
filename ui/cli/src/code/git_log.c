@@ -1023,13 +1023,16 @@ int cli_git_log_menu(const CliGitLogCfg *args)
     cli_menus_own_begin();
     if (row.type == CLI_GIT_LOG_ROW_FILE)
     {
-        cli_menus_own_row(&(CliItem){"Copy Path", "file-copy-path", "", row.path, "", "", 0, 0, 0, 0, 0u});
+        cli_menus_own_row(
+            &(CliMenusCfg){.item = &(CliItem){"Copy Path", "file-copy-path", "", row.path, "", "", 0, 0, 0, 0, 0u}});
         return 1;
     }
-    cli_menus_own_row(
-        &(CliItem){row.open ? "Close Files" : "Open Files", "commit-files", "", row.id, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(&(CliMenusCfg){.item = &(CliItem){row.open ? "Close Files" : "Open Files", "commit-files", "",
+                                                        row.id, "", "", 0, 0, 0, 0, 0u}});
     cli_menus_own_line();
-    cli_menus_own_row(&(CliItem){"Copy Commit ID", "commit-copy-id", "", row.id, "", "", 0, 0, 0, 0, 0u});
-    cli_menus_own_row(&(CliItem){"Copy Commit Message", "commit-copy-message", "", row.id, "", "", 0, 0, 0, 0, 0u});
+    cli_menus_own_row(
+        &(CliMenusCfg){.item = &(CliItem){"Copy Commit ID", "commit-copy-id", "", row.id, "", "", 0, 0, 0, 0, 0u}});
+    cli_menus_own_row(&(CliMenusCfg){
+        .item = &(CliItem){"Copy Commit Message", "commit-copy-message", "", row.id, "", "", 0, 0, 0, 0, 0u}});
     return 1;
 }

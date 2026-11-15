@@ -254,34 +254,34 @@ void test_a_nodes_menu_and_the_panes_own_are_the_catalogs_commands(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane_tree.menu, CliDbPaneTreeCfg, .at = table_row));
     CliItem row;
     TEST_ASSERT_EQUAL_UINT(4u, cli_menus_own_count());
-    TEST_ASSERT_TRUE(cli_menus_own_read(0u, &row));
+    TEST_ASSERT_TRUE(cli_menus_own_read(&(CliMenusCfg){.at = 0u, .item = &row}));
     TEST_ASSERT_EQUAL_STRING("db-copy-name", row.command);
     TEST_ASSERT_EQUAL_STRING("t", row.args);
-    TEST_ASSERT_TRUE(cli_menus_own_read(1u, &row));
+    TEST_ASSERT_TRUE(cli_menus_own_read(&(CliMenusCfg){.at = 1u, .item = &row}));
     TEST_ASSERT_EQUAL_STRING("db-first-rows", row.command);
-    TEST_ASSERT_TRUE(cli_menus_own_read(2u, &row));
+    TEST_ASSERT_TRUE(cli_menus_own_read(&(CliMenusCfg){.at = 2u, .item = &row}));
     TEST_ASSERT_TRUE(row.line);
-    TEST_ASSERT_TRUE(cli_menus_own_read(3u, &row));
+    TEST_ASSERT_TRUE(cli_menus_own_read(&(CliMenusCfg){.at = 3u, .item = &row}));
     TEST_ASSERT_EQUAL_STRING("db-read-again", row.command);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane_tree.menu, CliDbPaneTreeCfg, .at = CLI_DB_PANE_NONE));
     TEST_ASSERT_EQUAL_UINT(2u, cli_menus_own_count());
-    TEST_ASSERT_TRUE(cli_menus_own_read(0u, &row));
+    TEST_ASSERT_TRUE(cli_menus_own_read(&(CliMenusCfg){.at = 0u, .item = &row}));
     TEST_ASSERT_EQUAL_STRING("db-choose", row.command);
     TEST_ASSERT_EQUAL_STRING("lite", row.args);
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &err_msg);
     CliItem item;
-    TEST_ASSERT_TRUE(cli_menus_named("db-choose", &item));
-    TEST_ASSERT_TRUE(cli_menus_named("db-first-rows", &item));
+    TEST_ASSERT_TRUE(cli_menus_named(&(CliMenusCfg){.name = "db-choose", .item = &item}));
+    TEST_ASSERT_TRUE(cli_menus_named(&(CliMenusCfg){.name = "db-first-rows", .item = &item}));
 }
 
 void test_show_its_first_rows_passes_the_tables_rows_to_the_grid(void)
 {
     tree_ready();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane_tree.menu, CliDbPaneTreeCfg, .at = row_of("t")));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_db_pane_tree.command, CliDbPaneTreeCfg, .name = "db-first-rows", .count = 0u,
-                                .root = s_root));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_db_pane_tree.command, CliDbPaneTreeCfg, .name = "db-first-rows", .count = 0u, .root = s_root));
     TEST_ASSERT_TRUE(run_ended());
     TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_db_grid.columns, CliDbGridCfg, .at = 0ULL));
     TEST_ASSERT_EQUAL_UINT64(3ULL, EMBED_CALL(cli_db_grid.rows, CliDbGridCfg, .at = 0ULL));
