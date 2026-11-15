@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// sql.c: a text's tokens as each database writes them, its statements, and the statement a place is in
+// sql.c: a text's tokens off the leaves the SQL grammar plugin's walk saves, begun in the state of the dialect the
+// database writes; its statements; and the statement a place is in
+#include "../code/symbols_internal.h"
+#include "../command_line/pool.h"
 #include "sql.h"
 #include "../text/text.h"
 
@@ -16,7 +19,10 @@ unsigned int cli_sql_dialect(const CliSqlCfg *args)
                : CLI_SQL_POSTGRES;
 }
 
-// no token read yet, a type no token takes
+// the state of the SQL grammar each dialect's walk begins in, by CLI_SQL_ dialect
+static const char *const s_states[3] = {"postgres", "mysql", "sqlite"};
+
+// a type no token takes: a leaf that is no token
 #define CLI_SQL_UNREAD 0xffffffffu
 
 // A statement as its tokens are read: where its first and last tokens start and end, whether one is read; how many of
@@ -36,18 +42,13 @@ typedef struct
 
 typedef struct
 {
+    const CliLeaf *leaf;
     unsigned char byte;
-    const unsigned char *bytes;
-    unsigned long long length;
-    unsigned long long *at;
-    unsigned char close;
-    int escapes;
-    unsigned long long at_value;
     const char *text;
+    unsigned long long length;
     const char *word_text;
     const char *const *words;
     unsigned int count;
-    unsigned int dialect;
     CliSqlStatement *statement;
 } SqlCtx;
 // whether a byte is one of the spaces ASCII names: space, tab, line feed, form feed and carriage return
@@ -57,235 +58,69 @@ EMBED_INLINE int cli_space(const SqlCtx *args)
            (args->byte == '\r');
 }
 
-EMBED_INLINE int cli_alpha(const SqlCtx *args)
+// what a leaf is to the reader, by its bits: a quoted name, a string, a number, a bare word, or any other mark;
+// CLI_SQL_UNREAD for a mark of no bytes, a blank or a comment
+EMBED_INLINE unsigned int cli_leaf_type(const SqlCtx *args)
 {
-    return ((args->byte >= 'a') && (args->byte <= 'z')) || ((args->byte >= 'A') && (args->byte <= 'Z'));
-}
-
-EMBED_INLINE int cli_digit(const SqlCtx *args)
-{
-    return (args->byte >= '0') && (args->byte <= '9');
-}
-
-// `*at` moved past a quoted run that began just before it and ends at `close`, a doubled `close` located for itself,
-// and a backslash escaping the byte after it where `escapes` is 1
-EMBED_INLINE void cli_quote(const SqlCtx *args)
-{
-    unsigned long long *at = args->at;
-    while (*at < args->length)
+    const unsigned long long is = args->leaf->is;
+    if ((args->leaf->to == args->leaf->from) || ((is & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u))
     {
-        if (args->escapes && (args->bytes[*at] == '\\'))
-        {
-            *at += 2ULL;
-        }
-        else if (args->bytes[*at] == args->close)
-        {
-            *at += 1ULL;
-            if ((*at < args->length) && (args->bytes[*at] == args->close))
-            {
-                *at += 1ULL;
-            }
-            else
-            {
-                return;
-            }
-        }
-        else
-        {
-            *at += 1ULL;
-        }
+        return CLI_SQL_UNREAD;
     }
-    *at = args->length;
-}
-
-// The dollar quote's tag that starts at `at`, `$$` or `$name$`: its length, 0 where none starts there
-EMBED_INLINE unsigned long long cli_dollar_tag(const SqlCtx *args)
-{
-    unsigned long long at = args->at_value;
-    unsigned long long end = at + 1ULL;
-    end = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = (const char *)args->bytes,
-                     .at = end, .size = args->length, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = "_");
-    const int digit_first = ((at + 1ULL) < args->length) && EMBED_CALL(cli_digit, SqlCtx, .byte = args->bytes[at + 1u]);
-    return ((end < args->length) && (args->bytes[end] == '$') && !digit_first) ? (end - at + 1ULL) : 0ULL;
-}
-
-// `*at` moved past a block comment that starts there, those written in it with it where the dialect counts them
-EMBED_INLINE void cli_block_comment(const SqlCtx *args)
-{
-    const unsigned char *const bytes = args->bytes;
-    unsigned long long *at = args->at;
-    long long depth = 0LL;
-    while (*at < args->length)
+    if ((is & CLI_LEAF_QUOTED) != 0u)
     {
-        const int follows = (*at + 1ULL) < args->length;
-        const int opens = (bytes[*at] == '/') && follows && (bytes[*at + 1u] == '*');
-        const int closes = !opens && (bytes[*at] == '*') && follows && (bytes[*at + 1u] == '/');
-        if (!opens && !closes)
-        {
-            *at += 1ULL;
-            continue;
-        }
-        if (opens)
-        {
-            depth += ((args->dialect == CLI_SQL_POSTGRES) || (depth == 0LL)) ? 1LL : 0LL;
-        }
-        else
-        {
-            depth -= 1LL;
-        }
-        *at += 2ULL;
-        if (closes && (depth == 0LL))
-        {
-            return;
-        }
-    }
-}
-
-// a run of spaces or a comment that starts at `*at`, `*at` moved past it: its type, CLI_SQL_UNREAD where none starts
-// there
-EMBED_INLINE unsigned int cli_sql_quiet(const SqlCtx *args)
-{
-    const unsigned char *const bytes = args->bytes;
-    unsigned long long *at = args->at;
-    const unsigned char byte = bytes[*at];
-    const unsigned char next = ((*at + 1ULL) < args->length) ? bytes[*at + 1u] : 0u;
-    if (EMBED_CALL(cli_space, SqlCtx, .byte = byte))
-    {
-        while ((*at < args->length) && EMBED_CALL(cli_space, SqlCtx, .byte = bytes[*at]))
-        {
-            *at += 1ULL;
-        }
-        return CLI_SQL_SPACE;
-    }
-    if (((byte == '-') && (next == '-')) || ((byte == '#') && (args->dialect == CLI_SQL_MYSQL)))
-    {
-        *at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
-                         .at = *at, .size = args->length, .set = "\n");
-        return CLI_SQL_COMMENT;
-    }
-    if ((byte == '/') && (next == '*'))
-    {
-        EMBED_CALL(cli_block_comment, SqlCtx, .bytes = bytes, .length = args->length, .at = at,
-                   .dialect = args->dialect);
-        return CLI_SQL_COMMENT;
-    }
-    return CLI_SQL_UNREAD;
-}
-
-// `*at` moved past a dollar-quoted string that starts there, `$$` or `$name$` around it, to the end of the text where
-// it does not close: 1, or 0 where none starts there
-EMBED_INLINE int cli_dollar_quoted(const SqlCtx *args)
-{
-    const unsigned char *const bytes = args->bytes;
-    unsigned long long *at = args->at;
-    const unsigned long long start = *at;
-    const unsigned long long tag =
-        EMBED_CALL(cli_dollar_tag, SqlCtx, .bytes = bytes, .length = args->length, .at_value = start);
-    if (tag == 0ULL)
-    {
-        return 0;
-    }
-    unsigned long long found = start + tag;
-    while (((found + tag) <= args->length) &&
-           (memor.cmp(&(MemoriaCfg){.src = bytes + found, .other = bytes + start, .bytes = tag}) != 0))
-    {
-        found += 1ULL;
-    }
-    *at = ((found + tag) <= args->length) ? (found + tag) : args->length;
-    return 1;
-}
-
-// a quoted run that starts at `*at` as the dialect quotes, a string or a name, `*at` moved past it: its type,
-// CLI_SQL_UNREAD where none starts there
-EMBED_INLINE unsigned int cli_sql_quoted(const SqlCtx *args)
-{
-    const unsigned char *const bytes = args->bytes;
-    unsigned long long *at = args->at;
-    const unsigned int dialect = args->dialect;
-    const unsigned char byte = bytes[*at];
-    const unsigned char next = ((*at + 1ULL) < args->length) ? bytes[*at + 1u] : 0u;
-    if ((byte == '\'') || (((byte == 'E') || (byte == 'e')) && (next == '\'') && (dialect == CLI_SQL_POSTGRES)))
-    {
-        *at += (byte == '\'') ? 1ULL : 2ULL;
-        EMBED_CALL(cli_quote, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .close = '\'',
-                   .escapes = (dialect == CLI_SQL_MYSQL) || (byte != '\''));
-        return CLI_SQL_TEXT;
-    }
-    if (byte == '"')
-    {
-        *at += 1ULL;
-        EMBED_CALL(cli_quote, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .close = '"',
-                   .escapes = dialect == CLI_SQL_MYSQL);
-        return (dialect == CLI_SQL_MYSQL) ? CLI_SQL_TEXT : CLI_SQL_NAME;
-    }
-    if ((byte == '`') && (dialect != CLI_SQL_POSTGRES))
-    {
-        *at += 1ULL;
-        EMBED_CALL(cli_quote, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .close = '`', .escapes = 0);
         return CLI_SQL_NAME;
     }
-    if ((byte == '[') && (dialect == CLI_SQL_SQLITE))
-    {
-        *at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
-                         .at = *at, .size = args->length, .set = "]");
-        *at = ((*at + 1ULL) < args->length) ? (*at + 1ULL) : args->length;
-        return CLI_SQL_NAME;
-    }
-    if ((byte == '$') && (dialect == CLI_SQL_POSTGRES) &&
-        EMBED_CALL(cli_dollar_quoted, SqlCtx, .bytes = bytes, .length = args->length, .at = at))
+    if ((is & CLI_LEAF_STRING) != 0u)
     {
         return CLI_SQL_TEXT;
     }
-    return CLI_SQL_UNREAD;
-}
-
-// a word, a number or one mark that starts at `*at` with `byte`, `*at` moved past it: its type
-EMBED_INLINE unsigned int cli_sql_bare(const SqlCtx *args)
-{
-    unsigned long long *at = args->at;
-    const char *const text = (const char *)args->bytes;
-    if (EMBED_CALL(cli_alpha, SqlCtx, .byte = args->byte) || (args->byte == '_') || (args->byte >= 0x80u))
+    if ((is & CLI_LEAF_NUMBER) != 0u)
     {
-        *at = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = *at,
-                         .size = args->length, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII,
-                         .set = "_$");
-        return CLI_SQL_WORD;
-    }
-    if (EMBED_CALL(cli_digit, SqlCtx, .byte = args->byte))
-    {
-        *at = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = *at,
-                         .size = args->length, .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = ".");
         return CLI_SQL_NUMBER;
     }
-    *at += 1ULL;
-    return CLI_SQL_MARK;
+    return ((is & (CLI_LEAF_NAME | CLI_LEAF_KEYWORD | CLI_LEAF_TYPE)) != 0u) ? CLI_SQL_WORD : CLI_SQL_MARK;
 }
 
-int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
+int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args)
 {
-    unsigned long long *at = args->at;
-    const unsigned char *const bytes = (const unsigned char *)args->text;
-    if (*at >= args->length)
+    CliSqlTokens *const tokens = args->tokens;
+    *tokens = (CliSqlTokens){NULL, 0u};
+    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    if (languages == NULL)
     {
         return 0;
     }
-    const unsigned long long start = *at;
-    const unsigned char byte = bytes[start];
-    unsigned int type =
-        EMBED_CALL(cli_sql_quiet, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .dialect = args->dialect);
-    if (type == CLI_SQL_UNREAD)
+    CliLeafRead read;
+    const int leaved = EMBED_CALL(cli_symbols_text_internal.language_leaves_save, CliSymbolsTextCtx,
+                                  .languages = languages, .id = "sql", .state = s_states[args->dialect],
+                                  .text = args->text, .size = args->length, .read = &read);
+    int taken = leaved;
+    if (leaved && (read.count != 0u))
     {
-        type = EMBED_CALL(cli_sql_quoted, SqlCtx, .bytes = bytes, .length = args->length, .at = at,
-                          .dialect = args->dialect);
+        tokens->at = g_cli_guard->temporary_buf_alloc((unsigned long long)read.count * sizeof(CliSqlToken), g_cli_db_owner);
+        taken = tokens->at != NULL;
+        for (unsigned int at = 0u; taken && (at < read.count); at += 1u)
+        {
+            const CliLeaf *const leaf = &read.leaf[at];
+            const unsigned int type = EMBED_CALL(cli_leaf_type, SqlCtx, .leaf = leaf);
+            if (type != CLI_SQL_UNREAD)
+            {
+                tokens->at[tokens->count] = (CliSqlToken){type, leaf->from, leaf->to};
+                tokens->count += 1u;
+            }
+        }
     }
-    if (type == CLI_SQL_UNREAD)
-    {
-        type = EMBED_CALL(cli_sql_bare, SqlCtx, .bytes = bytes, .length = args->length, .at = at, .byte = byte);
-    }
-    args->token->type = type;
-    args->token->start = start;
-    args->token->end = *at;
-    return 1;
+    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
+    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
+    return taken;
+}
+
+void cli_sql_tokens_free(const CliSqlTextLengthDialectCfg *args)
+{
+    g_cli_guard->persistent_buf_release(args->tokens->at, g_cli_db_owner);
+    *args->tokens = (CliSqlTokens){NULL, 0u};
 }
 
 // whether `length` bytes of `text` are `word` in either case
@@ -351,20 +186,18 @@ EMBED_INLINE void cli_sql_word_read(const SqlCtx *args)
 void cli_sql_statements(const CliSqlTextLengthCfg *args)
 {
     const char *text = args->text;
-    unsigned long long length = args->length;
-    unsigned int dialect = args->dialect;
     CliSqlStatement statement = {0ULL, 0, 0ULL, 0u, 0, 0, 0LL, 0};
-    unsigned long long at = 0ULL;
-    CliSqlToken token;
-    while (EMBED_CALL(cli_sql_text_length_dialect.token, CliSqlTextLengthDialectCfg, .text = text, .length = length,
-                      .dialect = dialect, .at = &at, .token = &token))
+    CliSqlTokens tokens;
+    if (!EMBED_CALL(cli_sql_text_length_dialect.tokens, CliSqlTextLengthDialectCfg, .text = text,
+                    .length = args->length, .dialect = args->dialect, .tokens = &tokens))
     {
+        return;
+    }
+    for (unsigned int at = 0u; at < tokens.count; at += 1u)
+    {
+        const CliSqlToken token = tokens.at[at];
         const char *const word_text = text + token.start;
         const unsigned long long size = token.end - token.start;
-        if ((token.type == CLI_SQL_SPACE) || (token.type == CLI_SQL_COMMENT))
-        {
-            continue;
-        }
         const int semicolon = (token.type == CLI_SQL_MARK) && (size == 1u) && (word_text[0] == ';');
         if (semicolon)
         {
@@ -394,6 +227,7 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
         statement.started = 1;
         statement.last = token.end;
     }
+    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
     if (statement.started)
     {
         const CliSqlSpan span = {statement.first, statement.last};

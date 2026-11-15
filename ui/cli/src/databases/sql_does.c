@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "sql.h"
 
-// the max words of a statement read, and the max of its tokens past spaces and comments
+// the max words of a statement read, and the max of its tokens
 #define CLI_SQL_WORDS 4096u
 
 // A word of a statement outside its strings, names and comments: where it is, and the depth of brackets at it
@@ -16,7 +16,7 @@ typedef struct
     long long depth;
 } CliSqlWord;
 
-// the words of a statement and its tokens past spaces and comments, guarded by the lock while one is read
+// the words of a statement and its tokens, guarded by the lock while one is read
 static CliSqlWord s_words[CLI_SQL_WORDS];
 static CliSqlToken s_tokens[CLI_SQL_WORDS];
 
@@ -67,12 +67,15 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
     unsigned int dialect = args->dialect;
     long long depth = 0LL;
     unsigned int count = 0u;
-    unsigned long long at = 0ULL;
-    CliSqlToken token;
-    while (EMBED_CALL(cli_sql_text_length_dialect.token, CliSqlTextLengthDialectCfg, .text = args->statement,
-                      .length = length, .dialect = dialect, .at = &at, .token = &token) &&
-           (count < CLI_SQL_WORDS))
+    CliSqlTokens tokens;
+    if (!EMBED_CALL(cli_sql_text_length_dialect.tokens, CliSqlTextLengthDialectCfg, .text = args->statement,
+                    .length = length, .dialect = dialect, .tokens = &tokens))
     {
+        return 0u;
+    }
+    for (unsigned int at = 0u; (at < tokens.count) && (count < CLI_SQL_WORDS); at += 1u)
+    {
+        const CliSqlToken token = tokens.at[at];
         const unsigned long long size = token.end - token.start;
         if ((token.type == CLI_SQL_MARK) && (size == 1u))
         {
@@ -96,6 +99,7 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
             count += 1u;
         }
     }
+    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
     return count;
 }
 
@@ -441,18 +445,17 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
                                             "definer", "algorithm", "sql",     "security"};
     static const char *const s_guards[4] = {"if", "not", "exists", "concurrently"};
     unsigned int count = 0u;
-    unsigned long long place = 0ULL;
-    CliSqlToken token;
-    while (EMBED_CALL(cli_sql_text_length_dialect.token, CliSqlTextLengthDialectCfg, .text = args->statement,
-                      .length = length, .dialect = dialect, .at = &place, .token = &token) &&
-           (count < CLI_SQL_WORDS))
+    CliSqlTokens tokens;
+    if (!EMBED_CALL(cli_sql_text_length_dialect.tokens, CliSqlTextLengthDialectCfg, .text = args->statement,
+                    .length = length, .dialect = dialect, .tokens = &tokens))
     {
-        if ((token.type != CLI_SQL_SPACE) && (token.type != CLI_SQL_COMMENT))
-        {
-            s_tokens[count] = token;
-            count += 1u;
-        }
+        return 0;
     }
+    for (; (count < tokens.count) && (count < CLI_SQL_WORDS); count += 1u)
+    {
+        s_tokens[count] = tokens.at[count];
+    }
+    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
     EMBED_CALL(cli_lower_into, SqlDoesCtx, .statement = args->statement, .count = count, .index = 0u,
                .out_capacity = args->shaped->verb);
     if (!EMBED_CALL(cli_in, SqlDoesCtx, .text = args->shaped->verb,

@@ -43,7 +43,7 @@ static const CliLeafSegment s_role_segments[] = {
     {"statement", CLI_LEAF_STATEMENT}, {"separator", CLI_LEAF_SEPARATOR},
     {"call", CLI_LEAF_CALL},           {"assign", CLI_LEAF_ASSIGN},
     {"function", CLI_LEAF_FUNCTION},   {"depth", CLI_LEAF_DEPTH},
-    {"module", CLI_LEAF_MODULE},
+    {"module", CLI_LEAF_MODULE},       {"quoted", CLI_LEAF_QUOTED},
 };
 static const CliLeafSegment s_typed_segments[] = {
     {"number", CLI_LEAF_OF_NUMBER},
@@ -351,7 +351,8 @@ int cli_symbols_language_leaves_save(const CliSymbolsTextCtx *args)
     *read = (CliLeafRead){args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
     read->size = size;
     return EMBED_CALL(cli_symbols_read_languages_text_internal.language_leaves_in, CliSymbolsReadLanguagesTextCtx,
-                      .read_symbols_languages_pointer_other = args->languages, .id = args->id, .state = "root",
+                      .read_symbols_languages_pointer_other = args->languages, .id = args->id,
+                      .state = (args->state != NULL) ? args->state : "root",
                       .text = args->text, .size = size, .each_leaves_each = cli_leaves_line, .context = read) &&
            !read->refused;
 }

@@ -125,7 +125,8 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 // whose pair encloses a region of statements; `statement`, the mark that ends a statement; `separator`, the mark
 // between the items of a list; `call`, a name a call names; `assign`, the operator that gives a name its value;
 // `function`, with `declaration`, the name a function is declared by; `depth`, a token whose `open` or `close`
-// counts the depth its pair is at; and `module`, with `declaration`, the name a module is declared by
+// counts the depth its pair is at; `module`, with `declaration`, the name a module is declared by; and `quoted`, a
+// name written in quotes
 #define CLI_LEAF_OPEN 0x200000000ull
 #define CLI_LEAF_CLOSE 0x400000000ull
 #define CLI_LEAF_REGION 0x800000000ull
@@ -135,6 +136,7 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 #define CLI_LEAF_ASSIGN 0x8000000000ull
 #define CLI_LEAF_FUNCTION 0x10000000000ull
 #define CLI_LEAF_DEPTH 0x20000000000ull
+#define CLI_LEAF_QUOTED 0x40000000000ull
 #define CLI_LEAF_TEST 0x80000000000ull
 #define CLI_LEAF_MODULE 0x100000000000ull
 
@@ -525,6 +527,7 @@ struct CliSymbolsTextCtx
     const char *text;
     unsigned long long size;
     const char *id;
+    const char *state;
     CliSymbolsLanguages *languages;
     CliLeafRead *read;
 };

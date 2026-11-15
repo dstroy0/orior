@@ -1,0 +1,100 @@
+{
+  "id": "sql",
+  "name": "SQL",
+  "version": "1.0.0",
+  "type": "language",
+  "extensions": ["sql"],
+  "comments": {"line":"--","block":["/*","*/"]},
+  "pairs": ["()","[]"],
+  "quotes": ["'","\""],
+  "indentAfter": "\\($",
+  "palette": {
+    "comment": "#6e6b99ff",
+    "delimiter": "#9e9bc4ff",
+    "identifier": "#9ea3b5ff",
+    "identifier.quoted": "#6fdcb4ff",
+    "keyword": "#a48cffff",
+    "number": "#f2d48aff",
+    "operator": "#ffffffff",
+    "string": "#9fe3c8ff"
+  },
+  "grammar": {
+    "words": [
+      "add", "all", "alter", "analyze", "and", "as", "asc", "attach", "begin", "between", "by", "call", "case",
+      "cast", "check", "cluster", "column", "comment", "commit", "constraint", "copy", "create", "cross",
+      "database", "default", "delete", "desc", "describe", "detach", "distinct", "do", "drop", "else", "end",
+      "escape", "except", "execute", "exists", "explain", "foreign", "from", "full", "function", "grant", "group",
+      "having", "if", "import", "in", "index", "inner", "insert", "intersect", "into", "is", "join", "key", "left",
+      "like", "limit", "load", "merge", "natural", "not", "null", "offset", "on", "or", "order", "outer",
+      "pragma", "primary", "procedure", "references", "refresh", "reindex", "release", "rename", "replace",
+      "returning", "revoke", "right", "rollback", "savepoint", "schema", "select", "set", "show", "start",
+      "table", "then", "to", "transaction", "trigger", "truncate", "union", "unique", "update", "upsert",
+      "using", "vacuum", "values", "view", "when", "where", "with", "false", "true", "ADD", "ALL", "ALTER",
+      "ANALYZE", "AND", "AS", "ASC", "ATTACH", "BEGIN", "BETWEEN", "BY", "CALL", "CASE", "CAST", "CHECK",
+      "CLUSTER", "COLUMN", "COMMENT", "COMMIT", "CONSTRAINT", "COPY", "CREATE", "CROSS", "DATABASE", "DEFAULT",
+      "DELETE", "DESC", "DESCRIBE", "DETACH", "DISTINCT", "DO", "DROP", "ELSE", "END", "ESCAPE", "EXCEPT",
+      "EXECUTE", "EXISTS", "EXPLAIN", "FOREIGN", "FROM", "FULL", "FUNCTION", "GRANT", "GROUP", "HAVING", "IF",
+      "IMPORT", "IN", "INDEX", "INNER", "INSERT", "INTERSECT", "INTO", "IS", "JOIN", "KEY", "LEFT", "LIKE",
+      "LIMIT", "LOAD", "MERGE", "NATURAL", "NOT", "NULL", "OFFSET", "ON", "OR", "ORDER", "OUTER", "PRAGMA",
+      "PRIMARY", "PROCEDURE", "REFERENCES", "REFRESH", "REINDEX", "RELEASE", "RENAME", "REPLACE", "RETURNING",
+      "REVOKE", "RIGHT", "ROLLBACK", "SAVEPOINT", "SCHEMA", "SELECT", "SET", "SHOW", "START", "TABLE", "THEN",
+      "TO", "TRANSACTION", "TRIGGER", "TRUNCATE", "UNION", "UNIQUE", "UPDATE", "UPSERT", "USING", "VACUUM",
+      "VALUES", "VIEW", "WHEN", "WHERE", "WITH", "FALSE", "TRUE"
+    ],
+    "tokenizer": {
+      "root": [{"include":"@postgres"}],
+      "postgres": [
+        ["--.*$","comment"],
+        ["/\\*","comment","@comment_nested"],
+        ["[eE]'","string","@string_escaped"],
+        ["'","string","@string"],
+        ["\"(?:[^\"]|\"\")*\"","identifier.quoted"],
+        ["\\$\\w*\\$","string","@dollar"],
+        {"include":"@code"}
+      ],
+      "mysql": [
+        ["--.*$","comment"],
+        ["#.*$","comment"],
+        ["/\\*","comment","@comment"],
+        ["'","string","@string_escaped"],
+        ["\"","string","@string_double_escaped"],
+        ["`[^`]*`","identifier.quoted"],
+        {"include":"@code"}
+      ],
+      "sqlite": [
+        ["--.*$","comment"],
+        ["/\\*","comment","@comment"],
+        ["'","string","@string"],
+        ["\"(?:[^\"]|\"\")*\"","identifier.quoted"],
+        ["`[^`]*`","identifier.quoted"],
+        ["\\[[^\\]]*\\]","identifier.quoted"],
+        {"include":"@code"}
+      ],
+      "code": [
+        ["\\s+",""],
+        ["[A-Za-z_][\\w$]*",{"cases":{"@words":"keyword","@default":"identifier"}}],
+        ["\\d[\\w.]*","number"],
+        [";","delimiter.statement"],
+        ["\\(","delimiter.bracket.depth.open"],
+        ["\\)","delimiter.bracket.depth.close"],
+        ["\\[","delimiter.bracket.depth.open"],
+        ["\\]","delimiter.bracket.depth.close"],
+        [",","delimiter.separator"],
+        ["\\.","delimiter"],
+        ["[<>=!~:&|+\\-*/^%@?#$]+","operator"],
+        [".","delimiter"]
+      ],
+      "comment": [["\\*/","comment","@pop"],["[^*]+","comment"],["\\*","comment"]],
+      "comment_nested": [
+        ["/\\*","comment","@comment_nested"],
+        ["\\*/","comment","@pop"],
+        ["[^/*]+","comment"],
+        ["[/*]","comment"]
+      ],
+      "string": [["''","string"],["'","string","@pop"],["[^']+","string"]],
+      "string_escaped": [["\\\\.","string"],["''","string"],["'","string","@pop"],["[^'\\\\]+","string"]],
+      "string_double_escaped": [["\\\\.","string"],["\"\"","string"],["\"","string","@pop"],["[^\"\\\\]+","string"]],
+      "dollar": [["\\$\\w*\\$","string","@pop"],["[^$]+","string"],["\\$","string"]]
+    }
+  }
+}

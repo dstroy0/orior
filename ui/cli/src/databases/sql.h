@@ -4,10 +4,10 @@
 // statement does): the statements of a text, the one a place in it is in, whether one writes, an UPDATE or a
 // DELETE that reaches every row of its table, and the object a statement that changes the schema names.
 //
-// The text is read as each database writes it: PostgreSQL's dollar quotes, its `E''` strings and its nested comments;
-// MySQL's `#` comments, its backslash escapes and its backquoted names; SQLite's names in brackets. A semicolon inside
-// a string, a quoted name, a comment, a dollar quote or the BEGIN and END of a trigger's or a routine's body does not
-// end a statement
+// The text's tokens are the leaves the SQL grammar plugin's walk saves, begun in the state of the dialect the database
+// writes: PostgreSQL's dollar quotes, its `E''` strings and its nested comments; MySQL's `#` comments, its backslash
+// escapes and its backquoted names; SQLite's names in brackets. A semicolon inside a string, a quoted name, a comment,
+// a dollar quote or the BEGIN and END of a trigger's or a routine's body does not end a statement
 #ifndef SQL_H
 #define SQL_H
 #include "../command_line/cli_internal.h"
@@ -28,16 +28,14 @@ enum
     CLI_SQL_SQLITE
 };
 
-// a token's types
+// a token's types: a bare word, a quoted name, a string, a number, and any other mark
 enum
 {
     CLI_SQL_WORD,
     CLI_SQL_NAME,
     CLI_SQL_TEXT,
     CLI_SQL_NUMBER,
-    CLI_SQL_MARK,
-    CLI_SQL_COMMENT,
-    CLI_SQL_SPACE
+    CLI_SQL_MARK
 };
 
 // what a statement does: reads and changes nothing, changes rows, changes the schema, begins, commits or rolls back a
@@ -59,6 +57,13 @@ typedef struct
     unsigned long long end;
 } CliSqlToken;
 
+// A text's tokens, spaces and comments left out, in a cell of their count, and how many
+typedef struct
+{
+    CliSqlToken *at;
+    unsigned int count;
+} CliSqlTokens;
+
 // A statement of a text: where it starts and ends, past the spaces and comments around it and before its semicolon
 typedef struct
 {
@@ -79,9 +84,11 @@ typedef struct
 
 // the dialect a database's name writes: mysql and mariadb, sqlite, and PostgreSQL's for any other
 unsigned int cli_sql_dialect(const CliSqlCfg *args);
-// the token that starts at `*at` of `length` bytes of `text`, every byte in one, into `token`, `*at` moved past it: 1,
-// or 0 at the text's end
-int cli_sql_token(const CliSqlTextLengthDialectCfg *args);
+// the tokens of `length` bytes of `text` read off the leaves of the SQL grammar's walk, begun in the dialect's state,
+// into `tokens`, in a cell of their count: 1, or 0 where the grammar or the cells refuse the text; and the cell given
+// back
+int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args);
+void cli_sql_tokens_free(const CliSqlTextLengthDialectCfg *args);
 typedef struct
 {
     void *context;
@@ -126,8 +133,7 @@ struct CliSqlTextLengthDialectCfg
     const char *text;
     unsigned long long length;
     unsigned int dialect;
-    unsigned long long *at;
-    CliSqlToken *token;
+    CliSqlTokens *tokens;
 };
 
 struct CliSqlLengthCfg
@@ -162,11 +168,13 @@ EMBED_TABLE_STORAGE CliSqlNs cli_sql EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*token)(const CliSqlTextLengthDialectCfg *args);
+    int (*tokens)(const CliSqlTextLengthDialectCfg *args);
+    void (*tokens_free)(const CliSqlTextLengthDialectCfg *args);
 } CliSqlTextLengthDialectNs;
-EMBED_TABLE_LAYOUT(CliSqlTextLengthDialectNs, token);
+EMBED_TABLE_LAYOUT(CliSqlTextLengthDialectNs, tokens, tokens_free);
 EMBED_TABLE_STORAGE CliSqlTextLengthDialectNs cli_sql_text_length_dialect EMBED_UNUSED = {
-    .token = cli_sql_token,
+    .tokens = cli_sql_tokens,
+    .tokens_free = cli_sql_tokens_free,
 };
 
 typedef struct
