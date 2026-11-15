@@ -340,10 +340,10 @@ EMBED_INLINE void notices_break(const CliNoticesCtx *args)
     EMBED_CALL(notices_displayed, CliNoticesCtx, .notice_read = &last);
 }
 
-void cli_notice_post(const char *text, int failed)
+void cli_notice_post(const CliNoticesCfg *args)
 {
     CliNotice notice;
-    if (!EMBED_CALL(notices_built, CliNoticesCtx, .text = text, .failed = failed, .notice = &notice))
+    if (!EMBED_CALL(notices_built, CliNoticesCtx, .text = args->text, .failed = args->failed, .notice = &notice))
     {
         return;
     }
@@ -393,12 +393,12 @@ void cli_notices_pointer(void)
     s_notices.commanded_ms = now;
 }
 
-void cli_notices_key(const char *name, int editing)
+void cli_notices_key(const CliNoticesCfg *args)
 {
     const unsigned long long now = cli_clock_milliseconds();
     s_notices.input_ms = now;
     // a key with a modifier, a function key, or any key the editor does not take, gives a command; the rest type
-    const char *const key = (name != NULL) ? name : "";
+    const char *const key = (args->name != NULL) ? args->name : "";
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_LABEL_MAX_LEN});
     const int modified = cellul.starts(&(CatenaFinitaCfg){.src = key, .other = "Ctrl+", .cap = CLI_LABEL_MAX_LEN}) ||
                          cellul.starts(&(CatenaFinitaCfg){.src = key, .other = "Alt+", .cap = CLI_LABEL_MAX_LEN}) ||
@@ -407,7 +407,7 @@ void cli_notices_key(const char *name, int editing)
     const int function = (length >= 2ULL) && (key[0] == 'F') &&
                          (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = key,
                                      .at = 1ULL, .size = length, .classes = CLI_TEXT_DIGITS, .set = "") == length);
-    if (modified || function || !editing)
+    if (modified || function || !args->editing)
     {
         s_notices.commanded_ms = now;
     }
@@ -418,15 +418,16 @@ void cli_notices_break(void)
     EMBED_CALL(notices_break, CliNoticesCtx, .seen = 0);
 }
 
-void cli_notices_press(unsigned int part)
+void cli_notices_press(const CliNoticesCfg *args)
 {
-    if (part == CLI_NOTICES_PRESS_FOCUS)
+    if (args->part == CLI_NOTICES_PRESS_FOCUS)
     {
-        cli_notices_focus(0);
+        cli_notices_focus(&(CliNoticesCfg){.on = 0});
         return;
     }
     const char *const type = (s_notices.displayed != NULL) ? s_notices.displayed_type : NULL;
-    if ((part == CLI_NOTICES_PRESS_SILENCE) && (type != NULL) && !EMBED_CALL(notices_away, CliNoticesCtx, .type = type))
+    if ((args->part == CLI_NOTICES_PRESS_SILENCE) && (type != NULL) &&
+        !EMBED_CALL(notices_away, CliNoticesCtx, .type = type))
     {
         char *const away = EMBED_CALL(notices_away_copy, CliNoticesCtx, .seen = 0);
         const unsigned long long had =
@@ -445,17 +446,17 @@ void cli_notices_press(unsigned int part)
         g_cli_guard->persistent_buf_release(joined, g_cli_command_line_owner);
         g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
     }
-    if ((part == CLI_NOTICES_PRESS_NOTICE) || (part == CLI_NOTICES_PRESS_SILENCE))
+    if ((args->part == CLI_NOTICES_PRESS_NOTICE) || (args->part == CLI_NOTICES_PRESS_SILENCE))
     {
         EMBED_CALL(notices_hidden, CliNoticesCtx, .seen = 0);
     }
 }
 
-void cli_notices_focus(int on)
+void cli_notices_focus(const CliNoticesCfg *args)
 {
-    s_notices.focus = on;
-    s_notices.focus_waiting = on ? EMBED_CALL(notices_count, CliNoticesCtx, .ring = s_notices.waiting) : 0u;
-    if (!on)
+    s_notices.focus = args->on;
+    s_notices.focus_waiting = args->on ? EMBED_CALL(notices_count, CliNoticesCtx, .ring = s_notices.waiting) : 0u;
+    if (!args->on)
     {
         EMBED_CALL(notices_break, CliNoticesCtx, .seen = 0);
     }
@@ -466,21 +467,21 @@ char *cli_notices_away_alloc(void)
     return EMBED_CALL(notices_away_copy, CliNoticesCtx, .seen = 0);
 }
 
-void cli_notices_away_end(char *away)
+void cli_notices_away_end(const CliNoticesCfg *args)
 {
-    g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
+    g_cli_guard->persistent_buf_release(args->away, g_cli_command_line_owner);
 }
 
-void cli_notices_show_again(const char *type)
+void cli_notices_show_again(const CliNoticesCfg *args)
 {
     char *const away = EMBED_CALL(notices_away_copy, CliNoticesCtx, .seen = 0);
-    if ((away == NULL) || !EMBED_CALL(notices_away, CliNoticesCtx, .type = type))
+    if ((away == NULL) || !EMBED_CALL(notices_away, CliNoticesCtx, .type = args->type))
     {
         g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
         return;
     }
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = away, .cap = CLI_POOL_BYTES});
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES});
     char *const left = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if (left == NULL)
     {
@@ -492,8 +493,8 @@ void cli_notices_show_again(const char *type)
     {
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                   .text = away, .at = at, .size = size, .set = "\n");
-        const int same =
-            ((end - at) == length) && (memor.cmp(&(MemoriaCfg){.src = away + at, .other = type, .bytes = length}) == 0);
+        const int same = ((end - at) == length) &&
+                         (memor.cmp(&(MemoriaCfg){.src = away + at, .other = args->type, .bytes = length}) == 0);
         if (!same)
         {
             mmgr_line_put(&line, (line.at != 0ULL) ? "\n" : "");
@@ -539,11 +540,12 @@ unsigned long long cli_notices_due_ms(void)
     return displayed;
 }
 
-void cli_notices_restore(const CliStateEntries *entries)
+void cli_notices_restore(const CliNoticesCfg *args)
 {
-    // the types put away read out of the entries' cell into a cell of this call, then into a cell of the notices' own
+    // the types put away read out of the args->entries' cell into a cell of this call, then into a cell of the notices'
+    // own
     const unsigned long long size =
-        cli_state_entry_size(&(CliStateEntryCfg){.entries = entries, .key = CLI_NOTICES_AWAY_KEY});
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = args->entries, .key = CLI_NOTICES_AWAY_KEY});
     if (size == CLI_STATE_NONE)
     {
         return;
@@ -552,7 +554,8 @@ void cli_notices_restore(const CliStateEntries *entries)
     const CarcerMovableEntry *const away = g_cli_guard->movable_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if ((away_text == NULL) || (away == NULL) ||
         (cli_state_entry_value(&(CliStateEntryCfg){
-             .entries = entries, .key = CLI_NOTICES_AWAY_KEY, .out = away_text, .capacity = size + 1ULL}) == NULL))
+             .entries = args->entries, .key = CLI_NOTICES_AWAY_KEY, .out = away_text, .capacity = size + 1ULL}) ==
+         NULL))
     {
         g_cli_guard->persistent_buf_release(away_text, g_cli_command_line_owner);
         if (away != NULL)

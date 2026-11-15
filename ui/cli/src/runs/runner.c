@@ -103,18 +103,18 @@ void cli_command_folder(const CliRunnerCommandFolderCfg *args)
     args->command->has_folder = 1;
 }
 
-void cli_lines_clear(CliRunLines *lines)
+void cli_lines_clear(const CliRunLinesCfg *args)
 {
     (void)anularis.init(&(AnularisCfg){
-        .ring = &lines->text, .buf = lines->text_bytes, .capacity = CLI_LINES_TEXT, .segment_count = 1u});
-    (void)anularis.init(&(AnularisCfg){.ring = &lines->line,
-                                       .buf = (embed_u8 *)(void *)lines->line_bytes,
+        .ring = &args->lines->text, .buf = args->lines->text_bytes, .capacity = CLI_LINES_TEXT, .segment_count = 1u});
+    (void)anularis.init(&(AnularisCfg){.ring = &args->lines->line,
+                                       .buf = (embed_u8 *)(void *)args->lines->line_bytes,
                                        .capacity = (unsigned long long)CLI_LINES_MAX * sizeof(CliRunnerLine),
                                        .segment_count = CLI_LINES_MAX,
                                        .segment_bytes = sizeof(CliRunnerLine)});
-    lines->text_put = 0u;
-    lines->text_taken = 0u;
-    lines->positioned = 1;
+    args->lines->text_put = 0u;
+    args->lines->text_taken = 0u;
+    args->lines->positioned = 1;
 }
 
 void cli_lines_append(const CliRunnerLinesCfg *args)
@@ -127,7 +127,7 @@ void cli_lines_append(const CliRunnerLinesCfg *args)
     }
     if (!lines->positioned)
     {
-        cli_lines_clear(lines);
+        cli_lines_clear(&(CliRunLinesCfg){.lines = lines});
     }
     // the oldest lines let go until the rings have the room: a line's record released and its bytes consumed
     while ((anularis.seg_inflight(&(AnularisCfg){.ring = &lines->line}) != 0u) &&
@@ -238,18 +238,18 @@ int cli_runner_bash(const CliRunnerNameCfg *args)
     {
         char folder[CLI_PATH_MAX_LEN];
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
-                                                               .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                               .dst = folder,
-                                                               .bytes = CLI_PATH_MAX_LEN});
+                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                .dst = folder,
+                                                                .bytes = CLI_PATH_MAX_LEN});
         char git[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(cli_found_in, RunnerCtx, .under = folder, .name = "\\git.exe", .path = git))
         {
             continue;
         }
         // the folder above the one git is in: the folder cut at its last slash of either type, found a word at a time
-        const unsigned long long past_slash = EMBED_CALL(
-            cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
-            .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_PATH_MAX_LEN}), .set = "\\/");
+        const unsigned long long past_slash =
+            EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
+                       .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_PATH_MAX_LEN}), .set = "\\/");
         if (past_slash == 0ULL)
         {
             continue;

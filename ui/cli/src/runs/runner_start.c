@@ -190,7 +190,7 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     run->stopped = 0;
     run->process = 0ULL;
     run->group = 0ULL;
-    cli_lines_clear(run->lines);
+    cli_lines_clear(&(CliRunLinesCfg){.lines = run->lines});
     run->has_first = 0;
     run->began = cli_clock_milliseconds();
     // the run's start reported before any line of it, so that a reader knows the run and its job first, the job read

@@ -298,7 +298,7 @@ EMBED_INLINE void changes_noticed(const ChangesCtx *args)
 {
     if (args->text != NULL)
     {
-        cli_notice_post(args->text, args->failed);
+        cli_notice_post(&(CliNoticesCfg){.text = args->text, .failed = args->failed});
         return;
     }
     char refusal[CLI_CHANGES_REFUSAL_MAX];
@@ -310,7 +310,7 @@ EMBED_INLINE void changes_noticed(const ChangesCtx *args)
     VerbaLinea line = {line_text, sizeof(line_text), 0ULL};
     mmgr_line_put_n(&line, refusal, first);
     (void)mmgr_line_finish(&line);
-    cli_notice_post(line_text, 1);
+    cli_notice_post(&(CliNoticesCfg){.text = line_text, .failed = 1});
 }
 
 // the files taken committed, pushed as well where `which` is Commit and Push, every view saved first
@@ -337,7 +337,7 @@ EMBED_INLINE void changes_rolled(const ChangesCtx *args)
     {
         if (taken != 0u)
         {
-            cli_notice_post(CHANGES_ARMED, 0);
+            cli_notice_post(&(CliNoticesCfg){.text = CHANGES_ARMED, .failed = 0});
         }
         return;
     }

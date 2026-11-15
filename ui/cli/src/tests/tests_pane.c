@@ -517,7 +517,7 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
         if (count == 0u)
         {
             g_cli_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
-            cli_notice_post("No test failed in the last run.", 0);
+            cli_notice_post(&(CliNoticesCfg){.text = "No test failed in the last run.", .failed = 0});
             return 0;
         }
     }
@@ -553,7 +553,8 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
         if (count == 0u)
         {
             g_cli_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
-            cli_notice_post("No test is found to run: Run, Find Tests says what is taken as one.", 1);
+            cli_notice_post(&(CliNoticesCfg){
+                .text = "No test is found to run: Run, Find Tests says what is taken as one.", .failed = 1});
             return 0;
         }
     }
@@ -570,7 +571,8 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
     if (!started)
     {
         EMBED_ATOMIC_STORE(&s_running, 0u);
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The tests could not be run.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The tests could not be run.", .failed = 1});
         return 0;
     }
     return 1;

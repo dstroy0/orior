@@ -4,10 +4,10 @@
 // frames and regions that go over it
 #ifndef INTERFACE_INTERNAL_H
 #define INTERFACE_INTERNAL_H
-#include "interface.h"
 #include "embed_atomic.h"
 #include "embed_dispatch_layout.h"
 #include "embed_ticket_ring.h"
+#include "interface.h"
 #include "transfer.h"
 
 // the max clients in one process, the messages queued for one client as a two's power, and the bytes their rings'
@@ -15,7 +15,7 @@
 #define CLI_IPC_CLIENTS 2u
 #define CLI_IPC_RECV_SHIFT 6u
 #define CLI_IPC_RECV_QUEUE (1u << CLI_IPC_RECV_SHIFT)
-#define CLI_INTERFACE_CLIENTS_RING_BYTES                                                                                    \
+#define CLI_INTERFACE_CLIENTS_RING_BYTES                                                                               \
     ((unsigned long long)CLI_IPC_CLIENTS * CLI_IPC_RECV_QUEUE * sizeof(EmbedTicketRingSlot))
 
 typedef struct CliIpcErrMsgCtx CliIpcErrMsgCtx;
@@ -38,8 +38,8 @@ typedef struct CliIpcEndBytesCtx CliIpcEndBytesCtx;
 
 // A frame is its bytes' count in four bytes, least first, then its type's byte and its fields, each text ended by a 0.
 // A process's first frame joins by its key; each after it listens on a channel, or sends on one a byte saying where the
-// body is and the body or a transfer. The interface answers each with a refusal and why, or an answer and what it has to
-// say, a name or a count; and it sends what comes on a channel as a message: the channel, who sent it, and the same
+// body is and the body or a transfer. The interface answers each with a refusal and why, or an answer and what it has
+// to say, a name or a count; and it sends what comes on a channel as a message: the channel, who sent it, and the same
 // byte and body
 #define CLI_IPC_TYPE_JOIN 'J'
 #define CLI_IPC_TYPE_LISTEN 'L'
@@ -90,10 +90,10 @@ typedef struct
 
 // a listener made into `listener`, its address into `address`, sized for CLI_PATH_MAX_LEN; the next process to
 // join it taken,
-// its end into `end` and the process at the other end into `peer`, where the system reports it; the interface at `address`
-// joined, waiting up to five seconds while every instance of a pipe is taken; `size` bytes read whole; `size` bytes
-// written whole, the region's descriptor going with the first byte on a socket; the next descriptor that came with
-// what was read, -1 where none did or on Windows; a reader of the end woken to its end; and the end let go
+// its end into `end` and the process at the other end into `peer`, where the system reports it; the interface at
+// `address` joined, waiting up to five seconds while every instance of a pipe is taken; `size` bytes read whole; `size`
+// bytes written whole, the region's descriptor going with the first byte on a socket; the next descriptor that came
+// with what was read, -1 where none did or on Windows; a reader of the end woken to its end; and the end let go
 // (platform/windows_ipc.c, platform/posix_ipc.c)
 int cli_ipc_listening(const CliIpcListenerAddressCtx *args);
 int cli_ipc_accept(const CliIpcListenerCtx *args);
@@ -119,7 +119,14 @@ void cli_ipc_close(const CliIpcCtx *args);
 // or 0 with why given; and the transfer at `transfer`, `size` bytes, read: 1, or 0 with why given (interface.c)
 int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args);
 int cli_ipc_frame_write(const CliIpcEndCtx *args);
-unsigned long long cli_ipc_field_end(const char *frame, unsigned long long size, unsigned long long at);
+// a frame of `size` bytes, read from `at`
+typedef struct
+{
+    const char *frame;
+    unsigned long long size;
+    unsigned long long at;
+} CliIpcFrameCfg;
+unsigned long long cli_ipc_field_end(const CliIpcFrameCfg *args);
 int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args);
 int cli_ipc_transferred_over(const CliIpcErrMsgCtx *args);
 int cli_ipc_transfer(const CliIpcErrMsgSizeCtx *args);

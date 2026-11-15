@@ -118,10 +118,10 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     return 1;
 }
 
-unsigned int cli_servers_check_waiting(const CliServersQueue *queue)
+unsigned int cli_servers_check_waiting(const CliServersQueueCfg *args)
 {
     unsigned int waiting = 0u;
-    const CliServersCheckRing *const rings[2] = {&queue->waiting, &queue->first};
+    const CliServersCheckRing *const rings[2] = {&args->queue->waiting, &args->queue->first};
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         // the checkers take tickets ahead of the pushes, so the taken past the pushed count as none waiting

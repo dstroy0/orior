@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_client.c: a process's end of the interface: joined by its key, a thread reading what comes, each message on a channel
-// it listens on queued and each answer stored for the one waiting on it, and what it requests written a frame at a
-// time, the region a long body is in passed over with its frame
+// interface_client.c: a process's end of the interface: joined by its key, a thread reading what comes, each message on
+// a channel it listens on queued and each answer stored for the one waiting on it, and what it requests written a frame
+// at a time, the region a long body is in passed over with its frame
 #include "../command_line/rings.h"
 #include "../text/text.h"
 #include "interface_internal.h"
@@ -47,9 +47,12 @@ typedef struct
 EMBED_INLINE void client_recv(const InterfaceClientCtx *args)
 {
     unsigned long long size = args->size;
-    const unsigned long long channel_end = cli_ipc_field_end(args->message, size, 0ULL);
+    const unsigned long long channel_end =
+        cli_ipc_field_end(&(CliIpcFrameCfg){.frame = args->message, .size = size, .at = 0ULL});
     const unsigned long long from_end =
-        (channel_end != 0ULL) ? cli_ipc_field_end(args->message, size, channel_end) : 0ULL;
+        (channel_end != 0ULL)
+            ? cli_ipc_field_end(&(CliIpcFrameCfg){.frame = args->message, .size = size, .at = channel_end})
+            : 0ULL;
     if ((from_end == 0ULL) || (from_end >= size))
     {
         return;
@@ -121,7 +124,7 @@ static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u6
     // Explicit cast carries the end's address as the pass's entry
     if (!cli_ticket_pushed(&client->ring, client->taken, stamp_out) ||
         !embed_ticket_ring_pass_pop(&client->turnstiles, (embed_atomic_uptr_value)(embed_word)client, &client->ring,
-                                  *stamp_out, &job, &seen))
+                                    *stamp_out, &job, &seen))
     {
         return 0;
     }
@@ -159,7 +162,8 @@ static void client_read(void *context)
         }
         if ((size != 0ULL) && (client->frame[0] == CLI_IPC_TYPE_MESSAGE))
         {
-            EMBED_CALL(client_recv, InterfaceClientCtx, .client = client, .message = client->frame + 1, .size = size - 1ULL);
+            EMBED_CALL(client_recv, InterfaceClientCtx, .client = client, .message = client->frame + 1,
+                       .size = size - 1ULL);
             continue;
         }
         const unsigned long long pending = (size < CLI_IPC_ANSWER) ? size : 0ULL;
@@ -254,7 +258,8 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     memor.set(&(MemoriaCfg){.dst = &client->turnstiles, .val = 0, .bytes = sizeof(client->turnstiles)});
     // the ring's slots, this client's run of the clients' part of the rings block
     EmbedTicketRingSlot *const slots =
-        (EmbedTicketRingSlot *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_INTERFACE_CLIENTS) +
+        (EmbedTicketRingSlot *)(void *)(EMBED_CALL(cli_rings.part, CliRingsPartCfg,
+                                                   .part = CLI_RINGS_INTERFACE_CLIENTS) +
                                         ((unsigned long long)(client - s_clients) * CLI_IPC_RECV_QUEUE *
                                          sizeof(EmbedTicketRingSlot)));
     memor.set(&(MemoriaCfg){
@@ -362,9 +367,9 @@ int cli_ipc_send(const CliIpcErrMsgCfg *args)
         mmgr_line_put_n(&out, args->body, args->size);
     }
     *delivered = 0ULL;
-    request =
-        request && EMBED_CALL(client_request, InterfaceClientCtx, .client = args->client, .request = out.out, .size = out.at,
-                              .region = long_body ? &region : NULL, .delivered = delivered, .err_msg = args->err_msg);
+    request = request &&
+              EMBED_CALL(client_request, InterfaceClientCtx, .client = args->client, .request = out.out, .size = out.at,
+                         .region = long_body ? &region : NULL, .delivered = delivered, .err_msg = args->err_msg);
     if (long_body)
     {
         EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &region);

@@ -74,8 +74,8 @@ typedef struct
 
 // The lines a run's steps wrote, in MMgr's rings over the run's span of the rings block: the text, a byte ring; the
 // line records, a segment ring with a record a segment; the text bytes ever put and ever consumed, whose difference
-// places a line's bytes ahead of the text ring's tail; whether the rings are positioned; and the bytes each ring streams.
-// The oldest lines are let go as a new one needs the room
+// places a line's bytes ahead of the text ring's tail; whether the rings are positioned; and the bytes each ring
+// streams. The oldest lines are let go as a new one needs the room
 typedef struct
 {
     mmgr_ring text;
@@ -152,7 +152,11 @@ void cli_command_folder(const CliRunnerCommandFolderCfg *args);
 // lines emptied; how many lines are; the bytes of the longest; and the line at `index` copied into `out`, cut to
 // `capacity` with its 0, where `out` is set: its bytes
 void cli_lines_append(const CliRunnerLinesCfg *args);
-void cli_lines_clear(CliRunLines *lines);
+typedef struct
+{
+    CliRunLines *lines;
+} CliRunLinesCfg;
+void cli_lines_clear(const CliRunLinesCfg *args);
 unsigned int cli_lines_count(const CliRunnerLinesIndexCfg *args);
 unsigned long long cli_lines_longest(const CliRunnerLinesIndexCfg *args);
 unsigned long long cli_lines_read(const CliRunnerLinesIndexCfg *args);

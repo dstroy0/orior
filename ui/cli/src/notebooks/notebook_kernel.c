@@ -37,7 +37,7 @@ EMBED_INLINE void notice_posted(const NotebookKernelCtx *args)
     VerbaLinea line = {sentence, sizeof(sentence), 0ULL};
     mmgr_line_put(&line, args->name);
     (void)mmgr_line_finish(&line);
-    cli_notice_post(sentence, args->at == 1u);
+    cli_notice_post(&(CliNoticesCfg){.text = sentence, .failed = args->at == 1u});
 }
 
 // the specs Jupyter has written into a cell sized to them, taken anew twice as large while they do not fit, and read

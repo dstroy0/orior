@@ -220,9 +220,9 @@ EMBED_INLINE unsigned int search_regexp_match(const FilesSearchPaneCtx *args)
 // how many lines the file `at` has among the lines located
 EMBED_INLINE unsigned int search_file_lines(const FilesSearchPaneCtx *args)
 {
-    const unsigned int end = (args->at + 1u < cli_search_located_files()) ? cli_search_located_file_first(args->at + 1u)
+    const unsigned int end = (args->at + 1u < cli_search_located_files()) ? cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->at + 1u})
                                                                           : cli_search_located_count();
-    return end - cli_search_located_file_first(args->at);
+    return end - cli_search_located_file_first(&(CliSearchLocatedCfg){.file = args->at});
 }
 
 // the files' first rows from the file `at` on, and the rows counted: a row a file, and under one whose lines are not
@@ -359,7 +359,7 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
     for (unsigned int at = 0u; at < files; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        (void)cli_search_located_path(at, path);
+        (void)cli_search_located_path(&(CliSearchLocatedCfg){.file = at, .path_out = path});
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
         // a path's bytes are below CLI_PATH_MAX_LEN, which an unsigned int counts
         const SearchFile file = {0u, (unsigned int)length,
@@ -374,8 +374,8 @@ EMBED_INLINE void search_run(const FilesSearchPaneCtx *args)
         // the line and its text read out of the located cell into this call's bytes
         CliStandingLine line;
         char text[CLI_SEARCH_ROW_TEXT];
-        (void)cli_search_located_line(at, &line);
-        (void)cli_search_located_text(&line, text, sizeof(text));
+        (void)cli_search_located_line(&(CliSearchLocatedCfg){.at = at, .line_out = &line});
+        (void)cli_search_located_text(&(CliSearchLocatedCfg){.line = &line, .out = text, .capacity = sizeof(text)});
         const unsigned int match = EMBED_CALL(search_regexp_match, FilesSearchPaneCtx, .line_read = &line, .text = text,
                                               .regexp = regexp, .characters = characters, .groups = groups);
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
@@ -571,9 +571,9 @@ int cli_search_pane_row(const CliSearchPaneCfg *args)
     SearchFile found;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = search->cell, .offset = SEARCH_FILE_AT(file), .dst = &found, .bytes = sizeof(found)});
-    const unsigned int first = cli_search_located_file_first(file);
+    const unsigned int first = cli_search_located_file_first(&(CliSearchLocatedCfg){.file = file});
     const unsigned int under = args->at - found.row;
-    row->path = cli_search_located_path(file, row->path_copied);
+    row->path = cli_search_located_path(&(CliSearchLocatedCfg){.file = file, .path_out = row->path_copied});
     if (under == 0u)
     {
         row->type = CLI_SEARCH_ROW_FILE;
@@ -586,14 +586,14 @@ int cli_search_pane_row(const CliSearchPaneCfg *args)
     }
     const unsigned int at = first + under - 1u;
     CliStandingLine hit;
-    if (!cli_search_located_line(at, &hit))
+    if (!cli_search_located_line(&(CliSearchLocatedCfg){.at = at, .line_out = &hit}))
     {
         return 0;
     }
     row->type = CLI_SEARCH_ROW_HIT;
     row->line = hit.line;
     row->col = hit.col;
-    row->text_length = cli_search_located_text(&hit, row->text_copied, sizeof(row->text_copied));
+    row->text_length = cli_search_located_text(&(CliSearchLocatedCfg){.line = &hit, .out = row->text_copied, .capacity = sizeof(row->text_copied)});
     row->text = row->text_copied;
     // the match: the query's bytes at its column, or what the regular expression matched there, one byte at the least
     row->match_at = ((hit.col > 0ULL) && (hit.col - 1ULL < row->text_length)) ? hit.col - 1ULL : 0ULL;

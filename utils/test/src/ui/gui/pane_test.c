@@ -170,8 +170,8 @@ int main(void)
               "the explorer listed again is with its folder open");
     cli_files_explorer_collapse();
     cli_check(EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 2u, "the folders collapsed close");
-    cli_check(cli_files_explorer_open("src") && (EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 3u) &&
-                  !cli_files_explorer_open("notes.txt"),
+    cli_check(cli_files_explorer_open(&(CliFilesExplorerCfg){.path = "src"}) && (EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 3u) &&
+                  !cli_files_explorer_open(&(CliFilesExplorerCfg){.path = "notes.txt"}),
               "a folder opened by its path, a file not");
 
     const GuiPaneTable *const problems = EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "problems");

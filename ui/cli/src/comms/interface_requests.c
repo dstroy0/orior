@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_requests.c: what a joined process requests of the interface, a frame at a time: to listen on a channel, or to send a
-// body on one, the body in the frame or, where it is long, in the region passed over with it
+// interface_requests.c: what a joined process requests of the interface, a frame at a time: to listen on a channel, or
+// to send a body on one, the body in the frame or, where it is long, in the region passed over with it
 #include "interface_serve.h"
 
 typedef struct
@@ -77,7 +77,8 @@ void cli_ipc_requests_serve(const CliIpcServeCfg *args)
             continue;
         }
         const char type = (size != 0ULL) ? frame[0] : '\0';
-        const unsigned long long channel_end = cli_ipc_field_end(frame, size, 1ULL);
+        const unsigned long long channel_end =
+            cli_ipc_field_end(&(CliIpcFrameCfg){.frame = frame, .size = size, .at = 1ULL});
         char answer[32];
         VerbaLinea out = {answer, sizeof(answer), 0ULL};
         mmgr_line_ch(&out, CLI_IPC_TYPE_ANSWER);

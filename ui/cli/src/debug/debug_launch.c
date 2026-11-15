@@ -351,7 +351,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
                     .err_msg = err_msg))
     {
         EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = place);
-        cli_json_stored_release(&place->start);
+        cli_json_stored_release(&(CliJsonStoredCfg){.stored = &place->start});
         place->reserved = 0;
         return 0;
     }
@@ -364,7 +364,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
     if (place->dap == NULL)
     {
         EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = place);
-        cli_json_stored_release(&place->start);
+        cli_json_stored_release(&(CliJsonStoredCfg){.stored = &place->start});
         place->reserved = 0;
         return 0;
     }

@@ -75,11 +75,11 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notices\\test_notices\\test_notices.c");
   run_test(test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds", 52);
-  run_test(test_a_failure_is_fifteen_seconds_and_shows_its_first_line, "test_a_failure_is_fifteen_seconds_and_shows_its_first_line", 67);
-  run_test(test_a_notice_answering_nothing_waits_for_the_keys_to_rest, "test_a_notice_answering_nothing_waits_for_the_keys_to_rest", 78);
-  run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 91);
-  run_test(test_focus_stops_every_notice_until_it_ends, "test_focus_stops_every_notice_until_it_ends", 104);
-  run_test(test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back, "test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back", 122);
+  run_test(test_a_failure_is_fifteen_seconds_and_shows_its_first_line, "test_a_failure_is_fifteen_seconds_and_shows_its_first_line", 68);
+  run_test(test_a_notice_answering_nothing_waits_for_the_keys_to_rest, "test_a_notice_answering_nothing_waits_for_the_keys_to_rest", 79);
+  run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 92);
+  run_test(test_focus_stops_every_notice_until_it_ends, "test_focus_stops_every_notice_until_it_ends", 105);
+  run_test(test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back, "test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back", 123);
 
   return UNITY_END();
 }

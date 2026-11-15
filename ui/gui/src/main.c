@@ -290,7 +290,7 @@ static void main_err(const VerbaLinea *err_msg)
 int main(void)
 {
     int window = 0;
-    const int code = cli_command_line_window(&window);
+    const int code = cli_command_line_window(&(CliCommandLineWindowCfg){.window = &window});
     if (!window)
     {
         return code;

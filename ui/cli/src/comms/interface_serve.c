@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_serve.c: the interface's container side: the processes that join, each in a place of its own with a thread reading
-// what it requests and a thread sending it what it receives, the messages on its channels queued between them, a body
-// past the capacity a message is queued in stored in a region of the transfer layer
+// interface_serve.c: the interface's container side: the processes that join, each in a place of its own with a thread
+// reading what it requests and a thread sending it what it receives, the messages on its channels queued between them,
+// a body past the capacity a message is queued in stored in a region of the transfer layer
 #include "interface_serve.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/rings.h"
@@ -216,7 +216,7 @@ static void serve_drain(void *context)
         if (cli_ticket_pushed(&joined->ring, joined->taken, &stamp) &&
             // Explicit cast carries the place's address as the pass's entry
             embed_ticket_ring_pass_pop(&joined->turnstiles, (embed_atomic_uptr_value)(embed_word)joined, &joined->ring,
-                                     stamp, &job, &found))
+                                       stamp, &job, &found))
         {
             CliIpcEntry *const entry = job;
             if ((EMBED_ATOMIC_LOAD(&joined->sending) != 0u) &&
@@ -260,7 +260,8 @@ EMBED_INLINE int serve_may_join(const InterfaceServeCtx *args)
         mmgr_line_put(&err_msg, "the key of ");
         mmgr_line_put(&err_msg, args->name);
         mmgr_line_put(&err_msg, " was given to no process");
-        (void)EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = args->joined, .why = err_msg.out, .size = err_msg.at);
+        (void)EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = args->joined, .why = err_msg.out,
+                         .size = err_msg.at);
         return 0;
     }
     unsigned int count = 0u;
@@ -276,7 +277,8 @@ EMBED_INLINE int serve_may_join(const InterfaceServeCtx *args)
         mmgr_line_put(&err_msg, "the key of ");
         mmgr_line_put(&err_msg, args->name);
         mmgr_line_put(&err_msg, " was given to another process");
-        (void)EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = args->joined, .why = err_msg.out, .size = err_msg.at);
+        (void)EMBED_CALL(serve_reject, InterfaceServeCtx, .joined = args->joined, .why = err_msg.out,
+                         .size = err_msg.at);
     }
     return under;
 }
@@ -295,7 +297,7 @@ static void serve_read(void *context)
     {
         joined->key[0] = '\0';
         if ((size != 0ULL) && (joined->frame[0] == CLI_IPC_TYPE_JOIN) &&
-            (cli_ipc_field_end(joined->frame, size, 1ULL) != 0ULL))
+            (cli_ipc_field_end(&(CliIpcFrameCfg){.frame = joined->frame, .size = size, .at = 1ULL}) != 0ULL))
         {
             VerbaLinea key = {joined->key, sizeof(joined->key), 0ULL};
             mmgr_line_put(&key, joined->frame + 1);
@@ -475,5 +477,6 @@ int cli_ipc_reject(const CliIpcServeErrorCfg *args)
 
 int cli_ipc_answer(const CliIpcServeCfg *args)
 {
-    return EMBED_CALL(serve_answer, InterfaceServeCtx, .joined = args->joined, .bytes = args->bytes, .size = args->size);
+    return EMBED_CALL(serve_answer, InterfaceServeCtx, .joined = args->joined, .bytes = args->bytes,
+                      .size = args->size);
 }

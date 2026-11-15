@@ -239,8 +239,8 @@ typedef struct
 } CliServersCheckRing;
 
 // The tree's check: whether it is on, its tree, where what it reports goes; the tree's files in one movable cell sized
-// from them, positioned as `file_at_max` starts of eight bytes, then a byte a file, 1 while it waits, then the paths' texts
-// each with its 0, `files_max` bytes of them and `files_used` written; the two rings of files waiting, the tree's
+// from them, positioned as `file_at_max` starts of eight bytes, then a byte a file, 1 while it waits, then the paths'
+// texts each with its 0, `files_max` bytes of them and `files_used` written; the two rings of files waiting, the tree's
 // files and the files a change puts first, their slots the check's part of the rings block; the generation, moved on as
 // the check is let go so that a checker drops the files queued before; how many it was given and how many are done,
 // whether its threads started and whether its rings are positioned
@@ -271,14 +271,18 @@ typedef struct
 #define CLI_SERVERS_FILES_TEXT_AT(queue_, offset_) (CLI_SERVERS_QUEUED_AT((queue_), (queue_)->file_at_max) + (offset_))
 
 // the check's cell for the tree's files given back where it is too small and taken sized from the tree's files, the
-// rings positioned once: 1, or 0 where the cells cannot meet it; every file's waiting byte written 0; a file pushed on the
-// ring its `front` names, under a ticket of its own: 1, or 0 where the ring is full or its cell is refused; the files
-// waiting, pushed and not yet taken; and the tree's files recorded, those of `files` and those recorded before. Each
-// with the queue's lock acquired (servers_check_room.c)
+// rings positioned once: 1, or 0 where the cells cannot meet it; every file's waiting byte written 0; a file pushed on
+// the ring its `front` names, under a ticket of its own: 1, or 0 where the ring is full or its cell is refused; the
+// files waiting, pushed and not yet taken; and the tree's files recorded, those of `files` and those recorded before.
+// Each with the queue's lock acquired (servers_check_room.c)
 int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args);
 void cli_servers_check_queued_cleared(const CliServersQueueFilesCtx *args);
 int cli_servers_check_queue_append(const CliServersQueueCtx *args);
-unsigned int cli_servers_check_waiting(const CliServersQueue *queue);
+typedef struct
+{
+    const CliServersQueue *queue;
+} CliServersQueueCfg;
+unsigned int cli_servers_check_waiting(const CliServersQueueCfg *args);
 void cli_servers_check_files_append(const CliServersQueueFilesCtx *args);
 
 // the texts of the files the editor has open, by their keys with their paths, and the parses as last read, by their
@@ -302,8 +306,8 @@ extern CliKeyed g_cli_servers_supplied;
 typedef void (*CliServersJob)(const CliServersJobCfg *args);
 // `size` bytes of a job copied into a persistent cell of their size and pushed on the jobs' ticket ring under a ticket
 // of the caller's, waiting where the ring holds a lap of jobs in flight: 1, or 0 where the cell could not be taken;
-// and a job's cell, positioned by the caller, pushed under a ticket, popped by the thread that runs it and given back by it:
-// 1, or 0 where `cell` is NULL (servers_jobs.c)
+// and a job's cell, positioned by the caller, pushed under a ticket, popped by the thread that runs it and given back
+// by it: 1, or 0 where `cell` is NULL (servers_jobs.c)
 int cli_servers_later(const CliServersRunCtx *args);
 int cli_servers_later_dispatch(const CliServersRunSizeCtx *args);
 
@@ -398,9 +402,9 @@ int cli_servers_selection(const CliServersPathErrMsgOutCtx *args);
 unsigned long long cli_servers_hash_get(const CliServersReadStateCtx *args);
 
 // a file the editor has open, `size` bytes of `text`, given `server` as the tree's slice for its view, the lines 0 to
-// 63 until the page passes one, as the file opened as `id` where `id` is not NULL, else as its next version, the slice's
-// map stored by its key, in the tree at `root`, or the tree it was first given in where `root` is NULL: 1, or 0 with
-// why given; whether the file at `path` is given its server as a slice; whether any slice given a server owes its
+// 63 until the page passes one, as the file opened as `id` where `id` is not NULL, else as its next version, the
+// slice's map stored by its key, in the tree at `root`, or the tree it was first given in where `root` is NULL: 1, or 0
+// with why given; whether the file at `path` is given its server as a slice; whether any slice given a server owes its
 // diagnostics, its version above the last its server published of it; and its slice let go as it closes
 // (servers_slice.c)
 int cli_servers_slice_send(const CliServersPathSizeRootCtx *args);

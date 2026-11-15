@@ -109,7 +109,11 @@ typedef struct
 // tree's cell given back
 int cli_json_stored(const CliJsonTreeStoredCfg *args);
 int cli_json_pinned(const CliJsonTreeStoredCfg *args);
-void cli_json_stored_release(CliJsonStored *stored);
+typedef struct
+{
+    CliJsonStored *stored;
+} CliJsonStoredCfg;
+void cli_json_stored_release(const CliJsonStoredCfg *args);
 // the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the
 // capacity a copy of it takes in another tree
 void cli_json_extent(const CliJsonTreeNodeNodesCfg *args);
@@ -141,8 +145,8 @@ unsigned int cli_json_copy(const CliJsonTreeCfg *args);
 unsigned int cli_json_copy_from(const CliJsonTreeNodeCfg *args);
 // whether two nodes contain the same value, an object's members compared by key whatever their order
 int cli_json_same(const CliJsonTreeOneCfg *args);
-// the node written as JSON into `out`: on one line, or as serde_json's pretty writer positions it out with `indent` spaces
-// to a level where `indent` is not 0; every object's keys in order where `sorted` is 1 (json_tree_write.c)
+// the node written as JSON into `out`: on one line, or as serde_json's pretty writer positions it out with `indent`
+// spaces to a level where `indent` is not 0; every object's keys in order where `sorted` is 1 (json_tree_write.c)
 void cli_json_write(const CliJsonTreeNodeOutCfg *args);
 // the max bytes any node of the tree writes to on one line, its 0 after them counted: a line of this capacity holds
 // what cli_json_write writes of it with no indent, and what is written from its strings as they are
@@ -171,8 +175,8 @@ void cli_json_quoting_end(const CliJsonTreeOutCfg *args);
 void cli_json_escaped_lossy(const CliJsonTreeLengthOutCfg *args);
 // `length` bytes written as cli_json_quoted_lossy reads them, with no quotes and nothing escaped
 void cli_lossy(const CliJsonTreeLengthOutCfg *args);
-// the character at `at` of `length` bytes as cli_lossy reads it into `character`, U+FFFD for a byte that starts no whole
-// character: the bytes it takes
+// the character at `at` of `length` bytes as cli_lossy reads it into `character`, U+FFFD for a byte that starts no
+// whole character: the bytes it takes
 unsigned long long cli_lossy_character(const CliJsonTreeLengthCfg *args);
 // `value` written as serde_json writes a 64-bit float: the fewest digits that read back as it, `100000.0`, `-0.62`,
 // `1e-7`, `1.5e300`, and `null` where it is not finite (json_number.c)

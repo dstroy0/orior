@@ -23,7 +23,7 @@ EMBED_INLINE void session_freed_where_finish(const DebugSessionCtx *args)
     {
         EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx,
                    .session = args->session);
-        cli_json_stored_release(&args->session->start);
+        cli_json_stored_release(&(CliJsonStoredCfg){.stored = &args->session->start});
         args->session->reserved = 0;
     }
 }

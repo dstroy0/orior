@@ -25,9 +25,10 @@ typedef struct
 // whether a character goes on a number or a literal: a digit, a character, or a sign, a point or an exponent's sign
 EMBED_INLINE int json_word_character(const JsonTakenCtx *args)
 {
-    return ((args->character >= '0') && (args->character <= '9')) || ((args->character >= 'a') && (args->character <= 'z')) ||
-           ((args->character >= 'A') && (args->character <= 'Z')) || (args->character == '.') || (args->character == '+') ||
-           (args->character == '-');
+    return ((args->character >= '0') && (args->character <= '9')) ||
+           ((args->character >= 'a') && (args->character <= 'z')) ||
+           ((args->character >= 'A') && (args->character <= 'Z')) || (args->character == '.') ||
+           (args->character == '+') || (args->character == '-');
 }
 
 unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args)
@@ -124,7 +125,7 @@ int cli_json_stored(const CliJsonTreeStoredCfg *args)
     const char zero = '\0';
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = nodes_bytes + json->used, .src = &zero, .bytes = 1ULL});
-    cli_json_stored_release(args->stored);
+    cli_json_stored_release(&(CliJsonStoredCfg){.stored = args->stored});
     *args->stored = (CliJsonStored){cell, args->owner, json->nodes, json->used};
     return 1;
 }
@@ -153,15 +154,15 @@ int cli_json_pinned(const CliJsonTreeStoredCfg *args)
     return 1;
 }
 
-void cli_json_stored_release(CliJsonStored *stored)
+void cli_json_stored_release(const CliJsonStoredCfg *args)
 {
-    if (stored->cell != NULL)
+    if (args->stored->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(stored->cell, stored->owner);
+        (void)g_cli_guard->movable_buf_release(args->stored->cell, args->stored->owner);
     }
-    stored->cell = NULL;
-    stored->nodes = 0u;
-    stored->used = 0ULL;
+    args->stored->cell = NULL;
+    args->stored->nodes = 0u;
+    args->stored->used = 0ULL;
 }
 
 int cli_json_capacity(const CliJsonTreeNodesCfg *args)

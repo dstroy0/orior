@@ -50,9 +50,9 @@ EMBED_INLINE void window_err(const CliCommandLineWindowCtx *args)
                .length = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
-int cli_command_line_window(int *window)
+int cli_command_line_window(const CliCommandLineWindowCfg *args)
 {
-    // the window runs no main of orior's and enters here first: the pool every later call takes from starts here
+    // the args->window runs no main of orior's and enters here first: the pool every later call takes from starts here
     (void)cli_pool_made(CLI_POOL_BYTES);
     cli_command_line_catalog_alloc();
     static const char *s_words[CLI_LAUNCH_ARGS];
@@ -63,12 +63,12 @@ int cli_command_line_window(int *window)
         cli_console_let_go();
         memor.set(&(MemoriaCfg){.dst = &s_window.outcome, .val = 0, .bytes = sizeof(s_window.outcome)});
         s_window.outcome.window = 1;
-        *window = 1;
+        *args->window = 1;
         return 0;
     }
     EMBED_CALL(cli_command_line_input.run, CliCommandLineInputCfg, .supplied = s_words, .count = count,
                .outcome = &s_window.outcome);
-    *window = s_window.outcome.window;
+    *args->window = s_window.outcome.window;
     return s_window.outcome.code;
 }
 

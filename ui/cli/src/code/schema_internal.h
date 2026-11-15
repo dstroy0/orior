@@ -51,8 +51,8 @@ typedef struct CliSchemaCtx CliSchemaCtx;
 #define CLI_SCHEMA_POOL (1u << 23u)
 #define CLI_SCHEMA_NONE 0xffffffffu
 
-// A value of a JSON file and its span: its type, a string's characters in the pool, a number's value, a boolean's truth;
-// an object's first member or an array's first item, and how many; and the next item of its array
+// A value of a JSON file and its span: its type, a string's characters in the pool, a number's value, a boolean's
+// truth; an object's first member or an array's first item, and how many; and the next item of its array
 typedef struct
 {
     unsigned char type;
@@ -251,8 +251,15 @@ typedef struct
 // the table's cell grown to twice its capacity until it holds an entry at `at`, `bytes` each, the entries copied
 // through and the count raised past `at`: 1, or 0 where the cells refuse the growth; and the table's cell given back
 // and the table emptied (schema_complete.c). A caller reads and writes the entries through the cell itself
-int cli_schema_table_room(CliSchemaTable *table, unsigned int at, unsigned long long bytes);
-void cli_schema_table_release(CliSchemaTable *table);
+// a table's room for `bytes` at `at`, and the table released
+typedef struct
+{
+    CliSchemaTable *table;
+    unsigned int at;
+    unsigned long long bytes;
+} CliSchemaTableCfg;
+int cli_schema_table_room(const CliSchemaTableCfg *args);
+void cli_schema_table_release(const CliSchemaTableCfg *args);
 
 // Where the cursor is: the steps to the value it is in, in a table, how many steps, whether it is at a key and
 // inside a string, and the keys the object contains before it

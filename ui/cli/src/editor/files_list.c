@@ -445,11 +445,11 @@ static unsigned int explorer_list(const char *dir)
     return s_explorer_folders - 1u;
 }
 
-void cli_files_explorer_show(const char *root)
+void cli_files_explorer_show(const CliFilesExplorerCfg *args)
 {
-    if ((s_explorer_root == NULL) && (root != NULL))
+    if ((s_explorer_root == NULL) && (args->root != NULL))
     {
-        s_explorer_root = root;
+        s_explorer_root = args->root;
         const unsigned int top = explorer_list("");
         if (top != FILES_EXPLORER_NONE)
         {
@@ -514,33 +514,33 @@ static int explorer_walk(FilesExplorerFolder folder, unsigned int depth, unsigne
     return 0;
 }
 
-int cli_files_explorer_row(unsigned int at, CliExplorerRow *row)
+int cli_files_explorer_row(const CliFilesExplorerCfg *args)
 {
-    unsigned int left = at;
+    unsigned int left = args->at;
     FilesExplorerFolder top = {NULL, NULL, 0};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_explorer, .offset = (embed_word)0u * sizeof(top), .dst = &top, .bytes = sizeof(top)});
-    return (s_explorer_folders != 0u) && explorer_walk(top, 0u, &left, row);
+    return (s_explorer_folders != 0u) && explorer_walk(top, 0u, &left, args->row);
 }
 
 unsigned int cli_files_explorer_rows(void)
 {
     unsigned int count = 0u;
-    while (cli_files_explorer_row(count, NULL))
+    while (cli_files_explorer_row(&(CliFilesExplorerCfg){.at = count, .row = NULL}))
     {
         count += 1u;
     }
     return count;
 }
 
-int cli_files_explorer_open(const char *path)
+int cli_files_explorer_open(const CliFilesExplorerCfg *args)
 {
     CliExplorerRow row;
-    for (unsigned int at = 0u; cli_files_explorer_row(at, &row); at += 1u)
+    for (unsigned int at = 0u; cli_files_explorer_row(&(CliFilesExplorerCfg){.at = at, .row = &row}); at += 1u)
     {
-        if (row.dir && cellul.eq(&(CatenaFinitaCfg){.src = row.path, .other = path, .cap = CLI_PATH_MAX_LEN}))
+        if (row.dir && cellul.eq(&(CatenaFinitaCfg){.src = row.path, .other = args->path, .cap = CLI_PATH_MAX_LEN}))
         {
-            return cli_files_explorer_press(at);
+            return cli_files_explorer_press(&(CliFilesExplorerCfg){.at = at});
         }
     }
     return 0;
@@ -576,12 +576,12 @@ void cli_files_explorer_refresh(void)
         }
     }
     cli_files_explorer_end();
-    cli_files_explorer_show(root);
+    cli_files_explorer_show(&(CliFilesExplorerCfg){.root = root});
     // the folders opened again in their order, a parent before the folders under it
     const char *path = open;
     for (unsigned int at = 0u; (open != NULL) && (at < count); at += 1u)
     {
-        (void)cli_files_explorer_open(path);
+        (void)cli_files_explorer_open(&(CliFilesExplorerCfg){.path = path});
         path += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
     if (open != NULL)
@@ -617,7 +617,7 @@ void cli_files_explorer_collapse(void)
     }
 }
 
-int cli_files_explorer_menu(unsigned int at)
+int cli_files_explorer_menu(const CliFilesExplorerCfg *args)
 {
     if (s_explorer_folders == 0u)
     {
@@ -625,7 +625,7 @@ int cli_files_explorer_menu(unsigned int at)
     }
     cli_menus_own_begin();
     CliExplorerRow row;
-    if (!cli_files_explorer_row(at, &row))
+    if (!cli_files_explorer_row(&(CliFilesExplorerCfg){.at = args->at, .row = &row}))
     {
         // off the rows the pane's own, the list's Explorer popup
         return cli_menus_popup("Explorer", "");
@@ -643,10 +643,10 @@ int cli_files_explorer_menu(unsigned int at)
     return 1;
 }
 
-int cli_files_explorer_press(unsigned int at)
+int cli_files_explorer_press(const CliFilesExplorerCfg *args)
 {
     CliExplorerRow row;
-    if (!cli_files_explorer_row(at, &row) || !row.dir)
+    if (!cli_files_explorer_row(&(CliFilesExplorerCfg){.at = args->at, .row = &row}) || !row.dir)
     {
         return 0;
     }

@@ -1636,7 +1636,8 @@ EMBED_INLINE void window_setting_save(const GuiWindowCtx *args)
         if (!cli_state_value_save(
                 &(CliStateValueCfg){.folder = folder, .key = args->key, .value = args->value, .err_msg = &err_msg}))
         {
-            cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The setting could not be saved.", 1);
+            cli_notice_post(&(CliNoticesCfg){
+                .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The setting could not be saved.", .failed = 1});
         }
     }
 }
@@ -1898,7 +1899,7 @@ EMBED_INLINE void window_preference_notices_add(const GuiWindowCtx *args)
         }
         at = end + 1ULL;
     }
-    cli_notices_away_end(away);
+    cli_notices_away_end(&(CliNoticesCfg){.away = away});
     if (!added)
     {
         (void)EMBED_CALL(window_preference_line_add, GuiWindowCtx, .window = args->window,
@@ -2387,7 +2388,7 @@ EMBED_INLINE void window_preference_acted(const GuiWindowCtx *args)
         mmgr_line_put(&line, row->label);
         mmgr_line_put(&line, " yet.");
         (void)mmgr_line_finish(&line);
-        cli_notice_post(said, 1);
+        cli_notice_post(&(CliNoticesCfg){.text = said, .failed = 1});
         return;
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = row->key, .key = "notice-show-again"))
@@ -2894,7 +2895,7 @@ EMBED_INLINE void window_theme_unnamed(const GuiWindowCtx *args)
     mmgr_line_put(&line, args->name);
     mmgr_line_ch(&line, '.');
     (void)mmgr_line_finish(&line);
-    cli_notice_post(said, 1);
+    cli_notice_post(&(CliNoticesCfg){.text = said, .failed = 1});
 }
 
 // theme-choose: the scheme's own colors by its name, or a theme by its name: 1, or 0 where none is named so
@@ -2910,7 +2911,8 @@ EMBED_INLINE int window_theme_chosen_run(const GuiWindowCtx *args)
              : EMBED_CALL(gui_themes_name.find, GuiThemesNameCfg, .themes_read = &window->themes, .name = name);
     if (name[0] == '\0')
     {
-        cli_notice_post("Name the theme to choose: " GUI_THEME_BASE_NAME " or one of yours.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "Name the theme to choose: " GUI_THEME_BASE_NAME " or one of yours.",
+                                         .failed = 1});
         return 0;
     }
     if (!base && (at == window->themes.count))
@@ -2940,7 +2942,7 @@ EMBED_INLINE int window_theme_new_run(const GuiWindowCtx *args)
                                        .from = window->theme_chosen, .name = name);
     if (at == window->themes.count)
     {
-        cli_notice_post("The themes are full.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "The themes are full.", .failed = 1});
         return 0;
     }
     EMBED_CALL(window_themes_save, GuiWindowCtx, .window = window);
@@ -2997,7 +2999,7 @@ EMBED_INLINE int window_theme_import_run(const GuiWindowCtx *args)
     }
     else
     {
-        cli_notice_post("The clipboard holds no theme.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "The clipboard holds no theme.", .failed = 1});
     }
     g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
     return taken;
@@ -3139,7 +3141,7 @@ EMBED_INLINE int window_theme_run(const GuiWindowCtx *args)
     {
         if ((args->count == 0u) || (args->words[0][0] == '\0'))
         {
-            cli_notice_post("An icon needs a pattern of file names.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "An icon needs a pattern of file names.", .failed = 1});
             return 0;
         }
         const unsigned int at = EMBED_CALL(window_theme_own, GuiWindowCtx, .window = window);
@@ -3153,7 +3155,8 @@ EMBED_INLINE int window_theme_run(const GuiWindowCtx *args)
     // the rest change the theme displayed, and the scheme's own colors are no theme of the reader's
     if (window->theme_chosen >= window->themes.count)
     {
-        cli_notice_post(GUI_THEME_BASE_NAME " is the scheme's own colors; choose or make a theme first.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = GUI_THEME_BASE_NAME " is the scheme's own colors; choose or make a theme first.", .failed = 1});
         return 0;
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "theme-delete"))
@@ -3323,7 +3326,7 @@ EMBED_INLINE void window_joined_notice(const GuiWindowCtx *args)
     mmgr_line_put(&line, args->key);
     mmgr_line_put(&line, args->name);
     (void)mmgr_line_finish(&line);
-    cli_notice_post(said, args->on);
+    cli_notice_post(&(CliNoticesCfg){.text = said, .failed = args->on});
 }
 
 // a notice of the failure `key` with why, `name`, after it
@@ -3341,7 +3344,7 @@ EMBED_INLINE int window_folder_window_open(const GuiWindowCtx *args)
     if (!EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = program,
                     .capacity_bytes = sizeof(program)))
     {
-        cli_notice_post("The window's own program could not be found.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "The window's own program could not be found.", .failed = 1});
         return 0;
     }
     const char *const words[2] = {program, NULL};
@@ -3418,7 +3421,8 @@ EMBED_INLINE void window_trust_answered(const GuiWindowCtx *args)
         EMBED_CALL(window_failed_notice, GuiWindowCtx, .key = "The answer could not be retained: ", .name = why);
         return;
     }
-    cli_notice_post((answer.button == 0u) ? "The tree is trusted." : "The tree is not trusted.", 0);
+    cli_notice_post(&(CliNoticesCfg){
+        .text = (answer.button == 0u) ? "The tree is trusted." : "The tree is not trusted.", .failed = 0});
     window->pending = 1;
 }
 
@@ -3465,7 +3469,7 @@ EMBED_INLINE void window_macro_recorded(const GuiWindowCtx *args)
     if (!mmgr_line_ok(&line))
     {
         window->macro_recording = 0;
-        cli_notice_post("The macro is full: the recording ended.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "The macro is full: the recording ended.", .failed = 1});
         window->macro[window->macro_length] = '\0';
         return;
     }
@@ -3540,7 +3544,7 @@ EMBED_INLINE int window_diff_opened(const GuiWindowCtx *args)
     }
     if (mmgr_line_finish(&err_msg) != 0ULL)
     {
-        cli_notice_post(why, 1);
+        cli_notice_post(&(CliNoticesCfg){.text = why, .failed = 1});
     }
     return 0;
 }
@@ -3559,7 +3563,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         char path[CLI_PATH_MAX_LEN];
         if ((displayed < 0) || !cli_view_path_at((unsigned int)displayed, path))
         {
-            cli_notice_post("No file is displayed.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "No file is displayed.", .failed = 1});
             return 0;
         }
         unsigned long long stamps[GUI_WINDOW_SNAPSHOTS];
@@ -3568,7 +3572,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
                        .path = path, .stamps_out = stamps, .capacity = GUI_WINDOW_SNAPSHOTS);
         if (count == 0u)
         {
-            cli_notice_post("Local History holds no snapshot of the file.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "Local History holds no snapshot of the file.", .failed = 1});
             return 0;
         }
         unsigned long long at_ms = stamps[count - 1u];
@@ -3590,7 +3594,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         cli_grown_begin(&text, GUI_WINDOW_CLIPBOARD_BYTES, g_cli_view_owner);
         if (text.cell == NULL)
         {
-            cli_notice_post("The clipboard's text could not be taken.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "The clipboard's text could not be taken.", .failed = 1});
             return 0;
         }
         (void)cli_clipboard_text_read(&(CliCtx){.text_verba_linea_pointer = &text.line});
@@ -3598,7 +3602,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         int opened = 0;
         if (length == 0ULL)
         {
-            cli_notice_post("The clipboard holds no text.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "The clipboard holds no text.", .failed = 1});
         }
         else
         {
@@ -3614,14 +3618,15 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         if (window->macro_recording)
         {
             window->macro_recording = 0;
-            cli_notice_post("The macro is recorded.", 0);
+            cli_notice_post(&(CliNoticesCfg){.text = "The macro is recorded.", .failed = 0});
         }
         else
         {
             window->macro_length = 0ULL;
             window->macro[0] = '\0';
             window->macro_recording = 1;
-            cli_notice_post("Recording the macro: the keys and the text the editor takes.", 0);
+            cli_notice_post(
+                &(CliNoticesCfg){.text = "Recording the macro: the keys and the text the editor takes.", .failed = 0});
         }
         return 1;
     }
@@ -3668,8 +3673,9 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         }
         if ((text == NULL) || (size == 0ULL))
         {
-            cli_notice_post((retained_name != NULL) ? "No macro is retained under that name." : "No macro is recorded.",
-                            1);
+            cli_notice_post(&(CliNoticesCfg){.text = (retained_name != NULL) ? "No macro is retained under that name."
+                                                                             : "No macro is recorded.",
+                                             .failed = 1});
             cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
             return 0;
         }
@@ -3684,12 +3690,12 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
     {
         if (first == NULL)
         {
-            cli_notice_post("Name the macro to retain it.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "Name the macro to retain it.", .failed = 1});
             return 0;
         }
         if (window->macro_length == 0ULL)
         {
-            cli_notice_post("No macro is recorded.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "No macro is recorded.", .failed = 1});
             return 0;
         }
         char key[CLI_PATH_MAX_LEN];
@@ -3705,7 +3711,8 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         // the indents, calls, declarations and others, saved as one setting, the words a space apart
         if (first == NULL)
         {
-            cli_notice_post("Give the continuation indents: calls, declarations and others.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "Give the continuation indents: calls, declarations and others.",
+                                             .failed = 1});
             return 0;
         }
         char value[CLI_PATH_MAX_LEN];
@@ -3730,7 +3737,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
     {
         if (first == NULL)
         {
-            cli_notice_post("Give the margin's columns, or none.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "Give the margin's columns, or none.", .failed = 1});
             return 0;
         }
         EMBED_CALL(window_setting_apply, GuiWindowCtx, .window = window, .key = name, .value = first);
@@ -3782,7 +3789,7 @@ EMBED_INLINE int window_file_run(const GuiWindowCtx *args)
     {
         if (first[0] == '\0')
         {
-            cli_notice_post("Name the folder to make.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "Name the folder to make.", .failed = 1});
             return 0;
         }
         EMBED_CALL(window_path_whole, GuiWindowCtx, .name = first, .value_out = path);
@@ -3847,7 +3854,8 @@ EMBED_INLINE int window_file_run(const GuiWindowCtx *args)
         // the template, the project's name and the folder it is made in, the tree's own parent where none is named
         if (args->count < 2u)
         {
-            cli_notice_post("Name the template and the project: create-project <template> <name> [folder].", 1);
+            cli_notice_post(&(CliNoticesCfg){
+                .text = "Name the template and the project: create-project <template> <name> [folder].", .failed = 1});
             return 0;
         }
         char parent[CLI_PATH_MAX_LEN];
@@ -3908,7 +3916,8 @@ EMBED_INLINE int window_file_run(const GuiWindowCtx *args)
     {
         if (first[0] == '\0')
         {
-            cli_notice_post("Give the seconds auto save waits after the last edit.", 1);
+            cli_notice_post(
+                &(CliNoticesCfg){.text = "Give the seconds auto save waits after the last edit.", .failed = 1});
             return 0;
         }
         EMBED_CALL(window_autosave_after_apply, GuiWindowCtx, .window = window, .value = first);
@@ -3949,7 +3958,7 @@ EMBED_INLINE int window_file_run(const GuiWindowCtx *args)
     // environment [place|none]: the tree's environment setting
     if (first[0] == '\0')
     {
-        cli_notice_post("Name the environment's place, or none.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "Name the environment's place, or none.", .failed = 1});
         return 0;
     }
     EMBED_CALL(window_setting_save, GuiWindowCtx, .key = "environment", .value = first);
@@ -4336,7 +4345,8 @@ EMBED_INLINE void window_save_tidy(const GuiWindowCtx *args)
         !EMBED_CALL(cli_view_format_table.format, CliViewFormatCfg, .key = args->key, .full = args->value,
                     .language = language, .err_msg = &err_msg))
     {
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be formatted.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be formatted.", .failed = 1});
         err_msg.at = 0ULL;
     }
     const int markdown = known && EMBED_CALL(window_is, GuiWindowCtx, .name = language, .key = "markdown");
@@ -4344,7 +4354,8 @@ EMBED_INLINE void window_save_tidy(const GuiWindowCtx *args)
         !EMBED_CALL(cli_view_tidy_table.tidy, CliViewTidyCfg, .key = args->key, .trim = window->trim && !markdown,
                     .final_newline = window->final_newline, .err_msg = &err_msg))
     {
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The text could not be tidied.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The text could not be tidied.", .failed = 1});
     }
 }
 
@@ -4392,7 +4403,8 @@ EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
     }
     else
     {
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be written.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be written.", .failed = 1});
     }
     g_cli_guard->persistent_buf_release((void *)(embed_word)before, g_cli_view_owner);
     args->window->pending = 1;
@@ -4461,7 +4473,8 @@ EMBED_INLINE void window_file_open(const GuiWindowCtx *args)
     if (cli_view_file_open(cli_command_line_root(), args->name, window->rows, window->columns, args->place, &err_msg) <
         0)
     {
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be opened.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be opened.", .failed = 1});
         return;
     }
     EMBED_CALL(window_displayed, GuiWindowCtx, .window = window);
@@ -4490,7 +4503,9 @@ EMBED_INLINE void window_settings_file_open(const GuiWindowCtx *args)
     if ((mmgr_line_finish(&line) == 0ULL) || !EMBED_CALL(cli_path_err_msg_type_internal.settings_ensure,
                                                          CliPathErrMsgTypeCtx, .path_out = path, .err_msg = &err_msg))
     {
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The settings file could not be opened.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The settings file could not be opened.",
+            .failed = 1});
         return;
     }
     if (args->on)
@@ -4501,7 +4516,9 @@ EMBED_INLINE void window_settings_file_open(const GuiWindowCtx *args)
     if (!EMBED_CALL(cli_path_err_msg_name_internal.home_reveal, CliPathErrMsgNameCtx, .path = path,
                     .err_msg = &err_msg))
     {
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The settings file could not be opened.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The settings file could not be opened.",
+            .failed = 1});
     }
 }
 
@@ -4698,7 +4715,7 @@ EMBED_INLINE int window_words_run(const GuiWindowCtx *args)
     const char *const first = (args->count != 0u) ? args->words[0] : "";
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "file-open"))
     {
-        if ((args->count != 0u) && !cli_files_explorer_open(first))
+        if ((args->count != 0u) && !cli_files_explorer_open(&(CliFilesExplorerCfg){.path = first}))
         {
             EMBED_CALL(window_file_open, GuiWindowCtx, .window = window, .name = first, .place = NULL);
         }
@@ -4871,7 +4888,9 @@ EMBED_INLINE int window_rename_applied(const GuiWindowCtx *args)
                                                                        .err_msg = &err_msg});
     if (written <= 0)
     {
-        cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.", 1);
+        cli_notice_post(&(CliNoticesCfg){
+            .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.",
+            .failed = 1});
         return 0;
     }
     char said[CLI_ERR_MSG_MAX_LEN];
@@ -4884,7 +4903,7 @@ EMBED_INLINE int window_rename_applied(const GuiWindowCtx *args)
     mmgr_line_put(&line, args->name);
     mmgr_line_ch(&line, '.');
     (void)mmgr_line_finish(&line);
-    cli_notice_post(said, 0);
+    cli_notice_post(&(CliNoticesCfg){.text = said, .failed = 0});
     EMBED_CALL(window_displayed, GuiWindowCtx, .window = window);
     return 1;
 }
@@ -4919,7 +4938,7 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
     if ((key == NULL) || !EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = path) ||
         !cli_view_cursor(&(CliViewCursorCfg){.key = key, .cursor = &cursor, .anchor = NULL}))
     {
-        cli_notice_post("No file is open in the editor.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "No file is open in the editor.", .failed = 1});
         return 0;
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "definition"))
@@ -4930,7 +4949,7 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
         if (!EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = cursor.line,
                         .col_value = cursor.col, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word)))
         {
-            cli_notice_post("The cursor is on no name.", 1);
+            cli_notice_post(&(CliNoticesCfg){.text = "The cursor is on no name.", .failed = 1});
             return 0;
         }
         char found[CLI_PATH_MAX_LEN];
@@ -4946,7 +4965,8 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
                                                                 .line_out = &line,
                                                                 .col_out = &col}))
         {
-            cli_notice_post("The tree knows no declaration of the name at the cursor.", 1);
+            cli_notice_post(
+                &(CliNoticesCfg){.text = "The tree knows no declaration of the name at the cursor.", .failed = 1});
             return 0;
         }
         const CliPosition place = {line, col};
@@ -4962,7 +4982,9 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
             .path = path, .line = (unsigned int)cursor.line, .col = (unsigned int)cursor.col, .err_msg = &err_msg});
         if (found != 1)
         {
-            cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.", 1);
+            cli_notice_post(&(CliNoticesCfg){
+                .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.",
+                .failed = 1});
             return 0;
         }
         // the References pane displayed where it is not, its rows read anew
@@ -4985,7 +5007,7 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
     }
     if (!EMBED_CALL(gui_rename.open, GuiRenameCfg, .rename = &window->rename, .key = key))
     {
-        cli_notice_post("The cursor is on no name.", 1);
+        cli_notice_post(&(CliNoticesCfg){.text = "The cursor is on no name.", .failed = 1});
         return 0;
     }
     return 1;
@@ -5066,14 +5088,14 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "focus"))
     {
-        cli_notices_focus(!cli_notices_focused());
+        cli_notices_focus(&(CliNoticesCfg){.on = !cli_notices_focused()});
         window->pending = 1;
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "notice-show-again"))
     {
         if (args->count != 0u)
         {
-            cli_notices_show_again(args->words[0]);
+            cli_notices_show_again(&(CliNoticesCfg){.type = args->words[0]});
         }
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_REDUCE_KEY))
@@ -5144,7 +5166,7 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
         }
         else if (mmgr_line_finish(&err_msg) != 0ULL)
         {
-            cli_notice_post(why, 1);
+            cli_notice_post(&(CliNoticesCfg){.text = why, .failed = 1});
         }
         window->pending = 1;
     }
@@ -5282,7 +5304,7 @@ EMBED_INLINE void window_bar_tool_pressed(const GuiWindowCtx *args)
     }
     if (args->at == GUI_TOP_MENU_TOOL_NOTIFICATIONS)
     {
-        cli_notices_press(CLI_NOTICES_PRESS_NOTICE);
+        cli_notices_press(&(CliNoticesCfg){.part = CLI_NOTICES_PRESS_NOTICE});
         args->window->pending = 1;
         return;
     }
@@ -5538,7 +5560,7 @@ void gui_window_start(const GuiWindowCfg *args)
     EMBED_CALL(cli_diff_view_option_on.begin, CliDiffViewOptionOnCfg, .entries = entries);
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
-    cli_notices_restore(entries);
+    cli_notices_restore(&(CliNoticesCfg){.entries = entries});
     cli_terminal_tabs_restore(entries, root);
     EMBED_CALL(window_terminal, GuiWindowCtx, .window = window, .starting = 1);
     if (root != NULL)
@@ -6458,7 +6480,7 @@ EMBED_INLINE void window_change_peek_pressed(const GuiWindowCtx *args)
         }
         if (!reverted && (mmgr_line_finish(&err_msg) != 0ULL))
         {
-            cli_notice_post(why, 1);
+            cli_notice_post(&(CliNoticesCfg){.text = why, .failed = 1});
         }
         EMBED_CALL(gui_change_peek.close, GuiChangePeekCfg, .x = 0);
         EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
@@ -6541,7 +6563,7 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
     case CLI_HIT_STATUS_NOTICE:
     case CLI_HIT_STATUS_SILENCE:
     case CLI_HIT_STATUS_FOCUS:
-        cli_notices_press(CLI_NOTICES_PRESS_NOTICE + (hit->hit - CLI_HIT_STATUS_NOTICE));
+        cli_notices_press(&(CliNoticesCfg){.part = CLI_NOTICES_PRESS_NOTICE + (hit->hit - CLI_HIT_STATUS_NOTICE)});
         window->pending = 1;
         return;
     case CLI_HIT_CHANGE_PEEK:
@@ -7648,7 +7670,7 @@ static void window_key(const GuiInputHandlerCfg *args)
 {
     GuiWindow *const window = args->window;
     EMBED_CALL(window_tip_cleared, GuiWindowCtx, .window = window);
-    cli_notices_key(args->input->name, window->editing);
+    cli_notices_key(&(CliNoticesCfg){.name = args->input->name, .editing = window->editing});
     EMBED_CALL(window_key_take, GuiWindowCtx, .window = window, .name = args->input->name,
                .on = window->wordmark.exists);
 }

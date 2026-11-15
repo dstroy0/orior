@@ -531,7 +531,7 @@ EMBED_INLINE void runs_panic_notice(const QryListedCtx *args)
     mmgr_line_decimal(&line, run->panicked, 1u);
     if (mmgr_line_finish(&line) != 0ULL)
     {
-        cli_notice_post(text, 1);
+        cli_notice_post(&(CliNoticesCfg){.text = text, .failed = 1});
     }
 }
 
@@ -960,7 +960,8 @@ EMBED_INLINE int rows_detail(const QryListedCtx *args)
     {
         return 1;
     }
-    const unsigned int first = (opened->blobs > CLI_RUNS_DISPLAYED_BLOBS) ? opened->blobs - CLI_RUNS_DISPLAYED_BLOBS : 0u;
+    const unsigned int first =
+        (opened->blobs > CLI_RUNS_DISPLAYED_BLOBS) ? opened->blobs - CLI_RUNS_DISPLAYED_BLOBS : 0u;
     for (unsigned int at = first; at < opened->blobs; at += 1u)
     {
         const RunsBlob *const blob = &opened->blob[at];

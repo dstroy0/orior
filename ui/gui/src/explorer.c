@@ -290,7 +290,7 @@ static int explorer_current(const GuiPaneCfg *args)
     char displayed_path[CLI_PATH_MAX_LEN];
     const int named = (displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path);
     CliExplorerRow listed;
-    for (unsigned int at = 0u; named && cli_files_explorer_row(at, &listed); at += 1u)
+    for (unsigned int at = 0u; named && cli_files_explorer_row(&(CliFilesExplorerCfg){.at = at, .row = &listed}); at += 1u)
     {
         if (!listed.dir &&
             cellul.eq(&(CatenaFinitaCfg){.src = listed.path, .other = displayed_path, .cap = CLI_PATH_MAX_LEN}))
@@ -312,7 +312,7 @@ static void explorer_row_draw(const GuiPaneCfg *args)
     const GuiRect clip = args->clip;
     const int scale = frame->scale;
     CliExplorerRow listed;
-    if (!cli_files_explorer_row(args->row, &listed))
+    if (!cli_files_explorer_row(&(CliFilesExplorerCfg){.at = args->row, .row = &listed}))
     {
         return;
     }
@@ -428,8 +428,8 @@ float gui_explorer_file_draw(const GuiExplorerFileCfg *args)
 static int explorer_press(const GuiPaneCfg *args)
 {
     CliExplorerRow row;
-    const int listed = cli_files_explorer_row(args->row, &row);
-    if (cli_files_explorer_press(args->row) || !listed || row.dir)
+    const int listed = cli_files_explorer_row(&(CliFilesExplorerCfg){.at = args->row, .row = &row});
+    if (cli_files_explorer_press(&(CliFilesExplorerCfg){.at = args->row}) || !listed || row.dir)
     {
         return 0;
     }
@@ -442,14 +442,14 @@ static void explorer_read(const GuiPaneCfg *args)
 {
     if (args->event == GUI_PANE_DISPLAYED)
     {
-        cli_files_explorer_show(args->root);
+        cli_files_explorer_show(&(CliFilesExplorerCfg){.root = args->root});
     }
 }
 
 // the menu of a row, or the pane's own off its rows
 static int explorer_menu(const GuiPaneCfg *args)
 {
-    return cli_files_explorer_menu(args->row);
+    return cli_files_explorer_menu(&(CliFilesExplorerCfg){.at = args->row});
 }
 
 const GuiPaneTable gui_explorer_table = {

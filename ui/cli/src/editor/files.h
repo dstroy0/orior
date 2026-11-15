@@ -138,19 +138,28 @@ typedef struct
 // own after it a level deeper: the row `at` into `row` where `row` is not NULL: 1, or 0 past them; how many there are;
 // and a press on the row `at`, a folder opened, listed the first time, or closed: 1, or 0 where the row is a file,
 // which the caller opens, or past the rows
-void cli_files_explorer_show(const char *root);
+// the explorer: the tree `root` shown, the row `at` into `row`, the row `at` pressed or its menu opened, and the
+// file at `path` opened
+typedef struct
+{
+    const char *root;
+    unsigned int at;
+    CliExplorerRow *row;
+    const char *path;
+} CliFilesExplorerCfg;
+void cli_files_explorer_show(const CliFilesExplorerCfg *args);
 void cli_files_explorer_end(void);
-int cli_files_explorer_row(unsigned int at, CliExplorerRow *row);
+int cli_files_explorer_row(const CliFilesExplorerCfg *args);
 unsigned int cli_files_explorer_rows(void);
-int cli_files_explorer_press(unsigned int at);
+int cli_files_explorer_press(const CliFilesExplorerCfg *args);
 // the folder at `path` among the rows opened or closed as a press on its row does: 1, or 0 where no row is a folder at
 // the path; every listed folder listed again, those open located open; every folder but the top closed; and the menu
 // of the row `at` built as the menus' own rows, a folder's Open or Close, a file's Open, then Copy path, and past the
 // rows the pane's own, Refresh Explorer and Collapse Folders in Explorer: 1, or 0 where the tree is not listed
-int cli_files_explorer_open(const char *path);
+int cli_files_explorer_open(const CliFilesExplorerCfg *args);
 void cli_files_explorer_refresh(void);
 void cli_files_explorer_collapse(void);
-int cli_files_explorer_menu(unsigned int at);
+int cli_files_explorer_menu(const CliFilesExplorerCfg *args);
 // the explorer marked stale from the watch's thread, as a folder's entries come and go; and whether it was marked since
 // this was last asked, read on the window's thread: 1 once for each run of marks
 void cli_files_explorer_stale(void);

@@ -58,12 +58,16 @@ void cli_console_let_go(void);
 // the window's command line and its tree (command_line_window.c): the command line run on the words the program was
 // started with, as the system gives them: the code to exit with, 1 in `window` where the words open the window
 // instead; the tree the window opens on found and readied: imp run on the machine where it is in a Flatpak's
-// sandbox, every process it starts contained under it, the interface opened for the command line, `woken` called from the
-// interface's thread as a command comes, and the tree watched, each batch of files changed outside the window noted among
-// its runs, walked into the tree's branches and passed to the servers on the watch's own thread; every server,
+// sandbox, every process it starts contained under it, the interface opened for the command line, `woken` called from
+// the interface's thread as a command comes, and the tree watched, each batch of files changed outside the window noted
+// among its runs, walked into the tree's branches and passed to the servers on the watch's own thread; every server,
 // session and process of the window's ended as it ends; the tree open, NULL for none; the tree's name, the last part of
 // its folder, empty for none; and the words the program was started with
-int cli_command_line_window(int *window);
+typedef struct
+{
+    int *window;
+} CliCommandLineWindowCfg;
+int cli_command_line_window(const CliCommandLineWindowCfg *args);
 void cli_command_line_tree_begin(void (*woken)(void));
 // the catalog's cell taken as the process starts, after the pool is made, so it is at the pool's lowest address
 void cli_command_line_catalog_alloc(void);
@@ -80,29 +84,44 @@ const CliOutcome *cli_command_line_launched(void);
 // the notices (notices.c), as the page's status bar shows them: the notice `text` posted, a failure's where `failed` is
 // 1: one that answers a press or a key that gives a command within CLI_NOTICES_ANSWERS_MS shows at once, any other
 // waits for a break in the work, CLI_NOTICES_REST_MS of no input or a save, and Focus stops every one until it ends; a
-// notice whose type is put away shows not at all; one displayed is CLI_NOTICES_DISPLAYED_MS on the status bar, a failure's
-// CLI_NOTICES_FAILED_MS, and a press on it takes it away, one on Silence beside it putting its type away for good,
-// saved in orior's folder. Any input, a press of the pointer, or the key `name` while the editor takes the keys where
-// `editing` is 1, so the notices know when the reader commanded and when the work rests; a break taken; a press on the
-// status bar's
-// part `part`; Focus on or off; the type `type` displayed again; the timers whose time came taken, 1 where anything
-// changed; the clock's reading of the next timer, 0 for none; the types put away read in place in `entries` as the
-// window begins, which are until the window ends; and every notice let go as the window ends, before its entries go
+// notice whose type is put away shows not at all; one displayed is CLI_NOTICES_DISPLAYED_MS on the status bar, a
+// failure's CLI_NOTICES_FAILED_MS, and a press on it takes it away, one on Silence beside it putting its type away for
+// good, saved in orior's folder. Any input, a press of the pointer, or the key `name` while the editor takes the keys
+// where `editing` is 1, so the notices know when the reader commanded and when the work rests; a break taken; a press
+// on the status bar's part `part`; Focus on or off; the type `type` displayed again; the timers whose time came taken,
+// 1 where anything changed; the clock's reading of the next timer, 0 for none; the types put away read in place in
+// `entries` as the window begins, which are until the window ends; and every notice let go as the window ends, before
+// its entries go
 #define CLI_NOTICES_ANSWERS_MS 1500ULL
 #define CLI_NOTICES_REST_MS 2000ULL
 #define CLI_NOTICES_DISPLAYED_MS 5000ULL
 #define CLI_NOTICES_FAILED_MS 15000ULL
-void cli_notice_post(const char *text, int failed);
+// the notices: `text` posted, `failed` where it tells of a failure; the key `name` pressed, `editing` where the editor
+// has the keys; the part `part` pressed; the focus `on`; the notices of `type` shown again; the notices restored from
+// `entries`; and the away notices ended with `away`
+typedef struct
+{
+    const char *text;
+    int failed;
+    const char *name;
+    int editing;
+    unsigned int part;
+    int on;
+    const char *type;
+    const CliStateEntries *entries;
+    char *away;
+} CliNoticesCfg;
+void cli_notice_post(const CliNoticesCfg *args);
 void cli_notices_input(void);
 void cli_notices_pointer(void);
-void cli_notices_key(const char *name, int editing);
+void cli_notices_key(const CliNoticesCfg *args);
 void cli_notices_break(void);
-void cli_notices_press(unsigned int part);
-void cli_notices_focus(int on);
-void cli_notices_show_again(const char *type);
+void cli_notices_press(const CliNoticesCfg *args);
+void cli_notices_focus(const CliNoticesCfg *args);
+void cli_notices_show_again(const CliNoticesCfg *args);
 int cli_notices_step(void);
 unsigned long long cli_notices_due_ms(void);
-void cli_notices_restore(const CliStateEntries *entries);
+void cli_notices_restore(const CliNoticesCfg *args);
 void cli_notices_end(void);
 // the notice the status bar shows, its first line, NULL for none, and whether it is a failure's; whether Focus is on,
 // and how many notices wait on it
@@ -112,7 +131,7 @@ int cli_notices_focused(void);
 unsigned int cli_notices_waiting(void);
 // the types of notice put away, one a line, copied into a temporary cell, NULL where none is; and the copy given back
 char *cli_notices_away_alloc(void);
-void cli_notices_away_end(char *away);
+void cli_notices_away_end(const CliNoticesCfg *args);
 
 struct CliCommandLineInputCfg
 {

@@ -82,11 +82,23 @@ struct CliFilesSearchHitsCfg
 // past the last; the file `file`'s path from the tree's top; and the lines let go with the files they were found in,
 // their cell released
 unsigned int cli_search_located_count(void);
-int cli_search_located_line(unsigned int at, CliStandingLine *line_out);
-unsigned long long cli_search_located_text(const CliStandingLine *line, char *out, unsigned long long capacity);
+// the located line `at` into `line_out`; a line's text into `out` of `capacity` bytes; the file `file`'s first row and
+// its path into `path_out`
+typedef struct
+{
+    unsigned int at;
+    CliStandingLine *line_out;
+    const CliStandingLine *line;
+    char *out;
+    unsigned long long capacity;
+    unsigned int file;
+    char *path_out;
+} CliSearchLocatedCfg;
+int cli_search_located_line(const CliSearchLocatedCfg *args);
+unsigned long long cli_search_located_text(const CliSearchLocatedCfg *args);
 unsigned int cli_search_located_files(void);
-unsigned int cli_search_located_file_first(unsigned int file);
-const char *cli_search_located_path(unsigned int file, char *path_out);
+unsigned int cli_search_located_file_first(const CliSearchLocatedCfg *args);
+const char *cli_search_located_path(const CliSearchLocatedCfg *args);
 void cli_search_located_free(void);
 
 typedef struct

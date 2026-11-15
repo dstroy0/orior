@@ -1014,7 +1014,7 @@ static void joined(const char *root, const char *rest, char *out)
 static int explorer_lists(const char *name)
 {
     CliExplorerRow row;
-    for (unsigned int at = 0u; cli_files_explorer_row(at, &row); at += 1u)
+    for (unsigned int at = 0u; cli_files_explorer_row(&(CliFilesExplorerCfg){.at = at, .row = &row}); at += 1u)
     {
         if (same(row.name, name))
         {
@@ -1053,7 +1053,7 @@ static void file_checked(void)
     joined(s_root, "gone_here", gone);
     if (cli_files_explorer_rows() == 0u)
     {
-        cli_files_explorer_show(s_root);
+        cli_files_explorer_show(&(CliFilesExplorerCfg){.root = s_root});
     }
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = gone);
     file_written("gone_here/note.txt", "retained\n");

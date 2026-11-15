@@ -230,7 +230,7 @@ void cli_servers_check_count(const CliServersOnCtx *args)
     unsigned long long *done = args->done_pointer;
     unsigned long long *total = args->total_pointer;
     *on = s_queue.on;
-    *waiting = cli_servers_check_waiting(&s_queue);
+    *waiting = cli_servers_check_waiting(&(CliServersQueueCfg){.queue = &s_queue});
     *done = embed_atomic_u64_load(&s_queue.done);
     *total = embed_atomic_u64_load(&s_queue.total);
 }
@@ -385,7 +385,7 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
         }
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = args->waiting[at].server);
     }
-    const int idle = (cli_servers_check_waiting(&s_queue) == 0u) &&
+    const int idle = (cli_servers_check_waiting(&(CliServersQueueCfg){.queue = &s_queue}) == 0u) &&
                      (embed_atomic_u64_load(&s_queue.done) >= embed_atomic_u64_load(&s_queue.total));
     const unsigned long long done = embed_atomic_u64_load(&s_queue.done);
     const unsigned long long total = embed_atomic_u64_load(&s_queue.total);

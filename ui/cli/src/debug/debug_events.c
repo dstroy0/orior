@@ -30,7 +30,7 @@ static void step_across_clear(void *context)
     if (!session->list_entries && session->adapter_ended && (session->users == 0u))
     {
         EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = session);
-        cli_json_stored_release(&session->start);
+        cli_json_stored_release(&(CliJsonStoredCfg){.stored = &session->start});
         session->reserved = 0;
     }
 }
@@ -191,7 +191,7 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         if (!session->list_entries && (session->users == 0u))
         {
             EMBED_CALL(cli_debug_session_err_msg_internal.lists_released, CliDebugSessionErrMsgCtx, .session = session);
-            cli_json_stored_release(&session->start);
+            cli_json_stored_release(&(CliJsonStoredCfg){.stored = &session->start});
             session->reserved = 0;
         }
     }

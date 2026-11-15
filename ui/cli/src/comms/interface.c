@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface.c: the frames that go through the interface, each its bytes' count in four bytes, least first, then its bytes; and
-// the regions a frame passes over: what its transfer describes of one, and one taken from what a transfer describes
+// interface.c: the frames that go through the interface, each its bytes' count in four bytes, least first, then its
+// bytes; and the regions a frame passes over: what its transfer describes of one, and one taken from what a transfer
+// describes
 #include "interface_internal.h"
 
 // A transfer as it is in a frame: the region's length, and on Windows the handle made for it
@@ -67,14 +68,15 @@ int cli_ipc_frame_write(const CliIpcEndCtx *args)
                       .size = args->size, .region = NULL);
 }
 
-unsigned long long cli_ipc_field_end(const char *frame, unsigned long long size, unsigned long long at)
+unsigned long long cli_ipc_field_end(const CliIpcFrameCfg *args)
 {
-    if (at >= size)
+    if (args->at >= args->size)
     {
         return 0ULL;
     }
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = frame + at, .cap = size - at});
-    return ((at + length) < size) ? (at + length + 1ULL) : 0ULL;
+    const unsigned long long length =
+        cellul.len(&(CatenaFinitaCfg){.src = args->frame + args->at, .cap = args->size - args->at});
+    return ((args->at + length) < args->size) ? (args->at + length + 1ULL) : 0ULL;
 }
 
 int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args)
