@@ -13,12 +13,8 @@ typedef struct
 } CliValue;
 // the lock acquired while the files' bytes and a pattern's characters are stored
 
-// the max bytes one `.editorconfig` contains, the max folders above a file, and the longest value of a key stored
-#define CLI_EDITORCONFIG_BYTES (1u << 20u)
-
+// the max folders above a file; each `.editorconfig` is read into a cell of the temporary tier sized to it
 #define CLI_EDITORCONFIG_FOLDERS 256u
-
-static unsigned char s_text[CLI_EDITORCONFIG_BYTES];
 
 typedef struct
 {
@@ -44,6 +40,7 @@ typedef struct
     unsigned int folders;
     unsigned long long folder;
     const char *leaf;
+    unsigned long long *size_pointer;
 } EditorconfigCtx;
 // The bytes from `from` up to `to` with the ASCII spaces at each end left off
 EMBED_INLINE void cli_trim(const EditorconfigCtx *args)
@@ -229,15 +226,19 @@ EMBED_INLINE int cli_is_separator(const EditorconfigCtx *args)
     return (args->character == '/') || (args->character == '\\');
 }
 
-// the `.editorconfig` of the folder `folder` characters of `path` long, `leaf` its name after them, read into s_text: its
-// size, or QRY_MEMBER_UNREAD where it is not read
-EMBED_INLINE unsigned long long cli_editorconfig_read(const EditorconfigCtx *args)
+// the `.editorconfig` of the folder `folder` characters of `path` long, `leaf` its name after them, read into a cell of
+// the temporary tier sized to it, its size into `size_pointer`: the bytes, which the caller gives back, or NULL where
+// it is not read
+EMBED_INLINE const unsigned char *cli_editorconfig_read(const EditorconfigCtx *args)
 {
     char file[CLI_PATH_MAX_LEN];
     VerbaLinea line = {file, sizeof(file), 0ULL};
     mmgr_line_put_n(&line, args->path, args->folder);
     mmgr_line_put(&line, args->leaf);
-    return (mmgr_line_finish(&line) != 0ULL) ? qry_member_file_read(file, s_text, sizeof(s_text)) : QRY_MEMBER_UNREAD;
+    return (mmgr_line_finish(&line) != 0ULL)
+               ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file, .size_pointer = args->size_pointer,
+                            .owner = g_cli_editor_owner)
+               : NULL;
 }
 
 // each folder from the file's up with an `.editorconfig` read, the length of `path` it is, into `ends`, until one
@@ -266,14 +267,17 @@ EMBED_INLINE unsigned int cli_folders_found(const EditorconfigCtx *args)
             going = 0;
             continue;
         }
-        const unsigned long long size = EMBED_CALL(cli_editorconfig_read, EditorconfigCtx, .path = args->path,
-                                                   .folder = folder, .leaf = top ? ".editorconfig" : "/.editorconfig");
-        if (size != QRY_MEMBER_UNREAD)
+        unsigned long long size = 0ULL;
+        const unsigned char *const bytes =
+            EMBED_CALL(cli_editorconfig_read, EditorconfigCtx, .path = args->path, .folder = folder,
+                       .leaf = top ? ".editorconfig" : "/.editorconfig", .size_pointer = &size);
+        if (bytes != NULL)
         {
             args->ends[folders] = folder;
             folders += 1u;
             // the file's bytes read as text: a char and an unsigned char share their width
-            going = !EMBED_CALL(cli_is_root, EditorconfigCtx, .text = (const char *)s_text, .size = size);
+            going = !EMBED_CALL(cli_is_root, EditorconfigCtx, .text = (const char *)bytes, .size = size);
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_editor_owner));
         }
         going = going && !top;
         end = cut - 1ULL;
@@ -300,14 +304,16 @@ EMBED_INLINE void cli_folders_read(const EditorconfigCtx *args)
                    .to = '/');
         const int separated =
             (folder != 0ULL) && EMBED_CALL(cli_is_separator, EditorconfigCtx, .character = args->path[folder - 1u]);
-        const unsigned long long size =
+        unsigned long long size = 0ULL;
+        const unsigned char *const bytes =
             EMBED_CALL(cli_editorconfig_read, EditorconfigCtx, .path = args->path, .folder = folder,
-                       .leaf = separated ? ".editorconfig" : "/.editorconfig");
-        if (size != QRY_MEMBER_UNREAD)
+                       .leaf = separated ? ".editorconfig" : "/.editorconfig", .size_pointer = &size);
+        if (bytes != NULL)
         {
-            EMBED_CALL(cli_sections_read, EditorconfigCtx, .text = (const char *)s_text, .size = size,
+            EMBED_CALL(cli_sections_read, EditorconfigCtx, .text = (const char *)bytes, .size = size,
                        .relative = relative, .name = args->name, .style = args->style, .size_value = args->size_value,
                        .width = args->width);
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_editor_owner));
         }
     }
 }
