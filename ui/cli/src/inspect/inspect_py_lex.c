@@ -5,8 +5,6 @@
 // with its prefix, is one token, and the names an f-string's or a t-string's fields read are tokens after it
 #include "inspect_py.h"
 
-// the max names one string's fields read that are recorded
-#define CLI_PY_FIELD_NAMES 4096u
 
 CliPyLine *g_cli_py_line;
 unsigned int g_cli_py_lines;
@@ -33,8 +31,6 @@ static const char *const s_ops[47] = {"**=", "//=", ">>=", "<<=", "...", "->", "
 // the prefixes a string may have, in lower case
 static const char *const s_prefixes[13] = {"r", "u", "b", "f", "t", "br", "rb", "fr", "rf", "tr", "rt", "bt", "tb"};
 
-// the names a string's fields read, recorded until the string's own token is put
-static CliInspectTok s_field_names[CLI_PY_FIELD_NAMES];
 
 typedef struct
 {
@@ -54,7 +50,6 @@ typedef struct
     int triple;
     int fields;
     unsigned int *braces;
-    unsigned int *names;
 } InspectPyLexCtx;
 EMBED_INLINE int lex_name_start(const InspectPyLexCtx *args)
 {
@@ -112,8 +107,8 @@ EMBED_INLINE int lex_quote_closes(const InspectPyLexCtx *args)
                                           .scan = args->scan, .ahead = 2u) == args->quote)));
 }
 
-// the name a field reads, where the scan is, read to its end, and recorded after the `names` recorded before it
-// where no dot or digit is before it and they number fewer than CLI_PY_FIELD_NAMES
+// the name a field reads, where the scan is, read to its end, and put as a token after its string's where no dot or
+// digit is before it
 EMBED_INLINE void lex_field_name(const InspectPyLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
@@ -127,23 +122,16 @@ EMBED_INLINE void lex_field_name(const InspectPyLexCtx *args)
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    if (!after_dot && !after_digit && (*args->names < CLI_PY_FIELD_NAMES))
+    if (!after_dot && !after_digit)
     {
-        // a text read is at max 4 GiB, which a token's bytes count
-        s_field_names[*args->names] =
-            (CliInspectTok){CLI_PY_NAME,
-                            1u,
-                            (unsigned int)name_start,
-                            (unsigned int)scan->pos,
-                            name_from,
-                            EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan)};
-        *args->names += 1u;
+        EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_PY_NAME,
+                   .start = name_start, .from = name_from, .field = 1);
     }
 }
 
 // one step of a string's body from `character`, where the scan is, in a string opened by `quote`, `triple` or not,
 // whose `fields` are read or not: an escape passed over, the closing quote passed over, a doubled brace passed over,
-// a field's brace counted into `braces`, a name a field reads recorded in `names`, else the character passed over; 0
+// a field's brace counted into `braces`, a name a field reads put as a token, else the character passed over; 0
 // where the string ends there, else 1
 EMBED_INLINE int lex_string_step(const InspectPyLexCtx *args)
 {
@@ -180,7 +168,7 @@ EMBED_INLINE int lex_string_step(const InspectPyLexCtx *args)
     }
     else if ((*args->braces > 0u) && EMBED_CALL(lex_name_start, InspectPyLexCtx, .character = character))
     {
-        EMBED_CALL(lex_field_name, InspectPyLexCtx, .scan = args->scan, .names = args->names);
+        EMBED_CALL(lex_field_name, InspectPyLexCtx, .scan = args->scan);
         return 1;
     }
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = args->scan);
@@ -207,27 +195,24 @@ static void lex_string(const InspectPyLexCtx *args)
                  (scan->src[at] == 'T');
     }
     EMBED_CALL(lex_passed, InspectPyLexCtx, .scan = scan, .count = triple ? 3u : 1u);
-    unsigned int names = 0u;
+    // the string's token is put before its fields' names, its end written once the string closes
+    const unsigned int string_tok = g_cli_inspect_toks;
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_PY_STR,
+               .start = start, .from = from, .field = 0);
     unsigned int braces = 0u;
     unsigned int character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     int going = 1;
     while (going && (character != CLI_INSPECT_END))
     {
         going = EMBED_CALL(lex_string_step, InspectPyLexCtx, .scan = scan, .character = character, .quote = quote,
-                           .triple = triple, .fields = fields, .braces = &braces, .names = &names);
+                           .triple = triple, .fields = fields, .braces = &braces);
         character = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .type = CLI_PY_STR,
-               .start = start, .from = from, .field = 0);
-    for (unsigned int at = 0u; at < names; at += 1u)
+    if (string_tok < g_cli_inspect_toks)
     {
-        if (g_cli_inspect_toks == CLI_INSPECT_TOKENS)
-        {
-            g_cli_inspect_over = 1;
-            break;
-        }
-        g_cli_inspect_tok[g_cli_inspect_toks] = s_field_names[at];
-        g_cli_inspect_toks += 1u;
+        // a text read is at max 4 GiB, which a token's bytes count
+        g_cli_inspect_tok[string_tok].end = (unsigned int)scan->pos;
+        g_cli_inspect_tok[string_tok].to = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     }
 }
 
