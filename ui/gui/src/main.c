@@ -3,8 +3,8 @@
 // main.c: the window's program, a pump and a blit. The command line is run on the words the program was started with;
 // where it leaves a window to open, the view begins on a thread of the command line's and the window opens on the
 // system at the place saved for the tree, else in the middle of the main monitor. Every event the system gives goes to
-// the view's ring, each order the view writes back is done, and a raster an order passes over is displayed; the loop runs
-// until the window closes, its place saved as it does
+// the view's ring, each order the view writes back is done, and a raster an order passes over is displayed; the loop
+// runs until the window closes, its place saved as it does
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/command_line/command_line.h"
 #include "system.h"
@@ -40,19 +40,20 @@ static void main_sized(const GuiEachWidthHeightScaleCfg *args)
                                 .height = args->height,
                                 .scale = args->scale,
                                 .frame_ms = args->frame_ms};
-    cli_view_event(&event);
+    cli_view_event(&(CliViewThreadCfg){.event = &event});
 }
 
 static void main_input(const GuiEachInputCfg *args)
 {
     const CliViewEvent event = {
         .type = CLI_VIEW_EVENT_INPUT, .surface = *(const unsigned int *)args->context, .input = *args->input};
-    cli_view_event(&event);
+    cli_view_event(&(CliViewThreadCfg){.event = &event});
 }
 
 static unsigned int main_hit(const GuiEachInputCfg *args)
 {
-    return cli_view_hit(*(const unsigned int *)args->context, args->input->x, args->input->y);
+    return cli_view_hit(
+        &(CliViewThreadCfg){.surface = *(const unsigned int *)args->context, .x = args->input->x, .y = args->input->y});
 }
 
 // Preferences' window closed where it is open, a window owned going before its owner does
@@ -84,7 +85,7 @@ static void main_closing(void *context)
     main_preferences_close();
     CliWindowPosition place;
     EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = s_system, .position_out = &place);
-    cli_view_place_store(cli_command_line_root(), &place);
+    cli_view_place_store(&(CliViewThreadCfg){.root = cli_command_line_root(), .place = &place});
     EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = s_system);
     s_system = NULL;
 }
@@ -99,7 +100,7 @@ static void main_preferences_closing(void *context)
 {
     (void)context;
     const CliViewEvent event = {.type = CLI_VIEW_EVENT_CLOSING, .surface = CLI_VIEW_PREFERENCES};
-    cli_view_event(&event);
+    cli_view_event(&(CliViewThreadCfg){.event = &event});
 }
 
 static void main_preferences_displayed(const GuiEachDisplayedCfg *args)
@@ -112,13 +113,13 @@ static void main_dialog_closing(void *context)
 {
     (void)context;
     const CliViewEvent event = {.type = CLI_VIEW_EVENT_CLOSING, .surface = CLI_VIEW_DIALOG};
-    cli_view_event(&event);
+    cli_view_event(&(CliViewThreadCfg){.event = &event});
 }
 
 static void main_displayed(const GuiEachDisplayedCfg *args)
 {
     const CliViewEvent event = {.type = CLI_VIEW_EVENT_DISPLAYED, .flag = args->displayed};
-    cli_view_event(&event);
+    cli_view_event(&(CliViewThreadCfg){.event = &event});
 }
 
 static void main_motion(void *context)
@@ -127,7 +128,7 @@ static void main_motion(void *context)
     const CliViewEvent event = {
         .type = CLI_VIEW_EVENT_MOTION,
         .flag = EMBED_CALL(gui_system_position.motion_reduce, GuiSystemPositionCfg, .system_read = s_system)};
-    cli_view_event(&event);
+    cli_view_event(&(CliViewThreadCfg){.event = &event});
 }
 
 // Preferences' window opened in the middle of the main window at the size asked, no taller than the main window; its
@@ -155,7 +156,7 @@ static void main_preferences_open(const CliViewOrder *order)
     if (s_preferences == NULL)
     {
         const CliViewEvent refused = {.type = CLI_VIEW_EVENT_REFUSED, .surface = CLI_VIEW_PREFERENCES};
-        cli_view_event(&refused);
+        cli_view_event(&(CliViewThreadCfg){.event = &refused});
         return;
     }
     const CliViewEvent sized = {
@@ -164,7 +165,7 @@ static void main_preferences_open(const CliViewOrder *order)
         .width = order->width,
         .height = height,
         .scale = EMBED_CALL(gui_system_position.scale, GuiSystemPositionCfg, .system_read = s_preferences)};
-    cli_view_event(&sized);
+    cli_view_event(&(CliViewThreadCfg){.event = &sized});
 }
 
 // The dialog's window opened modal in the middle of the window that owns it, at the size asked and no larger than the
@@ -195,7 +196,7 @@ static void main_dialog_open(const CliViewOrder *order)
     if (s_dialog == NULL)
     {
         const CliViewEvent refused = {.type = CLI_VIEW_EVENT_REFUSED, .surface = CLI_VIEW_DIALOG};
-        cli_view_event(&refused);
+        cli_view_event(&(CliViewThreadCfg){.event = &refused});
         return;
     }
     const CliViewEvent sized = {
@@ -204,7 +205,7 @@ static void main_dialog_open(const CliViewOrder *order)
         .width = width,
         .height = height,
         .scale = EMBED_CALL(gui_system_position.scale, GuiSystemPositionCfg, .system_read = s_dialog)};
-    cli_view_event(&sized);
+    cli_view_event(&(CliViewThreadCfg){.event = &sized});
 }
 
 // the system that shows `surface`, NULL where its window no longer is
@@ -217,7 +218,8 @@ static GuiSystem *main_system_of(unsigned int surface)
     return (surface == CLI_VIEW_DIALOG) ? s_dialog : s_system;
 }
 
-// a raster displayed on its surface, the view told once it has been; a surface no longer located has nothing to show it on
+// a raster displayed on its surface, the view told once it has been; a surface no longer located has nothing to show it
+// on
 static void main_present(const CliViewOrder *order)
 {
     GuiSystem *const system = main_system_of(order->surface);
@@ -231,7 +233,7 @@ static void main_present(const CliViewOrder *order)
                    .part = order->part);
     }
     const CliViewEvent displayed = {.type = CLI_VIEW_EVENT_PRESENTED, .surface = order->surface};
-    cli_view_event(&displayed);
+    cli_view_event(&(CliViewThreadCfg){.event = &displayed});
 }
 
 // every order waiting done, until the window closes under one
@@ -239,7 +241,7 @@ static void main_woken(void *context)
 {
     (void)context;
     CliViewOrder order;
-    while ((s_system != NULL) && cli_view_order(&order))
+    while ((s_system != NULL) && cli_view_order(&(CliViewThreadCfg){.order = &order}))
     {
         switch (order.type)
         {
@@ -310,7 +312,8 @@ int main(void)
     const unsigned int count =
         EMBED_CALL(cli_system_areas.areas, GuiSystemAreasCfg, .areas = areas, .max = GUI_MONITORS);
     CliWindowPosition place;
-    if (!cli_view_place_saved(cli_command_line_root(), areas, count, &place))
+    if (!cli_view_place_saved(
+            &(CliViewThreadCfg){.root = cli_command_line_root(), .areas = areas, .count = count, .place = &place}))
     {
         // the first size, in the middle of the main monitor where there is one
         place = (CliWindowPosition){0, 0, GUI_FIRST_WIDTH, GUI_FIRST_HEIGHT, 0};

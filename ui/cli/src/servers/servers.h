@@ -102,7 +102,11 @@ typedef struct
 } CliServerDiagnosticsCfg;
 
 // a report's cell released (servers_emit.c)
-void cli_servers_report_release(const CarcerMovableEntry *report);
+typedef struct
+{
+    const CarcerMovableEntry *report;
+} CliServersReportCfg;
+void cli_servers_report_release(const CliServersReportCfg *args);
 
 // How far the tree's check has gone, the total 0 where it is over
 typedef struct
@@ -173,23 +177,38 @@ typedef struct
 
 // the panels over the editor of the tree `root`, on the window's thread (servers_panels.c): begun, watching the views,
 // each view opened on a file passed to its language's server, each about to close let go of it, and each frame of the
-// view displayed followed, and ended; every panel hidden; the pointer moved; text typed, `length` bytes; a key's effect on
-// the panels, 1 where the key was theirs; the completion's row `at` accepted; the completion's rows turned by the
+// view displayed followed, and ended; every panel hidden; the pointer moved; text typed, `length` bytes; a key's effect
+// on the panels, 1 where the key was theirs; the completion's row `at` accepted; the completion's rows turned by the
 // wheel; their timers taken, 1 where any came, and the clock's reading of the next, 0 for none; and what they show: the
 // hover, the completion and its row `row` displayed, each 1 where it is, else 0, and the signature, NULL for none
-void cli_servers_panels_begin(const char *root);
+// the panels: begun for the tree `root`; `length` bytes of `text` typed; the key `name`; the row `at` accepted; the
+// wheel by `rows`; the hover panel into `hover_out`; the completion `panel`; and its row `row` into `out`
+typedef struct
+{
+    const char *root;
+    const char *text;
+    unsigned long long length;
+    const char *name;
+    unsigned int at;
+    int rows;
+    CliHoverPanel *hover_out;
+    CliCompletionPanel *panel;
+    unsigned int row;
+    CliCompletionRow *out;
+} CliServersPanelsCfg;
+void cli_servers_panels_begin(const CliServersPanelsCfg *args);
 void cli_servers_panels_end(void);
 void cli_servers_panels_hide(void);
 void cli_servers_panels_pointer(const CliServersPanelsPointerCfg *args);
-void cli_servers_panels_text(const char *text, unsigned long long length);
-int cli_servers_panels_key(const char *name);
-void cli_servers_panels_accept(unsigned int at);
-void cli_servers_panels_wheel(int rows);
+void cli_servers_panels_text(const CliServersPanelsCfg *args);
+int cli_servers_panels_key(const CliServersPanelsCfg *args);
+void cli_servers_panels_accept(const CliServersPanelsCfg *args);
+void cli_servers_panels_wheel(const CliServersPanelsCfg *args);
 int cli_servers_panels_step(void);
 unsigned long long cli_servers_panels_due_ms(void);
-int cli_servers_panels_hover(CliHoverPanel *panel);
-int cli_servers_panels_completion(CliCompletionPanel *panel);
-int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out);
+int cli_servers_panels_hover(const CliServersPanelsCfg *args);
+int cli_servers_panels_completion(const CliServersPanelsCfg *args);
+int cli_servers_panels_completion_row(const CliServersPanelsCfg *args);
 const CliSignaturePanel *cli_servers_panels_signature(void);
 
 // One row of the problems: a file's, with its path, its name and how many bytes of its path its folder takes, its
@@ -242,15 +261,25 @@ typedef struct
 // diagnostic's row into `row`: 1 where it was a diagnostic's, its file to be opened at its place; and the tree's check
 // of `root` started, or stopped where it runs
 void cli_servers_problems_begin(void (*woken)(void));
-CliServersSink cli_servers_problems_sink(const char *root);
+// the problems: the sink and the check for the tree `root`; the row `at` into `row`, or pressed; and the span `at` of
+// the file at `path` into `span`
+typedef struct
+{
+    const char *root;
+    unsigned int at;
+    CliProblemRow *row;
+    const char *path;
+    CliProblemSpan *span;
+} CliServersProblemsCfg;
+CliServersSink cli_servers_problems_sink(const CliServersProblemsCfg *args);
 int cli_servers_problems_step(void);
 void cli_servers_problems_end(void);
 CliProblemsCounts cli_servers_problems_counts(void);
 int cli_servers_problems_checking(void);
-int cli_servers_problems_row(unsigned int at, CliProblemRow *row);
-int cli_servers_problems_span(const char *path, unsigned int at, CliProblemSpan *span);
-int cli_servers_problems_press(unsigned int at, CliProblemRow *row);
-void cli_servers_problems_check(const char *root);
+int cli_servers_problems_row(const CliServersProblemsCfg *args);
+int cli_servers_problems_span(const CliServersProblemsCfg *args);
+int cli_servers_problems_press(const CliServersProblemsCfg *args);
+void cli_servers_problems_check(const CliServersProblemsCfg *args);
 
 // the file at `path` passed to its language's server, started at `root` where it is not running, and its text to the
 // checkers: `true` or `false` written as a server took it; its new text given; and the file let go

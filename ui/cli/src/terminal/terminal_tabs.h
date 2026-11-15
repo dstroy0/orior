@@ -37,8 +37,8 @@ typedef struct
 } CliTerminalPanel;
 
 // One pane: the key of its tab's text, NULL before it is stored; the text's line the screen drawn on starts on; the
-// xterm's columns and rows, 0 before it is sized, the cursor's column and row and whether it is displayed; and whether its
-// shell is the one the keys go to
+// xterm's columns and rows, 0 before it is sized, the cursor's column and row and whether it is displayed; and whether
+// its shell is the one the keys go to
 typedef struct
 {
     const char *key;
@@ -54,27 +54,48 @@ typedef struct
 // the place read back from `entries`, NULL for none, the tree's top folder `root` the folder a shell with none of its
 // own starts in; and every shell hung up on and its tabs let go, the place and each tab's rows stored for the next
 // start
-void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root);
+// the tabs: restored from `entries` for the tree `root`; the command `name` with its `words`, `count` of them; the
+// key `name`; `length` bytes of text; the view `view`'s wheel by `notches`, its size `columns` by `rows`, the panel's
+// `height`; the view `view` into `out`; and the tab `at`'s label onto `label_out`
+typedef struct
+{
+    const CliStateEntries *entries;
+    const char *root;
+    const char *name;
+    const char *const *words;
+    unsigned int count;
+    const char *bytes;
+    unsigned long long length;
+    unsigned int view;
+    int notches;
+    unsigned int columns;
+    unsigned int rows;
+    unsigned int height;
+    CliTerminalView *out;
+    unsigned int at;
+    VerbaLinea *label_out;
+} CliTerminalTabsCfg;
+void cli_terminal_tabs_restore(const CliTerminalTabsCfg *args);
 void cli_terminal_tabs_end(void);
 // the terminal's command `name` run with its `count` `words`: 1, or 0 where it is none of the terminal's; whether its
 // state `name` is on, terminal-split while a shell is beside the one displayed, terminal-chosen while text is chosen in
 // the pane the keys go to and terminal-keys while the panel takes the keys; and the panel's menu, its
 // CLI_TERMINAL_MENU_ROWS rows, located as long as the program runs
-int cli_terminal_tabs_command(const char *name, const char *const *words, unsigned int count);
-int cli_terminal_tabs_checked(const char *name);
+int cli_terminal_tabs_command(const CliTerminalTabsCfg *args);
+int cli_terminal_tabs_checked(const CliTerminalTabsCfg *args);
 const CliItem *cli_terminal_tabs_menu(void);
 // the key `name` taken where the panel takes the keys: 1, or 0 where it goes on to the rest of the window; and
 // `length` bytes of text typed where the panel takes the keys: 1, or 0 where it does not
-int cli_terminal_tabs_key(const char *name);
-int cli_terminal_tabs_text(const char *bytes, unsigned long long length);
+int cli_terminal_tabs_key(const CliTerminalTabsCfg *args);
+int cli_terminal_tabs_text(const CliTerminalTabsCfg *args);
 // a press on what `hit` names, a CLI_TERMINAL_HIT_*, elsewhere taking the keys from the panel; the pointer moved or let
 // go after a press on a pane, passed to the pane's view: 1, or 0 where no press on a pane came before it; the wheel's
 // `rows` over the pane `view`; the pane `view` sized to `columns` and `rows`; and the panel's height
 void cli_terminal_tabs_press(const CliTerminalTabsPressCfg *args);
 int cli_terminal_tabs_pointer(const CliTerminalTabsPressCfg *args);
-void cli_terminal_tabs_wheel(unsigned int view, int rows);
-void cli_terminal_tabs_size(unsigned int view, unsigned int columns, unsigned int rows);
-void cli_terminal_tabs_height(unsigned int height);
+void cli_terminal_tabs_wheel(const CliTerminalTabsCfg *args);
+void cli_terminal_tabs_size(const CliTerminalTabsCfg *args);
+void cli_terminal_tabs_height(const CliTerminalTabsCfg *args);
 // every shell drained and the place stored once its time comes: 1 where an xterm changed; and the clock's reading of
 // its next timer, 0 for none
 int cli_terminal_tabs_step(void);
@@ -82,8 +103,8 @@ unsigned long long cli_terminal_tabs_next_ms(void);
 // the panel as it is; the pane `view` into `out`: 1, or 0 where it shows no tab; and the label of the tab `at`
 // put after `out`: 1 where its shell ended, else 0
 CliTerminalPanel cli_terminal_tabs_panel(void);
-int cli_terminal_tabs_view(unsigned int view, CliTerminalView *out);
-int cli_terminal_tabs_label(unsigned int at, VerbaLinea *out);
+int cli_terminal_tabs_view(const CliTerminalTabsCfg *args);
+int cli_terminal_tabs_label(const CliTerminalTabsCfg *args);
 
 struct CliTerminalTabsPressCfg
 {

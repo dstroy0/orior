@@ -33,8 +33,8 @@ typedef struct
 
 // The view: its window; the rings and the maps, in one cell; what wakes each thread; whether the thread is to end and
 // whether it runs; a raster's showing awaited on each surface, the framebuffer a whole frame ordered is in, when
-// the last was displayed and the monitor's refresh; when the tick the window wants is due; whether Preferences' window was
-// ordered open; whether the main window's frame has been positioned, and the icons
+// the last was displayed and the monitor's refresh; when the tick the window wants is due; whether Preferences' window
+// was ordered open; whether the main window's frame has been positioned, and the icons
 typedef struct
 {
     GuiWindow window;
@@ -166,17 +166,17 @@ static void view_frame_telemetry_log(unsigned long long now_us)
     told->line_at_us = now_us;
 }
 
-unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y)
+unsigned int cli_view_hit_of(const CliViewThreadCfg *args)
 {
-    if (hits->width == 0u)
+    if (args->hits->width == 0u)
     {
         return GUI_HIT_CLIENT;
     }
     // a client's sides are far inside what an int represents
-    const int left = x < hits->border;
-    const int right = x >= (int)hits->width - hits->border;
-    const int top = y < hits->border;
-    const int bottom = y >= (int)hits->height - hits->border;
+    const int left = args->x < args->hits->border;
+    const int right = args->x >= (int)args->hits->width - args->hits->border;
+    const int top = args->y < args->hits->border;
+    const int bottom = args->y >= (int)args->hits->height - args->hits->border;
     if (top)
     {
         if (left)
@@ -205,35 +205,39 @@ unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y)
     {
         return left ? GUI_HIT_LEFT : GUI_HIT_RIGHT;
     }
-    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = hits->minimize, .x = x, .y = y))
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->hits->minimize, .x = args->x,
+                   .y = args->y))
     {
         return GUI_HIT_MINIMIZE;
     }
-    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = hits->maximize, .x = x, .y = y))
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->hits->maximize, .x = args->x,
+                   .y = args->y))
     {
         return GUI_HIT_MAXIMIZE;
     }
-    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = hits->close, .x = x, .y = y))
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->hits->close, .x = args->x, .y = args->y))
     {
         return GUI_HIT_CLOSE;
     }
-    for (unsigned int at = 0u; at < hits->clients; at += 1u)
+    for (unsigned int at = 0u; at < args->hits->clients; at += 1u)
     {
-        if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = hits->client[at], .x = x, .y = y))
+        if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->hits->client[at], .x = args->x,
+                       .y = args->y))
         {
             return GUI_HIT_CLIENT;
         }
     }
-    return EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = hits->caption, .x = x, .y = y)
+    return EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->hits->caption, .x = args->x,
+                      .y = args->y)
                ? GUI_HIT_CAPTION
                : GUI_HIT_CLIENT;
 }
 
 // On the system's thread: every map pushed popped in the order of its ticket, each copied whole into the retained map,
 // its rectangles after it, before its slot goes back to the view's thread; then the point read against the retained map
-unsigned int cli_view_hit(unsigned int surface, int x, int y)
+unsigned int cli_view_hit(const CliViewThreadCfg *args)
 {
-    CliViewHitsTransfer *const transfer = &s_view.hits[surface];
+    CliViewHitsTransfer *const transfer = &s_view.hits[args->surface];
     // Explicit cast carries the transfer's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)transfer;
     embed_u64 stamp = 0u;
@@ -253,7 +257,7 @@ unsigned int cli_view_hit(unsigned int surface, int x, int y)
         (void)embed_ticket_ring_drain_release(&s_view.hits_turnstiles, &transfer->ring, stamp, &seen);
         transfer->taken += 1u;
     }
-    return cli_view_hit_of(transfer->retained, x, y);
+    return cli_view_hit_of(&(CliViewThreadCfg){.hits = transfer->retained, .x = args->x, .y = args->y});
 }
 
 // On the view's thread: the buffer of `surface`'s next map, its ticket's slot granted: NULL where every slot is in
@@ -265,7 +269,7 @@ static CliViewHits *view_hits_next(unsigned int surface)
     embed_u64 seen = 0u;
     // Explicit cast carries the transfer's address as the pass's entry
     if (!embed_ticket_ring_pass_grant(&s_view.hits_turnstiles, (embed_atomic_uptr_value)(embed_word)transfer,
-                                   &transfer->ring, stamp, &seen))
+                                      &transfer->ring, stamp, &seen))
     {
         return NULL;
     }
@@ -280,23 +284,23 @@ static void view_hits_publish(unsigned int surface)
     embed_u64 seen = 0u;
     // Explicit cast carries the transfer's address as the pass's entry
     (void)embed_ticket_ring_pass_push(&s_view.hits_turnstiles, (embed_atomic_uptr_value)(embed_word)transfer,
-                                   &transfer->ring, transfer->granted,
-                                   &transfer->buffer[transfer->ticket & (CLI_VIEW_HITS_SLOTS - 1u)], &seen);
+                                      &transfer->ring, transfer->granted,
+                                      &transfer->buffer[transfer->ticket & (CLI_VIEW_HITS_SLOTS - 1u)], &seen);
     transfer->ticket += 1u;
 }
 
-void cli_view_event(const CliViewEvent *event)
+void cli_view_event(const CliViewThreadCfg *args)
 {
-    const int keyed = (event->type == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_KEY);
-    const int typed = (event->type == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_TEXT);
+    const int keyed = (args->event->type == CLI_VIEW_EVENT_INPUT) && (args->event->input.type == GUI_INPUT_KEY);
+    const int typed = (args->event->type == CLI_VIEW_EVENT_INPUT) && (args->event->input.type == GUI_INPUT_TEXT);
     const char *bytes;
     if (keyed)
     {
-        bytes = event->input.name;
+        bytes = args->event->input.name;
     }
     else if (typed)
     {
-        bytes = event->input.text;
+        bytes = args->event->input.text;
     }
     else
     {
@@ -309,7 +313,7 @@ void cli_view_event(const CliViewEvent *event)
     }
     else if (typed)
     {
-        length = event->input.size;
+        length = args->event->input.size;
     }
     else
     {
@@ -326,21 +330,21 @@ void cli_view_event(const CliViewEvent *event)
                                           .bytes = (embed_word)length});
         CliViewEvent *const written =
             (CliViewEvent *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &s_view.event_ring, .index = at});
-        *written = *event;
+        *written = *args->event;
         written->input.size = length;
         anularis.seg_publish(&(AnularisCfg){.ring = &s_view.event_ring});
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
     }
 }
 
-int cli_view_order(CliViewOrder *order)
+int cli_view_order(const CliViewThreadCfg *args)
 {
     embed_word at = 0u;
     if (!anularis.seg_front(&(AnularisCfg){.ring = &s_view.order_ring, .out_index = &at}))
     {
         return 0;
     }
-    *order =
+    *args->order =
         *(const CliViewOrder *)(const void *)anularis.seg_at(&(AnularisCfg){.ring = &s_view.order_ring, .index = at});
     anularis.seg_release(&(AnularisCfg){.ring = &s_view.order_ring});
     return 1;
@@ -563,8 +567,8 @@ static void view_events_take(void)
     }
 }
 
-// Preferences' window opened or closed as the command last left it, and its frame drawn and ordered displayed where one is
-// owed and none is on its way
+// Preferences' window opened or closed as the command last left it, and its frame drawn and ordered displayed where one
+// is owed and none is on its way
 static void view_preferences_follow(void)
 {
     GuiWindow *const window = &s_view.window;
@@ -800,8 +804,9 @@ static void view_run(void *context)
             continue;
         }
         // While a part of the window moves, or the editor's scroll moves, the frames follow the showing: the next frame
-        // is drawn as the last one is displayed, and the device's flip queue holds each frame to the monitor's refresh. A
-        // timed wait sleeps to the system timer's step and misses refreshes, so a moving part does not wait on a timer
+        // is drawn as the last one is displayed, and the device's flip queue holds each frame to the monitor's refresh.
+        // A timed wait sleeps to the system timer's step and misses refreshes, so a moving part does not wait on a
+        // timer
         if (window->autohide_moving || window->scroll_moving || window->buttons_moving)
         {
             s_view.tick_at_ms = cli_clock_milliseconds();
@@ -835,8 +840,8 @@ static void view_run(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.ended);
 }
 
-// what a module's thread brings, a command through the interface, a server's report or a line the walk colored, wakes the
-// view's thread
+// what a module's thread brings, a command through the interface, a server's report or a line the walk colored, wakes
+// the view's thread
 static void view_woken(void)
 {
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);

@@ -843,13 +843,13 @@ EMBED_INLINE void terminal_paste(const TerminalCtx *args)
     g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
 }
 
-int cli_terminal_tabs_command(const char *name, const char *const *words, unsigned int count)
+int cli_terminal_tabs_command(const CliTerminalTabsCfg *args)
 {
     static const char *const s_commands[9] = {"terminal-view", "toggle", "terminal-close", "new",          "split",
                                               "clear",         "kill",   "terminal-paste", "terminal-copy"};
     unsigned int command = 0u;
     while ((command < 9u) &&
-           !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_commands[command], .cap = CLI_LABEL_MAX_LEN}))
+           !cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_commands[command], .cap = CLI_LABEL_MAX_LEN}))
     {
         command += 1u;
     }
@@ -887,15 +887,15 @@ int cli_terminal_tabs_command(const char *name, const char *const *words, unsign
         }
         return 1;
     case 7u: {
-        // the words passed to the paste, a space between each, else the clipboard's text
+        // the args->words passed to the paste, a space between each, else the clipboard's text
         char text_words[CLI_PATH_MAX_LEN];
         VerbaLinea line = {text_words, sizeof(text_words), 0ULL};
-        for (unsigned int word = 0u; word < count; word += 1u)
+        for (unsigned int word = 0u; word < args->count; word += 1u)
         {
             mmgr_line_put(&line, (word != 0u) ? " " : "");
-            mmgr_line_put(&line, words[word]);
+            mmgr_line_put(&line, args->words[word]);
         }
-        EMBED_CALL(terminal_paste, TerminalCtx, .bytes = (count != 0u) ? text_words : NULL,
+        EMBED_CALL(terminal_paste, TerminalCtx, .bytes = (args->count != 0u) ? text_words : NULL,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
         return 1;
     }
@@ -934,18 +934,18 @@ EMBED_INLINE int terminal_chosen(const TerminalCtx *args)
            ((cursor.line != anchor.line) || (cursor.col != anchor.col));
 }
 
-int cli_terminal_tabs_checked(const char *name)
+int cli_terminal_tabs_checked(const CliTerminalTabsCfg *args)
 {
     const int at = terminal_target();
-    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "terminal-chosen", .cap = CLI_LABEL_MAX_LEN}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "terminal-chosen", .cap = CLI_LABEL_MAX_LEN}))
     {
         return EMBED_CALL(terminal_chosen, TerminalCtx, .tab = (at >= 0) ? s_terminal.tab[at] : NULL);
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "terminal-keys", .cap = CLI_LABEL_MAX_LEN}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "terminal-keys", .cap = CLI_LABEL_MAX_LEN}))
     {
         return s_terminal.open && s_terminal.keys;
     }
-    return cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "terminal-split", .cap = CLI_LABEL_MAX_LEN}) &&
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "terminal-split", .cap = CLI_LABEL_MAX_LEN}) &&
            (s_terminal.beside >= 0);
 }
 
@@ -954,13 +954,13 @@ const CliItem *cli_terminal_tabs_menu(void)
     return s_terminal_menu;
 }
 
-int cli_terminal_tabs_key(const char *key)
+int cli_terminal_tabs_key(const CliTerminalTabsCfg *args)
 {
     if (!s_terminal.open || !s_terminal.keys)
     {
         return 0;
     }
-    const char *name = key;
+    const char *name = args->name;
     unsigned int mods = 0u;
     for (unsigned int read = 0u; read < 3u; read += 1u)
     {
@@ -1014,13 +1014,13 @@ int cli_terminal_tabs_key(const char *key)
     return !control || alt;
 }
 
-int cli_terminal_tabs_text(const char *bytes, unsigned long long length)
+int cli_terminal_tabs_text(const CliTerminalTabsCfg *args)
 {
     if (!s_terminal.open || !s_terminal.keys)
     {
         return 0;
     }
-    EMBED_CALL(terminal_send, TerminalCtx, .bytes = bytes, .size = length);
+    EMBED_CALL(terminal_send, TerminalCtx, .bytes = args->bytes, .size = args->length);
     return 1;
 }
 
@@ -1086,7 +1086,7 @@ void cli_terminal_tabs_press(const CliTerminalTabsPressCfg *args)
         }
         break;
     case CLI_TERMINAL_HIT_NEW:
-        (void)cli_terminal_tabs_command("new", NULL, 0u);
+        (void)cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "new", .words = NULL, .count = 0u});
         break;
     case CLI_TERMINAL_HIT_SPLIT:
         terminal_split();
@@ -1111,17 +1111,17 @@ int cli_terminal_tabs_pointer(const CliTerminalTabsPressCfg *args)
     return 1;
 }
 
-void cli_terminal_tabs_wheel(unsigned int view, int rows)
+void cli_terminal_tabs_wheel(const CliTerminalTabsCfg *args)
 {
-    const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (view != 0u) ? 1u : 0u);
+    const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (args->view != 0u) ? 1u : 0u);
     if ((at < 0) || !s_terminal.tab[at]->stored)
     {
         return;
     }
     TerminalTab *const tab = s_terminal.tab[at];
-    // the view's top moved by the wheel's rows, down where positive, between the text's first line and the first line
-    // of the screen drawn on
-    const CliViewInput wheeled = {.type = CLI_VIEW_WHEEL, .wheel_rows = rows, .top = tab->xterm.base};
+    // the args->view's top moved by the wheel's args->notches, down where positive, between the text's first line and
+    // the first line of the screen drawn on
+    const CliViewInput wheeled = {.type = CLI_VIEW_WHEEL, .wheel_rows = args->notches, .top = tab->xterm.base};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &wheeled,
@@ -1129,17 +1129,17 @@ void cli_terminal_tabs_wheel(unsigned int view, int rows)
     terminal_dirty();
 }
 
-void cli_terminal_tabs_size(unsigned int view, unsigned int columns, unsigned int rows)
+void cli_terminal_tabs_size(const CliTerminalTabsCfg *args)
 {
-    const unsigned int at = (view != 0u) ? 1u : 0u;
-    s_terminal.columns[at] = columns;
-    s_terminal.rows[at] = rows;
+    const unsigned int at = (args->view != 0u) ? 1u : 0u;
+    s_terminal.columns[at] = args->columns;
+    s_terminal.rows[at] = args->rows;
     EMBED_CALL(terminal_fit, TerminalCtx, .view = at);
 }
 
-void cli_terminal_tabs_height(unsigned int height)
+void cli_terminal_tabs_height(const CliTerminalTabsCfg *args)
 {
-    s_terminal.height = height;
+    s_terminal.height = args->height;
     terminal_dirty();
 }
 
@@ -1273,39 +1273,39 @@ CliTerminalPanel cli_terminal_tabs_panel(void)
     return panel;
 }
 
-int cli_terminal_tabs_view(unsigned int view, CliTerminalView *out)
+int cli_terminal_tabs_view(const CliTerminalTabsCfg *args)
 {
-    const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (view != 0u) ? 1u : 0u);
+    const int at = EMBED_CALL(terminal_viewed, TerminalCtx, .view = (args->view != 0u) ? 1u : 0u);
     if (at < 0)
     {
         return 0;
     }
     const TerminalTab *const tab = s_terminal.tab[at];
     const CliTerminalXterm *const xterm = &tab->xterm;
-    *out = (CliTerminalView){.key = tab->stored ? tab->key : NULL,
-                             .xterm_line = xterm->base,
-                             .columns = tab->sized ? xterm->columns : 0u,
-                             .rows = tab->sized ? xterm->rows : 0u,
-                             .cursor_x = xterm->cursor.x,
-                             .cursor_y = xterm->cursor.y,
-                             .cursor_displayed = xterm->cursor_displayed,
-                             .focused = at == s_terminal.focused};
+    *args->out = (CliTerminalView){.key = tab->stored ? tab->key : NULL,
+                                   .xterm_line = xterm->base,
+                                   .columns = tab->sized ? xterm->columns : 0u,
+                                   .rows = tab->sized ? xterm->rows : 0u,
+                                   .cursor_x = xterm->cursor.x,
+                                   .cursor_y = xterm->cursor.y,
+                                   .cursor_displayed = xterm->cursor_displayed,
+                                   .focused = at == s_terminal.focused};
     return 1;
 }
 
-int cli_terminal_tabs_label(unsigned int at, VerbaLinea *out)
+int cli_terminal_tabs_label(const CliTerminalTabsCfg *args)
 {
-    if (at >= s_terminal.tabs)
+    if (args->at >= s_terminal.tabs)
     {
         return 0;
     }
-    const TerminalTab *const tab = s_terminal.tab[at];
-    mmgr_line_decimal(out, at + 1ULL, 1u);
-    mmgr_line_ch(out, ' ');
+    const TerminalTab *const tab = s_terminal.tab[args->at];
+    mmgr_line_decimal(args->label_out, args->at + 1ULL, 1u);
+    mmgr_line_ch(args->label_out, ' ');
     if (!tab->sized || !tab->xterm.folder_known ||
-        !EMBED_CALL(terminal_folder, TerminalCtx, .place = tab->folder, .out = out))
+        !EMBED_CALL(terminal_folder, TerminalCtx, .place = tab->folder, .out = args->label_out))
     {
-        mmgr_line_put(out, "shell");
+        mmgr_line_put(args->label_out, "shell");
     }
     return tab->shell.state == CLI_TERMINAL_SHELL_EXITED;
 }
@@ -1326,18 +1326,18 @@ EMBED_INLINE unsigned long long terminal_number_read(const TerminalCtx *args)
     return number;
 }
 
-void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root)
+void cli_terminal_tabs_restore(const CliTerminalTabsCfg *args)
 {
     s_terminal.restored = 1;
-    s_terminal.root = root;
-    // the place read out of the entries' cell into a cell of this call
+    s_terminal.root = args->root;
+    // the place read out of the args->entries' cell into a cell of this call
     const unsigned long long size =
-        cli_state_entry_size(&(CliStateEntryCfg){.entries = entries, .key = TERMINAL_PLACE_KEY});
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = args->entries, .key = TERMINAL_PLACE_KEY});
     char *const place =
         (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_terminal_owner) : NULL;
     if ((place == NULL) ||
         (cli_state_entry_value(&(CliStateEntryCfg){
-             .entries = entries, .key = TERMINAL_PLACE_KEY, .out = place, .capacity = size + 1ULL}) == NULL))
+             .entries = args->entries, .key = TERMINAL_PLACE_KEY, .out = place, .capacity = size + 1ULL}) == NULL))
     {
         g_cli_guard->persistent_buf_release(place, g_cli_terminal_owner);
         return;

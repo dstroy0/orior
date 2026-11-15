@@ -779,7 +779,7 @@ static void terminal_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
     cli_check(asked("toggle", NULL), "the terminal opens through the interface");
-    cli_check(cli_terminal_tabs_checked("terminal-keys"), "and takes the keys");
+    cli_check(cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = "terminal-keys"}), "and takes the keys");
     cli_check(caret_ink_at(cli_clock_milliseconds()) == 0u,
               "the editor's caret is hidden while the terminal has the keys");
     key_pressed("ContextMenu");
@@ -1099,7 +1099,9 @@ static void file_checked(void)
             mmgr_line_decimal(&edited_line, (uint64_t)cli_view_displayed(), 1u);
         }
         mmgr_line_put(&edited_line, s_window.dialog.displayed ? ", dialog up" : ", dialog down");
-        mmgr_line_put(&edited_line, cli_terminal_tabs_checked("terminal-keys") ? ", terminal keys" : ", editor keys");
+        mmgr_line_put(&edited_line, cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = "terminal-keys"})
+                                        ? ", terminal keys"
+                                        : ", editor keys");
         mmgr_line_put(&edited_line, s_window.editing ? ", editing" : ", not editing");
         mmgr_line_put(&edited_line, s_window.wordmark.exists ? ", name's pane up" : ", name's pane down");
         if (cli_notice_displayed() != NULL)

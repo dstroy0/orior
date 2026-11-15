@@ -144,7 +144,7 @@ unsigned int gui_window_dialog_hit(const GuiWindowInputCfg *args)
     GuiRect client[GUI_WINDOW_HIT_CLIENTS];
     CliViewHits hits = {.client = client};
     EMBED_CALL(gui_window_dialog_hits_table.hits, GuiWindowHitsCfg, .window = args->window_read, .hits = &hits);
-    return cli_view_hit_of(&hits, args->input->x, args->input->y);
+    return cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = args->input->x, .y = args->input->y});
 }
 
 void gui_window_dialog_draw(const GuiWindowCfg *args)

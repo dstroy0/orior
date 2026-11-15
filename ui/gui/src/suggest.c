@@ -105,7 +105,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     for (unsigned int row = 0u; row < rows; row += 1u)
     {
         CliCompletionRow read = {"", 0ULL, "", "", 0ULL, 0u};
-        (void)cli_servers_panels_completion_row(row, &read);
+        (void)cli_servers_panels_completion_row(&(CliServersPanelsCfg){.row = row, .out = &read});
         const CliCompletionRow *const item = &read;
         float pixel_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
@@ -133,7 +133,8 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     const int list_height = ((int)rows * row_height) + (2 * pad_y);
     // the row chosen is always among the rows displayed
     CliCompletionRow chosen_row = {"", 0ULL, "", "", 0ULL, 0u};
-    (void)cli_servers_panels_completion_row(panel->chosen - panel->first, &chosen_row);
+    (void)cli_servers_panels_completion_row(
+        &(CliServersPanelsCfg){.row = panel->chosen - panel->first, .out = &chosen_row});
     const CliCompletionRow *const chosen = &chosen_row;
     const int detailed = chosen->detail_length > 0ULL;
     const int detail_width =
@@ -161,7 +162,7 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     {
         const unsigned int at = panel->first + row;
         CliCompletionRow read = {"", 0ULL, "", "", 0ULL, 0u};
-        (void)cli_servers_panels_completion_row(row, &read);
+        (void)cli_servers_panels_completion_row(&(CliServersPanelsCfg){.row = row, .out = &read});
         const CliCompletionRow *const item = &read;
         const GuiRect row_rect = {args->suggest->list.x, args->suggest->list.y + ((int)row * row_height), list_width,
                                   row_height};

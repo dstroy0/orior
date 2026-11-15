@@ -587,7 +587,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                    .item = items, .count = positioned, .report = report, .taken = &taken);
         if (!taken)
         {
-            cli_servers_report_release(report);
+            cli_servers_report_release(&(CliServersReportCfg){.report = report});
         }
     }
     g_cli_guard->persistent_buf_release(items, g_cli_servers_owner);
@@ -599,11 +599,11 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     }
 }
 
-void cli_servers_report_release(const CarcerMovableEntry *report)
+void cli_servers_report_release(const CliServersReportCfg *args)
 {
-    if (report != NULL)
+    if (args->report != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(report, g_cli_servers_owner);
+        (void)g_cli_guard->movable_buf_release(args->report, g_cli_servers_owner);
     }
 }
 

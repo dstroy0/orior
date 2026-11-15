@@ -132,12 +132,12 @@ EMBED_INLINE int place_paths(const CliPlaceCtx *args)
     return 1;
 }
 
-int cli_view_place_saved(const char *root, const CliWindowArea *areas, unsigned int count, CliWindowPosition *place)
+int cli_view_place_saved(const CliViewThreadCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     unsigned long long key_length = 0ULL;
-    if (!EMBED_CALL(place_paths, CliPlaceCtx, .root = root, .key = key, .path = path, .length = &key_length))
+    if (!EMBED_CALL(place_paths, CliPlaceCtx, .root = args->root, .key = key, .path = path, .length = &key_length))
     {
         return 0;
     }
@@ -160,20 +160,21 @@ int cli_view_place_saved(const char *root, const CliWindowArea *areas, unsigned 
         at += record.tree_length;
         if (found)
         {
-            *place = record.place;
+            *args->place = record.place;
         }
     }
     g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_view_owner));
-    return found && (place->width >= CLI_POSITION_MIN_WIDTH) && (place->height >= CLI_POSITION_MIN_HEIGHT) &&
-           EMBED_CALL(place_fit, CliPlaceCtx, .position_out = place, .areas = areas, .count = count);
+    return found && (args->place->width >= CLI_POSITION_MIN_WIDTH) &&
+           (args->place->height >= CLI_POSITION_MIN_HEIGHT) &&
+           EMBED_CALL(place_fit, CliPlaceCtx, .position_out = args->place, .areas = args->areas, .count = args->count);
 }
 
-void cli_view_place_store(const char *root, const CliWindowPosition *place)
+void cli_view_place_store(const CliViewThreadCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     unsigned long long key_length = 0ULL;
-    if (!EMBED_CALL(place_paths, CliPlaceCtx, .root = root, .key = key, .path = path, .length = &key_length))
+    if (!EMBED_CALL(place_paths, CliPlaceCtx, .root = args->root, .key = key, .path = path, .length = &key_length))
     {
         return;
     }
@@ -185,7 +186,7 @@ void cli_view_place_store(const char *root, const CliWindowPosition *place)
     if (written != NULL)
     {
         // a key's bytes are below what a record's length counts
-        const CliPlaceRecord own = {*place, (unsigned int)key_length};
+        const CliPlaceRecord own = {*args->place, (unsigned int)key_length};
         memor.cpy(&(MemoriaCfg){.dst = written, .src = &own, .bytes = sizeof(own)});
         memor.cpy(&(MemoriaCfg){.dst = written + sizeof(own), .src = key, .bytes = key_length});
         unsigned long long used = sizeof(own) + key_length;

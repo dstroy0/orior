@@ -13,7 +13,7 @@
 static int row_reads(unsigned int row, const char *label)
 {
     CliCompletionRow read = {"", 0ULL, "", "", 0ULL, 0u};
-    return cli_servers_panels_completion_row(row, &read) &&
+    return cli_servers_panels_completion_row(&(CliServersPanelsCfg){.row = row, .out = &read}) &&
            (read.label_length == cellul.len(&(CatenaFinitaCfg){.src = label, .cap = 64ULL})) &&
            cellul.eq(&(CatenaFinitaCfg){.src = read.label, .other = label, .cap = read.label_length + 1ULL});
 }
@@ -35,9 +35,9 @@ int main(void)
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     char grammar[CLI_NAME_MAX_LEN];
-    cli_check(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = grammar,
-                         .err_msg = &why),
-              "the C grammar is read");
+    cli_check(
+        EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = grammar, .err_msg = &why),
+        "the C grammar is read");
     CliShape shape;
     cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = s_text,
                          .size = sizeof(s_text) - 1ULL, .shape = &shape) &&
@@ -50,35 +50,43 @@ int main(void)
     cli_view_show(0u);
     const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 10u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &why);
-    cli_servers_panels_begin(".");
+    cli_servers_panels_begin(&(CliServersPanelsCfg){.root = "."});
     cursor_put(s_key, 2ULL, 3ULL);
     CliCompletionPanel panel;
-    cli_check(!cli_servers_panels_completion(&panel), "no list is before one is asked for");
-    cli_check(cli_servers_panels_key("Mod+Space"), "the list is forced open by its key");
-    cli_check(cli_servers_panels_completion(&panel) && (panel.count == 2u) && (panel.rows == 2u) &&
-                  (panel.line == 2ULL) && (panel.from == 0ULL) &&
+    cli_check(!cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}),
+              "no list is before one is asked for");
+    cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Mod+Space"}),
+              "the list is forced open by its key");
+    cli_check(cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}) && (panel.count == 2u) &&
+                  (panel.rows == 2u) && (panel.line == 2ULL) && (panel.from == 0ULL) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = panel.prefix, .other = "alp", .cap = 4ULL}),
               "the words that start with the prefix answer it, the word typed left out");
     cli_check(row_reads(0u, "alpha") && row_reads(1u, "alphabet"), "the rows read the shorter label first");
     CliCompletionRow read = {"", 0ULL, "", "", 0ULL, 0u};
-    cli_check(cli_servers_panels_completion_row(0u, &read) && (read.marked == 3u) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = read.type, .other = "word", .cap = 5ULL}),
+    cli_check(cli_servers_panels_completion_row(&(CliServersPanelsCfg){.row = 0u, .out = &read}) &&
+                  (read.marked == 3u) && cellul.eq(&(CatenaFinitaCfg){.src = read.type, .other = "word", .cap = 5ULL}),
               "a row marks the prefix's bytes and names its type");
-    cli_check(!cli_servers_panels_completion_row(2u, &read), "no row is past the list");
-    cli_check(cli_servers_panels_key("Down") && cli_servers_panels_completion(&panel) && (panel.chosen == 1u),
+    cli_check(!cli_servers_panels_completion_row(&(CliServersPanelsCfg){.row = 2u, .out = &read}),
+              "no row is past the list");
+    cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Down"}) &&
+                  cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}) && (panel.chosen == 1u),
               "Down moves the row chosen");
-    cli_check(cli_servers_panels_key("Up") && cli_servers_panels_completion(&panel) && (panel.chosen == 0u),
+    cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Up"}) &&
+                  cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}) && (panel.chosen == 0u),
               "Up moves it back");
-    cli_check(!cli_servers_panels_key("F9"), "a key the list has no use for is not taken");
+    cli_check(!cli_servers_panels_key(&(CliServersPanelsCfg){.name = "F9"}),
+              "a key the list has no use for is not taken");
     // the prefix typed on: the view's text grows by the characters and the list narrows to the words that still answer
     const CliViewInput typed = {.type = CLI_VIEW_TEXT, .text = "hab", .length = 3ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &typed, .err_msg = &why);
-    cli_servers_panels_text("hab", 3ULL);
-    cli_check(cli_servers_panels_key("Mod+Space") && cli_servers_panels_completion(&panel) && (panel.count == 1u) &&
+    cli_servers_panels_text(&(CliServersPanelsCfg){.text = "hab", .length = 3ULL});
+    cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Mod+Space"}) &&
+                  cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}) && (panel.count == 1u) &&
                   row_reads(0u, "alphabet"),
               "the list narrows to the word the longer prefix answers");
-    cli_check(cli_servers_panels_key("Enter"), "Enter accepts the row chosen");
-    cli_check(!cli_servers_panels_completion(&panel), "the list closes as a row is accepted");
+    cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Enter"}), "Enter accepts the row chosen");
+    cli_check(!cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}),
+              "the list closes as a row is accepted");
     unsigned long long size = 0ULL;
     char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key, .size_pointer = &size,
                                   .owner = g_cli_servers_owner);
@@ -88,10 +96,13 @@ int main(void)
     g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     // the list opened at a word's end lists the longer words that start with it, and Escape closes it
     cursor_put(s_key, 0ULL, 9ULL);
-    cli_check(cli_servers_panels_key("Mod+Space") && cli_servers_panels_completion(&panel) && (panel.count == 1u) &&
+    cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Mod+Space"}) &&
+                  cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}) && (panel.count == 1u) &&
                   row_reads(0u, "alphabet"),
               "the list opened at a word's end lists the longer word that starts with it");
-    cli_check(cli_servers_panels_key("Escape") && !cli_servers_panels_completion(&panel), "Escape closes the list");
+    cli_check(cli_servers_panels_key(&(CliServersPanelsCfg){.name = "Escape"}) &&
+                  !cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &panel}),
+              "Escape closes the list");
     cli_servers_panels_end();
     return cli_on_check();
 }

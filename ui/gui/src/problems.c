@@ -34,7 +34,7 @@ static unsigned int problems_rows(const GuiPaneCfg *args)
 static int problems_row_height(const GuiPaneCfg *args)
 {
     CliProblemRow row;
-    const int file = cli_servers_problems_row(args->row, &row) && row.is_file;
+    const int file = cli_servers_problems_row(&(CliServersProblemsCfg){.at = args->row, .row = &row}) && row.is_file;
     return file ? GUI_PROBLEMS_FILE_ROW : GUI_PROBLEMS_ROW;
 }
 
@@ -106,7 +106,7 @@ static unsigned int problems_head_hit(const GuiPaneCfg *args)
 
 static void problems_action(const GuiPaneCfg *args)
 {
-    cli_servers_problems_check(args->root);
+    cli_servers_problems_check(&(CliServersProblemsCfg){.root = args->root});
 }
 
 // a file's row: the arrow, the name, the folder after it quieter, and the count at the right; a diagnostic's row: the
@@ -120,7 +120,7 @@ static void problems_row_draw(const GuiPaneCfg *args)
     const GuiRect on = args->clip;
     const int scale = frame->scale;
     CliProblemRow read;
-    if (!cli_servers_problems_row(args->row, &read))
+    if (!cli_servers_problems_row(&(CliServersProblemsCfg){.at = args->row, .row = &read}))
     {
         return;
     }
@@ -239,7 +239,7 @@ static void problems_row_draw(const GuiPaneCfg *args)
 static int problems_press(const GuiPaneCfg *args)
 {
     CliProblemRow row;
-    if (!cli_servers_problems_press(args->row, &row))
+    if (!cli_servers_problems_press(&(CliServersProblemsCfg){.at = args->row, .row = &row}))
     {
         return 0;
     }
@@ -268,11 +268,13 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
     // the spans of the file the editor shows, its path the displayed view's; a view's place is far inside an int
     const int displayed = cli_view_displayed();
     char displayed_path[CLI_PATH_MAX_LEN];
-    const char *const path = ((displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path)) ? displayed_path : NULL;
+    const char *const path =
+        ((displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path)) ? displayed_path : NULL;
     const int thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     const int up = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale);
     CliProblemSpan span;
-    for (unsigned int at = 0u; cli_servers_problems_span(path, at, &span); at += 1u)
+    for (unsigned int at = 0u;
+         cli_servers_problems_span(&(CliServersProblemsCfg){.path = path, .at = at, .span = &span}); at += 1u)
     {
         const CliProblemSpan *const one = &span;
         const GuiColor color =

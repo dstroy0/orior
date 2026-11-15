@@ -580,7 +580,7 @@ void test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles(void
 static int pane_holds(unsigned int view, const char *text)
 {
     CliTerminalView displayed;
-    if (!cli_terminal_tabs_view(view, &displayed) || (displayed.key == NULL))
+    if (!cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = view, .out = &displayed}) || (displayed.key == NULL))
     {
         return 0;
     }
@@ -619,7 +619,7 @@ static int tabs_until(const char *text)
 static int tab_label(unsigned int at)
 {
     VerbaLinea out = {s_text, sizeof(s_text), 0ULL};
-    const int exited = cli_terminal_tabs_label(at, &out);
+    const int exited = cli_terminal_tabs_label(&(CliTerminalTabsCfg){.at = at, .label_out = &out});
     (void)mmgr_line_finish(&out);
     return exited;
 }
@@ -627,7 +627,8 @@ static int tab_label(unsigned int at)
 // `text`, a C string, typed where the panel takes the keys: 1 where it does
 static int typed(const char *text)
 {
-    return cli_terminal_tabs_text(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}));
+    return cli_terminal_tabs_text(&(CliTerminalTabsCfg){
+        .bytes = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES})});
 }
 
 void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes(void)
@@ -646,9 +647,9 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&history_line));
     (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path, .bytes = "",
                      .size = 0ull, .fresh = 1);
-    cli_terminal_tabs_restore(NULL, NULL);
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
-    cli_terminal_tabs_size(0u, 80u, 24u);
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = NULL, .root = NULL});
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u}));
+    cli_terminal_tabs_size(&(CliTerminalTabsCfg){.view = 0u, .columns = 80u, .rows = 24u});
     const CliTerminalPanel opened = cli_terminal_tabs_panel();
     TEST_ASSERT_TRUE(opened.open);
     TEST_ASSERT_TRUE(opened.keys);
@@ -657,7 +658,7 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_EQUAL_STRING("1 shell", s_text);
     TEST_ASSERT_EQUAL_UINT(1u, opened.views);
     CliTerminalView pane;
-    TEST_ASSERT_TRUE(cli_terminal_tabs_view(0u, &pane));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = 0u, .out = &pane}));
     TEST_ASSERT_EQUAL_UINT(80u, pane.columns);
     TEST_ASSERT_EQUAL_UINT(24u, pane.rows);
     // the pane is a view of the tab's text, located on the xterm's rows
@@ -667,24 +668,24 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_EQUAL_UINT64(pane.xterm_line, frame->top);
     cli_view_frame_release(frame);
     // Control with a character goes to the shell, a plain character comes as text, and Ctrl+` goes on to the window
-    TEST_ASSERT_TRUE(cli_terminal_tabs_key("A"));
-    TEST_ASSERT_FALSE(cli_terminal_tabs_key("Ctrl+`"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "A"}));
+    TEST_ASSERT_FALSE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Ctrl+`"}));
     // what is typed and echoed reads `tabs^_heard` or `tabs''_heard`; only the shell's output reads `tabs_heard`
 #if defined(_WIN32)
     TEST_ASSERT_TRUE(typed("echo tabs^_heard"));
 #else
     TEST_ASSERT_TRUE(typed("echo tabs''_heard"));
 #endif
-    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Enter"}));
     TEST_ASSERT_TRUE(tabs_until("tabs_heard"));
     // the Space key sends nothing of itself: the space it types comes as text
     TEST_ASSERT_TRUE(typed("echo key"));
-    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Space"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Space"}));
     TEST_ASSERT_TRUE(typed("_alone"));
-    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Enter"}));
     TEST_ASSERT_TRUE(tabs_until("key_alone"));
     TEST_ASSERT_TRUE(typed("exit"));
-    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Enter"}));
     TEST_ASSERT_TRUE(tabs_until("[exited 0]"));
     TEST_ASSERT_TRUE(tab_label(0u));
     terminal_ended();
@@ -706,7 +707,7 @@ static void place_restored(void)
 {
     CliStateEntries entries = entries_read();
     TEST_ASSERT_NOT_NULL(entries.cell);
-    cli_terminal_tabs_restore(&entries, NULL);
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = &entries, .root = NULL});
     cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
 }
 
@@ -714,11 +715,11 @@ void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_st
 {
     TEST_ASSERT_TRUE(
         EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
-    cli_terminal_tabs_restore(NULL, NULL);
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("new", NULL, 0u));
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("split", NULL, 0u));
-    cli_terminal_tabs_height(300u);
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = NULL, .root = NULL});
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u}));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "new", .words = NULL, .count = 0u}));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "split", .words = NULL, .count = 0u}));
+    cli_terminal_tabs_height(&(CliTerminalTabsCfg){.height = 300u});
     const CliTerminalPanel before = cli_terminal_tabs_panel();
     const int displayed = before.displayed;
     const int beside = before.beside;
@@ -774,10 +775,10 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path,
                                 .bytes = "line_before\n", .size = 12ull, .fresh = 1));
     place_restored();
-    cli_terminal_tabs_size(0u, 120u, 24u);
+    cli_terminal_tabs_size(&(CliTerminalTabsCfg){.view = 0u, .columns = 120u, .rows = 24u});
     // the history read back is in the tab's text above the xterm's rows, its one line
     CliTerminalView restored;
-    TEST_ASSERT_TRUE(cli_terminal_tabs_view(0u, &restored));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = 0u, .out = &restored}));
     TEST_ASSERT_EQUAL_UINT64(1ull, restored.xterm_line);
     // the folder the files are in and the lines each retains are among the reader's settings, the defaults written
     // there as the tab stored
@@ -801,7 +802,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     TEST_ASSERT_TRUE(cli_terminal_tabs_pointer(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .up = 1}));
     TEST_ASSERT_TRUE(cli_terminal_tabs_panel().keys);
     TEST_ASSERT_TRUE(typed(s_folder_command));
-    TEST_ASSERT_TRUE(cli_terminal_tabs_key("Enter"));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Enter"}));
     TEST_ASSERT_TRUE(tabs_until("place_folder"));
     terminal_ended();
     unsigned long long size = 0ull;
@@ -821,12 +822,12 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
 // terminal's cannot be chosen while it is off, and an item shows the terminal's state its `checks` names
 static int menu_item_disabled(const CliItem *item)
 {
-    return (item->needs[0] != '\0') && !cli_terminal_tabs_checked(item->needs);
+    return (item->needs[0] != '\0') && !cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = item->needs});
 }
 
 static int menu_item_checked(const CliItem *item)
 {
-    return cli_terminal_tabs_checked(item->checks);
+    return cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = item->checks});
 }
 
 // the catalog read and the menus passed the window's answers
@@ -876,8 +877,8 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_
     TEST_ASSERT_TRUE(
         EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     menus_answered();
-    cli_terminal_tabs_restore(NULL, NULL);
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = NULL, .root = NULL});
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u}));
     terminal_menu_opened();
     CliItem split;
     CliItem toggle;
@@ -886,7 +887,7 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_
     TEST_ASSERT_FALSE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is off with one shell displayed");
     TEST_ASSERT_EQUAL_STRING_MESSAGE("", toggle.checks, "Toggle Terminal is neither on nor off");
     cli_menus_close(0u);
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("split", NULL, 0u));
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "split", .words = NULL, .count = 0u}));
     terminal_menu_opened();
     menu_row("Split Terminal", &split);
     TEST_ASSERT_TRUE_MESSAGE(g_cli_menus_open.checked(&split), "Split Terminal is on while a shell is beside");
@@ -908,7 +909,8 @@ static void menus_key(const char *name)
     (void)cli_menus_key(name, &chosen, &chose);
     if (chose)
     {
-        TEST_ASSERT_TRUE(cli_terminal_tabs_command(chosen.command, NULL, 0u));
+        TEST_ASSERT_TRUE(
+            cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = chosen.command, .words = NULL, .count = 0u}));
     }
 }
 
@@ -917,8 +919,8 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
     TEST_ASSERT_TRUE(
         EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     menus_answered();
-    cli_terminal_tabs_restore(NULL, NULL);
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = NULL, .root = NULL});
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u}));
     terminal_menu_asked(300, 400);
     TEST_ASSERT_EQUAL_UINT(1u, g_cli_menus_open.levels);
     TEST_ASSERT_EQUAL_INT_MESSAGE(-1, g_cli_menus_open.open, "a menu asked for is under no title of the bar");
@@ -967,12 +969,15 @@ void test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_
 {
     TEST_ASSERT_TRUE(
         EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
-    cli_terminal_tabs_restore(NULL, NULL);
-    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_checked("terminal-keys"), "a panel closed takes no keys");
-    TEST_ASSERT_TRUE(cli_terminal_tabs_command("toggle", NULL, 0u));
-    TEST_ASSERT_TRUE_MESSAGE(cli_terminal_tabs_checked("terminal-keys"), "the panel opened takes the keys");
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = NULL, .root = NULL});
+    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = "terminal-keys"}),
+                              "a panel closed takes no keys");
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u}));
+    TEST_ASSERT_TRUE_MESSAGE(cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = "terminal-keys"}),
+                             "the panel opened takes the keys");
     cli_terminal_tabs_press(&(CliTerminalTabsPressCfg){.hit = 0u});
-    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_checked("terminal-keys"), "a press elsewhere takes them away");
-    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_key("A"), "a key goes on to the window");
+    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = "terminal-keys"}),
+                              "a press elsewhere takes them away");
+    TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "A"}), "a key goes on to the window");
     terminal_ended();
 }

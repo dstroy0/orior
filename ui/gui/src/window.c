@@ -480,7 +480,7 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
     terminal->panel = cli_terminal_tabs_panel();
     for (unsigned int view = 0u; view < 2u; view += 1u)
     {
-        const int displayed = cli_terminal_tabs_view(view, &terminal->view[view]);
+        const int displayed = cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = view, .out = &terminal->view[view]});
         const char *const key = displayed ? terminal->view[view].key : NULL;
         cli_view_frame_release((CliViewFrame *)terminal->frame[view]);
         terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(key) : NULL;
@@ -507,7 +507,7 @@ EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
                        .glyphs = &window->glyphs, .view = view, .columns = &columns, .rows = &rows);
         if (displayed && ((columns != window->terminal_columns[view]) || (rows != window->terminal_rows[view])))
         {
-            cli_terminal_tabs_size(view, columns, rows);
+            cli_terminal_tabs_size(&(CliTerminalTabsCfg){.view = view, .columns = columns, .rows = rows});
             sized = 1;
         }
         window->terminal_columns[view] = columns;
@@ -4176,7 +4176,7 @@ unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args)
     GuiRect client[GUI_WINDOW_HIT_CLIENTS];
     CliViewHits hits = {.client = client};
     EMBED_CALL(gui_window_table.preferences_hits, GuiWindowHitsCfg, .window = args->window_read, .hits = &hits);
-    return cli_view_hit_of(&hits, args->input->x, args->input->y);
+    return cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = args->input->x, .y = args->input->y});
 }
 
 void gui_window_preferences_draw(const GuiWindowCfg *args)
@@ -4213,8 +4213,12 @@ void gui_window_preferences_close(const GuiWindowCfg *args)
 EMBED_INLINE void window_panels_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
-    window->hover.panel = cli_servers_panels_hover(&window->hover_panel) ? &window->hover_panel : NULL;
-    window->suggest.panel = cli_servers_panels_completion(&window->completion_panel) ? &window->completion_panel : NULL;
+    window->hover.panel = cli_servers_panels_hover(&(CliServersPanelsCfg){.hover_out = &window->hover_panel})
+                              ? &window->hover_panel
+                              : NULL;
+    window->suggest.panel = cli_servers_panels_completion(&(CliServersPanelsCfg){.panel = &window->completion_panel})
+                                ? &window->completion_panel
+                                : NULL;
     window->signature.panel = cli_servers_panels_signature();
     window->pending = 1;
 }
@@ -4535,7 +4539,7 @@ EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args)
     if (cellul.eq(&(CatenaFinitaCfg){.src = g_gui_tools[args->at].name, .other = "terminal", .cap = 16ULL}))
     {
         window->side_menu.foot = GUI_SIDE_MENU_NONE;
-        (void)cli_terminal_tabs_command("toggle", NULL, 0u);
+        (void)cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u});
         EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
         return;
     }
@@ -4546,7 +4550,7 @@ EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args)
         window->side_menu.foot = (window->side_menu.foot == (int)args->at) ? GUI_SIDE_MENU_NONE : (int)args->at;
         if (window->terminal.panel.open && (window->side_menu.foot >= 0))
         {
-            (void)cli_terminal_tabs_command("toggle", NULL, 0u);
+            (void)cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u});
         }
         EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 0);
         EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
@@ -4611,7 +4615,8 @@ static int window_item_disabled(const CliItem *item)
     const int displayed_changed =
         (displayed != NULL) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = displayed);
     return never || (needs_editor && (count == 0u)) || (needs_tabs && (count == 0u)) ||
-           (needs_others && (count < 2u)) || (needs_chosen && !cli_terminal_tabs_checked(needs)) ||
+           (needs_others && (count < 2u)) ||
+           (needs_chosen && !cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = needs})) ||
            (needs_displayed_changed && !displayed_changed) || (needs_changed && !changed);
 }
 
@@ -4676,7 +4681,7 @@ static int window_item_checked(const CliItem *item)
     {
         return (s_window != NULL) && s_window->operator_next_line;
     }
-    return cli_terminal_tabs_checked(checks);
+    return cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = checks});
 }
 
 static void window_key_take(const GuiWindowCtx *args);
@@ -5196,7 +5201,7 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
     {
         window->pending = 1;
     }
-    else if (cli_terminal_tabs_command(name, args->words, args->count))
+    else if (cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = name, .words = args->words, .count = args->count}))
     {
         EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
     }
@@ -5367,7 +5372,7 @@ static void window_key_take(const GuiWindowCtx *args)
     const int menu_key = (g_cli_menus_open.levels == 0u) && !args->on &&
                          (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "ContextMenu") ||
                           EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "Shift+F10"));
-    if (menu_key && cli_terminal_tabs_checked("terminal-keys"))
+    if (menu_key && cli_terminal_tabs_checked(&(CliTerminalTabsCfg){.name = "terminal-keys"}))
     {
         cli_menus_own_open(cli_terminal_tabs_menu(), CLI_TERMINAL_MENU_ROWS, CLI_MENU_PLACE_TERMINAL_KEYS, 0, 0);
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
@@ -5382,7 +5387,7 @@ static void window_key_take(const GuiWindowCtx *args)
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         return;
     }
-    if ((g_cli_menus_open.levels == 0u) && !args->on && cli_terminal_tabs_key(name))
+    if ((g_cli_menus_open.levels == 0u) && !args->on && cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = name}))
     {
         EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
         return;
@@ -5439,7 +5444,7 @@ static void window_key_take(const GuiWindowCtx *args)
         window->pending = 1;
         return;
     }
-    if (cli_servers_panels_key(name))
+    if (cli_servers_panels_key(&(CliServersPanelsCfg){.name = name}))
     {
         EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
         EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
@@ -5538,7 +5543,7 @@ void gui_window_start(const GuiWindowCfg *args)
     g_cli_menus_open.disabled = window_item_disabled;
     g_cli_menus_open.checked = window_item_checked;
     cli_servers_problems_begin(args->woken);
-    cli_servers_panels_begin(root);
+    cli_servers_panels_begin(&(CliServersPanelsCfg){.root = root});
     char folder[CLI_PATH_MAX_LEN];
     // the entries are in their movable cell until the window ends, read by the modules that restore from them
     window->entries = (CliStateEntries){NULL, g_cli_view_owner, 0u};
@@ -5561,7 +5566,7 @@ void gui_window_start(const GuiWindowCfg *args)
     EMBED_CALL(window_settings_read, GuiWindowCtx, .window = window, .entries = entries);
     EMBED_CALL(window_wordmark_read, GuiWindowCtx, .window = window, .entries = entries);
     cli_notices_restore(&(CliNoticesCfg){.entries = entries});
-    cli_terminal_tabs_restore(entries, root);
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = entries, .root = root});
     EMBED_CALL(window_terminal, GuiWindowCtx, .window = window, .starting = 1);
     if (root != NULL)
     {
@@ -6233,7 +6238,7 @@ unsigned int gui_window_hit(const GuiWindowInputCfg *args)
     GuiRect client[GUI_WINDOW_HIT_CLIENTS];
     CliViewHits hits = {.client = client};
     EMBED_CALL(gui_window_table.hits, GuiWindowHitsCfg, .window = args->window_read, .hits = &hits);
-    return cli_view_hit_of(&hits, args->input->x, args->input->y);
+    return cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = args->input->x, .y = args->input->y});
 }
 
 // what the pixel at x, y is on written into `hit`: its hit, and its place among the rows, or its row and cell in
@@ -6556,7 +6561,7 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
     case CLI_HIT_SIGNATURE_BOX:
         return;
     case CLI_HIT_SUGGEST_ROW:
-        cli_servers_panels_accept(hit->index);
+        cli_servers_panels_accept(&(CliServersPanelsCfg){.at = hit->index});
         EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
         EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
         return;
@@ -6782,7 +6787,7 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     if (EMBED_CALL(gui_suggest_x.holds, GuiSuggestXCfg, .suggest_read = &window->suggest, .x = args->input->x,
                    .y = args->input->y))
     {
-        cli_servers_panels_wheel(args->input->rows);
+        cli_servers_panels_wheel(&(CliServersPanelsCfg){.rows = args->input->rows});
         EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
         return;
     }
@@ -6792,7 +6797,7 @@ static void window_wheel(const GuiInputHandlerCfg *args)
                    .glyphs = (GuiGlyphs *)&window->glyphs, .x = args->input->x, .y = args->input->y,
                    .index = &pane) == CLI_HIT_TERMINAL)
     {
-        cli_terminal_tabs_wheel(pane, args->input->rows);
+        cli_terminal_tabs_wheel(&(CliTerminalTabsCfg){.view = pane, .notches = args->input->rows});
         EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
         return;
     }
@@ -6902,7 +6907,7 @@ EMBED_INLINE void window_terminal_drag(const GuiWindowCtx *args)
     if ((unsigned int)height != window->terminal_height)
     {
         window->terminal_height = (unsigned int)height;
-        cli_terminal_tabs_height((unsigned int)height);
+        cli_terminal_tabs_height(&(CliTerminalTabsCfg){.height = (unsigned int)height});
         EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
     }
 }
@@ -7837,7 +7842,7 @@ static void window_text(const GuiInputHandlerCfg *args)
         window->pending = 1;
         return;
     }
-    if (cli_terminal_tabs_text(args->input->text, args->input->size))
+    if (cli_terminal_tabs_text(&(CliTerminalTabsCfg){.bytes = args->input->text, .length = args->input->size}))
     {
         EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = window);
         return;
@@ -7866,7 +7871,7 @@ static void window_text(const GuiInputHandlerCfg *args)
     EMBED_CALL(window_macro_recorded, GuiWindowCtx, .window = window, .key = "text", .name = args->input->text,
                .row = args->input->size);
     EMBED_CALL(window_editing, GuiWindowCtx, .window = window, .on = 1);
-    cli_servers_panels_text(args->input->text, args->input->size);
+    cli_servers_panels_text(&(CliServersPanelsCfg){.text = args->input->text, .length = args->input->size});
     EMBED_CALL(window_view_input, GuiWindowCtx, .window = window, .view_input = &typed, .edited = 1);
     EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
 }

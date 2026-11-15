@@ -230,18 +230,33 @@ typedef struct
 int cli_view_begin(const CliViewBeginCfg *args);
 void cli_view_end(void);
 // from the system's thread alone: one event written, its input's name or text with it, dropped where the ring cannot
-// hold it; the next order taken: 1, or 0 where none waits; and where a pixel of `surface` is as the view last positioned
-// it, one of the places above
-void cli_view_event(const CliViewEvent *event);
-int cli_view_order(CliViewOrder *order);
-unsigned int cli_view_hit(unsigned int surface, int x, int y);
+// hold it; the next order taken: 1, or 0 where none waits; and where a pixel of `surface` is as the view last
+// positioned it, one of the places above the view thread: an `event` put, an `order` taken, a hit at `x`, `y` on
+// `surface` or among `hits`, and the window's `place` on the tree `root` read back from the `areas`, `count` of them,
+// or stored
+typedef struct
+{
+    const CliViewEvent *event;
+    CliViewOrder *order;
+    unsigned int surface;
+    int x;
+    int y;
+    const CliViewHits *hits;
+    const char *root;
+    const CliWindowArea *areas;
+    unsigned int count;
+    CliWindowPosition *place;
+} CliViewThreadCfg;
+void cli_view_event(const CliViewThreadCfg *args);
+int cli_view_order(const CliViewThreadCfg *args);
+unsigned int cli_view_hit(const CliViewThreadCfg *args);
 // where a pixel is on `hits`, on any thread
-unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y);
+unsigned int cli_view_hit_of(const CliViewThreadCfg *args);
 // the window's place for each tree, saved in the file `places` in orior's home as the window closes, one record for
 // each tree (place.c): the place saved for the tree `root`, fitted to the monitors `areas`, `count` of them, the
 // system's main one first, into `place`: 1, or 0 where none is saved, it is below the least size or there is no
 // monitor; and `place` saved for `root`, beside the places of the other trees, nothing saved where `root` is NULL
-int cli_view_place_saved(const char *root, const CliWindowArea *areas, unsigned int count, CliWindowPosition *place);
-void cli_view_place_store(const char *root, const CliWindowPosition *place);
+int cli_view_place_saved(const CliViewThreadCfg *args);
+void cli_view_place_store(const CliViewThreadCfg *args);
 
 #endif

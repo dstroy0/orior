@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_panels.c: the panels over the editor and the language server of the view displayed, on the window's thread. The
-// hover rests on the pointer's cell, the tree answering first and the server after; the completion ranks the file's
+// servers_panels.c: the panels over the editor and the language server of the view displayed, on the window's thread.
+// The hover rests on the pointer's cell, the tree answering first and the server after; the completion ranks the file's
 // words at once and the server's items after; the signature waits on a bracket or a comma, the tree's first and the
 // server's over it. Where each panel is on the screen is the window's: these carry what each panel shows
 #include "../text/sort.h"
@@ -61,8 +61,8 @@ typedef struct
     unsigned int score;
 } PanelsItem;
 
-// The head of the completion's list: the items; those the prefix answers; the row chosen and the first row displayed; the
-// prefix, as typed and in small characters, its bytes and where it is; and the bytes of the list's text in use
+// The head of the completion's list: the items; those the prefix answers; the row chosen and the first row displayed;
+// the prefix, as typed and in small characters, its bytes and where it is; and the bytes of the list's text in use
 typedef struct
 {
     unsigned int items;
@@ -971,9 +971,9 @@ EMBED_INLINE int panels_item_put(const PanelsCtx *args)
     return 1;
 }
 
-// the list positioned in `list`, a cell of the call's own, from the server's items and the file's words, a word the server
-// gave left out, the labels lowered once and each snippet flattened once, every text copied into the list's own, the
-// items ending where the items or the text are full
+// the list positioned in `list`, a cell of the call's own, from the server's items and the file's words, a word the
+// server gave left out, the labels lowered once and each snippet flattened once, every text copied into the list's own,
+// the items ending where the items or the text are full
 EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
 {
     PanelsCompletion *const list = args->list;
@@ -1052,8 +1052,8 @@ EMBED_INLINE void panels_completion_are(PanelsCompletion *list)
     const int was = s_panels.completion_open && (s_panels.completion != NULL);
     if (was)
     {
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &previous, .bytes = sizeof(previous)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_panels.completion, .offset = 0ULL, .dst = &previous, .bytes = sizeof(previous)});
     }
     char was_label[CLI_PANELS_LABEL_MAX] = "";
     unsigned int was_label_length = 0u;
@@ -1062,11 +1062,12 @@ EMBED_INLINE void panels_completion_are(PanelsCompletion *list)
         PanelsItem chosen;
         {
             unsigned int ranked_at = 0u;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = s_panels.completion,
-                .offset = offsetof(PanelsCompletion, ranked) + ((unsigned long long)previous.chosen * sizeof(ranked_at)),
-                .dst = &ranked_at,
-                .bytes = sizeof(ranked_at)});
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = s_panels.completion,
+                                    .offset = offsetof(PanelsCompletion, ranked) +
+                                              ((unsigned long long)previous.chosen * sizeof(ranked_at)),
+                                    .dst = &ranked_at,
+                                    .bytes = sizeof(ranked_at)});
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_panels.completion,
                 .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)ranked_at * sizeof(PanelsItem)),
@@ -1142,8 +1143,8 @@ EMBED_INLINE void panels_completion_ask(const PanelsCtx *args)
     CliDocumentWords *const words = cli_view_words_alloc(key);
     if (list != NULL)
     {
-        EMBED_CALL(panels_completion_positioned, PanelsCtx, .list = list, .server = NULL, .words = words, .line = cursor.line,
-                   .from = from, .prefix = prefix,
+        EMBED_CALL(panels_completion_positioned, PanelsCtx, .list = list, .server = NULL, .words = words,
+                   .line = cursor.line, .from = from, .prefix = prefix,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = sizeof(prefix)}));
     }
     cli_view_words_release(words);
@@ -1265,12 +1266,12 @@ EMBED_INLINE void panels_completion_accept(const PanelsCtx *args)
     EMBED_CALL(panels_completion_close, PanelsCtx, .at = 0u);
 }
 
-void cli_servers_panels_accept(unsigned int at)
+void cli_servers_panels_accept(const CliServersPanelsCfg *args)
 {
-    EMBED_CALL(panels_completion_accept, PanelsCtx, .at = at);
+    EMBED_CALL(panels_completion_accept, PanelsCtx, .at = args->at);
 }
 
-void cli_servers_panels_wheel(int rows)
+void cli_servers_panels_wheel(const CliServersPanelsCfg *args)
 {
     PanelsListHead head = {0};
     const int opened = s_panels.completion_open && (s_panels.completion != NULL);
@@ -1284,16 +1285,16 @@ void cli_servers_panels_wheel(int rows)
         return;
     }
     const unsigned int max = head.count - CLI_COMPLETION_ROWS;
-    if (rows < 0)
+    if (args->rows < 0)
     {
-        // the rows turned up, a count far inside what an unsigned int represents
-        const unsigned int up = (unsigned int)(-rows);
+        // the args->rows turned up, a count far inside what an unsigned int represents
+        const unsigned int up = (unsigned int)(-args->rows);
         head.first = (head.first > up) ? (head.first - up) : 0u;
     }
     else
     {
-        // the rows turned are not negative
-        head.first += (unsigned int)rows;
+        // the args->rows turned are not negative
+        head.first += (unsigned int)args->rows;
         head.first = (head.first > max) ? max : head.first;
     }
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
@@ -1354,19 +1355,19 @@ EMBED_INLINE int panels_completion_key(const PanelsCtx *args)
     return 1;
 }
 
-int cli_servers_panels_key(const char *name)
+int cli_servers_panels_key(const CliServersPanelsCfg *args)
 {
-    if (EMBED_CALL(panels_completion_key, PanelsCtx, .text = name))
+    if (EMBED_CALL(panels_completion_key, PanelsCtx, .text = args->name))
     {
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Escape", .cap = 64ULL}) &&
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Escape", .cap = 64ULL}) &&
         (s_panels.signature_displayed || s_panels.hover_displayed))
     {
         cli_servers_panels_hide();
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Mod+Space", .cap = 64ULL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Mod+Space", .cap = 64ULL}))
     {
         s_panels.completion_forced = 1;
         EMBED_CALL(panels_completion_ask, PanelsCtx, .at = 0u);
@@ -1376,8 +1377,8 @@ int cli_servers_panels_key(const char *name)
     // a key that takes characters out saves the list open on the prefix left; any other key closes it
     if (s_panels.completion_open)
     {
-        const int edits = cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Backspace", .cap = 64ULL}) ||
-                          cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Delete", .cap = 64ULL});
+        const int edits = cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Backspace", .cap = 64ULL}) ||
+                          cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "Delete", .cap = 64ULL});
         s_panels.completion_wanted = edits;
         if (!edits)
         {
@@ -1387,11 +1388,11 @@ int cli_servers_panels_key(const char *name)
     return 0;
 }
 
-void cli_servers_panels_text(const char *text, unsigned long long length)
+void cli_servers_panels_text(const CliServersPanelsCfg *args)
 {
     s_panels.changed = 1;
     EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
-    if ((length > 0ULL) && EMBED_CALL(panels_word_byte, PanelsCtx, .text = text + length - 1ULL))
+    if ((args->length > 0ULL) && EMBED_CALL(panels_word_byte, PanelsCtx, .text = args->text + args->length - 1ULL))
     {
         s_panels.completion_wanted = 1;
     }
@@ -1400,8 +1401,8 @@ void cli_servers_panels_text(const char *text, unsigned long long length)
         s_panels.completion_wanted = 0;
         EMBED_CALL(panels_completion_close, PanelsCtx, .at = 0u);
     }
-    if (EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL, .size = length,
-                   .set = "(,") < length)
+    if (EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->text, .at = 0ULL,
+                   .size = args->length, .set = "(,") < args->length)
     {
         s_panels.signature_due_ms = cli_clock_milliseconds() + CLI_PANELS_SIGNATURE_WAIT_MS;
     }
@@ -1523,8 +1524,8 @@ static void panels_serve_job(const CliServersJobCfg *args)
     }
 }
 
-// the serve job `job` with `size` bytes of `text` after it positioned in a cell of this call's own and passed to a thread of
-// the servers in a cell of theirs: 1, or 0 where the cells cannot meet it
+// the serve job `job` with `size` bytes of `text` after it positioned in a cell of this call's own and passed to a
+// thread of the servers in a cell of theirs: 1, or 0 where the cells cannot meet it
 static int panels_serve_later(const PanelsServeJob *job, const char *text, unsigned long long size)
 {
     char *const positioned = g_cli_guard->temporary_buf_alloc(sizeof(*job) + size, g_cli_servers_owner);
@@ -1575,7 +1576,7 @@ static void panels_open_send(const char *key)
         return;
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_panels.root, .relative = path, .joined = job.full);
-    job.sink = cli_servers_problems_sink(s_panels.root);
+    job.sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = s_panels.root});
     const int lined = panels_serve_later(&job, text, size);
     g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
     if (lined && EMBED_CALL(cli_view_full.served_set, CliViewFullCfg, .key = key, .full = job.full))
@@ -1630,8 +1631,8 @@ static void panels_sync_post(const PanelsCtx *args)
     }
 }
 
-// where the view of the tab displayed rests sent to the server on a thread of the servers, the view opened in its server
-// first where it is not served yet
+// where the view of the tab displayed rests sent to the server on a thread of the servers, the view opened in its
+// server first where it is not served yet
 EMBED_INLINE void panels_view_send(const PanelsCtx *args)
 {
     (void)args;
@@ -1671,8 +1672,8 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
     }
 }
 
-// a frame positioned of a view: where it is the view displayed's, its cursor, its top line of its lines and its rows taken as the
-// panels follow them, the server asked again where the cursor or the view moved
+// a frame positioned of a view: where it is the view displayed's, its cursor, its top line of its lines and its rows
+// taken as the panels follow them, the server asked again where the cursor or the view moved
 static void panels_drawn(const CliViewDrawn *args)
 {
     const char *const key = EMBED_CALL(panels_viewed_key, PanelsCtx, .at = 0u);
@@ -1746,13 +1747,13 @@ int cli_servers_panels_step(void)
     return did;
 }
 
-// the views' moments the panels take: each frame positioned and each view about to close. A view is opened in its server as
-// it first rests, not as it opens
+// the views' moments the panels take: each frame positioned and each view about to close. A view is opened in its
+// server as it first rests, not as it opens
 static const CliViewWatcher s_panels_watcher = {panels_drawn, NULL, panels_closing};
 
-void cli_servers_panels_begin(const char *root)
+void cli_servers_panels_begin(const CliServersPanelsCfg *args)
 {
-    s_panels.root = root;
+    s_panels.root = args->root;
     // the list's cell taken once at its max
     if (s_panels.completion == NULL)
     {
@@ -1770,18 +1771,18 @@ void cli_servers_panels_end(void)
     s_panels.root = NULL;
 }
 
-int cli_servers_panels_hover(CliHoverPanel *panel)
+int cli_servers_panels_hover(const CliServersPanelsCfg *args)
 {
     if (!s_panels.hover_displayed)
     {
         return 0;
     }
-    *panel = (CliHoverPanel){s_panels.hover_text, s_panels.hover_length, s_panels.hover_line, s_panels.hover_from,
-                             s_panels.hover_to};
+    *args->hover_out = (CliHoverPanel){s_panels.hover_text, s_panels.hover_length, s_panels.hover_line,
+                                       s_panels.hover_from, s_panels.hover_to};
     return 1;
 }
 
-int cli_servers_panels_completion(CliCompletionPanel *panel)
+int cli_servers_panels_completion(const CliServersPanelsCfg *args)
 {
     // the prefix copied into the panels' own bytes, which the caller reads before the next read
     static char s_prefix[CLI_PANELS_WORD];
@@ -1799,14 +1800,14 @@ int cli_servers_panels_completion(CliCompletionPanel *panel)
     const unsigned int rows =
         ((head.count - head.first) < CLI_COMPLETION_ROWS) ? (head.count - head.first) : CLI_COMPLETION_ROWS;
     memor.cpy(&(MemoriaCfg){.dst = s_prefix, .src = head.prefix, .bytes = head.prefix_length + 1ULL});
-    *panel = (CliCompletionPanel){head.line, head.from, s_prefix, head.count, head.first, rows, head.chosen};
+    *args->panel = (CliCompletionPanel){head.line, head.from, s_prefix, head.count, head.first, rows, head.chosen};
     return 1;
 }
 
-int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out)
+int cli_servers_panels_completion_row(const CliServersPanelsCfg *args)
 {
-    // a row's texts copied out of the cell into the rows' own bytes, one set a row displayed, which the caller reads
-    // before the list changes
+    // a args->row's texts copied args->out of the cell into the rows' own bytes, one set a args->row displayed, which
+    // the caller reads before the list changes
     static char s_label[CLI_COMPLETION_ROWS][CLI_PANELS_LABEL_MAX];
     static char s_type[CLI_COMPLETION_ROWS][CLI_PANELS_TYPE_MAX];
     static char s_detail[CLI_COMPLETION_ROWS][CLI_PANELS_DETAIL_MAX];
@@ -1817,18 +1818,19 @@ int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out)
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     }
-    if ((row >= CLI_COMPLETION_ROWS) || !opened || ((head.first + row) >= head.count))
+    if ((args->row >= CLI_COMPLETION_ROWS) || !opened || ((head.first + args->row) >= head.count))
     {
         return 0;
     }
     PanelsItem item;
     {
         unsigned int ranked_at = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_panels.completion,
-            .offset = offsetof(PanelsCompletion, ranked) + ((unsigned long long)(head.first + row) * sizeof(ranked_at)),
-            .dst = &ranked_at,
-            .bytes = sizeof(ranked_at)});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_panels.completion,
+                                .offset = offsetof(PanelsCompletion, ranked) +
+                                          ((unsigned long long)(head.first + args->row) * sizeof(ranked_at)),
+                                .dst = &ranked_at,
+                                .bytes = sizeof(ranked_at)});
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_panels.completion,
             .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)ranked_at * sizeof(PanelsItem)),
@@ -1839,33 +1841,33 @@ int cli_servers_panels_completion_row(unsigned int row, CliCompletionRow *out)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_panels.completion,
                                                                 .offset = offsetof(PanelsCompletion, text) + item.label,
-                                                                .dst = s_label[row],
+                                                                .dst = s_label[args->row],
                                                                 .bytes = item.label_length});
     }
-    s_label[row][item.label_length] = '\0';
+    s_label[args->row][item.label_length] = '\0';
     if (item.type_length != 0u)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_panels.completion,
                                                                 .offset = offsetof(PanelsCompletion, text) + item.type,
-                                                                .dst = s_type[row],
+                                                                .dst = s_type[args->row],
                                                                 .bytes = item.type_length});
     }
-    s_type[row][item.type_length] = '\0';
+    s_type[args->row][item.type_length] = '\0';
     if (item.detail_length != 0u)
     {
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion,
                                 .offset = offsetof(PanelsCompletion, text) + item.detail,
-                                .dst = s_detail[row],
+                                .dst = s_detail[args->row],
                                 .bytes = item.detail_length});
     }
-    s_detail[row][item.detail_length] = '\0';
+    s_detail[args->row][item.detail_length] = '\0';
     // the prefix marks a label it starts, case aside; a prefix is far inside what an unsigned int represents
-    *out =
-        (CliCompletionRow){s_label[row],
+    *args->out =
+        (CliCompletionRow){s_label[args->row],
                            item.label_length,
-                           s_type[row],
-                           s_detail[row],
+                           s_type[args->row],
+                           s_detail[args->row],
                            item.detail_length,
                            ((head.prefix_length > 0ULL) && (item.score >= 4u)) ? (unsigned int)head.prefix_length : 0u};
     return 1;
