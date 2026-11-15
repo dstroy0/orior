@@ -177,6 +177,19 @@ int main(void)
                   (EMBED_CALL(explorer->rows, GuiPaneCfg, .table = explorer) == 3u) &&
                   !cli_files_explorer_open(&(CliFilesExplorerCfg){.path = "notes.txt"}),
               "a folder opened by its path, a file not");
+    CliExplorerRow listed;
+    cli_check(cli_files_explorer_row(&(CliFilesExplorerCfg){.at = 1u, .row = &listed}) && (listed.depth == 1u) &&
+                  !listed.dir &&
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = listed.path, .cap = CLI_PATH_MAX_LEN, .other = "src/main.c", .other_cap = 11u}) &&
+                  cli_files_explorer_row(&(CliFilesExplorerCfg){.at = 0u, .row = &listed}) && listed.dir &&
+                  listed.open && !cli_files_explorer_row(&(CliFilesExplorerCfg){.at = 3u, .row = &listed}),
+              "the rows are the open folder's entries a level deeper, none past them");
+    cli_check(cli_files_explorer_press(&(CliFilesExplorerCfg){.at = 0u}) && (cli_files_explorer_rows() == 2u) &&
+                  cli_files_explorer_row(&(CliFilesExplorerCfg){.at = 0u, .row = &listed}) && !listed.open &&
+                  cli_files_explorer_row(&(CliFilesExplorerCfg){.at = 1u, .row = &listed}) && (listed.depth == 0u) &&
+                  cli_files_explorer_press(&(CliFilesExplorerCfg){.at = 0u}) && (cli_files_explorer_rows() == 3u),
+              "a press closes the folder and the rows close over it, and a press opens it again");
 
     const GuiPaneTable *const problems = EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "problems");
     cli_check((problems == &gui_problems_table) && (problems->title == NULL), "the problems' table draws its own head");

@@ -65,9 +65,10 @@ typedef struct
     unsigned long long *count;
     unsigned long long *bytes;
     const FilesExplorerFolder *folder;
+    unsigned int folder_at;
     unsigned int depth;
     unsigned int *left;
-    CliExplorerRow *row;
+    const CarcerMovableEntry *rows;
 } FilesListCtx;
 // a text put in the entries' texts: its place
 EMBED_INLINE unsigned int cli_entry_text_store(const FilesListCtx *args)
@@ -385,6 +386,20 @@ static unsigned int s_explorer_capacity;
 #define FILES_EXPLORER_NONE 0xffffffffu
 // how many times the watch marked the explorer stale, counted on the watch's thread and read on the window's
 static embed_atomic_u32 s_explorer_stale;
+// A row of the explorer: its folder's place, its entry's place in that folder, its depth, and whether it opens as a
+// folder
+typedef struct
+{
+    unsigned int folder;
+    unsigned int entry;
+    unsigned int depth;
+    int open;
+} FilesExplorerRow;
+// the rows in a movable cell of their exact count, how many there are, and whether the listing changed after their
+// last lay
+static const CarcerMovableEntry *s_explorer_rows;
+static unsigned int s_explorer_row_count;
+static int s_explorer_rows_stale;
 
 // the place of the listing of the folder `dir`, or FILES_EXPLORER_NONE where it was never listed
 static unsigned int explorer_folder(const FilesListCtx *args)
@@ -452,6 +467,7 @@ static unsigned int explorer_list(const FilesListCtx *args)
                                                              .src = &folder,
                                                              .bytes = sizeof(folder)});
     s_explorer_folders += 1u;
+    s_explorer_rows_stale = 1;
     return s_explorer_folders - 1u;
 }
 
@@ -490,15 +506,22 @@ void cli_files_explorer_end(void)
     {
         (void)g_cli_guard->movable_buf_release(s_explorer, g_cli_editor_owner);
     }
+    if (s_explorer_rows != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_explorer_rows, g_cli_editor_owner);
+    }
     s_explorer = NULL;
     s_explorer_folders = 0u;
     s_explorer_capacity = 0u;
     s_explorer_root = NULL;
+    s_explorer_rows = NULL;
+    s_explorer_row_count = 0u;
+    s_explorer_rows_stale = 0;
 }
 
-// the row `*left` rows on in the folder `folder` and the open folders under it, `depth` deep, read into `row`: 1 where
-// it was among them, else 0 with `*left` less the rows they show
-static int explorer_walk(const FilesListCtx *args)
+// counts the rows of the folder `folder`, at `folder_at`, and of the open folders under it into `*left`, `depth` deep,
+// and writes each row at its count into `rows` where `rows` is not NULL
+static void explorer_walk(const FilesListCtx *args)
 {
     for (unsigned int at = 0u; at < args->folder->entries->count; at += 1u)
     {
@@ -514,42 +537,93 @@ static int explorer_walk(const FilesListCtx *args)
                                                                     .bytes = sizeof(under)});
         }
         const int open = (under_at != FILES_EXPLORER_NONE) && under.open;
-        if (*args->left == 0u)
+        if (args->rows != NULL)
         {
-            if (args->row != NULL)
-            {
-                *args->row = (CliExplorerRow){entry->path, entry->name, args->depth, entry->dir, entry->ignored, open};
-            }
-            return 1;
+            const FilesExplorerRow laid = {args->folder_at, at, args->depth, open};
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->rows,
+                                                                     .offset = (embed_word)*args->left * sizeof(laid),
+                                                                     .src = &laid,
+                                                                     .bytes = sizeof(laid)});
         }
-        *args->left -= 1u;
-        if (open && EMBED_CALL(explorer_walk, FilesListCtx, .folder = &under, .depth = args->depth + 1u,
-                               .left = args->left, .row = args->row))
+        *args->left += 1u;
+        if (open)
         {
-            return 1;
+            EMBED_CALL(explorer_walk, FilesListCtx, .folder = &under, .folder_at = under_at,
+                       .depth = args->depth + 1u, .left = args->left, .rows = args->rows);
         }
     }
-    return 0;
+}
+
+// lays the rows again after the listing changes: one walk counts them, a cell of that count is taken, and a second walk
+// writes them. A refused cell leaves the rows stale, with none
+static void explorer_rows_lay(void)
+{
+    if (!s_explorer_rows_stale)
+    {
+        return;
+    }
+    s_explorer_rows_stale = 0;
+    if (s_explorer_rows != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_explorer_rows, g_cli_editor_owner);
+        s_explorer_rows = NULL;
+    }
+    s_explorer_row_count = 0u;
+    if (s_explorer_folders == 0u)
+    {
+        return;
+    }
+    FilesExplorerFolder top = {NULL, NULL, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_explorer, .offset = (embed_word)0u * sizeof(top), .dst = &top, .bytes = sizeof(top)});
+    unsigned int count = 0u;
+    EMBED_CALL(explorer_walk, FilesListCtx, .folder = &top, .folder_at = 0u, .depth = 0u, .left = &count);
+    if (count == 0u)
+    {
+        return;
+    }
+    const CarcerMovableEntry *const rows =
+        g_cli_guard->movable_buf_alloc((unsigned long long)count * sizeof(FilesExplorerRow), g_cli_editor_owner);
+    if (rows == NULL)
+    {
+        s_explorer_rows_stale = 1;
+        return;
+    }
+    unsigned int written = 0u;
+    EMBED_CALL(explorer_walk, FilesListCtx, .folder = &top, .folder_at = 0u, .depth = 0u, .left = &written,
+               .rows = rows);
+    s_explorer_rows = rows;
+    s_explorer_row_count = count;
 }
 
 int cli_files_explorer_row(const CliFilesExplorerCfg *args)
 {
-    unsigned int left = args->at;
-    FilesExplorerFolder top = {NULL, NULL, 0};
+    explorer_rows_lay();
+    if (args->at >= s_explorer_row_count)
+    {
+        return 0;
+    }
+    if (args->row == NULL)
+    {
+        return 1;
+    }
+    FilesExplorerRow laid = {0u, 0u, 0u, 0};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_explorer, .offset = (embed_word)0u * sizeof(top), .dst = &top, .bytes = sizeof(top)});
-    return (s_explorer_folders != 0u) &&
-           EMBED_CALL(explorer_walk, FilesListCtx, .folder = &top, .depth = 0u, .left = &left, .row = args->row);
+        .cell = s_explorer_rows, .offset = (embed_word)args->at * sizeof(laid), .dst = &laid, .bytes = sizeof(laid)});
+    FilesExplorerFolder folder = {NULL, NULL, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
+                                                            .offset = (embed_word)laid.folder * sizeof(folder),
+                                                            .dst = &folder,
+                                                            .bytes = sizeof(folder)});
+    const CliFileEntry *const entry = &folder.entries->entry[laid.entry];
+    *args->row = (CliExplorerRow){entry->path, entry->name, laid.depth, entry->dir, entry->ignored, laid.open};
+    return 1;
 }
 
 unsigned int cli_files_explorer_rows(void)
 {
-    unsigned int count = 0u;
-    while (cli_files_explorer_row(&(CliFilesExplorerCfg){.at = count, .row = NULL}))
-    {
-        count += 1u;
-    }
-    return count;
+    explorer_rows_lay();
+    return s_explorer_row_count;
 }
 
 int cli_files_explorer_open(const CliFilesExplorerCfg *args)
@@ -634,6 +708,7 @@ void cli_files_explorer_collapse(void)
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .src = &folder, .bytes = sizeof(folder)});
     }
+    s_explorer_rows_stale = 1;
 }
 
 int cli_files_explorer_menu(const CliFilesExplorerCfg *args)
@@ -682,6 +757,7 @@ int cli_files_explorer_press(const CliFilesExplorerCfg *args)
                                                                  .offset = (embed_word)listed * sizeof(folder),
                                                                  .src = &folder,
                                                                  .bytes = sizeof(folder)});
+        s_explorer_rows_stale = 1;
         return 1;
     }
     const unsigned int opened = EMBED_CALL(explorer_list, FilesListCtx, .path = row.path);
@@ -697,6 +773,7 @@ int cli_files_explorer_press(const CliFilesExplorerCfg *args)
                                                                  .offset = (embed_word)opened * sizeof(folder),
                                                                  .src = &folder,
                                                                  .bytes = sizeof(folder)});
+        s_explorer_rows_stale = 1;
     }
     return 1;
 }
