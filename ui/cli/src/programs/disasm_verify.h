@@ -61,7 +61,8 @@ typedef struct
 int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args);
 
 // the functions the IR text `ir`, `size` bytes, defines, each `define` of a function that is no declaration, their
-// names into `names` up to `capacity`: how many, those past the capacity left out (disasm_verify_read.c)
+// names into `names` up to `capacity`: how many, those past the capacity left out; with `names` NULL, every one
+// counted (disasm_verify_read.c)
 unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args);
 // the symbol of `name` in the program's symbols as llvm-nm lists them, `text` of `size` bytes: `name` itself where the
 // program defines it, else `name` with the suffix link-time optimization gives a promoted local, as name.llvm.1234;
@@ -96,9 +97,11 @@ int cli_disasm_adjacent(const CliDisasmVerifyPathCfg *args);
 // the tree's command line built with link-time optimization for `target` by build.sh, run with `compiler` as its CC:
 // 1, or 0 with why given
 int cli_disasm_build(const CliDisasmVerifyCompilerCfg *args);
-// the module's functions listed from its IR: the object lifted with the lifter into the IR file, and the file read for
-// the functions it defines, into `names`: how many; or 0 with why given. With GNU's lifter, `gnu`, the list it prints
-// is as the IR's definitions
+// the object lifted with the lifter into the IR file: 1, or 0 with why given. With GNU's lifter, `gnu`, the list it
+// prints is written there as the IR's definitions
+int cli_disasm_lifted(const CliDisasmVerifyIrCfg *args);
+// the module's functions read from the IR file the lift wrote, those it defines, into `names` up to `capacity`, or
+// counted alone with `names` NULL: how many; or 0 with why given
 unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args);
 // the functions' symbols in `program`, listed by `lister`, each of `names` into `symbols`, a function the program
 // does not contain left as an empty symbol: how many contain, or 0 with why given where the lister did not run
@@ -141,6 +144,7 @@ struct CliDisasmVerifyIrCfg
 {
     const char *ir;
     char (*names)[CLI_NAME_MAX_LEN];
+    unsigned int capacity;
     VerbaLinea *err_msg;
     int gnu;
     const char *lifter;
@@ -293,10 +297,12 @@ EMBED_TABLE_STORAGE CliDisasmVerifyCompilerNs cli_disasm_verify_compiler EMBED_U
 
 typedef struct
 {
+    int (*disasm_lifted)(const CliDisasmVerifyIrCfg *args);
     unsigned int (*disasm_functions)(const CliDisasmVerifyIrCfg *args);
 } CliDisasmVerifyIrNs;
-EMBED_TABLE_LAYOUT(CliDisasmVerifyIrNs, disasm_functions);
+EMBED_TABLE_LAYOUT(CliDisasmVerifyIrNs, disasm_lifted, disasm_functions);
 EMBED_TABLE_STORAGE CliDisasmVerifyIrNs cli_disasm_verify_ir EMBED_UNUSED = {
+    .disasm_lifted = cli_disasm_lifted,
     .disasm_functions = cli_disasm_functions,
 };
 

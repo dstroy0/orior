@@ -94,11 +94,14 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
             {
                 name_end += 1ULL;
             }
-            if ((name_end > name) && (count < capacity) &&
-                EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->names[count], .capacity = CLI_NAME_MAX_LEN,
-                           .text = args->ir + name, .length = name_end - name))
+            if (name_end > name)
             {
-                count += 1u;
+                // with no names to write, every function is counted
+                const int kept = (args->names == NULL) ||
+                                 ((count < capacity) && EMBED_CALL(read_copy, DisasmVerifyReadCtx,
+                                                                   .into = args->names[count], .capacity = CLI_NAME_MAX_LEN,
+                                                                   .text = args->ir + name, .length = name_end - name));
+                count += kept ? 1u : 0u;
             }
         }
         at = end + 1ULL;

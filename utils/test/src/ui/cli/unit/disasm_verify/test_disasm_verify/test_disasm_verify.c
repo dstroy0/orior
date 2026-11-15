@@ -101,6 +101,11 @@ void test_the_ir_defines_two_functions_and_skips_its_declaration(void)
     TEST_ASSERT_EQUAL_STRING("cells_release", s_names[1]);
 }
 
+void test_the_irs_functions_are_counted_with_no_names_to_write(void)
+{
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg, .ir = s_ir, .size = sizeof(s_ir) - 1u, .names = NULL, .capacity = 0u));
+}
+
 void test_a_defined_function_has_its_own_name_as_its_symbol(void)
 {
     char symbol[CLI_NAME_MAX_LEN];
