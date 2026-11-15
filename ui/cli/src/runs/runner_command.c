@@ -564,7 +564,6 @@ EMBED_INLINE void cli_set_displayed(const RunnerCommandCtx *args)
 int cli_runner_command(const CliRunnerCommandCfg *args)
 {
     static CliWords s_args;
-    static char s_set[1u << 16u];
     s_args.count = 0u;
     s_args.used = 0u;
     s_args.full = 0;
@@ -606,7 +605,9 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     }
     EMBED_CALL(cli_runner_command_folder.command_folder, CliRunnerCommandFolderCfg, .command = args->command,
                .folder = args->root);
-    VerbaLinea set = {s_set, sizeof(s_set), 0ULL};
+    // the settings' lines in a cell of the temporary tier for the call
+    char *const set_text = g_cli_guard->temporary_buf_alloc(CLI_COMMAND_TEXT, g_cli_runs_owner);
+    VerbaLinea set = {set_text, (set_text != NULL) ? CLI_COMMAND_TEXT : 0ULL, 0ULL};
     char moved_text[CLI_PATH_MAX_LEN + 8u];
     VerbaLinea moved = {moved_text, sizeof(moved_text), 0ULL};
     EMBED_CALL(cli_settings, RunnerCommandCtx, .root = args->root, .catalog = args->catalog, .step = args->step,
@@ -623,8 +624,9 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
                    .first = &first);
     }
     // each setting, one to a line of the set, then the program and its words
-    EMBED_CALL(cli_set_displayed, RunnerCommandCtx, .word_text = s_set, .length = mmgr_line_ok(&set) ? set.at : 0ULL,
+    EMBED_CALL(cli_set_displayed, RunnerCommandCtx, .word_text = set_text, .length = mmgr_line_ok(&set) ? set.at : 0ULL,
                .displayed = args->displayed, .first = &first);
+    g_cli_guard->persistent_buf_release(set_text, g_cli_runs_owner);
     EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word_text = displayed_program,
                .length = cellul.len(&(CatenaFinitaCfg){.src = displayed_program, .cap = CLI_POOL_BYTES}),
                .first = &first);
@@ -656,10 +658,18 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
     const CliCatalog *catalog = args->catalog;
     const CliValues *values = args->values;
     VerbaLinea *err_msg = args->err_msg;
-    static CliCommand s_command;
-    static char s_displayed[CLI_COMMAND_TEXT];
+    // the command built and the line it displays, in one cell of the temporary tier for the call
+    CliCommand *const command =
+        g_cli_guard->temporary_buf_alloc(sizeof(*command) + CLI_COMMAND_TEXT, g_cli_runs_owner);
+    if (command == NULL)
+    {
+        mmgr_line_put(err_msg, "the cells cannot meet the command the step shows");
+        return 0;
+    }
+    char *const displayed_text = (char *)(void *)(command + 1);
     const CliJob *const job_at = &catalog->job[args->job];
-    for (unsigned int at = 0u; at < job_at->steps; at += 1u)
+    int shown = 1;
+    for (unsigned int at = 0u; shown && (at < job_at->steps); at += 1u)
     {
         const CliStep *const step = &catalog->step[job_at->step_first + at];
         if (!EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = catalog, .step = step,
@@ -667,15 +677,16 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
         {
             continue;
         }
-        VerbaLinea displayed = {s_displayed, sizeof(s_displayed), 0ULL};
-        if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = root, .catalog = catalog,
-                        .step = step, .values = values, .command = &s_command, .displayed = &displayed,
-                        .err_msg = err_msg))
+        VerbaLinea displayed = {displayed_text, CLI_COMMAND_TEXT, 0ULL};
+        shown = EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = root, .catalog = catalog,
+                           .step = step, .values = values, .command = command, .displayed = &displayed,
+                           .err_msg = err_msg);
+        if (shown)
         {
-            return 0;
+            mmgr_line_finish(&displayed);
+            EMBED_CALL(args->each, CliEachDisplayedCfg, .context = args->context, .displayed = displayed_text);
         }
-        mmgr_line_finish(&displayed);
-        EMBED_CALL(args->each, CliEachDisplayedCfg, .context = args->context, .displayed = s_displayed);
     }
-    return 1;
+    g_cli_guard->persistent_buf_release(command, g_cli_runs_owner);
+    return shown;
 }
