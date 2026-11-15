@@ -185,10 +185,10 @@ int main(void)
               "a pane collapsed goes over its slide as a bead: on its way at a quarter, a little past its end at the "
               "middle, and at its end as the slide ends");
     cli_check(EMBED_CALL(gui_sides.is, GuiSidesCfg, .sides_read = &slid, .side_menu_read = &sliding,
-                         .time_ms = 11219ULL) &&
+                         .time_ms = 11220ULL + GUI_AUTOHIDE_LAG_MS - 1ULL) &&
                   !EMBED_CALL(gui_sides.is, GuiSidesCfg, .sides_read = &slid, .side_menu_read = &sliding,
-                              .time_ms = 11220ULL),
-              "and its width is until its slide ends");
+                              .time_ms = 11220ULL + GUI_AUTOHIDE_LAG_MS),
+              "and its width is until its slide's far edge ends, the lag past the slide");
     EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &slid, .side_menu = &sliding, .at = explorer, .still = 1,
                .time_ms = 12000ULL);
     cli_check(EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = &slid, .time_ms = 12000ULL) == 0,
