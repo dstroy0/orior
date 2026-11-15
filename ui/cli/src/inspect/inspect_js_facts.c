@@ -6,10 +6,6 @@
 #include "../text/text.h"
 #include "inspect_js.h"
 
-// the max names one function declares that are recorded
-#define CLI_JS_DECLARED 16384u
-
-static unsigned int s_declared[CLI_JS_DECLARED];
 static CliInspectSet s_reads;
 
 void cli_inspect_js_facts_layout(const CliInspectPartitionCtx *args)
@@ -161,6 +157,14 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
     {
         return;
     }
+    // the names declared, each a token of the body, in a cell of the call sized to the body's tokens
+    const unsigned long long tokens = (close > args->open) ? (close - args->open) : 1ULL;
+    unsigned int *const declared_at =
+        g_cli_guard->temporary_buf_alloc(tokens * sizeof(unsigned int), g_cli_inspect_owner);
+    if (declared_at == NULL)
+    {
+        return;
+    }
     unsigned int declared = 0u;
     EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_reads);
     unsigned int nested_end = 0u;
@@ -188,18 +192,15 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
                                       .word_text = "for");
         if (direct && declares && named && supplied && !looped)
         {
-            if (declared < CLI_JS_DECLARED)
-            {
-                s_declared[declared] = at + 1u;
-                declared += 1u;
-            }
+            declared_at[declared] = at + 1u;
+            declared += 1u;
             continue;
         }
         int own = 0;
         unsigned int index = 0u;
         while (!own && (index < declared))
         {
-            own = (s_declared[index] == at);
+            own = (declared_at[index] == at);
             index += 1u;
         }
         if (EMBED_CALL(cli_inspect_js_at_word.js_is_read, CliInspectJsAtWordCfg, .src = src, .at = at) && !own)
@@ -212,11 +213,12 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
     if (EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_reads, .at = "eval",
                    .size_u32 = 4u))
     {
+        g_cli_guard->persistent_buf_release(declared_at, g_cli_inspect_owner);
         return;
     }
     for (unsigned int index = 0u; index < declared; index += 1u)
     {
-        const CliInspectTok *const name = &g_cli_inspect_tok[s_declared[index]];
+        const CliInspectTok *const name = &g_cli_inspect_tok[declared_at[index]];
         if ((src[name->start] == '_') ||
             EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_reads, .at = src + name->start,
                        .size_u32 = name->end - name->start))
@@ -230,9 +232,10 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
         mmgr_line_put(&msg, "` is declared and never read.");
         EMBED_CALL(cli_inspect_from_internal.finding_append, CliInspectFromCtx, .facts = facts, .from = name->from,
                    .to = name->to, .severity = CLI_INSPECT_WARNING, .message = &msg, .code = "unread", .href = NULL);
-        EMBED_CALL(facts_declaration_fix, InspectJsFactsCtx, .src = src, .size = size, .name_at = s_declared[index],
+        EMBED_CALL(facts_declaration_fix, InspectJsFactsCtx, .src = src, .size = size, .name_at = declared_at[index],
                    .facts = facts);
     }
+    g_cli_guard->persistent_buf_release(declared_at, g_cli_inspect_owner);
 }
 
 // code after a return, a throw, a break or a continue that is directly in the block opening at `open`, up to the

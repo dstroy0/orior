@@ -6,10 +6,8 @@
 #include "../text/text.h"
 #include "debug_internal.h"
 
-// the bytes of a string filled in, and the lock the capacity it is filled in is guarded by
+// the longest pattern a breakpoint's path is matched by
 #define CLI_DEBUG_FILLED (1u << 16u)
-
-static char s_filled[2][CLI_DEBUG_FILLED];
 
 // the spaces a text is trimmed of
 static const char s_spaces[] = " \t\n\r\f\v";
@@ -104,6 +102,9 @@ typedef struct
     int numbered;
     unsigned long long *length_pointer;
     const char *one;
+    const char *mark;
+    unsigned long long mark_size;
+    unsigned long long size_value;
 } DebugArgumentsCtx;
 // whether `text` ends with `ending`, case aside
 EMBED_INLINE int arguments_ends_with(const DebugArgumentsCtx *args)
@@ -182,15 +183,34 @@ unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
     return count;
 }
 
-// a string filled in: each "{name}" of `names` replaced by its `withs`, one name after another, into the filled
-// capacity
-EMBED_INLINE const char *arguments_string_fill(const DebugArgumentsCtx *args)
+// how many times `mark`, `mark_size` bytes, occurs in `size` bytes of `text`, each occurrence past the one before
+EMBED_INLINE unsigned long long arguments_marks_counted(const DebugArgumentsCtx *args)
+{
+    unsigned long long count = 0ULL;
+    for (unsigned long long at = 0ULL; at + args->mark_size <= args->size_value;)
+    {
+        const int marked =
+            memor.cmp(&(MemoriaCfg){.src = args->text + at, .other = args->mark, .bytes = args->mark_size}) == 0;
+        count += marked ? 1ULL : 0ULL;
+        at += marked ? args->mark_size : 1ULL;
+    }
+    return count;
+}
+
+// a string filled in: each "{name}" of `names` replaced by its `withs`, one name after another, each pass into a cell
+// of the temporary tier sized to its text: the filled text, `size` bytes, in a cell the caller gives back; or NULL
+// where the cells cannot hold a pass
+EMBED_INLINE char *arguments_string_fill(const DebugArgumentsCtx *args)
 {
     unsigned long long *size = args->size;
-    VerbaLinea first = {s_filled[0], sizeof(s_filled[0]), 0ULL};
-    mmgr_line_put_n(&first, args->text, args->length);
-    unsigned int from = 0u;
-    unsigned long long at_end = first.at;
+    char *was = g_cli_guard->temporary_buf_alloc(args->length + 1ULL, g_cli_debug_owner);
+    if (was == NULL)
+    {
+        return NULL;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = was, .src = args->text, .bytes = (embed_word)args->length});
+    unsigned long long at_end = args->length;
+    was[at_end] = '\0';
     for (unsigned int one = 0u; one < args->count; one += 1u)
     {
         char mark[CLI_NAME_MAX_LEN];
@@ -199,8 +219,19 @@ EMBED_INLINE const char *arguments_string_fill(const DebugArgumentsCtx *args)
         mmgr_line_put(&marked, args->names[one]);
         mmgr_line_ch(&marked, '}');
         const unsigned long long mark_size = marked.at;
-        VerbaLinea next = {s_filled[1u - from], sizeof(s_filled[0]), 0ULL};
-        const char *const was = s_filled[from];
+        const unsigned long long with_size =
+            cellul.len(&(CatenaFinitaCfg){.src = args->withs[one], .cap = CLI_POOL_BYTES});
+        const unsigned long long marks = EMBED_CALL(arguments_marks_counted, DebugArgumentsCtx, .text = was,
+                                                    .size_value = at_end, .mark = mark, .mark_size = mark_size);
+        // the pass's text: the marks' bytes out, their replacements in, and the end's 0
+        const unsigned long long bytes = at_end - (marks * mark_size) + (marks * with_size) + 1ULL;
+        char *const filled = g_cli_guard->temporary_buf_alloc(bytes, g_cli_debug_owner);
+        if (filled == NULL)
+        {
+            g_cli_guard->persistent_buf_release(was, g_cli_debug_owner);
+            return NULL;
+        }
+        VerbaLinea next = {filled, bytes, 0ULL};
         for (unsigned long long at = 0ULL; at < at_end;)
         {
             if ((at + mark_size <= at_end) &&
@@ -216,10 +247,12 @@ EMBED_INLINE const char *arguments_string_fill(const DebugArgumentsCtx *args)
             }
         }
         at_end = next.at;
-        from = 1u - from;
+        (void)mmgr_line_finish(&next);
+        g_cli_guard->persistent_buf_release(was, g_cli_debug_owner);
+        was = filled;
     }
     *size = at_end;
-    return s_filled[from];
+    return was;
 }
 
 // whether a string is digits alone, its number into `value`: a number past 64 bits stays a string
@@ -251,10 +284,15 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = json, .node = from, .length_pointer = &length);
         unsigned long long size = 0ULL;
-        const char *const filled =
+        char *const filled =
             EMBED_CALL(arguments_string_fill, DebugArgumentsCtx, .text = text, .length = length, .names = args->names,
                        .withs = args->withs, .count = args->count, .size = &size);
+        if (filled == NULL)
+        {
+            return CLI_JSON_NONE;
+        }
         unsigned long long value = 0ULL;
+        unsigned int made;
         if (args->numbered &&
             EMBED_CALL(arguments_digits, DebugArgumentsCtx, .text = filled, .length = size, .value = &value))
         {
@@ -262,11 +300,17 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
             VerbaLinea written = {number, sizeof(number), 0ULL};
             mmgr_line_decimal(&written, value, 1u);
             mmgr_line_finish(&written);
-            return EMBED_CALL(cli_json_tree_text_length_type.json_number_init, CliJsonTreeTextLengthTypeCfg, .json = to,
+            made = EMBED_CALL(cli_json_tree_text_length_type.json_number_init, CliJsonTreeTextLengthTypeCfg, .json = to,
                               .text = number);
         }
-        return EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = to,
-                          .text = filled, .length = size);
+        else
+        {
+            // the node copies the text: the filled cell goes back
+            made = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = to,
+                              .text = filled, .length = size);
+        }
+        g_cli_guard->persistent_buf_release(filled, g_cli_debug_owner);
+        return made;
     }
     if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = from,
                    .type = CFG_JSON_ARRAY))
