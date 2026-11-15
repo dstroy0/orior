@@ -5,31 +5,44 @@
 // g_cli_bundled of each one's id and bytes, and a script plugin's code read as the window reads a reader's, in the
 // order of their names; the toolchains impero knows, the bytes of toolchains.json as g_cli_toolchains_json; and the
 // menus and the command line's words, the bytes of commands.json as g_cli_commands_json. Run as
-// `plugins_bundle <plugins> <toolchains.json> <commands.json> <out.c>`
+// `plugins_bundle <plugins> <toolchains.json> <commands.json> <out.c>`. The file is written a piece at a time, each
+// piece's text in a cell of the temporary tier sized to the bytes it encodes
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "../plugins/plugins.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 
-// the max plugins bundled, the max bytes of one, and the max bytes of the file written
-#define CLI_BUNDLE_MAX 512u
-
-#define CLI_BUNDLE_BYTES (1u << 22u)
-
-#define CLI_BUNDLE_OUT (1u << 27u)
-
 // the bundled table of the bundler itself, which runs before plugins_bundled.c exists: empty
 const CliBundled g_cli_bundled[1] = {{NULL, NULL, 0ULL, NULL, 0ULL}};
 const unsigned int g_cli_bundled_count = 0u;
 
-static char s_ids[CLI_BUNDLE_MAX][CLI_NAME_MAX_LEN];
+// A plugin found under the plugins' folder: its id; whether its plugin.json read and was bundled; and, for a script
+// plugin, whether its code was bundled and that code's bytes
+typedef struct
+{
+    char id[CLI_NAME_MAX_LEN];
+    unsigned long long code_size;
+    int bundled;
+    int coded;
+} CliBundlePlugin;
+
+// the plugins found, in a movable cell of the run grown as the folder's names fill it, in the order of their names
+#define CLI_BUNDLE_FIRST (16ULL * sizeof(CliBundlePlugin))
+
+static const CarcerMovableEntry *s_plugins_cell;
+static unsigned long long s_plugins_bytes;
 static unsigned int s_count;
-static unsigned char s_bytes[CLI_BUNDLE_BYTES];
-static char s_code[CLI_BUNDLE_BYTES];
-static unsigned long long s_code_size[CLI_BUNDLE_MAX];
-static int s_coded[CLI_BUNDLE_MAX];
-static char s_out[CLI_BUNDLE_OUT];
+
+// the bytes of each byte's text in an array, and of each line's lead over a plain byte's
+#define CLI_BUNDLE_BYTE_TEXT 6ULL
+
+#define CLI_BUNDLE_LINE_LEAD 4ULL
+
+#define CLI_BUNDLE_LINE_BYTES 24ULL
+
+// the bytes an array's text takes past its bytes' own and its name's: its head, its tail and its size line
+#define CLI_BUNDLE_ARRAY_MORE 128ULL
 
 typedef struct
 {
@@ -45,7 +58,87 @@ typedef struct
     char *path;
     const char *path_read;
     const char *name;
+    const char *written;
+    int fresh;
+    unsigned long long needed;
+    CliBundlePlugin *plugin;
 } PluginsBundleCtx;
+
+// The folder a script plugin's code is read from and the bytes of its files, summed as they are each found
+typedef struct
+{
+    const char *folder;
+    unsigned long long bytes;
+} CliBundleFolder;
+
+// the plugin at `at` read out of the cell into `plugin`
+EMBED_INLINE void cli_plugin_read(const PluginsBundleCtx *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_plugins_cell,
+                                                           .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
+                                                           .dst = args->plugin,
+                                                           .bytes = sizeof(CliBundlePlugin)});
+}
+
+// `plugin` written into the cell at `at`
+EMBED_INLINE void cli_plugin_write(const PluginsBundleCtx *args)
+{
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_plugins_cell,
+                                                            .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
+                                                            .src = args->plugin,
+                                                            .bytes = sizeof(CliBundlePlugin)});
+}
+
+// the plugins' cell grown to `needed` bytes where it is less, doubled from its size, its records copied over, the
+// cell before given back: 1, or 0 where the cells cannot meet it
+EMBED_INLINE int cli_cell_grown(const PluginsBundleCtx *args)
+{
+    if (args->needed <= s_plugins_bytes)
+    {
+        return 1;
+    }
+    const unsigned long long doubled = (s_plugins_bytes != 0ULL) ? (s_plugins_bytes * 2ULL) : CLI_BUNDLE_FIRST;
+    const unsigned long long bytes = (doubled < args->needed) ? args->needed : doubled;
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_bundle_owner);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    for (unsigned long long at = 0ULL; at < s_plugins_bytes; at += sizeof(CliBundlePlugin))
+    {
+        CliBundlePlugin record;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_plugins_cell, .offset = (embed_word)at, .dst = &record, .bytes = sizeof(record)});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .src = &record, .bytes = sizeof(record)});
+    }
+    if (s_plugins_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_plugins_cell, g_cli_bundle_owner);
+    }
+    s_plugins_cell = cell;
+    s_plugins_bytes = bytes;
+    return 1;
+}
+
+// the bytes the text of an array of `size` bytes named with `name` takes
+EMBED_INLINE unsigned long long cli_array_text_bytes(const PluginsBundleCtx *args)
+{
+    const unsigned long long lines = (args->size / CLI_BUNDLE_LINE_BYTES) + 1ULL;
+    return (args->size * CLI_BUNDLE_BYTE_TEXT) + (lines * CLI_BUNDLE_LINE_LEAD) +
+           (2ULL * cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_NAME_MAX_LEN})) +
+           CLI_BUNDLE_ARRAY_MORE;
+}
+
+// the text of `out` put on the end of the file at `written`, or as its start where `fresh`: 1, or 0 where the text
+// overran its cell or the file refused it
+EMBED_INLINE int cli_appended(const PluginsBundleCtx *args)
+{
+    return mmgr_line_ok(args->out) &&
+           EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = args->written,
+                      .bytes = args->out->out, .size = args->out->at, .fresh = args->fresh);
+}
+
 // `size` bytes written as the array `prefix` and `at`, ended by a 0 its size leaves out
 EMBED_INLINE void cli_bytes_write(const PluginsBundleCtx *args)
 {
@@ -55,11 +148,30 @@ EMBED_INLINE void cli_bytes_write(const PluginsBundleCtx *args)
     mmgr_line_put(args->out, "[] = {");
     for (unsigned long long byte = 0ULL; byte < args->size; byte += 1ULL)
     {
-        mmgr_line_put(args->out, ((byte % 24ULL) == 0ULL) ? "\n    0x" : " 0x");
+        mmgr_line_put(args->out, ((byte % CLI_BUNDLE_LINE_BYTES) == 0ULL) ? "\n    0x" : " 0x");
         mmgr_line_hex(args->out, args->bytes[byte], 2u);
         mmgr_line_ch(args->out, ',');
     }
     mmgr_line_put(args->out, "\n    0x00};\n\n");
+}
+
+// `size` bytes written as the array `prefix` and `at` in a cell of their text's size, put on the end of the file at
+// `written`: 1, or 0 where the cells or the file refuse
+EMBED_INLINE int cli_array_appended(const PluginsBundleCtx *args)
+{
+    const unsigned long long bytes =
+        EMBED_CALL(cli_array_text_bytes, PluginsBundleCtx, .size = args->size, .name = args->prefix);
+    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_bundle_owner);
+    if (text == NULL)
+    {
+        return 0;
+    }
+    VerbaLinea out = {text, bytes, 0ULL};
+    EMBED_CALL(cli_bytes_write, PluginsBundleCtx, .out = &out, .prefix = args->prefix, .at = args->at,
+               .bytes = args->bytes, .size = args->size);
+    const int appended = EMBED_CALL(cli_appended, PluginsBundleCtx, .out = &out, .written = args->written, .fresh = 0);
+    g_cli_guard->persistent_buf_release(text, g_cli_bundle_owner);
+    return appended;
 }
 
 // whether the plugin.json `text`, `size` bytes, is a script plugin's
@@ -90,55 +202,92 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
     return script;
 }
 
-// the code of the script plugin `id` under `plugins`, whose plugin.json is `size` bytes of `text`, written as the
-// array s_code_ and `at`, and stored as written: 1, or 0 where it does not read
+// Each file of a script plugin's folder: its bytes summed, which bound the code the folder's files make
+static void cli_code_file_each(const CliEachNameIsFolderCfg *args)
+{
+    CliBundleFolder *const folder = args->context;
+    if (args->is_folder)
+    {
+        return;
+    }
+    char file[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {file, sizeof(file), 0ULL};
+    mmgr_line_put(&line, folder->folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, args->name);
+    unsigned long long size = 0ULL;
+    if ((mmgr_line_finish(&line) != 0ULL) &&
+        EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = file, .size_pointer = &size))
+    {
+        folder->bytes += size + 1ULL;
+    }
+}
+
+// the code of the script plugin at `at`, `plugin`, under `plugins`, whose plugin.json is `size` bytes of `text`, read
+// into a cell of its folder's files' size, written as the array s_code_ and `at` on the end of the file at `written`,
+// and recorded in `plugin` as written: 1, or 0 where it does not read
 EMBED_INLINE int cli_code_bundle(const PluginsBundleCtx *args)
 {
-    VerbaLinea *out = args->out;
-    unsigned long long size = args->size;
-    char folder[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {folder, sizeof(folder), 0ULL};
+    CliBundleFolder folder = {NULL, 0ULL};
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ULL};
     mmgr_line_put(&line, args->plugins);
     mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, s_ids[args->at]);
-    VerbaLinea code = {s_code, sizeof(s_code), 0ULL};
-    char why[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    if ((mmgr_line_finish(&line) == 0ULL) ||
-        !EMBED_CALL(cli_plugins_id.code_in, CliPluginsIdCfg, .id = s_ids[args->at], .folder_read = folder,
-                    .text = (const char *)s_bytes, .size = size, .out = &code, .err_msg = &err_msg) ||
-        !mmgr_line_ok(&code))
+    mmgr_line_put(&line, args->plugin->id);
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return 0;
     }
-    EMBED_CALL(cli_bytes_write, PluginsBundleCtx, .out = out, .prefix = "s_code_", .at = args->at,
-               .bytes = (const unsigned char *)s_code, .size = code.at);
-    s_coded[args->at] = 1;
-    s_code_size[args->at] = code.at;
-    return 1;
+    folder.folder = path;
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = path, .each = cli_code_file_each,
+               .context_bytess = &folder);
+    char *const code_text = g_cli_guard->temporary_buf_alloc(folder.bytes + 1ULL, g_cli_bundle_owner);
+    if (code_text == NULL)
+    {
+        return 0;
+    }
+    VerbaLinea code = {code_text, folder.bytes + 1ULL, 0ULL};
+    char why[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const int read = EMBED_CALL(cli_plugins_id.code_in, CliPluginsIdCfg, .id = args->plugin->id, .folder_read = path,
+                                .text = (const char *)args->text, .size = args->size, .out = &code,
+                                .err_msg = &err_msg) &&
+                     mmgr_line_ok(&code) &&
+                     EMBED_CALL(cli_array_appended, PluginsBundleCtx, .prefix = "s_code_", .at = args->at,
+                                .bytes = (const unsigned char *)code_text, .size = code.at, .written = args->written);
+    g_cli_guard->persistent_buf_release(code_text, g_cli_bundle_owner);
+    args->plugin->coded = read;
+    args->plugin->code_size = read ? code.at : 0ULL;
+    return read;
 }
 
-// Each folder under the plugins' folder taken, its name stored in order
+// Each folder under the plugins' folder taken, recorded in the order of its name, the cell grown to hold it
 static void cli_folder_each(const CliEachNameIsFolderCfg *args)
 {
-    if (!args->is_folder || (s_count >= CLI_BUNDLE_MAX) ||
-        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) >= CLI_NAME_MAX_LEN))
+    if (!args->is_folder ||
+        (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) >= CLI_NAME_MAX_LEN) ||
+        !EMBED_CALL(cli_cell_grown, PluginsBundleCtx,
+                    .needed = ((unsigned long long)s_count + 1ULL) * sizeof(CliBundlePlugin)))
     {
         return;
     }
     unsigned int place = s_count;
-    while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = s_ids[place - 1u],
-                                       .other_pointer = args->name) > 0))
+    CliBundlePlugin before;
+    while (place > 0u)
     {
-        memor.cpy(&(MemoriaCfg){
-            .dst = s_ids[place],
-            .src = s_ids[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_ids[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
+        EMBED_CALL(cli_plugin_read, PluginsBundleCtx, .at = place - 1u, .plugin = &before);
+        if (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = before.id, .other_pointer = args->name) <= 0)
+        {
+            break;
+        }
+        EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = place, .plugin = &before);
         place -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_ids[place],
-                            .src = args->name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
+    CliBundlePlugin found = {{0}, 0ULL, 0, 0};
+    VerbaLinea id = {found.id, sizeof(found.id), 0ULL};
+    mmgr_line_put(&id, args->name);
+    (void)mmgr_line_finish(&id);
+    EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = place, .plugin = &found);
     s_count += 1u;
 }
 
@@ -153,119 +302,177 @@ EMBED_INLINE int cli_plugin_path(const PluginsBundleCtx *args)
     return mmgr_line_finish(&line) != 0ULL;
 }
 
-// the bytes of the file at `path` written as the array `name`, ended by a 0 its size leaves out, and its size as
-// `name`_size: 1, or 0 where the file could not be read
+// the bytes of the file at `path_read` written as the array `name`, ended by a 0 its size leaves out, and its size as
+// `name`_size, on the end of the file at `written`: 1, or 0 where the file could not be read or the text refused
 EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
 {
-    const unsigned long long size = qry_member_file_read(args->path_read, s_bytes, sizeof(s_bytes));
-    if (size == QRY_MEMBER_UNREAD)
+    unsigned long long size = 0ULL;
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path_read,
+                                                  .size_pointer = &size, .owner = g_cli_bundle_owner);
+    if (bytes == NULL)
     {
         return 0;
     }
-    mmgr_line_put(args->out, "const unsigned char ");
-    mmgr_line_put(args->out, args->name);
-    mmgr_line_put(args->out, "[] = {");
+    const unsigned long long text_bytes =
+        EMBED_CALL(cli_array_text_bytes, PluginsBundleCtx, .size = size, .name = args->name);
+    char *const text = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_bundle_owner);
+    if (text == NULL)
+    {
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_bundle_owner));
+        return 0;
+    }
+    VerbaLinea out = {text, text_bytes, 0ULL};
+    mmgr_line_put(&out, "const unsigned char ");
+    mmgr_line_put(&out, args->name);
+    mmgr_line_put(&out, "[] = {");
     for (unsigned long long byte = 0ULL; byte < size; byte += 1ULL)
     {
-        mmgr_line_put(args->out, ((byte % 24ULL) == 0ULL) ? "\n    0x" : " 0x");
-        mmgr_line_hex(args->out, s_bytes[byte], 2u);
-        mmgr_line_ch(args->out, ',');
+        mmgr_line_put(&out, ((byte % CLI_BUNDLE_LINE_BYTES) == 0ULL) ? "\n    0x" : " 0x");
+        mmgr_line_hex(&out, bytes[byte], 2u);
+        mmgr_line_ch(&out, ',');
     }
-    mmgr_line_put(args->out, "\n    0x00};\n\nconst unsigned long long ");
-    mmgr_line_put(args->out, args->name);
-    mmgr_line_put(args->out, "_size = ");
-    mmgr_line_decimal(args->out, size, 1u);
-    mmgr_line_put(args->out, "ull;\n");
-    return 1;
+    mmgr_line_put(&out, "\n    0x00};\n\nconst unsigned long long ");
+    mmgr_line_put(&out, args->name);
+    mmgr_line_put(&out, "_size = ");
+    mmgr_line_decimal(&out, size, 1u);
+    mmgr_line_put(&out, "ull;\n");
+    const int appended = EMBED_CALL(cli_appended, PluginsBundleCtx, .out = &out, .written = args->written, .fresh = 0);
+    g_cli_guard->persistent_buf_release(text, g_cli_bundle_owner);
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_bundle_owner));
+    return appended;
 }
 
-int main(int count, char **words)
+// the plugin at `at` bundled: its plugin.json's bytes as the array s_plugin_ and `at`, then its code where it is a
+// script plugin's, on the end of the file at `written`: 1, or 0 where a script's code does not read, which stops the
+// build; a plugin.json that does not read is recorded as not bundled
+EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
 {
-    (void)cli_pool_made(CLI_POOL_BYTES);
-    if (count != 5)
-    {
-        return 2;
-    }
-    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = words[1], .each = cli_folder_each,
-               .context_bytess = NULL);
-    VerbaLinea out = {s_out, sizeof(s_out), 0ULL};
-    mmgr_line_put(&out,
-                  "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n"
-                  "// plugins_bundled.c: the plugins that come with orior, each one's id and the bytes of its "
-                  "plugin.json, and the bytes\n// of toolchains.json and commands.json, written by "
-                  "bundle/plugins_bundle.c as the program is built\n"
-                  "#include \"command_line/commands.h\"\n#include \"plugins/plugins.h\"\n#include "
-                  "\"toolchains/toolchains.h\"\n\n");
-    unsigned int bundled = 0u;
+    CliBundlePlugin plugin;
+    EMBED_CALL(cli_plugin_read, PluginsBundleCtx, .at = args->at, .plugin = &plugin);
     char path[CLI_PATH_MAX_LEN];
-    for (unsigned int at = 0u; at < s_count; at += 1u)
+    unsigned long long size = 0ULL;
+    const unsigned char *const bytes =
+        EMBED_CALL(cli_plugin_path, PluginsBundleCtx, .folder = args->plugins, .id = plugin.id, .path = path)
+            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size,
+                         .owner = g_cli_bundle_owner)
+            : NULL;
+    if (bytes == NULL)
     {
-        const unsigned long long size =
-            EMBED_CALL(cli_plugin_path, PluginsBundleCtx, .folder = words[1], .id = s_ids[at], .path = path)
-                ? qry_member_file_read(path, s_bytes, sizeof(s_bytes))
-                : QRY_MEMBER_UNREAD;
-        if (size == QRY_MEMBER_UNREAD)
-        {
-            s_ids[at][0] = '\0';
-            continue;
-        }
-        EMBED_CALL(cli_bytes_write, PluginsBundleCtx, .out = &out, .prefix = "s_plugin_", .at = at, .bytes = s_bytes,
-                   .size = size);
-        // a script plugin whose code does not read is not built
-        if (EMBED_CALL(cli_script, PluginsBundleCtx, .text = s_bytes, .size = size) &&
-            !EMBED_CALL(cli_code_bundle, PluginsBundleCtx, .out = &out, .plugins = words[1], .at = at, .size = size))
-        {
-            return 1;
-        }
-        bundled += 1u;
+        plugin.bundled = 0;
+        EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = args->at, .plugin = &plugin);
+        return 1;
     }
+    int done = EMBED_CALL(cli_array_appended, PluginsBundleCtx, .prefix = "s_plugin_", .at = args->at, .bytes = bytes,
+                          .size = size, .written = args->written);
+    // a script plugin whose code does not read is not built
+    if (done && EMBED_CALL(cli_script, PluginsBundleCtx, .text = bytes, .size = size))
+    {
+        done = EMBED_CALL(cli_code_bundle, PluginsBundleCtx, .plugins = args->plugins, .at = args->at,
+                          .plugin = &plugin, .text = bytes, .size = size, .written = args->written);
+    }
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_bundle_owner));
+    plugin.bundled = done;
+    EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = args->at, .plugin = &plugin);
+    return done;
+}
+
+// the table g_cli_bundled, a line for each plugin bundled, and its count, in a cell sized to the plugins' count, on the
+// end of the file at `written`: 1, or 0 where the cells or the file refuse
+EMBED_INLINE int cli_table_appended(const PluginsBundleCtx *args)
+{
+    const unsigned long long bytes =
+        (((unsigned long long)s_count + 1ULL) * (CLI_NAME_MAX_LEN + CLI_BUNDLE_ARRAY_MORE)) + CLI_BUNDLE_ARRAY_MORE;
+    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_bundle_owner);
+    if (text == NULL)
+    {
+        return 0;
+    }
+    VerbaLinea out = {text, bytes, 0ULL};
     mmgr_line_put(&out, "const CliBundled g_cli_bundled[] = {\n");
+    unsigned int bundled = 0u;
     for (unsigned int at = 0u; at < s_count; at += 1u)
     {
-        if (s_ids[at][0] == '\0')
+        CliBundlePlugin plugin;
+        EMBED_CALL(cli_plugin_read, PluginsBundleCtx, .at = at, .plugin = &plugin);
+        if (!plugin.bundled)
         {
             continue;
         }
-        EMBED_CALL(cli_plugin_path, PluginsBundleCtx, .folder = words[1], .id = s_ids[at], .path = path);
+        char path[CLI_PATH_MAX_LEN];
         unsigned long long size = 0ULL;
+        EMBED_CALL(cli_plugin_path, PluginsBundleCtx, .folder = args->plugins, .id = plugin.id, .path = path);
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size);
         mmgr_line_put(&out, "    {\"");
-        mmgr_line_put(&out, s_ids[at]);
+        mmgr_line_put(&out, plugin.id);
         mmgr_line_put(&out, "\", s_plugin_");
         mmgr_line_decimal(&out, at, 1u);
         mmgr_line_put(&out, ", ");
         mmgr_line_decimal(&out, size, 1u);
-        if (s_coded[at])
+        if (plugin.coded)
         {
             mmgr_line_put(&out, "ull, s_code_");
             mmgr_line_decimal(&out, at, 1u);
             mmgr_line_put(&out, ", ");
-            mmgr_line_decimal(&out, s_code_size[at], 1u);
+            mmgr_line_decimal(&out, plugin.code_size, 1u);
             mmgr_line_put(&out, "ull},\n");
         }
         else
         {
             mmgr_line_put(&out, "ull, NULL, 0ull},\n");
         }
+        bundled += 1u;
     }
     mmgr_line_put(&out, (bundled == 0u) ? "    {\"\", NULL, 0ull, NULL, 0ull}};\n\n" : "};\n\n");
     mmgr_line_put(&out, "const unsigned int g_cli_bundled_count = ");
     mmgr_line_decimal(&out, bundled, 1u);
     mmgr_line_put(&out, "u;\n\n");
-    if (!EMBED_CALL(cli_file_bundle, PluginsBundleCtx, .out = &out, .path_read = words[2],
-                    .name = "g_cli_toolchains_json"))
+    const int appended = EMBED_CALL(cli_appended, PluginsBundleCtx, .out = &out, .written = args->written, .fresh = 0);
+    g_cli_guard->persistent_buf_release(text, g_cli_bundle_owner);
+    return appended;
+}
+
+int main(int count, char **words)
+{
+    static const char s_head[] =
+        "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n"
+        "// plugins_bundled.c: the plugins that come with orior, each one's id and the bytes of its "
+        "plugin.json, and the bytes\n// of toolchains.json and commands.json, written by "
+        "bundle/plugins_bundle.c as the program is built\n"
+        "#include \"command_line/commands.h\"\n#include \"plugins/plugins.h\"\n#include "
+        "\"toolchains/toolchains.h\"\n\n";
+    (void)cli_pool_made(CLI_POOL_BYTES);
+    if (count != 5)
+    {
+        return 2;
+    }
+    const char *const written = words[4];
+    EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = words[1], .each = cli_folder_each,
+               .context_bytess = NULL);
+    if (!EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = written, .bytes = s_head,
+                    .size = sizeof(s_head) - 1ULL, .fresh = 1))
     {
         return 1;
     }
-    mmgr_line_ch(&out, '\n');
-    if (!EMBED_CALL(cli_file_bundle, PluginsBundleCtx, .out = &out, .path_read = words[3],
-                    .name = "g_cli_commands_json") ||
-        !mmgr_line_ok(&out))
+    for (unsigned int at = 0u; at < s_count; at += 1u)
+    {
+        if (!EMBED_CALL(cli_plugin_bundle, PluginsBundleCtx, .plugins = words[1], .at = at, .written = written))
+        {
+            return 1;
+        }
+    }
+    if (!EMBED_CALL(cli_table_appended, PluginsBundleCtx, .plugins = words[1], .written = written) ||
+        !EMBED_CALL(cli_file_bundle, PluginsBundleCtx, .path_read = words[2], .name = "g_cli_toolchains_json",
+                    .written = written) ||
+        !EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = written, .bytes = "\n", .size = 1ULL,
+                    .fresh = 0) ||
+        !EMBED_CALL(cli_file_bundle, PluginsBundleCtx, .path_read = words[3], .name = "g_cli_commands_json",
+                    .written = written))
     {
         return 1;
     }
-    return EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = words[4],
-                      .bytes = s_out, .size = out.at)
-               ? 0
-               : 1;
+    if (s_plugins_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_plugins_cell, g_cli_bundle_owner);
+    }
+    return 0;
 }
