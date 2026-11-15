@@ -213,6 +213,17 @@ void test_windows_a_library_a_library_loads_found_nowhere_is_missing(void)
 #endif
 }
 
+void test_windows_a_library_two_files_load_is_reported_once_by_the_first(void)
+{
+#if defined(_WIN32)
+    program_read();
+    TEST_ASSERT_EQUAL_UINT(4u, s_report.libraries);
+    assert_found("kernel32.dll", CLI_FOUND_SYSTEM, "main.exe");
+#else
+    TEST_IGNORE_MESSAGE("the Windows loader's search");
+#endif
+}
+
 void test_windows_a_delayed_import_found_nowhere_is_missing(void)
 {
 #if defined(_WIN32)
