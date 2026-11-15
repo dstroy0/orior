@@ -1942,6 +1942,33 @@ EMBED_INLINE unsigned int branch_entered_astray(const DocumentBranchCtx *args)
     return CLI_DOC_NONE;
 }
 
+// whether the walk writes a telemetry line a step to the error stream, which the window turns on
+static int s_telemetry;
+
+// the walk's telemetry line: `walk <key> colored <first> <end> origin <origin>`, the lines of the text under the key
+// the step colored, from `low` to before `high`, and the line the walk spread out from
+EMBED_INLINE void branch_telemetry(const DocumentBranchCtx *args)
+{
+    char text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    mmgr_line_put(&line, "walk ");
+    mmgr_line_put(&line, args->one_read->key);
+    mmgr_line_put(&line, " colored ");
+    mmgr_line_decimal(&line, args->low, 1u);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, args->high, 1u);
+    mmgr_line_put(&line, " origin ");
+    mmgr_line_decimal(&line, args->line, 1u);
+    mmgr_line_ch(&line, '\n');
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
+               .length = mmgr_line_finish(&line));
+}
+
+void cli_document_telemetry_on(void)
+{
+    s_telemetry = 1;
+}
+
 EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
 {
     CliStoredText *one = args->one;
@@ -1996,6 +2023,10 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
                    .out = NULL, .columns = one->columns, .bytes = CLI_DOC_STEP_BYTES, .high = high);
     EMBED_CALL(branch_range_color, DocumentBranchCtx, .one = one, .first = first, .end = end, .onward = 1,
                .range = &range);
+    if (s_telemetry)
+    {
+        EMBED_CALL(branch_telemetry, DocumentBranchCtx, .one_read = one, .low = first, .high = end, .line = origin);
+    }
     return 1;
 }
 

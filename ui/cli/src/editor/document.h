@@ -192,6 +192,9 @@ CliDocumentNames *cli_document_names_alloc(const CliDocumentNamesCfg *args);
 void cli_document_colors_to(const CliDocumentColoredCfg *args);
 int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args);
 void cli_document_walk(void);
+// the walk's telemetry turned on: a line to the error stream a step, the text's key, the lines colored and the origin
+// (document_branch.c)
+void cli_document_telemetry_on(void);
 // how many walkers walk the texts' colors out on threads of their own now (document_branch.c)
 unsigned int cli_document_walkers(void);
 // the lines from `first` to `last` of the text under `key` as UTF-8, each but the last followed by "\n", in a cell

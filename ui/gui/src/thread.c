@@ -8,6 +8,7 @@
 #include "thread.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
+#include "../../cli/src/editor/document.h"
 #include "../../cli/src/command_line/command_line.h"
 #include "../../cli/src/command_line/rings.h"
 #include "window.h"
@@ -778,6 +779,8 @@ static void view_run(void *context)
 {
     (void)context;
     GuiWindow *const window = &s_view.window;
+    cli_document_telemetry_on();
+    window->telemetry = 1;
     for (;;)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_view.wake);

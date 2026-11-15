@@ -13,6 +13,7 @@
 #include "../../cli/src/code/git.h"
 #include "../../cli/src/code/references.h"
 #include "../../cli/src/command_line/callback_cfg.h"
+#include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/comms/comms.h"
 #include "faces.h"
 #include "pages.h"
@@ -4297,6 +4298,44 @@ EMBED_INLINE void window_displayed(const GuiWindowCtx *args)
     EMBED_CALL(window_session_save, GuiWindowCtx, .window = args->window);
 }
 
+// the frame's telemetry line to the error stream: `frame <key> <view> line <cursor line> runs <count>` and up to eight
+// of the cursor's row's runs as column:name, `key` saying what moved the frame, read by the harness as the window is
+// driven
+EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
+{
+    const CliViewFrame *const frame = args->window->editor.frame;
+    const char *const view = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
+    if (!args->window->telemetry || (frame == NULL) || (view == NULL))
+    {
+        return;
+    }
+    const int on_frame = (frame->cursor.line >= frame->from) && ((frame->cursor.line - frame->from) < frame->count);
+    // a row of the frame is far fewer than an int counts
+    const unsigned int row = on_frame ? (unsigned int)(frame->cursor.line - frame->from) : 0u;
+    const unsigned int runs = (on_frame && (frame->runs != NULL)) ? frame->runs->line[row].runs : 0u;
+    char text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    mmgr_line_put(&line, "frame ");
+    mmgr_line_put(&line, args->key);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_put(&line, view);
+    mmgr_line_put(&line, " line ");
+    mmgr_line_decimal(&line, frame->cursor.line, 1u);
+    mmgr_line_put(&line, " runs ");
+    mmgr_line_decimal(&line, runs, 1u);
+    for (unsigned int at = 0u; (at < runs) && (at < 8u); at += 1u)
+    {
+        const CliDocumentLineRuns held = frame->runs->line[row];
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_decimal(&line, frame->runs->word_text[held.at + at], 1u);
+        mmgr_line_ch(&line, ':');
+        mmgr_line_decimal(&line, frame->runs->word_text[held.at + runs + at], 1u);
+    }
+    mmgr_line_ch(&line, '\n');
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
+               .length = mmgr_line_finish(&line));
+}
+
 // `view_input` passed to the view displayed, its frame taken anew; `edited` where it may have edited the text
 EMBED_INLINE void window_view_input(const GuiWindowCtx *args)
 {
@@ -4310,6 +4349,10 @@ EMBED_INLINE void window_view_input(const GuiWindowCtx *args)
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = args->view_input,
                      .err_msg = &err_msg);
     EMBED_CALL(window_view_take, GuiWindowCtx, .window = args->window, .edited = args->edited);
+    if (args->edited)
+    {
+        EMBED_CALL(window_frame_telemetry, GuiWindowCtx, .window = args->window, .key = "edit");
+    }
 }
 
 // the view at `at` displayed, the one displayed before it saved
@@ -5656,6 +5699,7 @@ void gui_window_step(const GuiWindowCfg *args)
         // the colorer colored more lines: their runs, the map's colors, the crumbs and the outline can change, and the
         // text cannot
         EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1, .on = 1);
+        EMBED_CALL(window_frame_telemetry, GuiWindowCtx, .window = window, .key = "colored");
         EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = window, .event = GUI_PANE_VIEW, .on = 1);
         window->pending = 1;
     }

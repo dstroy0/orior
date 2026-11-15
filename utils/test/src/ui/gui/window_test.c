@@ -441,6 +441,7 @@ static unsigned int row_runs_waited(unsigned int row, unsigned long long millise
 }
 
 static void cursor_put(unsigned long long line, unsigned long long col);
+static void stepped_for(unsigned long long milliseconds);
 
 // a C file opened and typed into: the line typed into is colored again after each edit, its runs back in the frame
 static void typed_colored_checked(void)
@@ -462,6 +463,51 @@ static void typed_colored_checked(void)
     cli_check(asked("undo", NULL), "the text typed undoes");
     cli_check(asked("save", NULL) && file_reads("typed.c", "int one(void)\n{\n    xyreturn 1;\n}\n"),
               "text typed at a line's head and a line break after it undo back to the text as it was");
+    (void)asked("close-all", NULL);
+    (void)asked("close-all", NULL);
+}
+
+// the runs of the row `row` copied into `words`, `capacity` runs at most, a column then a name a run: how many runs
+static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsigned int capacity)
+{
+    const CliViewFrame *const frame = s_window.editor.frame;
+    const unsigned int runs = row_runs(row);
+    if ((runs == 0u) || (runs > capacity))
+    {
+        return 0u;
+    }
+    const CliDocumentLineRuns line = frame->runs->line[row];
+    for (unsigned int at = 0u; at < runs; at += 1u)
+    {
+        words[2u * at] = frame->runs->word_text[line.at + at];
+        words[(2u * at) + 1u] = frame->runs->word_text[line.at + runs + at];
+    }
+    return runs;
+}
+
+// a C file with an include opened, the include's closing quote erased and typed back: the line's runs are as they
+// were before, the string colored as a string
+static void retyped_colored_checked(void)
+{
+    tabs_closed("retyped.c", "#include \"a.h\"\nint one;\n", NULL, NULL);
+    cli_check(tab_opened("retyped.c"), "a C file with an include opens for the retyping check");
+    cli_check(row_runs_waited(0u, 3000ULL) > 0u, "the walk colors the include line");
+    unsigned int before[64];
+    const unsigned int before_runs = row_runs_copied(0u, before, 32u);
+    cursor_put(0ULL, 14ULL);
+    key_pressed("Backspace");
+    stepped_for(400ULL);
+    typed("\"");
+    stepped_for(400ULL);
+    cli_check(row_runs_waited(0u, 3000ULL) > 0u, "the line is colored again after the quote is typed back");
+    unsigned int after[64];
+    const unsigned int after_runs = row_runs_copied(0u, after, 32u);
+    int same = (before_runs != 0u) && (after_runs == before_runs);
+    for (unsigned int at = 0u; same && (at < (2u * before_runs)); at += 1u)
+    {
+        same = before[at] == after[at];
+    }
+    cli_check(same, "the line's runs after the quote is typed back are as they were before it was erased");
     (void)asked("close-all", NULL);
     (void)asked("close-all", NULL);
 }
@@ -1491,12 +1537,13 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[24] = {{"saves", saves_checked},
+static const WindowCheck s_checks[25] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
                                          {"cells_rounds", cells_rounds_checked},
                                          {"typed_colored", typed_colored_checked},
+                                         {"retyped_colored", retyped_colored_checked},
                                          {"reduce_motion", reduce_motion_checked},
                                          {"place", place_checked},
                                          {"table", table_checked},
@@ -1566,7 +1613,7 @@ int main(void)
                                                                        .other = s_root + past_slash,
                                                                        .other_cap = CLI_PATH_MAX_LEN}),
               "the window's title is the tree's name, the last part of its folder");
-    for (unsigned int at = 0u; at < 22u; at += 1u)
+    for (unsigned int at = 0u; at < (sizeof(s_checks) / sizeof(s_checks[0])); at += 1u)
     {
         if (check_wanted(s_checks[at].name))
         {
