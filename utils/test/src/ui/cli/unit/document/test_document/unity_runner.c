@@ -35,6 +35,7 @@ extern void test_a_stored_text_is_found_and_its_joined_lines_created_again_after
 extern void test_a_branch_is_colored_by_a_grammar(void);
 extern void test_a_text_read_complete_names_the_lines_the_page_stores(void);
 extern void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(void);
+extern void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were(void);
 extern void test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar(void);
 
 
@@ -121,7 +122,8 @@ int main(void)
   run_test(test_a_branch_is_colored_by_a_grammar, "test_a_branch_is_colored_by_a_grammar", 428);
   run_test(test_a_text_read_complete_names_the_lines_the_page_stores, "test_a_text_read_complete_names_the_lines_the_page_stores", 434);
   run_test(test_a_lines_entered_state_reads_back_by_its_number_after_the_walk, "test_a_lines_entered_state_reads_back_by_its_number_after_the_walk", 440);
-  run_test(test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar, "test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar", 447);
+  run_test(test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were, "test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were", 553);
+  run_test(test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar, "test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar", 586);
 
   return UNITY_END();
 }

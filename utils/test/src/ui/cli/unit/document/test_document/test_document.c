@@ -444,6 +444,145 @@ void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(void)
     TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){.src = s_branch_entered, .cap = sizeof(s_branch_entered), .other = "comment", .other_cap = 8ull}));
 }
 
+// the lines of the text whose runs cell is compacted while the pool is starved, and the bytes left between the tiers
+// for it: the compaction's work cell fits them and the cell it moves the runs into does not; the cell a hole that
+// holds one of the moved cell is taken in, and the cut's margin; and the cells the starving takes at max
+#define DOCUMENT_COMPACT_LINES 4000u
+#define DOCUMENT_COMPACT_LEFT (136ull << 10u)
+#define DOCUMENT_COMPACT_HOLE (64ull << 10u)
+#define DOCUMENT_COMPACT_MARGIN (32ull << 10u)
+#define DOCUMENT_COMPACT_CELLS 4096u
+
+// the cells of the checks' own that starve the pool: the persistent ones, the cut among them, and the temporary ones
+static void *s_starved[DOCUMENT_COMPACT_CELLS];
+static unsigned int s_starved_count;
+static void *s_starved_temporary[DOCUMENT_COMPACT_CELLS];
+static unsigned int s_starved_temporary_count;
+
+// cells of `bytes` of `tier` taken until the pool refuses one, kept among the starving cells: 1, or 0 where the
+// starving cells are at max
+static int pool_taken_until_refused(unsigned long long bytes, int temporary)
+{
+    void **const cells = temporary ? s_starved_temporary : s_starved;
+    unsigned int *const count = temporary ? &s_starved_temporary_count : &s_starved_count;
+    while (*count < DOCUMENT_COMPACT_CELLS)
+    {
+        cells[*count] = temporary ? g_cli_guard->temporary_buf_alloc(bytes, g_checks_owner) : g_cli_guard->persistent_buf_alloc(bytes, g_checks_owner);
+        if (cells[*count] == NULL)
+        {
+            return 1;
+        }
+        *count += 1u;
+    }
+    return 0;
+}
+
+// a take the pool cannot meet, after which the persistent tier's boundary is trimmed of the cells let go at it, which the
+// pool does as it sweeps for a free run
+static void pool_trimmed(void)
+{
+    TEST_ASSERT_NULL(g_cli_guard->persistent_buf_alloc(64ull << 20u, g_checks_owner));
+}
+
+// The pool starved so that a compaction's work cell fits the bytes between the tiers and the cell it moves the
+// runs into does not, with no hole in either tier that holds the moved cell. A take spills into a hole only once
+// the bytes between the tiers refuse it: the bytes are cut to the margin first, the holes of both tiers that
+// hold the moved cell taken, then the cut let go and the bytes between the tiers cut to the bytes left
+static void pool_starved(void)
+{
+    s_starved_count = 0u;
+    s_starved_temporary_count = 0u;
+    TEST_ASSERT_TRUE(pool_taken_until_refused(8ull << 20u, 0) && pool_taken_until_refused(1ull << 20u, 0));
+    while ((s_starved_count != 0u) && (g_cli_guard->buf_available() < (DOCUMENT_COMPACT_LEFT + DOCUMENT_COMPACT_MARGIN)))
+    {
+        s_starved_count -= 1u;
+        g_cli_guard->persistent_buf_release(s_starved[s_starved_count], g_checks_owner);
+        pool_trimmed();
+    }
+    const unsigned long long before = g_cli_guard->buf_available();
+    TEST_ASSERT_TRUE(before >= (DOCUMENT_COMPACT_LEFT + DOCUMENT_COMPACT_MARGIN));
+    const unsigned int cut = s_starved_count;
+    s_starved[cut] = g_cli_guard->persistent_buf_alloc(before - DOCUMENT_COMPACT_MARGIN, g_checks_owner);
+    TEST_ASSERT_NOT_NULL(s_starved[cut]);
+    s_starved_count += 1u;
+    TEST_ASSERT_TRUE(pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 0) && pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 1));
+    g_cli_guard->persistent_buf_release(s_starved[cut], g_checks_owner);
+    pool_trimmed();
+    const unsigned long long available = g_cli_guard->buf_available();
+    TEST_ASSERT_TRUE(available >= DOCUMENT_COMPACT_LEFT);
+    s_starved[cut] = g_cli_guard->persistent_buf_alloc(available - DOCUMENT_COMPACT_LEFT, g_checks_owner);
+    TEST_ASSERT_NOT_NULL(s_starved[cut]);
+}
+
+// the starving cells given back
+static void pool_given_back(void)
+{
+    for (unsigned int at = 0u; at < s_starved_temporary_count; at += 1u)
+    {
+        g_cli_guard->persistent_buf_release(s_starved_temporary[at], g_checks_owner);
+    }
+    for (unsigned int at = 0u; at < s_starved_count; at += 1u)
+    {
+        g_cli_guard->persistent_buf_release(s_starved[at], g_checks_owner);
+    }
+    s_starved_temporary_count = 0u;
+    s_starved_count = 0u;
+}
+
+// the runs the line `line` of the text under `key` saves, 0 where it saves none
+static unsigned int runs_of(const char *key, unsigned long long line)
+{
+    const unsigned long long number[1] = {line};
+    CliDocumentRuns *const read = EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = key, .number = number, .count = 1ull, .mirrored = 0, .owner = g_cli_editor_owner);
+    const unsigned int runs = (read != NULL) ? read->line[0].runs : 0u;
+    g_cli_guard->persistent_buf_release(read, g_cli_editor_owner);
+    return runs;
+}
+
+// the line `line` of the text under `key` replaced with `text`
+static void line_rewritten(const char *key, unsigned int line, unsigned int length, const char *text)
+{
+    const CliEdit edit[1] = {{{line, 0u}, {line, length}, text, CLI_UNITY_LENGTH(text)}};
+    const CliEdit *const changes[1] = {edit};
+    const unsigned int counts[1] = {1u};
+    CliShape shape;
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = key, .changes = changes, .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg));
+}
+
+void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were(void)
+{
+    // the text's first line has three runs and its third five; the second is rewritten twice with many runs and the
+    // runs cell is compacted with the second line's record last; then the first line is rewritten while the pool has
+    // room for the compaction's work cell alone and the compaction is refused: the third line's runs are its own
+    static char s_compact[4u * DOCUMENT_COMPACT_LINES];
+    VerbaLinea text = {s_compact, sizeof(s_compact), 0ull};
+    mmgr_line_put(&text, "x y\nb\nx y z\n");
+    for (unsigned int line = 3u; line < DOCUMENT_COMPACT_LINES; line += 1u)
+    {
+        mmgr_line_put(&text, "b\n");
+    }
+    CliShape shape;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "compact", .text = s_compact, .size = text.at, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "compact", .grammar = "branch", .named = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "compact", .from = 0ull, .to = DOCUMENT_COMPACT_LINES));
+    cli_document_walk();
+    TEST_ASSERT_EQUAL_UINT(3u, runs_of("compact", 0ull));
+    TEST_ASSERT_EQUAL_UINT(5u, runs_of("compact", 2ull));
+    line_rewritten("compact", 1u, 1u, "a b c d e f g h i j k l m n o p");
+    cli_document_walk();
+    line_rewritten("compact", 1u, 31u, "p o n m l k j i h g f e d c b a");
+    cli_document_walk();
+    TEST_ASSERT_EQUAL_UINT(31u, runs_of("compact", 1ull));
+    line_rewritten("compact", 0u, 3u, "x");
+    pool_starved();
+    cli_document_walk();
+    const unsigned int third = runs_of("compact", 2ull);
+    pool_given_back();
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "compact");
+    TEST_ASSERT_EQUAL_UINT(5u, third);
+}
+
 void test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar(void)
 {
     paged_run_result();

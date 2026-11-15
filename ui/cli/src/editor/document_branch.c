@@ -603,8 +603,8 @@ EMBED_INLINE unsigned int branch_line_runs(const DocumentBranchCtx *args)
 }
 
 // the words of the runs the lines of `one` save gathered in the order of their lines into a cell sized to them with
-// `more` words after them, in place of the cell they was in: 1, or 0 where the cells cannot meet it, the runs as
-// they were
+// `more` words after them, in place of the cell they was in: 1, or 0 where the cells cannot meet it, the runs and
+// their places as they were. Both cells are taken before a line's place moves, so a refusal changes nothing
 EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one->lines;
@@ -625,10 +625,17 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
     {
         return 0;
     }
-    // the records gathered in their lines' order in a work cell, then a cell sized to them and the words added taken
+    // the records gathered in their lines' order in a work cell, then a cell sized to them and the words added
     unsigned int *const work = g_cli_guard->temporary_buf_alloc(capacity * sizeof(*work), g_cli_editor_owner);
     if (work == NULL)
     {
+        return 0;
+    }
+    const CarcerMovableEntry *const moved =
+        (capacity != 0ULL) ? g_cli_guard->movable_buf_alloc(capacity * sizeof(*work), g_cli_editor_owner) : NULL;
+    if ((moved == NULL) && (capacity != 0ULL))
+    {
+        g_cli_guard->persistent_buf_release(work, g_cli_editor_owner);
         return 0;
     }
     unsigned int used = 0u;
@@ -656,13 +663,6 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
             }
             used += words;
         }
-    }
-    const CarcerMovableEntry *const moved =
-        (capacity != 0ULL) ? g_cli_guard->movable_buf_alloc(capacity * sizeof(*work), g_cli_editor_owner) : NULL;
-    if ((moved == NULL) && (capacity != 0ULL))
-    {
-        g_cli_guard->persistent_buf_release(work, g_cli_editor_owner);
-        return 0;
     }
     if (used != 0u)
     {
