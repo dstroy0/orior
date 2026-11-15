@@ -121,6 +121,8 @@ unsigned int cli_line_list(void)
     return s_line;
 }
 
+typedef struct CommandsCell CommandsCell;
+
 typedef struct
 {
     unsigned int object;
@@ -135,6 +137,26 @@ typedef struct
     unsigned int count;
     unsigned int capacity_u32;
     const char *keys_tail;
+    CommandsCell *held;
+    unsigned long long bytes;
+    const char *text;
+    unsigned long long length;
+    const char *command;
+    unsigned int level;
+    int from;
+    int by;
+    const CliItem *own;
+    unsigned int rows;
+    unsigned long long cap;
+    CliItem *chosen;
+    char character;
+    const char *required;
+    int *alt;
+    int *modded;
+    int *chose;
+    unsigned int *mods;
+    unsigned long long *rest;
+    int by_command;
 } CommandsCtx;
 // the string member `name` of the object at token `object` into `out`, sized for `capacity`; empty where it has none
 EMBED_INLINE void cli_member_text(const CommandsCtx *args)
@@ -212,22 +234,22 @@ EMBED_INLINE const char *cli_member_string(const CommandsCtx *args)
 }
 
 // A movable cell of records grown as records are added: the cell, how many bytes are used and its capacity
-typedef struct
+struct CommandsCell
 {
     const CarcerMovableEntry *cell;
     unsigned long long used;
     unsigned long long capacity;
-} CommandsCell;
+};
 
 // `bytes` more of `held` claimed: where they start, or CLI_TEXT_NONE where the cells refuse the growth. A cell they
 // outgrow is replaced by one of twice the capacity until they fit, its bytes copied through and the old given back
 #define CLI_TEXT_NONE 0xffffffffffffffffULL
-static unsigned long long commands_cell_claim(CommandsCell *held, unsigned long long bytes)
+static unsigned long long commands_cell_claim(const CommandsCtx *args)
 {
-    if (held->used + bytes > held->capacity)
+    if (args->held->used + args->bytes > args->held->capacity)
     {
-        unsigned long long capacity = (held->capacity != 0ULL) ? held->capacity : 1024ULL;
-        while (capacity < held->used + bytes)
+        unsigned long long capacity = (args->held->capacity != 0ULL) ? args->held->capacity : 1024ULL;
+        while (capacity < args->held->used + args->bytes)
         {
             capacity *= 2ULL;
         }
@@ -236,42 +258,43 @@ static unsigned long long commands_cell_claim(CommandsCell *held, unsigned long 
         {
             return CLI_TEXT_NONE;
         }
-        for (unsigned long long at = 0ULL; at < held->used; at += CLI_LABEL_MAX_LEN)
+        for (unsigned long long at = 0ULL; at < args->held->used; at += CLI_LABEL_MAX_LEN)
         {
             char piece[CLI_LABEL_MAX_LEN];
-            const unsigned long long left = held->used - at;
+            const unsigned long long left = args->held->used - at;
             const unsigned long long size = (left < sizeof(piece)) ? left : sizeof(piece);
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = held->cell, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
+                .cell = args->held->cell, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
             (void)g_cli_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = grown, .offset = (embed_word)at, .src = piece, .bytes = (embed_word)size});
         }
-        if (held->cell != NULL)
+        if (args->held->cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(held->cell, g_cli_command_line_owner);
+            (void)g_cli_guard->movable_buf_release(args->held->cell, g_cli_command_line_owner);
         }
-        held->cell = grown;
-        held->capacity = capacity;
+        args->held->cell = grown;
+        args->held->capacity = capacity;
     }
-    const unsigned long long at = held->used;
-    held->used += bytes;
+    const unsigned long long at = args->held->used;
+    args->held->used += args->bytes;
     return at;
 }
 
 // `length` bytes of `text` and a zero after them written at the end of `held`: where they start, or CLI_TEXT_NONE
 // where the cells refuse the growth
-static unsigned long long commands_text_put(CommandsCell *held, const char *text, unsigned long long length)
+static unsigned long long commands_text_put(const CommandsCtx *args)
 {
-    const unsigned long long at = commands_cell_claim(held, length + 1ULL);
+    const unsigned long long at =
+        EMBED_CALL(commands_cell_claim, CommandsCtx, .held = args->held, .bytes = args->length + 1ULL);
     if (at == CLI_TEXT_NONE)
     {
         return at;
     }
     const char zero = '\0';
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = held->cell, .offset = (embed_word)at, .src = text, .bytes = (embed_word)length});
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = held->cell, .offset = (embed_word)(at + length), .src = &zero, .bytes = 1u});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = args->held->cell, .offset = (embed_word)at, .src = args->text, .bytes = (embed_word)args->length});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = args->held->cell, .offset = (embed_word)(at + args->length), .src = &zero, .bytes = 1u});
     return at;
 }
 
@@ -294,7 +317,7 @@ static CommandsOwnKeys s_keys_own;
 
 // where the keys the reader gives the command `command` start in the own keys' text, or CLI_TEXT_NONE where the
 // reader gives it none
-static unsigned long long commands_own_keys_at(const char *command)
+static unsigned long long commands_own_keys_at(const CommandsCtx *args)
 {
     for (unsigned int at = 0u; at < s_keys_own.count; at += 1u)
     {
@@ -315,7 +338,7 @@ static unsigned long long commands_own_keys_at(const char *command)
                                                                 .dst = named,
                                                                 .bytes = (embed_word)named_length});
         named[named_length] = '\0';
-        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = command, .cap = CLI_LABEL_MAX_LEN}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->command, .cap = CLI_LABEL_MAX_LEN}))
         {
             return pair.keys_at;
         }
@@ -357,12 +380,16 @@ void cli_commands_keys_own(const CliMenusCfg *args)
         named_already = cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->command, .cap = CLI_LABEL_MAX_LEN});
         at += named_already ? 0u : 1u;
     }
-    const unsigned long long pair_at = (at == s_keys_own.count)
-                                           ? commands_cell_claim(&s_keys_own.pair, sizeof(CommandsOwnKey))
-                                           : (unsigned long long)at * sizeof(CommandsOwnKey);
-    const unsigned long long command_at =
-        (at == s_keys_own.count) ? commands_text_put(&s_keys_own.text, args->command, command_length) : pair.command_at;
-    const unsigned long long keys_at = commands_text_put(&s_keys_own.text, args->keys, keys_length);
+    const unsigned long long pair_at =
+        (at == s_keys_own.count)
+            ? EMBED_CALL(commands_cell_claim, CommandsCtx, .held = &s_keys_own.pair, .bytes = sizeof(CommandsOwnKey))
+            : (unsigned long long)at * sizeof(CommandsOwnKey);
+    const unsigned long long command_at = (at == s_keys_own.count)
+                                              ? EMBED_CALL(commands_text_put, CommandsCtx, .held = &s_keys_own.text,
+                                                           .text = args->command, .length = command_length)
+                                              : pair.command_at;
+    const unsigned long long keys_at =
+        EMBED_CALL(commands_text_put, CommandsCtx, .held = &s_keys_own.text, .text = args->keys, .length = keys_length);
     if ((pair_at == CLI_TEXT_NONE) || (command_at == CLI_TEXT_NONE) || (keys_at == CLI_TEXT_NONE))
     {
         return;
@@ -388,7 +415,8 @@ EMBED_INLINE void cli_item_read(const CommandsCtx *args)
     // the reader's own keys over the list's: in the items' cell's tail, a copy of the own keys' text, where the
     // item is one of a cell of items; else in the one row's keys
     const unsigned long long keys_at =
-        (s_keys_own.count != 0u) ? commands_own_keys_at(args->item->command) : CLI_TEXT_NONE;
+        (s_keys_own.count != 0u) ? EMBED_CALL(commands_own_keys_at, CommandsCtx, .command = args->item->command)
+                                 : CLI_TEXT_NONE;
     if ((keys_at != CLI_TEXT_NONE) && (args->keys_tail != NULL))
     {
         args->item->keys = args->keys_tail + keys_at;
@@ -789,11 +817,11 @@ const char *cli_menu_title_text(const CliMenusCfg *args)
 
 // the row `at` of the list `list` as a menu shows it, a line or an item neither hidden nor filled in as the menu opens,
 // read into `item`, where `item` is not NULL: 1, or 0 past them; and how many rows it shows
-static int commands_list_row(unsigned int list, unsigned int at, CliItem *item)
+static int commands_list_row(const CommandsCtx *args)
 {
     unsigned int seen = 0u;
-    unsigned int token = list + 1u;
-    for (unsigned int each = 0u; (list != 0u) && (each < s_tokens[list].count); each += 1u)
+    unsigned int token = args->list + 1u;
+    for (unsigned int each = 0u; (args->list != 0u) && (each < s_tokens[args->list].count); each += 1u)
     {
         CliItem read;
         if (s_tokens[token].type == CFG_JSON_OBJECT)
@@ -806,11 +834,11 @@ static int commands_list_row(unsigned int list, unsigned int at, CliItem *item)
         }
         const int shows = (s_tokens[token].type == CFG_JSON_STRING) ||
                           ((s_tokens[token].type == CFG_JSON_OBJECT) && !read.hidden && !read.fill);
-        if (shows && (seen == at))
+        if (shows && (seen == args->at))
         {
-            if (item != NULL)
+            if (args->item != NULL)
             {
-                *item = read;
+                *args->item = read;
             }
             return 1;
         }
@@ -820,10 +848,10 @@ static int commands_list_row(unsigned int list, unsigned int at, CliItem *item)
     return 0;
 }
 
-static unsigned int commands_list_rows(unsigned int list)
+static unsigned int commands_list_rows(const CommandsCtx *args)
 {
     unsigned int count = 0u;
-    while (commands_list_row(list, count, NULL))
+    while (EMBED_CALL(commands_list_row, CommandsCtx, .list = args->list, .at = count, .item = NULL))
     {
         count += 1u;
     }
@@ -848,7 +876,7 @@ int cli_menus_row(const CliMenusCfg *args)
     }
     if (menu->list != 0u)
     {
-        return commands_list_row(menu->list, args->at, args->item);
+        return EMBED_CALL(commands_list_row, CommandsCtx, .list = menu->list, .at = args->at, .item = args->item);
     }
     // the titles folded from the bar, each a row of its menu's items
     const unsigned int title_menu = cli_menu_title_menu(&(CliMenusCfg){.at = g_cli_menus_open.displayed + args->at});
@@ -877,15 +905,15 @@ int cli_menus_selectable(const CliMenusCfg *args)
 
 // the row the mark steps to from `from` by `by` around the menu at `level`, past lines and rows that cannot be chosen:
 // its place, or -1 where none can
-static int commands_row_step(unsigned int level, int from, int by)
+static int commands_row_step(const CommandsCtx *args)
 {
     // the rows are fewer than an int counts
-    const int rows = (int)g_cli_menus_open.level[level].rows;
-    int at = from;
+    const int rows = (int)g_cli_menus_open.level[args->level].rows;
+    int at = args->from;
     for (int step = 0; (rows != 0) && (step < rows); step += 1)
     {
-        at = ((at + by) % rows + rows) % rows;
-        if (cli_menus_selectable(&(CliMenusCfg){.level = level, .at = (unsigned int)at}))
+        at = ((at + args->by) % rows + rows) % rows;
+        if (cli_menus_selectable(&(CliMenusCfg){.level = args->level, .at = (unsigned int)at}))
         {
             return at;
         }
@@ -894,10 +922,11 @@ static int commands_row_step(unsigned int level, int from, int by)
 }
 
 // the menu at `level` opened on `list` or `own` rows, the next number taken
-static void commands_level_open(unsigned int level, unsigned int list, const CliItem *own, unsigned int rows)
+static void commands_level_open(const CommandsCtx *args)
 {
     g_cli_menus_open.serials += 1u;
-    g_cli_menus_open.level[level] = (CliMenuOpen){list, own, 0, rows, -1, -1, g_cli_menus_open.serials};
+    g_cli_menus_open.level[args->level] =
+        (CliMenuOpen){args->list, args->own, 0, args->rows, -1, -1, g_cli_menus_open.serials};
 }
 
 void cli_menus_close(const CliMenusCfg *args)
@@ -929,8 +958,8 @@ void cli_menus_title_open(const CliMenusCfg *args)
     const unsigned int titles = cli_menu_titles();
     if (g_cli_menus_open.folded && (args->at >= g_cli_menus_open.displayed))
     {
-        commands_level_open(0u, 0u, NULL,
-                            (titles > g_cli_menus_open.displayed) ? (titles - g_cli_menus_open.displayed) : 0u);
+        EMBED_CALL(commands_level_open, CommandsCtx, .level = 0u, .list = 0u, .own = NULL,
+                   .rows = (titles > g_cli_menus_open.displayed) ? (titles - g_cli_menus_open.displayed) : 0u);
     }
     else
     {
@@ -938,12 +967,14 @@ void cli_menus_title_open(const CliMenusCfg *args)
             (args->at < titles)
                 ? cli_menu_list(&(CliMenusCfg){.menu = cli_menu_title_menu(&(CliMenusCfg){.at = args->at})})
                 : 0u;
-        commands_level_open(0u, list, NULL, commands_list_rows(list));
+        EMBED_CALL(commands_level_open, CommandsCtx, .level = 0u, .list = list, .own = NULL,
+                   .rows = EMBED_CALL(commands_list_rows, CommandsCtx, .list = list));
     }
     g_cli_menus_open.levels = 1u;
     // the titles are fewer than an int counts
     g_cli_menus_open.open = (int)args->at;
-    g_cli_menus_open.level[0].pointed = args->marked ? commands_row_step(0u, -1, 1) : -1;
+    g_cli_menus_open.level[0].pointed =
+        args->marked ? EMBED_CALL(commands_row_step, CommandsCtx, .level = 0u, .from = -1, .by = 1) : -1;
 }
 
 void cli_menus_row_open(const CliMenusCfg *args)
@@ -955,23 +986,25 @@ void cli_menus_row_open(const CliMenusCfg *args)
         return;
     }
     cli_menus_close(&(CliMenusCfg){.level = args->level + 1u});
-    commands_level_open(args->level + 1u, item.list, NULL, commands_list_rows(item.list));
+    EMBED_CALL(commands_level_open, CommandsCtx, .level = args->level + 1u, .list = item.list, .own = NULL,
+               .rows = EMBED_CALL(commands_list_rows, CommandsCtx, .list = item.list));
     g_cli_menus_open.levels = args->level + 2u;
     // the row is among the rows, which an int counts
     g_cli_menus_open.level[args->level].opened = (int)args->at;
-    g_cli_menus_open.level[args->level + 1u].pointed = args->marked ? commands_row_step(args->level + 1u, -1, 1) : -1;
+    g_cli_menus_open.level[args->level + 1u].pointed =
+        args->marked ? EMBED_CALL(commands_row_step, CommandsCtx, .level = args->level + 1u, .from = -1, .by = 1) : -1;
 }
 
 void cli_menus_own_open(const CliMenusCfg *args)
 {
     cli_menus_close(&(CliMenusCfg){.level = 0u});
-    commands_level_open(0u, 0u, args->rows, args->count);
+    EMBED_CALL(commands_level_open, CommandsCtx, .level = 0u, .list = 0u, .own = args->rows, .rows = args->count);
     g_cli_menus_open.level[0].own_rows = args->rows == NULL;
     g_cli_menus_open.levels = 1u;
     g_cli_menus_open.place = args->place;
     g_cli_menus_open.x = args->x;
     g_cli_menus_open.y = args->y;
-    g_cli_menus_open.level[0].pointed = commands_row_step(0u, -1, 1);
+    g_cli_menus_open.level[0].pointed = EMBED_CALL(commands_row_step, CommandsCtx, .level = 0u, .from = -1, .by = 1);
 }
 
 // A row of a part's own, as built: the item, and where its label and its args stand in the own rows' text, each
@@ -995,10 +1028,11 @@ static CommandsOwnRows s_own;
 
 // `text` copied to the end of the own rows' text: where the copy starts, or CLI_TEXT_NONE where `text` is NULL or
 // the cells refuse the copy
-static unsigned long long commands_own_text(const char *text, unsigned long long cap)
+static unsigned long long commands_own_text(const CommandsCtx *args)
 {
-    return (text != NULL)
-               ? commands_text_put(&s_own.text, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = cap}))
+    return (args->text != NULL)
+               ? EMBED_CALL(commands_text_put, CommandsCtx, .held = &s_own.text, .text = args->text,
+                            .length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = args->cap}))
                : CLI_TEXT_NONE;
 }
 
@@ -1011,13 +1045,15 @@ void cli_menus_own_begin(void)
 
 void cli_menus_own_row(const CliMenusCfg *args)
 {
-    const unsigned long long at = commands_cell_claim(&s_own.row, sizeof(CommandsOwnRow));
+    const unsigned long long at =
+        EMBED_CALL(commands_cell_claim, CommandsCtx, .held = &s_own.row, .bytes = sizeof(CommandsOwnRow));
     if (at == CLI_TEXT_NONE)
     {
         return;
     }
-    const CommandsOwnRow row = {*args->item, commands_own_text(args->item->label, CLI_LABEL_MAX_LEN),
-                                commands_own_text(args->item->args, CLI_PATH_MAX_LEN)};
+    const CommandsOwnRow row = {
+        *args->item, EMBED_CALL(commands_own_text, CommandsCtx, .text = args->item->label, .cap = CLI_LABEL_MAX_LEN),
+        EMBED_CALL(commands_own_text, CommandsCtx, .text = args->item->args, .cap = CLI_PATH_MAX_LEN)};
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_own.row.cell, .offset = (embed_word)at, .src = &row, .bytes = sizeof(row)});
     s_own.count += 1u;
@@ -1053,11 +1089,11 @@ int cli_menus_popup(const CliMenusCfg *args)
             continue;
         }
         const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = menu});
-        const unsigned int rows = commands_list_rows(list);
+        const unsigned int rows = EMBED_CALL(commands_list_rows, CommandsCtx, .list = list);
         for (unsigned int at = 0u; at < rows; at += 1u)
         {
             CliItem item;
-            (void)commands_list_row(list, at, &item);
+            (void)EMBED_CALL(commands_list_row, CommandsCtx, .list = list, .at = at, .item = &item);
             // a row runs with the part's word in place of the pattern the list gives
             item.args = item.line ? "" : args->item_args;
             cli_menus_own_row(&(CliMenusCfg){.item = &item});
@@ -1077,7 +1113,7 @@ void cli_menus_own_relabel(const CliMenusCfg *args)
     memor.set(&(MemoriaCfg){.dst = &row, .val = 0, .bytes = sizeof(row)});
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
-    row.label_at = commands_own_text(args->label, CLI_LABEL_MAX_LEN);
+    row.label_at = EMBED_CALL(commands_own_text, CommandsCtx, .text = args->label, .cap = CLI_LABEL_MAX_LEN);
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .src = &row, .bytes = sizeof(row)});
 }
@@ -1155,11 +1191,11 @@ void cli_menus_title_press(const CliMenusCfg *args)
 }
 
 // the row `at` of the menu at `level` chosen into `chosen`, every menu closed: 1 where it has a command
-static int commands_choose(unsigned int level, unsigned int at, CliItem *chosen)
+static int commands_choose(const CommandsCtx *args)
 {
-    const int read = cli_menus_row(&(CliMenusCfg){.level = level, .at = at, .item = chosen});
+    const int read = cli_menus_row(&(CliMenusCfg){.level = args->level, .at = args->at, .item = args->chosen});
     cli_menus_close(&(CliMenusCfg){.level = 0u});
-    return read && (chosen->command[0] != '\0');
+    return read && (args->chosen->command[0] != '\0');
 }
 
 int cli_menus_row_press(const CliMenusCfg *args)
@@ -1177,7 +1213,7 @@ int cli_menus_row_press(const CliMenusCfg *args)
         cli_menus_row_open(&(CliMenusCfg){.level = args->level, .at = args->at, .marked = 1});
         return 0;
     }
-    return commands_choose(args->level, args->at, args->chosen);
+    return EMBED_CALL(commands_choose, CommandsCtx, .level = args->level, .at = args->at, .chosen = args->chosen);
 }
 
 void cli_menus_title_move(const CliMenusCfg *args)
@@ -1237,26 +1273,27 @@ int cli_menus_rest(void)
 }
 
 // a character in lower case
-EMBED_INLINE char commands_lower(char character)
+EMBED_INLINE char commands_lower(const CommandsCtx *args)
 {
-    return ((character >= 'A') && (character <= 'Z')) ? (char)(character - 'A' + 'a') : character;
+    return ((args->character >= 'A') && (args->character <= 'Z')) ? (char)(args->character - 'A' + 'a')
+                                                                  : args->character;
 }
 
 // whether the key `name` is `required`
-EMBED_INLINE int commands_is(const char *name, const char *required)
+EMBED_INLINE int commands_is(const CommandsCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = name, .other = required, .cap = 32ULL});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 32ULL});
 }
 
 // the title on the bar whose character is the single character `name`: each title's character the first of its
 // characters a to z no title before it has; -1 for none
-static int commands_title_character(const char *name)
+static int commands_title_character(const CommandsCtx *args)
 {
-    if ((name[0] == '\0') || (name[1] != '\0'))
+    if ((args->name[0] == '\0') || (args->name[1] != '\0'))
     {
         return -1;
     }
-    const char required = commands_lower(name[0]);
+    const char required = EMBED_CALL(commands_lower, CommandsCtx, .character = args->name[0]);
     int taken[26] = {0};
     const unsigned int titles = cli_menu_titles();
     for (unsigned int at = 0u; (at < titles) && (at < g_cli_menus_open.displayed); at += 1u)
@@ -1267,7 +1304,7 @@ static int commands_title_character(const char *name)
         unsigned int byte = 0u;
         while ((character == '\0') && (text[byte] != '\0'))
         {
-            const char lower = commands_lower(text[byte]);
+            const char lower = EMBED_CALL(commands_lower, CommandsCtx, .character = text[byte]);
             character = ((lower >= 'a') && (lower <= 'z') && !taken[lower - 'a']) ? lower : '\0';
             byte += 1u;
         }
@@ -1286,25 +1323,26 @@ static int commands_title_character(const char *name)
 }
 
 // a key's name read: whether Alt is down, whether any other modifier is, and the key's own name after them
-static const char *commands_key_read(const char *name, int *alt, int *modded)
+static const char *commands_key_read(const CommandsCtx *args)
 {
-    *alt = 0;
-    *modded = 0;
+    const char *name = args->name;
+    *args->alt = 0;
+    *args->modded = 0;
     for (;;)
     {
         if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Alt+", .cap = 64ULL}))
         {
-            *alt = 1;
+            *args->alt = 1;
             name += 4;
         }
         else if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Mod+", .cap = 64ULL}))
         {
-            *modded = 1;
+            *args->modded = 1;
             name += 4;
         }
         else if (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "Shift+", .cap = 64ULL}))
         {
-            *modded = 1;
+            *args->modded = 1;
             name += 6;
         }
         else
@@ -1316,31 +1354,32 @@ static const char *commands_key_read(const char *name, int *alt, int *modded)
 
 // the key `name` taken by the menu open last, `level`: Left and Right step between the menus or out of and into the
 // items under a row, Enter and Space choose or open, a character marks the next row it begins
-static int commands_level_key(const char *name, unsigned int level, CliItem *chosen, int *chose)
+static int commands_level_key(const CommandsCtx *args)
 {
-    CliMenuOpen *const menu = &g_cli_menus_open.level[level];
+    CliMenuOpen *const menu = &g_cli_menus_open.level[args->level];
     const unsigned int slots = g_cli_menus_open.displayed + (g_cli_menus_open.folded ? 1u : 0u);
     CliItem row;
-    const int pointed = (menu->pointed >= 0) &&
-                        cli_menus_row(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed, .item = &row});
-    if (commands_is(name, "Right"))
+    const int pointed =
+        (menu->pointed >= 0) &&
+        cli_menus_row(&(CliMenusCfg){.level = args->level, .at = (unsigned int)menu->pointed, .item = &row});
+    if (EMBED_CALL(commands_is, CommandsCtx, .name = args->name, .required = "Right"))
     {
         if (pointed && (row.list != 0u))
         {
-            cli_menus_row_open(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed, .marked = 1});
+            cli_menus_row_open(&(CliMenusCfg){.level = args->level, .at = (unsigned int)menu->pointed, .marked = 1});
         }
-        else if ((level == 0u) && (slots != 0u) && (g_cli_menus_open.open >= 0))
+        else if ((args->level == 0u) && (slots != 0u) && (g_cli_menus_open.open >= 0))
         {
             // the title open is among the titles
             cli_menus_title_open(&(CliMenusCfg){.at = ((unsigned int)g_cli_menus_open.open + 1u) % slots, .marked = 1});
         }
         return 1;
     }
-    if (commands_is(name, "Left"))
+    if (EMBED_CALL(commands_is, CommandsCtx, .name = args->name, .required = "Left"))
     {
-        if (level > 0u)
+        if (args->level > 0u)
         {
-            cli_menus_close(&(CliMenusCfg){.level = level});
+            cli_menus_close(&(CliMenusCfg){.level = args->level});
         }
         else if ((slots != 0u) && (g_cli_menus_open.open >= 0))
         {
@@ -1350,30 +1389,34 @@ static int commands_level_key(const char *name, unsigned int level, CliItem *cho
         }
         return 1;
     }
-    if (commands_is(name, "Enter") || commands_is(name, "Space"))
+    if (EMBED_CALL(commands_is, CommandsCtx, .name = args->name, .required = "Enter") ||
+        EMBED_CALL(commands_is, CommandsCtx, .name = args->name, .required = "Space"))
     {
         if (pointed && (row.list != 0u))
         {
-            cli_menus_row_open(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed, .marked = 1});
+            cli_menus_row_open(&(CliMenusCfg){.level = args->level, .at = (unsigned int)menu->pointed, .marked = 1});
         }
-        else if (pointed && cli_menus_selectable(&(CliMenusCfg){.level = level, .at = (unsigned int)menu->pointed}))
+        else if (pointed &&
+                 cli_menus_selectable(&(CliMenusCfg){.level = args->level, .at = (unsigned int)menu->pointed}))
         {
-            *chose = commands_choose(level, (unsigned int)menu->pointed, chosen);
+            *args->chose = EMBED_CALL(commands_choose, CommandsCtx, .level = args->level,
+                                      .at = (unsigned int)menu->pointed, .chosen = args->chosen);
         }
         return 1;
     }
-    if ((name[0] != '\0') && (name[1] == '\0'))
+    if ((args->name[0] != '\0') && (args->name[1] == '\0'))
     {
         // a character marks the next row it begins, around the end; the rows are fewer than an int counts
-        const char required = commands_lower(name[0]);
+        const char required = EMBED_CALL(commands_lower, CommandsCtx, .character = args->name[0]);
         const int rows = (int)menu->rows;
         for (int step = 1; step <= rows; step += 1)
         {
             const int at = ((menu->pointed + step) % rows + rows) % rows;
             CliItem item;
-            if (cli_menus_selectable(&(CliMenusCfg){.level = level, .at = (unsigned int)at}) &&
-                cli_menus_row(&(CliMenusCfg){.level = level, .at = (unsigned int)at, .item = &item}) &&
-                (item.label[0] != '\0') && (commands_lower(item.label[0]) == required))
+            if (cli_menus_selectable(&(CliMenusCfg){.level = args->level, .at = (unsigned int)at}) &&
+                cli_menus_row(&(CliMenusCfg){.level = args->level, .at = (unsigned int)at, .item = &item}) &&
+                (item.label[0] != '\0') &&
+                (EMBED_CALL(commands_lower, CommandsCtx, .character = item.label[0]) == required))
             {
                 menu->pointed = at;
                 break;
@@ -1388,10 +1431,11 @@ int cli_menus_key(const CliMenusCfg *args)
     *args->chose = 0;
     int alt = 0;
     int modded = 0;
-    const char *const key = commands_key_read(args->name, &alt, &modded);
+    const char *const key =
+        EMBED_CALL(commands_key_read, CommandsCtx, .name = args->name, .alt = &alt, .modded = &modded);
     if (alt && !modded)
     {
-        const int title = commands_title_character(key);
+        const int title = EMBED_CALL(commands_title_character, CommandsCtx, .name = key);
         if (title >= 0)
         {
             // the title is among the titles
@@ -1406,44 +1450,54 @@ int cli_menus_key(const CliMenusCfg *args)
     }
     const unsigned int level = g_cli_menus_open.levels - 1u;
     CliMenuOpen *const menu = &g_cli_menus_open.level[level];
-    if (commands_is(key, "Escape") || commands_is(key, "Tab"))
+    if (EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Escape") ||
+        EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Tab"))
     {
-        cli_menus_close(&(CliMenusCfg){.level = commands_is(key, "Tab") ? 0u : level});
+        cli_menus_close(
+            &(CliMenusCfg){.level = EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Tab") ? 0u : level});
         return 1;
     }
-    if (commands_is(key, "Down") || commands_is(key, "Up"))
+    if (EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Down") ||
+        EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Up"))
     {
-        menu->pointed = commands_row_step(level, menu->pointed, commands_is(key, "Down") ? 1 : -1);
+        menu->pointed =
+            EMBED_CALL(commands_row_step, CommandsCtx, .level = level, .from = menu->pointed,
+                       .by = EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Down") ? 1 : -1);
         return 1;
     }
-    if (commands_is(key, "Home") || commands_is(key, "End"))
+    if (EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Home") ||
+        EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "End"))
     {
         // the rows are fewer than an int counts
         menu->pointed =
-            commands_is(key, "Home") ? commands_row_step(level, -1, 1) : commands_row_step(level, (int)menu->rows, -1);
+            EMBED_CALL(commands_is, CommandsCtx, .name = key, .required = "Home")
+                ? EMBED_CALL(commands_row_step, CommandsCtx, .level = level, .from = -1, .by = 1)
+                : EMBED_CALL(commands_row_step, CommandsCtx, .level = level, .from = (int)menu->rows, .by = -1);
         return 1;
     }
-    return commands_level_key(key, level, args->chosen, args->chose);
+    return EMBED_CALL(commands_level_key, CommandsCtx, .name = key, .level = level, .chosen = args->chosen,
+                      .chose = args->chose);
 }
 
 // the modifiers of a key's name read off its front, Ctrl and Mod the same bit, into `mods`, and the key's own name
 // after them, its bytes into `rest`
-static const char *commands_mods_read(const char *name, unsigned long long length, unsigned int *mods,
-                                      unsigned long long *rest)
+static const char *commands_mods_read(const CommandsCtx *args)
 {
+    const char *name = args->name;
+    unsigned long long length = args->length;
     static const struct
     {
         const char *mark;
         unsigned long long bytes;
         unsigned int bit;
     } s_marks[] = {{"Ctrl+", 5ULL, 1u}, {"Mod+", 4ULL, 1u}, {"Alt+", 4ULL, 2u}, {"Shift+", 6ULL, 4u}};
-    *mods = 0u;
+    *args->mods = 0u;
     for (unsigned int at = 0u; at < (sizeof(s_marks) / sizeof(s_marks[0]));)
     {
         if ((length >= s_marks[at].bytes) &&
             (memor.cmp(&(MemoriaCfg){.src = name, .other = s_marks[at].mark, .bytes = s_marks[at].bytes}) == 0))
         {
-            *mods |= s_marks[at].bit;
+            *args->mods |= s_marks[at].bit;
             name += s_marks[at].bytes;
             length -= s_marks[at].bytes;
             at = 0u;
@@ -1453,7 +1507,7 @@ static const char *commands_mods_read(const char *name, unsigned long long lengt
             at += 1u;
         }
     }
-    *rest = length;
+    *args->rest = length;
     return name;
 }
 
@@ -1462,22 +1516,24 @@ int cli_menus_keys_name(const CliMenusCfg *args)
     unsigned int keys_mods = 0u;
     unsigned long long keys_rest = 0ULL;
     const char *const keys_key =
-        commands_mods_read(args->keys, cellul.len(&(CatenaFinitaCfg){.src = args->keys, .cap = CLI_LABEL_MAX_LEN}),
-                           &keys_mods, &keys_rest);
+        EMBED_CALL(commands_mods_read, CommandsCtx, .name = args->keys,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->keys, .cap = CLI_LABEL_MAX_LEN}),
+                   .mods = &keys_mods, .rest = &keys_rest);
     unsigned int mods = 0u;
     unsigned long long rest = 0ULL;
-    const char *const key =
-        commands_mods_read(args->name, cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = 64ULL}), &mods, &rest);
+    const char *const key = EMBED_CALL(commands_mods_read, CommandsCtx, .name = args->name,
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = 64ULL}),
+                                       .mods = &mods, .rest = &rest);
     return (keys_rest != 0ULL) && (keys_rest == rest) && (keys_mods == mods) &&
            (memor.cmp(&(MemoriaCfg){.src = keys_key, .other = key, .bytes = rest}) == 0);
 }
 
 // the item among the entries of the array at token `list`, those of its groups among them, whose keys are `name` and
 // that can be chosen, or whose command is `name` where `by_command` is 1, read into `item`: 1, or 0 where none is
-static int commands_flat_keyed(unsigned int list, const char *name, int by_command, CliItem *item)
+static int commands_flat_keyed(const CommandsCtx *args)
 {
-    unsigned int at = list + 1u;
-    for (unsigned int each = 0u; each < s_tokens[list].count; each += 1u)
+    unsigned int at = args->list + 1u;
+    for (unsigned int each = 0u; each < s_tokens[args->list].count; each += 1u)
     {
         if (s_tokens[at].type == CFG_JSON_OBJECT)
         {
@@ -1485,19 +1541,21 @@ static int commands_flat_keyed(unsigned int list, const char *name, int by_comma
             const unsigned int nested = cfg_json_member(s_text, s_tokens, at, "items");
             if (command != 0u)
             {
-                EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = item);
+                EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = args->item);
                 const int matched =
-                    by_command ? cellul.eq(&(CatenaFinitaCfg){.src = item->command, .other = name, .cap = 64ULL})
-                               : ((item->keys[0] != '\0') &&
-                                  cli_menus_keys_name(&(CliMenusCfg){.keys = item->keys, .name = name}) &&
-                                  ((g_cli_menus_open.disabled == NULL) || !g_cli_menus_open.disabled(item)));
+                    args->by_command
+                        ? cellul.eq(&(CatenaFinitaCfg){.src = args->item->command, .other = args->name, .cap = 64ULL})
+                        : ((args->item->keys[0] != '\0') &&
+                           cli_menus_keys_name(&(CliMenusCfg){.keys = args->item->keys, .name = args->name}) &&
+                           ((g_cli_menus_open.disabled == NULL) || !g_cli_menus_open.disabled(args->item)));
                 if (matched)
                 {
                     return 1;
                 }
             }
             else if ((nested != 0u) && (s_tokens[nested].type == CFG_JSON_ARRAY) &&
-                     commands_flat_keyed(nested, name, by_command, item))
+                     EMBED_CALL(commands_flat_keyed, CommandsCtx, .list = nested, .name = args->name,
+                                .by_command = args->by_command, .item = args->item))
             {
                 return 1;
             }
@@ -1512,7 +1570,8 @@ int cli_menus_keyed(const CliMenusCfg *args)
     for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
     {
         const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = menu});
-        if ((list != 0u) && commands_flat_keyed(list, args->name, 0, args->item))
+        if ((list != 0u) && EMBED_CALL(commands_flat_keyed, CommandsCtx, .list = list, .name = args->name,
+                                       .by_command = 0, .item = args->item))
         {
             return 1;
         }
@@ -1525,7 +1584,8 @@ int cli_menus_named(const CliMenusCfg *args)
     for (unsigned int menu = 0u; menu < s_menus; menu += 1u)
     {
         const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = menu});
-        if ((list != 0u) && commands_flat_keyed(list, args->name, 1, args->item))
+        if ((list != 0u) && EMBED_CALL(commands_flat_keyed, CommandsCtx, .list = list, .name = args->name,
+                                       .by_command = 1, .item = args->item))
         {
             return 1;
         }
