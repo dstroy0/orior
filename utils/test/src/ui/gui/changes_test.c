@@ -12,6 +12,33 @@
 #include "../../../../../ui/gui/src/changes.h"
 #include "../cli/cli_check.h"
 
+// the row `at` of the part's own rows read, its label, command and args copied into `text`, sized for
+// CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
+static int own_row(unsigned int at, CliItem *item, char *text)
+{
+    if (!cli_menus_own_read(at, item))
+    {
+        return 0;
+    }
+    char *const label = text;
+    char *const command = text + CLI_LABEL_MAX_LEN;
+    char *const args = command + CLI_LABEL_MAX_LEN;
+    VerbaLinea label_line = {label, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&label_line, (item->label != NULL) ? item->label : "");
+    (void)mmgr_line_finish(&label_line);
+    VerbaLinea command_line = {command, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&command_line, (item->command != NULL) ? item->command : "");
+    (void)mmgr_line_finish(&command_line);
+    VerbaLinea args_line = {args, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&args_line, (item->args != NULL) ? item->args : "");
+    (void)mmgr_line_finish(&args_line);
+    item->label = label;
+    item->command = command;
+    item->args = args;
+    return 1;
+}
+#define OWN_ROW_TEXT (2u * CLI_LABEL_MAX_LEN + CLI_PATH_MAX_LEN)
+
 // the row whose name is `name`, into `row`: 1, or 0 where none is
 static int row_with_name(const char *name, CliChangedRow *row)
 {
@@ -196,18 +223,23 @@ int main(void)
               "a row pressed opens its file where the path's own place puts it");
     cli_check(!EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .rows = 2),
               "two rows do not scroll");
-    unsigned int built = 0u;
-    const CliItem *rows = NULL;
+    CliItem own_first;
+    CliItem own_second;
+    CliItem own_third;
+    char own_first_text[OWN_ROW_TEXT];
+    char own_second_text[OWN_ROW_TEXT];
+    char own_third_text[OWN_ROW_TEXT];
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 3u) &&
+                  (cli_menus_own_count() == 3u) && own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
+                  own_row(2u, &own_third, own_third_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Open File", .other_cap = 10u}) &&
-                  (rows[0].needs[0] == '\0') &&
+                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Open File", .other_cap = 10u}) &&
+                  (own_first.needs[0] == '\0') &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = pressed.path, .other_cap = CLI_POOL_BYTES}) &&
-                  rows[1].line &&
+                      .src = own_first.args, .cap = CLI_POOL_BYTES, .other = pressed.path, .other_cap = CLI_POOL_BYTES}) &&
+                  own_second.line &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}),
+                      .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}),
               "a changed file's menu opens it and copies its path");
     cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 2u, .root = s_root),
               "no menu is past the last row");

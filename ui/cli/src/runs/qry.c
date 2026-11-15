@@ -22,10 +22,26 @@ typedef struct
     QryShared *run;
 } CliView;
 
-// the runs viewed, in a cell of their capacity grown as more are viewed at once, the run the window is a member of to
-// append to, and the run the window's own work goes to: one lock contains them all
-static CliView *s_views;
+// the runs viewed, in a movable cell grown as more are viewed at once, the run the window is a member of to append
+// to, and the run the window's own work goes to: one lock contains them all
+static const CarcerMovableEntry *s_views;
 static unsigned int s_views_capacity;
+
+// the view `at`, and the view written there
+static CliView qry_view(unsigned int at)
+{
+    CliView view;
+    memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
+    return view;
+}
+
+static void qry_view_set(unsigned int at, const CliView *view)
+{
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = s_views, .offset = (embed_word)at * sizeof(*view), .src = view, .bytes = sizeof(*view)});
+}
 static char s_member[CLI_PATH_MAX_LEN];
 static int s_membered;
 static char s_window[CLI_PATH_MAX_LEN];
@@ -51,40 +67,45 @@ static QryShared *cli_view(const QryCtx *args)
 {
     for (unsigned int at = 0u; at < s_views_capacity; at += 1u)
     {
-        if ((s_views[at].run != NULL) && !qry_member_viewed_writing(s_views[at].run))
+        CliView view = qry_view(at);
+        if ((view.run != NULL) && !qry_member_viewed_writing(view.run))
         {
-            qry_member_unshared(s_views[at].run);
-            s_views[at].run = NULL;
+            qry_member_unshared(view.run);
+            view.run = NULL;
+            qry_view_set(at, &view);
         }
     }
     unsigned int found = s_views_capacity;
     unsigned int free_view = s_views_capacity;
     for (unsigned int at = 0u; at < s_views_capacity; at += 1u)
     {
-        found = ((s_views[at].run != NULL) &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].path, .other = args->path, .cap = CLI_POOL_BYTES})))
+        const CliView view = qry_view(at);
+        found = ((view.run != NULL) &&
+                 (cellul.eq(&(CatenaFinitaCfg){.src = view.path, .other = args->path, .cap = CLI_POOL_BYTES})))
                     ? at
                     : found;
-        free_view = ((s_views[at].run == NULL) && (free_view == s_views_capacity)) ? at : free_view;
+        free_view = ((view.run == NULL) && (free_view == s_views_capacity)) ? at : free_view;
     }
     // every view in use: the views' cell grown to twice its capacity, the first new view free
     if ((found == s_views_capacity) && (free_view == s_views_capacity))
     {
         const unsigned int capacity = (s_views_capacity != 0u) ? s_views_capacity * 2u : 4u;
-        CliView *const grown =
-            g_cli_guard->persistent_buf_alloc((unsigned long long)capacity * sizeof(CliView), g_cli_runs_owner);
+        const CarcerMovableEntry *const grown =
+            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliView), g_cli_runs_owner);
         if (grown != NULL)
         {
-            if (s_views_capacity != 0u)
+            CliView empty;
+            memor.set(&(MemoriaCfg){.dst = &empty, .val = 0, .bytes = sizeof(empty)});
+            for (unsigned int at = 0u; at < capacity; at += 1u)
             {
-                memor.cpy(&(MemoriaCfg){
-                    .dst = grown, .src = s_views, .bytes = (unsigned long long)s_views_capacity * sizeof(CliView)});
+                const CliView view = (at < s_views_capacity) ? qry_view(at) : empty;
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                    .cell = grown, .offset = (embed_word)at * sizeof(view), .src = &view, .bytes = sizeof(view)});
             }
-            for (unsigned int at = s_views_capacity; at < capacity; at += 1u)
+            if (s_views != NULL)
             {
-                grown[at].run = NULL;
+                (void)g_cli_guard->movable_buf_release(s_views, g_cli_runs_owner);
             }
-            g_cli_guard->persistent_buf_release(s_views, g_cli_runs_owner);
             free_view = s_views_capacity;
             s_views = grown;
             s_views_capacity = capacity;
@@ -103,19 +124,23 @@ static QryShared *cli_view(const QryCtx *args)
             }
             return NULL;
         }
-        memor.cpy(
-            &(MemoriaCfg){.dst = s_views[free_view].path,
-                          .src = args->path,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
-        s_views[free_view].run = run;
+        CliView view;
+        memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
+        memor.cpy(&(MemoriaCfg){.dst = view.path,
+                                .src = args->path,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
+        view.run = run;
+        qry_view_set(free_view, &view);
         found = free_view;
     }
-    if (qry_member_viewed_writing(s_views[found].run))
+    CliView view = qry_view(found);
+    if (qry_member_viewed_writing(view.run))
     {
-        return s_views[found].run;
+        return view.run;
     }
-    qry_member_unshared(s_views[found].run);
-    s_views[found].run = NULL;
+    qry_member_unshared(view.run);
+    view.run = NULL;
+    qry_view_set(found, &view);
     return NULL;
 }
 

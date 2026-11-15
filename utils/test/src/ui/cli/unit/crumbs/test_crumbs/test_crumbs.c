@@ -56,12 +56,11 @@ static void crumb_is(unsigned int at, unsigned int type, const char *text)
 // the menu row `at` asserted to read `label` and run `command` with `word`
 static void menu_row_is(unsigned int at, const char *label, const char *command, const char *word)
 {
-    unsigned int count = 0u;
-    const CliItem *const rows = cli_menus_own_rows(&count);
-    TEST_ASSERT_TRUE(at < count);
-    TEST_ASSERT_EQUAL_STRING(label, rows[at].label);
-    TEST_ASSERT_EQUAL_STRING(command, rows[at].command);
-    TEST_ASSERT_EQUAL_STRING(word, rows[at].args);
+    CliItem row;
+    TEST_ASSERT_TRUE(cli_menus_own_read(at, &row));
+    TEST_ASSERT_EQUAL_STRING(label, row.label);
+    TEST_ASSERT_EQUAL_STRING(command, row.command);
+    TEST_ASSERT_EQUAL_STRING(word, row.args);
 }
 
 void test_read_lists_folders_file_and_the_declarations_a_line_is_inside(void)
@@ -103,9 +102,7 @@ void test_the_menu_of_a_declaration_lists_those_at_its_depth_under_the_same_one(
 {
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 4u));
-    unsigned int count = 0u;
-    (void)cli_menus_own_rows(&count);
-    TEST_ASSERT_EQUAL_UINT(2u, count);
+    TEST_ASSERT_EQUAL_UINT(2u, cli_menus_own_count());
     menu_row_is(0u, "put", "symbol-go", "3");
     menu_row_is(1u, "take", "symbol-go", "6");
 }
@@ -114,9 +111,7 @@ void test_the_menu_of_a_declaration_at_the_top_lists_the_files(void)
 {
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 3u));
-    unsigned int count = 0u;
-    (void)cli_menus_own_rows(&count);
-    TEST_ASSERT_EQUAL_UINT(2u, count);
+    TEST_ASSERT_EQUAL_UINT(2u, cli_menus_own_count());
     menu_row_is(0u, "Box", "symbol-go", "2");
     menu_row_is(1u, "solo", "symbol-go", "9");
 }

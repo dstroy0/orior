@@ -462,23 +462,20 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
         return;
     }
     // the name added last moves up past each name that orders before it, so the newest stand first
-    char(*const names)[CLI_PATH_MAX_LEN] = matching->names->at;
     const unsigned int last = matching->names->count - 1u;
     unsigned int place = last;
+    char before[CLI_PATH_MAX_LEN];
+    cli_toolchains_paths_read(matching->names, (place > 0u) ? place - 1u : 0u, before);
     while ((place > 0u) &&
-           (EMBED_CALL(cli_toolchains_a_internal.natural, CliToolchainsACtx, .a = names[place - 1u], .b = name) < 0))
+           (EMBED_CALL(cli_toolchains_a_internal.natural, CliToolchainsACtx, .a = before, .b = name) < 0))
     {
-        memor.cpy(&(MemoriaCfg){
-            .dst = names[place],
-            .src = names[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = names[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
+        cli_toolchains_paths_write(matching->names, place, before);
         place -= 1u;
+        cli_toolchains_paths_read(matching->names, (place > 0u) ? place - 1u : 0u, before);
     }
     if (place != last)
     {
-        memor.cpy(&(MemoriaCfg){.dst = names[place],
-                                .src = name,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
+        cli_toolchains_paths_write(matching->names, place, name);
     }
 }
 
@@ -503,7 +500,8 @@ EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
     args->found_into->count = 0u;
     for (unsigned int at = 0u; at < args->found_from->count; at += 1u)
     {
-        const char *const path = args->found_from->at[at];
+        char path[CLI_PATH_MAX_LEN];
+        cli_toolchains_paths_read(args->found_from, at, path);
         if (!pattern)
         {
             (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = args->text,
@@ -516,7 +514,9 @@ EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
                    .each = cli_matching_each, .context_bytess = &matching);
         for (unsigned int each = 0u; each < args->names->count; each += 1u)
         {
-            (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = args->names->at[each],
+            char named[CLI_PATH_MAX_LEN];
+            cli_toolchains_paths_read(args->names, each, named);
+            (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = named,
                              .separator = args->separator, .found_into = args->found_into);
         }
     }
@@ -524,34 +524,65 @@ EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
 
 int cli_toolchains_paths_add(CliToolchainsPaths *paths, const char *path)
 {
+    char slot[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {slot, sizeof(slot), 0ULL};
+    mmgr_line_put(&line, path);
+    (void)mmgr_line_finish(&line);
+    if (!mmgr_line_ok(&line))
+    {
+        return 0;
+    }
     if (paths->count == paths->capacity)
     {
         const unsigned int capacity = (paths->capacity != 0u) ? paths->capacity * 2u : 8u;
-        char(*const moved)[CLI_PATH_MAX_LEN] = g_cli_guard->temporary_buf_alloc(
+        const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(
             (unsigned long long)capacity * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
-        if (moved == NULL)
+        if (grown == NULL)
         {
             return 0;
         }
-        if (paths->count != 0u)
+        for (unsigned int at = 0u; at < paths->count; at += 1u)
         {
-            memor.cpy(&(MemoriaCfg){
-                .dst = moved, .src = paths->at, .bytes = (unsigned long long)paths->count * CLI_PATH_MAX_LEN});
+            char held[CLI_PATH_MAX_LEN];
+            cli_toolchains_paths_read(paths, at, held);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = grown, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .src = held, .bytes = sizeof(held)});
         }
-        g_cli_guard->persistent_buf_release(paths->at, g_cli_toolchains_owner);
-        paths->at = moved;
+        if (paths->cell != NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(paths->cell, g_cli_toolchains_owner);
+        }
+        paths->cell = grown;
         paths->capacity = capacity;
     }
-    VerbaLinea line = {paths->at[paths->count], CLI_PATH_MAX_LEN, 0ULL};
+    cli_toolchains_paths_write(paths, paths->count, slot);
+    paths->count += 1u;
+    return 1;
+}
+
+void cli_toolchains_paths_read(const CliToolchainsPaths *paths, unsigned int at, char *out)
+{
+    out[0] = '\0';
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = paths->cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = out, .bytes = CLI_PATH_MAX_LEN});
+}
+
+void cli_toolchains_paths_write(const CliToolchainsPaths *paths, unsigned int at, const char *path)
+{
+    char slot[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {slot, sizeof(slot), 0ULL};
     mmgr_line_put(&line, path);
     (void)mmgr_line_finish(&line);
-    paths->count += mmgr_line_ok(&line) ? 1u : 0u;
-    return mmgr_line_ok(&line) ? 1 : 0;
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = paths->cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .src = slot, .bytes = sizeof(slot)});
 }
 
 void cli_toolchains_paths_release(CliToolchainsPaths *paths)
 {
-    g_cli_guard->persistent_buf_release(paths->at, g_cli_toolchains_owner);
+    if (paths->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(paths->cell, g_cli_toolchains_owner);
+    }
     *paths = (CliToolchainsPaths){NULL, 0u, 0u};
 }
 
@@ -587,7 +618,8 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
     }
     for (unsigned int at = 0u; at < found[now].count; at += 1u)
     {
-        char *const path = found[now].at[at];
+        char path[CLI_PATH_MAX_LEN];
+        cli_toolchains_paths_read(&found[now], at, path);
         // the separator after the last part left off
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         if ((length > 1u) && ((path[length - 1u] == '/') || (path[length - 1u] == '\\')))

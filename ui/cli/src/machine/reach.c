@@ -27,39 +27,55 @@ typedef struct
     char key[CLI_NAME_MAX_LEN];
 } CliReachEntry;
 
-// The windows stored, read from the folder: the entries in a cell of this read grown as windows are read, how many
-// there are and the cell's capacity
+// The windows stored, read from the folder: the entries in a movable cell of this read grown as windows are read,
+// how many there are and the cell's capacity
 typedef struct
 {
     const char *folder;
-    CliReachEntry *entries;
+    const CarcerMovableEntry *entries;
     unsigned int count;
     unsigned int capacity;
 } CliReachRead;
 
-// the entry the next window read goes to, the entries' cell grown to twice its capacity where it is full: NULL where
+// the entry `at` of the windows read
+static CliReachEntry reach_entry_at(const CliReachRead *read, unsigned int at)
+{
+    CliReachEntry entry;
+    memor.set(&(MemoriaCfg){.dst = &entry, .val = 0, .bytes = sizeof(entry)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = read->entries, .offset = (embed_word)at * sizeof(entry), .dst = &entry, .bytes = sizeof(entry)});
+    return entry;
+}
+
+// `entry` added to the windows read, the entries' cell grown to twice its capacity where it is full; nothing where
 // the cells refuse the growth
-static CliReachEntry *reach_entry_next(CliReachRead *read)
+static void reach_entry_add(CliReachRead *read, const CliReachEntry *entry)
 {
     if (read->count == read->capacity)
     {
         const unsigned int capacity = (read->capacity != 0u) ? read->capacity * 2u : 4u;
-        CliReachEntry *const grown =
-            g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliReachEntry), g_cli_machine_owner);
+        const CarcerMovableEntry *const grown =
+            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliReachEntry), g_cli_machine_owner);
         if (grown == NULL)
         {
-            return NULL;
+            return;
         }
-        if (read->count != 0u)
+        for (unsigned int at = 0u; at < read->count; at += 1u)
         {
-            memor.cpy(&(MemoriaCfg){
-                .dst = grown, .src = read->entries, .bytes = (unsigned long long)read->count * sizeof(CliReachEntry)});
+            const CliReachEntry one = reach_entry_at(read, at);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = grown, .offset = (embed_word)at * sizeof(one), .src = &one, .bytes = sizeof(one)});
         }
-        g_cli_guard->persistent_buf_release(read->entries, g_cli_machine_owner);
+        if (read->entries != NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(read->entries, g_cli_machine_owner);
+        }
         read->entries = grown;
         read->capacity = capacity;
     }
-    return &read->entries[read->count];
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = read->entries, .offset = (embed_word)read->count * sizeof(*entry), .src = entry, .bytes = sizeof(*entry)});
+    read->count += 1u;
 }
 
 typedef struct
@@ -189,9 +205,10 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
         fields += 1u;
         at += cellul.len(&(CatenaFinitaCfg){.src = bytes + at, .cap = size - at}) + 1ULL;
     }
-    CliReachEntry *const one =
-        ((fields == 4u) && (at <= size) && (bytes[size - 1ULL] == '\0')) ? reach_entry_next(read) : NULL;
-    if (one != NULL)
+    CliReachEntry entry;
+    CliReachEntry *const one = &entry;
+    memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(entry)});
+    if ((fields == 4u) && (at <= size) && (bytes[size - 1ULL] == '\0'))
     {
         const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = field[0], .cap = size});
         // a process's id is no more than an unsigned int stores
@@ -204,9 +221,10 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
         mmgr_line_put(&address, field[2]);
         VerbaLinea key = {one->key, sizeof(one->key), 0ULL};
         mmgr_line_put(&key, field[3]);
-        if ((mmgr_line_finish(&root) != 0ULL) || !one->has_root)
+        if (((mmgr_line_finish(&root) != 0ULL) || !one->has_root) && (mmgr_line_finish(&address) != 0ULL) &&
+            (mmgr_line_finish(&key) != 0ULL))
         {
-            read->count += ((mmgr_line_finish(&address) != 0ULL) && (mmgr_line_finish(&key) != 0ULL)) ? 1u : 0u;
+            reach_entry_add(read, one);
         }
     }
     g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
@@ -327,7 +345,8 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
     int answered = -1;
     for (unsigned int at = 0u; (at < read.count) && (answered < 0); at += 1u)
     {
-        const CliReachEntry *const entry = &read.entries[at];
+        const CliReachEntry read_entry = reach_entry_at(&read, at);
+        const CliReachEntry *const entry = &read_entry;
         // a command for a tree goes to the windows open on it; with no tree named, to the one window where there is
         // only one
         const int goes =
@@ -355,7 +374,10 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
                        .request = args->request, .count = args->count, .answer = args->answer, .err_msg = err_msg);
         EMBED_CALL(cli_ipc_client.leave, CliIpcClientCfg, .client = client);
     }
-    g_cli_guard->persistent_buf_release(read.entries, g_cli_machine_owner);
+    if (read.entries != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(read.entries, g_cli_machine_owner);
+    }
     return answered;
 }
 

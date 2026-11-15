@@ -213,7 +213,8 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
     int placed = 0;
     for (unsigned int at = 0u; !placed && (at < positions.count); at += 1u)
     {
-        const char *const dir = positions.at[at];
+        char dir[CLI_PATH_MAX_LEN];
+        cli_toolchains_paths_read(&positions, at, dir);
         placed = !EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
                  EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
                  EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json,

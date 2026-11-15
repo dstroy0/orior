@@ -11,6 +11,33 @@
 #include "../../../../../ui/gui/src/crumbs.h"
 #include "../cli/cli_check.h"
 
+// the row `at` of the part's own rows read, its label, command and args copied into `text`, sized for
+// CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
+static int own_row(unsigned int at, CliItem *item, char *text)
+{
+    if (!cli_menus_own_read(at, item))
+    {
+        return 0;
+    }
+    char *const label = text;
+    char *const command = text + CLI_LABEL_MAX_LEN;
+    char *const args = command + CLI_LABEL_MAX_LEN;
+    VerbaLinea label_line = {label, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&label_line, (item->label != NULL) ? item->label : "");
+    (void)mmgr_line_finish(&label_line);
+    VerbaLinea command_line = {command, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&command_line, (item->command != NULL) ? item->command : "");
+    (void)mmgr_line_finish(&command_line);
+    VerbaLinea args_line = {args, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&args_line, (item->args != NULL) ? item->args : "");
+    (void)mmgr_line_finish(&args_line);
+    item->label = label;
+    item->command = command;
+    item->args = args;
+    return 1;
+}
+#define OWN_ROW_TEXT (2u * CLI_LABEL_MAX_LEN + CLI_PATH_MAX_LEN)
+
 static const char s_key[] = "crumbs_check";
 static const char s_path[] = "src/code/a.py";
 static const char s_text[] = "import os\n"
@@ -118,26 +145,28 @@ int main(void)
               "a crumb that does not fit whole is left out");
 
     // what is beside a folder and a declaration
-    unsigned int count = 0u;
-    const CliItem *rows = NULL;
-    cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 1u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&count)) != NULL) && (count == 2u) &&
+    CliItem own_first;
+    CliItem own_second;
+    char own_first_text[OWN_ROW_TEXT];
+    char own_second_text[OWN_ROW_TEXT];
+    cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 1u, .root = s_root) && (cli_menus_own_count() == 2u) &&
+                  own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "file-open", .other_cap = 10u}) &&
+                      .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "file-open", .other_cap = 10u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "src/code/a.py", .other_cap = 14u}) &&
+                      .src = own_first.args, .cap = CLI_POOL_BYTES, .other = "src/code/a.py", .other_cap = 14u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[1].args, .cap = CLI_POOL_BYTES, .other = "src/code/b.py", .other_cap = 14u}),
+                      .src = own_second.args, .cap = CLI_POOL_BYTES, .other = "src/code/b.py", .other_cap = 14u}),
               "a folder's crumb lists its entries, each opening its path");
-    cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 4u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&count)) != NULL) && (count == 2u) &&
+    cli_check(EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = 4u, .root = s_root) && (cli_menus_own_count() == 2u) &&
+                  own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "symbol-go", .other_cap = 10u}) &&
+                      .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "symbol-go", .other_cap = 10u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "put", .other_cap = 4u}) &&
+                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "put", .other_cap = 4u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[1].label, .cap = CLI_POOL_BYTES, .other = "take", .other_cap = 5u}) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = rows[1].args, .cap = CLI_POOL_BYTES, .other = "6", .other_cap = 2u}),
+                      .src = own_second.label, .cap = CLI_POOL_BYTES, .other = "take", .other_cap = 5u}) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = own_second.args, .cap = CLI_POOL_BYTES, .other = "6", .other_cap = 2u}),
               "a declaration's crumb lists those beside it, each going to its line");
 
     // the setting off: nothing positioned and the row's x unmoved

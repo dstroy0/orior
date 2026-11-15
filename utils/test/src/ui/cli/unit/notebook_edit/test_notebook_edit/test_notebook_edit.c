@@ -177,19 +177,20 @@ void test_the_cell_menu_refuses_a_move_past_either_end(void)
     unsigned int count = 0u;
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_menu.menu, CliNotebookEditMenuCfg, .key = "edit:a",
                                         .cell = 0u));
-    const CliItem *rows = cli_menus_own_rows(&count);
+    count = cli_menus_own_count();
     int up_refused = 0;
     int down_refused = 0;
+    CliItem row;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (rows[at].line || (rows[at].label == NULL))
+        if (!cli_menus_own_read(at, &row) || row.line || (row.label == NULL))
         {
             continue;
         }
-        const int refused = cellul.eq(&(CatenaFinitaCfg){.src = rows[at].needs, .other = "never", .cap = 8ULL});
-        up_refused = cellul.eq(&(CatenaFinitaCfg){.src = rows[at].label, .other = "Move Up", .cap = 16ULL}) ? refused
+        const int refused = cellul.eq(&(CatenaFinitaCfg){.src = row.needs, .other = "never", .cap = 8ULL});
+        up_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Up", .cap = 16ULL}) ? refused
                                                                                                          : up_refused;
-        down_refused = cellul.eq(&(CatenaFinitaCfg){.src = rows[at].label, .other = "Move Down", .cap = 16ULL})
+        down_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Down", .cap = 16ULL})
                            ? refused
                            : down_refused;
     }
@@ -197,17 +198,17 @@ void test_the_cell_menu_refuses_a_move_past_either_end(void)
     TEST_ASSERT_EQUAL_INT(0, down_refused);
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_menu.menu, CliNotebookEditMenuCfg, .key = "edit:a",
                                         .cell = 2u));
-    rows = cli_menus_own_rows(&count);
+    count = cli_menus_own_count();
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (rows[at].line || (rows[at].label == NULL))
+        if (!cli_menus_own_read(at, &row) || row.line || (row.label == NULL))
         {
             continue;
         }
-        const int refused = cellul.eq(&(CatenaFinitaCfg){.src = rows[at].needs, .other = "never", .cap = 8ULL});
-        up_refused = cellul.eq(&(CatenaFinitaCfg){.src = rows[at].label, .other = "Move Up", .cap = 16ULL}) ? refused
+        const int refused = cellul.eq(&(CatenaFinitaCfg){.src = row.needs, .other = "never", .cap = 8ULL});
+        up_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Up", .cap = 16ULL}) ? refused
                                                                                                          : up_refused;
-        down_refused = cellul.eq(&(CatenaFinitaCfg){.src = rows[at].label, .other = "Move Down", .cap = 16ULL})
+        down_refused = cellul.eq(&(CatenaFinitaCfg){.src = row.label, .other = "Move Down", .cap = 16ULL})
                            ? refused
                            : down_refused;
     }

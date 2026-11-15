@@ -5338,12 +5338,10 @@ static void window_key_take(const GuiWindowCtx *args)
     }
     if (menu_key && window->editing && EMBED_CALL(window_editor_menu, GuiWindowCtx, .window_read = window))
     {
-        unsigned int count = 0u;
-        const CliItem *const rows = cli_menus_own_rows(&count);
         const GuiRect caret =
             EMBED_CALL(gui_editor_position.caret_rect, GuiEditorPositionCfg, .editor_read = &window->editor,
                        .glyphs = &window->glyphs, .place = window->frame.editor, .scale = window->frame.scale);
-        cli_menus_own_open(rows, count, CLI_MENU_PLACE_POINT, caret.x, caret.y + caret.height);
+        cli_menus_own_open(NULL, cli_menus_own_count(), CLI_MENU_PLACE_POINT, caret.x, caret.y + caret.height);
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         return;
     }
@@ -6534,9 +6532,7 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
         if (EMBED_CALL(cli_crumbs.menu, CliCrumbsCfg, .at = hit->index, .root = cli_command_line_root()))
         {
             const GuiRect crumb = EMBED_CALL(gui_crumbs.place, GuiCrumbsCfg, .index = hit->index);
-            unsigned int count = 0u;
-            const CliItem *const rows = cli_menus_own_rows(&count);
-            cli_menus_own_open(rows, count, CLI_MENU_PLACE_POINT, crumb.x, crumb.y);
+            cli_menus_own_open(NULL, cli_menus_own_count(), CLI_MENU_PLACE_POINT, crumb.x, crumb.y);
             EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
         }
         return;
@@ -7779,9 +7775,7 @@ static void window_menu(const GuiInputHandlerCfg *args)
     }
     if (built)
     {
-        unsigned int count = 0u;
-        const CliItem *const rows = cli_menus_own_rows(&count);
-        cli_menus_own_open(rows, count, CLI_MENU_PLACE_POINT, x, y);
+        cli_menus_own_open(NULL, cli_menus_own_count(), CLI_MENU_PLACE_POINT, x, y);
         EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = window);
     }
 }

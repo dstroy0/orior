@@ -239,12 +239,27 @@ typedef struct
     unsigned long long to;
 } CliSchemaOpenKey;
 
-// Where the cursor is: the steps to the value it is in, in a cell of their capacity, whether it is at a key and
+// A table of entries of one size in a movable cell, grown as entries are written past its capacity: the cell, how
+// many entries it holds and how many it has room for
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned int count;
+    unsigned int capacity;
+} CliSchemaTable;
+
+// the entry `at` of `table`, `bytes` each, read into `out`; `entry` written at `at`, the cell grown to twice its
+// capacity where `at` is past it and the count raised past `at`: 1, or 0 where the cells refuse the growth; and the
+// table's cell given back and the table emptied (schema_complete.c)
+void cli_schema_table_read(const CliSchemaTable *table, unsigned int at, void *out, unsigned long long bytes);
+int cli_schema_table_write(CliSchemaTable *table, unsigned int at, const void *entry, unsigned long long bytes);
+void cli_schema_table_release(CliSchemaTable *table);
+
+// Where the cursor is: the steps to the value it is in, in a table, how many steps, whether it is at a key and
 // inside a string, and the keys the object contains before it
 typedef struct
 {
-    CliSchemaStep *step;
-    unsigned int steps_capacity;
+    CliSchemaTable step;
     unsigned int steps;
     int at_key;
     int in_string;
@@ -259,9 +274,8 @@ typedef struct
 // `oneOf` and `if`'s branches taken together; and a schema's description or title, its first line, or its type,
 // for a completion's detail, into `out` (schema_complete.c)
 extern CliSchemaSpot g_cli_schema_spot;
-extern CliSchemaOpenKey *g_cli_schema_key;
-extern unsigned int *g_cli_schema_reached;
-extern unsigned int g_cli_schema_reached_count;
+extern CliSchemaTable g_cli_schema_key;
+extern CliSchemaTable g_cli_schema_reached;
 int cli_schema_spot(const CliSchemaReadTextCtx *args);
 void cli_schema_reached_get(const CliSchemaTextBaseCtx *args);
 void cli_schema_detail(const CliSchemaJsonOutCtx *args);

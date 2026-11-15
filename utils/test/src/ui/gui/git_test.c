@@ -14,6 +14,33 @@
 #include "../../../../../ui/gui/src/git.h"
 #include "../cli/cli_check.h"
 
+// the row `at` of the part's own rows read, its label, command and args copied into `text`, sized for
+// CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
+static int own_row(unsigned int at, CliItem *item, char *text)
+{
+    if (!cli_menus_own_read(at, item))
+    {
+        return 0;
+    }
+    char *const label = text;
+    char *const command = text + CLI_LABEL_MAX_LEN;
+    char *const args = command + CLI_LABEL_MAX_LEN;
+    VerbaLinea label_line = {label, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&label_line, (item->label != NULL) ? item->label : "");
+    (void)mmgr_line_finish(&label_line);
+    VerbaLinea command_line = {command, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&command_line, (item->command != NULL) ? item->command : "");
+    (void)mmgr_line_finish(&command_line);
+    VerbaLinea args_line = {args, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&args_line, (item->args != NULL) ? item->args : "");
+    (void)mmgr_line_finish(&args_line);
+    item->label = label;
+    item->command = command;
+    item->args = args;
+    return 1;
+}
+#define OWN_ROW_TEXT (2u * CLI_LABEL_MAX_LEN + CLI_PATH_MAX_LEN)
+
 static char s_root[CLI_PATH_MAX_LEN];
 
 // the file `relative` of the tree written with `text`, its folder put in place first
@@ -255,37 +282,43 @@ int main(void)
     VerbaLinea id_line = {id, sizeof(id), 0ULL};
     mmgr_line_put(&id_line, row.id);
     (void)mmgr_line_finish(&id_line);
-    unsigned int built = 0u;
-    const CliItem *rows = NULL;
+    CliItem own_first;
+    CliItem own_second;
+    CliItem own_third;
+    CliItem own_fourth;
+    char own_first_text[OWN_ROW_TEXT];
+    char own_second_text[OWN_ROW_TEXT];
+    char own_third_text[OWN_ROW_TEXT];
+    char own_fourth_text[OWN_ROW_TEXT];
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 4u) &&
+                  (cli_menus_own_count() == 4u) && own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Open Files", .other_cap = 11u}) &&
+                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Open Files", .other_cap = 11u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "commit-files", .other_cap = 13u}) &&
+                      .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "commit-files", .other_cap = 13u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = id, .other_cap = sizeof(id)}) &&
-                  rows[1].line &&
+                      .src = own_first.args, .cap = CLI_POOL_BYTES, .other = id, .other_cap = sizeof(id)}) &&
+                  own_second.line && own_row(2u, &own_third, own_third_text) && own_row(3u, &own_fourth, own_fourth_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "commit-copy-id", .other_cap = 15u}) &&
+                      .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "commit-copy-id", .other_cap = 15u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[3].command, .cap = CLI_POOL_BYTES, .other = "commit-copy-message", .other_cap = 20u}),
+                      .src = own_fourth.command, .cap = CLI_POOL_BYTES, .other = "commit-copy-message", .other_cap = 20u}),
               "a closed commit's menu opens its files and copies its id and message");
     cli_check(EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = id, .root = s_root) &&
                   row_is(1u, CLI_GIT_LOG_ROW_COMMIT, "second commit", &row) && row.open &&
                   EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 1u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) &&
+                  own_row(0u, &own_first, own_first_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Close Files", .other_cap = 12u}),
+                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Close Files", .other_cap = 12u}),
               "the commit opened by its id has its menu close its files");
     cli_check(!EMBED_CALL(cli_git_log.toggle_id, CliGitLogCfg, .name = "0000000", .root = s_root),
               "an id the graph has not opens nothing");
     cli_check(EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 2u, .root = s_root) &&
-                  ((rows = cli_menus_own_rows(&built)) != NULL) && (built == 1u) &&
+                  (cli_menus_own_count() == 1u) && own_row(0u, &own_first, own_first_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}) &&
+                      .src = own_first.command, .cap = CLI_POOL_BYTES, .other = "file-copy-path", .other_cap = 15u}) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].args, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}),
+                      .src = own_first.args, .cap = CLI_POOL_BYTES, .other = "a.txt", .other_cap = 6u}),
               "a file's menu copies its path");
     cli_check(!EMBED_CALL(gui_pane.menu, GuiPaneCfg, .table = table, .row = 0u, .root = s_root),
               "the branch's row has no menu");

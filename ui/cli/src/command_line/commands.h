@@ -64,12 +64,14 @@ typedef struct
 #define CLI_MENU_OWN_ROWS 24u
 
 // One menu open: the list its rows are read from, 0 where they are the titles folded from the bar or a part's own rows;
-// those own rows, NULL for none; how many rows it has; the row marked and the row whose items are open under it, each
-// -1 for none; and the number it took as it opened, a new one each time
+// those own rows where a part hands them located, NULL for none; whether its rows are the part's own rows built in
+// their cell; how many rows it has; the row marked and the row whose items are open under it, each -1 for none; and
+// the number it took as it opened, a new one each time
 typedef struct
 {
     unsigned int list;
     const CliItem *own;
+    int own_rows;
     unsigned int rows;
     int pointed;
     int opened;
@@ -115,8 +117,9 @@ int cli_menus_selectable(unsigned int level, unsigned int at);
 // the menus from `level` on closed; the titles the bar shows, `displayed`, the rest folded into a last where `folded` is 1;
 // the menu of the title `at` opened, the last where the titles fold located for those folded, every other closed, its
 // first row that can be chosen marked where `marked` is 1; the items of the row `at` of the menu at `level` opened
-// beside it the same way; and `count` rows of a part's own, located while they are open, opened as its menu at the
-// place `place` names, at x, y where that is its point
+// beside it the same way; and `count` rows of a part's own, located while they are open, or the part's own rows
+// built in their cell where `rows` is NULL, opened as its menu at the place `place` names, at x, y where that is
+// its point
 void cli_menus_close(unsigned int level);
 void cli_menus_bar(unsigned int displayed, int folded);
 void cli_menus_title_open(unsigned int at, int marked);
@@ -126,15 +129,17 @@ void cli_menus_own_open(const CliItem *rows, unsigned int count, unsigned int pl
 // them, its texts the part's own, located while the menu is open; a line added; the catalog's item whose command is
 // `command` added with `args`: 1, or 0 where the catalog has none; the rows of the popup menu titled `title` added,
 // each item's args `args`, its lines retained: 1, or 0 where the list has no such popup; the label of the row `at` written
-// anew; the rows, their count into `count_out`; and the word a chosen row's `args` runs with, NULL where the args are a
-// catalog item's pattern or empty
+// anew; how many rows there are; the row `at` read into `item`, its label and args in the texts of the one row last
+// read, which stand until the next row is read: 1, or 0 past the rows; and the word a chosen row's `args` runs
+// with, NULL where the args are a catalog item's pattern or empty
 void cli_menus_own_begin(void);
 void cli_menus_own_row(const CliItem *item);
 void cli_menus_own_line(void);
 int cli_menus_own_named(const char *command, const char *args);
 int cli_menus_popup(const char *title, const char *args);
 void cli_menus_own_relabel(unsigned int at, const char *label);
-const CliItem *cli_menus_own_rows(unsigned int *count_out);
+unsigned int cli_menus_own_count(void);
+int cli_menus_own_read(unsigned int at, CliItem *item);
 const char *cli_menus_own_word(const char *args);
 // a press on the title `at`, its menu closed where it is open and else opened; a press on the row `at` of the menu at
 // `level`, its items opened or it chosen, every menu closed: 1 with the row chosen into `chosen`, else 0; and a press
@@ -181,7 +186,8 @@ unsigned int cli_menu_items_count(unsigned int menu);
 unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capacity);
 unsigned int cli_rows_count(unsigned int list);
 // a cell of `count` items for one read of a menu's items or a list's rows, taken from the temporary tier and given
-// back after the read: NULL where the count is 0 or the tier refuses it
+// back after the read, the reader's own keys' text copied after the items so the items' keys point into it: NULL
+// where the count is 0 or the tier refuses it. cli_menu_items and cli_menu_rows read into such a cell alone
 CliItem *cli_items_alloc(unsigned int count);
 void cli_items_release(CliItem *items);
 // the list of the command line's own words, as `line` in the list names them, read by cli_menu_rows; 0 where it has

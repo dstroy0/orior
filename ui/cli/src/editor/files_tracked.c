@@ -18,47 +18,70 @@ typedef struct
 } TrackedCached;
 
 // What git reported of each folder outside the tree it was queried about, for the listing made at `at`: the answers
-// in a cell of their capacity, how many, and their paths in a text cell of its capacity, both grown to the most a
-// listing has asked
+// in a movable cell, how many and the cell's bytes, and their paths in a movable text cell, its bytes used and its
+// bytes, both grown to the most a listing has asked
 typedef struct
 {
-    TrackedCached *cached;
+    const CarcerMovableEntry *cached;
     unsigned long long count;
     unsigned long long capacity;
-    char *text;
+    const CarcerMovableEntry *text;
     unsigned long long used;
     unsigned long long text_capacity;
     unsigned long long at;
 } TrackedCache;
 static TrackedCache s_cache;
 
-// a cell of `unit`-byte entries holding at least `needed` of them: `cell` itself where its `capacity` entries
-// hold them, else a cell of twice the capacity until they fit, the entries copied, `cell` given back and
-// `capacity` set to the new count; NULL where the cells refuse the growth, `cell` and `capacity` kept
-static void *tracked_cell_fit(void *cell, unsigned long long *capacity, unsigned long long needed,
-                              unsigned long long unit)
+// a movable cell of at least `needed` bytes holding the first `used` bytes of `cell`: `cell` itself where its
+// `capacity` bytes hold them, else a cell of twice the capacity until they fit, the bytes copied through, `cell`
+// given back and `capacity` set to the new bytes; NULL where the cells refuse the growth, `cell` and `capacity` kept
+static const CarcerMovableEntry *tracked_cell_fit(const CarcerMovableEntry *cell, unsigned long long *capacity,
+                                                  unsigned long long used, unsigned long long needed)
 {
     if (needed <= *capacity)
     {
         return cell;
     }
-    unsigned long long grown = (*capacity != 0ULL) ? *capacity : 16ULL;
+    unsigned long long grown = (*capacity != 0ULL) ? *capacity : 1024ULL;
     while (grown < needed)
     {
         grown *= 2ULL;
     }
-    void *const moved = g_cli_guard->persistent_buf_alloc(grown * unit, g_cli_editor_owner);
+    const CarcerMovableEntry *const moved = g_cli_guard->movable_buf_alloc(grown, g_cli_editor_owner);
     if (moved == NULL)
     {
         return NULL;
     }
-    if (*capacity != 0ULL)
+    for (unsigned long long at = 0ULL; at < used; at += CLI_PATH_MAX_LEN)
     {
-        memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = *capacity * unit});
+        char piece[CLI_PATH_MAX_LEN];
+        const unsigned long long size = (used - at < sizeof(piece)) ? used - at : sizeof(piece);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = moved, .offset = (embed_word)at, .src = piece, .bytes = (embed_word)size});
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_editor_owner);
+    if (cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+    }
     *capacity = grown;
     return moved;
+}
+
+// the answer `at` of the cache, and its path read into `path`, sized for CLI_PATH_MAX_LEN
+static TrackedCached tracked_cached(unsigned long long at, char *path)
+{
+    TrackedCached cached = {0ULL, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_cache.cached, .offset = (embed_word)(at * sizeof(cached)), .dst = &cached, .bytes = sizeof(cached)});
+    const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+        .cell = s_cache.text, .offset = (embed_word)cached.path_at, .bytes = (embed_word)(s_cache.used - cached.path_at)});
+    const unsigned long long size = (length < CLI_PATH_MAX_LEN) ? length : (CLI_PATH_MAX_LEN - 1ULL);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_cache.text, .offset = (embed_word)cached.path_at, .dst = path, .bytes = (embed_word)size});
+    path[size] = '\0';
+    return cached;
 }
 
 typedef struct
@@ -83,9 +106,10 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
     unsigned long long each = 0ULL;
     while (!found && (each < s_cache.count))
     {
-        found = cellul.eq(&(CatenaFinitaCfg){
-            .src = s_cache.text + s_cache.cached[each].path_at, .other = args->outside, .cap = CLI_POOL_BYTES});
-        *ignored = found ? s_cache.cached[each].ignored : *ignored;
+        char path[CLI_PATH_MAX_LEN];
+        const TrackedCached cached = tracked_cached(each, path);
+        found = cellul.eq(&(CatenaFinitaCfg){.src = path, .other = args->outside, .cap = CLI_POOL_BYTES});
+        *ignored = found ? cached.ignored : *ignored;
         each += 1ULL;
     }
     return found;
@@ -100,18 +124,21 @@ EMBED_INLINE void tracked_append(const FilesTrackedCtx *args)
         return;
     }
     const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->outside, .cap = CLI_POOL_BYTES}) + 1ULL;
-    TrackedCached *const cached =
-        tracked_cell_fit(s_cache.cached, &s_cache.capacity, s_cache.count + 1ULL, sizeof(TrackedCached));
-    char *const text =
-        (cached != NULL) ? tracked_cell_fit(s_cache.text, &s_cache.text_capacity, s_cache.used + bytes, 1ULL) : NULL;
+    const CarcerMovableEntry *const cached = tracked_cell_fit(
+        s_cache.cached, &s_cache.capacity, s_cache.count * sizeof(TrackedCached), (s_cache.count + 1ULL) * sizeof(TrackedCached));
+    const CarcerMovableEntry *const text =
+        (cached != NULL) ? tracked_cell_fit(s_cache.text, &s_cache.text_capacity, s_cache.used, s_cache.used + bytes) : NULL;
     s_cache.cached = (cached != NULL) ? cached : s_cache.cached;
     s_cache.text = (text != NULL) ? text : s_cache.text;
     if ((cached == NULL) || (text == NULL))
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = text + s_cache.used, .src = args->outside, .bytes = bytes});
-    cached[s_cache.count] = (TrackedCached){s_cache.used, args->ignored_value};
+    const TrackedCached one = {s_cache.used, args->ignored_value};
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = text, .offset = (embed_word)s_cache.used, .src = args->outside, .bytes = (embed_word)bytes});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = cached, .offset = (embed_word)(s_cache.count * sizeof(one)), .src = &one, .bytes = sizeof(one)});
     s_cache.count += 1ULL;
     s_cache.used += bytes;
 }

@@ -369,33 +369,75 @@ typedef struct
     int open;
 } FilesExplorerFolder;
 
-// The explorer: the tree it lists; the folders listed, the top folder first, and how many
+// The explorer: the tree it lists; the folders listed, the top folder first, in a movable cell grown as folders are
+// listed, how many there are and the cell's capacity
 static const char *s_explorer_root;
-static FilesExplorerFolder s_explorer[CLI_FILES_EXPLORER_FOLDERS];
+static const CarcerMovableEntry *s_explorer;
 static unsigned int s_explorer_folders;
+static unsigned int s_explorer_capacity;
+// no folder, where a folder is looked for by its path
+#define FILES_EXPLORER_NONE 0xffffffffu
+
+// the folder `at` of the explorer's, and the folder written there
+static FilesExplorerFolder explorer_at(unsigned int at)
+{
+    FilesExplorerFolder folder = {NULL, NULL, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .dst = &folder, .bytes = sizeof(folder)});
+    return folder;
+}
+
+static void explorer_set(unsigned int at, const FilesExplorerFolder *folder)
+{
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = s_explorer, .offset = (embed_word)at * sizeof(*folder), .src = folder, .bytes = sizeof(*folder)});
+}
 // how many times the watch marked the explorer stale, counted on the watch's thread and read on the window's
 static embed_atomic_u32 s_explorer_stale;
 
-// the listing of the folder `dir`, or NULL where it was never listed
-static FilesExplorerFolder *explorer_folder(const char *dir)
+// the place of the listing of the folder `dir`, or FILES_EXPLORER_NONE where it was never listed
+static unsigned int explorer_folder(const char *dir)
 {
     for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_explorer[at].dir, .other = dir, .cap = CLI_PATH_MAX_LEN}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = explorer_at(at).dir, .other = dir, .cap = CLI_PATH_MAX_LEN}))
         {
-            return &s_explorer[at];
+            return at;
         }
     }
-    return NULL;
+    return FILES_EXPLORER_NONE;
 }
 
-// the folder `dir` listed for the explorer, its path located as long as its parent's listing does: the listing, or
-// NULL where it could not be read or the explorer lists no more folders
-static FilesExplorerFolder *explorer_list(const char *dir)
+// the folder `dir` listed for the explorer, its path located as long as its parent's listing does, the folders' cell
+// grown to twice its capacity where it is full: the listing's place, or FILES_EXPLORER_NONE where it could not be
+// read or the cells refuse the growth
+static unsigned int explorer_list(const char *dir)
 {
-    if ((s_explorer_root == NULL) || (s_explorer_folders == CLI_FILES_EXPLORER_FOLDERS))
+    if (s_explorer_root == NULL)
     {
-        return NULL;
+        return FILES_EXPLORER_NONE;
+    }
+    if (s_explorer_folders == s_explorer_capacity)
+    {
+        const unsigned int capacity = (s_explorer_capacity != 0u) ? s_explorer_capacity * 2u : 16u;
+        const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(
+            (unsigned long long)capacity * sizeof(FilesExplorerFolder), g_cli_editor_owner);
+        if (grown == NULL)
+        {
+            return FILES_EXPLORER_NONE;
+        }
+        for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
+        {
+            const FilesExplorerFolder folder = explorer_at(at);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = grown, .offset = (embed_word)at * sizeof(folder), .src = &folder, .bytes = sizeof(folder)});
+        }
+        if (s_explorer != NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(s_explorer, g_cli_editor_owner);
+        }
+        s_explorer = grown;
+        s_explorer_capacity = capacity;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -404,11 +446,12 @@ static FilesExplorerFolder *explorer_list(const char *dir)
                    .owner = g_cli_editor_owner, .err_msg = &err_msg);
     if (entries == NULL)
     {
-        return NULL;
+        return FILES_EXPLORER_NONE;
     }
-    s_explorer[s_explorer_folders] = (FilesExplorerFolder){dir, entries, 0};
+    const FilesExplorerFolder folder = {dir, entries, 0};
+    explorer_set(s_explorer_folders, &folder);
     s_explorer_folders += 1u;
-    return &s_explorer[s_explorer_folders - 1u];
+    return s_explorer_folders - 1u;
 }
 
 void cli_files_explorer_show(const char *root)
@@ -416,10 +459,12 @@ void cli_files_explorer_show(const char *root)
     if ((s_explorer_root == NULL) && (root != NULL))
     {
         s_explorer_root = root;
-        FilesExplorerFolder *const top = explorer_list("");
-        if (top != NULL)
+        const unsigned int top = explorer_list("");
+        if (top != FILES_EXPLORER_NONE)
         {
-            top->open = 1;
+            FilesExplorerFolder folder = explorer_at(top);
+            folder.open = 1;
+            explorer_set(top, &folder);
         }
     }
 }
@@ -428,21 +473,29 @@ void cli_files_explorer_end(void)
 {
     for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(s_explorer[at].entries, g_cli_editor_owner);
+        g_cli_guard->persistent_buf_release(explorer_at(at).entries, g_cli_editor_owner);
     }
+    if (s_explorer != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_explorer, g_cli_editor_owner);
+    }
+    s_explorer = NULL;
     s_explorer_folders = 0u;
+    s_explorer_capacity = 0u;
     s_explorer_root = NULL;
 }
 
 // the row `*left` rows on in the folder `folder` and the open folders under it, `depth` deep, read into `row`: 1 where
 // it was among them, else 0 with `*left` less the rows they show
-static int explorer_walk(const FilesExplorerFolder *folder, unsigned int depth, unsigned int *left, CliExplorerRow *row)
+static int explorer_walk(FilesExplorerFolder folder, unsigned int depth, unsigned int *left, CliExplorerRow *row)
 {
-    for (unsigned int at = 0u; at < folder->entries->count; at += 1u)
+    for (unsigned int at = 0u; at < folder.entries->count; at += 1u)
     {
-        const CliFileEntry *const entry = &folder->entries->entry[at];
-        const FilesExplorerFolder *const under = entry->dir ? explorer_folder(entry->path) : NULL;
-        const int open = (under != NULL) && under->open;
+        const CliFileEntry *const entry = &folder.entries->entry[at];
+        const unsigned int under_at = entry->dir ? explorer_folder(entry->path) : FILES_EXPLORER_NONE;
+        const FilesExplorerFolder under =
+            (under_at != FILES_EXPLORER_NONE) ? explorer_at(under_at) : (FilesExplorerFolder){NULL, NULL, 0};
+        const int open = (under_at != FILES_EXPLORER_NONE) && under.open;
         if (*left == 0u)
         {
             if (row != NULL)
@@ -463,7 +516,7 @@ static int explorer_walk(const FilesExplorerFolder *folder, unsigned int depth, 
 int cli_files_explorer_row(unsigned int at, CliExplorerRow *row)
 {
     unsigned int left = at;
-    return (s_explorer_folders != 0u) && explorer_walk(&s_explorer[0], 0u, &left, row);
+    return (s_explorer_folders != 0u) && explorer_walk(explorer_at(0u), 0u, &left, row);
 }
 
 unsigned int cli_files_explorer_rows(void)
@@ -505,9 +558,10 @@ void cli_files_explorer_refresh(void)
     unsigned int count = 0u;
     for (unsigned int at = 1u; (open != NULL) && (at < s_explorer_folders); at += 1u)
     {
-        const char *const dir = s_explorer[at].dir;
+        const FilesExplorerFolder folder = explorer_at(at);
+        const char *const dir = folder.dir;
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_PATH_MAX_LEN});
-        if (s_explorer[at].open && (length + 1ULL <= (unsigned long long)(FILES_EXPLORER_OPEN_TEXT - used)))
+        if (folder.open && (length + 1ULL <= (unsigned long long)(FILES_EXPLORER_OPEN_TEXT - used)))
         {
             memor.cpy(&(MemoriaCfg){.dst = open + used, .src = dir, .bytes = length + 1ULL});
             // a path that fits the bytes is counted by an unsigned int
@@ -548,7 +602,9 @@ void cli_files_explorer_collapse(void)
 {
     for (unsigned int at = 1u; at < s_explorer_folders; at += 1u)
     {
-        s_explorer[at].open = 0;
+        FilesExplorerFolder folder = explorer_at(at);
+        folder.open = 0;
+        explorer_set(at, &folder);
     }
 }
 
@@ -585,16 +641,20 @@ int cli_files_explorer_press(unsigned int at)
     {
         return 0;
     }
-    FilesExplorerFolder *const folder = explorer_folder(row.path);
-    if (folder != NULL)
+    const unsigned int listed = explorer_folder(row.path);
+    if (listed != FILES_EXPLORER_NONE)
     {
-        folder->open = !folder->open;
+        FilesExplorerFolder folder = explorer_at(listed);
+        folder.open = !folder.open;
+        explorer_set(listed, &folder);
         return 1;
     }
-    FilesExplorerFolder *const listed = explorer_list(row.path);
-    if (listed != NULL)
+    const unsigned int opened = explorer_list(row.path);
+    if (opened != FILES_EXPLORER_NONE)
     {
-        listed->open = 1;
+        FilesExplorerFolder folder = explorer_at(opened);
+        folder.open = 1;
+        explorer_set(opened, &folder);
     }
     return 1;
 }

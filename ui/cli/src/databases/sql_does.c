@@ -21,6 +21,8 @@ typedef struct
 // while one is read
 static CliSqlWord *s_words;
 static const CliSqlToken *s_tokens;
+// the tokens the words are read off, given back after the words
+static CliSqlTokens s_words_tokens;
 
 typedef struct
 {
@@ -104,15 +106,17 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
+    // the tokens' cell stands under the words' until the words are given back, so the tier takes no hole
+    s_words_tokens = tokens;
     return count;
 }
 
-// the words' cell given back
+// the words' cell given back, then the tokens' under it
 EMBED_INLINE void cli_words_release(void)
 {
     g_cli_guard->persistent_buf_release(s_words, g_cli_db_owner);
     s_words = NULL;
+    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &s_words_tokens);
 }
 
 EMBED_INLINE int cli_word_is(const SqlDoesCtx *args)

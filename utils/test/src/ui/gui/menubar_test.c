@@ -6,7 +6,35 @@
 // anew is at its first row
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/gui/src/menubar.h"
+#include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../cli/cli_check.h"
+
+// the row `at` of the part's own rows read, its label, command and args copied into `text`, sized for
+// CLI_LABEL_MAX_LEN, CLI_LABEL_MAX_LEN and CLI_PATH_MAX_LEN, the three pointed into it: 1, or 0 past the rows
+static int own_row(unsigned int at, CliItem *item, char *text)
+{
+    if (!cli_menus_own_read(at, item))
+    {
+        return 0;
+    }
+    char *const label = text;
+    char *const command = text + CLI_LABEL_MAX_LEN;
+    char *const args = command + CLI_LABEL_MAX_LEN;
+    VerbaLinea label_line = {label, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&label_line, (item->label != NULL) ? item->label : "");
+    (void)mmgr_line_finish(&label_line);
+    VerbaLinea command_line = {command, CLI_LABEL_MAX_LEN, 0ULL};
+    mmgr_line_put(&command_line, (item->command != NULL) ? item->command : "");
+    (void)mmgr_line_finish(&command_line);
+    VerbaLinea args_line = {args, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&args_line, (item->args != NULL) ? item->args : "");
+    (void)mmgr_line_finish(&args_line);
+    item->label = label;
+    item->command = command;
+    item->args = args;
+    return 1;
+}
+#define OWN_ROW_TEXT (2u * CLI_LABEL_MAX_LEN + CLI_PATH_MAX_LEN)
 
 #define MENUBAR_TEST_ROWS 60u
 
@@ -107,25 +135,31 @@ int main(void)
     cli_menus_own_row(&(CliItem){"Open", "file-open", "", "a b.txt", "", "", 0, 0, 0, 0, 0u});
     cli_menus_own_line();
     cli_check(cli_menus_own_named("close-all", ""), "the catalog's item is added by its command");
-    unsigned int built = 0u;
-    const CliItem *const rows = cli_menus_own_rows(&built);
-    cli_check((built == 3u) &&
+    const unsigned int built = cli_menus_own_count();
+    CliItem own_first;
+    CliItem own_second;
+    CliItem own_third;
+    char own_first_text[OWN_ROW_TEXT];
+    char own_second_text[OWN_ROW_TEXT];
+    char own_third_text[OWN_ROW_TEXT];
+    cli_check((built == 3u) && own_row(0u, &own_first, own_first_text) && own_row(1u, &own_second, own_second_text) &&
+                  own_row(2u, &own_third, own_third_text) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[0].label, .cap = CLI_POOL_BYTES, .other = "Open", .other_cap = 5u}) &&
-                  rows[1].line &&
+                      .src = own_first.label, .cap = CLI_POOL_BYTES, .other = "Open", .other_cap = 5u}) &&
+                  own_second.line &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = rows[2].command, .cap = CLI_POOL_BYTES, .other = "close-all", .other_cap = 10u}) &&
-                  (rows[2].label[0] != '\0'),
+                      .src = own_third.command, .cap = CLI_POOL_BYTES, .other = "close-all", .other_cap = 10u}) &&
+                  (own_third.label[0] != '\0'),
               "the rows are as built, the catalog's with its label");
-    cli_check((cli_menus_own_word(rows[0].args) != NULL) &&
+    cli_check((cli_menus_own_word(own_first.args) != NULL) &&
                   cellul.eq(&(CatenaFinitaCfg){
-                      .src = cli_menus_own_word(rows[0].args), .cap = CLI_POOL_BYTES, .other = "a b.txt", .other_cap = 8u}),
+                      .src = cli_menus_own_word(own_first.args), .cap = CLI_POOL_BYTES, .other = "a b.txt", .other_cap = 8u}),
               "a row's word is its args as the part passed them, a path with a space one word");
-    cli_check(cli_menus_own_word(rows[2].args) == NULL, "a catalog item's pattern reads as no word");
+    cli_check(cli_menus_own_word(own_third.args) == NULL, "a catalog item's pattern reads as no word");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = cli_menus_own_word("[on|off]"), .cap = CLI_POOL_BYTES, .other = "[on|off]", .other_cap = 9u}),
               "a word located outside the catalog is the row's, whatever it reads as");
-    cli_menus_own_open(rows, built, CLI_MENU_PLACE_POINT, 300, 100);
+    cli_menus_own_open(NULL, built, CLI_MENU_PLACE_POINT, 300, 100);
     CliItem read;
     cli_check(cli_menus_row(0u, 0u, &read) &&
                   cellul.eq(&(CatenaFinitaCfg){

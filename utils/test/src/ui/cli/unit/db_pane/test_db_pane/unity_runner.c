@@ -88,9 +88,9 @@ int main(void)
   run_test(test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it, "test_a_delete_of_every_row_asks_first_and_runs_only_on_run_it", 211);
   run_test(test_a_refused_connection_is_as_its_failure, "test_a_refused_connection_is_as_its_failure", 237);
   run_test(test_a_nodes_menu_and_the_panes_own_are_the_catalogs_commands, "test_a_nodes_menu_and_the_panes_own_are_the_catalogs_commands", 249);
-  run_test(test_show_its_first_rows_passes_the_tables_rows_to_the_grid, "test_show_its_first_rows_passes_the_tables_rows_to_the_grid", 276);
-  run_test(test_the_form_adds_a_connection_and_removes_it, "test_the_form_adds_a_connection_and_removes_it", 287);
-  run_test(test_disconnect_closes_the_connection_and_lets_its_result_go, "test_disconnect_closes_the_connection_and_lets_its_result_go", 330);
+  run_test(test_show_its_first_rows_passes_the_tables_rows_to_the_grid, "test_show_its_first_rows_passes_the_tables_rows_to_the_grid", 279);
+  run_test(test_the_form_adds_a_connection_and_removes_it, "test_the_form_adds_a_connection_and_removes_it", 290);
+  run_test(test_disconnect_closes_the_connection_and_lets_its_result_go, "test_disconnect_closes_the_connection_and_lets_its_result_go", 333);
 
   return UNITY_END();
 }

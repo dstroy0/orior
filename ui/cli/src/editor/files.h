@@ -121,9 +121,6 @@ EMBED_TABLE_STORAGE CliFilesListingNs cli_files_listing EMBED_UNUSED = {
     .entries_alloc = cli_files_entries_alloc,
 };
 
-// the folders the explorer lists at max
-#define CLI_FILES_EXPLORER_FOLDERS 4096u
-
 // One row of the explorer: the path from the tree's top and the name, located as long as its folder's listing does;
 // how deep it is; whether it is a folder; whether git ignores it; and whether it is open
 typedef struct

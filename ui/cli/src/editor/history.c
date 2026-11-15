@@ -7,15 +7,75 @@
 #include "../text/regexp.h"
 #include "../text/text.h"
 
-// the max snapshots a file retains, and the max a folder of them is read as containing
+// the max snapshots a file retains
 #define CLI_HISTORY_RETAIN_MAX 100u
-
-#define CLI_HISTORY_STAMPS 4096u
 
 static const char *const s_no_home = "impero has no folder of its own here";
 
-// the stamps of a folder of snapshots, guarded by the lock while one is stored or listed
-static unsigned long long s_stamps[CLI_HISTORY_STAMPS];
+// The stamps of a folder of snapshots as one call reads them: in a movable cell of the call grown as they are
+// found, how many there are and the cell's capacity
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned int count;
+    unsigned int capacity;
+} HistoryStamps;
+
+// the stamp `at` of `stamps`, and `stamp` written there
+static unsigned long long history_stamp_at(const HistoryStamps *stamps, unsigned int at)
+{
+    unsigned long long stamp = 0ULL;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = stamps->cell, .offset = (embed_word)at * sizeof(stamp), .dst = &stamp, .bytes = sizeof(stamp)});
+    return stamp;
+}
+
+static void history_stamp_set(const HistoryStamps *stamps, unsigned int at, unsigned long long stamp)
+{
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = stamps->cell, .offset = (embed_word)at * sizeof(stamp), .src = &stamp, .bytes = sizeof(stamp)});
+}
+
+// `stamp` added at the end of `stamps`, the cell grown to twice its capacity where it is full: 1, or 0 where the
+// cells refuse the growth
+static int history_stamp_add(HistoryStamps *stamps, unsigned long long stamp)
+{
+    if (stamps->count == stamps->capacity)
+    {
+        const unsigned int capacity = (stamps->capacity != 0u) ? stamps->capacity * 2u : 16u;
+        const CarcerMovableEntry *const grown =
+            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(stamp), g_cli_editor_owner);
+        if (grown == NULL)
+        {
+            return 0;
+        }
+        for (unsigned int at = 0u; at < stamps->count; at += 1u)
+        {
+            const unsigned long long held = history_stamp_at(stamps, at);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = grown, .offset = (embed_word)at * sizeof(held), .src = &held, .bytes = sizeof(held)});
+        }
+        if (stamps->cell != NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(stamps->cell, g_cli_editor_owner);
+        }
+        stamps->cell = grown;
+        stamps->capacity = capacity;
+    }
+    history_stamp_set(stamps, stamps->count, stamp);
+    stamps->count += 1u;
+    return 1;
+}
+
+// the stamps' cell given back and the list emptied
+static void history_stamps_release(HistoryStamps *stamps)
+{
+    if (stamps->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(stamps->cell, g_cli_editor_owner);
+    }
+    *stamps = (HistoryStamps){NULL, 0u, 0u};
+}
 
 typedef struct
 {
@@ -33,6 +93,7 @@ typedef struct
     const char *before;
     unsigned long long before_size;
     VerbaLinea *err_msg;
+    HistoryStamps *stamps;
 } HistoryCtx;
 // whether the snapshot at `snapshot` contains `size` bytes of `text`, the snapshot mapped where it lies and let go
 EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
@@ -110,19 +171,13 @@ EMBED_INLINE int cli_snapshot_path(const HistoryCtx *args)
     return fits;
 }
 
-// The stamps found in a folder: each `<number>.txt`
-typedef struct
-{
-    unsigned int count;
-} CliStamps;
-
+// one file of the folder read where it names a snapshot, `<number>.txt`: its stamp added to the stamps
 static void cli_stamp_each(const CliEachNameIsFolderCfg *args)
 {
-    CliStamps *const stamps = (CliStamps *)args->context;
+    HistoryStamps *const stamps = (HistoryStamps *)args->context;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (length <= 4u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".txt", .cap = CLI_POOL_BYTES})) ||
-        (stamps->count >= CLI_HISTORY_STAMPS))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".txt", .cap = CLI_POOL_BYTES})))
     {
         return;
     }
@@ -137,29 +192,30 @@ static void cli_stamp_each(const CliEachNameIsFolderCfg *args)
         }
         value = (value * 10ULL) + (unsigned long long)(digit - '0');
     }
-    s_stamps[stamps->count] = value;
-    stamps->count += 1u;
+    (void)history_stamp_add(stamps, value);
 }
 
-// the stamps of a folder in order, the oldest first: their count
+// the stamps of a folder read into `stamps` in order, the oldest first: their count
 EMBED_INLINE unsigned int cli_stamps(const HistoryCtx *args)
 {
-    CliStamps stamps = {0u};
+    HistoryStamps *const stamps = args->stamps;
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
-               .each = cli_stamp_each, .context_bytess = &stamps);
-    for (unsigned int at = 1u; at < stamps.count; at += 1u)
+               .each = cli_stamp_each, .context_bytess = stamps);
+    for (unsigned int at = 1u; at < stamps->count; at += 1u)
     {
-        const unsigned long long stamp = s_stamps[at];
+        const unsigned long long stamp = history_stamp_at(stamps, at);
         unsigned int place = at;
-        while ((place > 0u) && (s_stamps[place - 1u] > stamp))
+        while ((place > 0u) && (history_stamp_at(stamps, place - 1u) > stamp))
         {
-            s_stamps[place] = s_stamps[place - 1u];
+            history_stamp_set(stamps, place, history_stamp_at(stamps, place - 1u));
             place -= 1u;
         }
-        s_stamps[place] = stamp;
+        history_stamp_set(stamps, place, stamp);
     }
-    return stamps.count;
+    return stamps->count;
 }
+
+EMBED_INLINE int cli_snapshot_write(const HistoryCtx *args);
 
 EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
 {
@@ -180,7 +236,24 @@ EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
         mmgr_line_put(args->err_msg, ": it could not be made");
         return 0;
     }
-    unsigned int stamp_count = EMBED_CALL(cli_stamps, HistoryCtx, .folder = folder);
+    HistoryStamps stamps = {NULL, 0u, 0u};
+    const int written = EMBED_CALL(cli_snapshot_write, HistoryCtx, .folder = folder, .stamps = &stamps,
+                                   .before = args->before, .before_size = args->before_size, .text = args->text,
+                                   .size = size, .err_msg = args->err_msg);
+    history_stamps_release(&stamps);
+    return written;
+}
+
+// the snapshot of `size` bytes of `text` written into the folder `folder` of the file's snapshots, the text before
+// the edit first where it differs and no snapshot stands, none where the newest snapshot is the text already, and
+// the snapshots past the retained count removed: 1, or 0 with why in `err_msg`
+EMBED_INLINE int cli_snapshot_write(const HistoryCtx *args)
+{
+    const char *const folder = args->folder;
+    const unsigned long long size = args->size;
+    char snapshot[CLI_PATH_MAX_LEN];
+    HistoryStamps *const stamps = args->stamps;
+    unsigned int stamp_count = EMBED_CALL(cli_stamps, HistoryCtx, .folder = folder, .stamps = stamps);
     unsigned long long at = cli_wall_milliseconds();
     const int before_differs =
         (args->before != NULL) &&
@@ -196,13 +269,12 @@ EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
             mmgr_line_put(args->err_msg, ": it could not be written");
             return 0;
         }
-        s_stamps[stamp_count] = at;
-        stamp_count += 1u;
+        stamp_count += history_stamp_add(stamps, at) ? 1u : 0u;
         at += 1ULL;
     }
     if (stamp_count != 0u)
     {
-        const unsigned long long last = s_stamps[stamp_count - 1u];
+        const unsigned long long last = history_stamp_at(stamps, stamp_count - 1u);
         if (EMBED_CALL(cli_snapshot_path, HistoryCtx, .folder = folder, .at = last, .path_out = snapshot) &&
             EMBED_CALL(cli_snapshot_same, HistoryCtx, .snapshot = snapshot, .text = args->text, .size = size))
         {
@@ -218,11 +290,13 @@ EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
         mmgr_line_put(args->err_msg, ": it could not be written");
         return 0;
     }
-    stamp_count += (stamp_count < CLI_HISTORY_STAMPS) ? 1u : 0u;
+    // the snapshot written counts among the stamps; the oldest past the retained count are removed
+    stamp_count += 1u;
     for (unsigned int old = 0u;
          (stamp_count > CLI_HISTORY_RETAIN_MAX) && (old < (stamp_count - CLI_HISTORY_RETAIN_MAX)); old += 1u)
     {
-        if (EMBED_CALL(cli_snapshot_path, HistoryCtx, .folder = folder, .at = s_stamps[old], .path_out = snapshot))
+        if (EMBED_CALL(cli_snapshot_path, HistoryCtx, .folder = folder, .at = history_stamp_at(stamps, old),
+                       .path_out = snapshot))
         {
             EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = snapshot);
         }
@@ -248,9 +322,15 @@ unsigned int cli_history_stamps(const CliHistoryStampsCfg *args)
     {
         return 0u;
     }
-    const unsigned int count = EMBED_CALL(cli_stamps, HistoryCtx, .folder = folder);
+    HistoryStamps stamps = {NULL, 0u, 0u};
+    const unsigned int count = EMBED_CALL(cli_stamps, HistoryCtx, .folder = folder, .stamps = &stamps);
     const unsigned int copied = (count < args->capacity) ? count : args->capacity;
-    memor.cpy(&(MemoriaCfg){.dst = args->stamps_out, .src = s_stamps, .bytes = (embed_word)copied * sizeof(*s_stamps)});
+    if (copied != 0u)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = stamps.cell, .dst = args->stamps_out, .bytes = (embed_word)copied * sizeof(unsigned long long)});
+    }
+    history_stamps_release(&stamps);
     return copied;
 }
 

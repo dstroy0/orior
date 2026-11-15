@@ -42,8 +42,10 @@ EMBED_INLINE int offer_has_key(const SchemaOfferCtx *args)
     const CliSchemaSpot *const spot = &g_cli_schema_spot;
     for (unsigned int at = spot->keys_first; at < spot->keys_first + spot->keys; at += 1u)
     {
-        if ((g_cli_schema_key[at].to - g_cli_schema_key[at].from == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = args->text + g_cli_schema_key[at].from,
+        CliSchemaOpenKey key = {0ULL, 0ULL};
+        cli_schema_table_read(&g_cli_schema_key, at, &key, sizeof(key));
+        if ((key.to - key.from == args->size) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->text + key.from,
                                      .other = args->name,
                                      .bytes = (embed_word)args->size}) == 0))
         {
@@ -65,10 +67,12 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
         args->token;
     static const char *s_offered[CLI_SCHEMA_OFFERED];
     unsigned int offered = 0u;
-    for (unsigned int reached = 0u; reached < g_cli_schema_reached_count; reached += 1u)
+    for (unsigned int reached = 0u; reached < g_cli_schema_reached.count; reached += 1u)
     {
+        unsigned int map = 0u;
+        cli_schema_table_read(&g_cli_schema_reached, reached, &map, sizeof(map));
         const unsigned int properties = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                                   .map = g_cli_schema_reached[reached], .name = "properties");
+                                                   .map = map, .name = "properties");
         for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                            .node = properties, .type = CFG_JSON_OBJECT)
                                     ? json->node[properties].first
@@ -246,9 +250,10 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
     CliJson *const json = &g_cli_schema_store->json;
     s_values.count = 0u;
     s_values.used = 0u;
-    for (unsigned int reached = 0u; reached < g_cli_schema_reached_count; reached += 1u)
+    for (unsigned int reached = 0u; reached < g_cli_schema_reached.count; reached += 1u)
     {
-        const unsigned int one = g_cli_schema_reached[reached];
+        unsigned int one = 0u;
+        cli_schema_table_read(&g_cli_schema_reached, reached, &one, sizeof(one));
         static char s_detail[1u << 12u];
         VerbaLinea detail = {s_detail, sizeof(s_detail), 0ULL};
         EMBED_CALL(cli_schema_json_out_internal.detail, CliSchemaJsonOutCtx, .json = json, .schema = one,
