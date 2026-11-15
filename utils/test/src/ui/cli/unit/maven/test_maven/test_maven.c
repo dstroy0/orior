@@ -91,6 +91,25 @@ void test_each_fault_of_the_pom_is_found(void)
     }
 }
 
+void test_a_dependency_listed_again_past_the_cells_first_size_is_found(void)
+{
+    static char s_long[1u << 14u];
+    VerbaLinea pom = {s_long, sizeof(s_long), 0ull};
+    mmgr_line_put(&pom, "<project>\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>g</groupId>\n  <artifactId>a</artifactId>\n  <version>1</version>\n  <dependencies>\n");
+    // twenty dependencies, each with its own artifact, then the first again
+    for (unsigned int at = 0u; at < 20u; at += 1u)
+    {
+        mmgr_line_put(&pom, "    <dependency><groupId>g</groupId><artifactId>many");
+        mmgr_line_decimal(&pom, at, 1u);
+        mmgr_line_put(&pom, "</artifactId><version>1</version></dependency>\n");
+    }
+    mmgr_line_put(&pom, "    <dependency><groupId>g</groupId><artifactId>many0</artifactId><version>1</version></dependency>\n  </dependencies>\n</project>\n");
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&pom));
+    const unsigned int found = findings_of("/tree", "/tree/pom.xml", s_long);
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, cli_unity_finding(found, "pom-duplicate", "g:many0"));
+    TEST_ASSERT_EQUAL_UINT(1u, s_json->node[found].count);
+}
+
 void test_nothing_else_is_found(void)
 {
     const unsigned int found = findings_of("/tree", "/tree/pom.xml", s_pom);

@@ -4,18 +4,39 @@
 // listed once by its coordinates, type and classifier, takes a scope Maven knows, and has a version or a management
 // that gives it one, where the POM and its parents were all read and none of their managed dependencies imports a
 // POM; a version that is a snapshot is noted with the fix that fetches its newest build. Each value has the properties
-// it names given. More dependencies than CLI_MAVEN_LISTING in one list are not compared for being listed twice
+// it names given. The dependencies listed so far are held in cells of the call, grown as the list fills them
 #include "maven_internal.h"
 
-// the max dependencies of one list compared for being listed twice, and the bytes they take
-#define CLI_MAVEN_LISTING 4096u
-#define CLI_MAVEN_LISTING_TEXT (1u << 20u)
+// A movable cell of the call and its bytes
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned long long bytes;
+} CliMavenCell;
 
-static unsigned int s_seen_at[CLI_MAVEN_LISTING];
-static unsigned int s_seen_size[CLI_MAVEN_LISTING];
-static unsigned int s_seen;
-static char s_seen_text[CLI_MAVEN_LISTING_TEXT];
-static unsigned int s_seen_used;
+// Where one dependency's coordinates text is in the texts' cell, and its bytes
+typedef struct
+{
+    unsigned long long at;
+    unsigned long long size;
+} CliMavenPlace;
+
+// The dependencies listed above in one list, compared for being listed twice: their coordinates' texts in one cell
+// and each one's place in another, both grown as the list fills them, the count of them and the texts' bytes used
+typedef struct
+{
+    CliMavenCell texts;
+    CliMavenCell places;
+    unsigned int count;
+    unsigned long long used;
+} CliMavenSeen;
+
+// the cells' first sizes, and the page a cell's records move by as it grows
+#define CLI_MAVEN_SEEN_TEXTS_FIRST 4096ULL
+
+#define CLI_MAVEN_SEEN_PLACES_FIRST (16ULL * sizeof(CliMavenPlace))
+
+#define CLI_MAVEN_SEEN_PAGE 4096ULL
 
 typedef struct
 {
@@ -29,7 +50,46 @@ typedef struct
     const CliMavenModel *model;
     const char *key;
     int managing;
+    CliMavenSeen *seen;
+    CliMavenCell *store;
+    unsigned long long needed;
+    unsigned long long first;
 } MavenDependenciesCtx;
+
+// the cell of `store` grown to `needed` bytes where it is less, doubled from its size or begun at `first`, its bytes
+// copied over a page at a time, the cell before given back: 1, or 0 where the cells cannot meet it
+EMBED_INLINE int dependencies_cell_grown(const MavenDependenciesCtx *args)
+{
+    CliMavenCell *const store = args->store;
+    if (args->needed <= store->bytes)
+    {
+        return 1;
+    }
+    const unsigned long long doubled = (store->bytes != 0ULL) ? (store->bytes * 2ULL) : args->first;
+    const unsigned long long bytes = (doubled < args->needed) ? args->needed : doubled;
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_build_owner);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    for (unsigned long long at = 0ULL; at < store->bytes; at += CLI_MAVEN_SEEN_PAGE)
+    {
+        char page[CLI_MAVEN_SEEN_PAGE];
+        const unsigned long long piece =
+            ((store->bytes - at) < CLI_MAVEN_SEEN_PAGE) ? (store->bytes - at) : CLI_MAVEN_SEEN_PAGE;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = store->cell, .offset = (embed_word)at, .dst = page, .bytes = (embed_word)piece});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .src = page, .bytes = (embed_word)piece});
+    }
+    if (store->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(store->cell, g_cli_build_owner);
+    }
+    store->cell = cell;
+    store->bytes = bytes;
+    return 1;
+}
 // the child `name` of `of`, with the properties it names given, into `out`: 1, or 0 where it has none
 EMBED_INLINE int dependencies_get(const MavenDependenciesCtx *args)
 {
@@ -49,25 +109,44 @@ EMBED_INLINE int dependencies_get(const MavenDependenciesCtx *args)
     return 1;
 }
 
-// whether `size` bytes of `whole` were listed above in this list, and recorded where they were not
+// whether `size` bytes of `whole` were listed above in this list, among `seen`, compared in the texts' cell; recorded
+// where they were not, the cells grown to hold them
 EMBED_INLINE int dependencies_visit(const MavenDependenciesCtx *args)
 {
-    for (unsigned int at = 0u; at < s_seen; at += 1u)
+    CliMavenSeen *const seen = args->seen;
+    for (unsigned int at = 0u; at < seen->count; at += 1u)
     {
-        if ((s_seen_size[at] == args->size) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = s_seen_text + s_seen_at[at], .other = args->whole, .bytes = (embed_word)args->size}) == 0))
+        CliMavenPlace place;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = seen->places.cell,
+                                                               .offset = (embed_word)at * sizeof(CliMavenPlace),
+                                                               .dst = &place,
+                                                               .bytes = sizeof(place)});
+        if ((place.size == args->size) &&
+            (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = seen->texts.cell,
+                                                                 .offset = (embed_word)place.at,
+                                                                 .src = args->whole,
+                                                                 .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
     }
-    if ((s_seen < CLI_MAVEN_LISTING) && (args->size <= CLI_MAVEN_LISTING_TEXT - s_seen_used))
+    if (EMBED_CALL(dependencies_cell_grown, MavenDependenciesCtx, .store = &seen->places,
+                   .needed = ((unsigned long long)seen->count + 1ULL) * sizeof(CliMavenPlace),
+                   .first = CLI_MAVEN_SEEN_PLACES_FIRST) &&
+        EMBED_CALL(dependencies_cell_grown, MavenDependenciesCtx, .store = &seen->texts,
+                   .needed = seen->used + args->size, .first = CLI_MAVEN_SEEN_TEXTS_FIRST))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_seen_text + s_seen_used, .src = args->whole, .bytes = (embed_word)args->size});
-        s_seen_at[s_seen] = s_seen_used;
-        s_seen_size[s_seen] = (unsigned int)args->size;
-        s_seen += 1u;
-        s_seen_used += (unsigned int)args->size;
+        const CliMavenPlace place = {seen->used, args->size};
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = seen->texts.cell,
+                                                                .offset = (embed_word)seen->used,
+                                                                .src = args->whole,
+                                                                .bytes = (embed_word)args->size});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = seen->places.cell,
+                                                                .offset = (embed_word)seen->count * sizeof(place),
+                                                                .src = &place,
+                                                                .bytes = sizeof(place)});
+        seen->count += 1u;
+        seen->used += args->size;
     }
     return 0;
 }
@@ -190,7 +269,8 @@ EMBED_INLINE void dependencies_one(const MavenDependenciesCtx *args)
     mmgr_line_ch(&whole, ':');
     (void)EMBED_CALL(dependencies_get, MavenDependenciesCtx, .check = check, .of = args->dependency,
                      .name = "classifier", .out = &whole);
-    if (EMBED_CALL(dependencies_visit, MavenDependenciesCtx, .whole = s_coordinates, .size = whole.at))
+    if (EMBED_CALL(dependencies_visit, MavenDependenciesCtx, .seen = args->seen, .whole = s_coordinates,
+                   .size = whole.at))
     {
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_ch(&msg, '`');
@@ -249,15 +329,23 @@ void cli_maven_dependencies(const CliMavenCheckCtx *args)
     const int managing =
         (parent != CLI_XML_NONE) && EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = xml,
                                                .element = parent, .name = "dependencyManagement");
-    s_seen = 0u;
-    s_seen_used = 0u;
+    // the dependencies listed so far, in cells of the call, given back as the list ends
+    CliMavenSeen seen = {{NULL, 0ULL}, {NULL, 0ULL}, 0u, 0ULL};
     for (unsigned int one = xml->element[args->list].first; one != CLI_XML_NONE; one = xml->element[one].next)
     {
         if (EMBED_CALL(cli_maven_xml_name_internal.xml_by_name, CliMavenXmlNameCtx, .xml = xml, .element = one,
                        .name = "dependency"))
         {
             EMBED_CALL(dependencies_one, MavenDependenciesCtx, .check = args->check, .dependency = one,
-                       .managing = managing);
+                       .managing = managing, .seen = &seen);
         }
+    }
+    if (seen.texts.cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(seen.texts.cell, g_cli_build_owner);
+    }
+    if (seen.places.cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(seen.places.cell, g_cli_build_owner);
     }
 }
