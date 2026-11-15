@@ -116,12 +116,10 @@ typedef struct
     unsigned int capacity;
 } CliToolchainsPaths;
 // `path` added at the end of `paths`, the cell grown to twice its capacity where it does not fit: 1, or 0 where
-// the path does not fit CLI_PATH_MAX_LEN bytes or the cells refuse the growth, the list as it was; the path `at`
-// read into `out`, sized for CLI_PATH_MAX_LEN; `path` written at `at`, which is among the paths; and the list's cell
-// given back and the list emptied
+// the path does not fit CLI_PATH_MAX_LEN bytes or the cells refuse the growth, the list as it was; and the list's
+// cell given back and the list emptied. A caller reads the path `at` through the cell, CLI_PATH_MAX_LEN bytes at
+// `at` times CLI_PATH_MAX_LEN
 int cli_toolchains_paths_add(CliToolchainsPaths *paths, const char *path);
-void cli_toolchains_paths_read(const CliToolchainsPaths *paths, unsigned int at, char *out);
-void cli_toolchains_paths_write(const CliToolchainsPaths *paths, unsigned int at, const char *path);
 void cli_toolchains_paths_release(CliToolchainsPaths *paths);
 // the folders a pattern of toolchains.json names, newest first where a * is for a version, each that is a folder
 // added to `paths`: their count after

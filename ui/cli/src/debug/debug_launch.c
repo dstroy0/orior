@@ -64,7 +64,8 @@ EMBED_INLINE CliDap *launch_adapter_from(const DebugLaunchCtx *args)
                               : NULL;
     for (unsigned int at = 0u; (ahead != NULL) && (at < folders.count); at += 1u)
     {
-        cli_toolchains_paths_read(&folders, at, ahead[at]);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = folders.cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = ahead[at], .bytes = CLI_PATH_MAX_LEN});
     }
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg,
                .ahead = (const char (*)[CLI_PATH_MAX_LEN])ahead, .count = (ahead != NULL) ? folders.count : 0u,

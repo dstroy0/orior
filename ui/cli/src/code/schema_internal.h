@@ -248,11 +248,10 @@ typedef struct
     unsigned int capacity;
 } CliSchemaTable;
 
-// the entry `at` of `table`, `bytes` each, read into `out`; `entry` written at `at`, the cell grown to twice its
-// capacity where `at` is past it and the count raised past `at`: 1, or 0 where the cells refuse the growth; and the
-// table's cell given back and the table emptied (schema_complete.c)
-void cli_schema_table_read(const CliSchemaTable *table, unsigned int at, void *out, unsigned long long bytes);
-int cli_schema_table_write(CliSchemaTable *table, unsigned int at, const void *entry, unsigned long long bytes);
+// the table's cell grown to twice its capacity until it holds an entry at `at`, `bytes` each, the entries copied
+// through and the count raised past `at`: 1, or 0 where the cells refuse the growth; and the table's cell given back
+// and the table emptied (schema_complete.c). A caller reads and writes the entries through the cell itself
+int cli_schema_table_room(CliSchemaTable *table, unsigned int at, unsigned long long bytes);
 void cli_schema_table_release(CliSchemaTable *table);
 
 // Where the cursor is: the steps to the value it is in, in a table, how many steps, whether it is at a key and

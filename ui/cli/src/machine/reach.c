@@ -37,16 +37,6 @@ typedef struct
     unsigned int capacity;
 } CliReachRead;
 
-// the entry `at` of the windows read
-static CliReachEntry reach_entry_at(const CliReachRead *read, unsigned int at)
-{
-    CliReachEntry entry;
-    memor.set(&(MemoriaCfg){.dst = &entry, .val = 0, .bytes = sizeof(entry)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = read->entries, .offset = (embed_word)at * sizeof(entry), .dst = &entry, .bytes = sizeof(entry)});
-    return entry;
-}
-
 // `entry` added to the windows read, the entries' cell grown to twice its capacity where it is full; nothing where
 // the cells refuse the growth
 static void reach_entry_add(CliReachRead *read, const CliReachEntry *entry)
@@ -62,7 +52,10 @@ static void reach_entry_add(CliReachRead *read, const CliReachEntry *entry)
         }
         for (unsigned int at = 0u; at < read->count; at += 1u)
         {
-            const CliReachEntry one = reach_entry_at(read, at);
+            CliReachEntry one;
+            memor.set(&(MemoriaCfg){.dst = &one, .val = 0, .bytes = sizeof(one)});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = read->entries, .offset = (embed_word)at * sizeof(one), .dst = &one, .bytes = sizeof(one)});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = grown, .offset = (embed_word)at * sizeof(one), .src = &one, .bytes = sizeof(one)});
         }
@@ -345,7 +338,12 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
     int answered = -1;
     for (unsigned int at = 0u; (at < read.count) && (answered < 0); at += 1u)
     {
-        const CliReachEntry read_entry = reach_entry_at(&read, at);
+        CliReachEntry read_entry;
+        memor.set(&(MemoriaCfg){.dst = &read_entry, .val = 0, .bytes = sizeof(read_entry)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = read.entries,
+                                                                .offset = (embed_word)at * sizeof(read_entry),
+                                                                .dst = &read_entry,
+                                                                .bytes = sizeof(read_entry)});
         const CliReachEntry *const entry = &read_entry;
         // a command for a tree goes to the windows open on it; with no tree named, to the one window where there is
         // only one

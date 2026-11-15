@@ -28,13 +28,7 @@ CliSchemaTable g_cli_schema_key;
 static unsigned int s_keys;
 CliSchemaSpot g_cli_schema_spot;
 
-void cli_schema_table_read(const CliSchemaTable *table, unsigned int at, void *out, unsigned long long bytes)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = table->cell, .offset = (embed_word)at * (embed_word)bytes, .dst = out, .bytes = (embed_word)bytes});
-}
-
-int cli_schema_table_write(CliSchemaTable *table, unsigned int at, const void *entry, unsigned long long bytes)
+int cli_schema_table_room(CliSchemaTable *table, unsigned int at, unsigned long long bytes)
 {
     if (at >= table->capacity)
     {
@@ -52,7 +46,10 @@ int cli_schema_table_write(CliSchemaTable *table, unsigned int at, const void *e
         for (unsigned int each = 0u; each < table->count; each += 1u)
         {
             unsigned char piece[64];
-            cli_schema_table_read(table, each, piece, bytes);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = table->cell,
+                                                                    .offset = (embed_word)each * (embed_word)bytes,
+                                                                    .dst = piece,
+                                                                    .bytes = (embed_word)bytes});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = grown, .offset = (embed_word)each * (embed_word)bytes, .src = piece, .bytes = (embed_word)bytes});
         }
@@ -63,8 +60,6 @@ int cli_schema_table_write(CliSchemaTable *table, unsigned int at, const void *e
         table->cell = grown;
         table->capacity = capacity;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-        .cell = table->cell, .offset = (embed_word)at * (embed_word)bytes, .src = entry, .bytes = (embed_word)bytes});
     table->count = (at + 1u > table->count) ? at + 1u : table->count;
     return 1;
 }
@@ -78,19 +73,6 @@ void cli_schema_table_release(CliSchemaTable *table)
     *table = (CliSchemaTable){NULL, 0u, 0u};
 }
 
-// the frame `at` of the frames open, and the frame written there
-static CliSchemaFrame complete_frame(unsigned int at)
-{
-    CliSchemaFrame frame;
-    memor.set(&(MemoriaCfg){.dst = &frame, .val = 0, .bytes = sizeof(frame)});
-    cli_schema_table_read(&s_frame, at, &frame, sizeof(frame));
-    return frame;
-}
-
-static int complete_frame_set(unsigned int at, const CliSchemaFrame *frame)
-{
-    return cli_schema_table_write(&s_frame, at, frame, sizeof(*frame));
-}
 
 typedef struct
 {
@@ -114,16 +96,14 @@ typedef struct
 EMBED_INLINE void complete_step(const SchemaCompleteCtx *args)
 {
     const CliSchemaStep step = {args->key, args->from, args->to, args->index};
-    g_cli_schema_spot.steps +=
-        cli_schema_table_write(&g_cli_schema_spot.step, g_cli_schema_spot.steps, &step, sizeof(step)) ? 1u : 0u;
-}
-
-// the step `at` of the spot's steps
-static CliSchemaStep complete_step_at(unsigned int at)
-{
-    CliSchemaStep step = {0, 0ULL, 0ULL, 0u};
-    cli_schema_table_read(&g_cli_schema_spot.step, at, &step, sizeof(step));
-    return step;
+    if (cli_schema_table_room(&g_cli_schema_spot.step, g_cli_schema_spot.steps, sizeof(step)))
+    {
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_schema_spot.step.cell,
+                                                                 .offset = (embed_word)g_cli_schema_spot.steps * sizeof(step),
+                                                                 .src = &step,
+                                                                 .bytes = sizeof(step)});
+        g_cli_schema_spot.steps += 1u;
+    }
 }
 
 // a string passed from `at`, its raw text a key where the object's colon was not passed: past it, or 0 where it is not
@@ -141,13 +121,23 @@ EMBED_INLINE int complete_string(const SchemaCompleteCtx *args)
         }
         if (args->text[end] == '"')
         {
-            CliSchemaFrame last = (args->frames > 0u) ? complete_frame(args->frames - 1u) : (CliSchemaFrame){0};
+            CliSchemaFrame last = {0};
+            if (args->frames > 0u)
+            {
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                                        .offset = (embed_word)(args->frames - 1u) * sizeof(last),
+                                                                        .dst = &last,
+                                                                        .bytes = sizeof(last)});
+            }
             if ((args->frames > 0u) && last.object && !last.colon)
             {
                 last.has_key = 1;
                 last.key_from = *at + 1u;
                 last.key_to = end;
-                (void)complete_frame_set(args->frames - 1u, &last);
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                                         .offset = (embed_word)(args->frames - 1u) * sizeof(last),
+                                                                         .src = &last,
+                                                                         .bytes = sizeof(last)});
             }
             *at = end + 1u;
             return 1;
@@ -187,7 +177,14 @@ EMBED_INLINE void complete_key_closed(const SchemaCompleteCtx *args)
 {
     CliSchemaFrame *const last = args->frame;
     const CliSchemaOpenKey key = {last->key_from, last->key_to};
-    s_keys += (last->has_key && cli_schema_table_write(&g_cli_schema_key, s_keys, &key, sizeof(key))) ? 1u : 0u;
+    if (last->has_key && cli_schema_table_room(&g_cli_schema_key, s_keys, sizeof(key)))
+    {
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_schema_key.cell,
+                                                                 .offset = (embed_word)s_keys * sizeof(key),
+                                                                 .src = &key,
+                                                                 .bytes = sizeof(key)});
+        s_keys += 1u;
+    }
     last->has_key = 0;
     last->colon = 0;
 }
@@ -215,28 +212,48 @@ EMBED_INLINE void complete_punctuation(const SchemaCompleteCtx *args)
     unsigned int *const frames = args->frames_out;
     const char byte = args->byte;
     // the frame open last, read from the table and written back where the byte changes it
-    CliSchemaFrame top = (*frames > 0u) ? complete_frame(*frames - 1u) : (CliSchemaFrame){0};
+    CliSchemaFrame top = {0};
+    if (*frames > 0u)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                                .offset = (embed_word)(*frames - 1u) * sizeof(top),
+                                                                .dst = &top,
+                                                                .bytes = sizeof(top)});
+    }
     CliSchemaFrame *const last = (*frames > 0u) ? &top : NULL;
     if ((byte == ':') && (last != NULL) && last->object)
     {
         last->colon = 1;
-        (void)complete_frame_set(*frames - 1u, last);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                                 .offset = (embed_word)(*frames - 1u) * sizeof(top),
+                                                                 .src = &top,
+                                                                 .bytes = sizeof(top)});
     }
     else if ((byte == ',') && (last != NULL) && last->object)
     {
         EMBED_CALL(complete_key_closed, SchemaCompleteCtx, .frame = last);
-        (void)complete_frame_set(*frames - 1u, last);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                                 .offset = (embed_word)(*frames - 1u) * sizeof(top),
+                                                                 .src = &top,
+                                                                 .bytes = sizeof(top)});
     }
     else if ((byte == ',') && (last != NULL))
     {
         last->index += 1u;
-        (void)complete_frame_set(*frames - 1u, last);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                                 .offset = (embed_word)(*frames - 1u) * sizeof(top),
+                                                                 .src = &top,
+                                                                 .bytes = sizeof(top)});
     }
     else if ((byte == '{') || (byte == '['))
     {
         const CliSchemaFrame opened = {byte == '{', 0, 0ULL, 0ULL, 0, s_keys, 0u};
-        if (complete_frame_set(*frames, &opened))
+        if (cli_schema_table_room(&s_frame, *frames, sizeof(opened)))
         {
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                                     .offset = (embed_word)(*frames) * sizeof(opened),
+                                                                     .src = &opened,
+                                                                     .bytes = sizeof(opened)});
             EMBED_CALL(complete_opened, SchemaCompleteCtx, .frame = last);
             *frames += 1u;
         }
@@ -282,7 +299,11 @@ int cli_schema_spot(const CliSchemaReadTextCtx *args)
     {
         return 0;
     }
-    const CliSchemaFrame top = complete_frame(frames - 1u);
+    CliSchemaFrame top = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_frame.cell,
+                                                            .offset = (embed_word)(frames - 1u) * sizeof(top),
+                                                            .dst = &top,
+                                                            .bytes = sizeof(top)});
     const CliSchemaFrame *const last = &top;
     if (last->object)
     {
@@ -373,7 +394,11 @@ EMBED_INLINE void complete_branches_reached(const SchemaCompleteCtx *args)
 EMBED_INLINE void complete_key_reached(const SchemaCompleteCtx *args)
 {
     const CliJson *const json = &g_cli_schema_store->json;
-    const CliSchemaStep stepped = complete_step_at(args->at_u32);
+    CliSchemaStep stepped = {0, 0ULL, 0ULL, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_spot.step.cell,
+                                                            .offset = (embed_word)args->at_u32 * sizeof(stepped),
+                                                            .dst = &stepped,
+                                                            .bytes = sizeof(stepped)});
     const CliSchemaStep *const step = &stepped;
     char key[1u << 12u];
     const unsigned long long key_size =
@@ -433,9 +458,14 @@ EMBED_INLINE void complete_index_reached(const SchemaCompleteCtx *args)
     {
         tuple = items;
     }
+    CliSchemaStep stepped = {0, 0ULL, 0ULL, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_spot.step.cell,
+                                                            .offset = (embed_word)args->at_u32 * sizeof(stepped),
+                                                            .dst = &stepped,
+                                                            .bytes = sizeof(stepped)});
     const unsigned int positioned =
         EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = tuple,
-                   .index = complete_step_at(args->at_u32).index);
+                   .index = stepped.index);
     const unsigned int rest = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                          .node = items, .type = CFG_JSON_OBJECT)
                                   ? items
@@ -462,7 +492,12 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
     complete_branches_reached(args);
     if (args->at_u32 < g_cli_schema_spot.steps)
     {
-        if (complete_step_at(args->at_u32).key)
+        CliSchemaStep stepped = {0, 0ULL, 0ULL, 0u};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_spot.step.cell,
+                                                                .offset = (embed_word)args->at_u32 * sizeof(stepped),
+                                                                .dst = &stepped,
+                                                                .bytes = sizeof(stepped)});
+        if (stepped.key)
         {
             complete_key_reached(args);
         }
@@ -473,8 +508,13 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
     }
     else
     {
-        (void)cli_schema_table_write(&g_cli_schema_reached, g_cli_schema_reached.count, &args->schema,
-                                     sizeof(args->schema));
+        if (cli_schema_table_room(&g_cli_schema_reached, g_cli_schema_reached.count, sizeof(args->schema)))
+        {
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_schema_reached.cell,
+                                                                     .offset = (embed_word)(g_cli_schema_reached.count - 1u) * sizeof(args->schema),
+                                                                     .src = &args->schema,
+                                                                     .bytes = sizeof(args->schema)});
+        }
     }
 }
 

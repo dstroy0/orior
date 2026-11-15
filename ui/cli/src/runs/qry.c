@@ -26,22 +26,6 @@ typedef struct
 // to, and the run the window's own work goes to: one lock contains them all
 static const CarcerMovableEntry *s_views;
 static unsigned int s_views_capacity;
-
-// the view `at`, and the view written there
-static CliView qry_view(unsigned int at)
-{
-    CliView view;
-    memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
-    return view;
-}
-
-static void qry_view_set(unsigned int at, const CliView *view)
-{
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-        .cell = s_views, .offset = (embed_word)at * sizeof(*view), .src = view, .bytes = sizeof(*view)});
-}
 static char s_member[CLI_PATH_MAX_LEN];
 static int s_membered;
 static char s_window[CLI_PATH_MAX_LEN];
@@ -67,19 +51,26 @@ static QryShared *cli_view(const QryCtx *args)
 {
     for (unsigned int at = 0u; at < s_views_capacity; at += 1u)
     {
-        CliView view = qry_view(at);
+        CliView view;
+        memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
         if ((view.run != NULL) && !qry_member_viewed_writing(view.run))
         {
             qry_member_unshared(view.run);
             view.run = NULL;
-            qry_view_set(at, &view);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = s_views, .offset = (embed_word)at * sizeof(view), .src = &view, .bytes = sizeof(view)});
         }
     }
     unsigned int found = s_views_capacity;
     unsigned int free_view = s_views_capacity;
     for (unsigned int at = 0u; at < s_views_capacity; at += 1u)
     {
-        const CliView view = qry_view(at);
+        CliView view;
+        memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
         found = ((view.run != NULL) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = view.path, .other = args->path, .cap = CLI_POOL_BYTES})))
                     ? at
@@ -94,11 +85,16 @@ static QryShared *cli_view(const QryCtx *args)
             g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliView), g_cli_runs_owner);
         if (grown != NULL)
         {
-            CliView empty;
-            memor.set(&(MemoriaCfg){.dst = &empty, .val = 0, .bytes = sizeof(empty)});
             for (unsigned int at = 0u; at < capacity; at += 1u)
             {
-                const CliView view = (at < s_views_capacity) ? qry_view(at) : empty;
+                // a view of the cell as it is, and a view with no run past them
+                CliView view;
+                memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
+                if (at < s_views_capacity)
+                {
+                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                        .cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
+                }
                 (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = grown, .offset = (embed_word)at * sizeof(view), .src = &view, .bytes = sizeof(view)});
             }
@@ -130,17 +126,22 @@ static QryShared *cli_view(const QryCtx *args)
                                 .src = args->path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         view.run = run;
-        qry_view_set(free_view, &view);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_views, .offset = (embed_word)free_view * sizeof(view), .src = &view, .bytes = sizeof(view)});
         found = free_view;
     }
-    CliView view = qry_view(found);
-    if (qry_member_viewed_writing(view.run))
+    CliView viewed;
+    memor.set(&(MemoriaCfg){.dst = &viewed, .val = 0, .bytes = sizeof(viewed)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_views, .offset = (embed_word)found * sizeof(viewed), .dst = &viewed, .bytes = sizeof(viewed)});
+    if (qry_member_viewed_writing(viewed.run))
     {
-        return view.run;
+        return viewed.run;
     }
-    qry_member_unshared(view.run);
-    view.run = NULL;
-    qry_view_set(found, &view);
+    qry_member_unshared(viewed.run);
+    viewed.run = NULL;
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = s_views, .offset = (embed_word)found * sizeof(viewed), .src = &viewed, .bytes = sizeof(viewed)});
     return NULL;
 }
 

@@ -69,21 +69,6 @@ static const CarcerMovableEntry *tracked_cell_fit(const CarcerMovableEntry *cell
     return moved;
 }
 
-// the answer `at` of the cache, and its path read into `path`, sized for CLI_PATH_MAX_LEN
-static TrackedCached tracked_cached(unsigned long long at, char *path)
-{
-    TrackedCached cached = {0ULL, 0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_cache.cached, .offset = (embed_word)(at * sizeof(cached)), .dst = &cached, .bytes = sizeof(cached)});
-    const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-        .cell = s_cache.text, .offset = (embed_word)cached.path_at, .bytes = (embed_word)(s_cache.used - cached.path_at)});
-    const unsigned long long size = (length < CLI_PATH_MAX_LEN) ? length : (CLI_PATH_MAX_LEN - 1ULL);
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_cache.text, .offset = (embed_word)cached.path_at, .dst = path, .bytes = (embed_word)size});
-    path[size] = '\0';
-    return cached;
-}
-
 typedef struct
 {
     const char *outside;
@@ -106,8 +91,18 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
     unsigned long long each = 0ULL;
     while (!found && (each < s_cache.count))
     {
+        TrackedCached cached = {0ULL, 0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_cache.cached,
+                                                                .offset = (embed_word)(each * sizeof(cached)),
+                                                                .dst = &cached,
+                                                                .bytes = sizeof(cached)});
         char path[CLI_PATH_MAX_LEN];
-        const TrackedCached cached = tracked_cached(each, path);
+        const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+            .cell = s_cache.text, .offset = (embed_word)cached.path_at, .bytes = (embed_word)(s_cache.used - cached.path_at)});
+        const unsigned long long size = (length < sizeof(path)) ? length : (sizeof(path) - 1ULL);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_cache.text, .offset = (embed_word)cached.path_at, .dst = path, .bytes = (embed_word)size});
+        path[size] = '\0';
         found = cellul.eq(&(CatenaFinitaCfg){.src = path, .other = args->outside, .cap = CLI_POOL_BYTES});
         *ignored = found ? cached.ignored : *ignored;
         each += 1ULL;
