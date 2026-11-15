@@ -182,17 +182,6 @@ EMBED_INLINE void runs_ended(const NotebookKernelCtx *args)
     EMBED_CALL(cli_notebook_model_internal.ring_cleared, CliNotebookModelCtx, .model = model);
 }
 
-// the cell `cell` of the model read out of its cells
-EMBED_INLINE CliNotebookCell cell_of(const NotebookKernelCtx *args)
-{
-    CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->at),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
-    return cell;
-}
-
 // the model's kernel stopped and let go: 1 where its process had to be ended
 EMBED_INLINE int kernel_stopped(const NotebookKernelCtx *args)
 {
@@ -319,8 +308,13 @@ unsigned int cli_notebook_kernel_tools(const CliNotebookKernelStateCfg *args)
     int code = 0;
     for (unsigned int at = 0u; !code && (at < model->cells); at += 1u)
     {
-        code = EMBED_CALL(cell_of, NotebookKernelCtx, .model = (CliNotebookModel *)(embed_word)model, .at = at).type ==
-               CLI_NOTEBOOK_CODE;
+        CliNotebookCell one = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)model)->cells_cell,
+                                .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
+        code = one.type == CLI_NOTEBOOK_CODE;
     }
     const unsigned int running =
         (model->kernel != NULL) ? (CLI_NOTEBOOK_TOOL_INTERRUPT | CLI_NOTEBOOK_TOOL_RESTART | CLI_NOTEBOOK_TOOL_STOP)
@@ -428,7 +422,11 @@ int cli_notebook_kernel_execute(const CliNotebookKernelRunCfg *args)
         mmgr_line_put(args->err_msg, args->key);
         return 0;
     }
-    CliNotebookCell cell_read = EMBED_CALL(cell_of, NotebookKernelCtx, .model = model, .at = args->cell);
+    CliNotebookCell cell_read = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                            .dst = &cell_read,
+                                                            .bytes = sizeof(cell_read)});
     CliNotebookCell *const cell = &cell_read;
     if (cell->type != CLI_NOTEBOOK_CODE)
     {
@@ -456,7 +454,11 @@ int cli_notebook_kernel_execute(const CliNotebookKernelRunCfg *args)
     }
     EMBED_CALL(cli_notebook_model_internal.outputs_released, CliNotebookModelCtx, .model = model, .cell = args->cell);
     // the cell read again, the outputs' release having written it, and written with its run
-    cell_read = EMBED_CALL(cell_of, NotebookKernelCtx, .model = model, .at = args->cell);
+    cell_read = (CliNotebookCell){0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                            .dst = &cell_read,
+                                                            .bytes = sizeof(cell_read)});
     model->clock += 1u;
     cell->first_run = (cell->first_run != 0u) ? cell->first_run : model->clock;
     cell->last_run = model->clock;
@@ -499,8 +501,13 @@ int cli_notebook_kernel_execute_all(const CliNotebookKernelRunCfg *args)
     int ran = model != NULL;
     for (unsigned int at = 0u; ran && (at < model->cells); at += 1u)
     {
-        if (EMBED_CALL(cell_of, NotebookKernelCtx, .model = (CliNotebookModel *)(embed_word)model, .at = at).type ==
-            CLI_NOTEBOOK_CODE)
+        CliNotebookCell one = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)model)->cells_cell,
+                                .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
+        if (one.type == CLI_NOTEBOOK_CODE)
         {
             ran = EMBED_CALL(cli_notebook_kernel_run.run, CliNotebookKernelRunCfg, .key = args->key, .cell = at,
                              .err_msg = args->err_msg);
@@ -543,7 +550,9 @@ int cli_notebook_kernel_restart(const CliNotebookKernelStopCfg *args)
     (void)EMBED_CALL(kernel_stopped, NotebookKernelCtx, .model = model);
     for (unsigned int at = 0u; at < model->cells; at += 1u)
     {
-        CliNotebookCell cell = EMBED_CALL(cell_of, NotebookKernelCtx, .model = model, .at = at);
+        CliNotebookCell cell = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = model->cells_cell, .offset = CLI_NOTEBOOK_CELL_AT(at), .dst = &cell, .bytes = sizeof(cell)});
         cell.first_run = 0u;
         cell.last_run = 0u;
         cell.edited = 0u;

@@ -55,7 +55,7 @@ EMBED_INLINE int job_live(const RowsCtx *args)
     {
         CliJobRunsRun run;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
         if (run.live && (run.job == args->job))
         {
             return 1;
@@ -70,7 +70,7 @@ EMBED_INLINE unsigned int run_flags(const RowsCtx *args)
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = g_cli_job_runs_store.run[args->item], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+        .cell = g_cli_job_runs_store.run[args->item], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     const int failed = !run.live && (run.stopped || (run.has_code && (run.code != 0LL)));
     const int ok = !run.live && !run.stopped && run.has_code && (run.code == 0LL);
     return (run.live ? CLI_JOB_RUN_LIVE : 0u) | (ok ? CLI_JOB_RUN_OK : 0u) | (failed ? CLI_JOB_RUN_FAILED : 0u) |
@@ -117,7 +117,7 @@ EMBED_INLINE unsigned int chosen_positioned(const RowsCtx *args)
     {
         CliJobRunsRun one;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.run[run], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
+            .cell = g_cli_job_runs_store.run[run], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         if (one.job != args->job)
         {
             continue;
@@ -160,7 +160,7 @@ EMBED_INLINE unsigned int sections_positioned(const RowsCtx *args)
     {
         CliJobRunsGroup one;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
+            .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         if (filtered && (one.listed == 0u))
         {
             continue;
@@ -207,7 +207,7 @@ EMBED_INLINE unsigned int sections_positioned(const RowsCtx *args)
                     &(CarcerMovableCfg){.cell = g_cli_job_runs_store.section[(at + each)],
                                         .offset = 0ULL,
                                         .dst = &section,
-                                        .bytes = sizeof(*(&section))});
+                                        .bytes = sizeof(section)});
                 row += section.count;
             }
             at += positioned;
@@ -226,10 +226,8 @@ EMBED_INLINE unsigned int section_at(const RowsCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         CliJobRunsSection section;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_job_runs_store.section[middle],
-                                                                .offset = 0ULL,
-                                                                .dst = &section,
-                                                                .bytes = sizeof(*(&section))});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_job_runs_store.section[middle], .offset = 0ULL, .dst = &section, .bytes = sizeof(section)});
         if (section.start <= args->row_at)
         {
             low = middle;
@@ -286,7 +284,7 @@ void cli_job_runs_sections_settle(const CliJobRunsCtx *args)
             &(CarcerMovableCfg){.cell = g_cli_job_runs_store.section[(store->sections - 1u)],
                                 .offset = 0ULL,
                                 .dst = &last,
-                                .bytes = sizeof(*(&last))});
+                                .bytes = sizeof(last)});
     }
     store->rows = last.start + last.count;
     store->rows_before = (store->rows > was_rows) ? was_rows : store->rows;
@@ -310,7 +308,7 @@ int cli_job_runs_row_read(const CliJobRunsRowCfg *args)
         .cell = g_cli_job_runs_store.section[(EMBED_CALL(section_at, RowsCtx, .row_at = args->row_at))],
         .offset = 0ULL,
         .dst = &section,
-        .bytes = sizeof(*(&section))});
+        .bytes = sizeof(section)});
     const unsigned int offset = args->row_at - section.start;
     const CliCatalog *const catalog = store->catalog;
     CliJobRunRow *const row = args->row_out;
@@ -323,7 +321,7 @@ int cli_job_runs_row_read(const CliJobRunsRowCfg *args)
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_job_runs_store.group[section.item],
                                                                 .offset = 0ULL,
                                                                 .dst = &s_row_group,
-                                                                .bytes = sizeof(*(&s_row_group))});
+                                                                .bytes = sizeof(s_row_group)});
         row->text = s_row_group.name;
         row->second = s_row_group.listed_text;
         row->second_length = s_row_group.listed_length;
@@ -448,14 +446,14 @@ int cli_job_runs_line_read(const CliJobRunsRowCfg *args)
         .cell = g_cli_job_runs_store.section[(EMBED_CALL(section_at, RowsCtx, .row_at = args->row_at))],
         .offset = 0ULL,
         .dst = &section,
-        .bytes = sizeof(*(&section))});
+        .bytes = sizeof(section)});
     if (section.type != CLI_JOB_RUN_LINE)
     {
         return 0;
     }
     CliJobRunsRun run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = g_cli_job_runs_store.run[section.item], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+        .cell = g_cli_job_runs_store.run[section.item], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     CliJobRunsRings *const rings = run.rings;
     // the line's record is the segment `row_at - start` past the line ring's front
     size_t front = 0u;
@@ -500,14 +498,14 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
         .cell = g_cli_job_runs_store.section[(EMBED_CALL(section_at, RowsCtx, .row_at = args->row_at))],
         .offset = 0ULL,
         .dst = &section,
-        .bytes = sizeof(*(&section))});
+        .bytes = sizeof(section)});
     const unsigned int item = section.item;
     switch (section.type)
     {
     case CLI_JOB_RUN_GROUP: {
         CliJobRunsGroup group;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.group[item], .offset = 0ULL, .dst = &group, .bytes = sizeof(*(&group))});
+            .cell = g_cli_job_runs_store.group[item], .offset = 0ULL, .dst = &group, .bytes = sizeof(group)});
         group.open = !group.open;
         (void)EMBED_CALL(cli_job_runs_cells.group_write, CliJobRunsCellCfg, .at = item, .group = &group);
         break;
@@ -532,7 +530,7 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
         {
             CliJobRunsRun run;
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+                .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
             store->displayed = (run.job == store->chosen) ? run.run : store->displayed;
         }
         EMBED_CALL(cli_job_runs_internal.form_clear, CliJobRunsCtx, .values = NULL);
@@ -551,7 +549,7 @@ int cli_job_runs_row_press(const CliJobRunsRowCfg *args)
     case CLI_JOB_RUN_RUN: {
         CliJobRunsRun run;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.run[item], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+            .cell = g_cli_job_runs_store.run[item], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
         store->displayed = run.run;
         break;
     }

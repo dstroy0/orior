@@ -167,7 +167,7 @@ EMBED_INLINE void run_released(const JobRunsCtx *args)
     CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     store->displayed = (store->displayed == run.run) ? 0ULL : store->displayed;
     EMBED_CALL(run_cells_released, JobRunsCtx, .copy = &run);
     (void)g_cli_guard->movable_buf_release(store->run[args->at], g_cli_job_runs_owner);
@@ -296,7 +296,7 @@ EMBED_INLINE void line_read(const JobRunsCtx *args)
 {
     CliJobRunsRun run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     CliJobRunsRings *const rings = run.rings;
     const unsigned long long size =
         (args->report->length < CLI_JOB_RUNS_LINE_MAX) ? args->report->length : CLI_JOB_RUNS_LINE_MAX;
@@ -348,7 +348,7 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
     CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun ended_run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &ended_run, .bytes = sizeof(*(&ended_run))});
+        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &ended_run, .bytes = sizeof(ended_run)});
     char job_id[CLI_PATH_MAX_LEN];
     const unsigned long long job_id_length =
         (ended_run.job_id_length < CLI_PATH_MAX_LEN) ? ended_run.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
@@ -361,7 +361,7 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
     {
         CliJobRunsRun one;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
+            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         const unsigned long long other_length =
             (one.job_id_length < CLI_PATH_MAX_LEN) ? one.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
         (void)g_cli_guard->movable_buf_read(
@@ -375,7 +375,7 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
     {
         CliJobRunsRun one;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
+            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         const unsigned long long other_length =
             (one.job_id_length < CLI_PATH_MAX_LEN) ? one.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
         (void)g_cli_guard->movable_buf_read(
@@ -397,7 +397,7 @@ EMBED_INLINE void end_read(const JobRunsCtx *args)
 {
     CliJobRunsRun run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+        .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     run.live = 0;
     run.stopped = args->report->stopped;
     run.has_code = args->report->has_code;
@@ -583,7 +583,7 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
     {
         CliJobRunsGroup one;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.group[old], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
+            .cell = g_cli_job_runs_store.group[old], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         const unsigned long long length =
             cellul.len(&(CatenaFinitaCfg){.src = one.name, .cap = CLI_NAME_MAX_LEN - 1ULL});
         memor.cpy(&(MemoriaCfg){.dst = was[old].name, .src = one.name, .bytes = length});
@@ -628,7 +628,7 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
         while (group < store->groups)
         {
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
+                .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
             if (cellul.eq(
                     &(CatenaFinitaCfg){.src = one.name, .other = catalog->job[job].group, .cap = CLI_NAME_MAX_LEN}))
             {
@@ -681,7 +681,7 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
     {
         CliJobRunsRun run;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &run, .bytes = sizeof(*(&run))});
+            .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
         char id[CLI_PATH_MAX_LEN];
         const unsigned long long id_length =
             (run.job_id_length < CLI_PATH_MAX_LEN) ? run.job_id_length : CLI_PATH_MAX_LEN - 1ULL;

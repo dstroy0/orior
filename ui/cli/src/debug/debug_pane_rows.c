@@ -94,31 +94,16 @@ EMBED_INLINE int rows_number(const DebugPaneRowsCtx *args)
                       .value = args->value);
 }
 
-// the entry `at` of `store` read into `entry_out`
-EMBED_INLINE void rows_entry_read(const DebugPaneRowsCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->store->entry,
-                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
-                                                            .dst = args->entry_out,
-                                                            .bytes = sizeof(CliDebugPaneEntry)});
-}
-
-// the entry `at` of `store` written from `entry_out`
-EMBED_INLINE void rows_entry_written(const DebugPaneRowsCtx *args)
-{
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
-                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
-                                                             .src = args->entry_out,
-                                                             .bytes = sizeof(CliDebugPaneEntry)});
-}
-
 // the order of `length` bytes of `text` against the key of the open set's entry `at`: below 0, 0 or above 0; the key
 // read into this call's bytes
 EMBED_INLINE int rows_key_order(const DebugPaneRowsCtx *args)
 {
     CliDebugPaneStore *const flipped = &g_cli_debug_pane.flipped;
     CliDebugPaneEntry entry;
-    EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = flipped, .at = args->at, .entry_out = &entry);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (flipped)->entry,
+                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                            .dst = &entry,
+                                                            .bytes = sizeof(CliDebugPaneEntry)});
     char key[ROWS_KEY];
     EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = flipped, .offset = entry.text,
                .length = entry.text_length, .text_out = key, .capacity = sizeof(key));
@@ -181,7 +166,10 @@ EMBED_INLINE unsigned int rows_entry(const DebugPaneRowsCtx *args)
                              .text = args->text, .length = args->length);
     entry->text_length = (entry->text != CLI_DEBUG_PANE_NONE) ? args->length : 0ULL;
     entry->text = (entry->text != CLI_DEBUG_PANE_NONE) ? entry->text : 0ULL;
-    EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = args->store, .at = at, .entry_out = entry);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                             .src = entry,
+                                                             .bytes = sizeof(CliDebugPaneEntry)});
     return at;
 }
 
@@ -202,7 +190,10 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
                 continue;
             }
             CliDebugPaneEntry entry;
-            EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = flipped, .at = at, .entry_out = &entry);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (flipped)->entry,
+                                                                    .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                    .dst = &entry,
+                                                                    .bytes = sizeof(CliDebugPaneEntry)});
             char key[ROWS_KEY];
             EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = flipped, .offset = entry.text,
                        .length = entry.text_length, .text_out = key, .capacity = sizeof(key));
@@ -230,13 +221,22 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
     for (unsigned int at = last; at > place; at -= 1u)
     {
         CliDebugPaneEntry moved;
-        EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = flipped, .at = at - 1u, .entry_out = &moved);
-        EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = flipped, .at = at, .entry_out = &moved);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (flipped)->entry,
+                                                                .offset = CLI_DEBUG_PANE_ENTRY_AT(at - 1u),
+                                                                .dst = &moved,
+                                                                .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (flipped)->entry,
+                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                 .src = &moved,
+                                                                 .bytes = sizeof(CliDebugPaneEntry)});
     }
     CliDebugPaneEntry entry = {0};
     entry.text = text;
     entry.text_length = args->length;
-    EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = flipped, .at = place, .entry_out = &entry);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (flipped)->entry,
+                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                             .src = &entry,
+                                                             .bytes = sizeof(CliDebugPaneEntry)});
 }
 
 // the request's answer, `length` bytes of `text`, read into `tree` in a cell sized to it, the caller's to release:
@@ -320,7 +320,10 @@ EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
         entry.key = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store, .text = key,
                                .length = keyed ? key_line.at : 0ULL);
         entry.key_length = keyed ? key_line.at : 0ULL;
-        EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = args->store, .at = place, .entry_out = &entry);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                 .src = &entry,
+                                                                 .bytes = sizeof(CliDebugPaneEntry)});
         if (open && (args->depth < CLI_DEBUG_DEPTH))
         {
             EMBED_CALL(rows_variables_under, DebugPaneRowsCtx, .store = args->store, .reference = reference,
@@ -343,7 +346,10 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
         return;
     }
     entry.type = CLI_DEBUG_ROW_WATCH;
-    EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = args->store, .at = place, .entry_out = &entry);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                             .src = &entry,
+                                                             .bytes = sizeof(CliDebugPaneEntry)});
     if (!args->framed)
     {
         return;
@@ -387,7 +393,10 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
     entry.third = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store,
                              .text = (type != NULL) ? type : "", .length = type_length);
     entry.third_length = type_length;
-    EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = args->store, .at = place, .entry_out = &entry);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                             .src = &entry,
+                                                             .bytes = sizeof(CliDebugPaneEntry)});
     g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
     g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
 }
@@ -454,7 +463,10 @@ EMBED_INLINE void rows_scopes(const DebugPaneRowsCtx *args)
         entry.key = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store, .text = key,
                                .length = keyed ? key_line.at : 0ULL);
         entry.key_length = keyed ? key_line.at : 0ULL;
-        EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = args->store, .at = place, .entry_out = &entry);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                 .src = &entry,
+                                                                 .bytes = sizeof(CliDebugPaneEntry)});
         if (open)
         {
             EMBED_CALL(rows_variables_under, DebugPaneRowsCtx, .store = args->store, .reference = reference,
@@ -474,15 +486,21 @@ void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
     CliDebugPaneEntry chosen = {0};
     if (framed)
     {
-        EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = frames, .at = g_cli_debug_pane.frame_at,
-                   .entry_out = &chosen);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = (frames)->entry,
+                                .offset = CLI_DEBUG_PANE_ENTRY_AT(g_cli_debug_pane.frame_at),
+                                .dst = &chosen,
+                                .bytes = sizeof(CliDebugPaneEntry)});
     }
     const long long frame = framed ? chosen.reference : 0LL;
     CliDebugPaneStore *const watches = &g_cli_debug_pane.watches;
     for (unsigned int at = 0u; at < watches->count; at += 1u)
     {
         CliDebugPaneEntry watch;
-        EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = watches, .at = at, .entry_out = &watch);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (watches)->entry,
+                                                                .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                .dst = &watch,
+                                                                .bytes = sizeof(CliDebugPaneEntry)});
         char expression[CLI_DEBUG_FIELD_MAX];
         EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = watches, .offset = watch.text,
                    .length = watch.text_length, .text_out = expression, .capacity = sizeof(expression));
@@ -596,7 +614,10 @@ void cli_debug_pane_frames_read(const CliDebugPaneCtx *args)
                                      .length = path_length);
             entry.third_length = path_length;
         }
-        EMBED_CALL(rows_entry_written, DebugPaneRowsCtx, .store = frames, .at = place, .entry_out = &entry);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (frames)->entry,
+                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                 .src = &entry,
+                                                                 .bytes = sizeof(CliDebugPaneEntry)});
     }
     g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
 }
@@ -852,7 +873,10 @@ int cli_debug_pane_row(const CliDebugPaneViewCfg *args)
     }
     else
     {
-        EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = store, .at = args->at, .entry_out = &entry);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->entry,
+                                                                .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                                .dst = &entry,
+                                                                .bytes = sizeof(CliDebugPaneEntry)});
     }
     EMBED_CALL(rows_positioned, DebugPaneRowsCtx, .store = store, .entry_out = &entry, .row = row);
     row->current = (args->view == CLI_DEBUG_VIEW_FRAMES) && (args->at == g_cli_debug_pane.frame_at);
@@ -867,7 +891,10 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
         return 0;
     }
     CliDebugPaneEntry entry;
-    EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = variables, .at = args->at, .entry_out = &entry);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (variables)->entry,
+                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                            .dst = &entry,
+                                                            .bytes = sizeof(CliDebugPaneEntry)});
     if (entry.type == CLI_DEBUG_ROW_WATCH)
     {
         // the watches are first, the row's place the watch's
@@ -880,7 +907,10 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
                 continue;
             }
             CliDebugPaneEntry watch;
-            EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = watches, .at = at, .entry_out = &watch);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (watches)->entry,
+                                                                    .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                    .dst = &watch,
+                                                                    .bytes = sizeof(CliDebugPaneEntry)});
             char expression[CLI_DEBUG_FIELD_MAX];
             EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = watches, .offset = watch.text,
                        .length = watch.text_length, .text_out = expression, .capacity = sizeof(expression));
@@ -918,7 +948,10 @@ int cli_debug_pane_press(const CliDebugPaneViewCfg *args)
     g_cli_debug_pane.frame_at = args->at;
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
     CliDebugPaneEntry entry;
-    EMBED_CALL(rows_entry_read, DebugPaneRowsCtx, .store = frames, .at = args->at, .entry_out = &entry);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (frames)->entry,
+                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                            .dst = &entry,
+                                                            .bytes = sizeof(CliDebugPaneEntry)});
     // the path outlives the call, read into the pane's own bytes
     static char s_pressed_path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = frames, .offset = entry.third,

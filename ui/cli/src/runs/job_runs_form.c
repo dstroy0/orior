@@ -164,7 +164,7 @@ void cli_job_runs_filter_apply(const CliJobRunsCtx *args)
     {
         CliJobRunsGroup one;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
+            .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         one.listed = 0u;
         for (unsigned int member = 0u; member < one.count; member += 1u)
         {
