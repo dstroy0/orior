@@ -26,13 +26,12 @@
 #include "../../cli/src/editor/files.h"
 #include "../../cli/src/editor/history.h"
 #include "../../cli/src/editor/view_edits.h"
+#include "../../cli/src/editor/view_tidy.h"
 #include "../../cli/src/machine/reach.h"
 #include "../../cli/src/machine/report.h"
 #include "../../cli/src/machine/settings.h"
 #include "../../cli/src/machine/state.h"
-#include "../../cli/src/editor/view_tidy.h"
 #include "../../cli/src/machine/trust.h"
-#include "../../cli/src/toolchains/format.h"
 #include "../../cli/src/plugins/plugins.h"
 #include "../../cli/src/plugins/templates.h"
 #include "../../cli/src/preview/preview.h"
@@ -40,6 +39,7 @@
 #include "../../cli/src/runs/qry.h"
 #include "../../cli/src/tests/testing.h"
 #include "../../cli/src/text/text.h"
+#include "../../cli/src/toolchains/format.h"
 #include "change_peek.h"
 #include "changes.h"
 #include "comms.h"
@@ -272,7 +272,7 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_comms_end();
     // the notices read the entries in place, so they let go before the entries do
     cli_notices_end();
-    cli_state_entries_release(&window->entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &window->entries});
     EMBED_CALL(gui_explorer_theme.set, GuiExplorerThemeCfg, .theme_read = NULL);
     EMBED_CALL(gui_themes_owner.free, GuiThemesOwnerCfg, .themes = &window->themes);
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
@@ -443,8 +443,8 @@ EMBED_INLINE unsigned int window_columns(const GuiWindowCtx *args)
 {
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = GUI_CODE_SIZE, .scale = args->window->frame.scale);
-    const float cell =
-        EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &args->window->glyphs, .size = size);
+    const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg,
+                                  .glyphs = &args->window->glyphs, .size = size);
     const int gutter =
         EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg, .editor_read = &args->window->editor,
                    .cell = cell, .scale = args->window->frame.scale);
@@ -492,8 +492,8 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
     args->window->pending = 1;
 }
 
-// the columns and rows of each of the terminal's screens displayed passed to its tabs, where they moved; a screen no longer
-// displayed passed them again as it shows
+// the columns and rows of each of the terminal's screens displayed passed to its tabs, where they moved; a screen no
+// longer displayed passed them again as it shows
 EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -519,9 +519,9 @@ EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
     }
 }
 
-// The displayed pane's data read anew on `event`, one of the pane's events, for the tree and the view displayed. A pane's table
-// reads on the events that change its data and no other. With `on` 1 only the tokens changed and the text did not, so
-// the changes against the last commit stay as they were read
+// The displayed pane's data read anew on `event`, one of the pane's events, for the tree and the view displayed. A
+// pane's table reads on the events that change its data and no other. With `on` 1 only the tokens changed and the text
+// did not, so the changes against the last commit stay as they were read
 EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)
 {
     const GuiPaneTable *const tables[2] = {EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = args->window),
@@ -605,9 +605,10 @@ EMBED_INLINE void window_scroll_adopt(const GuiWindowCtx *args)
     window->editor.scroll_x = 0.0f;
 }
 
-// The displayed view's frame, names and map taken anew of it, those it had released, and the displayed pane's data where the
-// view's change reaches it; `edited` where the text changed, which the map's lines no longer show. A take where the
-// view only scrolled, `on` 1, marks the scroll's part of the frame changed, and any other take owes a frame whole
+// The displayed view's frame, names and map taken anew of it, those it had released, and the displayed pane's data
+// where the view's change reaches it; `edited` where the text changed, which the map's lines no longer show. A take
+// where the view only scrolled, `on` 1, marks the scroll's part of the frame changed, and any other take owes a frame
+// whole
 EMBED_INLINE void window_map_span(const GuiWindowCtx *args);
 
 // one color of the displayed language's palette taken as a token of the window's palette, its value read as the color
@@ -676,8 +677,8 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
         window->edited_ms = cli_clock_milliseconds();
     }
     // A view that only scrolled retains its text, its cursor and its file, so the panes, the changes against the last
-    // commit and the crumbs stay as they were read. `on` 1 says the view only scrolled. A view that retained its text and
-    // its file retains its changes against the last commit, so the pane read leaves them as they were read
+    // commit and the crumbs stay as they were read. `on` 1 says the view only scrolled. A view that retained its text
+    // and its file retains its changes against the last commit, so the pane read leaves them as they were read
     if (!args->on || (displayed != window->view_displayed))
     {
         EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = window, .event = GUI_PANE_VIEW,
@@ -920,8 +921,8 @@ EMBED_INLINE void window_scroll_step(const GuiWindowCtx *args)
     EMBED_CALL(window_scroll_damage, GuiWindowCtx, .window = window);
 }
 
-// the editor's size passed to the view displayed and how many titles the bar shows passed to the menus, where either moved,
-// and the terminal's screens' sizes
+// the editor's size passed to the view displayed and how many titles the bar shows passed to the menus, where either
+// moved, and the terminal's screens' sizes
 EMBED_INLINE void window_view_resize(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -1020,8 +1021,8 @@ void gui_window_autohide_layout(const GuiWindowAutohideCfg *args)
             return;
         }
     }
-    // at rest, or the stages' cell not taken: the frame the numbers, the side's slide and the panel's arrival position now,
-    // and no stage left located
+    // at rest, or the stages' cell not taken: the frame the numbers, the side's slide and the panel's arrival position
+    // now, and no stage left located
     args->window->stage = NULL;
     args->window->stages_stale = 0;
     args->window->stages.stage = NULL;
@@ -1125,9 +1126,9 @@ EMBED_INLINE int window_side_show(const GuiWindowCtx *args)
                       .side_menu_read = &args->window_read->side_menu, .time_ms = cli_clock_milliseconds());
 }
 
-// the terminal read again of its tabs and the work's inside positioned again with its panel at its foot as the panel is,
-// open for the terminal or for a footer tool's pane at the terminal panel's height, a panel opened coming in from the
-// foot unless the window is `starting`, the editor's and the screens' sizes passed on where they moved
+// the terminal read again of its tabs and the work's inside positioned again with its panel at its foot as the panel
+// is, open for the terminal or for a footer tool's pane at the terminal panel's height, a panel opened coming in from
+// the foot unless the window is `starting`, the editor's and the screens' sizes passed on where they moved
 EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
 {
     EMBED_CALL(window_terminal_take, GuiWindowCtx, .window = args->window);
@@ -1167,8 +1168,8 @@ EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
     window_view_resize(args);
 }
 
-// the work's inside positioned again as the side_menu's tool displayed has a side or not, the editor's size passed on where it
-// moved
+// the work's inside positioned again as the side_menu's tool displayed has a side or not, the editor's size passed on
+// where it moved
 EMBED_INLINE void window_side(const GuiWindowCtx *args)
 {
     const int side = EMBED_CALL(window_side_show, GuiWindowCtx, .window_read = args->window);
@@ -1185,8 +1186,8 @@ EMBED_INLINE void window_side(const GuiWindowCtx *args)
     window_view_resize(args);
 }
 
-// the side positioned again as the pane's waits have displayed or collapsed it or a preview has changed its tool, the displayed
-// pane's data read as it shows
+// the side positioned again as the pane's waits have displayed or collapsed it or a preview has changed its tool, the
+// displayed pane's data read as it shows
 EMBED_INLINE void window_sides_positioned(const GuiWindowCtx *args)
 {
     EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = args->window, .event = GUI_PANE_DISPLAYED);
@@ -1241,17 +1242,18 @@ int gui_window_resize(const GuiWindowWidthCfg *args)
     {
         return 0;
     }
-    // then the size taken in one step: the rasters, the base's map and the ground at the size, and the frame positioned for
-    // it
+    // then the size taken in one step: the rasters, the base's map and the ground at the size, and the frame positioned
+    // for it
     (void)EMBED_CALL(gui_block_framebuffer.fit, GuiBlockFramebufferCfg, .framebuffer = &args->window->framebuffer,
                      .width = width, .height = height);
     args->window->displayed = NULL;
     EMBED_CALL(gui_base_width.resize, GuiBaseWidthCfg, .base = &args->window->base,
                .width = EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = width), .height = height);
-    const int positioned = EMBED_CALL(gui_background_raster.layout, GuiBackgroundRasterCfg,
-                                .now_ms = cli_clock_milliseconds(), .background_fill = &args->window->background_fill,
-                                .raster = &args->window->framebuffer.raster[GUI_FRAMEBUFFER_BACKGROUND], .width = width,
-                                .height = height, .scale = scale, .palette = args->window->palette);
+    const int positioned =
+        EMBED_CALL(gui_background_raster.layout, GuiBackgroundRasterCfg, .now_ms = cli_clock_milliseconds(),
+                   .background_fill = &args->window->background_fill,
+                   .raster = &args->window->framebuffer.raster[GUI_FRAMEBUFFER_BACKGROUND], .width = width,
+                   .height = height, .scale = scale, .palette = args->window->palette);
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &args->window->frame, .width = width,
                .height = height, .scale = scale);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &args->window->frame,
@@ -1321,9 +1323,9 @@ void gui_window_show(const GuiWindowDisplayedCfg *args)
     args->window->pending = args->displayed || args->window->pending;
 }
 
-// the caret's ink, 0 or 255: hidden while the editor does not have the keys; else displayed through the input rest before
-// its blink begins, then displayed for the first half of each blink and hidden for the second; displayed while no cursor
-// is or less motion is asked for
+// the caret's ink, 0 or 255: hidden while the editor does not have the keys; else displayed through the input rest
+// before its blink begins, then displayed for the first half of each blink and hidden for the second; displayed while
+// no cursor is or less motion is asked for
 EMBED_INLINE unsigned int window_caret_color(const GuiWindowCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
@@ -1375,8 +1377,8 @@ void gui_window_tick(const GuiWindowCfg *args)
          0ULL) ||
         (EMBED_CALL(gui_docks.arrive_end_ms, GuiDocksCfg, .docks_read = &args->window->docks, .time_ms = now_ms) !=
          0ULL);
-    // the frame positioned for the claim's numbers, the side's slide and the panel's arrival while any of them moves and as
-    // they come to rest; a tick with all at rest owes nothing for them
+    // the frame positioned for the claim's numbers, the side's slide and the panel's arrival while any of them moves
+    // and as they come to rest; a tick with all at rest owes nothing for them
     if (moving || args->window->autohide_moving)
     {
         EMBED_CALL(window_autohide_layout, GuiWindowCtx, .window = args->window);
@@ -1577,13 +1579,13 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         window->memory_due_ms,
         EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
                    .displayed = EMBED_CALL(window_table_displayed, GuiWindowCtx, .window_read = window,
-                                       .table_read = &gui_runs_table)),
+                                           .table_read = &gui_runs_table)),
         EMBED_CALL(cli_search_pane.deadline_ms, CliSearchPaneCfg, .at = 0u),
         EMBED_CALL(cli_git_log.deadline_ms, CliGitLogCfg, .at = 0u),
         EMBED_CALL(cli_preview.deadline_ms, CliPreviewCfg, .now_ms = now_ms),
         EMBED_CALL(cli_comms_pane.deadline_ms, CliCommsPaneCfg,
                    .displayed = EMBED_CALL(window_table_displayed, GuiWindowCtx, .window_read = window,
-                                       .table_read = &gui_comms_table)),
+                                           .table_read = &gui_comms_table)),
         EMBED_CALL(cli_debug_pane_view.deadline_ms, CliDebugPaneViewCfg, .now_ms = now_ms),
         EMBED_CALL(gui_tip_read.deadline_ms, GuiTipReadCfg, .tip_read = &window->tip),
         // the beads read their next stage a stage on while a press or a release runs
@@ -1649,8 +1651,8 @@ EMBED_INLINE void window_percent_save(const GuiWindowCtx *args)
     EMBED_CALL(window_setting_save, GuiWindowCtx, .key = args->key, .value = text);
 }
 
-// the frame positioned again at the zoom and the palette, the system's scale and the window's size located: a color or a
-// zoom reaches the ground, the frame and the view through it
+// the frame positioned again at the zoom and the palette, the system's scale and the window's size located: a color or
+// a zoom reaches the ground, the frame and the view through it
 EMBED_INLINE void window_preferences_layout(const GuiWindowCtx *args)
 {
     GuiWindow *window = args->window;
@@ -1665,8 +1667,8 @@ EMBED_INLINE void window_preferences_layout(const GuiWindowCtx *args)
     }
 }
 
-// the settings as they now are drawn with: the opacities, less motion, Preferences owing a frame, and the frame positioned
-// again where `on` is 1, a zoom or a color having changed, positioning it moving what a menu is on
+// the settings as they now are drawn with: the opacities, less motion, Preferences owing a frame, and the frame
+// positioned again where `on` is 1, a zoom or a color having changed, positioning it moving what a menu is on
 EMBED_INLINE void window_settings_layout(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -2006,7 +2008,8 @@ EMBED_INLINE void window_preference_row_add(const GuiWindowCtx *args)
     }
     const char *const takes = (args->item->args != NULL) ? args->item->args : "";
     char saved_text[GUI_PREFERENCES_TEXT];
-    const char *const saved = cli_state_entry_value(args->entries, row->key, saved_text, sizeof(saved_text));
+    const char *const saved = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = row->key, .out = saved_text, .capacity = sizeof(saved_text)});
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = row->key, .key = GUI_WINDOW_ZOOM_KEY))
     {
         row->type = GUI_PREFERENCE_TYPE_ZOOM;
@@ -2436,7 +2439,8 @@ EMBED_INLINE void window_palette_choose(const GuiWindowCtx *args)
 }
 
 // a token of the chosen plugin's palette made the color typed: in the palette Preferences shows, in the plugin's
-// plugin.json under the reader's plugins folder, and in the window's own tokens where the displayed file is of that plugin
+// plugin.json under the reader's plugins folder, and in the window's own tokens where the displayed file is of that
+// plugin
 EMBED_INLINE void window_plugin_color_set(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -2741,9 +2745,11 @@ EMBED_INLINE void window_palette_rebuild(const GuiWindowCtx *args)
     {
         char key[CLI_NAME_MAX_LEN];
         char value[GUI_PREFERENCES_TEXT];
-        if ((cli_state_entry_key(&window->entries, each, key, sizeof(key)) != NULL) &&
+        if ((cli_state_entry_key(&(CliStateEntryCfg){
+                 .entries = &window->entries, .at = each, .out = key, .capacity = sizeof(key)}) != NULL) &&
             cellul.starts(&(CatenaFinitaCfg){.src = key, .other = GUI_WINDOW_COLOR_KEY, .cap = 64ULL}) &&
-            (cli_state_entry_text(&window->entries, each, value, sizeof(value)) != NULL))
+            (cli_state_entry_text(&(CliStateEntryCfg){
+                 .entries = &window->entries, .at = each, .out = value, .capacity = sizeof(value)}) != NULL))
         {
             EMBED_CALL(window_color_apply, GuiWindowCtx, .window = window, .key = key, .value = value);
         }
@@ -2803,19 +2809,22 @@ EMBED_INLINE void window_themes_read(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     // the themes' text read out of the entries' cell into a cell of this call
-    const unsigned long long size = cli_state_entry_size(args->entries, GUI_WINDOW_THEMES_KEY);
+    const unsigned long long size =
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = args->entries, .key = GUI_WINDOW_THEMES_KEY});
     char *const text_cell = ((size != CLI_STATE_NONE) && (size < GUI_WINDOW_THEMES_TEXT))
                                 ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_view_owner)
                                 : NULL;
-    const char *const text = (text_cell != NULL)
-                                 ? cli_state_entry_value(args->entries, GUI_WINDOW_THEMES_KEY, text_cell, size + 1ULL)
-                                 : NULL;
+    const char *const text =
+        (text_cell != NULL)
+            ? cli_state_entry_value(&(CliStateEntryCfg){
+                  .entries = args->entries, .key = GUI_WINDOW_THEMES_KEY, .out = text_cell, .capacity = size + 1ULL})
+            : NULL;
     EMBED_CALL(gui_themes_text_table.read, GuiThemesTextCfg, .themes = &window->themes, .text = text,
                .size = (text != NULL) ? size : 0ULL, .owner = g_cli_view_owner);
     g_cli_guard->persistent_buf_release(text_cell, g_cli_view_owner);
     char chosen_text[CLI_NAME_MAX_LEN];
-    const char *const chosen =
-        cli_state_entry_value(args->entries, GUI_WINDOW_THEME_KEY, chosen_text, sizeof(chosen_text));
+    const char *const chosen = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = GUI_WINDOW_THEME_KEY, .out = chosen_text, .capacity = sizeof(chosen_text)});
     window->theme_chosen = (chosen != NULL) ? EMBED_CALL(gui_themes_name.find, GuiThemesNameCfg,
                                                          .themes_read = &window->themes, .name = chosen)
                                             : window->themes.count;
@@ -3278,16 +3287,14 @@ EMBED_INLINE int window_view_run(const GuiWindowCtx *args)
 }
 
 // The File menu's commands: a folder or a repository made in the tree, a folder opened in a window of its own, a
-// project begun from a template and the tree retained as one, the trust question, auto save as a switch and setting, the
-// plugins read again and the tree's environment setting
-// whether `name` is one of them
+// project begun from a template and the tree retained as one, the trust question, auto save as a switch and setting,
+// the plugins read again and the tree's environment setting whether `name` is one of them
 EMBED_INLINE int window_file_is(const GuiWindowCtx *args)
 {
-    static const char *const s_file_commands[] = {"create-folder",      "create-repository", "open-file",          "open-folder",
-                                                  "open-folder-window", "create-project",    "retain-template",
-                                                  "trust-tree",         "auto-save",         "auto-save-after",
-                                                  "format-on-save",     "trim",              "final-newline",
-                                                  "reload-plugins",     "environment"};
+    static const char *const s_file_commands[] = {
+        "create-folder",   "create-repository", "open-file",  "open-folder",     "open-folder-window", "create-project",
+        "retain-template", "trust-tree",        "auto-save",  "auto-save-after", "format-on-save",     "trim",
+        "final-newline",   "reload-plugins",    "environment"};
     return EMBED_CALL(window_name_among, GuiWindowCtx, .name = args->name, .words = s_file_commands,
                       .count = sizeof(s_file_commands) / sizeof(s_file_commands[0]));
 }
@@ -3419,7 +3426,7 @@ EMBED_INLINE void window_trust_answered(const GuiWindowCtx *args)
 EMBED_INLINE int window_edit_is(const GuiWindowCtx *args)
 {
     static const char *const s_edit_commands[] = {"undo-history",       "compare-clipboard", "macro-record",
-                                                  "macro-play",         "macro-retain",        "continuation",
+                                                  "macro-play",         "macro-retain",      "continuation",
                                                   "operator-next-line", "doc-margin"};
     return EMBED_CALL(window_name_among, GuiWindowCtx, .name = args->name, .words = s_edit_commands,
                       .count = sizeof(s_edit_commands) / sizeof(s_edit_commands[0]));
@@ -3517,8 +3524,8 @@ EMBED_INLINE void window_macro_played(const GuiWindowCtx *args)
     window->macro_playing = 0;
 }
 
-// the diff view opened over the editor from `source` for the displayed file, or the file at `name` where it is not NULL,
-// with the clipboard's `value` of `row` bytes or the snapshot at `at_ms`: 1, or 0 with the reason posted
+// the diff view opened over the editor from `source` for the displayed file, or the file at `name` where it is not
+// NULL, with the clipboard's `value` of `row` bytes or the snapshot at `at_ms`: 1, or 0 with the reason posted
 EMBED_INLINE int window_diff_opened(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -3655,20 +3662,22 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
             {
                 entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
             }
-            text = cli_state_entry_value(&entries, key, retained_text, sizeof(retained_text));
+            text = cli_state_entry_value(&(CliStateEntryCfg){
+                .entries = &entries, .key = key, .out = retained_text, .capacity = sizeof(retained_text)});
             size = (text != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = text, .cap = GUI_WINDOW_MACRO_BYTES}) : 0ULL;
         }
         if ((text == NULL) || (size == 0ULL))
         {
-            cli_notice_post((retained_name != NULL) ? "No macro is retained under that name." : "No macro is recorded.", 1);
-            cli_state_entries_release(&entries);
+            cli_notice_post((retained_name != NULL) ? "No macro is retained under that name." : "No macro is recorded.",
+                            1);
+            cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
             return 0;
         }
         for (unsigned long long played = 0ULL; played < times; played += 1ULL)
         {
             EMBED_CALL(window_macro_played, GuiWindowCtx, .window = window, .name = text, .row = size);
         }
-        cli_state_entries_release(&entries);
+        cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
         return 1;
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "macro-retain"))
@@ -3924,8 +3933,8 @@ EMBED_INLINE int window_file_run(const GuiWindowCtx *args)
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_FINAL_NEWLINE_KEY))
     {
-        window->final_newline = EMBED_CALL(window_switch_next, GuiWindowCtx, .words = args->words,
-                                           .count = args->count, .on = window->final_newline);
+        window->final_newline = EMBED_CALL(window_switch_next, GuiWindowCtx, .words = args->words, .count = args->count,
+                                           .on = window->final_newline);
         EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_FINAL_NEWLINE_KEY,
                    .value = window->final_newline ? "true" : "false");
         return 1;
@@ -3969,8 +3978,10 @@ EMBED_INLINE void window_settings_read(const GuiWindowCtx *args)
     {
         char key[CLI_NAME_MAX_LEN];
         char value[GUI_PREFERENCES_TEXT];
-        if ((cli_state_entry_key(args->entries, each, key, sizeof(key)) != NULL) &&
-            (cli_state_entry_text(args->entries, each, value, sizeof(value)) != NULL))
+        if ((cli_state_entry_key(&(CliStateEntryCfg){
+                 .entries = args->entries, .at = each, .out = key, .capacity = sizeof(key)}) != NULL) &&
+            (cli_state_entry_text(&(CliStateEntryCfg){
+                 .entries = args->entries, .at = each, .out = value, .capacity = sizeof(value)}) != NULL))
         {
             EMBED_CALL(window_setting_apply, GuiWindowCtx, .window = window, .key = key, .value = value);
         }
@@ -4167,11 +4178,12 @@ void gui_window_preferences_draw(const GuiWindowCfg *args)
         return;
     }
     args->window->preference_values.reduced = args->window->motion_still;
-    // the lattice under the panes where it was positioned at the window's size, else none, the deep color located for it
+    // the lattice under the panes where it was positioned at the window's size, else none, the deep color located for
+    // it
     const GuiRaster *const ground = &args->window->preferences_ground_raster;
     const int positioned = args->window->preferences_ground.positioned && (ground->pixels != NULL) &&
-                     (ground->width == args->window->preferences_raster.width) &&
-                     (ground->height == args->window->preferences_raster.height);
+                           (ground->width == args->window->preferences_raster.width) &&
+                           (ground->height == args->window->preferences_raster.height);
     EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg,
                .preferences_read = &args->window->preferences, .raster = &args->window->preferences_raster,
                .glyphs = &args->window->glyphs,
@@ -4211,7 +4223,8 @@ EMBED_INLINE void window_panels_hide(const GuiWindowCtx *args)
     EMBED_CALL(window_panels_take, GuiWindowCtx, .window = args->window);
 }
 
-// whether the editor takes the keys set as `on` asks, never while no view is displayed, the claim taken or let go with it
+// whether the editor takes the keys set as `on` asks, never while no view is displayed, the claim taken or let go with
+// it
 EMBED_INLINE void window_editing(const GuiWindowCtx *args)
 {
     args->window->editing = args->on && (cli_view_displayed() >= 0);
@@ -4438,8 +4451,8 @@ static void window_file_reread(void *context, const char *path)
     }
 }
 
-// the file at `name` opened as a view and displayed, its cursor at `place` where it is not NULL, and else where the path's
-// line and column put it; a file refused posted as a failure's notice
+// the file at `name` opened as a view and displayed, its cursor at `place` where it is not NULL, and else where the
+// path's line and column put it; a file refused posted as a failure's notice
 EMBED_INLINE void window_file_open(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -4492,9 +4505,9 @@ EMBED_INLINE void window_settings_file_open(const GuiWindowCtx *args)
     }
 }
 
-// the tool `at` of the side_menu displayed, or hidden where it shows; the terminal's panel opened or closed beside whatever
-// side tool shows, the footer tool's pane located in it leaving; a footer tool's pane displayed in the panel at the foot,
-// the terminal closed where it was open, or hidden where it shows; the explorer listed as it shows
+// the tool `at` of the side_menu displayed, or hidden where it shows; the terminal's panel opened or closed beside
+// whatever side tool shows, the footer tool's pane located in it leaving; a footer tool's pane displayed in the panel
+// at the foot, the terminal closed where it was open, or hidden where it shows; the explorer listed as it shows
 EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -4524,8 +4537,8 @@ EMBED_INLINE void window_tool_toggle(const GuiWindowCtx *args)
         EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
         return;
     }
-    // a side tool's pane displayed, or collapsed where it shows; another tool's window displayed or hidden; the tools are
-    // fewer than an int counts
+    // a side tool's pane displayed, or collapsed where it shows; another tool's window displayed or hidden; the tools
+    // are fewer than an int counts
     if (g_gui_tools[args->at].side)
     {
         EMBED_CALL(gui_sides.toggle, GuiSidesCfg, .sides = &window->sides, .side_menu = &window->side_menu,
@@ -4578,7 +4591,8 @@ static int window_item_disabled(const CliItem *item)
         changed = changed || (cli_view_key(at, key) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key));
     }
     const char *const displayed = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
-    const int displayed_changed = (displayed != NULL) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = displayed);
+    const int displayed_changed =
+        (displayed != NULL) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = displayed);
     return never || (needs_editor && (count == 0u)) || (needs_tabs && (count == 0u)) ||
            (needs_others && (count < 2u)) || (needs_chosen && !cli_terminal_tabs_checked(needs)) ||
            (needs_displayed_changed && !displayed_changed) || (needs_changed && !changed);
@@ -4753,8 +4767,8 @@ EMBED_INLINE int window_words_run(const GuiWindowCtx *args)
     return 0;
 }
 
-// a Comms command run by the CLI: the Comms pane displayed in the panel at the foot where the command shows a view of it,
-// the text it answers put on the clipboard and the file it answers opened: 1, or 0 where `name` is no Comms command
+// a Comms command run by the CLI: the Comms pane displayed in the panel at the foot where the command shows a view of
+// it, the text it answers put on the clipboard and the file it answers opened: 1, or 0 where `name` is no Comms command
 EMBED_INLINE int window_comms_run(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -4789,9 +4803,9 @@ EMBED_INLINE int window_comms_run(const GuiWindowCtx *args)
     return 1;
 }
 
-// the commands of the view's changes and its crumbs: a declaration's line gone to, its word the line; the crumbs displayed
-// or not by their word `on` or `off`, else turned; the change at the cursor's line displayed; and the cursor put on the
-// change after or before it: 1, or 0 where `name` is none of them
+// the commands of the view's changes and its crumbs: a declaration's line gone to, its word the line; the crumbs
+// displayed or not by their word `on` or `off`, else turned; the change at the cursor's line displayed; and the cursor
+// put on the change after or before it: 1, or 0 where `name` is none of them
 EMBED_INLINE int window_widgets_run(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -4948,8 +4962,7 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
             .path = path, .line = (unsigned int)cursor.line, .col = (unsigned int)cursor.col, .err_msg = &err_msg});
         if (found != 1)
         {
-            cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.",
-                            1);
+            cli_notice_post((mmgr_line_finish(&err_msg) != 0ULL) ? why : "The cursor is on no name the tree knows.", 1);
             return 0;
         }
         // the References pane displayed where it is not, its rows read anew
@@ -5007,7 +5020,7 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
             CliStateEntries fresh =
                 cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_view_owner});
             EMBED_CALL(window_preference_rows_read, GuiWindowCtx, .window = window, .entries = &fresh);
-            cli_state_entries_release(&fresh);
+            cli_state_entries_release(&(CliStateEntriesCfg){.entries = &fresh});
         }
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "settings-own") ||
@@ -5181,9 +5194,9 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
     return ran;
 }
 
-// a command the command line asks for, through the interface or as the window started: the file a path names opened, or a
-// command of the menus, the window's or the view's run: 1, 0 where its part refused it, and CLI_REACH_NONE where it is
-// none of them
+// a command the command line asks for, through the interface or as the window started: the file a path names opened, or
+// a command of the menus, the window's or the view's run: 1, 0 where its part refused it, and CLI_REACH_NONE where it
+// is none of them
 static int window_command_named(const char *command, const char *const *words, unsigned int count)
 {
     GuiWindow *const window = s_window;
@@ -5248,7 +5261,8 @@ static int window_command_named(const char *command, const char *const *words, u
                                  .count = sizeof(s_own_commands) / sizeof(s_own_commands[0])) ||
                       EMBED_CALL(window_name_among, GuiWindowCtx, .name = command, .words = s_view_commands,
                                  .count = sizeof(s_view_commands) / sizeof(s_view_commands[0]));
-    // a command of the menus the window runs no part for is refused, the interface answering that it is none of the window's
+    // a command of the menus the window runs no part for is refused, the interface answering that it is none of the
+    // window's
     if (!known)
     {
         return CLI_REACH_NONE;
@@ -5290,7 +5304,8 @@ EMBED_INLINE int window_tool_key(const GuiWindowCtx *args)
     return -1;
 }
 
-// a menu's choice: the menus positioned again and, `on` where an item was chosen, the `item`'s command run with its keys
+// a menu's choice: the menus positioned again and, `on` where an item was chosen, the `item`'s command run with its
+// keys
 EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
 {
     EMBED_CALL(window_menus_positioned, GuiWindowCtx, .window = args->window);
@@ -5435,8 +5450,8 @@ EMBED_INLINE void window_wordmark_read(const GuiWindowCtx *args)
                .capacity_bytes = sizeof(logon));
     const unsigned long long booted = cli_booted_seconds();
     char saved_text[GUI_WINDOW_LOGON_MAX_LEN + 64u];
-    const char *const saved =
-        cli_state_entry_value(args->entries, GUI_WINDOW_WORDMARK_KEY, saved_text, sizeof(saved_text));
+    const char *const saved = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = GUI_WINDOW_WORDMARK_KEY, .out = saved_text, .capacity = sizeof(saved_text)});
     int same = 0;
     if (saved != NULL)
     {
@@ -5472,8 +5487,8 @@ EMBED_INLINE void window_wordmark_read(const GuiWindowCtx *args)
 EMBED_INLINE void window_group_read(const GuiWindowCtx *args)
 {
     char group_text[64];
-    const char *const group =
-        cli_state_entry_value(args->entries, GUI_WINDOW_GROUP_KEY, group_text, sizeof(group_text));
+    const char *const group = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = GUI_WINDOW_GROUP_KEY, .out = group_text, .capacity = sizeof(group_text)});
     for (unsigned int at = 0u; (group != NULL) && (at < g_gui_tools_count); at += 1u)
     {
         if (g_gui_tools[at].side &&
@@ -5556,7 +5571,7 @@ void gui_window_start(const GuiWindowCfg *args)
 void gui_window_step(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
-    window->pending = cli_reach_take(window_command_named) || window->pending;
+    window->pending = cli_reach_take(&(CliReachCfg){.run = window_command_named}) || window->pending;
     if (cli_servers_problems_step())
     {
         window->side_menu.problems_marked = cli_servers_problems_counts().errors != 0u;
@@ -5590,7 +5605,7 @@ void gui_window_step(const GuiWindowCfg *args)
     // the query runs listed and the opened live runs read on their beats, the side_menu's Runs mark following
     if (EMBED_CALL(cli_runs_pane.step, CliRunsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
                    .displayed = EMBED_CALL(window_table_displayed, GuiWindowCtx, .window_read = window,
-                                       .table_read = &gui_runs_table)))
+                                           .table_read = &gui_runs_table)))
     {
         EMBED_CALL(cli_runs_pane.marks, CliRunsPaneCfg, .live_out = &window->side_menu.runs_live,
                    .panicked_out = &window->side_menu.runs_panicked);
@@ -5634,10 +5649,10 @@ void gui_window_step(const GuiWindowCfg *args)
     window->pending =
         EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .root = cli_command_line_root(), .now_ms = now_ms,
                    .displayed = EMBED_CALL(window_table_displayed, GuiWindowCtx, .window_read = window,
-                                       .table_read = &gui_comms_table)) ||
+                                           .table_read = &gui_comms_table)) ||
         window->pending;
-    // the preview's rectangle positioned again where its mode moved, the editor's size passed on, and its items stepped for
-    // the view displayed in it, drawn anew where they moved
+    // the preview's rectangle positioned again where its mode moved, the editor's size passed on, and its items stepped
+    // for the view displayed in it, drawn anew where they moved
     {
         // a mode is one of three
         const int preview_mode = (int)EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = now_ms);
@@ -5681,8 +5696,8 @@ EMBED_INLINE void window_panels_draw(const GuiWindowCtx *args)
     const GuiFrame *const frame = &args->window->frame;
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = GUI_CODE_SIZE, .scale = frame->scale);
-    const float cell =
-        EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &args->window->glyphs, .size = size);
+    const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg,
+                                  .glyphs = &args->window->glyphs, .size = size);
     GuiRect anchor;
     const CliHoverPanel *const hover = args->window->hover.panel;
     args->window->hover.rect = (GuiRect){0, 0, 0, 0};
@@ -5729,12 +5744,14 @@ EMBED_INLINE void window_panels_draw(const GuiWindowCtx *args)
     }
 }
 
-// what the status bar shows, from the view displayed, the editor's frame as last taken, the notices and the window's own
+// what the status bar shows, from the view displayed, the editor's frame as last taken, the notices and the window's
+// own
 EMBED_INLINE GuiStatus window_status_read(const GuiWindowCtx *args)
 {
     const CliViewFrame *const displayed = args->window_read->editor.frame;
     const int at = cli_view_displayed();
-    // the view displayed is among the views: its path copied into the window thread's own buffer, which the status reads
+    // the view displayed is among the views: its path copied into the window thread's own buffer, which the status
+    // reads
     static char s_status_path[CLI_PATH_MAX_LEN];
     char key[CLI_NAME_MAX_LEN];
     const int named =
@@ -5759,8 +5776,8 @@ EMBED_INLINE GuiStatus window_status_read(const GuiWindowCtx *args)
                        cli_notices_waiting()};
 }
 
-// the view drawn: the tabs row, the editor with the map beside it, and the side where one is displayed, each on the ground
-// the base positioned it, and the panels over them
+// the view drawn: the tabs row, the editor with the map beside it, and the side where one is displayed, each on the
+// ground the base positioned it, and the panels over them
 EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
 {
     const GuiFrame *const frame = &args->window->frame;
@@ -5773,8 +5790,8 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
                     .glyphs = &args->window->glyphs, .palette = palette, .frame = frame,
                     .buttons = &args->window->tab_buttons, .time_ms = cli_clock_milliseconds()) != 0u) ||
         args->window->pending;
-    // the view over the editor drawn in its place, else the editor, the displayed file's diagnostics underlined on the rows
-    // drawn and the map beside it
+    // the view over the editor drawn in its place, else the editor, the displayed file's diagnostics underlined on the
+    // rows drawn and the map beside it
     if (EMBED_CALL(gui_work.is_open, GuiWorkCfg, .work_read = &s_work))
     {
         EMBED_CALL(gui_work.draw, GuiWorkCfg, .work_read = &s_work, .frame = frame, .raster = raster,
@@ -5889,8 +5906,9 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
     window_panels_draw(args);
 }
 
-// The base the frame just positioned on the window's raster retained whole, the retained raster taken again at the window's size
-// where the size moved. A raster that cannot be taken leaves no base retained, and the frames of changes position their base
+// The base the frame just positioned on the window's raster retained whole, the retained raster taken again at the
+// window's size where the size moved. A raster that cannot be taken leaves no base retained, and the frames of changes
+// position their base
 EMBED_INLINE void window_base_retain(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -5913,8 +5931,8 @@ EMBED_INLINE void window_base_retain(const GuiWindowCtx *args)
     window->base_retained_whole = 1;
 }
 
-// The part `caret` of the retained base copied onto the window's raster, row by row; the part lies on both rasters, which
-// are the same size, so its sides are not negative
+// The part `caret` of the retained base copied onto the window's raster, row by row; the part lies on both rasters,
+// which are the same size, so its sides are not negative
 EMBED_INLINE void window_base_copy(const GuiWindowCtx *args)
 {
     const GuiWindow *const window = args->window;
@@ -5924,8 +5942,9 @@ EMBED_INLINE void window_base_copy(const GuiWindowCtx *args)
     for (int y = part.y; y < part.y + part.height; y += 1)
     {
         const embed_word at = ((embed_word)y * raster->width) + (embed_word)part.x;
-        memor.cpy(&(MemoriaCfg){
-            .dst = raster->pixels + at, .src = retained->pixels + at, .bytes = (embed_word)part.width * sizeof(GuiColor)});
+        memor.cpy(&(MemoriaCfg){.dst = raster->pixels + at,
+                                .src = retained->pixels + at,
+                                .bytes = (embed_word)part.width * sizeof(GuiColor)});
     }
 }
 
@@ -5964,8 +5983,8 @@ void gui_window_draw(const GuiWindowCfg *args)
     // a stage of the claim's movement brings its map and its holes; only a frame at rest positions them
     const GuiStage *const stage = view_displayed ? args->window->stage : NULL;
     GuiRaster *const retained = &args->window->base_retained;
-    const int retained_fits = args->window->base_retained_whole && (retained->pixels != NULL) && (retained->width == raster->width) &&
-                          (retained->height == raster->height);
+    const int retained_fits = args->window->base_retained_whole && (retained->pixels != NULL) &&
+                              (retained->width == raster->width) && (retained->height == raster->height);
     if (clipped && retained_fits)
     {
         // a frame of changes alone copies its part of the base the last whole frame positioned
@@ -6041,7 +6060,8 @@ void gui_window_draw(const GuiWindowCfg *args)
                                                             .frame_read = frame, .holes = holes_positioned);
     EMBED_CALL(gui_raster_radius_work.outline, GuiRasterRadiusWorkCfg, .raster = raster, .work = frame->work,
                .inside = frame->inside, .radius = frame->radius, .lines = &lines,
-               .holes = (stage != NULL) ? stage->holes : holes_positioned, .count = count, .table = table, .clear = clear);
+               .holes = (stage != NULL) ? stage->holes : holes_positioned, .count = count, .table = table,
+               .clear = clear);
     // the work's inside: the tabs row, the editor with the map beside it, and the side where one is displayed, each on
     // the ground the base positioned it
     if (view_displayed)
@@ -6417,8 +6437,8 @@ EMBED_INLINE void window_view_scroll(const GuiWindowCtx *args)
 }
 
 // the control `at` of the change peek pressed: revert writes the CLI's edits into the view displayed as one step and
-// closes the peek, the change before or after is displayed with the cursor on its first line, and close closes it; a press
-// on the box off its controls does nothing
+// closes the peek, the change before or after is displayed with the cursor on its first line, and close closes it; a
+// press on the box off its controls does nothing
 EMBED_INLINE void window_change_peek_pressed(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -6461,8 +6481,8 @@ EMBED_INLINE void window_change_peek_pressed(const GuiWindowCtx *args)
     }
 }
 
-// a press on the gutter's row `hit` at its marks' column: the change of the row's line displayed: 1, or 0 where the press
-// is off the column or the line is in no change
+// a press on the gutter's row `hit` at its marks' column: the change of the row's line displayed: 1, or 0 where the
+// press is off the column or the line is in no change
 EMBED_INLINE int window_change_mark_pressed(const GuiWindowCtx *args)
 {
     const GuiWindow *const window = args->window_read;
@@ -6783,8 +6803,8 @@ static void window_wheel(const GuiInputHandlerCfg *args)
             return;
         }
         EMBED_CALL(window_panels_hide, GuiWindowCtx, .window = window);
-        // The wheel's turn, a part of a notch retained, moves where the scroll goes by GUI_SCROLL_NOTCH_ROWS lines a notch.
-        // With Shift held, or on the sideways wheel, it moves across
+        // The wheel's turn, a part of a notch retained, moves where the scroll goes by GUI_SCROLL_NOTCH_ROWS lines a
+        // notch. With Shift held, or on the sideways wheel, it moves across
         int line = 0;
         float cell = 0.0f;
         EMBED_CALL(window_scroll_units, GuiWindowCtx, .window_read = window, .line_out = &line, .cell_out = &cell);
@@ -7055,16 +7075,16 @@ EMBED_INLINE void window_tabs_bar_layout(const GuiWindowCtx *args)
                .scale = window->frame.scale);
 }
 
-// the tabs row moved to show the side_menu from `pixels`, retained between the side_menu's start and its end less the row's
-// width
+// the tabs row moved to show the side_menu from `pixels`, retained between the side_menu's start and its end less the
+// row's width
 EMBED_INLINE void window_tabs_slide(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     unsigned long long whole = 0ULL;
     unsigned long long width = 0ULL;
     unsigned long long left = 0ULL;
-    EMBED_CALL(window_tabs_bar_numbers, GuiWindowCtx, .window_read = window, .total_out = &whole, .displayed_out = &width,
-               .first_out = &left);
+    EMBED_CALL(window_tabs_bar_numbers, GuiWindowCtx, .window_read = window, .total_out = &whole,
+               .displayed_out = &width, .first_out = &left);
     // the side_menu and the row are pixels on the screen, so each fits in an int
     const long long max = (whole > width) ? (long long)(whole - width) : 0LL;
     const long long wanted = (args->pixels < 0LL) ? 0LL : ((args->pixels > max) ? max : args->pixels);
@@ -7075,8 +7095,8 @@ EMBED_INLINE void window_tabs_slide(const GuiWindowCtx *args)
     }
 }
 
-// The tabs row retained on the side_menu. When the tab displayed changes, the row moves the least that shows that tab whole, as
-// the page scrolls the tab displayed into sight
+// The tabs row retained on the side_menu. When the tab displayed changes, the row moves the least that shows that tab
+// whole, as the page scrolls the tab displayed into sight
 EMBED_INLINE void window_tabs_follow(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -7112,8 +7132,8 @@ EMBED_INLINE int window_tabs_bar_press(const GuiWindowCtx *args)
     unsigned long long whole = 0ULL;
     unsigned long long width = 0ULL;
     unsigned long long left = 0ULL;
-    EMBED_CALL(window_tabs_bar_numbers, GuiWindowCtx, .window_read = window, .total_out = &whole, .displayed_out = &width,
-               .first_out = &left);
+    EMBED_CALL(window_tabs_bar_numbers, GuiWindowCtx, .window_read = window, .total_out = &whole,
+               .displayed_out = &width, .first_out = &left);
     if (window->frame.tabs_share < GUI_FIXED_ONE)
     {
         return 0;
@@ -7153,11 +7173,11 @@ EMBED_INLINE void window_tabs_bar_drag(const GuiWindowCtx *args)
     unsigned long long whole = 0ULL;
     unsigned long long width = 0ULL;
     unsigned long long left = 0ULL;
-    EMBED_CALL(window_tabs_bar_numbers, GuiWindowCtx, .window_read = window, .total_out = &whole, .displayed_out = &width,
-               .first_out = &left);
+    EMBED_CALL(window_tabs_bar_numbers, GuiWindowCtx, .window_read = window, .total_out = &whole,
+               .displayed_out = &width, .first_out = &left);
     unsigned long long wanted = left;
-    EMBED_CALL(gui_scrollbar.first_at, GuiScrollbarCfg, .bar_read = &window->tabs_bar, .total = whole, .displayed = width,
-               .x = args->x - window->editor_bar_grab, .y = args->y, .first_out = &wanted);
+    EMBED_CALL(gui_scrollbar.first_at, GuiScrollbarCfg, .bar_read = &window->tabs_bar, .total = whole,
+               .displayed = width, .x = args->x - window->editor_bar_grab, .y = args->y, .first_out = &wanted);
     // the side_menu is pixels on the screen, so the place fits in a long long
     EMBED_CALL(window_tabs_slide, GuiWindowCtx, .window = window, .pixels = (long long)wanted);
 }
@@ -7204,8 +7224,8 @@ static void window_press(const GuiInputHandlerCfg *args)
         window->terminal_height = 0u;
         return;
     }
-    // A press in the top band while the claim retains the bar away shows the bar at once, with no rest and no slide. The
-    // press then goes to the bar's title under it, and not to the editor under the band. The bar displayed is lower
+    // A press in the top band while the claim retains the bar away shows the bar at once, with no rest and no slide.
+    // The press then goes to the bar's title under it, and not to the editor under the band. The bar displayed is lower
     // than the band, so the press is read at the middle of the titles' row
     GuiInput aimed;
     if (window->claim.autohidden && (window->claim.displayed != GUI_AUTOHIDE_TOP) &&
@@ -7416,11 +7436,10 @@ static void window_move(const GuiInputHandlerCfg *args)
         const unsigned long long now_ms = cli_clock_milliseconds();
         EMBED_CALL(gui_autohide_pointer.move, GuiAutohidePointerCfg, .claim = &window->claim, .x = args->input->x,
                    .y = args->input->y,
-                   .zone =
-                       EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = frame->width,
-                                  .height = frame->height, .scale = frame->scale,
-                                  .controls_width = frame->controls.width, .x = args->input->x, .y = args->input->y,
-                                  .work_top = frame->inside.y),
+                   .zone = EMBED_CALL(gui_autohide_width.zone, GuiAutohideWidthCfg, .width = frame->width,
+                                      .height = frame->height, .scale = frame->scale,
+                                      .controls_width = frame->controls.width, .x = args->input->x, .y = args->input->y,
+                                      .work_top = frame->inside.y),
                    .over_parts = EMBED_CALL(window_over_parts, GuiWindowCtx, .window_read = window, .x = args->input->x,
                                             .y = args->input->y),
                    .menu_open = g_cli_menus_open.levels > 0u, .now_ms = cli_clock_milliseconds());
@@ -7722,8 +7741,8 @@ EMBED_INLINE int window_editor_menu(const GuiWindowCtx *args)
 }
 
 // the system's gesture for a menu: the menu of what is at the pointer asked for there, none on a menu open, the
-// menus open closed first: the terminal's panel's for every place on it, a tab's, the editor's, and the displayed pane's
-// table's for a row of it or for the pane off its rows
+// menus open closed first: the terminal's panel's for every place on it, a tab's, the editor's, and the displayed
+// pane's table's for a row of it or for the pane off its rows
 static void window_menu(const GuiInputHandlerCfg *args)
 {
     GuiWindow *const window = args->window;

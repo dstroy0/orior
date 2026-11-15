@@ -207,21 +207,23 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
     // the folders the tool's places name, in a cell of this call
     CliToolchainsPaths positions = {NULL, 0u, 0u};
     (void)EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
-                     .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                             .json_read = json, .object = tool, .name = "places"),
+                     .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                             .object = tool, .name = "places"),
                      .paths = &positions);
     int placed = 0;
     for (unsigned int at = 0u; !placed && (at < positions.count); at += 1u)
     {
         char dir[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = positions.cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = dir, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = positions.cell,
+                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                .dst = dir,
+                                                                .bytes = CLI_PATH_MAX_LEN});
         placed = !EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
                  EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
                  EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json,
                             .tool = tool, .dir = dir, .path = program);
     }
-    cli_toolchains_paths_release(&positions);
+    cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &positions});
     if (placed)
     {
         EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "found", .program = program);

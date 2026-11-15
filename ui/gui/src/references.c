@@ -30,7 +30,7 @@ static int references_head(const GuiPaneCfg *args)
 static void references_head_draw(const GuiPaneCfg *args)
 {
     unsigned long long reported = 0ULL;
-    const char *const report = cli_references_report(&reported);
+    const char *const report = cli_references_report(&(CliReferencesLengthCfg){.length_out = &reported});
     if (reported == 0ULL)
     {
         return;
@@ -50,7 +50,7 @@ static void references_row_draw(const GuiPaneCfg *args)
     const GuiPalette *const palette = args->palette;
     const GuiRect rect = args->rect;
     CliReferenceRow row;
-    if (!cli_references_row(args->row, &row))
+    if (!cli_references_row(&(CliReferencesAtRowCfg){.at = args->row, .row = &row}))
     {
         return;
     }
@@ -102,9 +102,8 @@ static void references_row_draw(const GuiPaneCfg *args)
     mmgr_line_decimal(&place, row.line + 1ULL, 1u);
     mmgr_line_ch(&place, ':');
     mmgr_line_decimal(&place, row.col + 1ULL, 1u);
-    const float place_width =
-        EMBED_CALL(gui_pane_part.text_width, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
-                   .size = GUI_REFERENCES_PLACE_SIZE, .text = place_text, .length = place.at);
+    const float place_width = EMBED_CALL(gui_pane_part.text_width, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
+                                         .size = GUI_REFERENCES_PLACE_SIZE, .text = place_text, .length = place.at);
     const float place_x = (float)(rect.x + rect.width - pad) - place_width;
     (void)EMBED_CALL(gui_pane_part.text_draw, GuiPanePartCfg, .pane = args, .clipped = 1, .face = GUI_FACE_CODE,
                      .size = GUI_REFERENCES_PLACE_SIZE, .x_f32 = place_x, .text = place_text, .length = place.at,
@@ -144,7 +143,7 @@ static void references_row_draw(const GuiPaneCfg *args)
 static int references_press(const GuiPaneCfg *args)
 {
     CliReferenceRow row;
-    if (!cli_references_press(args->row, &row))
+    if (!cli_references_press(&(CliReferencesAtRowCfg){.at = args->row, .row = &row}))
     {
         return 0;
     }

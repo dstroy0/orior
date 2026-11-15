@@ -430,8 +430,8 @@ EMBED_INLINE unsigned int address_followed(const PreviewCtx *args)
 void cli_preview_begin(const CliPreviewCfg *args)
 {
     char saved_text[32];
-    const char *const saved =
-        cli_state_entry_value(args->entries, CLI_PREVIEW_MODE_KEY, saved_text, sizeof(saved_text));
+    const char *const saved = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = CLI_PREVIEW_MODE_KEY, .out = saved_text, .capacity = sizeof(saved_text)});
     s_preview.mode = CLI_PREVIEW_OFF;
     for (unsigned int mode = 0u; (saved != NULL) && (mode < 3u); mode += 1u)
     {

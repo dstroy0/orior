@@ -93,12 +93,16 @@ EMBED_INLINE unsigned int search_sets_read(const FilesSearchPaneCtx *args)
 {
     Search *const search = &s_search;
     // the sets' text read out of the entries' cell into a cell of this call
-    const unsigned long long sets_size = cli_state_entry_size(s_entries, SEARCH_SETS_KEY);
+    const unsigned long long sets_size =
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = s_entries, .key = SEARCH_SETS_KEY});
     char *const sets_text = (sets_size != CLI_STATE_NONE)
                                 ? g_cli_guard->temporary_buf_alloc(sets_size + 1ULL, g_cli_search_pane_owner)
                                 : NULL;
     const char *const sets =
-        (sets_text != NULL) ? cli_state_entry_value(s_entries, SEARCH_SETS_KEY, sets_text, sets_size + 1ULL) : NULL;
+        (sets_text != NULL)
+            ? cli_state_entry_value(&(CliStateEntryCfg){
+                  .entries = s_entries, .key = SEARCH_SETS_KEY, .out = sets_text, .capacity = sets_size + 1ULL})
+            : NULL;
     const unsigned long long name_length =
         (args->name != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_SEARCH_NAME_MAX}) : 0ULL;
     unsigned int count = 0u;
@@ -193,10 +197,11 @@ EMBED_INLINE unsigned int search_regexp_match(const FilesSearchPaneCtx *args)
     const unsigned long long match_at = ((hit->col > 0ULL) && (hit->col - 1ULL < size)) ? hit->col - 1ULL : 0ULL;
     const char *const text = args->text;
     const unsigned long long before =
-        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = match_at, .characters = args->characters,
-                   .capacity_u64 = SEARCH_CHARACTERS);
-    const unsigned long long characters = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = size,
-                                                  .characters = args->characters, .capacity_u64 = SEARCH_CHARACTERS);
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = match_at,
+                   .characters = args->characters, .capacity_u64 = SEARCH_CHARACTERS);
+    const unsigned long long characters =
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = size,
+                   .characters = args->characters, .capacity_u64 = SEARCH_CHARACTERS);
     if ((before >= characters) ||
         !EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = args->regexp,
                     .text_u32s = args->characters, .length = characters, .at = before, .groups = args->groups))
@@ -215,9 +220,8 @@ EMBED_INLINE unsigned int search_regexp_match(const FilesSearchPaneCtx *args)
 // how many lines the file `at` has among the lines located
 EMBED_INLINE unsigned int search_file_lines(const FilesSearchPaneCtx *args)
 {
-    const unsigned int end = (args->at + 1u < cli_search_located_files())
-                                 ? cli_search_located_file_first(args->at + 1u)
-                                 : cli_search_located_count();
+    const unsigned int end = (args->at + 1u < cli_search_located_files()) ? cli_search_located_file_first(args->at + 1u)
+                                                                          : cli_search_located_count();
     return end - cli_search_located_file_first(args->at);
 }
 
@@ -413,7 +417,8 @@ void cli_search_pane_begin(const CliSearchPaneCfg *args)
     Search *const search = &s_search;
     // the set saved found by its name among the sets listed
     char saved_name[CLI_SEARCH_NAME_MAX];
-    const char *const saved = cli_state_entry_value(args->entries, SEARCH_SET_KEY, saved_name, sizeof(saved_name));
+    const char *const saved = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = SEARCH_SET_KEY, .out = saved_name, .capacity = sizeof(saved_name)});
     unsigned int found = 0u;
     search->sets = EMBED_CALL(search_sets_read, FilesSearchPaneCtx, .set = 0u,
                               .name = ((saved != NULL) && (saved[0] != '\0')) ? saved : NULL, .count_out = &found);

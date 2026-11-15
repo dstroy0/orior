@@ -53,10 +53,10 @@ typedef struct
 
 // The pane's data: the query, whether a change waits and since when, the authors setting, whether rows are; the
 // repositories as git lists them in a movable cell, a CliRepository each, how many, their texts and the one chosen;
-// the graph's commits as git_graph.c positions them in a movable cell, a CliDrawn each then every stroke of four words, how
-// many of each, and their texts; the label `name: branch` and the commits' count as text with their bytes, the days in
-// a movable cell, CLI_GIT_LOG_DAY bytes a commit, the rows counted, and the commits whose files were read, records in a
-// movable cell of their count, in the graph's order
+// the graph's commits as git_graph.c positions them in a movable cell, a CliDrawn each then every stroke of four words,
+// how many of each, and their texts; the label `name: branch` and the commits' count as text with their bytes, the days
+// in a movable cell, CLI_GIT_LOG_DAY bytes a commit, the rows counted, and the commits whose files were read, records
+// in a movable cell of their count, in the graph's order
 typedef struct
 {
     CliTyped query;
@@ -154,8 +154,10 @@ EMBED_INLINE void root_write(const GitLogCtx *args)
     const int listed = (s_log.repositories_cell != NULL) && (s_log.chosen < s_log.repositories);
     if (listed)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_log.repositories_cell, .offset = GIT_LOG_REPOSITORY_AT(s_log.chosen), .dst = &chosen, .bytes = sizeof(CliRepository)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
+                                                                .offset = GIT_LOG_REPOSITORY_AT(s_log.chosen),
+                                                                .dst = &chosen,
+                                                                .bytes = sizeof(CliRepository)});
     }
     const char *const relative =
         listed ? EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_log.repositories_text,
@@ -315,14 +317,16 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
     CliRepository chosen = {0};
     if (log->chosen < log->repositories)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_log.repositories_cell, .offset = GIT_LOG_REPOSITORY_AT(log->chosen), .dst = &chosen, .bytes = sizeof(CliRepository)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
+                                                                .offset = GIT_LOG_REPOSITORY_AT(log->chosen),
+                                                                .dst = &chosen,
+                                                                .bytes = sizeof(CliRepository)});
     }
     (void)EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &log->repositories_text,
                      .at = chosen.path, .dst = folder, .capacity = sizeof(folder));
     const unsigned long long folder_length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_PATH_MAX_LEN});
-    // the record's cell, positioned in the temporary tier first: a GitLogFile a file, then each path under the tree with its
-    // end; and the records' cell grown by one, the records before read into it
+    // the record's cell, positioned in the temporary tier first: a GitLogFile a file, then each path under the tree
+    // with its end; and the records' cell grown by one, the records before read into it
     const unsigned long long files_bytes = GIT_LOG_FILE_AT(touched->count);
     const unsigned long long text_bytes =
         touched->text.used + ((unsigned long long)touched->count * (folder_length + 1ULL));
@@ -660,7 +664,8 @@ void cli_git_log_begin(const CliGitLogCfg *args)
 {
     s_woken = args->woken;
     char saved_text[16];
-    const char *const saved = cli_state_entry_value(args->entries, GIT_LOG_AUTHORS_KEY, saved_text, sizeof(saved_text));
+    const char *const saved = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = GIT_LOG_AUTHORS_KEY, .out = saved_text, .capacity = sizeof(saved_text)});
     s_log.authors = (saved != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = saved, .other = "true", .cap = 8ULL});
 }
 
@@ -820,8 +825,10 @@ int cli_git_log_row(const CliGitLogCfg *args)
     const unsigned int commit = EMBED_CALL(commit_of, GitLogCtx, .at = args->at, .under_out = &under,
                                            .record_out = &record, .opened_out = &opened);
     CliDrawn drawn_read_out;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_log.graph_cell, .offset = GIT_LOG_DRAWN_AT(commit), .dst = &drawn_read_out, .bytes = sizeof(CliDrawn)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.graph_cell,
+                                                            .offset = GIT_LOG_DRAWN_AT(commit),
+                                                            .dst = &drawn_read_out,
+                                                            .bytes = sizeof(CliDrawn)});
     const CliDrawn *const drawn = &drawn_read_out;
     row->id = EMBED_CALL(commit_id, GitLogCtx, .at = commit, .out = row->id_copied);
     if (under == 0u)

@@ -54,24 +54,26 @@ EMBED_INLINE CliDap *launch_adapter_from(const DebugLaunchCtx *args)
     // the folders the adapter's spec puts on its PATH, in a cell of this call
     CliToolchainsPaths folders = {NULL, 0u, 0u};
     (void)EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
-                     .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                             .json_read = json, .object = args->plan->spec, .name = "path"),
+                     .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                             .object = args->plan->spec, .name = "path"),
                      .paths = &folders);
     // the folders copied out for the PATH's writer, in a cell of this call given back after it
-    char(*const ahead)[CLI_PATH_MAX_LEN] =
-        (folders.count != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)folders.count * CLI_PATH_MAX_LEN,
-                                                                 g_cli_debug_owner)
-                              : NULL;
+    char (*const ahead)[CLI_PATH_MAX_LEN] =
+        (folders.count != 0u)
+            ? g_cli_guard->temporary_buf_alloc((unsigned long long)folders.count * CLI_PATH_MAX_LEN, g_cli_debug_owner)
+            : NULL;
     for (unsigned int at = 0u; (ahead != NULL) && (at < folders.count); at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = folders.cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = ahead[at], .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
+                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                .dst = ahead[at],
+                                                                .bytes = CLI_PATH_MAX_LEN});
     }
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg,
                .ahead = (const char (*)[CLI_PATH_MAX_LEN])ahead, .count = (ahead != NULL) ? folders.count : 0u,
                .path = s_path[session_at], .size = sizeof(s_path[session_at]));
     g_cli_guard->persistent_buf_release(ahead, g_cli_debug_owner);
-    cli_toolchains_paths_release(&folders);
+    cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &folders});
     const char *words[CLI_DEBUG_ADAPTER_WORDS];
     unsigned int count = 0u;
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,

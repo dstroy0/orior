@@ -9,8 +9,8 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "ui/cli/src/code/crumbs.h"
-#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/command_line/commands.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 #include <stdlib.h>
@@ -145,7 +145,7 @@ void test_the_setting_off_lists_none_and_is_across_the_save_and_read(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_crumbs.displayed, CliCrumbsCfg, .at = 0u));
     EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = s_key, .path = s_path, .line = 4ULL);
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_crumbs.rows, CliCrumbsCfg, .at = 0u));
-    cli_state_entries_release(&entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
     EMBED_CALL(cli_crumbs.displayed_set, CliCrumbsCfg, .on = 1);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_crumbs.displayed, CliCrumbsCfg, .at = 0u));
 }

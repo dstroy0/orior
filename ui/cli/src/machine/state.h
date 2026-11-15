@@ -69,16 +69,23 @@ typedef struct
 {
     const char *folder;
     const CellOwner *owner;
+    CliStateEntries *entries;
 } CliStateEntriesCfg;
+// the entries read: the entry with `key` or the one `at`, its text into `out` of `capacity` bytes
+typedef struct
+{
+    const CliStateEntries *entries;
+    const char *key;
+    unsigned int at;
+    char *out;
+    unsigned long long capacity;
+} CliStateEntryCfg;
 CliStateEntries cli_state_entries_alloc(const CliStateEntriesCfg *args);
-void cli_state_entries_release(CliStateEntries *entries);
-const char *cli_state_entry_value(const CliStateEntries *entries, const char *key, char *out,
-                                  unsigned long long capacity);
-unsigned long long cli_state_entry_size(const CliStateEntries *entries, const char *key);
-const char *cli_state_entry_key(const CliStateEntries *entries, unsigned int at, char *out,
-                                unsigned long long capacity);
-const char *cli_state_entry_text(const CliStateEntries *entries, unsigned int at, char *out,
-                                 unsigned long long capacity);
+void cli_state_entries_release(const CliStateEntriesCfg *args);
+const char *cli_state_entry_value(const CliStateEntryCfg *args);
+unsigned long long cli_state_entry_size(const CliStateEntryCfg *args);
+const char *cli_state_entry_key(const CliStateEntryCfg *args);
+const char *cli_state_entry_text(const CliStateEntryCfg *args);
 
 // the text `value` stored under `key`, without `orior.`, in `folder`, written as the file's JSON here at its edge: 1,
 // or 0 with why given

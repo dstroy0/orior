@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_diff_view.c: two texts of a file side by side: the file against the last commit positions a row each line, a line
-// changed on both sides, a line put in across from a gap, the lines both share level, with the bar's sentences and the
-// steps wrapping at the ends and found by the row in view; a file the last commit lacks puts every line in; a file
-// that does not differ positions no row and answers its sentence; a commit against the file, two commits the older first, a
-// commit against its first parent, the clipboard against the file and two files each pair their texts and sentences;
-// a snapshot not stored is refused with why; white space set aside positions lines that differ only in it level, its box
-// pressed off while structure is on, the setting saved in orior's folder; and texts too far apart answer their sentence
+// test_diff_view.c: two texts of a file side by side: the file against the last commit positions a row each line, a
+// line changed on both sides, a line put in across from a gap, the lines both share level, with the bar's sentences and
+// the steps wrapping at the ends and found by the row in view; a file the last commit lacks puts every line in; a file
+// that does not differ positions no row and answers its sentence; a commit against the file, two commits the older
+// first, a commit against its first parent, the clipboard against the file and two files each pair their texts and
+// sentences; a snapshot not stored is refused with why; white space set aside positions lines that differ only in it
+// level, its box pressed off while structure is on, the setting saved in orior's folder; and texts too far apart answer
+// their sentence
 #include "ui/cli/src/code/diff_view.h"
 #include "ui/cli/src/code/git.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -278,8 +279,8 @@ void test_commits_parents_the_clipboard_and_files_pair_their_texts(void)
 void test_white_space_set_aside_positions_lines_level_and_saves_its_setting(void)
 {
     cli_unity_folder("diff_view_home", s_home);
-    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
-                                .value = s_home));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
     EMBED_CALL(cli_diff_view_option_on.begin, CliDiffViewOptionOnCfg, .entries = NULL);
     repository_created("diff_view_space", "a b\nc\n");
     cli_unity_file(s_root, "a.txt", "a   b \nc\n");
@@ -287,8 +288,8 @@ void test_white_space_set_aside_positions_lines_level_and_saves_its_setting(void
     TEST_ASSERT_EQUAL_UINT(3u, rows());
     int on = 1;
     int enabled = 0;
-    EMBED_CALL(cli_diff_view_option_on.option_get, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_SPACE,
-               .on_out = &on, .enabled_out = &enabled);
+    EMBED_CALL(cli_diff_view_option_on.option_get, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_SPACE, .on_out = &on,
+               .enabled_out = &enabled);
     TEST_ASSERT_FALSE(on);
     TEST_ASSERT_TRUE(enabled);
     EMBED_CALL(cli_diff_view_option_on.option_get, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_STRUCTURE,
@@ -296,8 +297,8 @@ void test_white_space_set_aside_positions_lines_level_and_saves_its_setting(void
     TEST_ASSERT_FALSE(enabled);
     (void)EMBED_CALL(cli_diff_view_option_on.option_toggle, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_SPACE,
                      .at = 1u);
-    EMBED_CALL(cli_diff_view_option_on.option_get, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_SPACE,
-               .on_out = &on, .enabled_out = &enabled);
+    EMBED_CALL(cli_diff_view_option_on.option_get, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_SPACE, .on_out = &on,
+               .enabled_out = &enabled);
     TEST_ASSERT_TRUE(on);
     TEST_ASSERT_EQUAL_UINT(0u, rows());
     empty_is("No change from the last commit.");
@@ -305,9 +306,11 @@ void test_white_space_set_aside_positions_lines_level_and_saves_its_setting(void
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = s_home, .owner = g_cli_diff_view_owner});
     TEST_ASSERT_NOT_NULL(entries.cell);
     char space[32];
-    TEST_ASSERT_EQUAL_STRING("aside", cli_state_entry_value(&entries, "diff-space", space, sizeof(space)));
+    TEST_ASSERT_EQUAL_STRING("aside",
+                             cli_state_entry_value(&(CliStateEntryCfg){
+                                 .entries = &entries, .key = "diff-space", .out = space, .capacity = sizeof(space)}));
     EMBED_CALL(cli_diff_view_option_on.begin, CliDiffViewOptionOnCfg, .entries = &entries);
-    cli_state_entries_release(&entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
     (void)EMBED_CALL(cli_diff_view_option_on.option_toggle, CliDiffViewOptionOnCfg, .option = CLI_DIFF_VIEW_SPACE,
                      .at = 0u);
     TEST_ASSERT_EQUAL_UINT(3u, rows());

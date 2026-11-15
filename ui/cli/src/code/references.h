@@ -51,10 +51,20 @@ int cli_references_rename(const CliReferencesPlaceCfg *args);
 // or opened, or a reference's row into `row`: 1 where it was a reference's, its file to be opened at its place; the
 // report, the references and files counted with the name, or that none were found, with its bytes into `length_out`;
 // and the table released
+// the row `at`, read or pressed, and the report's bytes
+typedef struct
+{
+    unsigned int at;
+    CliReferenceRow *row;
+} CliReferencesAtRowCfg;
+typedef struct
+{
+    unsigned long long *length_out;
+} CliReferencesLengthCfg;
 unsigned int cli_references_rows(void);
-int cli_references_row(unsigned int at, CliReferenceRow *row);
-int cli_references_press(unsigned int at, CliReferenceRow *row);
-const char *cli_references_report(unsigned long long *length_out);
+int cli_references_row(const CliReferencesAtRowCfg *args);
+int cli_references_press(const CliReferencesAtRowCfg *args);
+const char *cli_references_report(const CliReferencesLengthCfg *args);
 void cli_references_end(void);
 struct CliReferencesPlaceCfg
 {

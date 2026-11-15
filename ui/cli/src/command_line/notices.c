@@ -28,11 +28,11 @@ typedef struct
 } CliNoticesRing;
 
 // The notices: the list, a ring, NULL until the first notice, and how many came since the bell was opened; those
-// waiting for a break, a ring, NULL until the first; the notice displayed, its cell in the list, NULL for none, its first
-// line and its type copied out, and whether it is a failure's; when it goes; whether Focus is on and how many wait on
-// it; when the reader last commanded and last gave any input; and the types put away, a line each: in a movable cell
-// of the notices' own with its bytes where `away_owned` is 1, else read in place where orior's folder was read, NULL
-// for none
+// waiting for a break, a ring, NULL until the first; the notice displayed, its cell in the list, NULL for none, its
+// first line and its type copied out, and whether it is a failure's; when it goes; whether Focus is on and how many
+// wait on it; when the reader last commanded and last gave any input; and the types put away, a line each: in a movable
+// cell of the notices' own with its bytes where `away_owned` is 1, else read in place where orior's folder was read,
+// NULL for none
 typedef struct
 {
     CliNoticesRing *list;
@@ -241,8 +241,8 @@ EMBED_INLINE int notices_listed(const CliNoticesCtx *args)
     return 1;
 }
 
-// the notice put in the list and displayed on the status bar, its first line and its type copied out of its cell, located
-// until its time is out
+// the notice put in the list and displayed on the status bar, its first line and its type copied out of its cell,
+// located until its time is out
 EMBED_INLINE void notices_displayed(const CliNoticesCtx *args)
 {
     const CliNotice notice = *args->notice_read;
@@ -315,7 +315,8 @@ EMBED_INLINE void notices_away_set(const CliNoticesCtx *args)
     }
 }
 
-// the notices waiting for a break taken: every one but the last into the list, the last displayed; none while Focus is on
+// the notices waiting for a break taken: every one but the last into the list, the last displayed; none while Focus is
+// on
 EMBED_INLINE void notices_break(const CliNoticesCtx *args)
 {
     (void)args;
@@ -541,7 +542,8 @@ unsigned long long cli_notices_due_ms(void)
 void cli_notices_restore(const CliStateEntries *entries)
 {
     // the types put away read out of the entries' cell into a cell of this call, then into a cell of the notices' own
-    const unsigned long long size = cli_state_entry_size(entries, CLI_NOTICES_AWAY_KEY);
+    const unsigned long long size =
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = entries, .key = CLI_NOTICES_AWAY_KEY});
     if (size == CLI_STATE_NONE)
     {
         return;
@@ -549,7 +551,8 @@ void cli_notices_restore(const CliStateEntries *entries)
     char *const away_text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     const CarcerMovableEntry *const away = g_cli_guard->movable_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if ((away_text == NULL) || (away == NULL) ||
-        (cli_state_entry_value(entries, CLI_NOTICES_AWAY_KEY, away_text, size + 1ULL) == NULL))
+        (cli_state_entry_value(&(CliStateEntryCfg){
+             .entries = entries, .key = CLI_NOTICES_AWAY_KEY, .out = away_text, .capacity = size + 1ULL}) == NULL))
     {
         g_cli_guard->persistent_buf_release(away_text, g_cli_command_line_owner);
         if (away != NULL)

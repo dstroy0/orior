@@ -120,15 +120,18 @@ EMBED_INLINE void recent_read(const RecentCtx *args)
     CliStateEntries entries =
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_machine_owner});
     // the list's text read out of the entries' cell into a cell of this call
-    const unsigned long long size = cli_state_entry_size(&entries, s_recent_keys[args->list]);
+    const unsigned long long size =
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = &entries, .key = s_recent_keys[args->list]});
     char *const value =
         (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_machine_owner) : NULL;
-    if ((value != NULL) && (cli_state_entry_value(&entries, s_recent_keys[args->list], value, size + 1ULL) != NULL))
+    if ((value != NULL) &&
+        (cli_state_entry_value(&(CliStateEntryCfg){
+             .entries = &entries, .key = s_recent_keys[args->list], .out = value, .capacity = size + 1ULL}) != NULL))
     {
         EMBED_CALL(recent_positioned, RecentCtx, .list = args->list, .text = value, .length = size);
     }
     g_cli_guard->persistent_buf_release(value, g_cli_machine_owner);
-    cli_state_entries_release(&entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
 }
 
 void cli_recent_push(const CliRecentCfg *args)

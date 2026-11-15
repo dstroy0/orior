@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// crumbs.c: the crumbs of the file displayed. A read splits the path at its separators and finds the declarations the line
-// is inside in the outline, the last whose line is at max the cursor's by halving and the ones it is in by
-// their depths before it, then positions every crumb and its text in one cell sized to them. The lines the crumbs answer
-// for are beside the cell, and a read inside them on the same file reads nothing. A menu's texts are in a cell of
-// their own sized to them
+// crumbs.c: the crumbs of the file displayed. A read splits the path at its separators and finds the declarations the
+// line is inside in the outline, the last whose line is at max the cursor's by halving and the ones it is in by their
+// depths before it, then positions every crumb and its text in one cell sized to them. The lines the crumbs answer for
+// are beside the cell, and a read inside them on the same file reads nothing. A menu's texts are in a cell of their own
+// sized to them
 #include "crumbs.h"
 
 #include "../command_line/commands.h"
@@ -128,7 +128,8 @@ EMBED_INLINE void crumbs_chain_read(const CrumbsCtx *args)
 void cli_crumbs_begin(const CliCrumbsCfg *args)
 {
     char saved_text[16];
-    const char *const saved = cli_state_entry_value(args->entries, CLI_CRUMBS_KEY, saved_text, sizeof(saved_text));
+    const char *const saved = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = CLI_CRUMBS_KEY, .out = saved_text, .capacity = sizeof(saved_text)});
     s_crumbs.displayed = (saved == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = saved, .other = "false", .cap = 8ULL});
 }
 

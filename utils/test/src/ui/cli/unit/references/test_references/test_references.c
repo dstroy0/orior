@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_references.c: the references of a name are listed by file from the tree, a file's row closes and opens its references, a
-// reference's row names its place, the definition in effect is found, a rename writes the name in every file's view, a new
-// name that is no name is refused, and a place on no name gives nothing
+// test_references.c: the references of a name are listed by file from the tree, a file's row closes and opens its
+// references, a reference's row names its place, the definition in effect is found, a rename writes the name in every
+// file's view, a new name that is no name is refused, and a place on no name gives nothing
+#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/code/references.h"
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/view.h"
-#include "ui/cli/src/code/references.h"
-#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static const char s_shape_text[] = "#ifndef SHAPE_H\n#define SHAPE_H\nint area(int side);\n#define SIDES 4\n#endif\n";
@@ -75,7 +75,8 @@ static void views_closed(void)
 // the references of `area` at its call in use.c found: what the find answered
 static int area_found(void)
 {
-    return cli_references_find(&(CliReferencesPlaceCfg){.path = "src/use.c", .line = 3u, .col = 12u, .err_msg = &s_err_msg});
+    return cli_references_find(
+        &(CliReferencesPlaceCfg){.path = "src/use.c", .line = 3u, .col = 12u, .err_msg = &s_err_msg});
 }
 
 void test_the_references_of_a_name_are_listed_by_file(void)
@@ -85,29 +86,29 @@ void test_the_references_of_a_name_are_listed_by_file(void)
     // three files and four references: a row a file and a row a reference
     TEST_ASSERT_EQUAL_UINT(7u, cli_references_rows());
     CliReferenceRow row;
-    TEST_ASSERT_TRUE(cli_references_row(0u, &row));
+    TEST_ASSERT_TRUE(cli_references_row(&(CliReferencesAtRowCfg){.at = 0u, .row = &row}));
     TEST_ASSERT_EQUAL_UINT(CLI_REFERENCES_ROW_FILE, row.type);
     TEST_ASSERT_TRUE(row.open);
     TEST_ASSERT_EQUAL_UINT64(4ull, row.folder_length);
     CLI_TEST_ASSERT_TEXT("src/", row.path, row.folder_length);
     unsigned long long length = 0ull;
-    const char *const report = cli_references_report(&length);
+    const char *const report = cli_references_report(&(CliReferencesLengthCfg){.length_out = &length});
     CLI_TEST_ASSERT_TEXT("4 references of area in 3 files", report, length);
-    TEST_ASSERT_FALSE(cli_references_row(7u, &row));
+    TEST_ASSERT_FALSE(cli_references_row(&(CliReferencesAtRowCfg){.at = 7u, .row = &row}));
 }
 
 void test_a_reference_row_names_its_place_and_marks_the_name(void)
 {
     TEST_ASSERT_EQUAL_INT(1, area_found());
     CliReferenceRow row;
-    TEST_ASSERT_TRUE(cli_references_row(1u, &row));
+    TEST_ASSERT_TRUE(cli_references_row(&(CliReferencesAtRowCfg){.at = 1u, .row = &row}));
     TEST_ASSERT_EQUAL_UINT(CLI_REFERENCES_ROW_PLACE, row.type);
     TEST_ASSERT_EQUAL_UINT64(4ull, row.match_length);
     CLI_TEST_ASSERT_TEXT("area", row.text + row.match_at, row.match_length);
     TEST_ASSERT_EQUAL_UINT64(row.to - row.col, row.match_length);
     // a press on a reference's row opens its file at its place
     CliReferenceRow pressed;
-    TEST_ASSERT_TRUE(cli_references_press(1u, &pressed));
+    TEST_ASSERT_TRUE(cli_references_press(&(CliReferencesAtRowCfg){.at = 1u, .row = &pressed}));
     TEST_ASSERT_EQUAL_UINT64(row.line, pressed.line);
 }
 
@@ -115,16 +116,16 @@ void test_a_file_row_pressed_closes_and_opens_its_references(void)
 {
     TEST_ASSERT_EQUAL_INT(1, area_found());
     CliReferenceRow first;
-    TEST_ASSERT_TRUE(cli_references_row(0u, &first));
+    TEST_ASSERT_TRUE(cli_references_row(&(CliReferencesAtRowCfg){.at = 0u, .row = &first}));
     const unsigned int count = first.count;
     CliReferenceRow row;
-    TEST_ASSERT_FALSE(cli_references_press(0u, &row));
+    TEST_ASSERT_FALSE(cli_references_press(&(CliReferencesAtRowCfg){.at = 0u, .row = &row}));
     TEST_ASSERT_EQUAL_UINT(7u - count, cli_references_rows());
-    TEST_ASSERT_TRUE(cli_references_row(0u, &row));
+    TEST_ASSERT_TRUE(cli_references_row(&(CliReferencesAtRowCfg){.at = 0u, .row = &row}));
     TEST_ASSERT_FALSE(row.open);
-    TEST_ASSERT_TRUE(cli_references_row(1u, &row));
+    TEST_ASSERT_TRUE(cli_references_row(&(CliReferencesAtRowCfg){.at = 1u, .row = &row}));
     TEST_ASSERT_EQUAL_UINT(CLI_REFERENCES_ROW_FILE, row.type);
-    TEST_ASSERT_FALSE(cli_references_press(0u, &row));
+    TEST_ASSERT_FALSE(cli_references_press(&(CliReferencesAtRowCfg){.at = 0u, .row = &row}));
     TEST_ASSERT_EQUAL_UINT(7u, cli_references_rows());
 }
 
@@ -154,10 +155,11 @@ void test_the_definition_is_the_declaration_the_hover_shows_first(void)
 
 void test_a_place_on_no_name_gives_no_references(void)
 {
-    TEST_ASSERT_EQUAL_INT(0, cli_references_find(&(CliReferencesPlaceCfg){.path = "src/use.c", .line = 2u, .col = 0u, .err_msg = &s_err_msg}));
+    TEST_ASSERT_EQUAL_INT(0, cli_references_find(&(CliReferencesPlaceCfg){
+                                 .path = "src/use.c", .line = 2u, .col = 0u, .err_msg = &s_err_msg}));
     TEST_ASSERT_EQUAL_UINT(0u, cli_references_rows());
     unsigned long long length = 0ull;
-    const char *const report = cli_references_report(&length);
+    const char *const report = cli_references_report(&(CliReferencesLengthCfg){.length_out = &length});
     CLI_TEST_ASSERT_TEXT("No references", report, length);
 }
 
@@ -171,14 +173,14 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
     (void)mmgr_line_finish(&s_err_msg);
     TEST_ASSERT_EQUAL_INT_MESSAGE(4,
                                   cli_references_rename(&(CliReferencesPlaceCfg){.path = "src/use.c",
-                                                                           .line = 3u,
-                                                                           .col = 12u,
-                                                                           .name = "extent",
-                                                                           .root = s_tree,
-                                                                           .rows = 20u,
-                                                                           .columns = 80u,
-                                                                           .files_out = &files,
-                                                                           .err_msg = &s_err_msg}),
+                                                                                 .line = 3u,
+                                                                                 .col = 12u,
+                                                                                 .name = "extent",
+                                                                                 .root = s_tree,
+                                                                                 .rows = 20u,
+                                                                                 .columns = 80u,
+                                                                                 .files_out = &files,
+                                                                                 .err_msg = &s_err_msg}),
                                   s_why);
     TEST_ASSERT_EQUAL_UINT(3u, files);
     // the two files with no view are written and closed again; use.c stays the view displayed, changed
@@ -201,7 +203,8 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
             const char *const line = text + frame->row[row].text;
             for (unsigned long long col = 0ull; col + 6ull <= frame->row[row].length; col += 1ull)
             {
-                extent_found = extent_found || (memor.cmp(&(MemoriaCfg){.src = line + col, .other = "extent", .bytes = 6u}) == 0);
+                extent_found =
+                    extent_found || (memor.cmp(&(MemoriaCfg){.src = line + col, .other = "extent", .bytes = 6u}) == 0);
             }
         }
         TEST_ASSERT_TRUE_MESSAGE(extent_found, path);
@@ -213,6 +216,14 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
 void test_a_rename_to_no_name_is_refused(void)
 {
     unsigned int files = 0u;
-    TEST_ASSERT_EQUAL_INT(0, cli_references_rename(&(CliReferencesPlaceCfg){.path = "src/use.c", .line = 3u, .col = 12u, .name = "9x", .root = s_tree, .rows = 20u, .columns = 80u, .files_out = &files, .err_msg = &s_err_msg}));
+    TEST_ASSERT_EQUAL_INT(0, cli_references_rename(&(CliReferencesPlaceCfg){.path = "src/use.c",
+                                                                            .line = 3u,
+                                                                            .col = 12u,
+                                                                            .name = "9x",
+                                                                            .root = s_tree,
+                                                                            .rows = 20u,
+                                                                            .columns = 80u,
+                                                                            .files_out = &files,
+                                                                            .err_msg = &s_err_msg}));
     TEST_ASSERT_TRUE(mmgr_line_finish(&s_err_msg) > 0ull);
 }

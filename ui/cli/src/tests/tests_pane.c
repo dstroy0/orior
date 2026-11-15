@@ -221,7 +221,8 @@ void cli_tests_pane_begin(const CliTestsPaneCfg *args)
 {
     s_woken = args->woken;
     char saved_text[16];
-    const char *const saved = cli_state_entry_value(args->entries, TESTS_PARALLEL_KEY, saved_text, sizeof(saved_text));
+    const char *const saved = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = args->entries, .key = TESTS_PARALLEL_KEY, .out = saved_text, .capacity = sizeof(saved_text)});
     s_parallel = (saved == NULL) || !cellul.eq(&(CatenaFinitaCfg){.src = saved, .other = "false", .cap = 8ULL});
 }
 

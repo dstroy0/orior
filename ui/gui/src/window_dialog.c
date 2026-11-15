@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window_dialog.c: the dialog's system window on the view's thread. It holds the dialog's raster and lattice, passes
-// each input to the dialog part (parts/dialog.c), and sends the answer to the interface's held command or retains it for the
-// caller. The view opens the window modal over its owner while the dialog shows, and closes it after (thread.c)
+// each input to the dialog part (parts/dialog.c), and sends the answer to the interface's held command or retains it
+// for the caller. The view opens the window modal over its owner while the dialog shows, and closes it after (thread.c)
 #include "../../cli/src/machine/reach.h"
 #include "window.h"
 
@@ -53,11 +53,11 @@ EMBED_INLINE void window_dialog_answered(const WindowDialogCtx *args)
         window->dialog_held = 0;
         if (change->type == GUI_DIALOG_ANSWERED)
         {
-            cli_reach_held_answer(1, window->dialog.label[change->button]);
+            cli_reach_held_answer(&(CliReachCfg){.done = 1, .text = window->dialog.label[change->button]});
         }
         else
         {
-            cli_reach_held_answer(0, "the dialog closed with no answer");
+            cli_reach_held_answer(&(CliReachCfg){.done = 0, .text = "the dialog closed with no answer"});
         }
     }
     EMBED_CALL(gui_background.pause, GuiBackgroundCfg, .background_fill = &window->dialog_ground, .paused = 1,
@@ -158,7 +158,8 @@ void gui_window_dialog_draw(const GuiWindowCfg *args)
     // the lattice under the panes where the window positioned it at the dialog's size, else the deep color
     const GuiRaster *const ground = &window->dialog_ground_raster;
     const int positioned = window->dialog_ground.positioned && (ground->pixels != NULL) &&
-                     (ground->width == window->dialog_raster.width) && (ground->height == window->dialog_raster.height);
+                           (ground->width == window->dialog_raster.width) &&
+                           (ground->height == window->dialog_raster.height);
     EMBED_CALL(gui_dialog_drawing.draw, GuiDialogDrawCfg, .dialog_read = &window->dialog,
                .raster = &window->dialog_raster, .glyphs = &window->glyphs, .palette = window->palette,
                .ground = positioned ? ground : NULL);

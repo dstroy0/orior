@@ -66,8 +66,10 @@ static void reach_entry_add(CliReachRead *read, const CliReachEntry *entry)
         read->entries = grown;
         read->capacity = capacity;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-        .cell = read->entries, .offset = (embed_word)read->count * sizeof(*entry), .src = entry, .bytes = sizeof(*entry)});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = read->entries,
+                                                             .offset = (embed_word)read->count * sizeof(*entry),
+                                                             .src = entry,
+                                                             .bytes = sizeof(*entry)});
     read->count += 1u;
 }
 
@@ -394,8 +396,8 @@ int cli_reach_request(const CliReachMenuCfg *args)
 // the max words a command through the interface carries
 #define CLI_REACH_WORDS 256u
 
-// A command come through the interface, on the stack of the interface's thread that read it, every text a place in the body
-// that thread received, which is as it was until the command is done: its id and name, its words, whether the
+// A command come through the interface, on the stack of the interface's thread that read it, every text a place in the
+// body that thread received, which is as it was until the command is done: its id and name, its words, whether the
 // window ran it, and its done word, which the interface's thread sleeps on
 typedef struct
 {
@@ -407,10 +409,10 @@ typedef struct
     embed_atomic_word done;
 } CliReachCommand;
 
-// The interface: the ticket ring the interface's threads push their commands on and the window's thread pops them off in the
-// order of their tickets, its turnstiles, its slots the interface's part of the rings block; the next ticket a interface's thread
-// takes and the next the window pops; the wake a interface's thread sleeps on while every slot is in flight; whether the
-// interface is closed; what wakes the window's thread; and this window's key, in a cell of its own
+// The interface: the ticket ring the interface's threads push their commands on and the window's thread pops them off
+// in the order of their tickets, its turnstiles, its slots the interface's part of the rings block; the next ticket a
+// interface's thread takes and the next the window pops; the wake a interface's thread sleeps on while every slot is in
+// flight; whether the interface is closed; what wakes the window's thread; and this window's key, in a cell of its own
 typedef struct
 {
     EmbedTurnstiles turnstiles;
@@ -454,8 +456,8 @@ static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
     void *job = NULL;
     embed_u64 seen = 0u;
     // Explicit cast carries the interface's address as the pass's entry
-    if (!embed_ticket_ring_pass_pop(&s_interface.turnstiles, (embed_atomic_uptr_value)(embed_word)&s_interface, &s_interface.ring,
-                                  *stamp_out, &job, &seen))
+    if (!embed_ticket_ring_pass_pop(&s_interface.turnstiles, (embed_atomic_uptr_value)(embed_word)&s_interface,
+                                    &s_interface.ring, *stamp_out, &job, &seen))
     {
         return 0;
     }
@@ -556,7 +558,7 @@ static int reach_received(const CliCommsRecvCfg *args)
     return 1;
 }
 
-int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg)
+int cli_reach_open(const CliReachCfg *args)
 {
     char address[CLI_PATH_MAX_LEN];
     char line_key[CLI_COMMS_KEY];
@@ -569,27 +571,27 @@ int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg)
     embed_atomic_u32_store(&s_interface.taken, 0u);
     s_interface.room = (CliWake)CLI_WAKE_INIT;
     // Explicit cast stores the function pointer as the word that holds it
-    embed_atomic_uptr_store(&s_interface.woken, (embed_atomic_uptr_value)(embed_word)woken);
+    embed_atomic_uptr_store(&s_interface.woken, (embed_atomic_uptr_value)(embed_word)args->woken);
     embed_atomic_u32_store(&s_interface.closed, 0u);
     s_interface.key[0] = '\0';
     static const char *const s_listen[1] = {"command"};
     static const char *const s_send[1] = {"answer/*"};
     unsigned int listener = 0u;
-    // the interface is open from the start, for every process the container starts to join; the part that takes the commands
-    // is one of this process alone, whose key the interface never takes, and the key the command line has grants it the
-    // command's channel
-    return EMBED_CALL(cli_ipc_address.open, CliIpcAddressCfg, .address = address, .err_msg = err_msg) &&
+    // the interface is open from the start, for every process the container starts to join; the part that takes the
+    // commands is one of this process alone, whose key the interface never takes, and the key the command line has
+    // grants it the command's channel
+    return EMBED_CALL(cli_ipc_address.open, CliIpcAddressCfg, .address = address, .err_msg = args->err_msg) &&
            EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "orior", .has_process = 0, .process = 0u,
-                      .listen = s_listen, .listens = 1u, .send_grant = s_send, .send_grants = 1u, .key_out = s_interface.key,
-                      .err_msg = err_msg) &&
+                      .listen = s_listen, .listens = 1u, .send_grant = s_send, .send_grants = 1u,
+                      .key_out = s_interface.key, .err_msg = args->err_msg) &&
            EMBED_CALL(cli_comms_channel.listen, CliCommsChannelCfg, .key = s_interface.key, .channel = "command",
                       .queued = 0, .recv = reach_received, .context = NULL, .listener = &listener,
-                      .err_msg = err_msg) &&
+                      .err_msg = args->err_msg) &&
            EMBED_CALL(cli_comms_name.register_persistent, CliCommsNameCfg, .name = "command line", .listen = s_send,
                       .listens = 1u, .send_grant = s_listen, .send_grants = 1u, .key_out = line_key,
-                      .err_msg = err_msg) &&
-           EMBED_CALL(cli_reach.store, CliReachCfg, .root = root, .address = address, .key = line_key,
-                      .err_msg = err_msg);
+                      .err_msg = args->err_msg) &&
+           EMBED_CALL(cli_reach.store, CliReachCfg, .root = args->root, .address = address, .key = line_key,
+                      .err_msg = args->err_msg);
 }
 
 // an answer sent on a command's own channel: the byte `mark`, then `text` where it is not NULL
@@ -610,9 +612,9 @@ static void reach_answer_text(const char *id, char mark, const char *text)
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     unsigned long long delivered = 0ULL;
-    (void)EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = s_interface.key, .channel = channel,
-                     .body = sent, .size = mmgr_line_ok(&body) ? body.at : 1ULL, .delivered = &delivered,
-                     .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = s_interface.key,
+                     .channel = channel, .body = sent, .size = mmgr_line_ok(&body) ? body.at : 1ULL,
+                     .delivered = &delivered, .err_msg = &err_msg);
 }
 
 // what a command came to, sent on its own channel: `1` where it ran, else `0` and why: the window has no such command,
@@ -640,7 +642,7 @@ static void reach_answer(const CliReachCommand *command)
     reach_answer_text(command->id, CLI_REACH_REFUSED, why);
 }
 
-int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count))
+int cli_reach_take(const CliReachCfg *args)
 {
     int taken = 0;
     CliReachCommand *command = NULL;
@@ -650,10 +652,10 @@ int cli_reach_take(int (*run)(const char *command, const char *const *words, uns
     while (reach_popped(&command, &stamp))
     {
         taken = 1;
-        command->ran = run(command->command, command->word, command->words);
+        command->ran = args->run(command->command, command->word, command->words);
         // A held command retains its id, and the held byte tells its requester to wait on. Its thread wakes at once, as
-        // the interface's answer to the sending process waits on that thread. The window holds one command at a time, so a
-        // second hold is refused
+        // the interface's answer to the sending process waits on that thread. The window holds one command at a time,
+        // so a second hold is refused
         if ((command->ran == CLI_REACH_HOLD) && !s_interface.held)
         {
             VerbaLinea id_line = {s_interface.held_id, sizeof(s_interface.held_id), 0ULL};
@@ -672,21 +674,21 @@ int cli_reach_take(int (*run)(const char *command, const char *const *words, uns
     return taken;
 }
 
-void cli_reach_held_answer(int done, const char *text)
+void cli_reach_held_answer(const CliReachCfg *args)
 {
     if (!s_interface.held)
     {
         return;
     }
     s_interface.held = 0;
-    reach_answer_text(s_interface.held_id, done ? CLI_REACH_DONE : CLI_REACH_REFUSED, text);
+    reach_answer_text(s_interface.held_id, args->done ? CLI_REACH_DONE : CLI_REACH_REFUSED, args->text);
 }
 
 void cli_reach_close(void)
 {
     embed_atomic_u32_store(&s_interface.closed, 1u);
     EMBED_ATOMIC_ORDERED();
-    cli_reach_held_answer(0, "the window closed before an answer");
+    cli_reach_held_answer(&(CliReachCfg){.done = 0, .text = "the window closed before an answer"});
     reach_refused_all();
     embed_atomic_uptr_store(&s_interface.woken, 0u);
     s_interface.key[0] = '\0';

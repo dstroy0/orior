@@ -84,19 +84,19 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\preview\\test_preview\\test_preview.c");
-  run_test(test_type_answers_each_ending_and_none_for_others, "test_type_answers_each_ending_and_none_for_others", 207);
-  run_test(test_mode_reads_its_word_turns_off_where_it_is_and_is_saved, "test_mode_reads_its_word_turns_off_where_it_is_and_is_saved", 227);
-  run_test(test_markdown_positions_every_block_as_items_sorted_by_top, "test_markdown_positions_every_block_as_items_sorted_by_top", 253);
-  run_test(test_markdown_cells_are_the_size_of_what_they_carry, "test_markdown_cells_are_the_size_of_what_they_carry", 344);
-  run_test(test_a_bare_address_is_a_link_to_its_last_punctuation, "test_a_bare_address_is_a_link_to_its_last_punctuation", 376);
-  run_test(test_an_address_that_runs_script_is_no_link, "test_an_address_that_runs_script_is_no_link", 395);
-  run_test(test_first_starts_at_the_outermost_block_at_a_top, "test_first_starts_at_the_outermost_block_at_a_top", 414);
-  run_test(test_line_at_and_top_of_answer_each_other_between_two_blocks, "test_line_at_and_top_of_answer_each_other_between_two_blocks", 433);
-  run_test(test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back, "test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back", 453);
-  run_test(test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back, "test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back", 472);
-  run_test(test_the_cursor_line_marks_its_block, "test_the_cursor_line_marks_its_block", 485);
-  run_test(test_a_press_follows_its_link_and_elsewhere_nothing, "test_a_press_follows_its_link_and_elsewhere_nothing", 503);
-  run_test(test_a_step_positions_the_text_again_only_where_it_changed, "test_a_step_positions_the_text_again_only_where_it_changed", 524);
+  run_test(test_type_answers_each_ending_and_none_for_others, "test_type_answers_each_ending_and_none_for_others", 208);
+  run_test(test_mode_reads_its_word_turns_off_where_it_is_and_is_saved, "test_mode_reads_its_word_turns_off_where_it_is_and_is_saved", 228);
+  run_test(test_markdown_positions_every_block_as_items_sorted_by_top, "test_markdown_positions_every_block_as_items_sorted_by_top", 258);
+  run_test(test_markdown_cells_are_the_size_of_what_they_carry, "test_markdown_cells_are_the_size_of_what_they_carry", 350);
+  run_test(test_a_bare_address_is_a_link_to_its_last_punctuation, "test_a_bare_address_is_a_link_to_its_last_punctuation", 382);
+  run_test(test_an_address_that_runs_script_is_no_link, "test_an_address_that_runs_script_is_no_link", 401);
+  run_test(test_first_starts_at_the_outermost_block_at_a_top, "test_first_starts_at_the_outermost_block_at_a_top", 420);
+  run_test(test_line_at_and_top_of_answer_each_other_between_two_blocks, "test_line_at_and_top_of_answer_each_other_between_two_blocks", 439);
+  run_test(test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back, "test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back", 459);
+  run_test(test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back, "test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back", 478);
+  run_test(test_the_cursor_line_marks_its_block, "test_the_cursor_line_marks_its_block", 491);
+  run_test(test_a_press_follows_its_link_and_elsewhere_nothing, "test_a_press_follows_its_link_and_elsewhere_nothing", 509);
+  run_test(test_a_step_positions_the_text_again_only_where_it_changed, "test_a_step_positions_the_text_again_only_where_it_changed", 530);
 
   return UNITY_END();
 }

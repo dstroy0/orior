@@ -1,18 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_terminal.c: an xterm reads a shell's output into a text paged over a file, a line each of its screen's rows:
-// characters at the cursor, the SGR of their style before them, the cursor moved, lines erased, the lines that leave the
-// main screen's top as it scrolls joining the history above it and the history cleared, the history beyond the lines
-// retained taken out of the text's head, the text written through to its file, the second screen's rows after the main
-// screen's, the answers to where the cursor is, the folder a shell reports, wrapping at the last column, characters past
-// ASCII cut between two reads, a column's place among a line's units and a line's characters with its sequences left
-// out; a shell started in a pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent
-// once it settles, and its end printed; and the terminal's tabs, the panel opened on a tab whose shell starts as its
-// pane is sized, the keys it takes and those it lets go to the window, the panel and its panes as they are, the
-// panel's place stored as the window ends and read back as it starts, a tab's shell started in its folder, its file
-// in the folder the settings name with the defaults written there, and the rows located at the end written through
-// to its file; and the panel's menu, Split Terminal displayed on while a shell is beside the one displayed, opened where
-// it was asked for
+// characters at the cursor, the SGR of their style before them, the cursor moved, lines erased, the lines that leave
+// the main screen's top as it scrolls joining the history above it and the history cleared, the history beyond the
+// lines retained taken out of the text's head, the text written through to its file, the second screen's rows after the
+// main screen's, the answers to where the cursor is, the folder a shell reports, wrapping at the last column,
+// characters past ASCII cut between two reads, a column's place among a line's units and a line's characters with its
+// sequences left out; a shell started in a pseudo-terminal, what it writes drained onto its xterm, text typed while it
+// starts sent once it settles, and its end printed; and the terminal's tabs, the panel opened on a tab whose shell
+// starts as its pane is sized, the keys it takes and those it lets go to the window, the panel and its panes as they
+// are, the panel's place stored as the window ends and read back as it starts, a tab's shell started in its folder, its
+// file in the folder the settings name with the defaults written there, and the rows located at the end written through
+// to its file; and the panel's menu, Split Terminal displayed on while a shell is beside the one displayed, opened
+// where it was asked for
 #include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/pages.h"
@@ -85,8 +85,8 @@ static void xterm_open(unsigned int columns, unsigned int rows)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_index_pause, .milliseconds_u64 = 1ULL);
     }
     TEST_ASSERT_TRUE_MESSAGE(whole, "the index of the xterm's file is whole within ten seconds");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = s_key, .from = 0ULL,
-                                .to = ~0ULL));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = s_key, .from = 0ULL, .to = ~0ULL));
     TEST_ASSERT_EQUAL_UINT64(rows, text_lines());
     TEST_ASSERT_TRUE(EMBED_CALL(cli_terminal_xterm_size.init, CliTerminalXtermSizeCfg, .xterm = &s_xterm,
                                 .columns = columns, .rows = rows, .key = s_key, .paged = 1, .history = 0ULL));
@@ -100,9 +100,9 @@ static unsigned long long line_raw(const char *key, unsigned long long line)
     unsigned long long count = 0ULL;
     char *const cell = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = key, .from = line,
                                   .to = line + 1ULL, .line = &start, .count = &count, .owner = g_checks_owner);
-    const unsigned long long size =
-        ((cell != NULL) && (count != 0ULL)) ? cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES})
-                                            : 0ULL;
+    const unsigned long long size = ((cell != NULL) && (count != 0ULL))
+                                        ? cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_POOL_BYTES})
+                                        : 0ULL;
     const unsigned long long fits = (size < (sizeof(s_text) - 1u)) ? size : (sizeof(s_text) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = s_text, .src = start, .bytes = fits});
     s_text[fits] = '\0';
@@ -296,15 +296,15 @@ void test_the_history_beyond_the_lines_retained_is_taken_out_of_the_texts_head(v
     xterm_open(10u, 2u);
     xterm_put("1\r\n2\r\n3\r\n4\r\n5");
     TEST_ASSERT_EQUAL_UINT64(3ULL, s_xterm.history);
-    TEST_ASSERT_EQUAL_UINT64(2ULL, EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg,
-                                              .xterm = &s_xterm, .retain = 1ULL));
+    TEST_ASSERT_EQUAL_UINT64(
+        2ULL, EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg, .xterm = &s_xterm, .retain = 1ULL));
     TEST_ASSERT_EQUAL_UINT64(1ULL, s_xterm.history);
     TEST_ASSERT_EQUAL_UINT64(1ULL, s_xterm.base);
     TEST_ASSERT_EQUAL_UINT64(3ULL, text_lines());
     TEST_ASSERT_EQUAL_STRING("3", xterm_line_text(0ULL));
     TEST_ASSERT_EQUAL_STRING("4", xterm_row_text(0u));
-    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg,
-                                              .xterm = &s_xterm, .retain = 1ULL));
+    TEST_ASSERT_EQUAL_UINT64(
+        0ULL, EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg, .xterm = &s_xterm, .retain = 1ULL));
 }
 
 void test_characters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line(void)
@@ -365,9 +365,8 @@ void test_a_column_is_found_past_the_sequences_and_a_line_read_without_them(void
     static const unsigned long long s_places[4] = {7ULL, 8ULL, 13ULL, 14ULL};
     for (unsigned int column = 0u; column < 4u; column += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT64(s_places[column],
-                                 EMBED_CALL(cli_terminal_xterm_column_unit, CliTerminalXtermUnitsCfg, .units = units,
-                                            .count = count, .column = column));
+        TEST_ASSERT_EQUAL_UINT64(s_places[column], EMBED_CALL(cli_terminal_xterm_column_unit, CliTerminalXtermUnitsCfg,
+                                                              .units = units, .count = count, .column = column));
     }
     g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
     TEST_ASSERT_EQUAL_STRING("abc", xterm_row_text(0u));
@@ -525,7 +524,8 @@ static int shell_run(const char *const *words, const char *typed)
     }
     const int ended = s_shell.state == CLI_TERMINAL_SHELL_EXITED;
     EMBED_CALL(cli_terminal_shell.end, CliTerminalShellCfg, .shell = &s_shell, .now_ms = cli_clock_milliseconds());
-    // a shell hung up on ends within the hang-up's wait and its kill; past ten seconds the wait is a failure, not a hang
+    // a shell hung up on ends within the hang-up's wait and its kill; past ten seconds the wait is a failure, not a
+    // hang
     const unsigned long long end_last_ms = cli_clock_milliseconds() + 10000ULL;
     while ((s_shell.state == CLI_TERMINAL_SHELL_RUNNING) && (cli_clock_milliseconds() < end_last_ms))
     {
@@ -533,7 +533,8 @@ static int shell_run(const char *const *words, const char *typed)
                          .now_ms = cli_clock_milliseconds());
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_pause, .milliseconds_u64 = 5ULL);
     }
-    TEST_ASSERT_EQUAL_INT_MESSAGE(CLI_TERMINAL_SHELL_EXITED, s_shell.state, "the shell hung up on ends within ten seconds");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(CLI_TERMINAL_SHELL_EXITED, s_shell.state,
+                                  "the shell hung up on ends within ten seconds");
     return ended;
 }
 
@@ -706,7 +707,7 @@ static void place_restored(void)
     CliStateEntries entries = entries_read();
     TEST_ASSERT_NOT_NULL(entries.cell);
     cli_terminal_tabs_restore(&entries, NULL);
-    cli_state_entries_release(&entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
 }
 
 void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts(void)
@@ -787,9 +788,13 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     mmgr_line_put(&terminals, home);
     mmgr_line_put(&terminals, "/terminals");
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&terminals));
-    TEST_ASSERT_EQUAL_STRING(s_text, cli_state_entry_value(&settings, "terminal.folder", setting, sizeof(setting)));
-    TEST_ASSERT_EQUAL_STRING("10000", cli_state_entry_value(&settings, "terminal.lines", setting, sizeof(setting)));
-    cli_state_entries_release(&settings);
+    TEST_ASSERT_EQUAL_STRING(
+        s_text, cli_state_entry_value(&(CliStateEntryCfg){
+                    .entries = &settings, .key = "terminal.folder", .out = setting, .capacity = sizeof(setting)}));
+    TEST_ASSERT_EQUAL_STRING(
+        "10000", cli_state_entry_value(&(CliStateEntryCfg){
+                     .entries = &settings, .key = "terminal.lines", .out = setting, .capacity = sizeof(setting)}));
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &settings});
     // the panel opens as it was, without the keys, which a press in its pane gives it
     TEST_ASSERT_FALSE(cli_terminal_tabs_panel().keys);
     cli_terminal_tabs_press(&(CliTerminalTabsPressCfg){.hit = CLI_TERMINAL_HIT_PANE, .index = 0u, .clicks = 1u});

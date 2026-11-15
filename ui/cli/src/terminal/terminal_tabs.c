@@ -7,13 +7,13 @@
 // where it is. The file is `<number>.log` in the folder the reader's settings name, and it retains the lines the
 // settings name; the lines written over it are written through to it as the output rests, as they mount up, as the
 // tab closes and as the window ends, and a tab of that number reads it back as it starts. Besides the tabs:
-// the tab displayed and the one beside it where the panel is split; the one the keys go to; whether the panel is open and
-// takes the keys; and its height. Every shell is drained each step whether its tab shows or not. A tab closed waits,
-// its shell hung up on, until the shell ends before its cell goes. A shell starts the first time its tab shows, in the
-// folder its tab last was in where that is a folder and else in the tree's top folder; one that ended starts again
-// at the next key typed into it. The place, whether the panel is open, the tab displayed and the one beside it, the height
-// and each tab's number and folder, is stored as a value of orior's folder TERMINAL_PLACE_REST_MS after the last change
-// and as the window ends, and read back as the window starts
+// the tab displayed and the one beside it where the panel is split; the one the keys go to; whether the panel is open
+// and takes the keys; and its height. Every shell is drained each step whether its tab shows or not. A tab closed
+// waits, its shell hung up on, until the shell ends before its cell goes. A shell starts the first time its tab shows,
+// in the folder its tab last was in where that is a folder and else in the tree's top folder; one that ended starts
+// again at the next key typed into it. The place, whether the panel is open, the tab displayed and the one beside it,
+// the height and each tab's number and folder, is stored as a value of orior's folder TERMINAL_PLACE_REST_MS after the
+// last change and as the window ends, and read back as the window starts
 #include "terminal_tabs.h"
 
 #include "../command_line/pool.h"
@@ -68,8 +68,8 @@ typedef struct
 } TerminalTab;
 
 // The terminal: its tabs, TERMINAL_TABS_MAX at max, each one of as many fixed places that are outside the pool
-// and punch no hole in the persistent tier; the tabs closed whose shells have yet to end; the tab displayed, the one beside
-// it, the one the keys go to and the one the pointer chooses in, each -1 for none; whether the panel is open and
+// and punch no hole in the persistent tier; the tabs closed whose shells have yet to end; the tab displayed, the one
+// beside it, the one the keys go to and the one the pointer chooses in, each -1 for none; whether the panel is open and
 // whether it takes the keys; its height; the columns and rows the window last sized its two views to, 0 before it sized
 // them; the clock's reading the place is stored at, 0 for none; whether the place was read back, before which nothing
 // is stored; and the tree's top folder a shell with no folder of its own starts in
@@ -93,7 +93,8 @@ typedef struct
     const char *root;
 } TerminalModel;
 
-static TerminalModel s_terminal = {.displayed = -1, .beside = -1, .focused = -1, .choosing = -1, .height = TERMINAL_HEIGHT};
+static TerminalModel s_terminal = {
+    .displayed = -1, .beside = -1, .focused = -1, .choosing = -1, .height = TERMINAL_HEIGHT};
 static TerminalTab s_tab_places[TERMINAL_TABS_MAX];
 static unsigned char s_tab_taken[TERMINAL_TABS_MAX];
 
@@ -231,7 +232,8 @@ EMBED_INLINE int terminal_settings(const TerminalCtx *args)
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_cli_terminal_owner});
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    const char *const folder = cli_state_entry_value(&entries, TERMINAL_FOLDER_KEY, args->folder_out, CLI_PATH_MAX_LEN);
+    const char *const folder = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = &entries, .key = TERMINAL_FOLDER_KEY, .out = args->folder_out, .capacity = CLI_PATH_MAX_LEN});
     if ((folder == NULL) || (folder[0] == '\0'))
     {
         VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
@@ -242,7 +244,8 @@ EMBED_INLINE int terminal_settings(const TerminalCtx *args)
             .folder = home, .key = TERMINAL_FOLDER_KEY, .value = args->folder_out, .err_msg = &err_msg});
     }
     char lines_text[32];
-    const char *const lines = cli_state_entry_value(&entries, TERMINAL_LINES_KEY, lines_text, sizeof(lines_text));
+    const char *const lines = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = &entries, .key = TERMINAL_LINES_KEY, .out = lines_text, .capacity = sizeof(lines_text)});
     unsigned long long retain = 0ULL;
     for (unsigned long long at = 0ULL; (lines != NULL) && (lines[at] >= '0') && (lines[at] <= '9'); at += 1ULL)
     {
@@ -260,7 +263,7 @@ EMBED_INLINE int terminal_settings(const TerminalCtx *args)
             &(CliStateValueCfg){.folder = home, .key = TERMINAL_LINES_KEY, .value = lines_text, .err_msg = &err_msg});
     }
     *args->retain_out = retain;
-    cli_state_entries_release(&entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
     return 1;
 }
 
@@ -406,8 +409,8 @@ EMBED_INLINE void terminal_written_through(const TerminalCtx *args)
         return;
     }
     const int follows = EMBED_CALL(terminal_follows, TerminalCtx, .tab = tab);
-    const unsigned long long dropped =
-        EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg, .xterm = &tab->xterm, .retain = tab->retain);
+    const unsigned long long dropped = EMBED_CALL(cli_terminal_xterm_retain.trim, CliTerminalXtermKeepCfg,
+                                                  .xterm = &tab->xterm, .retain = tab->retain);
     if ((dropped != 0ULL) && follows)
     {
         EMBED_CALL(terminal_scroll, TerminalCtx, .tab = tab, .first = tab->xterm.base);
@@ -487,15 +490,16 @@ EMBED_INLINE int terminal_copy(const TerminalCtx *args)
             break;
         }
         unsigned long long consumed = 0ULL;
-        const unsigned int character = (text[at] == '\n') ? (unsigned int)'\n'
-                                                       : EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text,
-                                                                    .size = size, .at = at, .length = &consumed);
+        const unsigned int character = (text[at] == '\n')
+                                           ? (unsigned int)'\n'
+                                           : EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = size,
+                                                        .at = at, .length = &consumed);
         units = (character == (unsigned int)'\n') ? 0ULL : (units + ((character >= 0x10000u) ? 2ULL : 1ULL));
         line += (character == (unsigned int)'\n') ? 1ULL : 0ULL;
         at += (consumed != 0ULL) ? consumed : 1ULL;
     }
-    // the SGR sequences the text carries for its colors are no characters of the copy; the bytes read as unsigned are the
-    // same bytes
+    // the SGR sequences the text carries for its colors are no characters of the copy; the bytes read as unsigned are
+    // the same bytes
     const unsigned long long copied = (end > start)
                                           ? EMBED_CALL(cli_terminal_xterm_plain, CliTerminalXtermPlainCfg,
                                                        .bytes = (unsigned char *)(text + start), .size = end - start)
@@ -654,8 +658,8 @@ EMBED_INLINE void terminal_toggle(const TerminalCtx *args)
     terminal_fit_all();
 }
 
-// the tab `at` displayed: in the place of the one the keys go to where the panel is split, else alone; the panel open and
-// taking the keys
+// the tab `at` displayed: in the place of the one the keys go to where the panel is split, else alone; the panel open
+// and taking the keys
 EMBED_INLINE void terminal_show(const TerminalCtx *args)
 {
     if ((args->at != s_terminal.displayed) && (args->at != s_terminal.beside))
@@ -749,8 +753,8 @@ EMBED_INLINE void terminal_close(const TerminalCtx *args)
     terminal_fit_all();
 }
 
-// Split: a second shell displayed beside the one displayed, a new one where every other is displayed already; pressed again, one
-// shell displayed
+// Split: a second shell displayed beside the one displayed, a new one where every other is displayed already; pressed
+// again, one shell displayed
 EMBED_INLINE void terminal_split(void)
 {
     if (s_terminal.beside >= 0)
@@ -1139,8 +1143,8 @@ void cli_terminal_tabs_height(unsigned int height)
     terminal_dirty();
 }
 
-// the place stored as a value of orior's folder: whether the panel is open, the tab displayed and the one beside it, each
-// one past its place and 0 for none, and the height on the first line, then each tab's number and folder a line.
+// the place stored as a value of orior's folder: whether the panel is open, the tab displayed and the one beside it,
+// each one past its place and 0 for none, and the height on the first line, then each tab's number and folder a line.
 // Nothing is stored before the place was read back, which it would write over
 EMBED_INLINE void terminal_place_save(void)
 {
@@ -1327,10 +1331,13 @@ void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root)
     s_terminal.restored = 1;
     s_terminal.root = root;
     // the place read out of the entries' cell into a cell of this call
-    const unsigned long long size = cli_state_entry_size(entries, TERMINAL_PLACE_KEY);
+    const unsigned long long size =
+        cli_state_entry_size(&(CliStateEntryCfg){.entries = entries, .key = TERMINAL_PLACE_KEY});
     char *const place =
         (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_terminal_owner) : NULL;
-    if ((place == NULL) || (cli_state_entry_value(entries, TERMINAL_PLACE_KEY, place, size + 1ULL) == NULL))
+    if ((place == NULL) ||
+        (cli_state_entry_value(&(CliStateEntryCfg){
+             .entries = entries, .key = TERMINAL_PLACE_KEY, .out = place, .capacity = size + 1ULL}) == NULL))
     {
         g_cli_guard->persistent_buf_release(place, g_cli_terminal_owner);
         return;
@@ -1352,8 +1359,8 @@ void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root)
     {
         const unsigned long long number =
             EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
-        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = place,
-                                                  .at = at, .size = size, .set = "\n");
+        const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                  .text = place, .at = at, .size = size, .set = "\n");
         int taken = (number == 0ULL) || (number > 0xFFFFULL);
         for (unsigned int tab = 0u; tab < s_terminal.tabs; tab += 1u)
         {
@@ -1374,7 +1381,8 @@ void cli_terminal_tabs_restore(const CliStateEntries *entries, const char *root)
     // a place among the tabs read back one past it, 0 for none, and the tabs, are far inside what an int counts
     const int tabs = (int)s_terminal.tabs;
     const int first = (tabs != 0) ? 0 : -1;
-    s_terminal.displayed = ((displayed != 0ULL) && (displayed <= (unsigned long long)tabs)) ? ((int)displayed - 1) : first;
+    s_terminal.displayed =
+        ((displayed != 0ULL) && (displayed <= (unsigned long long)tabs)) ? ((int)displayed - 1) : first;
     const int beside_at = ((beside != 0ULL) && (beside <= (unsigned long long)tabs)) ? ((int)beside - 1) : -1;
     s_terminal.beside = (beside_at != s_terminal.displayed) ? beside_at : -1;
     s_terminal.focused = s_terminal.displayed;
@@ -1415,5 +1423,6 @@ void cli_terminal_tabs_end(void)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause,
                          .milliseconds_u64 = CLI_TERMINAL_LOOK_MS);
     }
-    s_terminal = (TerminalModel){.displayed = -1, .beside = -1, .focused = -1, .choosing = -1, .height = TERMINAL_HEIGHT};
+    s_terminal =
+        (TerminalModel){.displayed = -1, .beside = -1, .focused = -1, .choosing = -1, .height = TERMINAL_HEIGHT};
 }

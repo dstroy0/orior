@@ -393,8 +393,8 @@ EMBED_INLINE embed_iword cli_natural_numbers(const ToolchainsCtx *args)
     return memor.cmp(&(MemoriaCfg){.src = a, .other = b, .bytes = (unsigned long long)a_size});
 }
 
-// two runs, `a` to `a_end` and `b` to `b_end`, ordered by their characters without case: below 0 where `a`'s comes first,
-// 0 where they are equal
+// two runs, `a` to `a_end` and `b` to `b_end`, ordered by their characters without case: below 0 where `a`'s comes
+// first, 0 where they are equal
 EMBED_INLINE embed_iword cli_natural_characters(const ToolchainsCtx *args)
 {
     const char *x = args->a;
@@ -457,7 +457,7 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
     if (!args->is_folder ||
         !EMBED_CALL(cli_toolchains_pattern_internal.matches, CliToolchainsPatternCtx, .pattern = matching->part,
                     .name = name) ||
-        !cli_toolchains_paths_add(matching->names, name))
+        !cli_toolchains_paths_add(&(CliToolchainsPathsCfg){.paths = matching->names, .path = name}))
     {
         return;
     }
@@ -465,16 +465,24 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
     const unsigned int last = matching->names->count - 1u;
     unsigned int place = last;
     char before[CLI_PATH_MAX_LEN];
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = matching->names->cell, .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * CLI_PATH_MAX_LEN, .dst = before, .bytes = CLI_PATH_MAX_LEN});
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = matching->names->cell,
+                            .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * CLI_PATH_MAX_LEN,
+                            .dst = before,
+                            .bytes = CLI_PATH_MAX_LEN});
     while ((place > 0u) &&
            (EMBED_CALL(cli_toolchains_a_internal.natural, CliToolchainsACtx, .a = before, .b = name) < 0))
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = matching->names->cell, .offset = (embed_word)place * CLI_PATH_MAX_LEN, .src = before, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = matching->names->cell,
+                                                                 .offset = (embed_word)place * CLI_PATH_MAX_LEN,
+                                                                 .src = before,
+                                                                 .bytes = CLI_PATH_MAX_LEN});
         place -= 1u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = matching->names->cell, .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * CLI_PATH_MAX_LEN, .dst = before, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = matching->names->cell,
+                                .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * CLI_PATH_MAX_LEN,
+                                .dst = before,
+                                .bytes = CLI_PATH_MAX_LEN});
     }
     if (place != last)
     {
@@ -482,8 +490,10 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
         VerbaLinea line = {slot, sizeof(slot), 0ULL};
         mmgr_line_put(&line, name);
         (void)mmgr_line_finish(&line);
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = matching->names->cell, .offset = (embed_word)place * CLI_PATH_MAX_LEN, .src = slot, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = matching->names->cell,
+                                                                 .offset = (embed_word)place * CLI_PATH_MAX_LEN,
+                                                                 .src = slot,
+                                                                 .bytes = CLI_PATH_MAX_LEN});
     }
 }
 
@@ -496,7 +506,8 @@ EMBED_INLINE int cli_folder_joined(const ToolchainsCtx *args)
     mmgr_line_put(&joined, args->path);
     mmgr_line_put(&joined, args->text);
     mmgr_line_ch(&joined, args->separator);
-    return (mmgr_line_finish(&joined) != 0ULL) && cli_toolchains_paths_add(args->found_into, out);
+    return (mmgr_line_finish(&joined) != 0ULL) &&
+           cli_toolchains_paths_add(&(CliToolchainsPathsCfg){.paths = args->found_into, .path = out});
 }
 
 // each path so far in `found_from` followed by the part `text` and `separator`, added to `found_into`, emptied
@@ -509,8 +520,10 @@ EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
     for (unsigned int at = 0u; at < args->found_from->count; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = args->found_from->cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = path, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->found_from->cell,
+                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                .dst = path,
+                                                                .bytes = CLI_PATH_MAX_LEN});
         if (!pattern)
         {
             (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = args->text,
@@ -524,61 +537,68 @@ EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
         for (unsigned int each = 0u; each < args->names->count; each += 1u)
         {
             char named[CLI_PATH_MAX_LEN];
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = args->names->cell, .offset = (embed_word)each * CLI_PATH_MAX_LEN, .dst = named, .bytes = CLI_PATH_MAX_LEN});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->names->cell,
+                                                                    .offset = (embed_word)each * CLI_PATH_MAX_LEN,
+                                                                    .dst = named,
+                                                                    .bytes = CLI_PATH_MAX_LEN});
             (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = named,
                              .separator = args->separator, .found_into = args->found_into);
         }
     }
 }
 
-int cli_toolchains_paths_add(CliToolchainsPaths *paths, const char *path)
+int cli_toolchains_paths_add(const CliToolchainsPathsCfg *args)
 {
     char slot[CLI_PATH_MAX_LEN];
     VerbaLinea line = {slot, sizeof(slot), 0ULL};
-    mmgr_line_put(&line, path);
+    mmgr_line_put(&line, args->path);
     (void)mmgr_line_finish(&line);
     if (!mmgr_line_ok(&line))
     {
         return 0;
     }
-    if (paths->count == paths->capacity)
+    if (args->paths->count == args->paths->capacity)
     {
-        const unsigned int capacity = (paths->capacity != 0u) ? paths->capacity * 2u : 8u;
-        const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(
-            (unsigned long long)capacity * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
+        const unsigned int capacity = (args->paths->capacity != 0u) ? args->paths->capacity * 2u : 8u;
+        const CarcerMovableEntry *const grown =
+            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
         if (grown == NULL)
         {
             return 0;
         }
-        for (unsigned int at = 0u; at < paths->count; at += 1u)
+        for (unsigned int at = 0u; at < args->paths->count; at += 1u)
         {
             char held[CLI_PATH_MAX_LEN];
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = paths->cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = held, .bytes = CLI_PATH_MAX_LEN});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->paths->cell,
+                                                                    .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                    .dst = held,
+                                                                    .bytes = CLI_PATH_MAX_LEN});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = grown, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .src = held, .bytes = sizeof(held)});
         }
-        if (paths->cell != NULL)
+        if (args->paths->cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(paths->cell, g_cli_toolchains_owner);
+            (void)g_cli_guard->movable_buf_release(args->paths->cell, g_cli_toolchains_owner);
         }
-        paths->cell = grown;
-        paths->capacity = capacity;
+        args->paths->cell = grown;
+        args->paths->capacity = capacity;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-        .cell = paths->cell, .offset = (embed_word)paths->count * CLI_PATH_MAX_LEN, .src = slot, .bytes = CLI_PATH_MAX_LEN});
-    paths->count += 1u;
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->paths->cell,
+                            .offset = (embed_word)args->paths->count * CLI_PATH_MAX_LEN,
+                            .src = slot,
+                            .bytes = CLI_PATH_MAX_LEN});
+    args->paths->count += 1u;
     return 1;
 }
 
-void cli_toolchains_paths_release(CliToolchainsPaths *paths)
+void cli_toolchains_paths_release(const CliToolchainsPathsCfg *args)
 {
-    if (paths->cell != NULL)
+    if (args->paths->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(paths->cell, g_cli_toolchains_owner);
+        (void)g_cli_guard->movable_buf_release(args->paths->cell, g_cli_toolchains_owner);
     }
-    *paths = (CliToolchainsPaths){NULL, 0u, 0u};
+    *args->paths = (CliToolchainsPaths){NULL, 0u, 0u};
 }
 
 unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
@@ -594,7 +614,7 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
     CliToolchainsPaths found[2] = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
     CliToolchainsPaths names = {NULL, 0u, 0u};
     unsigned int now = 0u;
-    (void)cli_toolchains_paths_add(&found[0], "");
+    (void)cli_toolchains_paths_add(&(CliToolchainsPathsCfg){.paths = &found[0], .path = ""});
     // each part of the path in turn, a part with a * read from each folder found so far
     const char *part = full;
     while (part[0] != '\0')
@@ -614,8 +634,10 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
     for (unsigned int at = 0u; at < found[now].count; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = found[now].cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = path, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found[now].cell,
+                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                .dst = path,
+                                                                .bytes = CLI_PATH_MAX_LEN});
         // the separator after the last part left off
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         if ((length > 1u) && ((path[length - 1u] == '/') || (path[length - 1u] == '\\')))
@@ -624,12 +646,12 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
         }
         if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path))
         {
-            (void)cli_toolchains_paths_add(paths, path);
+            (void)cli_toolchains_paths_add(&(CliToolchainsPathsCfg){.paths = paths, .path = path});
         }
     }
-    cli_toolchains_paths_release(&found[0]);
-    cli_toolchains_paths_release(&found[1]);
-    cli_toolchains_paths_release(&names);
+    cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &found[0]});
+    cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &found[1]});
+    cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &names});
     return paths->count;
 }
 
@@ -644,13 +666,15 @@ void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args)
     args->key[length] = '\0';
 #if defined(_WIN32)
     unsigned int characters[CLI_PATH_MAX_LEN];
-    const unsigned long long count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->key,
-                                                .size = length, .characters = characters, .capacity_u64 = CLI_PATH_MAX_LEN);
+    const unsigned long long count =
+        EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->key, .size = length,
+                   .characters = characters, .capacity_u64 = CLI_PATH_MAX_LEN);
     VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ULL};
     for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
+                   .character =
+                       EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = characters[at]));
     }
     mmgr_line_finish(&line);
 #endif

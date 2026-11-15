@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // view_files.c: the files open as views, which are the window's tabs. A file is read where it is opened, its text
 // stored whole or paged under a key of its path's own and its grammar applied, and its view opened on the text at the
-// editor's size. The session is the views' paths in order, a line each, the displayed one's first, saved in orior's folder
-// under a key of the tree's own
+// editor's size. The session is the views' paths in order, a line each, the displayed one's first, saved in orior's
+// folder under a key of the tree's own
 #include "view.h"
 
 #include "../command_line/pool.h"
@@ -268,18 +268,20 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
     mmgr_line_put(&keyed, CLI_VIEW_SESSION_KEY);
     mmgr_line_put(&keyed, (root != NULL) ? root : "");
     // the session's text read out of the entries' cell into a cell of this call
-    const unsigned long long size =
-        (mmgr_line_finish(&keyed) != 0ULL) ? cli_state_entry_size(entries, key) : CLI_STATE_NONE;
+    const unsigned long long size = (mmgr_line_finish(&keyed) != 0ULL)
+                                        ? cli_state_entry_size(&(CliStateEntryCfg){.entries = entries, .key = key})
+                                        : CLI_STATE_NONE;
     char *const session =
         (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_editor_owner) : NULL;
-    if ((session == NULL) || (cli_state_entry_value(entries, key, session, size + 1ULL) == NULL))
+    if ((session == NULL) || (cli_state_entry_value(&(CliStateEntryCfg){
+                                  .entries = entries, .key = key, .out = session, .capacity = size + 1ULL}) == NULL))
     {
         g_cli_guard->persistent_buf_release(session, g_cli_editor_owner);
         return;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
     const unsigned long long displayed_end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                    .text = session, .at = 0ULL, .size = size, .set = "\n");
+                                                        .text = session, .at = 0ULL, .size = size, .set = "\n");
     for (unsigned long long at = displayed_end + 1ULL; at < size;)
     {
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,

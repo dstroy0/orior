@@ -119,8 +119,13 @@ typedef struct
 // the path does not fit CLI_PATH_MAX_LEN bytes or the cells refuse the growth, the list as it was; and the list's
 // cell given back and the list emptied. A caller reads the path `at` through the cell, CLI_PATH_MAX_LEN bytes at
 // `at` times CLI_PATH_MAX_LEN
-int cli_toolchains_paths_add(CliToolchainsPaths *paths, const char *path);
-void cli_toolchains_paths_release(CliToolchainsPaths *paths);
+typedef struct
+{
+    CliToolchainsPaths *paths;
+    const char *path;
+} CliToolchainsPathsCfg;
+int cli_toolchains_paths_add(const CliToolchainsPathsCfg *args);
+void cli_toolchains_paths_release(const CliToolchainsPathsCfg *args);
 // the folders a pattern of toolchains.json names, newest first where a * is for a version, each that is a folder
 // added to `paths`: their count after
 unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args);

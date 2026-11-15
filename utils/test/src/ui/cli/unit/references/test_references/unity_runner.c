@@ -2,10 +2,10 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
+#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/code/references.h"
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/view.h"
-#include "ui/cli/src/code/references.h"
-#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -78,13 +78,13 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\references\\test_references\\test_references.c");
-  run_test(test_the_references_of_a_name_are_listed_by_file, "test_the_references_of_a_name_are_listed_by_file", 81);
-  run_test(test_a_reference_row_names_its_place_and_marks_the_name, "test_a_reference_row_names_its_place_and_marks_the_name", 99);
-  run_test(test_a_file_row_pressed_closes_and_opens_its_references, "test_a_file_row_pressed_closes_and_opens_its_references", 114);
-  run_test(test_the_definition_is_the_declaration_the_hover_shows_first, "test_the_definition_is_the_declaration_the_hover_shows_first", 131);
-  run_test(test_a_place_on_no_name_gives_no_references, "test_a_place_on_no_name_gives_no_references", 155);
-  run_test(test_a_rename_writes_the_name_in_every_files_view, "test_a_rename_writes_the_name_in_every_files_view", 164);
-  run_test(test_a_rename_to_no_name_is_refused, "test_a_rename_to_no_name_is_refused", 213);
+  run_test(test_the_references_of_a_name_are_listed_by_file, "test_the_references_of_a_name_are_listed_by_file", 82);
+  run_test(test_a_reference_row_names_its_place_and_marks_the_name, "test_a_reference_row_names_its_place_and_marks_the_name", 100);
+  run_test(test_a_file_row_pressed_closes_and_opens_its_references, "test_a_file_row_pressed_closes_and_opens_its_references", 115);
+  run_test(test_the_definition_is_the_declaration_the_hover_shows_first, "test_the_definition_is_the_declaration_the_hover_shows_first", 132);
+  run_test(test_a_place_on_no_name_gives_no_references, "test_a_place_on_no_name_gives_no_references", 156);
+  run_test(test_a_rename_writes_the_name_in_every_files_view, "test_a_rename_writes_the_name_in_every_files_view", 166);
+  run_test(test_a_rename_to_no_name_is_refused, "test_a_rename_to_no_name_is_refused", 216);
 
   return UNITY_END();
 }

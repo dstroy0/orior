@@ -173,7 +173,7 @@ void cli_command_line_tree_begin(void (*woken)(void))
         EMBED_CALL(cli_plugins_root.set_tree, CliPluginsRootCfg, .root = s_window.root);
     }
     err_msg.at = 0ULL;
-    if (!cli_reach_open(cli_command_line_root(), woken, &err_msg))
+    if (!cli_reach_open(&(CliReachCfg){.root = cli_command_line_root(), .woken = woken, .err_msg = &err_msg}))
     {
         EMBED_CALL(window_err, CliCommandLineWindowCtx, .err_msg = &err_msg);
     }

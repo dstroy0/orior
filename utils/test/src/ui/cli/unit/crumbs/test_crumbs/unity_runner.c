@@ -3,8 +3,8 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/code/crumbs.h"
-#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/command_line/commands.h"
+#include "ui/cli/src/command_line/pool.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);

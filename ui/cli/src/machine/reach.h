@@ -1,21 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // reach.h: the windows open, as the command line finds them: each window stores a file under windows/ in orior's home,
-// readable by the reader alone, naming its process, the tree it has open, its comms interface and a persistent key of the
-// interface's that grants the channel `command` to send on and those under `answer/` to listen on. A command line run on a
-// tree with a window open sends the command there, and the window runs it as the menu runs it and answers on `answer/`
-// and the command's id. A file whose window is gone is taken away by the first command line that finds the interface shut. A
-// window's file is its process in decimal, its tree, empty for none, its address and its key, each ended by a 0. A
-// command's bytes are its id, menu, command and words, each ended by a 0; an answer's are CLI_REACH_DONE or
-// CLI_REACH_REFUSED and then its text (reach.c)
+// readable by the reader alone, naming its process, the tree it has open, its comms interface and a persistent key of
+// the interface's that grants the channel `command` to send on and those under `answer/` to listen on. A command line
+// run on a tree with a window open sends the command there, and the window runs it as the menu runs it and answers on
+// `answer/` and the command's id. A file whose window is gone is taken away by the first command line that finds the
+// interface shut. A window's file is its process in decimal, its tree, empty for none, its address and its key, each
+// ended by a 0. A command's bytes are its id, menu, command and words, each ended by a 0; an answer's are
+// CLI_REACH_DONE or CLI_REACH_REFUSED and then its text (reach.c)
 #ifndef REACH_H
 #define REACH_H
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
 #include "embed_ticket_ring.h"
 
-// the commands that wait at the interface at once, a two's power, and the bytes their ring's slots take, the interface's part
-// of the rings block
+// the commands that wait at the interface at once, a two's power, and the bytes their ring's slots take, the
+// interface's part of the rings block
 #define CLI_REACH_RING_SHIFT 6u
 #define CLI_REACH_RING_SLOTS (1u << CLI_REACH_RING_SHIFT)
 #define CLI_REACH_RING_BYTES ((unsigned long long)CLI_REACH_RING_SLOTS * sizeof(EmbedTicketRingSlot))
@@ -48,21 +48,21 @@ int cli_reach_store_in(const CliReachCfg *args);
 int cli_reach_store(const CliReachCfg *args);
 void cli_reach_forget(void);
 
-// This window's interface: opened for every process the container starts and for the command line, which it stores for the
-// tree `root`: 1, or 0 with the reason written. A command that comes is read where the interface's thread received it, its
-// texts places in that body, pushed on the waiting with a compare and swap, and `woken` called; that thread sleeps on
-// the command's address until the window has run it, and the body is as it was until then. On the window's thread,
-// every command waiting run by `run` in the order it came, its name, words and their count passed on, answered on the
-// command's own channel as `run` returns, 1 where it ran, 0 where the window refused it and CLI_REACH_NONE where the
-// command is none of the window's, and its interface's thread woken: 1 where any came. And the interface closed: every command
-// waiting woken unrun, and the interface's key let go
-int cli_reach_open(const char *root, void (*woken)(void), VerbaLinea *err_msg);
-int cli_reach_take(int (*run)(const char *command, const char *const *words, unsigned int count));
+// This window's interface: opened for every process the container starts and for the command line, which it stores for
+// the tree `root`: 1, or 0 with the reason written. A command that comes is read where the interface's thread received
+// it, its texts places in that body, pushed on the waiting with a compare and swap, and `woken` called; that thread
+// sleeps on the command's address until the window has run it, and the body is as it was until then. On the window's
+// thread, every command waiting run by `run` in the order it came, its name, words and their count passed on, answered
+// on the command's own channel as `run` returns, 1 where it ran, 0 where the window refused it and CLI_REACH_NONE where
+// the command is none of the window's, and its interface's thread woken: 1 where any came. And the interface closed:
+// every command waiting woken unrun, and the interface's key let go
+int cli_reach_open(const CliReachCfg *args);
+int cli_reach_take(const CliReachCfg *args);
 void cli_reach_close(void);
-// Where `run` returns CLI_REACH_HOLD, the interface sends the held byte and retains the command's thread asleep. This call
-// answers the held command later, `done` 1 with `text` or 0 for refused, and wakes its thread. It does nothing where
-// no command is held. The window holds one command at a time
-void cli_reach_held_answer(int done, const char *text);
+// Where `run` returns CLI_REACH_HOLD, the interface sends the held byte and retains the command's thread asleep. This
+// call answers the held command later, `done` 1 with `text` or 0 for refused, and wakes its thread. It does nothing
+// where no command is held. The window holds one command at a time
+void cli_reach_held_answer(const CliReachCfg *args);
 
 // `command` of `menu`, with `args`, `count` of them, sent to a window open on `root` among those stored in `home`, or,
 // with no tree named, to the one window open where there is only one, its answer into `answer`: 1, 0 with why given,
@@ -87,6 +87,10 @@ struct CliReachCfg
     const char *home;
     unsigned int process;
     const char *root;
+    void (*woken)(void);
+    int done;
+    const char *text;
+    int (*run)(const char *command, const char *const *words, unsigned int count);
     const char *address;
     const char *key;
     VerbaLinea *err_msg;

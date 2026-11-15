@@ -5,15 +5,16 @@
 // quotes, code, tables, rules, links, emphasis and strike as items sorted by top, its cells the size of what they
 // carry; an address that runs script is no link; and over a view bound: the first item a top starts at, the line at a
 // top and the top of a line answering each other, the wheel leading the view and the follow leading nothing back, the
-// editor's scroll moving the top, the cursor's line marking its block, a press following a link, and a step positioning the
-// text again only where it changed
+// editor's scroll moving the top, the cursor's line marking its block, a press following a link, and a step positioning
+// the text again only where it changed
 #include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/view.h"
 #include "ui/cli/src/preview/preview.h"
 #include "ui/cli/src/preview/preview_markdown.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the key and the path of the view the preview is bound to, the rectangle it is positioned in, and the clock the steps read
+// the key and the path of the view the preview is bound to, the rectangle it is positioned in, and the clock the steps
+// read
 #define PREVIEW_KEY "window:notes/readme.md"
 #define PREVIEW_PATH "notes/readme.md"
 #define PREVIEW_WIDTH 600
@@ -35,8 +36,8 @@ void tearDown(void)
 static CliPreviewItem item_of(const CliPreviewItems *items, unsigned int at)
 {
     CliPreviewItem item = {0};
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = items->cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = items->cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
     return item;
 }
 
@@ -143,8 +144,8 @@ static void view_input(const CliViewInput *input)
 {
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = PREVIEW_KEY,
-                                        .input = input, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = PREVIEW_KEY, .input = input,
+                                        .err_msg = &err_msg));
 }
 
 // a step a look later
@@ -206,9 +207,9 @@ static const char *paragraphs(void)
 
 void test_type_answers_each_ending_and_none_for_others(void)
 {
-    static const char *const s_paths[] = {"a.md",  "b/c.MARKDOWN", "d.mdown", "e.mkd",   "f.mdx",  "g.html",
-                                          "h.htm", "i.xhtml",      "j.css",   "k.svg",   "l.mmd",  "m.mermaid",
-                                          "n.tex", "o.latex",      "p.ltx",   "q.http",  "r.rest"};
+    static const char *const s_paths[] = {"a.md",  "b/c.MARKDOWN", "d.mdown", "e.mkd",  "f.mdx", "g.html",
+                                          "h.htm", "i.xhtml",      "j.css",   "k.svg",  "l.mmd", "m.mermaid",
+                                          "n.tex", "o.latex",      "p.ltx",   "q.http", "r.rest"};
     static const unsigned int s_types[] = {
         CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN, CLI_PREVIEW_MARKDOWN,
         CLI_PREVIEW_HTML,     CLI_PREVIEW_HTML,     CLI_PREVIEW_HTML,     CLI_PREVIEW_CSS,      CLI_PREVIEW_SVG,
@@ -228,8 +229,8 @@ void test_mode_reads_its_word_turns_off_where_it_is_and_is_saved(void)
 {
     char home[CLI_PATH_MAX_LEN];
     cli_unity_folder("preview_home", home);
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
-                                        .value = home));
+    TEST_ASSERT_EQUAL_INT(
+        1, EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
     EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "alone");
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ALONE, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
     EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode = CLI_PREVIEW_BESIDE);
@@ -242,12 +243,16 @@ void test_mode_reads_its_word_turns_off_where_it_is_and_is_saved(void)
         cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_cli_preview_owner});
     TEST_ASSERT_NOT_NULL(entries.cell);
     char mode_text[CLI_NAME_MAX_LEN];
-    CLI_TEST_ASSERT_TEXT("alone", cli_state_entry_value(&entries, CLI_PREVIEW_MODE_KEY, mode_text, sizeof(mode_text)), 5ULL);
+    CLI_TEST_ASSERT_TEXT(
+        "alone",
+        cli_state_entry_value(&(CliStateEntryCfg){
+            .entries = &entries, .key = CLI_PREVIEW_MODE_KEY, .out = mode_text, .capacity = sizeof(mode_text)}),
+        5ULL);
     EMBED_CALL(cli_preview.begin, CliPreviewCfg, .entries = NULL);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OFF, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
     EMBED_CALL(cli_preview.begin, CliPreviewCfg, .entries = &entries);
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_ALONE, EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = 0ULL));
-    cli_state_entries_release(&entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
 }
 
 void test_markdown_positions_every_block_as_items_sorted_by_top(void)
@@ -302,7 +307,8 @@ void test_markdown_positions_every_block_as_items_sorted_by_top(void)
     TEST_ASSERT_NOT_NULL(run_reading(&items, "1."));
     TEST_ASSERT_NOT_NULL(run_reading(&items, "2."));
     TEST_ASSERT_EQUAL_UINT(1u, items_of(&items, CLI_PREVIEW_ITEM_BOX, CLI_PREVIEW_ROLE_SIGNAL, CLI_PREVIEW_ROLE_LINE));
-    TEST_ASSERT_EQUAL_UINT(2u, items_of(&items, CLI_PREVIEW_ITEM_SEGMENT, CLI_PREVIEW_ROLE_TEXT, CLI_PREVIEW_ROLE_NONE));
+    TEST_ASSERT_EQUAL_UINT(2u,
+                           items_of(&items, CLI_PREVIEW_ITEM_SEGMENT, CLI_PREVIEW_ROLE_TEXT, CLI_PREVIEW_ROLE_NONE));
     TEST_ASSERT_NOT_NULL(run_reading(&items, "done"));
     TEST_ASSERT_NOT_NULL(run_reading(&items, "open"));
     // the quote's bar and its text quieter
@@ -514,8 +520,8 @@ void test_a_press_follows_its_link_and_elsewhere_nothing(void)
                                                              .y = up.y + 1, .open_out = &open));
     CLI_TEST_ASSERT_TEXT("top.md", open.path, CLI_UNITY_LENGTH(open.path));
     const CliPreviewItem here = bound_item(bound_run("here"));
-    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_PLACE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = here.x + 1,
-                                                              .y = here.y + 1, .open_out = &open));
+    TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_PLACE, EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg,
+                                                              .x = here.x + 1, .y = here.y + 1, .open_out = &open));
     TEST_ASSERT_EQUAL_INT(open.top_px, EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0));
     TEST_ASSERT_EQUAL_UINT(CLI_PREVIEW_OPEN_NONE,
                            EMBED_CALL(cli_preview_mark.press, CliPreviewMarkCfg, .x = 1, .y = 1, .open_out = &open));

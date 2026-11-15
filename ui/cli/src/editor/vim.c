@@ -807,7 +807,8 @@ EMBED_INLINE void vim_prompt_key(const CliVimCtx *args)
 void cli_vim_begin(const CliVimCfg *args)
 {
     char value_text[16];
-    const char *const value = cli_state_entry_value(args->entries, "vim", value_text, sizeof(value_text));
+    const char *const value = cli_state_entry_value(
+        &(CliStateEntryCfg){.entries = args->entries, .key = "vim", .out = value_text, .capacity = sizeof(value_text)});
     g_cli_vim_state.on =
         (value != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = value, .other = s_setting_on, .cap = 8u});
 }

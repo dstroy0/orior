@@ -142,10 +142,13 @@ void test_each_list_is_in_orior_folder_a_line_an_entry(void)
     TEST_ASSERT_NOT_NULL(entries.cell);
     char commands_text[256];
     char files_text[CLI_PATH_MAX_LEN];
-    TEST_ASSERT_EQUAL_STRING("file\nline\npalette\nsave",
-                             cli_state_entry_value(&entries, "recent.commands", commands_text, sizeof(commands_text)));
-    const char *const files = cli_state_entry_value(&entries, "recent.files", files_text, sizeof(files_text));
+    TEST_ASSERT_EQUAL_STRING(
+        "file\nline\npalette\nsave",
+        cli_state_entry_value(&(CliStateEntryCfg){
+            .entries = &entries, .key = "recent.commands", .out = commands_text, .capacity = sizeof(commands_text)}));
+    const char *const files = cli_state_entry_value(&(CliStateEntryCfg){
+        .entries = &entries, .key = "recent.files", .out = files_text, .capacity = sizeof(files_text)});
     TEST_ASSERT_NOT_NULL(files);
     TEST_ASSERT_EQUAL_UINT8('f', (unsigned char)files[0]);
-    cli_state_entries_release(&entries);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
 }
