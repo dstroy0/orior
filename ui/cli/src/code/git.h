@@ -35,7 +35,15 @@ typedef struct CliGitRootFileStageCfg CliGitRootFileStageCfg;
 typedef struct CliGitRootErrMsgCfg CliGitRootErrMsgCfg;
 typedef struct CliGitRootAheadCfg CliGitRootAheadCfg;
 typedef struct CliGitOutCfg CliGitOutCfg;
+typedef struct CliGitRootPathKeyCfg CliGitRootPathKeyCfg;
 typedef struct CliGitRootErrMsgPathCfg CliGitRootErrMsgPathCfg;
+// the tree `root`, the file at `path` and the view `key` the file is stored under
+struct CliGitRootPathKeyCfg
+{
+    const char *root;
+    const char *path;
+    const char *key;
+};
 typedef struct CliGitTextCfg CliGitTextCfg;
 typedef struct CliGitOutFoundTouchedListCfg CliGitOutFoundTouchedListCfg;
 typedef struct CliGitCfg CliGitCfg;
@@ -357,9 +365,9 @@ EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
 // graph finds in the whole history, and under a commit opened the files it changed. The rows: the branch's row with the
 // commits counted, a row a commit, and under one opened a row each file it changed, or the notice that none under the
 // tree did. The query rests CLI_GIT_LOG_REST_MS after a change before the graph is read again, the watch marks the
-// graph stale from its thread, and the authors setting, saved under `git.authors`, has each commit's author displayed and
-// searched. The rows point into the lists read from git, the repositories, the graph and each opened commit's files,
-// which are until the next read
+// graph stale from its thread, and the authors setting, saved under `git.authors`, has each commit's author displayed
+// and searched. The rows point into the lists read from git, the repositories, the graph and each opened commit's
+// files, which are until the next read
 #define CLI_GIT_LOG_QUERY_MAX 256u
 #define CLI_GIT_LOG_REST_MS 250ULL
 #define CLI_GIT_LOG_DAY 11u
@@ -375,10 +383,11 @@ EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
 // second text, the commits counted, the commit's author where authors show or the file's folder, and its bytes; a
 // file's path from the tree's top and its state character; and a commit's id, its day as YYYY-MM-DD, whether its files
 // show, whether it merges, the column its dot is in and the number of its line, how many columns its strokes
-// cross, its strokes, each [from, to, half, line] as the graph positions them, and how many branches and tags are at it.
-// The text, the second text, the id and the day read off the pane's cells are copied into the row's own `text_copied`,
-// `second_copied`, `id_copied` and `day_copied`, which their pointers then name; a file's path is in `text_copied`
-// with its name after its folder; the strokes are copied into `stroke_copied`, CLI_GIT_LOG_ROW_STROKES at max
+// cross, its strokes, each [from, to, half, line] as the graph positions them, and how many branches and tags are at
+// it. The text, the second text, the id and the day read off the pane's cells are copied into the row's own
+// `text_copied`, `second_copied`, `id_copied` and `day_copied`, which their pointers then name; a file's path is in
+// `text_copied` with its name after its folder; the strokes are copied into `stroke_copied`, CLI_GIT_LOG_ROW_STROKES at
+// max
 #define CLI_GIT_LOG_TEXT (1u << 14u)
 #define CLI_GIT_LOG_ID 48u
 #define CLI_GIT_LOG_ROW_STROKES 64u
@@ -591,7 +600,7 @@ int cli_git_text_before(const CliGitRootFileCfg *args);
 int cli_git_head_text(const CliGitRootFileStageCfg *args);
 // the file at `path` of the tree at `root` as the last commit has it read on a worker and stored beside the text under
 // `key` in the document store, none where the last commit does not contain it; the call returns at once
-void cli_git_head_later(const char *root, const char *path, const char *key);
+void cli_git_head_later(const CliGitRootPathKeyCfg *args);
 // who made commit `id` into `name`, and its subject into `subject`: 1, or 0 where git cannot determine
 int cli_git_new_by(const CliGitRootIdCfg *args);
 

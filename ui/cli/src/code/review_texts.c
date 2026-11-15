@@ -34,8 +34,3 @@ int cli_review_text_add(const CliReviewLineCtx *args)
     cli_grown_end(args->line);
     return added;
 }
-
-void cli_review_text_line(CliGrownLine *line)
-{
-    cli_grown_begin(line, CLI_REVIEW_TEXT_CAPACITY, g_cli_code_owner);
-}

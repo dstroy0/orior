@@ -85,12 +85,10 @@ extern CliReview g_cli_review;
 // `length` bytes put in the pieces' texts, a 0 after them: their place, 0 where they do not fit, an empty text there
 // (review_compare.c)
 unsigned int cli_review_piece_text_append(const CliReviewTextLengthCtx *args);
-// `length` bytes put in the files' texts, a 0 after them: their place, 0 where they do not fit; a text written into a
-// line put after the files' texts where it was written whole, and the line given back: 1, or 0; and a line a text the
-// review reads is written into, grown to it and ended by cli_review_text_add (review_texts.c)
+// `length` bytes put in the files' texts, a 0 after them: their place, 0 where they do not fit; and a text written
+// into a line put after the files' texts where it was written whole, and the line given back: 1, or 0 (review_texts.c)
 unsigned int cli_review_text_append(const CliReviewTextLengthCtx *args);
 int cli_review_text_add(const CliReviewLineCtx *args);
-void cli_review_text_line(CliGrownLine *line);
 
 // the files compared: the pieces, sorted by path and line, each with the pieces it calls, and the files named apart,
 // sorted, each once, in the comparison's capacity; and the bytes that capacity takes (review_compare.c)

@@ -560,7 +560,7 @@ EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)
         {
             // the file as the last commit has it read from git on a worker and stored beside the text, for the gutter's
             // marks and the change peek
-            cli_git_head_later(cli_command_line_root(), path, key);
+            cli_git_head_later(&(CliGitRootPathKeyCfg){.root = cli_command_line_root(), .path = path, .key = key});
         }
         EMBED_CALL(cli_crumbs.read, CliCrumbsCfg, .key = key, .path = path, .line = cursor.line);
     }

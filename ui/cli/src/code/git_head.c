@@ -51,24 +51,24 @@ static void head_read_job(const CliServersJobCfg *args)
     cli_document_colored_wake();
 }
 
-void cli_git_head_later(const char *root, const char *path, const char *key)
+void cli_git_head_later(const CliGitRootPathKeyCfg *args)
 {
-    if ((root == NULL) || (path == NULL) || (key == NULL) ||
-        EMBED_CALL(cli_document.has_head, CliDocumentCfg, .key = key))
+    if ((args->root == NULL) || (args->path == NULL) || (args->key == NULL) ||
+        EMBED_CALL(cli_document.has_head, CliDocumentCfg, .key = args->key))
     {
         return;
     }
     GitHeadRead read;
     memor.set(&(MemoriaCfg){.dst = &read, .val = 0, .bytes = sizeof(read)});
     memor.cpy(&(MemoriaCfg){.dst = read.root,
-                            .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN - 1u})});
+                            .src = args->root,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_PATH_MAX_LEN - 1u})});
     memor.cpy(&(MemoriaCfg){.dst = read.path,
-                            .src = path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN - 1u})});
+                            .src = args->path,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN - 1u})});
     memor.cpy(&(MemoriaCfg){.dst = read.key,
-                            .src = key,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_NAME_MAX_LEN - 1u})});
+                            .src = args->key,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_NAME_MAX_LEN - 1u})});
     (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = head_read_job, .job = &read,
                      .size = sizeof(read));
 }
