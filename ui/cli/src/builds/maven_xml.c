@@ -1,4 +1,5 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+#include "../text/text.h"
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // maven_xml.c: an XML file read as far as it goes: comments, CDATA, processing instructions and declarations passed
 // whole; each opening tag an element under the one left open, a tag ending `/>` closing itself; each closing tag
@@ -13,8 +14,8 @@ static const char *const s_skip_close[4] = {"-->", "]]>", "?>", ">"};
 
 int cli_xml_name_character(const CliMavenCtx *args)
 {
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = args->character) || (args->character == '_') ||
-           (args->character == ':') || (args->character == '.') || (args->character == '-');
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = args->character) ||
+           (args->character == '_') || (args->character == ':') || (args->character == '.') || (args->character == '-');
 }
 
 typedef struct
@@ -47,11 +48,8 @@ EMBED_INLINE unsigned int xml_capacity(const MavenXmlCtx *args)
 EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
 {
     CliXml *xml = args->xml;
-    unsigned long long tags = 0ULL;
-    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
-    {
-        tags += (args->text[at] == '<') ? 1ULL : 0ULL;
-    }
+    const unsigned long long tags =
+        EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = args->text, .size = args->size, .byte = '<');
     const unsigned int elements = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .max = CLI_XML_ELEMENTS);
     const unsigned int comments = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .max = CLI_XML_COMMENTS);
     const unsigned int errors = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags + 1ULL, .max = CLI_XML_ERRORS);
@@ -264,7 +262,7 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
             unsigned long long length = 0ULL;
             if (!EMBED_CALL(cli_maven_internal.xml_name_character, CliMavenCtx,
                             .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text,
-                                                 .size = args->size, .at = name_to, .length = &length)))
+                                                    .size = args->size, .at = name_to, .length = &length)))
             {
                 break;
             }

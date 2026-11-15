@@ -1,4 +1,5 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+#include "../text/text.h"
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_grid.c: a statement's result as the grid draws it. The adopt reads the run's answer into a tree for the call
 // alone and positions two movable cells, each positioned in a cell of the call and written once: the head, a column a
@@ -418,11 +419,9 @@ EMBED_INLINE int failure_adopted(const CliDbGridCfg *args)
     VerbaLinea out = {written, sizeof(written), 0ULL};
     EMBED_CALL(cli_db_wire_out.db_failure_write, CliDbWireOutCfg, .failure_read = args->failure, .out = &out);
     const unsigned long long length = mmgr_line_finish(&out);
-    unsigned int lines = 1u;
-    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
-    {
-        lines += (written[at] == '\n') ? 1u : 0u;
-    }
+    // Explicit cast narrows the newline count to the rows' width, which a grid's text stays below
+    const unsigned int lines = 1u + (unsigned int)EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg,
+                                                             .text = written, .size = length, .byte = '\n');
     const unsigned long long title_length = cellul.len(&(CatenaFinitaCfg){.src = args->title, .cap = CLI_NAME_MAX_LEN});
     if (!EMBED_CALL(head_taken, GridCtx, .count = 0ULL, .rows = lines, .size = title_length + 1ULL + length))
     {

@@ -4246,12 +4246,11 @@ EMBED_INLINE int view_numbers_compared(const ViewCtx *args)
 EMBED_INLINE int view_case_compared(const ViewCtx *args)
 {
     const unsigned long long shorter = (args->size < args->length) ? args->size : args->length;
-    for (unsigned long long at = 0ULL; at < shorter; at += 1ULL)
+    const unsigned long long differs = cellul.diff(&(CatenaFinitaCfg){
+        .src = args->text, .cap = (size_t)shorter, .other = args->supplied, .other_cap = (size_t)shorter});
+    if (differs < shorter)
     {
-        if (args->text[at] != args->supplied[at])
-        {
-            return ((unsigned char)args->text[at] > (unsigned char)args->supplied[at]) ? -1 : 1;
-        }
+        return ((unsigned char)args->text[differs] > (unsigned char)args->supplied[differs]) ? -1 : 1;
     }
     return 0;
 }

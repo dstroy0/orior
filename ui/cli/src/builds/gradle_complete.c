@@ -229,11 +229,8 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = items,
                    .words = g_cli_gradle_helpers, .count = 12u, .type = "function", .detail = "dependencies");
         // the script's lines a cell of their count, each line's start, given back once the declared are read
-        unsigned long long count = 1ULL;
-        for (unsigned long long byte = 0ULL; byte < size; byte += 1ULL)
-        {
-            count += (text[byte] == '\n') ? 1ULL : 0ULL;
-        }
+        unsigned long long count =
+            1ULL + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = size, .byte = '\n');
         count = (count < CLI_GRADLE_LINES) ? count : CLI_GRADLE_LINES;
         unsigned int *const starts = g_cli_guard->temporary_buf_alloc(count * sizeof(unsigned int), g_cli_gradle_owner);
         if (starts != NULL)

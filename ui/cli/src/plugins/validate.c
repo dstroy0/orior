@@ -394,11 +394,8 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     {
         cli_validate_theorems_in();
     }
-    unsigned long long lines = 0ULL;
-    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
-    {
-        lines += (text[at] == '\n') ? 1ULL : 0ULL;
-    }
+    const unsigned long long lines =
+        EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = size, .byte = '\n');
     g_cli_validate->lines = lines + (((size > 0ULL) && (text[size - 1ULL] != '\n')) ? 1ULL : 0ULL);
     char folder[CLI_PATH_MAX_LEN];
     char copy_name[CLI_PATH_MAX_LEN];

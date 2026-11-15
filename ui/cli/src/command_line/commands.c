@@ -241,8 +241,8 @@ static unsigned long long commands_cell_claim(CommandsCell *held, unsigned long 
             char piece[CLI_LABEL_MAX_LEN];
             const unsigned long long left = held->used - at;
             const unsigned long long size = (left < sizeof(piece)) ? left : sizeof(piece);
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = held->cell, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = held->cell, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
             (void)g_cli_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = grown, .offset = (embed_word)at, .src = piece, .bytes = (embed_word)size});
         }
@@ -304,12 +304,16 @@ static unsigned long long commands_own_keys_at(const char *command)
                                                                 .dst = &pair,
                                                                 .bytes = sizeof(pair)});
         char named[CLI_LABEL_MAX_LEN];
-        const unsigned long long named_measured = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-            .cell = s_keys_own.text.cell, .offset = (embed_word)pair.command_at, .bytes = (embed_word)(s_keys_own.text.used - pair.command_at)});
+        const unsigned long long named_measured = g_cli_guard->movable_buf_measure(
+            &(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                .offset = (embed_word)pair.command_at,
+                                .bytes = (embed_word)(s_keys_own.text.used - pair.command_at)});
         const unsigned long long named_length =
             (named_measured < sizeof(named)) ? named_measured : (sizeof(named) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_keys_own.text.cell, .offset = (embed_word)pair.command_at, .dst = named, .bytes = (embed_word)named_length});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                .offset = (embed_word)pair.command_at,
+                                                                .dst = named,
+                                                                .bytes = (embed_word)named_length});
         named[named_length] = '\0';
         if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = command, .cap = CLI_LABEL_MAX_LEN}))
         {
@@ -338,30 +342,33 @@ void cli_commands_keys_own(const char *command, const char *keys)
                                                                 .dst = &pair,
                                                                 .bytes = sizeof(pair)});
         char named[CLI_LABEL_MAX_LEN];
-        const unsigned long long named_measured = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-            .cell = s_keys_own.text.cell, .offset = (embed_word)pair.command_at, .bytes = (embed_word)(s_keys_own.text.used - pair.command_at)});
+        const unsigned long long named_measured = g_cli_guard->movable_buf_measure(
+            &(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                .offset = (embed_word)pair.command_at,
+                                .bytes = (embed_word)(s_keys_own.text.used - pair.command_at)});
         const unsigned long long named_length =
             (named_measured < sizeof(named)) ? named_measured : (sizeof(named) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_keys_own.text.cell, .offset = (embed_word)pair.command_at, .dst = named, .bytes = (embed_word)named_length});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                .offset = (embed_word)pair.command_at,
+                                                                .dst = named,
+                                                                .bytes = (embed_word)named_length});
         named[named_length] = '\0';
         named_already = cellul.eq(&(CatenaFinitaCfg){.src = named, .other = command, .cap = CLI_LABEL_MAX_LEN});
         at += named_already ? 0u : 1u;
     }
-    const unsigned long long pair_at =
-        (at == s_keys_own.count) ? commands_cell_claim(&s_keys_own.pair, sizeof(CommandsOwnKey))
-                                 : (unsigned long long)at * sizeof(CommandsOwnKey);
-    const unsigned long long command_at = (at == s_keys_own.count)
-                                              ? commands_text_put(&s_keys_own.text, command, command_length)
-                                              : pair.command_at;
+    const unsigned long long pair_at = (at == s_keys_own.count)
+                                           ? commands_cell_claim(&s_keys_own.pair, sizeof(CommandsOwnKey))
+                                           : (unsigned long long)at * sizeof(CommandsOwnKey);
+    const unsigned long long command_at =
+        (at == s_keys_own.count) ? commands_text_put(&s_keys_own.text, command, command_length) : pair.command_at;
     const unsigned long long keys_at = commands_text_put(&s_keys_own.text, keys, keys_length);
     if ((pair_at == CLI_TEXT_NONE) || (command_at == CLI_TEXT_NONE) || (keys_at == CLI_TEXT_NONE))
     {
         return;
     }
     pair = (CommandsOwnKey){command_at, keys_at};
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = s_keys_own.pair.cell, .offset = (embed_word)pair_at, .src = &pair, .bytes = sizeof(pair)});
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = s_keys_own.pair.cell, .offset = (embed_word)pair_at, .src = &pair, .bytes = sizeof(pair)});
     s_keys_own.count += (at == s_keys_own.count) ? 1u : 0u;
 }
 
@@ -379,19 +386,24 @@ EMBED_INLINE void cli_item_read(const CommandsCtx *args)
     args->item->keys = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "keys");
     // the reader's own keys over the list's: in the items' cell's tail, a copy of the own keys' text, where the
     // item is one of a cell of items; else in the one row's keys
-    const unsigned long long keys_at = (s_keys_own.count != 0u) ? commands_own_keys_at(args->item->command) : CLI_TEXT_NONE;
+    const unsigned long long keys_at =
+        (s_keys_own.count != 0u) ? commands_own_keys_at(args->item->command) : CLI_TEXT_NONE;
     if ((keys_at != CLI_TEXT_NONE) && (args->keys_tail != NULL))
     {
         args->item->keys = args->keys_tail + keys_at;
     }
     else if (keys_at != CLI_TEXT_NONE)
     {
-        const unsigned long long keys_measured = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-            .cell = s_keys_own.text.cell, .offset = (embed_word)keys_at, .bytes = (embed_word)(s_keys_own.text.used - keys_at)});
+        const unsigned long long keys_measured = g_cli_guard->movable_buf_measure(
+            &(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                .offset = (embed_word)keys_at,
+                                .bytes = (embed_word)(s_keys_own.text.used - keys_at)});
         const unsigned long long keys_length =
             (keys_measured < sizeof(s_row_keys)) ? keys_measured : (sizeof(s_row_keys) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_keys_own.text.cell, .offset = (embed_word)keys_at, .dst = s_row_keys, .bytes = (embed_word)keys_length});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                .offset = (embed_word)keys_at,
+                                                                .dst = s_row_keys,
+                                                                .bytes = (embed_word)keys_length});
         s_row_keys[keys_length] = '\0';
         args->item->keys = s_row_keys;
     }
@@ -507,8 +519,9 @@ unsigned int cli_menu_items_count(unsigned int menu)
                                                             .dst = &menu_token,
                                                             .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "items");
-    return ((list != 0u) && (s_tokens[list].type == CFG_JSON_ARRAY)) ? EMBED_CALL(cli_flat_count, CommandsCtx, .list = list)
-                                                                      : 0u;
+    return ((list != 0u) && (s_tokens[list].type == CFG_JSON_ARRAY))
+               ? EMBED_CALL(cli_flat_count, CommandsCtx, .list = list)
+               : 0u;
 }
 
 unsigned int cli_rows_count(unsigned int list)
@@ -527,9 +540,8 @@ CliItem *cli_items_alloc(unsigned int count)
         ((unsigned long long)count * sizeof(CliItem)) + s_keys_own.text.used, g_cli_command_line_owner);
     if ((items != NULL) && (s_keys_own.text.used != 0ULL))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
-                                                                .dst = (void *)(items + count),
-                                                                .bytes = (embed_word)s_keys_own.text.used});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_keys_own.text.cell, .dst = (void *)(items + count), .bytes = (embed_word)s_keys_own.text.used});
     }
     return items;
 }
@@ -639,12 +651,10 @@ static int cli_chain_walk(const CommandsCtx *args)
     {
         // the key's next part, up to its next dot or its end
         char named[CLI_LABEL_MAX_LEN];
-        unsigned long long length = 0ULL;
-        while ((part[length] != '\0') && (part[length] != '.') && (length + 1ULL < sizeof(named)))
-        {
-            named[length] = part[length];
-            length += 1ULL;
-        }
+        const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = part, .cap = sizeof(named) - 1ULL});
+        const char *const dot = memor.chr(&(MemoriaCfg){.src = part, .val = '.', .bytes = whole});
+        const unsigned long long length = (dot != NULL) ? (unsigned long long)(dot - part) : whole;
+        memor.cpy(&(MemoriaCfg){.dst = named, .src = part, .bytes = length});
         named[length] = '\0';
         if (!EMBED_CALL(cli_flat_find, CommandsCtx, .list = list, .word_text = named, .item = args->item))
         {
@@ -916,7 +926,8 @@ void cli_menus_title_open(unsigned int at, int marked)
     const unsigned int titles = cli_menu_titles();
     if (g_cli_menus_open.folded && (at >= g_cli_menus_open.displayed))
     {
-        commands_level_open(0u, 0u, NULL, (titles > g_cli_menus_open.displayed) ? (titles - g_cli_menus_open.displayed) : 0u);
+        commands_level_open(0u, 0u, NULL,
+                            (titles > g_cli_menus_open.displayed) ? (titles - g_cli_menus_open.displayed) : 0u);
     }
     else
     {
@@ -1080,23 +1091,31 @@ int cli_menus_own_read(unsigned int at, CliItem *item)
     *item = row.item;
     if (row.label_at != CLI_TEXT_NONE)
     {
-        const unsigned long long label_measured = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-            .cell = s_own.text.cell, .offset = (embed_word)row.label_at, .bytes = (embed_word)(s_own.text.used - row.label_at)});
+        const unsigned long long label_measured = g_cli_guard->movable_buf_measure(
+            &(CarcerMovableCfg){.cell = s_own.text.cell,
+                                .offset = (embed_word)row.label_at,
+                                .bytes = (embed_word)(s_own.text.used - row.label_at)});
         const unsigned long long label_length =
             (label_measured < sizeof(s_row_label)) ? label_measured : (sizeof(s_row_label) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_own.text.cell, .offset = (embed_word)row.label_at, .dst = s_row_label, .bytes = (embed_word)label_length});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_own.text.cell,
+                                                                .offset = (embed_word)row.label_at,
+                                                                .dst = s_row_label,
+                                                                .bytes = (embed_word)label_length});
         s_row_label[label_length] = '\0';
         item->label = s_row_label;
     }
     if (row.args_at != CLI_TEXT_NONE)
     {
-        const unsigned long long args_measured = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-            .cell = s_own.text.cell, .offset = (embed_word)row.args_at, .bytes = (embed_word)(s_own.text.used - row.args_at)});
+        const unsigned long long args_measured =
+            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_own.text.cell,
+                                                                 .offset = (embed_word)row.args_at,
+                                                                 .bytes = (embed_word)(s_own.text.used - row.args_at)});
         const unsigned long long args_length =
             (args_measured < sizeof(s_row_args)) ? args_measured : (sizeof(s_row_args) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_own.text.cell, .offset = (embed_word)row.args_at, .dst = s_row_args, .bytes = (embed_word)args_length});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_own.text.cell,
+                                                                .offset = (embed_word)row.args_at,
+                                                                .dst = s_row_args,
+                                                                .bytes = (embed_word)args_length});
         s_row_args[args_length] = '\0';
         item->args = s_row_args;
     }
@@ -1216,8 +1235,8 @@ EMBED_INLINE int commands_is(const char *name, const char *required)
     return cellul.eq(&(CatenaFinitaCfg){.src = name, .other = required, .cap = 32ULL});
 }
 
-// the title on the bar whose character is the single character `name`: each title's character the first of its characters a to z no
-// title before it has; -1 for none
+// the title on the bar whose character is the single character `name`: each title's character the first of its
+// characters a to z no title before it has; -1 for none
 static int commands_title_character(const char *name)
 {
     if ((name[0] == '\0') || (name[1] != '\0'))

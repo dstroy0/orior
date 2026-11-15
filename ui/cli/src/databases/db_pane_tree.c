@@ -341,11 +341,10 @@ int cli_db_pane_level_read(const CliDbPaneCtx *args)
     if (root == CLI_JSON_NONE)
     {
         const char *const message = read ? why : failure.message;
-        unsigned long long length = 0ULL;
-        while ((message[length] != '\0') && (message[length] != '\n') && (length < sizeof(first_line) - 1ULL))
-        {
-            length += 1ULL;
-        }
+        const unsigned long long whole =
+            cellul.len(&(CatenaFinitaCfg){.src = message, .cap = sizeof(first_line) - 1ULL});
+        const char *const newline = memor.chr(&(MemoriaCfg){.src = message, .val = '\n', .bytes = whole});
+        const unsigned long long length = (newline != NULL) ? (unsigned long long)(newline - message) : whole;
         (void)mmgr_line_put_n(&failed_line, message, length);
         (void)mmgr_line_finish(&failed_line);
         bytes = failed_line.at + 2ULL;

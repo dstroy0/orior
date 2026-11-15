@@ -108,13 +108,12 @@ EMBED_INLINE int rows_key_order(const DebugPaneRowsCtx *args)
     EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = flipped, .offset = entry.text,
                .length = entry.text_length, .text_out = key, .capacity = sizeof(key));
     const unsigned long long shorter = (args->length < entry.text_length) ? args->length : entry.text_length;
-    for (unsigned long long at = 0ULL; at < shorter; at += 1ULL)
+    const unsigned long long differs = cellul.diff(
+        &(CatenaFinitaCfg){.src = args->text, .cap = (size_t)shorter, .other = key, .other_cap = (size_t)shorter});
+    if (differs < shorter)
     {
-        if (args->text[at] != key[at])
-        {
-            // a byte read as unsigned carries its eight bits, the order the keys sort by
-            return ((unsigned char)args->text[at] < (unsigned char)key[at]) ? -1 : 1;
-        }
+        // a byte read as unsigned carries its eight bits, the order the keys sort by
+        return ((unsigned char)args->text[differs] < (unsigned char)key[differs]) ? -1 : 1;
     }
     if (args->length == entry.text_length)
     {

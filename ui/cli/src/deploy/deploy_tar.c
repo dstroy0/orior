@@ -43,12 +43,9 @@ EMBED_INLINE void tar_octal(const DeployTarCtx *args)
         left /= 8u;
     }
     char written[40];
-    unsigned int at = 0u;
-    for (unsigned int pad = length; pad < args->digits; pad += 1u)
-    {
-        written[at] = '0';
-        at += 1u;
-    }
+    const unsigned int padding = (length < args->digits) ? args->digits - length : 0u;
+    memor.set(&(MemoriaCfg){.dst = written, .val = '0', .bytes = padding});
+    unsigned int at = padding;
     for (unsigned int index = length; index > 0u; index -= 1u)
     {
         written[at] = text[index - 1u];

@@ -45,19 +45,22 @@ EMBED_INLINE void shells_path(void)
     {
         return;
     }
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_start.own, .cap = sizeof(s_start.own)});
+    // the last separator of either kind, each kind's last found by a search from the one before
     unsigned long long cut = 0ULL;
-    unsigned long long length = 0ULL;
-    while (s_start.own[length] != '\0')
+    for (const char *slash = memor.chr(&(MemoriaCfg){.src = s_start.own, .val = '/', .bytes = length}); slash != NULL;
+         slash = memor.chr(&(MemoriaCfg){.src = slash + 1, .val = '/', .bytes = length - (slash + 1 - s_start.own)}))
     {
-        cut = ((s_start.own[length] == '/') || (s_start.own[length] == '\\')) ? length : cut;
-        length += 1ULL;
+        cut = (unsigned long long)(slash - s_start.own);
+    }
+    for (const char *slash = memor.chr(&(MemoriaCfg){.src = s_start.own, .val = '\\', .bytes = length}); slash != NULL;
+         slash = memor.chr(&(MemoriaCfg){.src = slash + 1, .val = '\\', .bytes = length - (slash + 1 - s_start.own)}))
+    {
+        cut = ((unsigned long long)(slash - s_start.own) > cut) ? (unsigned long long)(slash - s_start.own) : cut;
     }
     s_start.own[cut] = '\0';
-    unsigned long long path_length = 0ULL;
-    while (s_start.path[path_length] != '\0')
-    {
-        path_length += 1ULL;
-    }
+    const unsigned long long path_length =
+        cellul.len(&(CatenaFinitaCfg){.src = s_start.path, .cap = sizeof(s_start.path)});
     VerbaLinea line = {s_start.path, sizeof(s_start.path), path_length};
 #if defined(_WIN32)
     mmgr_line_ch(&line, ';');
@@ -298,8 +301,8 @@ int cli_terminal_shell_drain(const CliTerminalShellCfg *args)
         shell->killed = 1;
     }
     long long code = 0LL;
-    if (!shell->ended && EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &shell->spawned,
-                                    .code = &code))
+    if (!shell->ended &&
+        EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &shell->spawned, .code = &code))
     {
         // the process has ended, and the pseudo-console sends its last output once it is let go: the pipe is read on
         // until it is quiet

@@ -9,7 +9,8 @@
 #include "../text/text.h"
 #include "files_internal.h"
 
-// A line's characters as they are stepped over: the byte, the character's place, and the character before, read in lower case
+// A line's characters as they are stepped over: the byte, the character's place, and the character before, read in
+// lower case
 typedef struct
 {
     unsigned long long at;
@@ -30,7 +31,9 @@ unsigned long long cli_hit_cut(const CliFilesPathCtx *args)
                          .length = args->size, .at = at, .character = &character);
         characters += (characters < CLI_HIT_TEXT) ? 1u : 0u;
         max = ((characters == CLI_HIT_TEXT) && (max == args->size)) ? at : max;
-        trimmed = EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character) ? trimmed : at;
+        trimmed = EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character)
+                      ? trimmed
+                      : at;
     }
     return (trimmed < max) ? trimmed : max;
 }
@@ -69,10 +72,8 @@ static void cli_hit_at(const CliEachAtCfg *args)
     {
         return;
     }
-    for (unsigned long long place = hitting->counted; place < at; place += 1ULL)
-    {
-        hitting->line += (bytes[place] == '\n') ? 1ULL : 0ULL;
-    }
+    hitting->line += EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = bytes + hitting->counted,
+                                .size = at - hitting->counted, .byte = '\n');
     hitting->counted = at;
     if (hitting->line == hitting->last_line)
     {
@@ -106,7 +107,8 @@ static void cli_hit_at(const CliEachAtCfg *args)
             EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = bytes, .length = end,
                        .at = after, .character = &next);
         }
-        if (((before != 0ULL) && EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = last)) ||
+        if (((before != 0ULL) &&
+             EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = last)) ||
             (has_next && EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = next)))
         {
             return;
@@ -145,7 +147,8 @@ EMBED_INLINE int cli_lower_at(const FilesHitsCtx *args)
         unsigned int character = 0u;
         at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = args->line,
                          .length = args->size, .at = at, .character = &character);
-        if (EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = character) != args->needle->lower[index])
+        if (EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = character) !=
+            args->needle->lower[index])
         {
             return 0;
         }
@@ -188,8 +191,9 @@ EMBED_INLINE int cli_line_match(const FilesHitsCtx *args)
         const int joined =
             ((step.character_at != 0ULL) &&
              EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = step.last)) ||
-            (has_next && EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx,
-                                    .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = next)));
+            (has_next &&
+             EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx,
+                        .character = EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = next)));
         if (!args->needle->how.word_text || !joined)
         {
             *col = step.character_at + 1ULL;

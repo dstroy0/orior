@@ -6,6 +6,7 @@
 // view's thread to the cell whose run each answers
 #include "../command_line/command_line.h"
 #include "../plugins/plugins.h"
+#include "../text/text.h"
 #include "notebook_cells_internal.h"
 #include "notebook_internal.h"
 
@@ -985,11 +986,8 @@ EMBED_INLINE int cells_read(const NotebookCellsCtx *args)
 EMBED_INLINE unsigned int tree_read(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
-    unsigned long long lines = 1ULL;
-    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
-    {
-        lines += (args->text[at] == '\n') ? 1ULL : 0ULL;
-    }
+    const unsigned long long lines = 1ULL + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = args->text,
+                                                       .size = args->size, .byte = '\n');
     const unsigned int tokens = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = args->text,
                                            .size = args->size, .out = NULL) +
                                 1u;

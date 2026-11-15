@@ -10,11 +10,8 @@
 
 unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args)
 {
-    unsigned long long count = 1ULL;
-    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
-    {
-        count += (args->text[at] == '\n') ? 1ULL : 0ULL;
-    }
+    const unsigned long long count = 1ULL + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = args->text,
+                                                       .size = args->size, .byte = '\n');
     unsigned int *const starts = (count <= 0xffffffffULL)
                                      ? g_cli_guard->temporary_buf_alloc(count * sizeof(unsigned int), g_cli_build_owner)
                                      : NULL;
@@ -394,7 +391,8 @@ unsigned long long cli_build_byte_at(const CliBuildsPathCfg *args)
 int cli_build_word_character(const CliEachLetterCfg *args)
 {
     unsigned int character = args->character;
-    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) || (character == '_') || (character == '$');
+    return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) || (character == '_') ||
+           (character == '$');
 }
 
 unsigned long long cli_build_run_before(const CliBuildsTextAtCfg *args)
