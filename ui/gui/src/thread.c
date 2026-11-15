@@ -97,13 +97,23 @@ typedef struct
 // the gap between two frames displayed that counts as a rest, not a late frame
 #define VIEW_GAP_IDLE_US 250000ULL
 
+typedef struct
+{
+    unsigned long long now_us;
+    unsigned int surface;
+    const CliViewOrder *order;
+    const GuiInput *input;
+    const CliViewEvent *event;
+    GuiRect part;
+} ViewThreadCtx;
+
 static ViewFrameTelemetry s_frame_telemetry;
 
 // the telemetry's line every GUI_MEMORY_MS to the error stream, as the cells' log is, its counts then cleared
-static void view_frame_telemetry_log(unsigned long long now_us)
+static void view_frame_telemetry_log(const ViewThreadCtx *args)
 {
     ViewFrameTelemetry *const told = &s_frame_telemetry;
-    if (now_us - told->line_at_us < GUI_MEMORY_MS * 1000ULL)
+    if (args->now_us - told->line_at_us < GUI_MEMORY_MS * 1000ULL)
     {
         return;
     }
@@ -163,7 +173,7 @@ static void view_frame_telemetry_log(unsigned long long now_us)
     told->draw_max_us = 0ULL;
     told->displayed_us = 0ULL;
     told->displayed_max_us = 0ULL;
-    told->line_at_us = now_us;
+    told->line_at_us = args->now_us;
 }
 
 unsigned int cli_view_hit_of(const CliViewThreadCfg *args)
@@ -262,9 +272,9 @@ unsigned int cli_view_hit(const CliViewThreadCfg *args)
 
 // On the view's thread: the buffer of `surface`'s next map, its ticket's slot granted: NULL where every slot is in
 // flight, and the frame goes with no new map
-static CliViewHits *view_hits_next(unsigned int surface)
+static CliViewHits *view_hits_next(const ViewThreadCtx *args)
 {
-    CliViewHitsTransfer *const transfer = &s_view.hits[surface];
+    CliViewHitsTransfer *const transfer = &s_view.hits[args->surface];
     const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), transfer->ticket);
     embed_u64 seen = 0u;
     // Explicit cast carries the transfer's address as the pass's entry
@@ -278,9 +288,9 @@ static CliViewHits *view_hits_next(unsigned int surface)
 }
 
 // the map positioned in the granted buffer pushed over to the system's thread
-static void view_hits_publish(unsigned int surface)
+static void view_hits_publish(const ViewThreadCtx *args)
 {
-    CliViewHitsTransfer *const transfer = &s_view.hits[surface];
+    CliViewHitsTransfer *const transfer = &s_view.hits[args->surface];
     embed_u64 seen = 0u;
     // Explicit cast carries the transfer's address as the pass's entry
     (void)embed_ticket_ring_pass_push(&s_view.hits_turnstiles, (embed_atomic_uptr_value)(embed_word)transfer,
@@ -351,14 +361,14 @@ int cli_view_order(const CliViewThreadCfg *args)
 }
 
 // an order written and the system's thread woken: 1, or 0 where the ring is full
-static int view_order_write(const CliViewOrder *order)
+static int view_order_write(const ViewThreadCtx *args)
 {
     embed_word at = 0u;
     if (!anularis.seg_next(&(AnularisCfg){.ring = &s_view.order_ring, .out_index = &at}))
     {
         return 0;
     }
-    *(CliViewOrder *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &s_view.order_ring, .index = at}) = *order;
+    *(CliViewOrder *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &s_view.order_ring, .index = at}) = *args->order;
     anularis.seg_publish(&(AnularisCfg){.ring = &s_view.order_ring});
     s_view.woken(s_view.context);
     return 1;
@@ -379,7 +389,7 @@ static void view_icons_order(void)
     {
         const CliViewOrder order = {
             .type = CLI_VIEW_ORDER_ICON, .raster = s_view.icon_small, .raster_large = s_view.icon_large};
-        (void)view_order_write(&order);
+        (void)EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order);
     }
 }
 
@@ -393,43 +403,43 @@ static void view_cursor_order(void)
         return;
     }
     const CliViewOrder order = {.type = CLI_VIEW_ORDER_CURSOR, .act = wanted};
-    if (view_order_write(&order))
+    if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
     {
         s_view.cursor_ordered = wanted;
     }
 }
 
 // an input of the main window: a window control pressed acts as the button is let go over it
-static void view_input(const GuiInput *input)
+static void view_input(const ViewThreadCtx *args)
 {
     GuiWindow *const window = &s_view.window;
     const unsigned int pressed = window->pressed;
-    const int released = input->type == GUI_INPUT_UP;
+    const int released = args->input->type == GUI_INPUT_UP;
     if (released)
     {
         window->pressed = GUI_HIT_CLIENT;
     }
-    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = window, .input = input);
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = window, .input = args->input);
     view_cursor_order();
     if (released && (pressed != GUI_HIT_CLIENT) &&
-        (EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = input) == pressed))
+        (EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = args->input) == pressed))
     {
         const unsigned int other_act = (pressed == GUI_HIT_MAXIMIZE) ? GUI_ACT_MAXIMIZE : GUI_ACT_CLOSE;
         const CliViewOrder order = {.type = CLI_VIEW_ORDER_ACT,
                                     .act = (pressed == GUI_HIT_MINIMIZE) ? GUI_ACT_MINIMIZE : other_act};
-        (void)view_order_write(&order);
+        (void)EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order);
     }
 }
 
 // a raster's showing come back: the framebuffer a whole frame was in displayed, the two flipped
-static void view_presented(unsigned int surface)
+static void view_presented(const ViewThreadCtx *args)
 {
-    if (surface == CLI_VIEW_PREFERENCES)
+    if (args->surface == CLI_VIEW_PREFERENCES)
     {
         s_view.presenting_preferences = 0;
         return;
     }
-    if (surface == CLI_VIEW_DIALOG)
+    if (args->surface == CLI_VIEW_DIALOG)
     {
         s_view.presenting_dialog = 0;
         return;
@@ -510,7 +520,7 @@ static void view_event(const CliViewEvent *event)
         }
         else
         {
-            view_input(&event->input);
+            EMBED_CALL(view_input, ViewThreadCtx, .input = &event->input);
         }
         break;
     case CLI_VIEW_EVENT_CLOSING:
@@ -530,7 +540,7 @@ static void view_event(const CliViewEvent *event)
         EMBED_CALL(gui_window_reduced.motion_wish, GuiWindowReducedCfg, .window = window, .reduced = event->flag);
         break;
     case CLI_VIEW_EVENT_PRESENTED:
-        view_presented(event->surface);
+        EMBED_CALL(view_presented, ViewThreadCtx, .surface = event->surface);
         break;
     case CLI_VIEW_EVENT_REFUSED:
         if (event->surface == CLI_VIEW_DIALOG)
@@ -581,7 +591,7 @@ static void view_preferences_follow(void)
             GUI_SCALE_ONE;
         EMBED_CALL(gui_preferences_scale.want, GuiPreferencesScaleCfg, .palette = window->palette, .scale = zoomed,
                    .width_pointer = &order.width, .height_pointer = &order.height);
-        if (view_order_write(&order))
+        if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
         {
             s_view.preferences_opened = 1;
         }
@@ -589,7 +599,7 @@ static void view_preferences_follow(void)
     else if (!window->preferences.displayed && s_view.preferences_opened)
     {
         const CliViewOrder order = {.type = CLI_VIEW_ORDER_PREFERENCES_CLOSE, .surface = CLI_VIEW_PREFERENCES};
-        if (view_order_write(&order))
+        if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
         {
             s_view.preferences_opened = 0;
             s_view.presenting_preferences = 0;
@@ -600,15 +610,15 @@ static void view_preferences_follow(void)
         EMBED_CALL(gui_window_table.preferences_draw, GuiWindowCfg, .window = window);
         if (window->preferences_raster.pixels != NULL)
         {
-            CliViewHits *const map = view_hits_next(CLI_VIEW_PREFERENCES);
+            CliViewHits *const map = EMBED_CALL(view_hits_next, ViewThreadCtx, .surface = CLI_VIEW_PREFERENCES);
             if (map != NULL)
             {
                 EMBED_CALL(gui_window_table.preferences_hits, GuiWindowHitsCfg, .window = window, .hits = map);
-                view_hits_publish(CLI_VIEW_PREFERENCES);
+                EMBED_CALL(view_hits_publish, ViewThreadCtx, .surface = CLI_VIEW_PREFERENCES);
             }
             const CliViewOrder order = {
                 .type = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_PREFERENCES, .raster = window->preferences_raster};
-            if (view_order_write(&order))
+            if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
             {
                 s_view.presenting_preferences = 1;
             }
@@ -631,7 +641,7 @@ static void view_dialog_follow(void)
             .type = CLI_VIEW_ORDER_DIALOG_OPEN, .surface = CLI_VIEW_DIALOG, .owner = window->dialog_owner};
         EMBED_CALL(gui_window_dialog_wanting.want, GuiWindowDialogWantCfg, .window = window,
                    .width_pointer = &order.width, .height_pointer = &order.height);
-        if (view_order_write(&order))
+        if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
         {
             s_view.dialog_opened = 1;
         }
@@ -640,7 +650,7 @@ static void view_dialog_follow(void)
     {
         const CliViewOrder order = {
             .type = CLI_VIEW_ORDER_DIALOG_CLOSE, .surface = CLI_VIEW_DIALOG, .owner = window->dialog_owner};
-        if (view_order_write(&order))
+        if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
         {
             s_view.dialog_opened = 0;
             s_view.presenting_dialog = 0;
@@ -651,15 +661,15 @@ static void view_dialog_follow(void)
         EMBED_CALL(gui_window_dialog_table.draw, GuiWindowCfg, .window = window);
         if (window->dialog_raster.pixels != NULL)
         {
-            CliViewHits *const map = view_hits_next(CLI_VIEW_DIALOG);
+            CliViewHits *const map = EMBED_CALL(view_hits_next, ViewThreadCtx, .surface = CLI_VIEW_DIALOG);
             if (map != NULL)
             {
                 EMBED_CALL(gui_window_dialog_hits_table.hits, GuiWindowHitsCfg, .window = window, .hits = map);
-                view_hits_publish(CLI_VIEW_DIALOG);
+                EMBED_CALL(view_hits_publish, ViewThreadCtx, .surface = CLI_VIEW_DIALOG);
             }
             const CliViewOrder order = {
                 .type = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_DIALOG, .raster = window->dialog_raster};
-            if (view_order_write(&order))
+            if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
             {
                 s_view.presenting_dialog = 1;
             }
@@ -672,18 +682,18 @@ static void view_dialog_follow(void)
 }
 
 // a part of the raster displayed, drawn over it, ordered displayed again
-static void view_part_order(GuiRect part)
+static void view_part_order(const ViewThreadCtx *args)
 {
     const GuiWindow *const window = &s_view.window;
-    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = part))
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part))
     {
         return;
     }
     const CliViewOrder order = {.type = CLI_VIEW_ORDER_PRESENT_PART,
                                 .surface = CLI_VIEW_MAIN,
-                                .part = part,
+                                .part = args->part,
                                 .raster = *((window->displayed != NULL) ? window->displayed : window->raster)};
-    s_view.presenting_main = view_order_write(&order);
+    s_view.presenting_main = EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order);
 }
 
 // what is owed of the main window drawn and ordered displayed, one at a time: a frame whole where one is owed, else the
@@ -708,20 +718,20 @@ static void view_frame(void)
                                             ? (drawn_us - draw_from_us)
                                             : s_frame_telemetry.draw_max_us;
         s_frame_telemetry.ordered_at_us = drawn_us;
-        view_frame_telemetry_log(drawn_us);
+        EMBED_CALL(view_frame_telemetry_log, ViewThreadCtx, .now_us = drawn_us);
         if (window->raster->pixels == NULL)
         {
             return;
         }
-        CliViewHits *const map = view_hits_next(CLI_VIEW_MAIN);
+        CliViewHits *const map = EMBED_CALL(view_hits_next, ViewThreadCtx, .surface = CLI_VIEW_MAIN);
         if (map != NULL)
         {
             EMBED_CALL(gui_window_table.hits, GuiWindowHitsCfg, .window = window, .hits = map);
-            view_hits_publish(CLI_VIEW_MAIN);
+            EMBED_CALL(view_hits_publish, ViewThreadCtx, .surface = CLI_VIEW_MAIN);
         }
         const CliViewOrder order = {
             .type = CLI_VIEW_ORDER_PRESENT, .surface = CLI_VIEW_MAIN, .raster = *window->raster};
-        if (view_order_write(&order))
+        if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
         {
             s_view.presenting_main = 1;
             s_view.frame_ordered = 1;
@@ -744,18 +754,20 @@ static void view_frame(void)
                                             ? (drawn_us - draw_from_us)
                                             : s_frame_telemetry.draw_max_us;
         s_frame_telemetry.ordered_at_us = drawn_us;
-        view_frame_telemetry_log(drawn_us);
-        view_part_order(part);
+        EMBED_CALL(view_frame_telemetry_log, ViewThreadCtx, .now_us = drawn_us);
+        EMBED_CALL(view_part_order, ViewThreadCtx, .part = part);
         s_view.damage_ordered = s_view.presenting_main;
         return;
     }
     if (window->caret_alone)
     {
-        view_part_order(EMBED_CALL(gui_window_table.caret_draw, GuiWindowCfg, .window = window));
+        EMBED_CALL(view_part_order, ViewThreadCtx,
+                   .part = EMBED_CALL(gui_window_table.caret_draw, GuiWindowCfg, .window = window));
     }
     if (window->busy_alone && !s_view.presenting_main)
     {
-        view_part_order(EMBED_CALL(gui_window_table.busy_draw, GuiWindowCfg, .window = window));
+        EMBED_CALL(view_part_order, ViewThreadCtx,
+                   .part = EMBED_CALL(gui_window_table.busy_draw, GuiWindowCfg, .window = window));
     }
 }
 
@@ -788,7 +800,7 @@ static void view_run(void *context)
         if (window->closing && !s_view.close_ordered)
         {
             const CliViewOrder order = {.type = CLI_VIEW_ORDER_ACT, .act = GUI_ACT_CLOSE};
-            s_view.close_ordered = view_order_write(&order);
+            s_view.close_ordered = EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order);
         }
         view_frame();
         if (EMBED_ATOMIC_LOAD(&s_view.ending) != 0u)

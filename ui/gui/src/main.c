@@ -14,6 +14,13 @@
 #define GUI_FIRST_HEIGHT 920u
 #define GUI_MONITORS 16u
 
+typedef struct
+{
+    const CliViewOrder *order;
+    unsigned int surface;
+    const VerbaLinea *err_msg;
+} MainCtx;
+
 static GuiSystem *s_system;
 static GuiSystem *s_preferences;
 static GuiSystem *s_dialog;
@@ -133,7 +140,7 @@ static void main_motion(void *context)
 
 // Preferences' window opened in the middle of the main window at the size asked, no taller than the main window; its
 // size passed to the view with the scale it is at, or the view told it was refused
-static void main_preferences_open(const CliViewOrder *order)
+static void main_preferences_open(const MainCtx *args)
 {
     static const GuiSystemEvents s_events = {main_sized,
                                              main_input,
@@ -144,10 +151,10 @@ static void main_preferences_open(const CliViewOrder *order)
                                              main_preferences_nothing};
     CliWindowPosition over;
     EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = s_system, .position_out = &over);
-    const unsigned int height = (order->height < over.height) ? order->height : over.height;
+    const unsigned int height = (args->order->height < over.height) ? args->order->height : over.height;
     // a window's sides are far inside what an int represents
-    const CliWindowPosition place = {over.x + (((int)over.width - (int)order->width) / 2),
-                                     over.y + (((int)over.height - (int)height) / 2), order->width, height, 0};
+    const CliWindowPosition place = {over.x + (((int)over.width - (int)args->order->width) / 2),
+                                     over.y + (((int)over.height - (int)height) / 2), args->order->width, height, 0};
     char error_text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     s_preferences = EMBED_CALL(gui_system_position_title.owner_open, GuiSystemPositionTitleCfg, .owner = s_system,
@@ -162,7 +169,7 @@ static void main_preferences_open(const CliViewOrder *order)
     const CliViewEvent sized = {
         .type = CLI_VIEW_EVENT_SIZED,
         .surface = CLI_VIEW_PREFERENCES,
-        .width = order->width,
+        .width = args->order->width,
         .height = height,
         .scale = EMBED_CALL(gui_system_position.scale, GuiSystemPositionCfg, .system_read = s_preferences)};
     cli_view_event(&(CliViewThreadCfg){.event = &sized});
@@ -170,7 +177,7 @@ static void main_preferences_open(const CliViewOrder *order)
 
 // The dialog's window opened modal in the middle of the window that owns it, at the size asked and no larger than the
 // owner. Its size goes to the view with the scale it is at, or the view hears that the system refused it
-static void main_dialog_open(const CliViewOrder *order)
+static void main_dialog_open(const MainCtx *args)
 {
     static const GuiSystemEvents s_events = {main_sized,
                                              main_input,
@@ -180,11 +187,11 @@ static void main_dialog_open(const CliViewOrder *order)
                                              main_preferences_displayed,
                                              main_preferences_nothing};
     GuiSystem *const owner =
-        ((order->owner == CLI_VIEW_PREFERENCES) && (s_preferences != NULL)) ? s_preferences : s_system;
+        ((args->order->owner == CLI_VIEW_PREFERENCES) && (s_preferences != NULL)) ? s_preferences : s_system;
     CliWindowPosition over;
     EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = owner, .position_out = &over);
-    const unsigned int width = (order->width < over.width) ? order->width : over.width;
-    const unsigned int height = (order->height < over.height) ? order->height : over.height;
+    const unsigned int width = (args->order->width < over.width) ? args->order->width : over.width;
+    const unsigned int height = (args->order->height < over.height) ? args->order->height : over.height;
     // a window's sides are far inside what an int represents
     const CliWindowPosition place = {over.x + (((int)over.width - (int)width) / 2),
                                      over.y + (((int)over.height - (int)height) / 2), width, height, 0};
@@ -209,30 +216,30 @@ static void main_dialog_open(const CliViewOrder *order)
 }
 
 // the system that shows `surface`, NULL where its window no longer is
-static GuiSystem *main_system_of(unsigned int surface)
+static GuiSystem *main_system_of(const MainCtx *args)
 {
-    if (surface == CLI_VIEW_PREFERENCES)
+    if (args->surface == CLI_VIEW_PREFERENCES)
     {
         return s_preferences;
     }
-    return (surface == CLI_VIEW_DIALOG) ? s_dialog : s_system;
+    return (args->surface == CLI_VIEW_DIALOG) ? s_dialog : s_system;
 }
 
 // a raster displayed on its surface, the view told once it has been; a surface no longer located has nothing to show it
 // on
-static void main_present(const CliViewOrder *order)
+static void main_present(const MainCtx *args)
 {
-    GuiSystem *const system = main_system_of(order->surface);
-    if ((system != NULL) && (order->type == CLI_VIEW_ORDER_PRESENT))
+    GuiSystem *const system = EMBED_CALL(main_system_of, MainCtx, .surface = args->order->surface);
+    if ((system != NULL) && (args->order->type == CLI_VIEW_ORDER_PRESENT))
     {
-        EMBED_CALL(gui_system_raster.present, GuiSystemRasterCfg, .system = system, .raster = &order->raster);
+        EMBED_CALL(gui_system_raster.present, GuiSystemRasterCfg, .system = system, .raster = &args->order->raster);
     }
     else if (system != NULL)
     {
-        EMBED_CALL(gui_system_raster.present_part, GuiSystemRasterCfg, .system = system, .raster = &order->raster,
-                   .part = order->part);
+        EMBED_CALL(gui_system_raster.present_part, GuiSystemRasterCfg, .system = system, .raster = &args->order->raster,
+                   .part = args->order->part);
     }
-    const CliViewEvent displayed = {.type = CLI_VIEW_EVENT_PRESENTED, .surface = order->surface};
+    const CliViewEvent displayed = {.type = CLI_VIEW_EVENT_PRESENTED, .surface = args->order->surface};
     cli_view_event(&(CliViewThreadCfg){.event = &displayed});
 }
 
@@ -247,7 +254,7 @@ static void main_woken(void *context)
         {
         case CLI_VIEW_ORDER_PRESENT:
         case CLI_VIEW_ORDER_PRESENT_PART:
-            main_present(&order);
+            EMBED_CALL(main_present, MainCtx, .order = &order);
             break;
         case CLI_VIEW_ORDER_ACT:
             EMBED_CALL(gui_system_table.act, GuiSystemCfg, .system = s_system, .act = order.act);
@@ -256,13 +263,13 @@ static void main_woken(void *context)
             EMBED_CALL(gui_system_cursor.show, GuiSystemCursorCfg, .system = s_system, .cursor = order.act);
             break;
         case CLI_VIEW_ORDER_PREFERENCES_OPEN:
-            main_preferences_open(&order);
+            EMBED_CALL(main_preferences_open, MainCtx, .order = &order);
             break;
         case CLI_VIEW_ORDER_PREFERENCES_CLOSE:
             main_preferences_close();
             break;
         case CLI_VIEW_ORDER_DIALOG_OPEN:
-            main_dialog_open(&order);
+            EMBED_CALL(main_dialog_open, MainCtx, .order = &order);
             break;
         case CLI_VIEW_ORDER_DIALOG_CLOSE:
             main_dialog_close();
@@ -278,12 +285,12 @@ static void main_woken(void *context)
 }
 
 // a line of the errors, `orior: ` before what was written
-static void main_err(const VerbaLinea *err_msg)
+static void main_err(const MainCtx *args)
 {
     char text[CLI_ERR_MSG_MAX_LEN + 8u];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "orior: ");
-    mmgr_line_put_n(&line, err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ULL);
+    mmgr_line_put_n(&line, args->err_msg->out, mmgr_line_ok(args->err_msg) ? args->err_msg->at : 0ULL);
     mmgr_line_ch(&line, '\n');
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
                .length = mmgr_line_ok(&line) ? line.at : 0ULL);
@@ -305,7 +312,7 @@ int main(void)
     const CliViewBeginCfg begin = {main_woken_elsewhere, NULL, display_width, display_height, &why};
     if (!cli_view_begin(&begin))
     {
-        main_err(&why);
+        EMBED_CALL(main_err, MainCtx, .err_msg = &why);
         return 1;
     }
     CliWindowArea areas[GUI_MONITORS];
@@ -330,7 +337,7 @@ int main(void)
                           .events = &s_events, .context = (void *)&s_main_surface, .err_msg = &why);
     if (s_system == NULL)
     {
-        main_err(&why);
+        EMBED_CALL(main_err, MainCtx, .err_msg = &why);
         cli_view_end();
         return 1;
     }

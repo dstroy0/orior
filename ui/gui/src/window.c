@@ -253,6 +253,10 @@ typedef struct
     unsigned long long *total_out;
     unsigned long long *displayed_out;
     unsigned long long *first_out;
+    double *position;
+    double to;
+    double share;
+    const GuiInput *input;
 } GuiWindowCtx;
 
 EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args);
@@ -798,12 +802,12 @@ EMBED_INLINE void window_scroll_to(const GuiWindowCtx *args)
 
 // One way of the scroll stepped by the share `share` of its distance, and stopped once it is within
 // GUI_SCROLL_STILL of a pixel of where it goes: 1 where it still moves
-EMBED_INLINE int window_scroll_toward(double *at, double to, double share)
+EMBED_INLINE int window_scroll_toward(const GuiWindowCtx *args)
 {
-    *at += (to - *at) * share;
-    if (arith_abs(to - *at) < GUI_SCROLL_STILL)
+    *args->position += (args->to - *args->position) * args->share;
+    if (arith_abs(args->to - *args->position) < GUI_SCROLL_STILL)
     {
-        *at = to;
+        *args->position = args->to;
         return 0;
     }
     return 1;
@@ -883,8 +887,10 @@ EMBED_INLINE void window_scroll_step(const GuiWindowCtx *args)
     // the scroll is where it goes at once while the eased scroll is off
     const double share = window->scroll_smooth ? (1.0 - arith_exp(-span / GUI_SCROLL_EASE_MS)) : 1.0;
     const double rows_before = arith_floor(window->scroll_down / (double)line);
-    const int down_moves = window_scroll_toward(&window->scroll_down, window->scroll_down_to, share);
-    const int across_moves = window_scroll_toward(&window->scroll_across, window->scroll_across_to, share);
+    const int down_moves = EMBED_CALL(window_scroll_toward, GuiWindowCtx, .position = &window->scroll_down,
+                                      .to = window->scroll_down_to, .share = share);
+    const int across_moves = EMBED_CALL(window_scroll_toward, GuiWindowCtx, .position = &window->scroll_across,
+                                        .to = window->scroll_across_to, .share = share);
     window->scroll_moving = down_moves || across_moves;
     // the rows crossed are few each frame, far inside what a long long represents
     const long long crossed = (long long)(arith_floor(window->scroll_down / (double)line) - rows_before);
@@ -6453,9 +6459,9 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
 }
 
 // whether Shift is down on the input
-EMBED_INLINE int window_shift(const GuiInput *input)
+EMBED_INLINE int window_shift(const GuiWindowCtx *args)
 {
-    return (input->mods & GUI_MOD_SHIFT) != 0u;
+    return (args->input->mods & GUI_MOD_SHIFT) != 0u;
 }
 
 // the right button pressed or the wheel turned at x, y: away from the menus open it closes them, as menu.js closes them
@@ -7380,7 +7386,8 @@ static void window_press(const GuiInputHandlerCfg *args)
     {
         return;
     }
-    EMBED_CALL(window_pressed, GuiWindowCtx, .window = window, .hit = &pressed, .on = window_shift(input));
+    EMBED_CALL(window_pressed, GuiWindowCtx, .window = window, .hit = &pressed,
+               .on = EMBED_CALL(window_shift, GuiWindowCtx, .input = input));
 }
 
 // the tip for the button the pointer at x, y is on, read from `hit`: a tool's label and keys over its button, a

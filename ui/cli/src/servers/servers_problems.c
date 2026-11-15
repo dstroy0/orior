@@ -68,6 +68,22 @@ typedef struct
     unsigned long long total;
 } ServersProblems;
 
+typedef struct
+{
+    unsigned int at;
+    const CarcerMovableEntry *report;
+    char *out;
+    const CliServerStoredDiagnostic *item;
+    unsigned long long capacity;
+    ServersProblemFile *file;
+    const ServersProblemFile *file_read;
+    const char *path;
+    int has_file;
+    unsigned int *found;
+    unsigned int *count;
+    unsigned int *errors;
+} ProblemsCtx;
+
 static ServersProblems s_problems;
 
 // two diagnostics in the order displayed: the worse first, then the earlier
@@ -91,66 +107,68 @@ static int problems_order(const void *one, const void *other)
 }
 
 // the file `at` of the table, read out of the table's cell
-static ServersProblemFile problems_file_at(unsigned int at)
+static ServersProblemFile problems_file_at(const ProblemsCtx *args)
 {
     ServersProblemFile file = {NULL, 0ULL, 0u, 0};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_problems.table, .offset = CLI_PROBLEMS_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
+        .cell = s_problems.table, .offset = CLI_PROBLEMS_FILE_AT(args->at), .dst = &file, .bytes = sizeof(file)});
     return file;
 }
 
 // the path of a report read out of its cell into `out`, CLI_PATH_MAX_LEN bytes: its length
-static unsigned long long problems_path(const CarcerMovableEntry *report, char *out)
+static unsigned long long problems_path(const ProblemsCtx *args)
 {
     CliServerReportHead head = {0};
     (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+        &(CarcerMovableCfg){.cell = args->report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     const unsigned long long length = g_cli_guard->movable_buf_measure(
-        &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .bytes = CLI_PATH_MAX_LEN - 1ULL});
+        &(CarcerMovableCfg){.cell = args->report, .offset = head.path_at, .bytes = CLI_PATH_MAX_LEN - 1ULL});
     (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .dst = out, .bytes = length});
-    out[length] = '\0';
+        &(CarcerMovableCfg){.cell = args->report, .offset = head.path_at, .dst = args->out, .bytes = length});
+    args->out[length] = '\0';
     return length;
 }
 
 // the message of the diagnostic `item` read out of its report's cell into `out`, `capacity` bytes, cut to the first
 // line and to what fits: its length
-static unsigned long long problems_message(const CarcerMovableEntry *report, const CliServerStoredDiagnostic *item,
-                                           char *out, unsigned long long capacity)
+static unsigned long long problems_message(const ProblemsCtx *args)
 {
     const unsigned long long length =
-        (item->message_length < (capacity - 1ULL)) ? item->message_length : (capacity - 1ULL);
+        (args->item->message_length < (args->capacity - 1ULL)) ? args->item->message_length : (args->capacity - 1ULL);
     (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = report, .offset = item->message_at, .dst = out, .bytes = length});
-    out[length] = '\0';
+        &(CarcerMovableCfg){.cell = args->report, .offset = args->item->message_at, .dst = args->out, .bytes = length});
+    args->out[length] = '\0';
     return length;
 }
 
 // the head of a file whose report has diagnostics: each message cut to its first line where it lies, the diagnostics
 // in the order displayed, written back into the report's cell, the errors counted and the name found from the path's
 // end
-static void problems_file_built(const CarcerMovableEntry *report, ServersProblemFile *file)
+static void problems_file_built(const ProblemsCtx *args)
 {
-    file->report = report;
-    file->errors = 0u;
-    file->closed = 0;
+    args->file->report = args->report;
+    args->file->errors = 0u;
+    args->file->closed = 0;
     CliServerReportHead head = {0};
     (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+        &(CarcerMovableCfg){.cell = args->report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     // the diagnostics read into a cell of this call, cut, sorted and written back
     CliServerStoredDiagnostic *const items = g_cli_guard->temporary_buf_alloc(
         ((unsigned long long)head.count + 1ULL) * sizeof(CliServerStoredDiagnostic), g_cli_servers_owner);
     for (unsigned int at = 0u; (items != NULL) && (at < head.count); at += 1u)
     {
         items[at] = (CliServerStoredDiagnostic){0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .dst = &items[at], .bytes = sizeof(items[at])});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->report,
+                                                                .offset = CLI_SERVER_REPORT_ITEM_AT(at),
+                                                                .dst = &items[at],
+                                                                .bytes = sizeof(items[at])});
         char message[CLI_PROBLEMS_MESSAGE];
-        const unsigned long long read = problems_message(report, &items[at], message, sizeof(message));
+        const unsigned long long read = EMBED_CALL(problems_message, ProblemsCtx, .report = args->report,
+                                                   .item = &items[at], .out = message, .capacity = sizeof(message));
         const unsigned long long line = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = message, .at = 0ULL, .size = read, .set = "\n");
         items[at].message_length = (line < read) ? line : items[at].message_length;
-        file->errors += (items[at].severity == CLI_PROBLEMS_ERROR) ? 1u : 0u;
+        args->file->errors += (items[at].severity == CLI_PROBLEMS_ERROR) ? 1u : 0u;
     }
     if (items != NULL)
     {
@@ -158,7 +176,7 @@ static void problems_file_built(const CarcerMovableEntry *report, ServersProblem
                    .order = problems_order);
         for (unsigned int at = 0u; at < head.count; at += 1u)
         {
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = report,
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->report,
                                                                      .offset = CLI_SERVER_REPORT_ITEM_AT(at),
                                                                      .src = &items[at],
                                                                      .bytes = sizeof(items[at])});
@@ -166,40 +184,39 @@ static void problems_file_built(const CarcerMovableEntry *report, ServersProblem
     }
     g_cli_guard->persistent_buf_release(items, g_cli_servers_owner);
     char path[CLI_PATH_MAX_LEN];
-    const unsigned long long length = problems_path(report, path);
-    file->name = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path, .at = length,
-                            .set = "/\\");
+    const unsigned long long length = EMBED_CALL(problems_path, ProblemsCtx, .report = args->report, .out = path);
+    args->file->name = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path,
+                                  .at = length, .set = "/\\");
 }
 
 // whether the report `report` is of the file at `path`
-static int problems_report_is(const CarcerMovableEntry *report, const char *path)
+static int problems_report_is(const ProblemsCtx *args)
 {
     CliServerReportHead head = {0};
     (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-    return g_cli_guard->movable_buf_compare(
-               &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .src = path, .bytes = length + 1ULL}) == 0;
+        &(CarcerMovableCfg){.cell = args->report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_PATH_MAX_LEN});
+    return g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+               .cell = args->report, .offset = head.path_at, .src = args->path, .bytes = length + 1ULL}) == 0;
 }
 
 // The table with the file of `path` taken out and `file` put at the end where `has_file`, the place the file of
 // `path` was in into `found`, the count where none did, the new table's files and errors into `count` and `errors`:
 // the new table's cell, or NULL where nothing changes or its cell could not be taken
-static const CarcerMovableEntry *problems_table_built(const char *path, const ServersProblemFile *file, int has_file,
-                                                      unsigned int *found, unsigned int *count, unsigned int *errors)
+static const CarcerMovableEntry *problems_table_built(const ProblemsCtx *args)
 {
     const unsigned int had = s_problems.count;
-    *found = had;
+    *args->found = had;
     for (unsigned int at = 0u; at < had; at += 1u)
     {
-        const ServersProblemFile one = problems_file_at(at);
-        if (problems_report_is(one.report, path))
+        const ServersProblemFile one = EMBED_CALL(problems_file_at, ProblemsCtx, .at = at);
+        if (EMBED_CALL(problems_report_is, ProblemsCtx, .report = one.report, .path = args->path))
         {
-            *found = at;
+            *args->found = at;
             break;
         }
     }
-    if ((*found == had) && !has_file)
+    if ((*args->found == had) && !args->has_file)
     {
         return NULL;
     }
@@ -209,25 +226,27 @@ static const CarcerMovableEntry *problems_table_built(const char *path, const Se
     {
         return NULL;
     }
-    *count = 0u;
-    *errors = 0u;
+    *args->count = 0u;
+    *args->errors = 0u;
     for (unsigned int at = 0u; at < had; at += 1u)
     {
-        if (at != *found)
+        if (at != *args->found)
         {
-            const ServersProblemFile one = problems_file_at(at);
+            const ServersProblemFile one = EMBED_CALL(problems_file_at, ProblemsCtx, .at = at);
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-                .cell = built, .offset = CLI_PROBLEMS_FILE_AT(*count), .src = &one, .bytes = sizeof(one)});
-            *errors += one.errors;
-            *count += 1u;
+                .cell = built, .offset = CLI_PROBLEMS_FILE_AT(*args->count), .src = &one, .bytes = sizeof(one)});
+            *args->errors += one.errors;
+            *args->count += 1u;
         }
     }
-    if (has_file)
+    if (args->has_file)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = built, .offset = CLI_PROBLEMS_FILE_AT(*count), .src = file, .bytes = sizeof(*file)});
-        *errors += file->errors;
-        *count += 1u;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = built,
+                                                                 .offset = CLI_PROBLEMS_FILE_AT(*args->count),
+                                                                 .src = args->file_read,
+                                                                 .bytes = sizeof(*args->file_read)});
+        *args->errors += args->file_read->errors;
+        *args->count += 1u;
     }
     return built;
 }
@@ -254,7 +273,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         &(CarcerMovableCfg){.cell = args->report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     if ((args->report != NULL) && (head.count != 0u) && (args->taken != NULL))
     {
-        problems_file_built(args->report, &report.file);
+        EMBED_CALL(problems_file_built, ProblemsCtx, .report = args->report, .file = &report.file);
         report.has_file = 1;
         *args->taken = 1;
     }
@@ -368,12 +387,14 @@ static int problems_taken(void)
         unsigned int count = 0u;
         unsigned int errors = 0u;
         const CarcerMovableEntry *const built =
-            problems_table_built(report.path, &report.file, report.has_file, &found, &count, &errors);
+            EMBED_CALL(problems_table_built, ProblemsCtx, .path = report.path, .file_read = &report.file,
+                       .has_file = report.has_file, .found = &found, .count = &count, .errors = &errors);
         if (built != NULL)
         {
             if (found < s_problems.count)
             {
-                cli_servers_report_release(&(CliServersReportCfg){.report = problems_file_at(found).report});
+                cli_servers_report_release(
+                    &(CliServersReportCfg){.report = EMBED_CALL(problems_file_at, ProblemsCtx, .at = found).report});
             }
             if (s_problems.table != NULL)
             {
@@ -415,7 +436,8 @@ void cli_servers_problems_end(void)
     (void)problems_taken();
     for (unsigned int at = 0u; at < s_problems.count; at += 1u)
     {
-        cli_servers_report_release(&(CliServersReportCfg){.report = problems_file_at(at).report});
+        cli_servers_report_release(
+            &(CliServersReportCfg){.report = EMBED_CALL(problems_file_at, ProblemsCtx, .at = at).report});
     }
     if (s_problems.table != NULL)
     {
@@ -432,7 +454,7 @@ CliProblemsCounts cli_servers_problems_counts(void)
     CliProblemsCounts counts = {0u, 0u, s_problems.errors, s_problems.done, s_problems.total, 0u};
     for (unsigned int at = 0u; at < s_problems.count; at += 1u)
     {
-        const ServersProblemFile file = problems_file_at(at);
+        const ServersProblemFile file = EMBED_CALL(problems_file_at, ProblemsCtx, .at = at);
         CliServerReportHead head = {0};
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = file.report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
@@ -457,14 +479,14 @@ int cli_servers_problems_row(const CliServersProblemsCfg *args)
     unsigned int first = 0u;
     for (unsigned int place = 0u; place < s_problems.count; place += 1u)
     {
-        const ServersProblemFile file = problems_file_at(place);
+        const ServersProblemFile file = EMBED_CALL(problems_file_at, ProblemsCtx, .at = place);
         CliServerReportHead head = {0};
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = file.report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
         const unsigned int under = file.closed ? 0u : head.count;
         if (args->at == first)
         {
-            (void)problems_path(file.report, s_path);
+            (void)EMBED_CALL(problems_path, ProblemsCtx, .report = file.report, .out = s_path);
             *args->row = (CliProblemRow){1,
                                          s_path,
                                          s_path + file.name,
@@ -486,8 +508,10 @@ int cli_servers_problems_row(const CliServersProblemsCfg *args)
                                     .offset = CLI_SERVER_REPORT_ITEM_AT(args->at - first - 1u),
                                     .dst = &item,
                                     .bytes = sizeof(item)});
-            (void)problems_path(file.report, s_path);
-            const unsigned long long length = problems_message(file.report, &item, s_message, sizeof(s_message));
+            (void)EMBED_CALL(problems_path, ProblemsCtx, .report = file.report, .out = s_path);
+            const unsigned long long length =
+                EMBED_CALL(problems_message, ProblemsCtx, .report = file.report, .item = &item, .out = s_message,
+                           .capacity = sizeof(s_message));
             *args->row = (CliProblemRow){0,      s_path,         "",           0ULL, 0u, 0, item.severity, s_message,
                                          length, item.from_line, item.from_col};
             return 1;
@@ -501,8 +525,8 @@ int cli_servers_problems_span(const CliServersProblemsCfg *args)
 {
     for (unsigned int place = 0u; (args->path != NULL) && (place < s_problems.count); place += 1u)
     {
-        const CarcerMovableEntry *const report = problems_file_at(place).report;
-        if (problems_report_is(report, args->path))
+        const CarcerMovableEntry *const report = EMBED_CALL(problems_file_at, ProblemsCtx, .at = place).report;
+        if (EMBED_CALL(problems_report_is, ProblemsCtx, .report = report, .path = args->path))
         {
             CliServerReportHead head = {0};
             (void)g_cli_guard->movable_buf_read(
@@ -526,7 +550,7 @@ int cli_servers_problems_press(const CliServersProblemsCfg *args)
     unsigned int first = 0u;
     for (unsigned int place = 0u; place < s_problems.count; place += 1u)
     {
-        ServersProblemFile file = problems_file_at(place);
+        ServersProblemFile file = EMBED_CALL(problems_file_at, ProblemsCtx, .at = place);
         if (args->at == first)
         {
             file.closed = !file.closed;

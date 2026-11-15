@@ -37,41 +37,7 @@ typedef struct
     unsigned int capacity;
 } CliReachRead;
 
-// `entry` added to the windows read, the entries' cell grown to twice its capacity where it is full; nothing where
-// the cells refuse the growth
-static void reach_entry_add(CliReachRead *read, const CliReachEntry *entry)
-{
-    if (read->count == read->capacity)
-    {
-        const unsigned int capacity = (read->capacity != 0u) ? read->capacity * 2u : 4u;
-        const CarcerMovableEntry *const grown =
-            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliReachEntry), g_cli_machine_owner);
-        if (grown == NULL)
-        {
-            return;
-        }
-        for (unsigned int at = 0u; at < read->count; at += 1u)
-        {
-            CliReachEntry one;
-            memor.set(&(MemoriaCfg){.dst = &one, .val = 0, .bytes = sizeof(one)});
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = read->entries, .offset = (embed_word)at * sizeof(one), .dst = &one, .bytes = sizeof(one)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-                .cell = grown, .offset = (embed_word)at * sizeof(one), .src = &one, .bytes = sizeof(one)});
-        }
-        if (read->entries != NULL)
-        {
-            (void)g_cli_guard->movable_buf_release(read->entries, g_cli_machine_owner);
-        }
-        read->entries = grown;
-        read->capacity = capacity;
-    }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = read->entries,
-                                                             .offset = (embed_word)read->count * sizeof(*entry),
-                                                             .src = entry,
-                                                             .bytes = sizeof(*entry)});
-    read->count += 1u;
-}
+typedef struct CliReachCommand CliReachCommand;
 
 typedef struct
 {
@@ -90,7 +56,55 @@ typedef struct
     unsigned int count;
     CliReachAnswer *answer;
     VerbaLinea *err_msg;
+    CliReachRead *read;
+    const CliReachEntry *entry;
+    CliReachCommand *message;
+    const CliReachCommand *message_read;
+    embed_u64 stamp;
+    const char *id;
+    char mark;
+    const char *text;
 } ReachCtx;
+
+// `entry` added to the windows read, the entries' cell grown to twice its capacity where it is full; nothing where
+// the cells refuse the growth
+static void reach_entry_add(const ReachCtx *args)
+{
+    if (args->read->count == args->read->capacity)
+    {
+        const unsigned int capacity = (args->read->capacity != 0u) ? args->read->capacity * 2u : 4u;
+        const CarcerMovableEntry *const grown =
+            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliReachEntry), g_cli_machine_owner);
+        if (grown == NULL)
+        {
+            return;
+        }
+        for (unsigned int at = 0u; at < args->read->count; at += 1u)
+        {
+            CliReachEntry one;
+            memor.set(&(MemoriaCfg){.dst = &one, .val = 0, .bytes = sizeof(one)});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->read->entries,
+                                                                    .offset = (embed_word)at * sizeof(one),
+                                                                    .dst = &one,
+                                                                    .bytes = sizeof(one)});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = grown, .offset = (embed_word)at * sizeof(one), .src = &one, .bytes = sizeof(one)});
+        }
+        if (args->read->entries != NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(args->read->entries, g_cli_machine_owner);
+        }
+        args->read->entries = grown;
+        args->read->capacity = capacity;
+    }
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->read->entries,
+                            .offset = (embed_word)args->read->count * sizeof(*args->entry),
+                            .src = args->entry,
+                            .bytes = sizeof(*args->entry)});
+    args->read->count += 1u;
+}
+
 // the folder windows are stored in, under `home`, into `folder`
 EMBED_INLINE void reach_folder(const ReachCtx *args)
 {
@@ -219,7 +233,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
         if (((mmgr_line_finish(&root) != 0ULL) || !one->has_root) && (mmgr_line_finish(&address) != 0ULL) &&
             (mmgr_line_finish(&key) != 0ULL))
         {
-            reach_entry_add(read, one);
+            EMBED_CALL(reach_entry_add, ReachCtx, .read = read, .entry = one);
         }
     }
     g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
@@ -399,7 +413,7 @@ int cli_reach_request(const CliReachMenuCfg *args)
 // A command come through the interface, on the stack of the interface's thread that read it, every text a place in the
 // body that thread received, which is as it was until the command is done: its id and name, its words, whether the
 // window ran it, and its done word, which the interface's thread sleeps on
-typedef struct
+struct CliReachCommand
 {
     const char *id;
     const char *command;
@@ -407,7 +421,7 @@ typedef struct
     unsigned int words;
     int ran;
     embed_atomic_word done;
-} CliReachCommand;
+};
 
 // The interface: the ticket ring the interface's threads push their commands on and the window's thread pops them off
 // in the order of their tickets, its turnstiles, its slots the interface's part of the rings block; the next ticket a
@@ -438,10 +452,10 @@ EMBED_INLINE void (*reach_woken(embed_atomic_uptr_value word))(void)
 }
 
 // a command's thread woken: its command done, or its answer held
-static void reach_wake(CliReachCommand *command)
+static void reach_wake(const ReachCtx *args)
 {
-    embed_atomic_word_store(&command->done, 1u);
-    embed_word_wake(&command->done);
+    embed_atomic_word_store(&args->message->done, 1u);
+    embed_word_wake(&args->message->done);
 }
 
 // The next command popped off the ring, into `command_out` with its stamp into `stamp_out`: 1 where the slot of the
@@ -467,11 +481,11 @@ static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
 
 // a popped command's slot released once every pass begun before it has ended, the window's next ticket moved past it
 // and a interface's thread waiting for room woken
-static void reach_released(embed_u64 stamp)
+static void reach_released(const ReachCtx *args)
 {
     embed_u64 seen = 0u;
-    (void)embed_ticket_ring_drain_release(&s_interface.turnstiles, &s_interface.ring, stamp, &seen);
-    embed_atomic_u32_store(&s_interface.taken, embed_ticket_of_stamp(stamp) + 1u);
+    (void)embed_ticket_ring_drain_release(&s_interface.turnstiles, &s_interface.ring, args->stamp, &seen);
+    embed_atomic_u32_store(&s_interface.taken, embed_ticket_of_stamp(args->stamp) + 1u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_interface.room);
 }
 
@@ -484,8 +498,8 @@ static void reach_refused_all(void)
     while (reach_popped(&command, &stamp))
     {
         command->ran = 0;
-        reach_released(stamp);
-        reach_wake(command);
+        EMBED_CALL(reach_released, ReachCtx, .stamp = stamp);
+        EMBED_CALL(reach_wake, ReachCtx, .message = command);
     }
 }
 
@@ -595,19 +609,19 @@ int cli_reach_open(const CliReachCfg *args)
 }
 
 // an answer sent on a command's own channel: the byte `mark`, then `text` where it is not NULL
-static void reach_answer_text(const char *id, char mark, const char *text)
+static void reach_answer_text(const ReachCtx *args)
 {
     char channel[CLI_NAME_MAX_LEN];
     VerbaLinea channel_line = {channel, sizeof(channel), 0ULL};
     mmgr_line_put(&channel_line, "answer/");
-    mmgr_line_put(&channel_line, id);
+    mmgr_line_put(&channel_line, args->id);
     (void)mmgr_line_finish(&channel_line);
     char sent[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea body = {sent, sizeof(sent), 0ULL};
-    mmgr_line_ch(&body, mark);
-    if (text != NULL)
+    mmgr_line_ch(&body, args->mark);
+    if (args->text != NULL)
     {
-        mmgr_line_put(&body, text);
+        mmgr_line_put(&body, args->text);
     }
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
@@ -619,27 +633,27 @@ static void reach_answer_text(const char *id, char mark, const char *text)
 
 // what a command came to, sent on its own channel: `1` where it ran, else `0` and why: the window has no such command,
 // or the window refused it
-static void reach_answer(const CliReachCommand *command)
+static void reach_answer(const ReachCtx *args)
 {
-    if (command->ran == 1)
+    if (args->message_read->ran == 1)
     {
-        reach_answer_text(command->id, CLI_REACH_DONE, NULL);
+        EMBED_CALL(reach_answer_text, ReachCtx, .id = args->message_read->id, .mark = CLI_REACH_DONE, .text = NULL);
         return;
     }
     char why[CLI_NAME_MAX_LEN + 64u];
     VerbaLinea line = {why, sizeof(why), 0ULL};
-    if (command->ran == CLI_REACH_NONE)
+    if (args->message_read->ran == CLI_REACH_NONE)
     {
-        mmgr_line_put(&line, command->command);
+        mmgr_line_put(&line, args->message_read->command);
         mmgr_line_put(&line, " is not a command of the window's");
     }
     else
     {
         mmgr_line_put(&line, "the window refused ");
-        mmgr_line_put(&line, command->command);
+        mmgr_line_put(&line, args->message_read->command);
     }
     (void)mmgr_line_finish(&line);
-    reach_answer_text(command->id, CLI_REACH_REFUSED, why);
+    EMBED_CALL(reach_answer_text, ReachCtx, .id = args->message_read->id, .mark = CLI_REACH_REFUSED, .text = why);
 }
 
 int cli_reach_take(const CliReachCfg *args)
@@ -661,15 +675,16 @@ int cli_reach_take(const CliReachCfg *args)
             VerbaLinea id_line = {s_interface.held_id, sizeof(s_interface.held_id), 0ULL};
             mmgr_line_put(&id_line, command->id);
             s_interface.held = mmgr_line_finish(&id_line) != 0ULL;
-            reach_answer_text(command->id, s_interface.held ? CLI_REACH_HELD : CLI_REACH_REFUSED,
-                              s_interface.held ? NULL : "the command's id does not fit what the window retains");
+            EMBED_CALL(reach_answer_text, ReachCtx, .id = command->id,
+                       .mark = s_interface.held ? CLI_REACH_HELD : CLI_REACH_REFUSED,
+                       .text = s_interface.held ? NULL : "the command's id does not fit what the window retains");
         }
         else
         {
-            reach_answer(command);
+            EMBED_CALL(reach_answer, ReachCtx, .message_read = command);
         }
-        reach_released(stamp);
-        reach_wake(command);
+        EMBED_CALL(reach_released, ReachCtx, .stamp = stamp);
+        EMBED_CALL(reach_wake, ReachCtx, .message = command);
     }
     return taken;
 }
@@ -681,7 +696,8 @@ void cli_reach_held_answer(const CliReachCfg *args)
         return;
     }
     s_interface.held = 0;
-    reach_answer_text(s_interface.held_id, args->done ? CLI_REACH_DONE : CLI_REACH_REFUSED, args->text);
+    EMBED_CALL(reach_answer_text, ReachCtx, .id = s_interface.held_id,
+               .mark = args->done ? CLI_REACH_DONE : CLI_REACH_REFUSED, .text = args->text);
 }
 
 void cli_reach_close(void)
