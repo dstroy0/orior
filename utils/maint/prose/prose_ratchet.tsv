@@ -27,7 +27,6 @@ includes/window/sides.h	2
 includes/window/tip.c	4
 includes/window/tip.h	1
 includes/window/top_menu.c	1
-utils/test/harness_package.py	1
 utils/test/src/ui/cli/unit/job_runs/test_job_runs/test_job_runs.c	1
 utils/test/src/ui/cli/unit/notebook_cells/test_notebook_cells/test_notebook_cells.c	1
 utils/test/src/ui/gui/menubar_test.c	1

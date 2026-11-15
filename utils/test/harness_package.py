@@ -81,8 +81,8 @@ def libraries_resolved(into, cli_name, gui_name):
 def install_checked(bundle, cli_name, gui_name, suffix, windows):
     """The bundle installed into build/package/check_install with every question answered on the command line, the
     install folder read for what the install says it places, and the install taken out again: 0, or 1 with what is
-    missing printed. The uninstall on Windows removes the folder a moment after its program ends, so the folder is
-    read again for a few seconds."""
+    missing printed. The uninstall on Windows removes the folder a moment after its program ends; the folder is
+    therefore read again for a few seconds."""
     import time
 
     into = os.path.join(ROOT, "build", "package", "check_install")
