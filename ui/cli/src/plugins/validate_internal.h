@@ -127,6 +127,15 @@ typedef struct
     unsigned long long type_size;
 } CliProverMessage;
 
+// An axiom answer the last check gave: where the theorem's name and its list of axioms are in the messages' texts
+typedef struct
+{
+    unsigned long long name;
+    unsigned long long name_size;
+    unsigned long long list;
+    unsigned long long list_size;
+} CliAxioms;
+
 // The messages of one check and the texts they take
 typedef struct
 {
@@ -248,11 +257,11 @@ unsigned int cli_validate_grown_keys(const CliValidateCtx *args);
 int cli_validate_command_for(const CliValidateProgramCtx *args);
 int cli_validate_check(const CliValidateErrMsgCtx *args);
 
-// the last check's messages: each axiom answer recorded, each barrier's error passed over, and the rest the
-// mathematics, each a finding: the count of axiom answers; and each axiom a theorem rests on past those trusted
-// reported, as a finding where the proof does not are on a gap the prover put there, the theorem's name into
-// `untrusted` (validate_axioms.c)
-unsigned int cli_validate_mathematics(void);
+// the last check's messages: each axiom answer recorded in `axioms`, which the caller sizes to the messages, each
+// barrier's error passed over, and the rest the mathematics, each a finding: the count of axiom answers; and each
+// axiom a theorem rests on past those trusted reported, as a finding where the proof does not are on a gap the prover
+// put there, the theorem's name into `untrusted` (validate_axioms.c)
+unsigned int cli_validate_mathematics(const CliValidateAnswersCtx *args);
 void cli_validate_axioms_report(const CliValidateAnswersCtx *args);
 
 // the first barrier of the name barrier `at` has, which is for that name's limit (validate.c)
@@ -345,6 +354,7 @@ struct CliValidateAnswersCtx
 {
     unsigned int answers;
     VerbaLinea *untrusted;
+    CliAxioms *axioms;
 };
 
 struct CliValidateMessagesCtx

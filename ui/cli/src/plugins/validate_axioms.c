@@ -5,16 +5,8 @@
 #include "../text/text.h"
 #include "validate_internal.h"
 
-// An axiom answer the last check gave: where the theorem's name and its list of axioms are in the messages' texts
-typedef struct
-{
-    unsigned long long name;
-    unsigned long long name_size;
-    unsigned long long list;
-    unsigned long long list_size;
-} CliAxioms;
-
-// A theorem's declaration found in the code: its axiom answer, and its line and column
+// A theorem's declaration found in the code: its axiom answer, and its line and column. The declarations are a cell
+// of the report's call sized to the answers
 typedef struct
 {
     unsigned int axioms;
@@ -22,10 +14,7 @@ typedef struct
     unsigned int col;
 } CliDeclared;
 
-static CliAxioms s_axioms[CLI_VALIDATE_THEOREMS];
-static CliDeclared s_declared[CLI_VALIDATE_THEOREMS];
-
-unsigned int cli_validate_mathematics(void)
+unsigned int cli_validate_mathematics(const CliValidateAnswersCtx *args)
 {
     const CliProverMessages *const last = &g_cli_validate->last;
     unsigned int answers = 0u;
@@ -34,9 +23,9 @@ unsigned int cli_validate_mathematics(void)
         const CliProverMessage *const message = &last->message[at];
         if (message->line >= g_cli_validate->lines)
         {
-            CliAxioms *const axioms = &s_axioms[answers];
-            if ((answers < CLI_VALIDATE_THEOREMS) &&
-                EMBED_CALL(cli_validate_text_internal.axioms_get, CliValidateTextCtx,
+            // an answer a message: the caller's cell holds one for each message
+            CliAxioms *const axioms = &args->axioms[answers];
+            if (EMBED_CALL(cli_validate_text_internal.axioms_get, CliValidateTextCtx,
                            .text = last->text + message->text, .size = message->text_size, .name = &axioms->name,
                            .name_size = &axioms->name_size, .list = &axioms->list, .list_size = &axioms->list_size))
             {
@@ -75,6 +64,8 @@ typedef struct
     int *any_gap;
     unsigned int line;
     unsigned int ends;
+    const CliAxioms *axioms;
+    CliDeclared *list;
 } ValidateAxiomsCtx;
 // whether `size` bytes of `text` and `length` bytes of `other` are the same
 EMBED_INLINE int report_same(const ValidateAxiomsCtx *args)
@@ -93,7 +84,8 @@ EMBED_INLINE unsigned long long report_short(const ValidateAxiomsCtx *args)
     return start;
 }
 
-// each theorem's declaration found in the code, and the lines it runs to, up to the next theorem's: their count
+// each theorem's declaration found in the code into `list`, in the order of their lines, and the lines it runs to, up
+// to the next theorem's: their count, one at most for each of the `answers` in `axioms`
 EMBED_INLINE unsigned int report_declare(const ValidateAxiomsCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
@@ -102,8 +94,8 @@ EMBED_INLINE unsigned int report_declare(const ValidateAxiomsCtx *args)
     unsigned int count = 0u;
     for (unsigned int answer = 0u; answer < args->answers; answer += 1u)
     {
-        const char *const name = text + s_axioms[answer].name;
-        const unsigned long long size = s_axioms[answer].name_size;
+        const char *const name = text + args->axioms[answer].name;
+        const unsigned long long size = args->axioms[answer].name_size;
         const unsigned long long cut = EMBED_CALL(report_short, ValidateAxiomsCtx, .name = name, .size = size);
         for (unsigned int at = 0u; at + 1u < g_cli_validate->word_count; at += 1u)
         {
@@ -121,12 +113,12 @@ EMBED_INLINE unsigned int report_declare(const ValidateAxiomsCtx *args)
             }
             // in the order of their lines, as a stable sort orders them
             unsigned int place = count;
-            while ((place > 0u) && (s_declared[place - 1u].line > next->line))
+            while ((place > 0u) && (args->list[place - 1u].line > next->line))
             {
-                s_declared[place] = s_declared[place - 1u];
+                args->list[place] = args->list[place - 1u];
                 place -= 1u;
             }
-            s_declared[place] = (CliDeclared){answer, next->line, next->col};
+            args->list[place] = (CliDeclared){answer, next->line, next->col};
             count += 1u;
             break;
         }
@@ -134,15 +126,16 @@ EMBED_INLINE unsigned int report_declare(const ValidateAxiomsCtx *args)
     return count;
 }
 
-// the place among the `declared` declarations of the axiom named by `name`, `size` bytes of the last answer's text:
-// `declared` where none names it
+// the place among the `declared` declarations of `list` of the axiom named by `name`, `size` bytes of the last
+// answer's text: `declared` where none names it
 EMBED_INLINE unsigned int report_declared_at(const ValidateAxiomsCtx *args)
 {
     const char *const text = g_cli_validate->last.text;
     unsigned int at = 0u;
     while ((at < args->declared) &&
-           !EMBED_CALL(report_same, ValidateAxiomsCtx, .text = text + s_axioms[s_declared[at].axioms].name,
-                       .size = s_axioms[s_declared[at].axioms].name_size, .other = args->name, .length = args->size))
+           !EMBED_CALL(report_same, ValidateAxiomsCtx, .text = text + args->axioms[args->list[at].axioms].name,
+                       .size = args->axioms[args->list[at].axioms].name_size, .other = args->name,
+                       .length = args->size))
     {
         at += 1u;
     }
@@ -176,8 +169,8 @@ EMBED_INLINE int report_axioms_listed(const ValidateAxiomsCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
     const GuiTool *const tool = &g_cli_validate->tool;
-    const char *const list = g_cli_validate->last.text + s_axioms[args->answer].list;
-    const unsigned long long list_size = s_axioms[args->answer].list_size;
+    const char *const list = g_cli_validate->last.text + args->axioms[args->answer].list;
+    const unsigned long long list_size = args->axioms[args->answer].list_size;
     int others = 0;
     for (unsigned long long from = 0ULL; from <= list_size;)
     {
@@ -236,26 +229,38 @@ EMBED_INLINE int report_failed(const ValidateAxiomsCtx *args)
 void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
 {
     const char *const text = g_cli_validate->last.text;
-    const unsigned int declared = EMBED_CALL(report_declare, ValidateAxiomsCtx, .answers = args->answers);
+    if (args->answers == 0u)
+    {
+        return;
+    }
+    // the declarations in a cell of the call, one at most for each answer
+    CliDeclared *const list =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)args->answers * sizeof(CliDeclared), g_cli_plugins_owner);
+    if (list == NULL)
+    {
+        return;
+    }
+    const unsigned int declared =
+        EMBED_CALL(report_declare, ValidateAxiomsCtx, .answers = args->answers, .axioms = args->axioms, .list = list);
     for (unsigned int answer = 0u; answer < args->answers; answer += 1u)
     {
-        const char *const name = text + s_axioms[answer].name;
-        const unsigned long long size = s_axioms[answer].name_size;
-        const unsigned int at =
-            EMBED_CALL(report_declared_at, ValidateAxiomsCtx, .declared = declared, .name = name, .size = size);
+        const char *const name = text + args->axioms[answer].name;
+        const unsigned long long size = args->axioms[answer].name_size;
+        const unsigned int at = EMBED_CALL(report_declared_at, ValidateAxiomsCtx, .declared = declared, .name = name,
+                                           .size = size, .axioms = args->axioms, .list = list);
         char msg_buf[16384];
         VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ULL};
         int all_gaps = 1;
         int any_gap = 0;
         const int others = EMBED_CALL(report_axioms_listed, ValidateAxiomsCtx, .answer = answer, .out = &msg,
-                                      .all_gaps = &all_gaps, .any_gap = &any_gap);
+                                      .all_gaps = &all_gaps, .any_gap = &any_gap, .axioms = args->axioms);
         if (!others || (at == declared))
         {
             continue;
         }
-        const unsigned int line = s_declared[at].line;
-        const unsigned int col = s_declared[at].col;
-        const unsigned int ends = (at + 1u < declared) ? s_declared[at + 1u].line : 0xffffffffu;
+        const unsigned int line = list[at].line;
+        const unsigned int col = list[at].col;
+        const unsigned int ends = (at + 1u < declared) ? list[at + 1u].line : 0xffffffffu;
         if (all_gaps && EMBED_CALL(report_failed, ValidateAxiomsCtx, .line = line, .ends = ends))
         {
             continue;
@@ -277,4 +282,5 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
         EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = message, .length = message_line.at, .lifted = NULL);
     }
+    g_cli_guard->persistent_buf_release(list, g_cli_plugins_owner);
 }

@@ -195,6 +195,30 @@ void test_a_theorems_axioms_are_read(void)
     CLI_TEST_ASSERT_TEXT("propext, sorryAx", text + list, list_size);
 }
 
+void test_a_theorems_untrusted_axioms_are_reported_at_its_declaration(void)
+{
+    static const char s_code[] = "theorem one : True := trivial\n";
+    static const char s_answers[] = "{\"severity\":\"information\",\"pos\":{\"line\":9,\"column\":0},\"endPos\":null,\"fileName\":\"x.lean\","
+                                    "\"data\":\"'one' depends on axioms: [propext, sorryAx]\",\"caption\":\"\"}\n";
+    static char s_untrusted[256];
+    code_read(s_code);
+    cli_validate_theorems_in();
+    g_cli_validate->finding_count = 0u;
+    g_cli_validate->finding_used = 0ull;
+    EMBED_CALL(cli_validate_size_internal.messages_get, CliValidateSizeCtx, .output = s_answers, .size = sizeof(s_answers) - 1u, .messages = &g_cli_validate->last);
+    // the answers' cell, one for each message, as the report takes it
+    CliAxioms axioms[1];
+    const unsigned int answers = cli_validate_mathematics(&(CliValidateAnswersCtx){.axioms = axioms});
+    TEST_ASSERT_EQUAL_UINT(1u, answers);
+    VerbaLinea untrusted = {s_untrusted, sizeof(s_untrusted), 0ull};
+    EMBED_CALL(cli_validate_answers_internal.axioms_report, CliValidateAnswersCtx, .answers = answers, .untrusted = &untrusted, .axioms = axioms);
+    TEST_ASSERT_EQUAL_UINT(1u, g_cli_validate->finding_count);
+    TEST_ASSERT_EQUAL_STRING("axiom", g_cli_validate->findings[0].type);
+    TEST_ASSERT_EQUAL_UINT(0u, g_cli_validate->findings[0].line);
+    CLI_TEST_ASSERT_TEXT("one", s_untrusted, untrusted.at);
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = g_cli_validate->finding_text + g_cli_validate->findings[0].message, .other = "one rests on sorryAx", .cap = CLI_POOL_BYTES}));
+}
+
 void test_a_theorem_with_no_axioms_is_read(void)
 {
     static const char s_none[] = "'t' does not depend on any axioms";

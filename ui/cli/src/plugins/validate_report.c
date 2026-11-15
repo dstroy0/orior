@@ -339,14 +339,22 @@ void cli_validate_report(const CliValidateProjectCtx *args)
     static char s_untrusted[1u << 16u];
     VerbaLinea untrusted = {s_untrusted, sizeof(s_untrusted), 0ULL};
     report_barriers();
-    const unsigned int answers = cli_validate_mathematics();
+    // the axiom answers in a cell of the call, one at most for each of the last check's messages
+    const unsigned long long counted = (g_cli_validate->last.count != 0u) ? g_cli_validate->last.count : 1u;
+    CliAxioms *const axioms = g_cli_guard->temporary_buf_alloc(counted * sizeof(CliAxioms), g_cli_plugins_owner);
+    if (axioms == NULL)
+    {
+        return;
+    }
+    const unsigned int answers = cli_validate_mathematics(&(CliValidateAnswersCtx){.axioms = axioms});
     cli_validate_flags_in();
     if (g_cli_validate->tool.audited)
     {
         report_repeats();
         EMBED_CALL(cli_validate_answers_internal.axioms_report, CliValidateAnswersCtx, .answers = answers,
-                   .untrusted = &untrusted);
+                   .untrusted = &untrusted, .axioms = axioms);
     }
+    g_cli_guard->persistent_buf_release(axioms, g_cli_plugins_owner);
     EMBED_CALL(report_sort, ValidateReportCtx, .from = 0u, .to = g_cli_validate->finding_count);
     unsigned long long math = 0ULL;
     unsigned long long blocked = 0ULL;
