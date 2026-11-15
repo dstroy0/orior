@@ -107,8 +107,21 @@ unsigned int cli_toolchains_for_system(const CliToolchainsJsonMapCfg *args);
 // CLI_PATH_MAX_LEN: 1, or 0 where it contains none; the same of a tool's `programs`
 int cli_toolchains_program_in(const CliToolchainsDirCfg *args);
 int cli_toolchains_tool_program_in(const CliToolchainsJsonDirCfg *args);
+// A list of paths in a cell of its capacity, grown as paths are added: the paths, how many there are and the
+// capacity; `{NULL, 0u, 0u}` is the empty list
+typedef struct
+{
+    char (*at)[CLI_PATH_MAX_LEN];
+    unsigned int count;
+    unsigned int capacity;
+} CliToolchainsPaths;
+// `path` added at the end of `paths`, the cell grown to twice its capacity where it does not fit: 1, or 0 where
+// the path does not fit CLI_PATH_MAX_LEN bytes or the cells refuse the growth, the list as it was; and the list's
+// cell given back and the list emptied
+int cli_toolchains_paths_add(CliToolchainsPaths *paths, const char *path);
+void cli_toolchains_paths_release(CliToolchainsPaths *paths);
 // the folders a pattern of toolchains.json names, newest first where a * is for a version, each that is a folder
-// into `folders` from `count`, sized for `capacity`: the count after
+// added to `paths`: their count after
 unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args);
 // a folder as PATH entries are compared into `key`, sized for CLI_PATH_MAX_LEN: without a trailing separator, and
 // case aside on Windows
@@ -180,8 +193,8 @@ typedef struct
 // folders outgrow it; and the folders of the PATH a program gets when it is opened on its own, the same way
 CliToolchainsFolders cli_toolchains_run_folders(void);
 CliToolchainsFolders cli_toolchains_system_folders(void);
-// the folders that exist of those written by system as `positions` writes them, each pattern's in order, put into
-// `folders` from `count`: the count after
+// the folders that exist of those written by system as `positions` writes them, each pattern's in order, added to
+// `paths`: their count after
 unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args);
 // `path` with `folder` added at its end into `out`, sized for `size`: 1, or 0 where it is there already
 int cli_toolchains_join(const CliToolchainsFolderCfg *args);
@@ -225,9 +238,7 @@ struct CliToolchainsJsonCfg
 struct CliToolchainsJsonCountCfg
 {
     const CliJson *json;
-    unsigned int count;
-    char (*folders)[CLI_PATH_MAX_LEN];
-    unsigned int capacity;
+    CliToolchainsPaths *paths;
     unsigned int by_system;
 };
 
@@ -261,6 +272,7 @@ struct CliToolchainsCountCfg
     const char *pattern;
     char (*folders)[CLI_PATH_MAX_LEN];
     unsigned int capacity;
+    CliToolchainsPaths *paths;
 };
 
 struct CliToolchainsFolderCfg

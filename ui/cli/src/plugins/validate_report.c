@@ -7,8 +7,6 @@
 
 #include "../text/text.h"
 
-static CliFinding s_sorting[CLI_VALIDATE_FINDINGS];
-
 void cli_validate_finding_append(const CliValidateLengthCtx *args)
 {
     const char *message = args->message_text;
@@ -52,6 +50,7 @@ typedef struct
     unsigned long long blocked;
     const VerbaLinea *untrusted;
     const CliFinding *finding;
+    CliFinding *sorting;
 } ValidateReportCtx;
 // a limit written as `<name> <value>`, nothing where it was not grown
 EMBED_INLINE void report_setting(const ValidateReportCtx *args)
@@ -162,7 +161,8 @@ static void report_repeats(void)
     g_cli_validate->finding_count = count;
 }
 
-// the findings in the order of their places, as a stable sort orders them, from `from` to `to`
+// the findings in the order of their places, as a stable sort orders them, from `from` to `to`, merged through
+// `sorting`, a cell of as many findings as there are
 static void report_sort(const ValidateReportCtx *args)
 {
     if (args->to - args->from < 2u)
@@ -170,9 +170,10 @@ static void report_sort(const ValidateReportCtx *args)
         return;
     }
     const unsigned int middle = args->from + ((args->to - args->from) / 2u);
-    EMBED_CALL(report_sort, ValidateReportCtx, .from = args->from, .to = middle);
-    EMBED_CALL(report_sort, ValidateReportCtx, .from = middle, .to = args->to);
+    EMBED_CALL(report_sort, ValidateReportCtx, .from = args->from, .to = middle, .sorting = args->sorting);
+    EMBED_CALL(report_sort, ValidateReportCtx, .from = middle, .to = args->to, .sorting = args->sorting);
     CliFinding *const found = g_cli_validate->findings;
+    CliFinding *const sorting = args->sorting;
     unsigned int left = args->from;
     unsigned int right = middle;
     for (unsigned int at = args->from; at < args->to; at += 1u)
@@ -180,12 +181,12 @@ static void report_sort(const ValidateReportCtx *args)
         const int take_right =
             (right < args->to) && ((left == middle) || (found[right].line < found[left].line) ||
                                    ((found[right].line == found[left].line) && (found[right].col < found[left].col)));
-        s_sorting[at] = take_right ? found[right] : found[left];
+        sorting[at] = take_right ? found[right] : found[left];
         right += take_right ? 1u : 0u;
         left += take_right ? 0u : 1u;
     }
     memor.cpy(&(MemoriaCfg){
-        .dst = found + args->from, .src = s_sorting + args->from, .bytes = (args->to - args->from) * sizeof(found[0])});
+        .dst = found + args->from, .src = sorting + args->from, .bytes = (args->to - args->from) * sizeof(found[0])});
 }
 
 // a count and its noun, `one` where it is 1 and `many` otherwise, a "; " before it where the verdict reports something
@@ -355,7 +356,17 @@ void cli_validate_report(const CliValidateProjectCtx *args)
                    .untrusted = &untrusted, .axioms = axioms);
     }
     g_cli_guard->persistent_buf_release(axioms, g_cli_plugins_owner);
-    EMBED_CALL(report_sort, ValidateReportCtx, .from = 0u, .to = g_cli_validate->finding_count);
+    // the findings as the sort merges them, in a cell of this call sized to their count
+    CliFinding *const sorting = (g_cli_validate->finding_count != 0u)
+                                    ? g_cli_guard->temporary_buf_alloc((unsigned long long)g_cli_validate->finding_count *
+                                                                           sizeof(CliFinding),
+                                                                       g_cli_plugins_owner)
+                                    : NULL;
+    if (sorting != NULL)
+    {
+        EMBED_CALL(report_sort, ValidateReportCtx, .from = 0u, .to = g_cli_validate->finding_count, .sorting = sorting);
+    }
+    g_cli_guard->persistent_buf_release(sorting, g_cli_plugins_owner);
     unsigned long long math = 0ULL;
     unsigned long long blocked = 0ULL;
     unsigned long long gaps = 0ULL;

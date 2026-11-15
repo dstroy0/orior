@@ -33,10 +33,9 @@ typedef struct
     const char *b_end;
     const char *path;
     char separator;
-    char (*found_from)[CLI_PATH_MAX_LEN];
-    char (*found_into)[CLI_PATH_MAX_LEN];
-    unsigned int found;
-    char (*names)[CLI_NAME_MAX_LEN];
+    const CliToolchainsPaths *found_from;
+    CliToolchainsPaths *found_into;
+    CliToolchainsPaths *names;
 } ToolchainsCtx;
 // whether a tool is for this system: it names none, or this one
 EMBED_INLINE int cli_for_here(const ToolchainsCtx *args)
@@ -448,93 +447,128 @@ int cli_toolchains_natural(const CliToolchainsACtx *args)
 typedef struct
 {
     const char *part;
-    char (*names)[CLI_NAME_MAX_LEN];
-    unsigned int count;
-    unsigned int capacity;
+    CliToolchainsPaths *names;
 } CliMatching;
 
 static void cli_matching_each(const CliEachNameIsFolderCfg *args)
 {
     const char *name = args->name;
     CliMatching *const matching = (CliMatching *)args->context;
-    if (!args->is_folder || (matching->count >= matching->capacity) ||
+    if (!args->is_folder ||
         !EMBED_CALL(cli_toolchains_pattern_internal.matches, CliToolchainsPatternCtx, .pattern = matching->part,
-                    .name = name))
+                    .name = name) ||
+        !cli_toolchains_paths_add(matching->names, name))
     {
         return;
     }
-    unsigned int place = matching->count;
-    while ((place > 0u) && (EMBED_CALL(cli_toolchains_a_internal.natural, CliToolchainsACtx,
-                                       .a = matching->names[place - 1u], .b = name) < 0))
+    // the name added last moves up past each name that orders before it, so the newest stand first
+    char(*const names)[CLI_PATH_MAX_LEN] = matching->names->at;
+    const unsigned int last = matching->names->count - 1u;
+    unsigned int place = last;
+    while ((place > 0u) &&
+           (EMBED_CALL(cli_toolchains_a_internal.natural, CliToolchainsACtx, .a = names[place - 1u], .b = name) < 0))
     {
         memor.cpy(&(MemoriaCfg){
-            .dst = matching->names[place],
-            .src = matching->names[place - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = matching->names[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
+            .dst = names[place],
+            .src = names[place - 1u],
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = names[place - 1u], .cap = CLI_POOL_BYTES}) + 1u});
         place -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = matching->names[place],
-                            .src = name,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
-    matching->count += 1u;
+    if (place != last)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = names[place],
+                                .src = name,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}) + 1u});
+    }
 }
 
-// a path so far, `path`, followed by `name` and `separator`, written into `out`, CLI_PATH_MAX_LEN bytes: 1, or 0 where
-// it does not fit
+// a path so far, `path`, followed by `text` and `separator`, added to `found_into`: 1, or 0 where it does not fit
+// CLI_PATH_MAX_LEN bytes or the cells refuse it
 EMBED_INLINE int cli_folder_joined(const ToolchainsCtx *args)
 {
-    VerbaLinea joined = {args->out, CLI_PATH_MAX_LEN, 0ULL};
+    char out[CLI_PATH_MAX_LEN];
+    VerbaLinea joined = {out, sizeof(out), 0ULL};
     mmgr_line_put(&joined, args->path);
     mmgr_line_put(&joined, args->text);
     mmgr_line_ch(&joined, args->separator);
-    return mmgr_line_finish(&joined) != 0ULL;
+    return (mmgr_line_finish(&joined) != 0ULL) && cli_toolchains_paths_add(args->found_into, out);
 }
 
-// each of the `found` paths so far in `found_from` followed by the part `text` and `separator`, written into
-// `found_into`: the part as it is, or where it holds a *, each folder in the path whose name matches it, the newest
-// first, `names` holding them as they are read; how many paths are written, 64 at max
-EMBED_INLINE unsigned int cli_folders_expanded(const ToolchainsCtx *args)
+// each path so far in `found_from` followed by the part `text` and `separator`, added to `found_into`, emptied
+// first: the part as it is, or where it holds a *, each folder in the path whose name matches it, the newest
+// first, `names` holding them as they are read
+EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
 {
     const int pattern = cellul.chr(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES, .byte = '*'}) != NULL;
-    unsigned int next = 0u;
-    for (unsigned int at = 0u; at < args->found; at += 1u)
+    args->found_into->count = 0u;
+    for (unsigned int at = 0u; at < args->found_from->count; at += 1u)
     {
+        const char *const path = args->found_from->at[at];
         if (!pattern)
         {
-            next += ((next < 64u) &&
-                     EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = args->found_from[at], .text = args->text,
-                                .separator = args->separator, .out = args->found_into[next]))
-                        ? 1u
-                        : 0u;
+            (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = args->text,
+                             .separator = args->separator, .found_into = args->found_into);
             continue;
         }
-        CliMatching matching = {args->text, args->names, 0u, 64u};
-        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->found_from[at],
+        args->names->count = 0u;
+        CliMatching matching = {args->text, args->names};
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = path,
                    .each = cli_matching_each, .context_bytess = &matching);
-        for (unsigned int each = 0u; (each < matching.count) && (next < 64u); each += 1u)
+        for (unsigned int each = 0u; each < args->names->count; each += 1u)
         {
-            next += EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = args->found_from[at],
-                               .text = args->names[each], .separator = args->separator, .out = args->found_into[next])
-                        ? 1u
-                        : 0u;
+            (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = args->names->at[each],
+                             .separator = args->separator, .found_into = args->found_into);
         }
     }
-    return next;
+}
+
+int cli_toolchains_paths_add(CliToolchainsPaths *paths, const char *path)
+{
+    if (paths->count == paths->capacity)
+    {
+        const unsigned int capacity = (paths->capacity != 0u) ? paths->capacity * 2u : 8u;
+        char(*const moved)[CLI_PATH_MAX_LEN] = g_cli_guard->temporary_buf_alloc(
+            (unsigned long long)capacity * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
+        if (moved == NULL)
+        {
+            return 0;
+        }
+        if (paths->count != 0u)
+        {
+            memor.cpy(&(MemoriaCfg){
+                .dst = moved, .src = paths->at, .bytes = (unsigned long long)paths->count * CLI_PATH_MAX_LEN});
+        }
+        g_cli_guard->persistent_buf_release(paths->at, g_cli_toolchains_owner);
+        paths->at = moved;
+        paths->capacity = capacity;
+    }
+    VerbaLinea line = {paths->at[paths->count], CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&line, path);
+    (void)mmgr_line_finish(&line);
+    paths->count += mmgr_line_ok(&line) ? 1u : 0u;
+    return mmgr_line_ok(&line) ? 1 : 0;
+}
+
+void cli_toolchains_paths_release(CliToolchainsPaths *paths)
+{
+    g_cli_guard->persistent_buf_release(paths->at, g_cli_toolchains_owner);
+    *paths = (CliToolchainsPaths){NULL, 0u, 0u};
 }
 
 unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
 {
-    unsigned int count = args->count;
-    static char s_found[2][64][CLI_PATH_MAX_LEN];
-    static char s_names[64][CLI_NAME_MAX_LEN];
+    CliToolchainsPaths *const paths = args->paths;
     char full[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_expand, ToolchainsCtx, .text = args->pattern, .out = full))
     {
-        return count;
+        return paths->count;
     }
+    // the paths found so far and the paths the next part makes of them, in turn, and a level's names as they are
+    // read, each in a cell of this call grown as the parts expand
+    CliToolchainsPaths found[2] = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
+    CliToolchainsPaths names = {NULL, 0u, 0u};
     unsigned int now = 0u;
-    unsigned int found = 1u;
-    s_found[now][0][0] = '\0';
+    (void)cli_toolchains_paths_add(&found[0], "");
     // each part of the path in turn, a part with a * read from each folder found so far
     const char *part = full;
     while (part[0] != '\0')
@@ -546,31 +580,29 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
         VerbaLinea line = {piece, sizeof(piece), 0ULL};
         mmgr_line_put_n(&line, part, (unsigned long long)(end - part));
         mmgr_line_finish(&line);
-        found =
-            EMBED_CALL(cli_folders_expanded, ToolchainsCtx, .text = piece, .separator = (end[0] != '\0') ? end[0] : '/',
-                       .found_from = s_found[now], .found = found, .found_into = s_found[1u - now], .names = s_names);
+        EMBED_CALL(cli_folders_expanded, ToolchainsCtx, .text = piece, .separator = (end[0] != '\0') ? end[0] : '/',
+                   .found_from = &found[now], .found_into = &found[1u - now], .names = &names);
         now = 1u - now;
         part = (end[0] != '\0') ? (end + 1) : end;
     }
-    for (unsigned int at = 0u; (at < found) && (count < args->capacity); at += 1u)
+    for (unsigned int at = 0u; at < found[now].count; at += 1u)
     {
+        char *const path = found[now].at[at];
         // the separator after the last part left off
-        const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = s_found[now][at], .cap = CLI_POOL_BYTES});
-        if ((length > 1u) && ((s_found[now][at][length - 1u] == '/') || (s_found[now][at][length - 1u] == '\\')))
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
+        if ((length > 1u) && ((path[length - 1u] == '/') || (path[length - 1u] == '\\')))
         {
-            s_found[now][at][length - 1u] = '\0';
+            path[length - 1u] = '\0';
         }
-        if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = s_found[now][at]))
+        if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = path))
         {
-            memor.cpy(&(MemoriaCfg){
-                .dst = args->folders[count],
-                .src = s_found[now][at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found[now][at], .cap = CLI_POOL_BYTES}) + 1u});
-            count += 1u;
+            (void)cli_toolchains_paths_add(paths, path);
         }
     }
-    return count;
+    cli_toolchains_paths_release(&found[0]);
+    cli_toolchains_paths_release(&found[1]);
+    cli_toolchains_paths_release(&names);
+    return paths->count;
 }
 
 void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args)

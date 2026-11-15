@@ -611,7 +611,6 @@ CliToolchainsFolders cli_toolchains_system_folders(void)
 unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args)
 {
     const CliJson *json = args->json;
-    unsigned int count = args->count;
     const unsigned int patterns =
         EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = json, .map = args->by_system);
     for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
@@ -624,11 +623,11 @@ unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args)
                                                .json_read = json, .node = item, .length_pointer = NULL);
         if (pattern != NULL)
         {
-            count = EMBED_CALL(cli_toolchains_count.folders_get, CliToolchainsCountCfg, .pattern = pattern,
-                               .folders = args->folders, .count = count, .capacity = args->capacity);
+            (void)EMBED_CALL(cli_toolchains_count.folders_get, CliToolchainsCountCfg, .pattern = pattern,
+                             .paths = args->paths);
         }
     }
-    return count;
+    return args->paths->count;
 }
 
 int cli_toolchains_join(const CliToolchainsFolderCfg *args)

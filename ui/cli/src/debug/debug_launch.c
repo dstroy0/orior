@@ -7,9 +7,8 @@
 #include "debug_start.h"
 #include "recording.h"
 
-// the max words an adapter is started with, and the folders its spec puts on its PATH
+// the max words an adapter is started with
 #define CLI_DEBUG_ADAPTER_WORDS 64u
-#define CLI_DEBUG_ADAPTER_FOLDERS 64u
 
 typedef struct
 {
@@ -50,17 +49,18 @@ EMBED_INLINE CliDap *launch_adapter_from(const DebugLaunchCtx *args)
                           .port = args->plan->port, .ends_program = args->plan->ends_program, .emit = cli_debug_event,
                           .context = args->place, .err_msg = err_msg);
     }
-    static char s_folders[CLI_DEBUG_SESSIONS][CLI_DEBUG_ADAPTER_FOLDERS][CLI_PATH_MAX_LEN];
     static char s_path[CLI_DEBUG_SESSIONS][CLI_PATH_TEXT];
     const unsigned int session_at = (unsigned int)(args->place - g_cli_debug.sessions);
-    const unsigned int folders =
-        EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
-                   .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
-                                           .object = args->plan->spec, .name = "path"),
-                   .folders = s_folders[session_at], .count = 0u, .capacity = CLI_DEBUG_ADAPTER_FOLDERS);
+    // the folders the adapter's spec puts on its PATH, in a cell of this call
+    CliToolchainsPaths folders = {NULL, 0u, 0u};
+    (void)EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
+                     .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                             .json_read = json, .object = args->plan->spec, .name = "path"),
+                     .paths = &folders);
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg,
-               .ahead = (const char (*)[CLI_PATH_MAX_LEN])s_folders[session_at], .count = folders,
+               .ahead = (const char (*)[CLI_PATH_MAX_LEN])folders.at, .count = folders.count,
                .path = s_path[session_at], .size = sizeof(s_path[session_at]));
+    cli_toolchains_paths_release(&folders);
     const char *words[CLI_DEBUG_ADAPTER_WORDS];
     unsigned int count = 0u;
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,

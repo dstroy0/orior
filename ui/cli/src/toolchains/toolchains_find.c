@@ -10,9 +10,8 @@
 // how long a program may take to report its version before it is stopped, in milliseconds
 #define CLI_PATIENCE 6000ULL
 
-// the PATH's folders for one call, and the folders a tool's places name, under the lock
+// the PATH's folders for one call, under the lock
 char (*g_cli_toolchains_path)[CLI_PATH_MAX_LEN];
-static char s_positions[64][CLI_PATH_MAX_LEN];
 
 unsigned int cli_toolchains_find_path(void)
 {
@@ -205,23 +204,25 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
             }
         }
     }
-    const unsigned int positions =
-        EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
-                   .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
-                                           .object = tool, .name = "places"),
-                   .folders = s_positions, .count = 0u, .capacity = 64u);
-    for (unsigned int at = 0u; at < positions; at += 1u)
+    // the folders the tool's places name, in a cell of this call
+    CliToolchainsPaths positions = {NULL, 0u, 0u};
+    (void)EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
+                     .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                             .json_read = json, .object = tool, .name = "places"),
+                     .paths = &positions);
+    int placed = 0;
+    for (unsigned int at = 0u; !placed && (at < positions.count); at += 1u)
     {
-        if (!EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_positions[at]) &&
-            EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_positions[at]) &&
-            EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json, .tool = tool,
-                       .dir = s_positions[at], .path = program))
-        {
-            EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "found", .program = program);
-            EMBED_CALL(cli_toolchains_id_path_internal.found_append, CliToolchainsIdPathCtx, .id = id,
-                       .path_callback = path, .count = count, .found_read = found);
-            return;
-        }
+        const char *const dir = positions.at[at];
+        placed = !EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
+                 EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
+                 EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json,
+                            .tool = tool, .dir = dir, .path = program);
+    }
+    cli_toolchains_paths_release(&positions);
+    if (placed)
+    {
+        EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "found", .program = program);
     }
     EMBED_CALL(cli_toolchains_id_path_internal.found_append, CliToolchainsIdPathCtx, .id = id, .path_callback = path,
                .count = count, .found_read = found);

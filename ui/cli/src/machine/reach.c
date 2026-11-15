@@ -12,8 +12,7 @@
 
 #include "../text/text.h"
 
-// the max windows stored that are read, and how long a command line waits for the window's answer in milliseconds
-#define CLI_REACH_WINDOWS 64u
+// how long a command line waits for the window's answer in milliseconds
 #define CLI_REACH_WAIT 10000ULL
 // the milliseconds a held command's answer is waited for: a week
 #define CLI_REACH_HELD_WAIT 604800000ULL
@@ -28,15 +27,40 @@ typedef struct
     char key[CLI_NAME_MAX_LEN];
 } CliReachEntry;
 
-// The windows stored, read from the folder: where each goes, and how many there are
+// The windows stored, read from the folder: the entries in a cell of this read grown as windows are read, how many
+// there are and the cell's capacity
 typedef struct
 {
     const char *folder;
     CliReachEntry *entries;
     unsigned int count;
+    unsigned int capacity;
 } CliReachRead;
 
-static CliReachEntry s_entries[CLI_REACH_WINDOWS];
+// the entry the next window read goes to, the entries' cell grown to twice its capacity where it is full: NULL where
+// the cells refuse the growth
+static CliReachEntry *reach_entry_next(CliReachRead *read)
+{
+    if (read->count == read->capacity)
+    {
+        const unsigned int capacity = (read->capacity != 0u) ? read->capacity * 2u : 4u;
+        CliReachEntry *const grown =
+            g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliReachEntry), g_cli_machine_owner);
+        if (grown == NULL)
+        {
+            return NULL;
+        }
+        if (read->count != 0u)
+        {
+            memor.cpy(&(MemoriaCfg){
+                .dst = grown, .src = read->entries, .bytes = (unsigned long long)read->count * sizeof(CliReachEntry)});
+        }
+        g_cli_guard->persistent_buf_release(read->entries, g_cli_machine_owner);
+        read->entries = grown;
+        read->capacity = capacity;
+    }
+    return &read->entries[read->count];
+}
 
 typedef struct
 {
@@ -143,8 +167,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
     CliReachRead *const read = (CliReachRead *)args->context;
     const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     if (args->is_folder || (name[0] == '.') || (length < 7u) ||
-        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 7u, .other = ".window", .cap = CLI_POOL_BYTES})) ||
-        (read->count == CLI_REACH_WINDOWS))
+        (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 7u, .other = ".window", .cap = CLI_POOL_BYTES})))
     {
         return;
     }
@@ -166,9 +189,10 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
         fields += 1u;
         at += cellul.len(&(CatenaFinitaCfg){.src = bytes + at, .cap = size - at}) + 1ULL;
     }
-    if ((fields == 4u) && (at <= size) && (bytes[size - 1ULL] == '\0'))
+    CliReachEntry *const one =
+        ((fields == 4u) && (at <= size) && (bytes[size - 1ULL] == '\0')) ? reach_entry_next(read) : NULL;
+    if (one != NULL)
     {
-        CliReachEntry *const one = &read->entries[read->count];
         const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = field[0], .cap = size});
         // a process's id is no more than an unsigned int stores
         one->process = (unsigned int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = field[0], .at = 0ULL,
@@ -297,13 +321,13 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(reach_folder, ReachCtx, .home = args->home, .folder = folder);
-    CliReachRead read = {folder, s_entries, 0u};
+    CliReachRead read = {folder, NULL, 0u, 0u};
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = reach_entry,
                      .context_bytess = &read);
     int answered = -1;
     for (unsigned int at = 0u; (at < read.count) && (answered < 0); at += 1u)
     {
-        const CliReachEntry *const entry = &s_entries[at];
+        const CliReachEntry *const entry = &read.entries[at];
         // a command for a tree goes to the windows open on it; with no tree named, to the one window where there is
         // only one
         const int goes =
@@ -331,6 +355,7 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
                        .request = args->request, .count = args->count, .answer = args->answer, .err_msg = err_msg);
         EMBED_CALL(cli_ipc_client.leave, CliIpcClientCfg, .client = client);
     }
+    g_cli_guard->persistent_buf_release(read.entries, g_cli_machine_owner);
     return answered;
 }
 

@@ -15,8 +15,6 @@
 
 #define CLI_READ_MAX 4096u
 
-#define CLI_VIEWS_MAX 64u
-
 // A run viewed while its writer writes: its path and its shared memory mapped
 typedef struct
 {
@@ -24,9 +22,10 @@ typedef struct
     QryShared *run;
 } CliView;
 
-// the runs viewed, the run the window is a member of to append to, and the run the window's own work goes to: one lock
-// contains them all
-static CliView s_views[CLI_VIEWS_MAX];
+// the runs viewed, in a cell of their capacity grown as more are viewed at once, the run the window is a member of to
+// append to, and the run the window's own work goes to: one lock contains them all
+static CliView *s_views;
+static unsigned int s_views_capacity;
 static char s_member[CLI_PATH_MAX_LEN];
 static int s_membered;
 static char s_window[CLI_PATH_MAX_LEN];
@@ -50,7 +49,7 @@ typedef struct
 // stopped, whichever run it is of. Called under the lock
 static QryShared *cli_view(const QryCtx *args)
 {
-    for (unsigned int at = 0u; at < CLI_VIEWS_MAX; at += 1u)
+    for (unsigned int at = 0u; at < s_views_capacity; at += 1u)
     {
         if ((s_views[at].run != NULL) && !qry_member_viewed_writing(s_views[at].run))
         {
@@ -58,20 +57,44 @@ static QryShared *cli_view(const QryCtx *args)
             s_views[at].run = NULL;
         }
     }
-    unsigned int found = CLI_VIEWS_MAX;
-    unsigned int free_view = CLI_VIEWS_MAX;
-    for (unsigned int at = 0u; at < CLI_VIEWS_MAX; at += 1u)
+    unsigned int found = s_views_capacity;
+    unsigned int free_view = s_views_capacity;
+    for (unsigned int at = 0u; at < s_views_capacity; at += 1u)
     {
         found = ((s_views[at].run != NULL) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].path, .other = args->path, .cap = CLI_POOL_BYTES})))
                     ? at
                     : found;
-        free_view = ((s_views[at].run == NULL) && (free_view == CLI_VIEWS_MAX)) ? at : free_view;
+        free_view = ((s_views[at].run == NULL) && (free_view == s_views_capacity)) ? at : free_view;
     }
-    if (found == CLI_VIEWS_MAX)
+    // every view in use: the views' cell grown to twice its capacity, the first new view free
+    if ((found == s_views_capacity) && (free_view == s_views_capacity))
+    {
+        const unsigned int capacity = (s_views_capacity != 0u) ? s_views_capacity * 2u : 4u;
+        CliView *const grown =
+            g_cli_guard->persistent_buf_alloc((unsigned long long)capacity * sizeof(CliView), g_cli_runs_owner);
+        if (grown != NULL)
+        {
+            if (s_views_capacity != 0u)
+            {
+                memor.cpy(&(MemoriaCfg){
+                    .dst = grown, .src = s_views, .bytes = (unsigned long long)s_views_capacity * sizeof(CliView)});
+            }
+            for (unsigned int at = s_views_capacity; at < capacity; at += 1u)
+            {
+                grown[at].run = NULL;
+            }
+            g_cli_guard->persistent_buf_release(s_views, g_cli_runs_owner);
+            free_view = s_views_capacity;
+            s_views = grown;
+            s_views_capacity = capacity;
+            found = capacity;
+        }
+    }
+    if (found == s_views_capacity)
     {
         QryShared *const run = qry_member_shared(args->path);
-        if ((run == NULL) || (free_view == CLI_VIEWS_MAX) ||
+        if ((run == NULL) || (free_view == s_views_capacity) ||
             (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) >= CLI_PATH_MAX_LEN))
         {
             if (run != NULL)
