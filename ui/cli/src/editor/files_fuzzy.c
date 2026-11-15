@@ -201,18 +201,19 @@ int cli_fuzzy_characters(const CliFilesBytesRequestedCtx *args)
 
 unsigned int cli_files_want(const CliFilesQueryLettersCfg *args)
 {
-    static unsigned int s_read[CLI_FUZZY_CHARACTERS];
+    // the query's characters read into the caller's list, then those that are no whitespace moved to its head in lower
+    // case: a character that stays is at or before the one it was read as
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = args->query,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}), .characters = s_read,
-                   .capacity_u64 = CLI_FUZZY_CHARACTERS);
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES}),
+                   .characters = args->characters, .capacity_u64 = args->capacity);
     unsigned int requested_count = 0u;
-    for (unsigned long long at = 0ULL; (at < count) && (requested_count < args->capacity); at += 1ULL)
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = s_read[at]))
+        if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = args->characters[at]))
         {
             args->characters[requested_count] =
-                EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = s_read[at]);
+                EMBED_CALL(cli_regexp_character.lower, CliRegexpLetterCfg, .character = args->characters[at]);
             requested_count += 1u;
         }
     }
@@ -244,20 +245,35 @@ int cli_files_fuzzy_matches(const CliFilesCountCfg *args)
 
 int cli_files_fuzzy(const CliFilesQueryCfg *args)
 {
-    static unsigned int s_requested[CLI_FUZZY_CHARACTERS];
-    static unsigned int s_displayed[CLI_FUZZY_CHARACTERS];
-    static unsigned int s_lower[CLI_FUZZY_CHARACTERS];
-    static unsigned int s_latest[CLI_FUZZY_CHARACTERS];
+    // the query's characters and the latest place each may take, and the text's characters as they are and in lower
+    // case: one take of the match sized to the query's bytes twice and the text's twice, a character one byte at
+    // least, and one entry more, which gives an empty query and text a take
+    const unsigned long long query_bytes = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES});
+    const unsigned long long text_bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
+    unsigned int *const scratch = g_cli_guard->temporary_buf_alloc(
+        ((2ULL * query_bytes) + (2ULL * text_bytes) + 1ULL) * sizeof(unsigned int), args->owner);
+    if (scratch == NULL)
+    {
+        *args->score = 0.0;
+        *args->count_pointer = 0u;
+        return 0;
+    }
+    unsigned int *const requested = scratch;
+    unsigned int *const latest = requested + query_bytes;
+    unsigned int *const displayed = latest + query_bytes;
+    unsigned int *const lower = displayed + text_bytes;
+    // a text's bytes are below CLI_POOL_BYTES, which an unsigned int stores
     const unsigned int required =
-        EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = args->query, .characters = s_requested,
-                   .capacity = CLI_FUZZY_CHARACTERS);
+        EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = args->query,
+                   .characters = requested, .capacity = (unsigned int)query_bytes);
     const unsigned int characters = EMBED_CALL(cli_files_text.characters, CliFilesTextCfg, .text = args->text,
-                                            .displayed = s_displayed, .lower = s_lower, .capacity = CLI_FUZZY_CHARACTERS);
-    // a place in characters is below CLI_FUZZY_CHARACTERS, which an unsigned int stores
-    const unsigned int start = (args->from_u64 < CLI_FUZZY_CHARACTERS) ? (unsigned int)args->from_u64 : CLI_FUZZY_CHARACTERS;
+                                               .displayed = displayed, .lower = lower, .capacity = (unsigned int)text_bytes);
+    // a place at or past the text's end scores no character as past it, so the text's count stands for every such
+    const unsigned int start = (args->from_u64 < characters) ? (unsigned int)args->from_u64 : characters;
     const int matched = EMBED_CALL(
-        cli_files_bytes_requested_internal.fuzzy_characters, CliFilesBytesRequestedCtx, .required = s_requested,
-        .requested_count = required, .displayed = s_displayed, .lower = s_lower, .count_u32 = characters, .from_u32 = start,
-        .bytes_i32 = 0, .latest = s_latest, .score = args->score, .hits = args->hits, .hit_count = args->count_pointer);
+        cli_files_bytes_requested_internal.fuzzy_characters, CliFilesBytesRequestedCtx, .required = requested,
+        .requested_count = required, .displayed = displayed, .lower = lower, .count_u32 = characters, .from_u32 = start,
+        .bytes_i32 = 0, .latest = latest, .score = args->score, .hits = args->hits, .hit_count = args->count_pointer);
+    g_cli_guard->persistent_buf_release(scratch, args->owner);
     return matched;
 }

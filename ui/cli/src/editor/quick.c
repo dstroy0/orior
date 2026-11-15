@@ -89,7 +89,8 @@ typedef struct
 } QuickCommand;
 
 // The rows of one ask as they are written, in a cell for that ask alone: the rows and how many, the marks and how many
-// numbers of them, the text, and whether the tree is still being read
+// numbers of them, the text, whether the tree is still being read, the bounded list of the places that answer, and
+// the places of a match's characters, one for each byte of the typed text
 typedef struct
 {
     QuickRow *row;
@@ -98,6 +99,8 @@ typedef struct
     unsigned int marks;
     VerbaLinea text;
     int reading;
+    CliTopPlace *top;
+    unsigned int *hit;
 } QuickBuild;
 
 // The quick open: whether it is open and is Search Everywhere; the tree, and the displayed view's key and its file's path,
@@ -136,9 +139,6 @@ typedef struct
 
 static Quick s_quick;
 
-// the bounded list and the places of a match's characters, for one ask at a time on the view's thread
-static CliTopPlace s_top[CLI_QUICK_MAX];
-static unsigned int s_hit[CLI_FUZZY_CHARACTERS];
 
 typedef struct
 {
@@ -514,13 +514,13 @@ EMBED_INLINE void quick_commands(const QuickCtx *args)
         {
             (void)EMBED_CALL(quick_command_label, QuickCtx, .at = at, .label_out = label);
             if (!EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = label,
-                            .from_u64 = command.title_characters + 2ULL, .score = &score, .hits = s_hit,
-                            .count_pointer = &hits))
+                            .from_u64 = command.title_characters + 2ULL, .score = &score, .hits = build->hit,
+                            .count_pointer = &hits, .owner = g_cli_quick_owner))
             {
                 continue;
             }
         }
-        count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = s_top, .at = at, .score = score,
+        count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = build->top, .at = at, .score = score,
                            .count = count, .max = args->max);
     }
     g_cli_guard->persistent_buf_release(recent_cell, g_cli_quick_owner);
@@ -529,7 +529,7 @@ EMBED_INLINE void quick_commands(const QuickCtx *args)
         QuickCommand chosen = {0};
         (void)g_cli_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_quick.command,
-                                .offset = (unsigned long long)s_top[at].at * sizeof(chosen),
+                                .offset = (unsigned long long)build->top[at].at * sizeof(chosen),
                                 .dst = &chosen,
                                 .bytes = sizeof(chosen)});
         const QuickCommand *const command = &chosen;
@@ -539,22 +539,22 @@ EMBED_INLINE void quick_commands(const QuickCtx *args)
             return;
         }
         const unsigned long long length =
-            EMBED_CALL(quick_command_label, QuickCtx, .at = s_top[at].at, .label_out = label);
+            EMBED_CALL(quick_command_label, QuickCtx, .at = build->top[at].at, .label_out = label);
         unsigned int hits = 0u;
         double score = 0.0;
         if (args->length != 0ULL)
         {
             (void)EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = label,
-                             .from_u64 = command->title_characters + 2ULL, .score = &score, .hits = s_hit,
-                             .count_pointer = &hits);
+                             .from_u64 = command->title_characters + 2ULL, .score = &score, .hits = build->hit,
+                             .count_pointer = &hits, .owner = g_cli_quick_owner);
         }
         mmgr_line_put_n(&build->text, label, length);
         row->label_length = EMBED_CALL(quick_written, QuickCtx, .build = build, .at = row->label);
         row->label_marks =
             EMBED_CALL(quick_marked, QuickCtx, .build = build, .at = row->label, .length = row->label_length,
-                       .hits = s_hit, .hit_count = hits, .from = 0u, .max = CLI_QUICK_MARKS);
+                       .hits = build->hit, .hit_count = hits, .from = 0u, .max = CLI_QUICK_MARKS);
         row->detail = (unsigned int)build->text.at;
-        if ((args->length == 0ULL) && (s_top[at].score >= (QUICK_RECENT_SCORE - (double)CLI_RECENT_MAX)))
+        if ((args->length == 0ULL) && (build->top[at].score >= (QUICK_RECENT_SCORE - (double)CLI_RECENT_MAX)))
         {
             mmgr_line_put(&build->text, QUICK_USED);
         }
@@ -651,10 +651,10 @@ EMBED_INLINE void quick_symbol_row(const QuickCtx *args)
         mmgr_line_put_n(&name_line, args->text, args->length);
         (void)mmgr_line_finish(&name_line);
         (void)EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = args->query, .text = name, .from_u64 = 0ULL,
-                         .score = &score, .hits = s_hit, .count_pointer = &hits);
+                         .score = &score, .hits = build->hit, .count_pointer = &hits, .owner = g_cli_quick_owner);
     }
     row->label_marks = EMBED_CALL(quick_marked, QuickCtx, .build = build, .at = row->label, .length = row->label_length,
-                                  .hits = s_hit, .hit_count = hits, .from = 0u, .max = CLI_QUICK_MARKS);
+                                  .hits = build->hit, .hit_count = hits, .from = 0u, .max = CLI_QUICK_MARKS);
     row->detail = (unsigned int)build->text.at;
     mmgr_line_put(&build->text, args->type_text);
     const char *const path = args->path;
@@ -714,18 +714,18 @@ EMBED_INLINE void quick_outline(const QuickCtx *args)
             (void)mmgr_line_finish(&name_line);
             unsigned int hits = 0u;
             if (!EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = name, .from_u64 = 0ULL,
-                            .score = &score, .hits = s_hit, .count_pointer = &hits))
+                            .score = &score, .hits = build->hit, .count_pointer = &hits, .owner = g_cli_quick_owner))
             {
                 continue;
             }
         }
-        count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = s_top, .at = at, .score = score,
+        count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = build->top, .at = at, .score = score,
                            .count = count, .max = args->max);
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         CliOutlineRow row;
-        if (EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = s_top[at].at, .row = &row))
+        if (EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = build->top[at].at, .row = &row))
         {
             // an outline's line is below CLI_OUTLINE_LINES_MAX, inside an unsigned int
             EMBED_CALL(quick_symbol_row, QuickCtx, .build = build, .text = row.name, .length = row.length,
@@ -869,22 +869,27 @@ EMBED_INLINE void quick_followed(const QuickCtx *args)
 // them, else the first that is no heading; the rows as they were where the cells cannot meet the ask
 EMBED_INLINE void quick_asked(const QuickCtx *args)
 {
+    const unsigned long long top_bytes = (unsigned long long)CLI_QUICK_MAX * sizeof(CliTopPlace);
     const unsigned long long row_bytes = (unsigned long long)CLI_QUICK_MAX * sizeof(QuickRow);
     const unsigned long long mark_bytes = 2ULL * CLI_QUICK_MAX * CLI_QUICK_MARKS * sizeof(unsigned int);
+    const unsigned long long hit_bytes = s_quick.length * sizeof(unsigned int);
     const unsigned long long text_bytes = (unsigned long long)CLI_QUICK_MAX * QUICK_ROW_BYTES;
-    unsigned char *const scratch =
-        g_cli_guard->temporary_buf_alloc(row_bytes + mark_bytes + text_bytes, g_cli_quick_owner);
+    unsigned char *const scratch = g_cli_guard->temporary_buf_alloc(
+        top_bytes + row_bytes + mark_bytes + hit_bytes + text_bytes, g_cli_quick_owner);
     if (scratch == NULL)
     {
         return;
     }
-    // the rows lie first in the scratch, which its alignment saves aligned, the marks after them and the text last
-    QuickBuild build = {(QuickRow *)(void *)scratch,
+    // the bounded list lies first in the scratch, which its alignment saves aligned, the rows after it, the marks,
+    // the places of a match's characters, and the text last
+    QuickBuild build = {(QuickRow *)(void *)(scratch + top_bytes),
                         0u,
-                        (unsigned int *)(void *)(scratch + row_bytes),
+                        (unsigned int *)(void *)(scratch + top_bytes + row_bytes),
                         0u,
-                        {(char *)(scratch + row_bytes + mark_bytes), text_bytes, 0ULL},
-                        0};
+                        {(char *)(scratch + top_bytes + row_bytes + mark_bytes + hit_bytes), text_bytes, 0ULL},
+                        0,
+                        (CliTopPlace *)(void *)scratch,
+                        (unsigned int *)(void *)(scratch + top_bytes + row_bytes + mark_bytes)};
     const unsigned int mode = EMBED_CALL(quick_mode, QuickCtx, .build = &build);
     // the text read past its first character where it reads one, its spaces at either end left out
     const unsigned long long skip = ((mode == CLI_QUICK_FILES) || (mode == CLI_QUICK_EVERYWHERE)) ? 0ULL : 1ULL;

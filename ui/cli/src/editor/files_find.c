@@ -247,17 +247,3 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     return received;
 }
 
-// A find: the words of the query in lower case, each where it starts and its count of characters, the patterns that hide,
-// the path being matched, its characters in lower case, and the paths found
-typedef struct
-{
-    unsigned int word_text[CLI_FUZZY_CHARACTERS];
-    unsigned int start[CLI_FUZZY_CHARACTERS];
-    unsigned int length[CLI_FUZZY_CHARACTERS];
-    unsigned int words;
-    CliPatterns patterns;
-    unsigned int displayed[CLI_FUZZY_CHARACTERS];
-    unsigned int lower[CLI_FUZZY_CHARACTERS];
-    char (*found)[CLI_PATH_MAX_LEN];
-    unsigned int found_count;
-} CliFinding;

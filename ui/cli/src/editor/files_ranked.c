@@ -24,19 +24,26 @@ int cli_files_unread(const CliFilesRootPathsCfg *args)
     return !EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = root);
 }
 
-// the query's characters, a path's characters as they are and in lower case, the latest place each character of a match may
-// take, the places a match took, and the bounded list, each file's place among the files, or among the recent paths
-// while the tree is not listed, with its score, for one find at a time on the view's thread
-static unsigned int s_required[CLI_FUZZY_CHARACTERS];
-static unsigned int s_displayed[CLI_FUZZY_CHARACTERS];
-static unsigned int s_lower[CLI_FUZZY_CHARACTERS];
-static unsigned int s_latest[CLI_FUZZY_CHARACTERS];
-static unsigned int s_hit[CLI_FUZZY_CHARACTERS];
-static CliTopPlace s_top[CLI_FILES_RANKED_MAX];
+// A find's lists, one take sized to the find: the bounded list, each file's place among the files, or among the
+// recent paths while the tree is not listed, with its score, `max` places; the query's characters, the latest place
+// each character of a match may take and the places a match took, each one for each byte of the query; and a path's
+// characters as they are and in lower case, each one for each byte of the longest candidate
+typedef struct
+{
+    CliTopPlace *top;
+    unsigned int *required;
+    unsigned int *latest;
+    unsigned int *hit;
+    unsigned int *displayed;
+    unsigned int *lower;
+    unsigned int query_bytes;
+    unsigned int path_bytes;
+} FilesRankedLists;
 
 typedef struct
 {
     const CliFilesRootRowsCfg *find;
+    const FilesRankedLists *lists;
     const char *path;
     unsigned int required;
     double *score_out;
@@ -48,16 +55,18 @@ typedef struct
 } FilesRankedCtx;
 
 // whether `path` answers the find's `required` characters: 1 with its score into `score_out` and the places of its
-// characters that matched into s_hit, their count into `hits_out`, else 0
+// characters that matched into the lists' `hit`, their count into `hits_out`, else 0
 EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
 {
     const CliFilesRootRowsCfg *const find = args->find;
-    const unsigned int characters = EMBED_CALL(cli_files_text.characters, CliFilesTextCfg, .text = args->path,
-                                            .displayed = s_displayed, .lower = s_lower, .capacity = CLI_FUZZY_CHARACTERS);
+    const FilesRankedLists *const lists = args->lists;
+    const unsigned int characters =
+        EMBED_CALL(cli_files_text.characters, CliFilesTextCfg, .text = args->path, .displayed = lists->displayed,
+                   .lower = lists->lower, .capacity = lists->path_bytes);
     unsigned int name = 0u;
     for (unsigned int at = 0u; at < characters; at += 1u)
     {
-        name = (s_lower[at] == '/') ? (at + 1u) : name;
+        name = (lists->lower[at] == '/') ? (at + 1u) : name;
     }
     double score = 0.0;
     unsigned int hits = 0u;
@@ -65,9 +74,10 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
     if (find->fuzzy)
     {
         matched = EMBED_CALL(cli_files_bytes_requested_internal.fuzzy_characters, CliFilesBytesRequestedCtx,
-                             .required = s_required, .requested_count = args->required, .displayed = s_displayed,
-                             .lower = s_lower, .count_u32 = characters, .from_u32 = name, .bytes_i32 = 0,
-                             .latest = s_latest, .score = &score, .hits = s_hit, .hit_count = &hits);
+                             .required = lists->required, .requested_count = args->required,
+                             .displayed = lists->displayed, .lower = lists->lower, .count_u32 = characters,
+                             .from_u32 = name, .bytes_i32 = 0, .latest = lists->latest, .score = &score,
+                             .hits = lists->hit, .hit_count = &hits);
     }
     else
     {
@@ -75,14 +85,14 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
         for (unsigned int from = 0u; !matched && ((from + args->required) <= characters); from += 1u)
         {
             unsigned int same = 0u;
-            while ((same < args->required) && (s_lower[from + same] == s_required[same]))
+            while ((same < args->required) && (lists->lower[from + same] == lists->required[same]))
             {
                 same += 1u;
             }
             matched = same == args->required;
             for (unsigned int at = 0u; matched && (at < args->required); at += 1u)
             {
-                s_hit[at] = from + at;
+                lists->hit[at] = from + at;
             }
             hits = matched ? args->required : 0u;
             score = matched ? ((double)args->required - ((double)characters * 0.02)) : 0.0;
@@ -95,7 +105,8 @@ EMBED_INLINE int ranked_matched(const FilesRankedCtx *args)
     // the name equal to the query, or starting with it, case aside
     const unsigned int name_characters = characters - name;
     unsigned int prefix = 0u;
-    while ((prefix < args->required) && (prefix < name_characters) && (s_lower[name + prefix] == s_required[prefix]))
+    while ((prefix < args->required) && (prefix < name_characters) &&
+           (lists->lower[name + prefix] == lists->required[prefix]))
     {
         prefix += 1u;
     }
@@ -119,14 +130,46 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     g_cli_guard->persistent_buf_release(rows->cell, args->owner);
     *rows = (CliFilesRanked){NULL, 0u, NULL, NULL, 0};
     const unsigned int max = (args->max < CLI_FILES_RANKED_MAX) ? args->max : CLI_FILES_RANKED_MAX;
-    const unsigned int required =
-        EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = args->query, .characters = s_required,
-                   .capacity = CLI_FUZZY_CHARACTERS);
     const int unread =
         (args->root == NULL) || EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = args->root);
     const CliFiles *const files =
         unread ? NULL : EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
     const unsigned int candidates = (files != NULL) ? files->count : (unread ? args->recents : 0u);
+    // the longest candidate's bytes bound a path's characters, and the query's bytes bound its characters
+    unsigned long long longest = 0ULL;
+    for (unsigned int at = 0u; (max != 0u) && (at < candidates); at += 1u)
+    {
+        const char *const path =
+            (files != NULL) ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at) : args->recent[at];
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
+        longest = (length > longest) ? length : longest;
+    }
+    const unsigned long long query_bytes = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES});
+    const unsigned long long top_bytes = (unsigned long long)max * sizeof(CliTopPlace);
+    const unsigned long long list_bytes = top_bytes + (((3ULL * query_bytes) + (2ULL * longest)) * sizeof(unsigned int));
+    unsigned char *const list_cell = (list_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(list_bytes, args->owner) : NULL;
+    if ((list_bytes != 0ULL) && (list_cell == NULL))
+    {
+        if (files != NULL)
+        {
+            EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+        }
+        return 0;
+    }
+    // the bounded list lies first in the take, which its alignment saves aligned, the query's three lists after it
+    // and the path's two last; a text's bytes are below CLI_POOL_BYTES, which an unsigned int stores
+    unsigned int *const query_lists = (unsigned int *)(void *)(list_cell + top_bytes);
+    const FilesRankedLists lists = {(CliTopPlace *)(void *)list_cell,
+                                    query_lists,
+                                    query_lists + query_bytes,
+                                    query_lists + (2ULL * query_bytes),
+                                    query_lists + (3ULL * query_bytes),
+                                    query_lists + (3ULL * query_bytes) + longest,
+                                    (unsigned int)query_bytes,
+                                    (unsigned int)longest};
+    const unsigned int required =
+        EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = args->query,
+                   .characters = lists.required, .capacity = lists.query_bytes);
     unsigned int count = 0u;
     for (unsigned int at = 0u; (max != 0u) && (at < candidates); at += 1u)
     {
@@ -134,10 +177,10 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
             (files != NULL) ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at) : args->recent[at];
         double score = 0.0;
         unsigned int hits = 0u;
-        if (EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .path = path, .required = required,
-                       .score_out = &score, .hits_out = &hits))
+        if (EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .lists = &lists, .path = path,
+                       .required = required, .score_out = &score, .hits_out = &hits))
         {
-            count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = s_top, .at = at, .score = score,
+            count = EMBED_CALL(cli_files_top_internal.put, CliFilesTopCtx, .top = lists.top, .at = at, .score = score,
                                .count = count, .max = max);
         }
     }
@@ -147,12 +190,12 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const path = (files != NULL)
-                                     ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = s_top[at].at)
-                                     : args->recent[s_top[at].at];
+                                     ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = lists.top[at].at)
+                                     : args->recent[lists.top[at].at];
         double score = 0.0;
         unsigned int hits = 0u;
-        (void)EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .path = path, .required = required,
-                         .score_out = &score, .hits_out = &hits);
+        (void)EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .lists = &lists, .path = path,
+                         .required = required, .score_out = &score, .hits_out = &hits);
         places += hits;
         text += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
@@ -162,6 +205,7 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
         (count != 0u) ? g_cli_guard->temporary_buf_alloc(row_bytes + place_bytes + text, args->owner) : NULL;
     if ((count != 0u) && (cell == NULL))
     {
+        g_cli_guard->persistent_buf_release(list_cell, args->owner);
         if (files != NULL)
         {
             EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
@@ -177,22 +221,23 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const path = (files != NULL)
-                                     ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = s_top[at].at)
-                                     : args->recent[s_top[at].at];
+                                     ? EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = lists.top[at].at)
+                                     : args->recent[lists.top[at].at];
         double score = 0.0;
         unsigned int hits = 0u;
-        (void)EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .path = path, .required = required,
-                         .score_out = &score, .hits_out = &hits);
+        (void)EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .lists = &lists, .path = path,
+                         .required = required, .score_out = &score, .hits_out = &hits);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
         memor.cpy(&(MemoriaCfg){.dst = paths + used, .src = path, .bytes = length + 1ULL});
         if (hits != 0u)
         {
-            memor.cpy(&(MemoriaCfg){.dst = hit + put, .src = s_hit, .bytes = hits * sizeof(unsigned int)});
+            memor.cpy(&(MemoriaCfg){.dst = hit + put, .src = lists.hit, .bytes = hits * sizeof(unsigned int)});
         }
-        row[at] = (CliFileRanked){paths + used, s_top[at].score, put, hits};
+        row[at] = (CliFileRanked){paths + used, lists.top[at].score, put, hits};
         put += hits;
         used += length + 1ULL;
     }
+    g_cli_guard->persistent_buf_release(list_cell, args->owner);
     if (files != NULL)
     {
         EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);

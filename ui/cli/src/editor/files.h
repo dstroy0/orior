@@ -162,12 +162,13 @@ int cli_files_explorer_changed(void);
 // the max characters a text a match reads contains
 #define CLI_FUZZY_CHARACTERS 4096u
 
-// the places in `text` that match `query`, counted in characters, into `hits`, sized for CLI_FUZZY_CHARACTERS, their count
-// into `count`, and the match's score into `score`: 1, or 0 where it does not match. The query's characters match in
-// order anywhere in the text, case aside, in no more pieces than half its characters or three. A character scores more at the
-// start of a word or past `from`, where the text's name starts; the characters of `query` a match looks for, in lower
-// case, its spaces left out; a text's characters as a match reads them, as they are and in lower case; and the match of
-// characters already read, `required` in a text's `displayed` and `lower`, `count` characters each, `latest` sized for
+// the places in `text` that match `query`, counted in characters, into `hits`, sized for the query's bytes, their count
+// into `count`, and the match's score into `score`, the match's own lists one take of `owner`: 1, or 0 where it does
+// not match. The query's characters match in order anywhere in the text, case aside, in no more pieces than half its
+// characters or three. A character scores more at the start of a word or past `from`, where the text's name starts;
+// the characters of `query` a match looks for, in lower case, its spaces left out, into `characters`, sized for
+// `capacity`; a text's characters as a match reads them, as they are and in lower case; and the match of characters
+// already read, `required` in a text's `displayed` and `lower`, `count` characters each, `latest` sized for
 // CLI_FUZZY_CHARACTERS for the match's own use (files_fuzzy.c)
 int cli_files_fuzzy(const CliFilesQueryCfg *args);
 unsigned int cli_files_want(const CliFilesQueryLettersCfg *args);
@@ -376,6 +377,7 @@ struct CliFilesQueryCfg
     double *score;
     unsigned int *hits;
     unsigned int *count_pointer;
+    const CellOwner *owner;
 };
 
 struct CliFilesRootOutErrMsgCfg

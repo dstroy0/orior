@@ -21,7 +21,7 @@ static void assert_hits(const char *required, const char *query, const char *tex
 {
     double score = 0.0;
     unsigned int count = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count, .owner = g_cli_files_views_owner));
     char hits[256];
     VerbaLinea line = {hits, sizeof(hits), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -38,7 +38,7 @@ static void assert_score(double required, const char *query, const char *text, u
 {
     double score = 0.0;
     unsigned int count = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count, .owner = g_cli_files_views_owner));
     TEST_ASSERT_DOUBLE_WITHIN(1e-9, required, score);
 }
 
@@ -47,7 +47,7 @@ static void assert_no_fuzzy_match(const char *query, const char *text, unsigned 
 {
     double score = 0.0;
     unsigned int count = 0u;
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count, .owner = g_cli_files_views_owner));
 }
 
 void setUp(void)
