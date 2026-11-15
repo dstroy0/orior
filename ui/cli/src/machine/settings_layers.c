@@ -14,25 +14,34 @@ typedef struct
     unsigned int value;
 } CliRaw;
 
-// What a `${name}` reads: the settings in force by key, the tree's folder, the reader's home folder and the system,
-// and the names nothing gives
+// What a `${name}` reads: the settings in force by key, in the read's cell with the records it holds at most, the
+// tree's folder, the reader's home folder and the system, the names nothing gives, and the texts a value is read
+// into, one and one for each depth a name reads another at
 typedef struct
 {
-    CliRaw raw[CLI_LAYER_RAW];
+    CliRaw *raw;
     unsigned int raws;
+    unsigned int raw_capacity;
     const char *root;
     char home[CLI_PATH_MAX_LEN];
     const char *system;
     unsigned int depth;
     char missing[CLI_SETTINGS_PROBLEMS][CLI_NAME_MAX_LEN];
     unsigned int missings;
+    char *value_text;
+    char *depth_text;
 } CliNames;
 
+// The lists one read fills, in its cell: the parts, their values and the types' settings
+typedef struct
+{
+    CliPart *parts;
+    CliPartValue *values;
+    CliTypeSet *types;
+} CliLayerLists;
+
 static CliNames s_names;
-static CliPart s_parts[CLI_LAYER_PARTS];
-static CliPartValue s_values[CLI_LAYER_RAW];
-static CliTypeSet s_types[CLI_LAYER_PARTS];
-static char s_value[CLI_LAYER_VALUE];
+static CliLayerLists s_lists;
 
 // the bytes the layers' texts are first taken with
 
@@ -192,8 +201,8 @@ static void cli_json_expand(const SettingsLayersCtx *args)
     const CliJsonNode *const node = &args->chain->json.node[args->value];
     if (node->type == CFG_JSON_STRING)
     {
-        static char s_text[CLI_SETTINGS_NAMES_DEEP + 1u][CLI_LAYER_VALUE];
-        char *const capacity = s_text[s_names.depth];
+        // the text of this depth, in the read's cell
+        char *const capacity = s_names.depth_text + ((unsigned long long)s_names.depth * CLI_LAYER_VALUE);
         VerbaLinea line = {capacity, CLI_LAYER_VALUE, 0ULL};
         unsigned long long length = 0ULL;
         const char *const text =
@@ -319,12 +328,12 @@ EMBED_INLINE void cli_source_append(const SettingsLayersCtx *args)
 EMBED_INLINE unsigned int cli_read_store(const SettingsLayersCtx *args)
 {
     CliLayers *layers = args->layers;
-    VerbaLinea line = {s_value, sizeof(s_value), 0ULL};
+    VerbaLinea line = {s_names.value_text, CLI_LAYER_VALUE, 0ULL};
     s_names.depth = 0u;
     EMBED_CALL(cli_value_write, SettingsLayersCtx, .chain = args->chain, .value = args->value, .out = &line);
     EMBED_CALL(cli_missing_report, SettingsLayersCtx, .layers = layers, .file = args->file, .key = args->key);
     return EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx, .layers = layers,
-                      .text = s_value, .length = mmgr_line_ok(&line) ? line.at : 0ULL);
+                      .text = s_names.value_text, .length = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
 // the layers begun: every count and every key's place 0, the texts begun anew with the empty text at their first
@@ -360,10 +369,11 @@ EMBED_INLINE void cli_raws_put(const SettingsLayersCtx *args)
 {
     for (unsigned int at = 0u; at < args->parts; at += 1u)
     {
-        for (unsigned int each = 0u; (each < s_parts[at].count) && (s_names.raws < CLI_LAYER_RAW); each += 1u)
+        const CliPart *const part = &s_lists.parts[at];
+        for (unsigned int each = 0u; (each < part->count) && (s_names.raws < s_names.raw_capacity); each += 1u)
         {
-            const CliPartValue *const value = &s_values[s_parts[at].first + each];
-            s_names.raw[s_names.raws] = (CliRaw){value->key, s_parts[at].chain, value->value};
+            const CliPartValue *const value = &s_lists.values[part->first + each];
+            s_names.raw[s_names.raws] = (CliRaw){value->key, part->chain, value->value};
             s_names.raws += 1u;
         }
     }
@@ -411,7 +421,7 @@ EMBED_INLINE void cli_part_read(const SettingsLayersCtx *args)
     const char *const file = part->chain->file[part->file];
     for (unsigned int each = 0u; each < part->count; each += 1u)
     {
-        const CliPartValue *const value = &s_values[part->first + each];
+        const CliPartValue *const value = &s_lists.values[part->first + each];
         const unsigned int text =
             EMBED_CALL(cli_read_store, SettingsLayersCtx, .layers = args->layers, .chain = part->chain,
                        .value = value->value, .file = file, .key = value->key);
@@ -503,13 +513,43 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
 {
     const char *root = args->root;
     EMBED_CALL(cli_layers_begun, SettingsLayersCtx, .layers = args->layers, .reader = args->reader, .tree = args->tree);
-    EMBED_CALL(cli_settings_parts_internal.parts_store, CliSettingsPartsCtx, .parts = s_parts, .values = s_values,
-               .types = s_types);
+    // the files' members counted first: they bound the values and the types' settings; a file has three parts at most.
+    // The lists, the settings in force and the value texts are one cell of the read, given back as it ends
+    const unsigned int files = args->reader->files + args->tree->files;
+    unsigned int members = 0u;
+    for (unsigned int at = 0u; at < files; at += 1u)
+    {
+        const int of_tree = at >= args->reader->files;
+        members += EMBED_CALL(cli_settings_layers_internal.file_members, CliSettingsLayersCtx, .layers = args->layers,
+                              .chain = of_tree ? args->tree : args->reader,
+                              .file = of_tree ? (at - args->reader->files) : at);
+    }
+    const unsigned long long parts_bytes = (unsigned long long)files * CLI_LAYER_FILE_PARTS * sizeof(CliPart);
+    const unsigned long long values_bytes = (unsigned long long)members * sizeof(CliPartValue);
+    const unsigned long long types_bytes = (unsigned long long)members * sizeof(CliTypeSet);
+    const unsigned long long raws_bytes = (unsigned long long)members * sizeof(CliRaw);
+    const unsigned long long texts_bytes = ((unsigned long long)CLI_SETTINGS_NAMES_DEEP + 2ULL) * CLI_LAYER_VALUE;
+    char *const cell = g_cli_guard->temporary_buf_alloc(
+        parts_bytes + values_bytes + types_bytes + raws_bytes + texts_bytes, g_cli_settings_owner);
+    if (cell == NULL)
+    {
+        return;
+    }
+    s_lists.parts = (CliPart *)(void *)cell;
+    s_lists.values = (CliPartValue *)(void *)(cell + parts_bytes);
+    s_lists.types = (CliTypeSet *)(void *)(cell + parts_bytes + values_bytes);
+    s_names.raw = (CliRaw *)(void *)(cell + parts_bytes + values_bytes + types_bytes);
+    s_names.raw_capacity = members;
+    s_names.value_text = cell + parts_bytes + values_bytes + types_bytes + raws_bytes;
+    s_names.depth_text = s_names.value_text + CLI_LAYER_VALUE;
+    EMBED_CALL(cli_settings_parts_internal.parts_store, CliSettingsPartsCtx, .parts = s_lists.parts,
+               .values = s_lists.values, .types = s_lists.types, .parts_capacity = files * CLI_LAYER_FILE_PARTS,
+               .values_capacity = members, .types_capacity = members);
     unsigned int parts = 0u;
     unsigned int values = 0u;
     unsigned int types = 0u;
     const unsigned int last = (args->reader->files != 0u) ? (args->reader->files - 1u) : 0u;
-    for (unsigned int at = 0u; at < (args->reader->files + args->tree->files); at += 1u)
+    for (unsigned int at = 0u; at < files; at += 1u)
     {
         const int of_tree = at >= args->reader->files;
         const CliChain *const chain = of_tree ? args->tree : args->reader;
@@ -535,10 +575,11 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
     EMBED_CALL(cli_raws_put, SettingsLayersCtx, .parts = parts);
     for (unsigned int at = parts; at > 0u; at -= 1u)
     {
-        EMBED_CALL(cli_part_read, SettingsLayersCtx, .layers = args->layers, .part_at = &s_parts[at - 1u]);
+        EMBED_CALL(cli_part_read, SettingsLayersCtx, .layers = args->layers, .part_at = &s_lists.parts[at - 1u]);
     }
     for (unsigned int at = types; at > 0u; at -= 1u)
     {
-        EMBED_CALL(cli_type_set_read, SettingsLayersCtx, .layers = args->layers, .set = &s_types[at - 1u]);
+        EMBED_CALL(cli_type_set_read, SettingsLayersCtx, .layers = args->layers, .set = &s_lists.types[at - 1u]);
     }
+    g_cli_guard->persistent_buf_release(cell, g_cli_settings_owner);
 }

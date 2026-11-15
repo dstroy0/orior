@@ -4,16 +4,56 @@
 // settings.json its machine's, each with where it is; and a type of file's settings, each set aside
 #include "settings_internal.h"
 
-// the parts, their values and the types' settings, as settings_layers.c stores them under its lock
+// the parts, their values and the types' settings, as settings_layers.c stores them under its lock in a cell of the
+// read, each list with the records it holds at most
 static CliPart *s_parts_of;
 static CliPartValue *s_values_of;
 static CliTypeSet *s_types_of;
+static unsigned int s_parts_capacity;
+static unsigned int s_values_capacity;
+static unsigned int s_types_capacity;
 
 void cli_settings_parts_store(const CliSettingsPartsCtx *args)
 {
     s_parts_of = args->parts;
     s_values_of = args->values;
     s_types_of = args->types;
+    s_parts_capacity = args->parts_capacity;
+    s_values_capacity = args->values_capacity;
+    s_types_capacity = args->types_capacity;
+}
+
+// the members of the object `object` of `json`: how many
+EMBED_INLINE unsigned int cli_members_counted(const CliJson *json, unsigned int object)
+{
+    unsigned int count = 0u;
+    for (unsigned int member = json->node[object].first; member != CLI_JSON_NONE; member = json->node[member].next)
+    {
+        count += 1u;
+    }
+    return count;
+}
+
+unsigned int cli_settings_file_members(const CliSettingsLayersCtx *args)
+{
+    const CliJson *const json = &args->chain->json;
+    const unsigned int object = args->chain->values[args->file];
+    unsigned int count = cli_members_counted(json, object);
+    const unsigned int set = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = object, .name = args->layers->system);
+    const unsigned int machine = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = object, .name = "machine");
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = set,
+                   .type = CFG_JSON_OBJECT))
+    {
+        count += cli_members_counted(json, set);
+    }
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = machine,
+                   .type = CFG_JSON_OBJECT))
+    {
+        count += cli_members_counted(json, machine);
+    }
+    return count;
 }
 
 typedef struct
@@ -51,7 +91,7 @@ EMBED_INLINE void cli_file_problem(const SettingsPartsCtx *args)
 // a part of a file put after the parts, its values from `first`
 EMBED_INLINE unsigned int cli_part_append(const SettingsPartsCtx *args)
 {
-    if (args->parts < CLI_LAYER_PARTS)
+    if (args->parts < s_parts_capacity)
     {
         s_parts_of[args->parts] = (CliPart){
             args->chain, args->file_u32, args->part, args->first_u32, args->values - args->first_u32, args->rank};
@@ -63,7 +103,7 @@ EMBED_INLINE unsigned int cli_part_append(const SettingsPartsCtx *args)
 // a value a part sets put after the values: the count after
 EMBED_INLINE unsigned int cli_value_append(const SettingsPartsCtx *args)
 {
-    if (args->values < CLI_LAYER_RAW)
+    if (args->values < s_values_capacity)
     {
         s_values_of[args->values] = (CliPartValue){args->key, args->value};
         return args->values + 1u;
@@ -92,7 +132,7 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
         {
             if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = member,
                            .type = CFG_JSON_OBJECT) &&
-                (*types < CLI_LAYER_PARTS))
+                (*types < s_types_capacity))
             {
                 s_types_of[*types] = (CliTypeSet){args->chain, args->file, key, member};
                 *types += 1u;

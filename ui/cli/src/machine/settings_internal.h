@@ -24,12 +24,10 @@ int cli_settings_tree_scope(const CliSettingsKeyCtx *args);
 void cli_settings_home(const CliSettingsCtx *args);
 void cli_settings_expand(const CliSettingsTextCtx *args);
 
-// the max parts of files read, the max settings they contain together, and the max bytes of a setting's text
-#define CLI_LAYER_PARTS 128u
-
-#define CLI_LAYER_RAW 8192u
-
+// the max bytes of a setting's text, and the parts one file has at most: its own, its system's and its machine's
 #define CLI_LAYER_VALUE (1u << 16u)
+
+#define CLI_LAYER_FILE_PARTS 3u
 
 // Where a part is: under the reader's own settings.json, as settings.json itself, or over it
 enum
@@ -70,10 +68,12 @@ typedef struct
 // a text put in the layers' texts: its place; and a problem put after the layers', reported once (settings_layers.c)
 unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args);
 void cli_settings_problem(const CliSettingsLayersProblemCtx *args);
-// where the parts, their values and the types' settings are stored; and the parts of the file `file` of `chain` put
-// after the parts, its values after `*values` and its types' settings after `*types`: the parts' count after
-// (settings_parts.c)
+// where the parts, their values and the types' settings are stored, each with the records it holds at most; the
+// members the file `file` of `chain` sets, its own, its system's and its machine's, which bound its values and its
+// types' settings; and the parts of the file put after the parts, its values after `*values` and its types' settings
+// after `*types`: the parts' count after (settings_parts.c)
 void cli_settings_parts_store(const CliSettingsPartsCtx *args);
+unsigned int cli_settings_file_members(const CliSettingsLayersCtx *args);
 unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args);
 
 struct CliSettingsLayersCtx
@@ -109,6 +109,9 @@ struct CliSettingsPartsCtx
     CliPart *parts;
     CliPartValue *values;
     CliTypeSet *types;
+    unsigned int parts_capacity;
+    unsigned int values_capacity;
+    unsigned int types_capacity;
 };
 
 struct CliSettingsTextLengthCtx
@@ -187,10 +190,12 @@ EMBED_TABLE_STORAGE CliSettingsPartsNs cli_settings_parts_internal EMBED_UNUSED 
 
 typedef struct
 {
+    unsigned int (*file_members)(const CliSettingsLayersCtx *args);
     unsigned int (*file_parts)(const CliSettingsLayersCtx *args);
 } CliSettingsLayersNs;
-EMBED_TABLE_LAYOUT(CliSettingsLayersNs, file_parts);
+EMBED_TABLE_LAYOUT(CliSettingsLayersNs, file_members, file_parts);
 EMBED_TABLE_STORAGE CliSettingsLayersNs cli_settings_layers_internal EMBED_UNUSED = {
+    .file_members = cli_settings_file_members,
     .file_parts = cli_settings_file_parts,
 };
 
