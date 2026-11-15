@@ -139,7 +139,6 @@ static int cli_step(const RunnerRunCtx *args)
     int *has_code = args->has_code;
     long long *code = args->code;
     double *step_began = args->step_began;
-    static char s_path[1u << 16u];
     const CliRunEvent line = {CLI_RUN_EVENT_LINE,
                               run->run,
                               NULL,
@@ -175,10 +174,16 @@ static int cli_step(const RunnerRunCtx *args)
     if (!EMBED_CALL(cli_runner_name_command.command_sets, CliRunnerNameCommandCfg, .command_read = command,
                     .name = "PATH"))
     {
-        EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path,
-                   .size = sizeof(s_path));
-        EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "PATH",
-                   .value = s_path);
+        // the PATH every step runs with, in a cell of the temporary tier for the call; the command keeps its own copy
+        char *const path = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_runs_owner);
+        if (path != NULL)
+        {
+            EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path,
+                       .size = CLI_PATH_TEXT);
+            EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command,
+                       .name = "PATH", .value = path);
+            g_cli_guard->persistent_buf_release(path, g_cli_runs_owner);
+        }
     }
     char number[24];
     VerbaLinea named = {number, sizeof(number), 0ULL};
