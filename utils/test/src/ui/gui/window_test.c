@@ -550,16 +550,33 @@ static int cell_near(int x, int start, float cell, int cells)
     return (gap >= -1) && (gap <= 1);
 }
 
-// the cursor, the caret and the cell told where the caret is not `cells` cells right of `start`
-static void caret_told(int start, float cell, int cells)
+// the pixel of the displayed line's first cell at the frame displayed, as the editor positions it: the text's edge past
+// the gutter, moved left by the cells the view has slid past and the part of a cell the scroll is past them. The
+// editor's rectangle moves as the keys' claim slides the edges: the start is read at the caret's own frame
+static int line_start_x(float cell)
 {
     const CliViewFrame *const frame = s_window.editor.frame;
-    if ((frame == NULL) || !cell_near(caret_x(), start, cell, cells))
+    const int gutter = EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
+                                  .editor_read = &s_window.editor, .cell = cell, .scale = s_window.frame.scale);
+    const float slid = (float)((frame != NULL) ? frame->left : 0ULL) * cell;
+    return (int)(((float)(s_window.frame.editor.x + gutter) - slid - s_window.editor.scroll_x) + 0.5f);
+}
+
+// whether the caret is `cells` cells right of the line's start, both read at the frame displayed; the cursor, the
+// caret and the cell told where it is not
+static int caret_at_cells(float cell, int cells)
+{
+    const int x = caret_x();
+    const int start = line_start_x(cell);
+    const CliViewFrame *const frame = s_window.editor.frame;
+    const int near = (frame != NULL) && cell_near(x, start, cell, cells);
+    if (!near)
     {
         (void)fprintf(stderr, "  caret: cursor %llu:%llu, x %d, start %d, cell %.3f, cells %d, keys %s\n",
-                      (frame != NULL) ? frame->cursor.line : 0ULL, (frame != NULL) ? frame->cursor.col : 0ULL,
-                      caret_x(), start, (double)cell, cells, s_window.editing ? "editing" : "not editing");
+                      (frame != NULL) ? frame->cursor.line : 0ULL, (frame != NULL) ? frame->cursor.col : 0ULL, x,
+                      start, (double)cell, cells, s_window.editing ? "editing" : "not editing");
     }
+    return near;
 }
 
 static void table_checked(void)
@@ -574,19 +591,17 @@ static void table_checked(void)
     const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &s_window.glyphs,
                                   .size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                                    .pixels = (int)GUI_CODE_SIZE, .scale = s_window.frame.scale));
-    const int first_x = caret_x();
     key_pressed("Right");
     key_pressed("Right");
-    caret_told(first_x, cell, 5);
-    cli_check((cell > 0.0f) && cell_near(caret_x(), first_x, cell, 5),
+    cli_check((cell > 0.0f) && caret_at_cells(cell, 5),
               "the caret at the second field's first character is five cells right of the line's start");
     key_pressed("End");
-    caret_told(first_x, cell, 9);
-    cli_check(cell_near(caret_x(), first_x, cell, 9), "the caret at the line's end is at cell 9");
+    cli_check(caret_at_cells(cell, 9), "the caret at the line's end is at cell 9");
     cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->column_offset[3] == 10ULL),
               "the offset past the last column is at cell 10");
     // the second column's line, at cell 8, dragged to cell 10 widens the second column from 2 cells to 5
     const GuiRect caret = caret_box();
+    const int first_x = line_start_x(cell);
     const int row_y = caret.y + (caret.height / 2);
     pressed_with(cell_x(first_x, cell, 8), row_y, GUI_BUTTON_LEFT);
     cli_check(s_window.column_drag == 2u, "a press on the second column's line grips it");
@@ -1271,6 +1286,54 @@ static void symbols_checked(void)
               "Enter renames the name in every file and Save All writes them");
 }
 
+// whether the check named `name` runs: every check runs where ORIOR_WINDOW_CHECKS is not set, else those it names,
+// separated by commas
+static int check_wanted(const char *name)
+{
+    char named[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_WINDOW_CHECKS",
+                    .value_out = named, .capacity = sizeof(named)) ||
+        (named[0] == '\0'))
+    {
+        return 1;
+    }
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_NAME_MAX_LEN});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = sizeof(named)});
+    unsigned long long from = 0ULL;
+    while (from <= size)
+    {
+        const unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                 .text = named, .at = from, .size = size, .set = ",");
+        if (((at - from) == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = named + from, .other = name, .bytes = (embed_word)length}) == 0))
+        {
+            return 1;
+        }
+        from = at + 1ULL;
+    }
+    return 0;
+}
+
+// A check of the window after its start, by the name ORIOR_WINDOW_CHECKS selects it by
+typedef struct
+{
+    const char *name;
+    void (*run)(void);
+} WindowCheck;
+
+static const WindowCheck s_checks[22] = {
+    {"saves", saves_checked},           {"closes", closes_checked},
+    {"save_rows", save_rows_checked},   {"failed_save", failed_save_checked},
+    {"reduce_motion", reduce_motion_checked}, {"place", place_checked},
+    {"table", table_checked},           {"caret", caret_checked},
+    {"explorer_stays", explorer_stays_checked}, {"terminal_menu", terminal_menu_checked},
+    {"tab_menu", tab_menu_checked},     {"editor_menu", editor_menu_checked},
+    {"minimap_lines", minimap_lines_checked}, {"autoscroll", autoscroll_checked},
+    {"tips", tips_checked},             {"bar_tools", bar_tools_checked},
+    {"map_collapses", map_collapses_checked}, {"themes", themes_checked},
+    {"view", view_checked},             {"edit", edit_checked},
+    {"symbols", symbols_checked},       {"file", file_checked}};
+
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
@@ -1319,28 +1382,13 @@ int main(void)
                                                                        .other = s_root + past_slash,
                                                                        .other_cap = CLI_PATH_MAX_LEN}),
               "the window's title is the tree's name, the last part of its folder");
-    saves_checked();
-    closes_checked();
-    save_rows_checked();
-    failed_save_checked();
-    reduce_motion_checked();
-    place_checked();
-    table_checked();
-    caret_checked();
-    explorer_stays_checked();
-    terminal_menu_checked();
-    tab_menu_checked();
-    editor_menu_checked();
-    minimap_lines_checked();
-    autoscroll_checked();
-    tips_checked();
-    bar_tools_checked();
-    map_collapses_checked();
-    themes_checked();
-    view_checked();
-    edit_checked();
-    symbols_checked();
-    file_checked();
+    for (unsigned int at = 0u; at < 22u; at += 1u)
+    {
+        if (check_wanted(s_checks[at].name))
+        {
+            s_checks[at].run();
+        }
+    }
     EMBED_CALL(gui_window_table.end, GuiWindowCfg, .window = &s_window);
     cli_command_line_tree_end();
     return cli_on_check();

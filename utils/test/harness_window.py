@@ -381,7 +381,10 @@ def cmd_check(a):
     import harness_cli
 
     seen = []
-    code = harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, *a.names], seen=seen, env=harness_cli.checks_env(a))
+    env = harness_cli.checks_env(a)
+    if a.only:
+        env["ORIOR_WINDOW_CHECKS"] = a.only
+    code = harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, *a.names], seen=seen, env=env)
     checks, failed, exits = harness_cli.output_read("".join(seen))
     # a file ended as stalled printed no exit of its own
     failing = sum(1 for one in exits if one != 0) + (1 if code == 124 else 0)
@@ -1586,6 +1589,7 @@ def register(sub):
     p.add_argument("names", nargs="*", help="checks by name, raster or glyphs, each a *_test.c under utils/test/src/ui/gui")
     p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")
     p.add_argument("--owners", action="store_true", help="each check's end prints MMgr's owner table, every owner's bytes now and its peak")
+    p.add_argument("--only", default="", help="of window_test.c, the checks named here alone, separated by commas, as table or saves,closes")
     p.set_defaults(fn=cmd_check)
     p = window.add_parser("icon", help="the program's icon file written from the eye: ui/gui/src/orior.ico, built into the window on Windows")
     p.set_defaults(fn=cmd_icon)
