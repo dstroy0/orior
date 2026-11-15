@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript-typescript, rust, actions]
+        language: [javascript-typescript, actions]
     steps:
       - uses: actions/checkout@v4
 
