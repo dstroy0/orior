@@ -23,7 +23,7 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed
     // WaitOnAddress takes whole milliseconds: the limit is rounded up, and a limit past the longest a DWORD counts
     // waits that long
     const embed_u64 milliseconds = (nanoseconds / 1000000u) + (embed_u64)((nanoseconds % 1000000u) != 0u);
-    const DWORD waited = (nanoseconds == EMBED_WAIT_FOREVER) ? INFINITE
+    const DWORD waited = (nanoseconds == EMBED_WAIT_INFINITE) ? INFINITE
                          : (milliseconds < 0xfffffffeull)    ? (DWORD)milliseconds
                                                              : (DWORD)0xfffffffeull;
     (void)WaitOnAddress(&word->value, &was, sizeof(was), waited);

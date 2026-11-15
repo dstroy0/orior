@@ -498,8 +498,8 @@ void cli_job_runs_reported(const CliJobRunsReportCfg *args)
     // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
     embed_u64 seen_word = 0u;
-    (void)embed_ticket_ring_granted(&s_turnstiles, address, &s_reports, stamp, &seen_word);
-    (void)embed_ticket_ring_pushed(&s_turnstiles, address, &s_reports, stamp, (void *)(embed_word)cell, &seen_word);
+    (void)embed_ticket_ring_pass_grant(&s_turnstiles, address, &s_reports, stamp, &seen_word);
+    (void)embed_ticket_ring_pass_push(&s_turnstiles, address, &s_reports, stamp, (void *)(embed_word)cell, &seen_word);
     if (s_woken != NULL)
     {
         s_woken();
@@ -521,7 +521,7 @@ EMBED_INLINE char *report_popped(const JobRunsCtx *args)
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_taken;
     void *popped = NULL;
     embed_u64 seen_word = 0u;
-    (void)embed_ticket_ring_popped(&s_turnstiles, address, &s_reports, stamp, &popped, &seen_word);
+    (void)embed_ticket_ring_pass_pop(&s_turnstiles, address, &s_reports, stamp, &popped, &seen_word);
     const CarcerMovableEntry *const cell = popped;
     (void)g_cli_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = report, .bytes = sizeof(*report)});
@@ -536,7 +536,7 @@ EMBED_INLINE char *report_popped(const JobRunsCtx *args)
         text[report->length] = '\0';
     }
     (void)g_cli_guard->movable_buf_release(cell, g_cli_job_runs_owner);
-    (void)embed_ticket_ring_released(&s_turnstiles, &s_reports, stamp, &seen_word);
+    (void)embed_ticket_ring_drain_release(&s_turnstiles, &s_reports, stamp, &seen_word);
     s_taken += 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_room);
     return text;

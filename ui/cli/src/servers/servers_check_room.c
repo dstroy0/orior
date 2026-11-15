@@ -105,8 +105,8 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)job;
     embed_u64 seen = 0u;
-    (void)embed_ticket_ring_granted(&ring->turnstiles, address, &ring->ring, stamp, &seen);
-    (void)embed_ticket_ring_pushed(&ring->turnstiles, address, &ring->ring, stamp, (void *)(embed_word)job, &seen);
+    (void)embed_ticket_ring_pass_grant(&ring->turnstiles, address, &ring->ring, stamp, &seen);
+    (void)embed_ticket_ring_pass_push(&ring->turnstiles, address, &ring->ring, stamp, (void *)(embed_word)job, &seen);
     if ((args->file != CLI_SERVERS_NO_FILE) && (args->file < queue->file_at_max))
     {
         static const unsigned char s_waiting = 1u;

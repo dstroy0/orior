@@ -62,7 +62,7 @@ EMBED_INLINE void client_recv(const InterfaceClientCtx *args)
     // Explicit cast carries the entry's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)entry;
     embed_u64 seen = 0u;
-    if (!embed_ticket_ring_granted(&client->turnstiles, address, &client->ring, stamp, &seen))
+    if (!embed_ticket_ring_pass_grant(&client->turnstiles, address, &client->ring, stamp, &seen))
     {
         return;
     }
@@ -109,7 +109,7 @@ EMBED_INLINE void client_recv(const InterfaceClientCtx *args)
         }
         entry->size = rest_size;
     }
-    (void)embed_ticket_ring_pushed(&client->turnstiles, address, &client->ring, stamp, entry, &seen);
+    (void)embed_ticket_ring_pass_push(&client->turnstiles, address, &client->ring, stamp, entry, &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
 }
 
@@ -120,7 +120,7 @@ static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u6
     embed_u64 seen = 0u;
     // Explicit cast carries the end's address as the pass's entry
     if (!cli_ticket_pushed(&client->ring, client->taken, stamp_out) ||
-        !embed_ticket_ring_popped(&client->turnstiles, (embed_atomic_uptr_value)(embed_word)client, &client->ring,
+        !embed_ticket_ring_pass_pop(&client->turnstiles, (embed_atomic_uptr_value)(embed_word)client, &client->ring,
                                   *stamp_out, &job, &seen))
     {
         return 0;
@@ -133,7 +133,7 @@ static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u6
 static void client_released(CliIpcClient *client, embed_u64 stamp)
 {
     embed_u64 seen = 0u;
-    (void)embed_ticket_ring_released(&client->turnstiles, &client->ring, stamp, &seen);
+    (void)embed_ticket_ring_drain_release(&client->turnstiles, &client->ring, stamp, &seen);
     client->taken += 1u;
 }
 

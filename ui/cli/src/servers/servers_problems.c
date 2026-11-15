@@ -286,7 +286,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_problems.room);
         if (cli_ticket_room(&s_problems.ring, ticket) &&
-            embed_ticket_ring_granted(&s_problems.turnstiles, address, &s_problems.ring, stamp, &seen))
+            embed_ticket_ring_pass_grant(&s_problems.turnstiles, address, &s_problems.ring, stamp, &seen))
         {
             break;
         }
@@ -301,7 +301,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_problems.room, .seen = room);
     }
-    (void)embed_ticket_ring_pushed(&s_problems.turnstiles, address, &s_problems.ring, stamp, (void *)(embed_word)cell,
+    (void)embed_ticket_ring_pass_push(&s_problems.turnstiles, address, &s_problems.ring, stamp, (void *)(embed_word)cell,
                                    &seen);
     problems_woken();
 }
@@ -361,7 +361,7 @@ static int problems_taken(void)
     {
         void *job = NULL;
         embed_u64 seen = 0u;
-        if (!embed_ticket_ring_popped(&s_problems.turnstiles, address, &s_problems.ring, stamp, &job, &seen))
+        if (!embed_ticket_ring_pass_pop(&s_problems.turnstiles, address, &s_problems.ring, stamp, &job, &seen))
         {
             break;
         }
@@ -394,7 +394,7 @@ static int problems_taken(void)
             cli_servers_report_release(report.file.report);
         }
         (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
-        (void)embed_ticket_ring_released(&s_problems.turnstiles, &s_problems.ring, stamp, &seen);
+        (void)embed_ticket_ring_drain_release(&s_problems.turnstiles, &s_problems.ring, stamp, &seen);
         s_problems.taken += 1u;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_problems.room);
     }

@@ -90,7 +90,7 @@ static int serve_recv(const CliCommsRecvCfg *args)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &joined->queue_wake);
         if (cli_ticket_room(&joined->ring, ticket) &&
-            embed_ticket_ring_granted(&joined->turnstiles, address, &joined->ring, stamp, &seen))
+            embed_ticket_ring_pass_grant(&joined->turnstiles, address, &joined->ring, stamp, &seen))
         {
             break;
         }
@@ -120,7 +120,7 @@ static int serve_recv(const CliCommsRecvCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = entry->body, .src = args->body, .bytes = (embed_word)size});
     }
-    (void)embed_ticket_ring_pushed(&joined->turnstiles, address, &joined->ring, stamp, entry, &seen);
+    (void)embed_ticket_ring_pass_push(&joined->turnstiles, address, &joined->ring, stamp, entry, &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
     return 1;
 }
@@ -215,7 +215,7 @@ static void serve_drain(void *context)
         embed_u64 found = 0u;
         if (cli_ticket_pushed(&joined->ring, joined->taken, &stamp) &&
             // Explicit cast carries the place's address as the pass's entry
-            embed_ticket_ring_popped(&joined->turnstiles, (embed_atomic_uptr_value)(embed_word)joined, &joined->ring,
+            embed_ticket_ring_pass_pop(&joined->turnstiles, (embed_atomic_uptr_value)(embed_word)joined, &joined->ring,
                                      stamp, &job, &found))
         {
             CliIpcEntry *const entry = job;
@@ -228,7 +228,7 @@ static void serve_drain(void *context)
             {
                 EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
             }
-            (void)embed_ticket_ring_released(&joined->turnstiles, &joined->ring, stamp, &found);
+            (void)embed_ticket_ring_drain_release(&joined->turnstiles, &joined->ring, stamp, &found);
             joined->taken += 1u;
             // a reading thread asleep for the slot's room wakes to it
             EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);

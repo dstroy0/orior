@@ -5564,14 +5564,14 @@ static void view_pair_job(const CliServersJobCfg *args)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_pair_room);
         if (cli_ticket_room(&s_pair_ring, ticket) &&
-            embed_ticket_ring_granted(&s_pair_turnstiles, address, &s_pair_ring, stamp, &seen))
+            embed_ticket_ring_pass_grant(&s_pair_turnstiles, address, &s_pair_ring, stamp, &seen))
         {
             break;
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_pair_room, .seen = room);
     }
     // Explicit cast carries the entry, read only, as the ring's job
-    (void)embed_ticket_ring_pushed(&s_pair_turnstiles, address, &s_pair_ring, stamp, (void *)(embed_word)landed, &seen);
+    (void)embed_ticket_ring_pass_push(&s_pair_turnstiles, address, &s_pair_ring, stamp, (void *)(embed_word)landed, &seen);
     cli_document_colored_wake();
 }
 
@@ -5594,7 +5594,7 @@ static void view_pair_answers_taken(void)
     {
         void *job = NULL;
         embed_u64 seen = 0u;
-        if (!embed_ticket_ring_popped(&s_pair_turnstiles, address, &s_pair_ring, stamp, &job, &seen))
+        if (!embed_ticket_ring_pass_pop(&s_pair_turnstiles, address, &s_pair_ring, stamp, &job, &seen))
         {
             break;
         }
@@ -5607,7 +5607,7 @@ static void view_pair_answers_taken(void)
         {
             s_pair_answer = answer;
         }
-        (void)embed_ticket_ring_released(&s_pair_turnstiles, &s_pair_ring, stamp, &seen);
+        (void)embed_ticket_ring_drain_release(&s_pair_turnstiles, &s_pair_ring, stamp, &seen);
         s_pair_taken += 1u;
         // a worker asleep for the slot's room wakes to it
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_pair_room);

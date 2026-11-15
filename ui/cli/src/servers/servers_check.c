@@ -92,7 +92,7 @@ static void check_checker(void *context)
         }
         void *popped = NULL;
         embed_u64 seen = 0u;
-        (void)embed_ticket_ring_popped(&ring->turnstiles, address, &ring->ring, stamp, &popped, &seen);
+        (void)embed_ticket_ring_pass_pop(&ring->turnstiles, address, &ring->ring, stamp, &popped, &seen);
         const CarcerMovableEntry *const cell = popped;
         CliServersQueued one = {NULL, 0ULL, CLI_SERVERS_NO_FILE, 0u};
         (void)g_cli_guard->movable_buf_read(
@@ -125,7 +125,7 @@ static void check_checker(void *context)
         }
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = one.server);
         (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_check_work_state_owner);
-        (void)embed_ticket_ring_released(&ring->turnstiles, &ring->ring, stamp, &seen);
+        (void)embed_ticket_ring_drain_release(&ring->turnstiles, &ring->ring, stamp, &seen);
         if (stale)
         {
             continue;

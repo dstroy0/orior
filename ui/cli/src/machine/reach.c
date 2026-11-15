@@ -409,7 +409,7 @@ static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
     void *job = NULL;
     embed_u64 seen = 0u;
     // Explicit cast carries the interface's address as the pass's entry
-    if (!embed_ticket_ring_popped(&s_interface.turnstiles, (embed_atomic_uptr_value)(embed_word)&s_interface, &s_interface.ring,
+    if (!embed_ticket_ring_pass_pop(&s_interface.turnstiles, (embed_atomic_uptr_value)(embed_word)&s_interface, &s_interface.ring,
                                   *stamp_out, &job, &seen))
     {
         return 0;
@@ -423,7 +423,7 @@ static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
 static void reach_released(embed_u64 stamp)
 {
     embed_u64 seen = 0u;
-    (void)embed_ticket_ring_released(&s_interface.turnstiles, &s_interface.ring, stamp, &seen);
+    (void)embed_ticket_ring_drain_release(&s_interface.turnstiles, &s_interface.ring, stamp, &seen);
     embed_atomic_u32_store(&s_interface.taken, embed_ticket_of_stamp(stamp) + 1u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_interface.room);
 }
@@ -483,7 +483,7 @@ static int reach_received(const CliCommsRecvCfg *args)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_interface.room);
         if (cli_ticket_room(&s_interface.ring, ticket) &&
-            embed_ticket_ring_granted(&s_interface.turnstiles, address, &s_interface.ring, stamp, &seen))
+            embed_ticket_ring_pass_grant(&s_interface.turnstiles, address, &s_interface.ring, stamp, &seen))
         {
             break;
         }
@@ -493,7 +493,7 @@ static int reach_received(const CliCommsRecvCfg *args)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_interface.room, .seen = room);
     }
-    (void)embed_ticket_ring_pushed(&s_interface.turnstiles, address, &s_interface.ring, stamp, &command, &seen);
+    (void)embed_ticket_ring_pass_push(&s_interface.turnstiles, address, &s_interface.ring, stamp, &command, &seen);
     // a interface closed as this pushed: the ring popped here, so no command is on it with no one to mark it
     if (embed_atomic_u32_load(&s_interface.closed) != 0u)
     {
@@ -506,7 +506,7 @@ static int reach_received(const CliCommsRecvCfg *args)
     }
     while (embed_atomic_word_load(&command.done) == 0u)
     {
-        (void)embed_word_wait(&command.done, 0u, EMBED_WAIT_FOREVER);
+        (void)embed_word_wait(&command.done, 0u, EMBED_WAIT_INFINITE);
     }
     return 1;
 }

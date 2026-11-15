@@ -250,7 +250,7 @@ EMBED_INLINE void cli_gate_shut(CliGate *gate)
     embed_turnstile_backoff_begin(&backoff);
     while ((was & CLI_GATE_HELD) != 0u)
     {
-        embed_turnstile_backed_off(&gate->word, was, CLI_GATE_SLEEPER, &backoff, 1u);
+        embed_turnstile_backoff_step(&gate->word, was, CLI_GATE_SLEEPER, &backoff, 1u);
         was = embed_atomic_word_fetch_or(&gate->word, CLI_GATE_HELD);
     }
     EMBED_ATOMIC_ORDERED();
@@ -280,8 +280,8 @@ EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, 
 {
     const embed_u64 current = embed_atomic_u64_load(&embed_ticket_ring_slot(ring, (embed_u64)next)->stamp);
     *stamp_out = embed_ticket_fields_of_stamp(current);
-    return (embed_ticket_of_stamp(current) == next) && ((current & EMBED_TICKET_PUSHED) != 0u) &&
-           ((current & EMBED_TICKET_POPPED) == 0u);
+    return (embed_ticket_of_stamp(current) == next) && ((current & EMBED_TICKET_PUSHED_BIT) != 0u) &&
+           ((current & EMBED_TICKET_POPPED_BIT) == 0u);
 }
 
 // Whether the slot of the ticket `next` is ready for its grant: a zero word on the ring's first lap, else the
@@ -293,7 +293,7 @@ EMBED_INLINE int cli_ticket_room(const EmbedTicketRing *ring, embed_u32 next)
     // Explicit cast narrows the slot count, at max 2^31, to the ticket's width
     const embed_u32 lap = (embed_u32)(ring->mask + 1u);
     return ((current == 0u) && (next < lap)) ||
-           (((current & EMBED_TICKET_RELEASED) != 0u) && (embed_ticket_of_stamp(current) == next - lap));
+           (((current & EMBED_TICKET_RELEASED_BIT) != 0u) && (embed_ticket_of_stamp(current) == next - lap));
 }
 
 // A setting of a started process's environment: `name` set to `value`, or taken out where `value` is NULL

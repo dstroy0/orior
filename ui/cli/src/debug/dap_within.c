@@ -101,13 +101,13 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
             return 0;
         }
         if (cli_ticket_room(&queue->ring, ticket) &&
-            embed_ticket_ring_granted(&queue->turnstiles, address, &queue->ring, stamp, &seen))
+            embed_ticket_ring_pass_grant(&queue->turnstiles, address, &queue->ring, stamp, &seen))
         {
             break;
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_queue_wake, .seen = room);
     }
-    (void)embed_ticket_ring_pushed(&queue->turnstiles, address, &queue->ring, stamp, (void *)(embed_word)args->message,
+    (void)embed_ticket_ring_pass_push(&queue->turnstiles, address, &queue->ring, stamp, (void *)(embed_word)args->message,
                                    &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
     return 1;
@@ -150,8 +150,8 @@ EMBED_INLINE const CarcerMovableEntry *within_pop(const DapWithinCtx *args)
     embed_u64 seen = 0u;
     // Explicit cast carries the queue's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)queue;
-    (void)embed_ticket_ring_popped(&queue->turnstiles, address, &queue->ring, stamp, &popped, &seen);
-    (void)embed_ticket_ring_released(&queue->turnstiles, &queue->ring, stamp, &seen);
+    (void)embed_ticket_ring_pass_pop(&queue->turnstiles, address, &queue->ring, stamp, &popped, &seen);
+    (void)embed_ticket_ring_drain_release(&queue->turnstiles, &queue->ring, stamp, &seen);
     queue->taken += 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
     return popped;
@@ -171,7 +171,7 @@ EMBED_INLINE void within_clear(const DapWithinCtx *args)
     for (unsigned int at = 0u; (queue->ring.slots != NULL) && (at < CLI_DAP_RING_SLOTS); at += 1u)
     {
         const embed_u64 stamp = embed_atomic_u64_load(&queue->ring.slots[at].stamp);
-        if (((stamp & EMBED_TICKET_PUSHED) != 0u) && ((stamp & EMBED_TICKET_POPPED) == 0u))
+        if (((stamp & EMBED_TICKET_PUSHED_BIT) != 0u) && ((stamp & EMBED_TICKET_POPPED_BIT) == 0u))
         {
             (void)g_cli_guard->movable_buf_release(queue->ring.slots[at].job, g_cli_debug_owner);
         }

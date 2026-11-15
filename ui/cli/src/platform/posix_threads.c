@@ -61,18 +61,18 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed
     // the futex compares 32 bits: on this little-endian host the word's low half, where the bits a sleeper watches
     // lie; the sleeper tests the whole word again on waking
     (void)syscall(SYS_futex, (void *)&word->value, FUTEX_WAIT_PRIVATE, (unsigned int)seen,
-                  (nanoseconds == EMBED_WAIT_FOREVER) ? NULL : &span, NULL, 0);
+                  (nanoseconds == EMBED_WAIT_INFINITE) ? NULL : &span, NULL, 0);
 #elif defined(__APPLE__)
     // the microseconds a embed_u32 counts, rounded up, since 0 waits with no end
     const unsigned long long micro = (nanoseconds / 1000ULL) + (unsigned long long)((nanoseconds % 1000ULL) != 0ULL);
     const embed_u32 timeout =
-        (nanoseconds == EMBED_WAIT_FOREVER) ? 0u : (embed_u32)((micro < 4294967295ULL) ? micro : 4294967295ULL);
+        (nanoseconds == EMBED_WAIT_INFINITE) ? 0u : (embed_u32)((micro < 4294967295ULL) ? micro : 4294967295ULL);
     (void)__ulock_wait(CLI_ULOCK_COMPARE_AND_WAIT64 | CLI_ULOCK_NO_ERRNO, (void *)&word->value, (embed_u64)seen,
                        timeout);
 #else
     // a system with no address wait sleeps the time, or a millisecond for a sleep with no end, and its sleeper tests
     // again
-    const unsigned long long slept = (nanoseconds == EMBED_WAIT_FOREVER) ? 1000000ULL : nanoseconds;
+    const unsigned long long slept = (nanoseconds == EMBED_WAIT_INFINITE) ? 1000000ULL : nanoseconds;
     struct timespec span;
     span.tv_sec = (time_t)(slept / 1000000000ULL);
     span.tv_nsec = (long)(slept % 1000000000ULL);
@@ -101,8 +101,8 @@ static int wake_sleep(CliWake *wake, embed_atomic_word_value seen, unsigned long
 {
     // the word's wait takes nanoseconds: a sleep past what they count sleeps with no end
     return embed_word_wait(&wake->generation, seen,
-                           (milliseconds < (EMBED_WAIT_FOREVER / 1000000ULL)) ? (embed_u64)milliseconds * 1000000ULL
-                                                                              : EMBED_WAIT_FOREVER);
+                           (milliseconds < (EMBED_WAIT_INFINITE / 1000000ULL)) ? (embed_u64)milliseconds * 1000000ULL
+                                                                              : EMBED_WAIT_INFINITE);
 }
 
 void cli_wake_wait(const CliWakeCtx *args)
