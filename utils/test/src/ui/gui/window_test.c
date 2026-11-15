@@ -379,8 +379,7 @@ static void cells_rounds_checked(void)
     }
     (void)mmgr_line_finish(&lines);
     tabs_closed("rounds.txt", s_lines, NULL, NULL);
-    static unsigned long long s_first_owners[MMGR_CARCER_OWNERS];
-    static unsigned long long s_last_owners[MMGR_CARCER_OWNERS];
+    static unsigned long long s_round_owners[6][MMGR_CARCER_OWNERS];
     unsigned long long after_first = 0ULL;
     unsigned long long after_last = 0ULL;
     int every_round_opened = 1;
@@ -392,28 +391,79 @@ static void cells_rounds_checked(void)
         {
             (void)asked("close-all", NULL);
         }
-        after_last = cells_in_use(s_last_owners);
+        after_last = cells_in_use(s_round_owners[round]);
         if (round == 1u)
         {
-            after_first = cells_in_use(s_first_owners);
+            after_first = after_last;
         }
     }
     cli_check(every_round_opened && (cli_view_count() == 0u), "the rounds' document opens and closes each round");
     if (after_last > after_first)
     {
-        // each owner that holds more after the sixth round than after the second, beside the check that reads it
+        // each owner that holds more after the sixth round than after the second, with its bytes in use after each
+        // round, beside the check that reads it
         (void)fprintf(stderr, "  cells in use after the second round %llu, after the sixth %llu\n", after_first,
                       after_last);
         for (size_t at = 0u; (at < mmgr_owner_table_count) && (at < MMGR_CARCER_OWNERS); at += 1u)
         {
-            if (s_last_owners[at] > s_first_owners[at])
+            if (s_round_owners[5][at] > s_round_owners[1][at])
             {
-                (void)fprintf(stderr, "    %s %llu -> %llu\n", mmgr_owner_table[at].name, s_first_owners[at],
-                              s_last_owners[at]);
+                (void)fprintf(stderr, "    %s", mmgr_owner_table[at].name);
+                for (unsigned int round = 0u; round < 6u; round += 1u)
+                {
+                    (void)fprintf(stderr, " %llu", s_round_owners[round][at]);
+                }
+                (void)fprintf(stderr, "\n");
             }
         }
     }
     cli_check(after_last <= after_first, "a closed document gives its cells back over six rounds");
+}
+
+// the runs the editor's frame holds for its row `row`, 0 where it holds none
+static unsigned int row_runs(unsigned int row)
+{
+    const CliViewFrame *const frame = s_window.editor.frame;
+    return ((frame != NULL) && (frame->runs != NULL) && (row < frame->count)) ? frame->runs->line[row].runs : 0u;
+}
+
+// the window stepped until the row `row` has runs or `milliseconds` pass: its runs
+static unsigned int row_runs_waited(unsigned int row, unsigned long long milliseconds)
+{
+    CliWake pause = CLI_WAKE_INIT;
+    const unsigned long long until = cli_clock_milliseconds() + milliseconds;
+    while ((row_runs(row) == 0u) && (cli_clock_milliseconds() < until))
+    {
+        stepped();
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 5ULL);
+    }
+    return row_runs(row);
+}
+
+static void cursor_put(unsigned long long line, unsigned long long col);
+
+// a C file opened and typed into: the line typed into is colored again after each edit, its runs back in the frame
+static void typed_colored_checked(void)
+{
+    tabs_closed("typed.c", "int one(void)\n{\n    return 1;\n}\n", NULL, NULL);
+    cli_check(tab_opened("typed.c"), "a C file opens for the typing check");
+    cli_check(row_runs_waited(2u, 3000ULL) > 0u, "the walk colors the file's lines");
+    cursor_put(2ULL, 4ULL);
+    typed("x");
+    cli_check(row_runs_waited(2u, 3000ULL) > 0u, "the line typed into is colored again after the edit");
+    typed("y");
+    cli_check(row_runs_waited(2u, 3000ULL) > 0u, "and after the next");
+    // text typed at a line's head, a line break after it, then both undone: the window lives and the text is as it
+    // was
+    cursor_put(0ULL, 0ULL);
+    typed("build/typed.c");
+    key_pressed("Enter");
+    cli_check(asked("undo", NULL), "the line break undoes");
+    cli_check(asked("undo", NULL), "the text typed undoes");
+    cli_check(asked("save", NULL) && file_reads("typed.c", "int one(void)\n{\n    xyreturn 1;\n}\n"),
+              "text typed at a line's head and a line break after it undo back to the text as it was");
+    (void)asked("close-all", NULL);
+    (void)asked("close-all", NULL);
 }
 
 static void reduce_motion_checked(void)
@@ -1441,11 +1491,12 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[23] = {{"saves", saves_checked},
+static const WindowCheck s_checks[24] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
                                          {"cells_rounds", cells_rounds_checked},
+                                         {"typed_colored", typed_colored_checked},
                                          {"reduce_motion", reduce_motion_checked},
                                          {"place", place_checked},
                                          {"table", table_checked},

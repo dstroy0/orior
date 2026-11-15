@@ -141,7 +141,9 @@ def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS, seen=None):
             if cpu is not None and cpu_was is not None and cpu > cpu_was + 0.05:
                 cpu_moved_at = now
             cpu_was = cpu if cpu is not None else cpu_was
-            if (stall is not None) and (now - max(cpu_moved_at, quiet_since) >= stall):
+            # a system that cannot say the child's processor time, as macOS cannot, gives no ground to call a quiet
+            # child stalled: the heartbeat alone
+            if (stall is not None) and (cpu is not None) and (now - max(cpu_moved_at, quiet_since) >= stall):
                 print("stalled: no output and no processor time for %d s, ended: %s" % (stall, " ".join(command)), flush=True)
                 # the child's own children are in its job, and a stalled check is such a child of its script
                 if job is not None:
