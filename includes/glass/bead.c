@@ -392,10 +392,12 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
         drop_y[at] = -way.y / over * lift;
         weight[at] = (strengths > 0.0) ? light.strength / strengths : 0.0;
     }
-    // a tab is clear glass on the row: it casts no shadow, and its rim darkens half as much as a dome's
+    // a tab is clear glass on the row: it casts no shadow, its rim darkens half as much as a dome's, and its glint lies
+    // on its curved edges alone, its flat top as clear as the glass under it
     const int tab = atlas->shape == GUI_BEAD_SHAPE_TAB;
     const double shadow_strength = tab ? 0.0 : 1.0 - (BEAD_SHADOW_FADE_PRESSED * share);
     const double rim_strength = tab ? 0.5 : 1.0;
+    const double glint_flat = tab ? 0.0 : BEAD_GLINT_FLAT;
     const double eta = 1.0 / GUI_BEAD_INDEX;
     const double sharp = BEAD_GLINT_SHARP * (1.0 - (BEAD_GLINT_SOFTEN * share));
     const double glint_strength = 1.0 - (BEAD_GLINT_DIM * share);
@@ -447,7 +449,7 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
             const double banded = arith_exp(-(band * band));
             // water reflects little at the dome's top and nearly all at a grazing angle
             const double grazing = (1.0 - normal.z) * (1.0 - normal.z);
-            const double fresnel = BEAD_GLINT_FLAT + ((1.0 - BEAD_GLINT_FLAT) * grazing);
+            const double fresnel = glint_flat + ((1.0 - glint_flat) * grazing);
             double glint = 0.0;
             double caustic = 0.0;
             double facing_away = 0.0;

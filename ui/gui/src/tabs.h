@@ -20,13 +20,15 @@ typedef struct GuiTabsGlyphsCfg GuiTabsGlyphsCfg;
 typedef struct GuiTabsCfg GuiTabsCfg;
 
 // The sizes in the page's pixels: a tab's text size, its padding at its left and its right, and the gap between its
-// name and its close mark. Then its top corners' radius, the line along the displayed tab's top and left, and the close
-// mark's padding each side. Last, the room the row retains clear of the work's lines above the tabs and before the first
+// name and its close mark. Then its top corners' radius, the dot of changes not saved, the line along the displayed
+// tab's top and left, and the close mark's padding each side. Last, the room the row retains clear of the work's
+// lines above the tabs and before the first
 #define GUI_TAB_SIZE 12u
 #define GUI_TAB_PAD_LEFT 14
 #define GUI_TAB_PAD_RIGHT 6
 #define GUI_TAB_GAP 7
 #define GUI_TAB_RADIUS 6
+#define GUI_TAB_DOT 6
 #define GUI_TAB_LINE 2
 #define GUI_TAB_CLOSE_PAD 5
 #define GUI_TAB_CLEAR 3

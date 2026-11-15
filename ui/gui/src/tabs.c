@@ -8,10 +8,9 @@
 #include "../../../includes/window/block.h"
 #include "../../../includes/window/lights.h"
 
-// the close mark's text, its text while the close waits on a second, and the mark of changes not saved
+// the close mark's text, and its text while the close waits on a second
 static const char s_close[] = "\xc3\x97";
 static const char s_close_waiting[] = "\xc3\x97?";
-static const char s_changed[] = "\xe2\x97\x8f";
 
 const char *gui_tab_name(const GuiTabsCfg *args)
 {
@@ -48,17 +47,14 @@ EMBED_INLINE int tabs_changed(const TabsCtx *args)
     return cli_view_key(args->tab, key) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key);
 }
 
-// the width the mark of changes not saved and the gap after it take before the tab `tab`'s name, 0 where it has none
+// the width the dot of changes not saved and the gap after it take before the tab `tab`'s name, 0 where it has none
 EMBED_INLINE int tabs_changed_width(const TabsCtx *args)
 {
     if (!tabs_changed(args))
     {
         return 0;
     }
-    const float mark =
-        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs, .face = GUI_FACE_CODE,
-                   .size = args->size, .text = s_changed, .length = sizeof(s_changed) - 1u);
-    return (int)arith_round_f32(mark) +
+    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_DOT, .scale = args->scale) +
            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_GAP, .scale = args->scale);
 }
 
@@ -171,9 +167,9 @@ int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args)
 }
 
 // The beads over the first GUI_TABS_BEADS tabs of `count`, drawn as their presses are at `time_ms`: the atlas positioned
-// out for the widest tab in the tab's shape, each tab's cell at its place in the row's whole side_menu, lit by the
-// window's lights, over the second segment of the block's tab beads part; one unbaked tab baked a draw, the rest
-// left for the draws after: how many still wait
+// out for the widest tab in the tab's shape, each tab's cell at its place in the row's whole side_menu with the row
+// at rest, lit by the window's lights, over the second segment of the block's tab beads part. A cell at the row's
+// rest keeps its bake while the claim slides the row, the bead drawn where the tab is: 0, as no tab waits to bake
 EMBED_INLINE unsigned int tabs_beads_draw(const TabsCtx *args)
 {
     const GuiTabsGlyphsFrameCfg *const drawn = args->drawn;
@@ -188,18 +184,23 @@ EMBED_INLINE unsigned int tabs_beads_draw(const TabsCtx *args)
     const int reach = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_BEAD_REACH, .scale = scale);
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = scale);
     const int radius = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_RADIUS, .scale = scale);
+    // a tab at the row's rest: the row a gap under the work's inside top, the tab clear of the row's top and its line
+    const int clear = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLEAR, .scale = scale);
+    const int rest_top = frame->inside.y +
+                         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_GAP, .scale = scale) +
+                         clear;
+    const int tall = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = scale) -
+                     clear - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     GuiRect cells[GUI_TABS_BEADS];
     GuiRect placed[GUI_TABS_BEADS];
     int widest = 0;
-    int tall = 0;
     for (unsigned int at = 0u; at < tools; at += 1u)
     {
         const GuiRect rect =
             EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = drawn->glyphs, .frame = frame, .at = at);
-        cells[at] = (GuiRect){rect.x + frame->tabs_left - pad, rect.y - pad, rect.width - gap, rect.height};
-        placed[at] = (GuiRect){rect.x - pad, rect.y - pad, rect.width - gap, rect.height};
+        cells[at] = (GuiRect){rect.x + frame->tabs_left - pad, rest_top - pad, rect.width - gap, tall};
+        placed[at] = (GuiRect){rect.x - pad, rect.y - pad, rect.width - gap, tall};
         widest = (cells[at].width > widest) ? cells[at].width : widest;
-        tall = rect.height;
     }
     GuiLight lights[GUI_LIGHTS_MAX];
     const unsigned int light_count =
@@ -219,23 +220,14 @@ EMBED_INLINE unsigned int tabs_beads_draw(const TabsCtx *args)
     {
         return 0u;
     }
-    unsigned int waiting = 0u;
-    int baked_now = 0;
     for (unsigned int at = 0u; at < tools; at += 1u)
     {
-        const int baked = (drawn->buttons->atlas.baked & (1u << at)) != 0u;
-        if (!baked && baked_now)
-        {
-            waiting += 1u;
-            continue;
-        }
-        baked_now = baked_now || !baked;
         // the beads fade with the row's share as the claim lifts it away; a share is within GUI_FIXED_ONE
         EMBED_CALL(gui_buttons_draw_table.draw, GuiButtonsDrawCfg, .buttons = drawn->buttons, .raster = drawn->raster,
                    .tool = at, .x = placed[at].x, .y = placed[at].y, .time_ms = drawn->time_ms, .clip = frame->tabs,
                    .fade = (unsigned int)(255 - ((255 * frame->tabs_share) / GUI_FIXED_ONE)));
     }
-    return waiting;
+    return 0u;
 }
 
 unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
@@ -305,12 +297,21 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                        .size = size, .top = rect.y, .pixel_height = rect.height);
         const int left =
             rect.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_LEFT, .scale = scale);
-        // the mark of changes not saved before the name, in the hover's color, as tabs.js draws its dot
+        // the dot of changes not saved before the name, in the hover's color, drawn as a disc at the tab's middle
         if (EMBED_CALL(tabs_changed, TabsCtx, .tab = at))
         {
-            (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-                             .face = GUI_FACE_CODE, .size = size, .x_f32 = (float)left, .y = baseline,
-                             .text = s_changed, .length = sizeof(s_changed) - 1u, .color = mark, .clip = met);
+            const int dot = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_DOT, .scale = scale);
+            const GuiRect disc = {left, rect.y + ((rect.height - dot) / 2), dot, dot};
+            const GuiRect disc_met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = disc, .other = met);
+            if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = disc_met))
+            {
+                // a disc's radius is half its side, inside an unsigned int
+                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = disc,
+                           .radius = (unsigned int)(dot / 2), .color = mark, .corners = GUI_RASTER_CORNER_TOP_LEFT |
+                                                                                        GUI_RASTER_CORNER_TOP_RIGHT |
+                                                                                        GUI_RASTER_CORNER_BOTTOM_LEFT |
+                                                                                        GUI_RASTER_CORNER_BOTTOM_RIGHT);
+            }
         }
         unsigned long long length = 0ULL;
         const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .at = at, .length = &length);
