@@ -758,14 +758,17 @@ void cli_tree_stamp(const CliSymbolsContextCfg *args)
 // the mounts' paths folded into one word, which any mount taken or added changes. Called under the lock
 static unsigned long long cli_tree_mounts_word(void)
 {
-    const char *names[CLI_MOUNTS_MAX];
-    const char *paths[CLI_MOUNTS_MAX];
-    const unsigned int mounts = EMBED_CALL(cli_capacity_names_internal.mounts, CliCapacityNamesCtx, .names = names,
-                                           .paths_read = paths, .capacity_u32 = CLI_MOUNTS_MAX);
+    const CliMounts mounts = cli_capacity_names_internal.mounts();
     unsigned long long word_text = 0ULL;
-    for (unsigned int at = 0u; at < mounts; at += 1u)
+    for (unsigned int at = 0u; at < mounts.count; at += 1u)
     {
-        for (const char *character = paths[at]; character[0] != '\0'; character += 1)
+        // each mount read out of the process's cell
+        CliMount mount;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
+                                                               .offset = (embed_word)at * sizeof(CliMount),
+                                                               .dst = &mount,
+                                                               .bytes = sizeof(mount)});
+        for (const char *character = mount.path; character[0] != '\0'; character += 1)
         {
             word_text = (word_text ^ (unsigned char)character[0]) * 0x100000001b3ULL;
         }
@@ -803,32 +806,39 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         return;
     }
     s_walk->languages = languages;
-    const char *mount_names[CLI_MOUNTS_MAX];
-    const char *mount_paths[CLI_MOUNTS_MAX];
-    const unsigned int mounts =
-        EMBED_CALL(cli_capacity_names_internal.mounts, CliCapacityNamesCtx, .names = mount_names,
-                   .paths_read = mount_paths, .capacity_u32 = CLI_MOUNTS_MAX);
-    // the mounts' names and paths in one cell sized to them
-    unsigned long long mount_bytes = 2ULL * mounts * sizeof(*s_walk->mount_name);
-    for (unsigned int at = 0u; at < mounts; at += 1u)
+    const CliMounts mounts = cli_capacity_names_internal.mounts();
+    // the mounts' names and paths in one cell sized to them, each mount read out of the process's cell twice: for
+    // its size, then for its text
+    CliMount mount;
+    unsigned long long mount_bytes = 2ULL * mounts.count * sizeof(*s_walk->mount_name);
+    for (unsigned int at = 0u; at < mounts.count; at += 1u)
     {
-        mount_bytes += cellul.len(&(CatenaFinitaCfg){.src = mount_names[at], .cap = CLI_NAME_MAX_LEN}) +
-                       cellul.len(&(CatenaFinitaCfg){.src = mount_paths[at], .cap = CLI_PATH_MAX_LEN}) + 2ULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
+                                                               .offset = (embed_word)at * sizeof(CliMount),
+                                                               .dst = &mount,
+                                                               .bytes = sizeof(mount)});
+        mount_bytes += cellul.len(&(CatenaFinitaCfg){.src = mount.name, .cap = CLI_NAME_MAX_LEN}) +
+                       cellul.len(&(CatenaFinitaCfg){.src = mount.path, .cap = CLI_PATH_MAX_LEN}) + 2ULL;
     }
-    s_walk->mount_name = (mounts != 0u) ? g_cli_guard->temporary_buf_alloc(mount_bytes, g_cli_code_owner) : NULL;
-    s_walk->mounts = (s_walk->mount_name != NULL) ? mounts : 0u;
-    s_walk->mount_path = (s_walk->mount_name != NULL) ? (s_walk->mount_name + mounts) : NULL;
-    char *mount_text = (s_walk->mount_name != NULL) ? (char *)(void *)(s_walk->mount_path + mounts) : NULL;
+    s_walk->mount_name =
+        (mounts.count != 0u) ? g_cli_guard->temporary_buf_alloc(mount_bytes, g_cli_code_owner) : NULL;
+    s_walk->mounts = (s_walk->mount_name != NULL) ? mounts.count : 0u;
+    s_walk->mount_path = (s_walk->mount_name != NULL) ? (s_walk->mount_name + mounts.count) : NULL;
+    char *mount_text = (s_walk->mount_name != NULL) ? (char *)(void *)(s_walk->mount_path + mounts.count) : NULL;
     for (unsigned int at = 0u; at < s_walk->mounts; at += 1u)
     {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
+                                                               .offset = (embed_word)at * sizeof(CliMount),
+                                                               .dst = &mount,
+                                                               .bytes = sizeof(mount)});
         const unsigned long long name_size =
-            cellul.len(&(CatenaFinitaCfg){.src = mount_names[at], .cap = CLI_NAME_MAX_LEN}) + 1ULL;
-        memor.cpy(&(MemoriaCfg){.dst = mount_text, .src = mount_names[at], .bytes = name_size});
+            cellul.len(&(CatenaFinitaCfg){.src = mount.name, .cap = CLI_NAME_MAX_LEN}) + 1ULL;
+        memor.cpy(&(MemoriaCfg){.dst = mount_text, .src = mount.name, .bytes = name_size});
         s_walk->mount_name[at] = mount_text;
         mount_text += name_size;
         const unsigned long long path_size =
-            cellul.len(&(CatenaFinitaCfg){.src = mount_paths[at], .cap = CLI_PATH_MAX_LEN}) + 1ULL;
-        memor.cpy(&(MemoriaCfg){.dst = mount_text, .src = mount_paths[at], .bytes = path_size});
+            cellul.len(&(CatenaFinitaCfg){.src = mount.path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
+        memor.cpy(&(MemoriaCfg){.dst = mount_text, .src = mount.path, .bytes = path_size});
         s_walk->mount_path[at] = mount_text;
         mount_text += path_size;
     }

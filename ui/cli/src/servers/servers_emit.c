@@ -65,17 +65,20 @@ void cli_servers_tree_path(const CliServersPathErrMsgCtx *args)
         EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = integer, .other_pointer = top, .size = length) &&
         ((integer[length] == '\0') || (integer[length] == '/') || (integer[length] == '\\'));
     // a file of a folder mounted beside the tree goes by its mount's name
-    const char *names[CLI_MOUNTS_MAX];
-    const char *paths[CLI_MOUNTS_MAX];
-    const unsigned int mounts = EMBED_CALL(cli_capacity_names_internal.mounts, CliCapacityNamesCtx, .names = names,
-                                           .paths_read = paths, .capacity_u32 = CLI_MOUNTS_MAX);
+    const CliMounts mounts = cli_capacity_names_internal.mounts();
     int mounted = 0;
-    for (unsigned int at = 0u; !under && (at < mounts); at += 1u)
+    for (unsigned int at = 0u; !under && !mounted && (at < mounts.count); at += 1u)
     {
-        const embed_word base = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_POOL_BYTES});
-        mounted |= EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = integer, .other_pointer = paths[at],
-                              .size = base) &&
-                   ((integer[base] == '\0') || (integer[base] == '/') || (integer[base] == '\\'));
+        // each mount read out of the process's cell
+        CliMount mount;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
+                                                               .offset = (embed_word)at * sizeof(CliMount),
+                                                               .dst = &mount,
+                                                               .bytes = sizeof(mount)});
+        const embed_word base = cellul.len(&(CatenaFinitaCfg){.src = mount.path, .cap = CLI_PATH_MAX_LEN});
+        mounted = EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = integer, .other_pointer = mount.path,
+                             .size = base) &&
+                  ((integer[base] == '\0') || (integer[base] == '/') || (integer[base] == '\\'));
     }
     if (!under && !mounted)
     {

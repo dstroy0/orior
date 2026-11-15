@@ -122,6 +122,37 @@ void test_a_mount_that_does_not_exist_is_refused(void)
     TEST_ASSERT_FALSE(resolved("@nothing/a", reached));
 }
 
+void test_mounts_past_the_cells_first_size_are_each_reached(void)
+{
+    static char s_names[6][CLI_NAME_MAX_LEN];
+    char base[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    char relative[CLI_PATH_MAX_LEN];
+    char reached[CLI_PATH_MAX_LEN];
+    char name[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    cli_unity_folder("mounts", base);
+    for (unsigned int at = 0u; at < 6u; at += 1u)
+    {
+        VerbaLinea line = {name, sizeof(name), 0ull};
+        mmgr_line_put(&line, "many");
+        mmgr_line_decimal(&line, at, 1u);
+        (void)mmgr_line_finish(&line);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = name, .joined = folder);
+        TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder));
+        TEST_ASSERT_TRUE(EMBED_CALL(cli_path_err_msg_name_internal.mount, CliPathErrMsgNameCtx, .path = folder, .name_out = s_names[at], .err_msg = &err_msg));
+    }
+    // the mounts set up before and the six here outgrow the cell's first four records
+    for (unsigned int at = 0u; at < 6u; at += 1u)
+    {
+        mounted_path(relative, s_names[at], "");
+        TEST_ASSERT_TRUE(resolved(relative, reached));
+        EMBED_CALL(cli_err_msg_name_internal.unmount, CliErrMsgNameCtx, .name = s_names[at]);
+    }
+    mounted_path(relative, s_folder, "/sub/a.txt");
+    TEST_ASSERT_TRUE(resolved(relative, reached));
+}
+
 void test_an_unmounted_name_is_no_longer_reached(void)
 {
     char relative[CLI_PATH_MAX_LEN];

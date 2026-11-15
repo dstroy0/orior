@@ -34,7 +34,6 @@ typedef struct CliPathCountCtx CliPathCountCtx;
 typedef struct CliPathPutCtx CliPathPutCtx;
 typedef struct CliPathSizeCtx CliPathSizeCtx;
 typedef struct CliPathErrMsgNameCtx CliPathErrMsgNameCtx;
-typedef struct CliCapacityNamesCtx CliCapacityNamesCtx;
 typedef struct CliCapacityPidCtx CliCapacityPidCtx;
 typedef struct CliErrMsgFromCtx CliErrMsgFromCtx;
 typedef struct CliOutCtx CliOutCtx;
@@ -94,9 +93,22 @@ typedef struct CliTreeCtx CliTreeCtx;
 // the max processes the system lists, the max mounts a window lists, and the longest name of one
 #define CLI_PROCESSES_MAX 65536u
 
-#define CLI_MOUNTS_MAX 64u
 
 #define CLI_NAME_MAX_LEN 256u
+
+// A folder or file mounted beside the tree, under its name; and the mounts, records in a movable cell the process
+// holds, handed to readers as the cell's token and the records' count
+typedef struct
+{
+    char name[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+} CliMount;
+
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned int count;
+} CliMounts;
 
 // A process the system lists: its id and its parent's
 typedef struct
@@ -644,7 +656,7 @@ int cli_tree_on_find(const CliTreeCtx *args);
 int cli_mount(const CliPathErrMsgNameCtx *args);
 void cli_unmount(const CliErrMsgNameCtx *args);
 void cli_unmounted_all(void);
-unsigned int cli_mounts(const CliCapacityNamesCtx *args);
+CliMounts cli_mounts(void);
 int cli_inside(const CliRootCtx *args);
 void cli_full(const CliRootCtx *args);
 void cli_relative(const CliPathRootCtx *args);
@@ -862,13 +874,6 @@ struct CliPathErrMsgNameCtx
     const char *path;
     VerbaLinea *err_msg;
     char *name_out;
-};
-
-struct CliCapacityNamesCtx
-{
-    unsigned int capacity_u32;
-    const char **names;
-    const char **paths_read;
 };
 
 struct CliCapacityPidCtx
@@ -1860,7 +1865,7 @@ EMBED_TABLE_STORAGE CliPathErrMsgNameNs cli_path_err_msg_name_internal EMBED_UNU
 
 typedef struct
 {
-    unsigned int (*mounts)(const CliCapacityNamesCtx *args);
+    CliMounts (*mounts)(void);
 } CliCapacityNamesNs;
 EMBED_TABLE_LAYOUT(CliCapacityNamesNs, mounts);
 EMBED_TABLE_STORAGE CliCapacityNamesNs cli_capacity_names_internal EMBED_UNUSED = {

@@ -11,9 +11,12 @@
 // tree is named
 #define CLI_TREE_MARKER "src/cu/engine/engine_config.h"
 
-// the folders and files mounted beside the tree, each under its name, in the order they were mounted
-static char s_mount_name[CLI_MOUNTS_MAX][CLI_NAME_MAX_LEN];
-static char s_mount_path[CLI_MOUNTS_MAX][CLI_PATH_MAX_LEN];
+// the folders and files mounted beside the tree, each under its name, in the order they were mounted: records in a
+// movable cell the process holds, grown as mounts fill it, its token handed to readers
+#define CLI_MOUNTS_FIRST (4ULL * sizeof(CliMount))
+
+static const CarcerMovableEntry *s_mounts_cell;
+static unsigned long long s_mounts_bytes;
 static unsigned int s_mounts;
 
 int cli_is_tree_root(const CliWordsErrMsgCtx *args)
@@ -51,7 +54,60 @@ typedef struct
     char *tree;
     const char *path;
     const char *base;
+    unsigned int at;
+    CliMount *mount;
+    unsigned long long needed;
 } RootCtx;
+
+// the mount at `at` read out of the cell into `mount`
+EMBED_INLINE void cli_mount_read(const RootCtx *args)
+{
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_mounts_cell,
+                                                           .offset = (embed_word)args->at * sizeof(CliMount),
+                                                           .dst = args->mount,
+                                                           .bytes = sizeof(CliMount)});
+}
+
+// `mount` written into the cell at `at`
+EMBED_INLINE void cli_mount_write(const RootCtx *args)
+{
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_mounts_cell,
+                                                            .offset = (embed_word)args->at * sizeof(CliMount),
+                                                            .src = args->mount,
+                                                            .bytes = sizeof(CliMount)});
+}
+
+// the mounts' cell grown to `needed` bytes where it is less, doubled from its size, the mounts copied over, the cell
+// before given back: 1, or 0 where the cells cannot meet it
+EMBED_INLINE int cli_mounts_grown(const RootCtx *args)
+{
+    if (args->needed <= s_mounts_bytes)
+    {
+        return 1;
+    }
+    const unsigned long long doubled = (s_mounts_bytes != 0ULL) ? (s_mounts_bytes * 2ULL) : CLI_MOUNTS_FIRST;
+    const unsigned long long bytes = (doubled < args->needed) ? args->needed : doubled;
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_machine_owner);
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    for (unsigned long long at = 0ULL; at < s_mounts_bytes; at += sizeof(CliMount))
+    {
+        CliMount mount;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_mounts_cell, .offset = (embed_word)at, .dst = &mount, .bytes = sizeof(mount)});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .src = &mount, .bytes = sizeof(mount)});
+    }
+    if (s_mounts_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_mounts_cell, g_cli_machine_owner);
+    }
+    s_mounts_cell = cell;
+    s_mounts_bytes = bytes;
+    return 1;
+}
 // the first folder from `start` up containing the tree into `tree`: 1, or 0 where none does
 EMBED_INLINE int cli_tree_above(const RootCtx *args)
 {
@@ -136,20 +192,22 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
         mmgr_line_put(args->err_msg, ": it is not there");
         return 0;
     }
+    CliMount mount;
     for (unsigned int at = 0u; at < s_mounts; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_mount_path[at], .other = full, .cap = CLI_POOL_BYTES}))
+        EMBED_CALL(cli_mount_read, RootCtx, .at = at, .mount = &mount);
+        if (cellul.eq(&(CatenaFinitaCfg){.src = mount.path, .other = full, .cap = CLI_PATH_MAX_LEN}))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = args->name_out,
-                .src = s_mount_name[at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_mount_name[at], .cap = CLI_POOL_BYTES}) + 1u});
+                .src = mount.name,
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = mount.name, .cap = CLI_NAME_MAX_LEN}) + 1u});
             return args->name_out[0] != '\0';
         }
     }
-    if (s_mounts >= CLI_MOUNTS_MAX)
+    if (!EMBED_CALL(cli_mounts_grown, RootCtx, .needed = ((unsigned long long)s_mounts + 1ULL) * sizeof(CliMount)))
     {
-        mmgr_line_put(args->err_msg, "the window has as many mounts as it can");
+        mmgr_line_put(args->err_msg, "the window has no room for another mount");
         return 0;
     }
     // the last part of the path, each separator in it made `_`
@@ -174,14 +232,11 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
     for (unsigned long long count = 2ULL;; count += 1ULL)
     {
         int reserved = 0;
+        for (unsigned int at = 0u; !reserved && (at < s_mounts); at += 1u)
         {
-            unsigned int at = 0u;
-            while (!reserved && (at < s_mounts))
-            {
-                reserved = cellul.eq(
-                    &(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name_out, .cap = CLI_POOL_BYTES});
-                at += 1u;
-            }
+            EMBED_CALL(cli_mount_read, RootCtx, .at = at, .mount = &mount);
+            reserved =
+                cellul.eq(&(CatenaFinitaCfg){.src = mount.name, .other = args->name_out, .cap = CLI_NAME_MAX_LEN});
         }
         if (!reserved)
         {
@@ -193,24 +248,27 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
         mmgr_line_decimal(&name_line, count, 0u);
         mmgr_line_finish(&name_line);
     }
-    (void)cellul.copy(
-        &(CatenaFinitaCfg){.dst = s_mount_name[s_mounts], .src = args->name_out, .cap = CLI_NAME_MAX_LEN});
-    memor.cpy(&(MemoriaCfg){.dst = s_mount_path[s_mounts], .src = full, .bytes = CLI_PATH_MAX_LEN});
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = mount.name, .src = args->name_out, .cap = CLI_NAME_MAX_LEN});
+    memor.cpy(&(MemoriaCfg){.dst = mount.path, .src = full, .bytes = CLI_PATH_MAX_LEN});
+    EMBED_CALL(cli_mount_write, RootCtx, .at = s_mounts, .mount = &mount);
     s_mounts += 1u;
     return 1;
 }
 
 void cli_unmount(const CliErrMsgNameCtx *args)
 {
+    // the mounts kept close up over the one taken out
     unsigned int remaining = 0u;
     for (unsigned int at = 0u; at < s_mounts; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name, .cap = CLI_POOL_BYTES}))
+        CliMount mount;
+        EMBED_CALL(cli_mount_read, RootCtx, .at = at, .mount = &mount);
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = mount.name, .other = args->name, .cap = CLI_NAME_MAX_LEN}))
         {
-            memor.move_down(
-                &(MemoriaCfg){.dst = s_mount_name[remaining], .src = s_mount_name[at], .bytes = CLI_NAME_MAX_LEN});
-            memor.move_down(
-                &(MemoriaCfg){.dst = s_mount_path[remaining], .src = s_mount_path[at], .bytes = CLI_PATH_MAX_LEN});
+            if (remaining != at)
+            {
+                EMBED_CALL(cli_mount_write, RootCtx, .at = remaining, .mount = &mount);
+            }
             remaining += 1u;
         }
     }
@@ -222,15 +280,10 @@ void cli_unmounted_all(void)
     s_mounts = 0u;
 }
 
-unsigned int cli_mounts(const CliCapacityNamesCtx *args)
+CliMounts cli_mounts(void)
 {
-    unsigned int at = 0u;
-    for (; (at < s_mounts) && (at < args->capacity_u32); at += 1u)
-    {
-        args->names[at] = s_mount_name[at];
-        args->paths_read[at] = s_mount_path[at];
-    }
-    return at;
+    const CliMounts mounts = {s_mounts_cell, s_mounts};
+    return mounts;
 }
 
 int cli_inside(const CliRootCtx *args)
@@ -245,17 +298,17 @@ int cli_inside(const CliRootCtx *args)
             (slash != NULL) ? (embed_word)(slash - args->relative - 1)
                             : cellul.len(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_POOL_BYTES});
         int found = 0;
-        unsigned int at = 0u;
-        while (!found && (at < s_mounts))
+        for (unsigned int at = 0u; !found && (at < s_mounts); at += 1u)
         {
-            if ((cellul.len(&(CatenaFinitaCfg){.src = s_mount_name[at], .cap = CLI_POOL_BYTES}) == length) &&
-                EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_mount_name[at],
+            CliMount mount;
+            EMBED_CALL(cli_mount_read, RootCtx, .at = at, .mount = &mount);
+            if ((cellul.len(&(CatenaFinitaCfg){.src = mount.name, .cap = CLI_NAME_MAX_LEN}) == length) &&
+                EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = mount.name,
                            .other_pointer = args->relative + 1, .size = length))
             {
-                mmgr_line_put(&line, s_mount_path[at]);
+                mmgr_line_put(&line, mount.path);
                 found = 1;
             }
-            at += 1u;
         }
         if (!found)
         {
@@ -338,11 +391,12 @@ void cli_relative(const CliPathRootCtx *args)
         // the mount whose folder is the longest that contains the path
         unsigned int found = s_mounts;
         embed_word longest = 0u;
+        CliMount mount;
         for (unsigned int at = 0u; at < s_mounts; at += 1u)
         {
-            const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = s_mount_path[at], .cap = CLI_POOL_BYTES});
-            if (EMBED_CALL(cli_starts_with, RootCtx, .path = args->path, .base = s_mount_path[at]) &&
-                (length >= longest))
+            EMBED_CALL(cli_mount_read, RootCtx, .at = at, .mount = &mount);
+            const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = mount.path, .cap = CLI_PATH_MAX_LEN});
+            if (EMBED_CALL(cli_starts_with, RootCtx, .path = args->path, .base = mount.path) && (length >= longest))
             {
                 found = at;
                 longest = length;
@@ -350,8 +404,9 @@ void cli_relative(const CliPathRootCtx *args)
         }
         if (found < s_mounts)
         {
+            EMBED_CALL(cli_mount_read, RootCtx, .at = found, .mount = &mount);
             mmgr_line_ch(&line, '@');
-            mmgr_line_put(&line, s_mount_name[found]);
+            mmgr_line_put(&line, mount.name);
             rest = args->path + longest;
             if (*rest != '\0')
             {
