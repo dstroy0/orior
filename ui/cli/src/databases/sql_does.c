@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sql_does.c: what a statement does by its first word, the query that counts the rows an unbounded write reaches, and
 // the object a statement that shapes the schema names
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "sql.h"
 
-// the max words of a statement read, and the max of its tokens
-#define CLI_SQL_WORDS 4096u
+// a word at no place among a statement's words
+#define CLI_SQL_NO_WORD 0xffffffffu
 
 // A word of a statement outside its strings, names and comments: where it is, and the depth of brackets at it
 typedef struct
@@ -16,9 +17,10 @@ typedef struct
     long long depth;
 } CliSqlWord;
 
-// the words of a statement and its tokens, guarded by the lock while one is read
-static CliSqlWord s_words[CLI_SQL_WORDS];
-static CliSqlToken s_tokens[CLI_SQL_WORDS];
+// the words of a statement, in a cell of its tokens' count, and its tokens, a reading's list, each guarded by the lock
+// while one is read
+static CliSqlWord *s_words;
+static const CliSqlToken *s_tokens;
 
 typedef struct
 {
@@ -73,7 +75,10 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
     {
         return 0u;
     }
-    for (unsigned int at = 0u; (at < tokens.count) && (count < CLI_SQL_WORDS); at += 1u)
+    s_words = (tokens.count != 0u) ? g_cli_guard->temporary_buf_alloc(
+                                         (unsigned long long)tokens.count * sizeof(CliSqlWord), g_cli_db_owner)
+                                   : NULL;
+    for (unsigned int at = 0u; (s_words != NULL) && (at < tokens.count); at += 1u)
     {
         const CliSqlToken token = tokens.at[at];
         const unsigned long long size = token.end - token.start;
@@ -101,6 +106,13 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
     }
     EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
     return count;
+}
+
+// the words' cell given back
+EMBED_INLINE void cli_words_release(void)
+{
+    g_cli_guard->persistent_buf_release(s_words, g_cli_db_owner);
+    s_words = NULL;
 }
 
 EMBED_INLINE int cli_word_is(const SqlDoesCtx *args)
@@ -202,6 +214,7 @@ unsigned int cli_sql_does(const CliSqlLengthCfg *args)
 {
     const unsigned int does = EMBED_CALL(cli_does_lock, SqlDoesCtx, .statement = args->statement,
                                          .length = args->length, .dialect = args->dialect);
+    cli_words_release();
     return does;
 }
 
@@ -226,7 +239,7 @@ EMBED_INLINE unsigned int cli_level(const SqlDoesCtx *args)
     return level;
 }
 
-// the first word at the level named `word`, CLI_SQL_WORDS where none is
+// the first word at the level named `word`, CLI_SQL_NO_WORD where none is
 EMBED_INLINE unsigned int cli_find(const SqlDoesCtx *args)
 {
     for (unsigned int at = 0u; at < args->level; at += 1u)
@@ -237,7 +250,7 @@ EMBED_INLINE unsigned int cli_find(const SqlDoesCtx *args)
             return at;
         }
     }
-    return CLI_SQL_WORDS;
+    return CLI_SQL_NO_WORD;
 }
 
 // where the first word at the level past `from` that is one of `stops` starts, or the statement's end
@@ -288,27 +301,27 @@ EMBED_INLINE void cli_counts_added(const SqlDoesCtx *args)
 }
 
 // The table an UPDATE or a DELETE with no WHERE at its own level reaches every row of, or each a TRUNCATE names, put
-// after `SELECT count(*) FROM`; or the sum of each table's count where a TRUNCATE names more than one
+// after `SELECT count(*) FROM`; or the sum of each table's count where a TRUNCATE names more than one. The tables'
+// text is gathered in `out_capacity`, sized for `capacity`
 EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
 {
     static const char *const s_delete_stops[4] = {"using", "returning", "order", "limit"};
     static const char *const s_using_stops[1] = {"returning"};
     static const char *const s_truncate_stops[4] = {"restart", "continue", "cascade", "restrict"};
-    static char s_source[1u << 20u];
     const unsigned int level = EMBED_CALL(cli_level, SqlDoesCtx, .count = cli_words_get(args));
     if (level == 0u)
     {
         return 0;
     }
     const int bounded = EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level,
-                                   .word_text = "where") != CLI_SQL_WORDS;
-    VerbaLinea source = {s_source, sizeof(s_source), 0ULL};
+                                   .word_text = "where") != CLI_SQL_NO_WORD;
+    VerbaLinea source = {args->out_capacity, args->capacity, 0ULL};
     if (EMBED_CALL(cli_word_is, SqlDoesCtx, .statement = args->statement, .index = 0u, .word_text = "update") &&
         !bounded)
     {
         const unsigned int set =
             EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level, .word_text = "set");
-        if (set == CLI_SQL_WORDS)
+        if (set == CLI_SQL_NO_WORD)
         {
             return 0;
         }
@@ -320,7 +333,7 @@ EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
     {
         const unsigned int from =
             EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level, .word_text = "from");
-        if (from == CLI_SQL_WORDS)
+        if (from == CLI_SQL_NO_WORD)
         {
             return 0;
         }
@@ -331,7 +344,7 @@ EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
                    .from = s_words[from].end, .to = end);
         const unsigned int using =
             EMBED_CALL(cli_find, SqlDoesCtx, .statement = args->statement, .level = level, .word_text = "using");
-        if (using != CLI_SQL_WORDS)
+        if (using != CLI_SQL_NO_WORD)
         {
             mmgr_line_put(&source, ", ");
             EMBED_CALL(cli_trimmed_append, SqlDoesCtx, .out = &source, .statement = args->statement,
@@ -357,12 +370,13 @@ EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
         int list_entries = 0;
         for (unsigned long long at = 0ULL; at < names; at += 1ULL)
         {
-            list_entries = list_entries || (s_source[at] == ',');
+            list_entries = list_entries || (args->out_capacity[at] == ',');
         }
         if (list_entries)
         {
             // Each table a TRUNCATE names is counted alone and the counts added
-            EMBED_CALL(cli_counts_added, SqlDoesCtx, .out = args->out, .statement = s_source, .length = names);
+            EMBED_CALL(cli_counts_added, SqlDoesCtx, .out = args->out, .statement = args->out_capacity,
+                       .length = names);
             return 1;
         }
     }
@@ -376,14 +390,24 @@ EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
         return 0;
     }
     mmgr_line_put(args->out, "SELECT count(*) FROM ");
-    mmgr_line_put_n(args->out, s_source, size);
+    mmgr_line_put_n(args->out, args->out_capacity, size);
     return 1;
 }
 
 int cli_sql_unbounded(const CliSqlLengthDialectCfg *args)
 {
+    // the tables' text is at max the statement's, a separator and its 0 after
+    const unsigned long long capacity = args->length + 3ULL;
+    char *const source = g_cli_guard->temporary_buf_alloc(capacity, g_cli_db_owner);
+    if (source == NULL)
+    {
+        return 0;
+    }
     const int found = EMBED_CALL(cli_unbounded_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
-                                 .dialect = args->dialect, .out = args->out);
+                                 .dialect = args->dialect, .out = args->out, .out_capacity = source,
+                                 .capacity = capacity);
+    cli_words_release();
+    g_cli_guard->persistent_buf_release(source, g_cli_db_owner);
     return found;
 }
 
@@ -437,25 +461,12 @@ EMBED_INLINE void cli_lower_into(const SqlDoesCtx *args)
 
 EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
 {
-    unsigned long long length = args->length;
-    unsigned int dialect = args->dialect;
     static const char *const s_verbs[6] = {"create", "alter", "drop", "truncate", "rename", "comment"};
     static const char *const s_skips[14] = {"temp",    "temporary", "unique",  "materialized", "unlogged",
                                             "global",  "local",     "foreign", "virtual",      "recursive",
                                             "definer", "algorithm", "sql",     "security"};
     static const char *const s_guards[4] = {"if", "not", "exists", "concurrently"};
-    unsigned int count = 0u;
-    CliSqlTokens tokens;
-    if (!EMBED_CALL(cli_sql_text_length_dialect.tokens, CliSqlTextLengthDialectCfg, .text = args->statement,
-                    .length = length, .dialect = dialect, .tokens = &tokens))
-    {
-        return 0;
-    }
-    for (; (count < tokens.count) && (count < CLI_SQL_WORDS); count += 1u)
-    {
-        s_tokens[count] = tokens.at[count];
-    }
-    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
+    const unsigned int count = args->count;
     EMBED_CALL(cli_lower_into, SqlDoesCtx, .statement = args->statement, .count = count, .index = 0u,
                .out_capacity = args->shaped->verb);
     if (!EMBED_CALL(cli_in, SqlDoesCtx, .text = args->shaped->verb,
@@ -534,7 +545,16 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
 
 int cli_sql_shape(const CliSqlLengthCfg *args)
 {
+    CliSqlTokens tokens;
+    if (!EMBED_CALL(cli_sql_text_length_dialect.tokens, CliSqlTextLengthDialectCfg, .text = args->statement,
+                    .length = args->length, .dialect = args->dialect, .tokens = &tokens))
+    {
+        return 0;
+    }
+    s_tokens = tokens.at;
     const int found = EMBED_CALL(cli_shaped_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
-                                 .dialect = args->dialect, .shaped = args->shaped);
+                                 .dialect = args->dialect, .shaped = args->shaped, .count = tokens.count);
+    s_tokens = NULL;
+    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
     return found;
 }

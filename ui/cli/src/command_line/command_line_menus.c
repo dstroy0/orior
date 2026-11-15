@@ -70,7 +70,6 @@ typedef struct
 // rows under it written by its rows in its place, its command added to the words
 static void menus_chains(const CommandLineChainsCtx *args)
 {
-    static CliItem s_rows[CLI_MENU_CHAIN_DEPTH][CLI_ITEMS_MAX];
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const CliItem *const item = &args->items[at];
@@ -82,9 +81,12 @@ static void menus_chains(const CommandLineChainsCtx *args)
         if ((item->list != 0u) && (args->depth < CLI_MENU_CHAIN_DEPTH))
         {
             (void)mmgr_line_finish(&usage);
-            const unsigned int rows = cli_menu_rows(item->list, s_rows[args->depth], CLI_ITEMS_MAX);
-            menus_chains(&(CommandLineChainsCtx){
-                .words = line, .items = s_rows[args->depth], .count = rows, .depth = args->depth + 1u});
+            const unsigned int count = cli_rows_count(item->list);
+            CliItem *const under = cli_items_alloc(count);
+            const unsigned int rows = (under != NULL) ? cli_menu_rows(item->list, under, count) : 0u;
+            menus_chains(
+                &(CommandLineChainsCtx){.words = line, .items = under, .count = rows, .depth = args->depth + 1u});
+            cli_items_release(under);
             continue;
         }
         mmgr_line_ch(&usage, ' ');
@@ -98,17 +100,21 @@ static void menus_chains(const CommandLineChainsCtx *args)
 
 int cli_menu_lines(const CliCommandLineWordCtx *args)
 {
-    static CliItem s_items[CLI_ITEMS_MAX];
     char word_text[CLI_LABEL_MAX_LEN];
     EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word_text);
-    const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
-                                          .menu = args->menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
+    const unsigned int total = cli_menu_items_count(args->menu);
+    CliItem *const rows = cli_items_alloc(total);
+    const unsigned int items = (rows != NULL)
+                                   ? EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                                .menu = args->menu, .items = rows, .capacity = total)
+                                   : 0u;
     char words[CLI_LABEL_MAX_LEN];
     VerbaLinea first = {words, sizeof(words), 0ULL};
     mmgr_line_put(&first, "imp ");
     mmgr_line_put(&first, word_text);
     (void)mmgr_line_finish(&first);
-    menus_chains(&(CommandLineChainsCtx){.words = words, .items = s_items, .count = items, .depth = 0u});
+    menus_chains(&(CommandLineChainsCtx){.words = words, .items = rows, .count = items, .depth = 0u});
+    cli_items_release(rows);
     char split[CLI_LABEL_MAX_LEN];
     char group[1][CLI_LABEL_MAX_LEN];
     if (EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = args->menu, .groups = group,

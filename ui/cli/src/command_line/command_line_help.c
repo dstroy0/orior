@@ -25,8 +25,6 @@ typedef struct
 // the longest row of the help, its usage or what it describes
 #define CLI_HELP_ROW 4096u
 
-static CliItem s_items[CLI_ITEMS_MAX];
-
 // A row's lines as wrapped makes them: the row's usage, written to the left of its first, where it does not are
 // alone; and the help made
 typedef struct
@@ -167,26 +165,31 @@ static void help_rows(const CommandLineHelpCtx *args)
     {
         char word_text[CLI_LABEL_MAX_LEN];
         EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = menu, .word_out = word_text);
-        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
-                                              .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
+        const unsigned int count = cli_menu_items_count(menu);
+        CliItem *const rows = cli_items_alloc(count);
+        const unsigned int items = (rows != NULL)
+                                       ? EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                                    .menu = menu, .items = rows, .capacity = count)
+                                       : 0u;
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             VerbaLinea usage = {s_usage, sizeof(s_usage), 0ULL};
             mmgr_line_put(&usage, "imp ");
             mmgr_line_put(&usage, word_text);
             mmgr_line_ch(&usage, ' ');
-            mmgr_line_put(&usage, s_items[at].command);
+            mmgr_line_put(&usage, rows[at].command);
             mmgr_line_ch(&usage, ' ');
-            mmgr_line_put(&usage, s_items[at].args);
+            mmgr_line_put(&usage, rows[at].args);
             usage.at = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = s_usage,
                                   .size = mmgr_line_ok(&usage) ? usage.at : 0ULL);
             (void)mmgr_line_finish(&usage);
             VerbaLinea desc = {s_desc_buf, sizeof(s_desc_buf), 0ULL};
-            mmgr_line_put(&desc, s_items[at].console ? "" : "* ");
-            mmgr_line_put(&desc, s_items[at].label);
+            mmgr_line_put(&desc, rows[at].console ? "" : "* ");
+            mmgr_line_put(&desc, rows[at].label);
             (void)mmgr_line_finish(&desc);
             EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = s_usage, .desc = s_desc_buf);
         }
+        cli_items_release(rows);
         const unsigned int groups = EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg,
                                                .menu = menu, .groups = s_groups, .capacity = CLI_HELP_GROUPS);
         if (groups > 0u)
@@ -249,23 +252,28 @@ void cli_keys(void)
 {
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
     {
-        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
-                                              .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
+        const unsigned int total = cli_menu_items_count(menu);
+        CliItem *const rows = cli_items_alloc(total);
+        const unsigned int items = (rows != NULL)
+                                       ? EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                                    .menu = menu, .items = rows, .capacity = total)
+                                       : 0u;
         unsigned long long pad = 0ULL;
         unsigned int count = 0u;
         for (unsigned int at = 0u; at < items; at += 1u)
         {
-            if (s_items[at].keys[0] != '\0')
+            if (rows[at].keys[0] != '\0')
             {
                 const unsigned long long characters =
-                    EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = s_items[at].label,
-                               .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_POOL_BYTES}));
+                    EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = rows[at].label,
+                               .size = cellul.len(&(CatenaFinitaCfg){.src = rows[at].label, .cap = CLI_POOL_BYTES}));
                 pad = (characters > pad) ? characters : pad;
                 count += 1u;
             }
         }
         if (count == 0u)
         {
+            cli_items_release(rows);
             continue;
         }
         char title[CLI_LABEL_MAX_LEN];
@@ -273,26 +281,27 @@ void cli_keys(void)
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = title);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
-            if (s_items[at].keys[0] == '\0')
+            if (rows[at].keys[0] == '\0')
             {
                 continue;
             }
             char line[CLI_LABEL_MAX_LEN * 3u];
             VerbaLinea row = {line, sizeof(line), 0ULL};
             mmgr_line_put(&row, "  ");
-            mmgr_line_put(&row, s_items[at].label);
+            mmgr_line_put(&row, rows[at].label);
             for (unsigned long long characters = EMBED_CALL(
-                     cli_text_size_byte.characters, CliTextSizeByteCfg, .text = s_items[at].label,
-                     .size = cellul.len(&(CatenaFinitaCfg){.src = s_items[at].label, .cap = CLI_POOL_BYTES}));
+                     cli_text_size_byte.characters, CliTextSizeByteCfg, .text = rows[at].label,
+                     .size = cellul.len(&(CatenaFinitaCfg){.src = rows[at].label, .cap = CLI_POOL_BYTES}));
                  characters < pad; characters += 1ULL)
             {
                 mmgr_line_ch(&row, ' ');
             }
             mmgr_line_put(&row, "  ");
-            mmgr_line_put(&row, s_items[at].keys);
+            mmgr_line_put(&row, rows[at].keys);
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line,
                        .size = mmgr_line_ok(&row) ? row.at : 0ULL);
         }
+        cli_items_release(rows);
     }
 }
 
@@ -305,12 +314,17 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
     {
         return;
     }
-    const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
-                                          .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
+    const unsigned int total = cli_menu_items_count(menu);
+    CliItem *const rows = cli_items_alloc(total);
+    const unsigned int items = (rows != NULL)
+                                   ? EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                                .menu = menu, .items = rows, .capacity = total)
+                                   : 0u;
     for (unsigned int at = 0u; at < items; at += 1u)
     {
-        EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = s_items[at].command);
+        EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = rows[at].command);
     }
+    cli_items_release(rows);
     char group[1][CLI_LABEL_MAX_LEN];
     static char s_root[CLI_PATH_MAX_LEN];
     char why[1024];
@@ -355,8 +369,9 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
 // `quoted` is 1, joined by a comma and a space
 EMBED_INLINE void help_first(const CommandLineHelpCtx *args)
 {
-    static CliItem s_own[CLI_ITEMS_MAX];
-    const unsigned int own = cli_menu_rows(cli_line_list(), s_own, CLI_ITEMS_MAX);
+    const unsigned int count = cli_rows_count(cli_line_list());
+    CliItem *const own_rows = cli_items_alloc(count);
+    const unsigned int own = (own_rows != NULL) ? cli_menu_rows(cli_line_list(), own_rows, count) : 0u;
     const char *const between = args->quoted ? ", " : " ";
     const char *const quote = args->quoted ? "'" : "";
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
@@ -372,9 +387,10 @@ EMBED_INLINE void help_first(const CommandLineHelpCtx *args)
     {
         mmgr_line_put(args->out, ((at > 0u) || (cli_menus() > 0u)) ? between : "");
         mmgr_line_put(args->out, quote);
-        mmgr_line_put(args->out, s_own[at].command);
+        mmgr_line_put(args->out, own_rows[at].command);
         mmgr_line_put(args->out, quote);
     }
+    cli_items_release(own_rows);
 }
 
 // the bash script

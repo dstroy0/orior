@@ -171,12 +171,19 @@ void cli_menu_title(const CliCommandsMenuTitleCfg *args);
 void cli_menu_word(const CliCommandsMenuWordCfg *args);
 void cli_menu_split(const CliCommandsMenuSplitCfg *args);
 unsigned int cli_menu_groups(const CliCommandsMenuGroupsCfg *args);
-// every item of the menu, those of its groups among them, in order: their count
+// every item of the menu, those of its groups among them, in order: their count; and their count alone, the cell a
+// caller sizes for them
 unsigned int cli_menu_items(const CliCommandsMenuCapacityCfg *args);
-// the rows of the list `list`, a row's own or a menu's, in order and as they are: their count; the list of a menu's
-// own rows; and whether a menu takes a title on the window's bar: it has rows, and it is neither the strip's nor a
-// popup
+unsigned int cli_menu_items_count(unsigned int menu);
+// the rows of the list `list`, a row's own or a menu's, in order and as they are: their count; their count alone, the
+// cell a caller sizes for them; the list of a menu's own rows; and whether a menu takes a title on the window's bar:
+// it has rows, and it is neither the strip's nor a popup
 unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capacity);
+unsigned int cli_rows_count(unsigned int list);
+// a cell of `count` items for one read of a menu's items or a list's rows, taken from the temporary tier and given
+// back after the read: NULL where the count is 0 or the tier refuses it
+CliItem *cli_items_alloc(unsigned int count);
+void cli_items_release(CliItem *items);
 // the list of the command line's own words, as `line` in the list names them, read by cli_menu_rows; 0 where it has
 // none
 unsigned int cli_line_list(void);

@@ -3,14 +3,11 @@
 // schema_complete.c: what completes the word before the cursor in a JSON file: where the cursor is, the steps to
 // the value it is in, whether it is at a key and inside a string; the schemas that apply there, `$ref`s followed and
 // `allOf`, `anyOf`, `oneOf` and `if`'s branches taken together; and from them the keys the object does not contain yet,
-// each written with what its type opens, or the values the schema allows. A text nested deeper than CLI_SCHEMA_FRAMES
-// or containing more keys open than CLI_SCHEMA_OPEN_KEYS is read as far as they fit; the schemas past
-// CLI_SCHEMA_REACHED are not offered
+// each written with what its type opens, or the values the schema allows. The frames open, the steps, the keys open
+// and the schemas reached each stand in a cell grown to the most the texts completed have had
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "schema_internal.h"
-
-// the deepest frames read
-#define CLI_SCHEMA_FRAMES 512u
 
 // What is open: an object, its key, whether its colon was passed and its first key read, or an array and its index
 typedef struct
@@ -24,11 +21,42 @@ typedef struct
     unsigned int index;
 } CliSchemaFrame;
 
-static CliSchemaFrame s_frame[CLI_SCHEMA_FRAMES];
-unsigned long long g_cli_schema_key_from[CLI_SCHEMA_OPEN_KEYS];
-unsigned long long g_cli_schema_key_to[CLI_SCHEMA_OPEN_KEYS];
+// the frames open, in a cell of their capacity; the keys open, where each starts and ends, in cells of their
+// capacity and how many there are; and where the cursor is
+static CliSchemaFrame *s_frame;
+static unsigned int s_frames_capacity;
+CliSchemaOpenKey *g_cli_schema_key;
+static unsigned int s_keys_capacity;
 static unsigned int s_keys;
 CliSchemaSpot g_cli_schema_spot;
+
+// a cell of `unit`-byte entries holding at least `needed` of them: `cell` itself where its `capacity` entries
+// hold them, else a cell of twice the capacity until they fit, the entries copied, `cell` given back and
+// `capacity` set to the new count; NULL where the cells refuse the growth, `cell` and `capacity` kept
+static void *complete_cell_fit(void *cell, unsigned int *capacity, unsigned int needed, unsigned long long unit)
+{
+    if (needed <= *capacity)
+    {
+        return cell;
+    }
+    unsigned int grown = (*capacity != 0u) ? *capacity : 64u;
+    while (grown < needed)
+    {
+        grown *= 2u;
+    }
+    void *const moved = g_cli_guard->persistent_buf_alloc((unsigned long long)grown * unit, g_cli_schema_owner);
+    if (moved == NULL)
+    {
+        return NULL;
+    }
+    if (*capacity != 0u)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (unsigned long long)*capacity * unit});
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_schema_owner);
+    *capacity = grown;
+    return moved;
+}
 
 typedef struct
 {
@@ -48,12 +76,15 @@ typedef struct
     unsigned int *frames_out;
     CliSchemaFrame *frame;
 } SchemaCompleteCtx;
-// a step put on the spot's steps where it fits
+// a step put on the spot's steps, their cell grown where it does not fit
 EMBED_INLINE void complete_step(const SchemaCompleteCtx *args)
 {
-    if (g_cli_schema_spot.steps <= CLI_SCHEMA_FRAMES)
+    CliSchemaStep *const step = complete_cell_fit(g_cli_schema_spot.step, &g_cli_schema_spot.steps_capacity,
+                                                  g_cli_schema_spot.steps + 1u, sizeof(CliSchemaStep));
+    if (step != NULL)
     {
-        g_cli_schema_spot.step[g_cli_schema_spot.steps] = (CliSchemaStep){args->key, args->from, args->to, args->index};
+        g_cli_schema_spot.step = step;
+        step[g_cli_schema_spot.steps] = (CliSchemaStep){args->key, args->from, args->to, args->index};
         g_cli_schema_spot.steps += 1u;
     }
 }
@@ -111,15 +142,18 @@ EMBED_INLINE unsigned long long complete_comment_end(const SchemaCompleteCtx *ar
     return args->from;
 }
 
-// a key of the object `frame` closed by a comma: recorded among the keys open where it fits, and the frame set to read
-// the next
+// a key of the object `frame` closed by a comma: recorded among the keys open, their cells grown where it does not
+// fit, and the frame set to read the next
 EMBED_INLINE void complete_key_closed(const SchemaCompleteCtx *args)
 {
     CliSchemaFrame *const last = args->frame;
-    if (last->has_key && (s_keys < CLI_SCHEMA_OPEN_KEYS))
+    CliSchemaOpenKey *const key =
+        last->has_key ? complete_cell_fit(g_cli_schema_key, &s_keys_capacity, s_keys + 1u, sizeof(CliSchemaOpenKey))
+                      : NULL;
+    if (key != NULL)
     {
-        g_cli_schema_key_from[s_keys] = last->key_from;
-        g_cli_schema_key_to[s_keys] = last->key_to;
+        g_cli_schema_key = key;
+        key[s_keys] = (CliSchemaOpenKey){last->key_from, last->key_to};
         s_keys += 1u;
     }
     last->has_key = 0;
@@ -142,7 +176,8 @@ EMBED_INLINE void complete_opened(const SchemaCompleteCtx *args)
 }
 
 // the frames changed by `byte` read outside a string, `frames_out` the count of them open: a colon passed, a key or an
-// index closed by a comma, a frame opened by `{` or `[` where one fits, or one closed by `}` or `]`
+// index closed by a comma, a frame opened by `{` or `[`, their cell grown where it does not fit, or one closed by
+// `}` or `]`
 EMBED_INLINE void complete_punctuation(const SchemaCompleteCtx *args)
 {
     unsigned int *const frames = args->frames_out;
@@ -160,11 +195,17 @@ EMBED_INLINE void complete_punctuation(const SchemaCompleteCtx *args)
     {
         last->index += 1u;
     }
-    else if (((byte == '{') || (byte == '[')) && (*frames < CLI_SCHEMA_FRAMES))
+    else if ((byte == '{') || (byte == '['))
     {
-        EMBED_CALL(complete_opened, SchemaCompleteCtx, .frame = last);
-        s_frame[*frames] = (CliSchemaFrame){byte == '{', 0, 0ULL, 0ULL, 0, s_keys, 0u};
-        *frames += 1u;
+        CliSchemaFrame *const frame =
+            complete_cell_fit(s_frame, &s_frames_capacity, *frames + 1u, sizeof(CliSchemaFrame));
+        if (frame != NULL)
+        {
+            s_frame = frame;
+            EMBED_CALL(complete_opened, SchemaCompleteCtx, .frame = (*frames > 0u) ? &s_frame[*frames - 1u] : NULL);
+            s_frame[*frames] = (CliSchemaFrame){byte == '{', 0, 0ULL, 0ULL, 0, s_keys, 0u};
+            *frames += 1u;
+        }
     }
     else if (((byte == '}') || (byte == ']')) && (*frames > 0u))
     {
@@ -227,9 +268,29 @@ int cli_schema_spot(const CliSchemaReadTextCtx *args)
     return 1;
 }
 
-// the schemas reached
-unsigned int g_cli_schema_reached[CLI_SCHEMA_REACHED];
+// the schemas reached, in a cell of their capacity, and how many
+unsigned int *g_cli_schema_reached;
+static unsigned int s_reached_capacity;
 unsigned int g_cli_schema_reached_count;
+
+void cli_schema_complete_free(void)
+{
+    g_cli_guard->persistent_buf_release(s_frame, g_cli_schema_owner);
+    g_cli_guard->persistent_buf_release(g_cli_schema_spot.step, g_cli_schema_owner);
+    g_cli_guard->persistent_buf_release(g_cli_schema_key, g_cli_schema_owner);
+    g_cli_guard->persistent_buf_release(g_cli_schema_reached, g_cli_schema_owner);
+    s_frame = NULL;
+    s_frames_capacity = 0u;
+    g_cli_schema_spot.step = NULL;
+    g_cli_schema_spot.steps_capacity = 0u;
+    g_cli_schema_spot.steps = 0u;
+    g_cli_schema_key = NULL;
+    s_keys_capacity = 0u;
+    s_keys = 0u;
+    g_cli_schema_reached = NULL;
+    s_reached_capacity = 0u;
+    g_cli_schema_reached_count = 0u;
+}
 
 static void complete_schemas_at(const SchemaCompleteCtx *args);
 
@@ -385,10 +446,16 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
             complete_index_reached(args);
         }
     }
-    else if (g_cli_schema_reached_count < CLI_SCHEMA_REACHED)
+    else
     {
-        g_cli_schema_reached[g_cli_schema_reached_count] = args->schema;
-        g_cli_schema_reached_count += 1u;
+        unsigned int *const reached = complete_cell_fit(g_cli_schema_reached, &s_reached_capacity,
+                                                        g_cli_schema_reached_count + 1u, sizeof(unsigned int));
+        if (reached != NULL)
+        {
+            g_cli_schema_reached = reached;
+            g_cli_schema_reached[g_cli_schema_reached_count] = args->schema;
+            g_cli_schema_reached_count += 1u;
+        }
     }
 }
 

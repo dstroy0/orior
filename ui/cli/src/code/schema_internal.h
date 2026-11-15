@@ -209,8 +209,10 @@ typedef struct
 
 // the value `node` checked against `schema`, read in the document at `base`, `key` the span of the key that contains
 // it; whether it fits, its findings set aside; and its findings, those that are no note, retained from `count` on only
-// where `record`, their count returned (schema_check.c)
+// where `record`, their count returned; and the stack of bases a check read from given back, as the check ends
+// (schema_check.c)
 void cli_schema_node(const CliSchemaBaseCtx *args);
+void cli_schema_bases_free(void);
 int cli_schema_fits(const CliSchemaBaseCtx *args);
 unsigned int cli_schema_trial(const CliSchemaBaseNodeCtx *args);
 
@@ -221,11 +223,6 @@ void cli_schema_text_check(const CliSchemaBaseMapCtx *args);
 void cli_schema_array_check(const CliSchemaBaseMapCtx *args);
 void cli_schema_object_check(const CliSchemaBaseMapCtx *args);
 
-// the max steps to the cursor's value, the max keys open objects contain before it, and the max schemas reached
-#define CLI_SCHEMA_STEPS 513u
-#define CLI_SCHEMA_OPEN_KEYS 65536u
-#define CLI_SCHEMA_REACHED 1024u
-
 // A step into a JSON value: an object's key's raw text or an array's index
 typedef struct
 {
@@ -235,11 +232,19 @@ typedef struct
     unsigned int index;
 } CliSchemaStep;
 
-// Where the cursor is: the steps to the value it is in, whether it is at a key and inside a string, and the keys
-// the object contains before it
+// A key an open object contains before the cursor: where its raw text starts and ends
 typedef struct
 {
-    CliSchemaStep step[CLI_SCHEMA_STEPS];
+    unsigned long long from;
+    unsigned long long to;
+} CliSchemaOpenKey;
+
+// Where the cursor is: the steps to the value it is in, in a cell of their capacity, whether it is at a key and
+// inside a string, and the keys the object contains before it
+typedef struct
+{
+    CliSchemaStep *step;
+    unsigned int steps_capacity;
     unsigned int steps;
     int at_key;
     int in_string;
@@ -247,19 +252,21 @@ typedef struct
     unsigned int keys;
 } CliSchemaSpot;
 
-// where the cursor is, the keys its object contains before it, and the schemas reached, each its node and the base
-// it is read in, under the reader's lock; where the cursor is at the end of `size` bytes of `text`: 1, or 0 where
-// nothing is open; the schemas that apply at the end of its steps from `schema`, read in `base`, `$ref`s followed
-// and `allOf`, `anyOf`, `oneOf` and `if`'s branches taken together; and a schema's description or title, its first
-// line, or its type, for a completion's detail, into `out` (schema_complete.c)
+// where the cursor is, the keys its object contains before it, where each starts and ends, and the schemas
+// reached, each its node and the base it is read in, under the reader's lock, each table in a cell grown to the
+// most it has held; where the cursor is at the end of `size` bytes of `text`: 1, or 0 where nothing is open; the
+// schemas that apply at the end of its steps from `schema`, read in `base`, `$ref`s followed and `allOf`, `anyOf`,
+// `oneOf` and `if`'s branches taken together; and a schema's description or title, its first line, or its type,
+// for a completion's detail, into `out` (schema_complete.c)
 extern CliSchemaSpot g_cli_schema_spot;
-extern unsigned long long g_cli_schema_key_from[CLI_SCHEMA_OPEN_KEYS];
-extern unsigned long long g_cli_schema_key_to[CLI_SCHEMA_OPEN_KEYS];
-extern unsigned int g_cli_schema_reached[CLI_SCHEMA_REACHED];
+extern CliSchemaOpenKey *g_cli_schema_key;
+extern unsigned int *g_cli_schema_reached;
 extern unsigned int g_cli_schema_reached_count;
 int cli_schema_spot(const CliSchemaReadTextCtx *args);
 void cli_schema_reached_get(const CliSchemaTextBaseCtx *args);
 void cli_schema_detail(const CliSchemaJsonOutCtx *args);
+// the completion's cells given back: the frames, the steps, the keys open and the schemas reached
+void cli_schema_complete_free(void);
 
 struct CliSchemaBaseCtx
 {

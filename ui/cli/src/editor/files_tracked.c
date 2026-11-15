@@ -6,17 +6,60 @@
 #include "../code/symbols.h"
 #include "../machine/trust.h"
 #include "../text/text.h"
+#include "../command_line/pool.h"
 #include "files_internal.h"
 
-// the max folders outside the tree whose answers are cached for a listing
-#define CLI_TRACKED_CACHE 64u
+// What git reported of one folder outside the tree it was queried about: where the folder's path starts in the
+// cache's text, and whether git ignores it
+typedef struct
+{
+    unsigned long long path_at;
+    int ignored;
+} TrackedCached;
 
-// What git reported of each folder outside the tree it was queried about, for the listing made at `at`, under their own
-// lock
-static char s_cached_paths[CLI_TRACKED_CACHE][CLI_PATH_MAX_LEN];
-static int s_ignored[CLI_TRACKED_CACHE];
-static unsigned int s_cached_count;
-static unsigned long long s_cached_at;
+// What git reported of each folder outside the tree it was queried about, for the listing made at `at`: the answers
+// in a cell of their capacity, how many, and their paths in a text cell of its capacity, both grown to the most a
+// listing has asked
+typedef struct
+{
+    TrackedCached *cached;
+    unsigned long long count;
+    unsigned long long capacity;
+    char *text;
+    unsigned long long used;
+    unsigned long long text_capacity;
+    unsigned long long at;
+} TrackedCache;
+static TrackedCache s_cache;
+
+// a cell of `unit`-byte entries holding at least `needed` of them: `cell` itself where its `capacity` entries
+// hold them, else a cell of twice the capacity until they fit, the entries copied, `cell` given back and
+// `capacity` set to the new count; NULL where the cells refuse the growth, `cell` and `capacity` kept
+static void *tracked_cell_fit(void *cell, unsigned long long *capacity, unsigned long long needed,
+                              unsigned long long unit)
+{
+    if (needed <= *capacity)
+    {
+        return cell;
+    }
+    unsigned long long grown = (*capacity != 0ULL) ? *capacity : 16ULL;
+    while (grown < needed)
+    {
+        grown *= 2ULL;
+    }
+    void *const moved = g_cli_guard->persistent_buf_alloc(grown * unit, g_cli_editor_owner);
+    if (moved == NULL)
+    {
+        return NULL;
+    }
+    if (*capacity != 0ULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = *capacity * unit});
+    }
+    g_cli_guard->persistent_buf_release(cell, g_cli_editor_owner);
+    *capacity = grown;
+    return moved;
+}
 
 typedef struct
 {
@@ -30,35 +73,47 @@ typedef struct
 EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
 {
     int *ignored = args->ignored;
-    if (s_cached_at != args->at)
+    if (s_cache.at != args->at)
     {
-        s_cached_count = 0u;
-        s_cached_at = args->at;
+        s_cache.count = 0ULL;
+        s_cache.used = 0ULL;
+        s_cache.at = args->at;
     }
     int found = 0;
-    unsigned int each = 0u;
-    while (!found && (each < s_cached_count))
+    unsigned long long each = 0ULL;
+    while (!found && (each < s_cache.count))
     {
-        found =
-            cellul.eq(&(CatenaFinitaCfg){.src = s_cached_paths[each], .other = args->outside, .cap = CLI_POOL_BYTES});
-        *ignored = found ? s_ignored[each] : *ignored;
-        each += 1u;
+        found = cellul.eq(&(CatenaFinitaCfg){
+            .src = s_cache.text + s_cache.cached[each].path_at, .other = args->outside, .cap = CLI_POOL_BYTES});
+        *ignored = found ? s_cache.cached[each].ignored : *ignored;
+        each += 1ULL;
     }
     return found;
 }
 
-// git's answer for `outside` cached for the listing made at `at`, where it is that listing's still and capacity is left
+// git's answer for `outside` cached for the listing made at `at`, where it is that listing's still, the cells grown
+// where it does not fit
 EMBED_INLINE void tracked_append(const FilesTrackedCtx *args)
 {
-    if ((s_cached_at == args->at) && (s_cached_count < CLI_TRACKED_CACHE))
+    if (s_cache.at != args->at)
     {
-        memor.cpy(
-            &(MemoriaCfg){.dst = s_cached_paths[s_cached_count],
-                          .src = args->outside,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->outside, .cap = CLI_POOL_BYTES}) + 1u});
-        s_ignored[s_cached_count] = args->ignored_value;
-        s_cached_count += 1u;
+        return;
     }
+    const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->outside, .cap = CLI_POOL_BYTES}) + 1ULL;
+    TrackedCached *const cached =
+        tracked_cell_fit(s_cache.cached, &s_cache.capacity, s_cache.count + 1ULL, sizeof(TrackedCached));
+    char *const text =
+        (cached != NULL) ? tracked_cell_fit(s_cache.text, &s_cache.text_capacity, s_cache.used + bytes, 1ULL) : NULL;
+    s_cache.cached = (cached != NULL) ? cached : s_cache.cached;
+    s_cache.text = (text != NULL) ? text : s_cache.text;
+    if ((cached == NULL) || (text == NULL))
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = text + s_cache.used, .src = args->outside, .bytes = bytes});
+    cached[s_cache.count] = (TrackedCached){s_cache.used, args->ignored_value};
+    s_cache.count += 1ULL;
+    s_cache.used += bytes;
 }
 
 int cli_files_track(const CliFilesRootPathCfg *args)

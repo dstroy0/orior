@@ -45,6 +45,7 @@ static CliBuildFindings s_found;
 
 void cli_schema_free(void)
 {
+    cli_schema_complete_free();
     if (g_cli_schema_read != NULL)
     {
         g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
@@ -194,6 +195,7 @@ void cli_schema_check(const CliSchemaCfg *args)
             const CliSchemaKey none = {0, 0ULL, 0ULL};
             EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = &check, .node = read->root,
                        .schema = schema, .base = key, .key_schema_key = none, .depth = 0u);
+            cli_schema_bases_free();
         }
         else if (named)
         {

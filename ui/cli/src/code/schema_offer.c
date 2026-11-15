@@ -42,8 +42,8 @@ EMBED_INLINE int offer_has_key(const SchemaOfferCtx *args)
     const CliSchemaSpot *const spot = &g_cli_schema_spot;
     for (unsigned int at = spot->keys_first; at < spot->keys_first + spot->keys; at += 1u)
     {
-        if ((g_cli_schema_key_to[at] - g_cli_schema_key_from[at] == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = args->text + g_cli_schema_key_from[at],
+        if ((g_cli_schema_key[at].to - g_cli_schema_key[at].from == args->size) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->text + g_cli_schema_key[at].from,
                                      .other = args->name,
                                      .bytes = (embed_word)args->size}) == 0))
         {

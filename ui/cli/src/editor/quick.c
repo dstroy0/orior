@@ -392,20 +392,18 @@ EMBED_INLINE void quick_commands_read(const QuickCtx *args)
     {
         return;
     }
-    // the lists still to read with their menus, one list's rows, and the commands found, for this read alone
+    // the lists still to read with their menus and the commands found, for this read alone; each list's rows in a
+    // cell of their count as it is read
     const unsigned long long lists_bytes = (unsigned long long)QUICK_LISTS * sizeof(unsigned int);
-    const unsigned long long items_bytes = (unsigned long long)CLI_ITEMS_MAX * sizeof(CliItem);
     const unsigned long long found_bytes = (unsigned long long)QUICK_COMMANDS * sizeof(QuickCommand);
-    unsigned char *const scratch =
-        g_cli_guard->temporary_buf_alloc(found_bytes + items_bytes + lists_bytes, g_cli_quick_owner);
+    unsigned char *const scratch = g_cli_guard->temporary_buf_alloc(found_bytes + lists_bytes, g_cli_quick_owner);
     if (scratch == NULL)
     {
         return;
     }
-    // the commands lie first in the scratch, which its alignment saves aligned, the items after them and the lists last
+    // the commands lie first in the scratch, which its alignment saves aligned, and the lists after them
     QuickCommand *const found = (QuickCommand *)(void *)scratch;
-    CliItem *const items = (CliItem *)(void *)(scratch + found_bytes);
-    unsigned int *const lists = (unsigned int *)(void *)(scratch + found_bytes + items_bytes);
+    unsigned int *const lists = (unsigned int *)(void *)(scratch + found_bytes);
     unsigned int count = 0u;
     for (unsigned int menu = 0u; menu < menus; menu += 1u)
     {
@@ -422,7 +420,9 @@ EMBED_INLINE void quick_commands_read(const QuickCtx *args)
         while (pending != 0u)
         {
             pending -= 1u;
-            const unsigned int rows = cli_menu_rows(lists[pending], items, CLI_ITEMS_MAX);
+            const unsigned int rows_count = cli_rows_count(lists[pending]);
+            CliItem *const items = cli_items_alloc(rows_count);
+            const unsigned int rows = (items != NULL) ? cli_menu_rows(lists[pending], items, rows_count) : 0u;
             for (unsigned int at = 0u; at < rows; at += 1u)
             {
                 const CliItem *const item = &items[at];
@@ -438,6 +438,7 @@ EMBED_INLINE void quick_commands_read(const QuickCtx *args)
                     count += 1u;
                 }
             }
+            cli_items_release(items);
         }
     }
     // the commands retained in a movable cell of their bytes

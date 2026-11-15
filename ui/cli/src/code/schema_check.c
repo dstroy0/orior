@@ -4,16 +4,78 @@
 // references are read from; `$ref` is followed; `deprecated` is noted on the key; `type`, `enum` and `const` are
 // checked to; the value's own bounds by its type; `allOf` each, `anyOf` one and `oneOf` exactly one, the nearest
 // choice's findings given where none fits; `not`; and `if` with `then` or `else`. A trial's findings are those that are
-// no note. Values are checked CLI_SCHEMA_DEEPEST deep at max; the bases a check reads from are stored on one stack of
-// CLI_SCHEMA_BASES bytes, a base past it read as the one before
+// no note. Values are checked CLI_SCHEMA_DEEPEST deep at max; the bases a check reads from are stored on a stack of
+// pieces taken as the check deepens and given back as it ends, a base the cells refuse read as the one before
+#include "../command_line/pool.h"
 #include "../text/text.h"
 #include "schema_internal.h"
 
-// the max bytes of the bases a check reads from at once
-#define CLI_SCHEMA_BASES (1u << 18u)
+// A piece of the stack of bases a check reads from, its bytes after it: the piece before it, its capacity and how
+// many of its bytes are used
+typedef struct SchemaBasesPiece
+{
+    struct SchemaBasesPiece *before;
+    unsigned int capacity;
+    unsigned int used;
+} SchemaBasesPiece;
 
-static char s_bases[CLI_SCHEMA_BASES];
-static unsigned int s_bases_used;
+// A mark on the stack: the newest piece and its bytes used, the stack cut back to it as a level of the check ends
+typedef struct
+{
+    SchemaBasesPiece *piece;
+    unsigned int used;
+} SchemaBasesMark;
+
+// the newest piece of the stack, NULL where a check holds none, and the bytes a piece holds at least
+static SchemaBasesPiece *s_bases;
+#define CLI_SCHEMA_BASES_PIECE 4096u
+
+// `size` bytes taken on the stack, a new piece taken where the newest lacks them: where they start, NULL where the
+// cells refuse the piece
+EMBED_INLINE char *bases_alloc(unsigned int size)
+{
+    if ((s_bases == NULL) || (s_bases->capacity - s_bases->used < size))
+    {
+        const unsigned int capacity = (size > CLI_SCHEMA_BASES_PIECE) ? size : CLI_SCHEMA_BASES_PIECE;
+        SchemaBasesPiece *const piece =
+            g_cli_guard->temporary_buf_alloc(sizeof(SchemaBasesPiece) + (unsigned long long)capacity, g_cli_schema_owner);
+        if (piece == NULL)
+        {
+            return NULL;
+        }
+        *piece = (SchemaBasesPiece){s_bases, capacity, 0u};
+        s_bases = piece;
+    }
+    char *const at = (char *)(void *)(s_bases + 1) + s_bases->used;
+    s_bases->used += size;
+    return at;
+}
+
+// the stack as it stands, to cut it back to
+EMBED_INLINE SchemaBasesMark bases_mark(void)
+{
+    return (SchemaBasesMark){s_bases, (s_bases != NULL) ? s_bases->used : 0u};
+}
+
+// the stack cut back to `mark`, the pieces taken past it given back
+EMBED_INLINE void bases_release(SchemaBasesMark mark)
+{
+    while (s_bases != mark.piece)
+    {
+        SchemaBasesPiece *const before = s_bases->before;
+        g_cli_guard->persistent_buf_release(s_bases, g_cli_schema_owner);
+        s_bases = before;
+    }
+    if (s_bases != NULL)
+    {
+        s_bases->used = mark.used;
+    }
+}
+
+void cli_schema_bases_free(void)
+{
+    bases_release((SchemaBasesMark){NULL, 0u});
+}
 
 typedef struct
 {
@@ -339,14 +401,14 @@ EMBED_INLINE const char *check_base(const SchemaCheckCtx *args)
         return args->base;
     }
     size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = id, .at = size, .set = "#");
-    if (size + 1u > CLI_SCHEMA_BASES - s_bases_used)
+    // a base is at most a path long, which an unsigned int counts
+    char *const base_at = (size < CLI_PATH_MAX_LEN) ? bases_alloc((unsigned int)size + 1u) : NULL;
+    if (base_at == NULL)
     {
         return args->base;
     }
-    char *const base_at = s_bases + s_bases_used;
     memor.cpy(&(MemoriaCfg){.dst = base_at, .src = id, .bytes = (embed_word)size});
     base_at[size] = '\0';
-    s_bases_used += (unsigned int)size + 1u;
     return base_at;
 }
 
@@ -377,25 +439,22 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
     {
         return;
     }
-    const unsigned int used = s_bases_used;
+    const SchemaBasesMark mark = bases_mark();
     const char *const here =
         EMBED_CALL(check_base, SchemaCheckCtx, .json = json, .map = args->schema, .base = args->base);
     unsigned long long size = 0ULL;
     const char *const reference = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
                                              .map = args->schema, .name = "$ref", .size_pointer = &size);
-    if ((reference != NULL) && (CLI_PATH_MAX_LEN <= CLI_SCHEMA_BASES - s_bases_used))
+    char *const doc = (reference != NULL) ? bases_alloc(CLI_PATH_MAX_LEN) : NULL;
+    if (doc != NULL)
     {
-        char *const doc = s_bases + s_bases_used;
         const unsigned int found =
             EMBED_CALL(cli_schema_size_internal.resolve, CliSchemaSizeCtx, .store = args->check->store, .base = here,
                        .reference = reference, .size = size, .key = doc);
         if (found != CLI_SCHEMA_NONE)
         {
-            const unsigned int before = s_bases_used;
-            s_bases_used += (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = doc, .cap = CLI_POOL_BYTES}) + 1u;
             EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = args->node,
                        .schema = found, .base = doc, .key_schema_key = args->key_schema_key, .depth = args->depth + 1u);
-            s_bases_used = before;
         }
     }
     if (EMBED_CALL(cli_schema_json_node_internal.schema_true, CliSchemaJsonNodeCtx, .json = json,
@@ -506,5 +565,5 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
             }
         }
     }
-    s_bases_used = used;
+    bases_release(mark);
 }

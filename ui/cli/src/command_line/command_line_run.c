@@ -304,8 +304,9 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         // and the word that follows refused where none of them is it
         if (s_item.list != 0u)
         {
-            static CliItem s_rows[CLI_ITEMS_MAX];
-            const unsigned int rows = cli_menu_rows(s_item.list, s_rows, CLI_ITEMS_MAX);
+            const unsigned int under_count = cli_rows_count(s_item.list);
+            CliItem *const under = cli_items_alloc(under_count);
+            const unsigned int rows = (under != NULL) ? cli_menu_rows(s_item.list, under, under_count) : 0u;
             VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
             mmgr_line_put(&line, word_text);
             mmgr_line_ch(&line, '.');
@@ -315,8 +316,9 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
             for (unsigned int row = 0u; (used >= count) && (row < rows); row += 1u)
             {
                 mmgr_line_ch(&line, ' ');
-                mmgr_line_put(&line, s_rows[row].command);
+                mmgr_line_put(&line, under[row].command);
             }
+            cli_items_release(under);
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
                        .size = mmgr_line_ok(&line) ? line.at : 0ULL);
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
