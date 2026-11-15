@@ -154,17 +154,6 @@ static CliFlagsSaved s_saved;
 // the max bytes of one saved text a reader reads onto the stack
 #define CLI_FLAGS_TEXT_BYTES 4096u
 
-// the saved text at `at` read out of the saved cell into `out`, CLI_FLAGS_TEXT_BYTES long, a 0 after it: its length
-static unsigned long long flags_stored_text(unsigned long long at, char *out)
-{
-    const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-        .cell = s_saved.cell, .offset = s_saved.text_at + at, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_saved.cell, .offset = s_saved.text_at + at, .dst = out, .bytes = length});
-    out[length] = '\0';
-    return length;
-}
-
 // the text at `at` among the saved texts, an empty one where no texts are saved
 EMBED_INLINE const char *cli_flags_text(const CompileDbFlagsCtx *args)
 {
@@ -832,52 +821,6 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     }
 }
 
-// the define given `at` among those given, the distinct define `at`, the file `at` and the include `at`, each read
-// out of the saved cell
-static CliDefineNodeInput flags_stored_input(unsigned int at)
-{
-    CliDefineNodeInput input = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_saved.cell,
-                            .offset = s_saved.input_at + ((unsigned long long)at * sizeof(CliDefineNodeInput)),
-                            .dst = &input,
-                            .bytes = sizeof(input)});
-    return input;
-}
-
-static CliDefineWord flags_stored_word(unsigned int at)
-{
-    CliDefineWord word = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_saved.cell,
-                            .offset = s_saved.word_at + ((unsigned long long)at * sizeof(CliDefineWord)),
-                            .dst = &word,
-                            .bytes = sizeof(word)});
-    return word;
-}
-
-static CliDefineNode flags_stored_file(unsigned int at)
-{
-    CliDefineNode file = {0u, 0u, 0u, 0u, 0u};
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_saved.cell,
-                            .offset = s_saved.file_at + ((unsigned long long)at * sizeof(CliDefineNode)),
-                            .dst = &file,
-                            .bytes = sizeof(file)});
-    return file;
-}
-
-static CliIncludeWord flags_stored_include(unsigned int at)
-{
-    CliIncludeWord include = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_saved.cell,
-                            .offset = s_saved.include_at + ((unsigned long long)at * sizeof(CliIncludeWord)),
-                            .dst = &include,
-                            .bytes = sizeof(include)});
-    return include;
-}
-
 // the define of the `-D` word's `name`, `NAME` or `NAME(PARAMS)`, and `value`, given to `node`, passed to `each`: a
 // name with brackets one called with arguments, its parameters the names between commas within them, white space
 // about each left off, and a `...` among them taking the arguments past them
@@ -932,17 +875,40 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args)
     {
         for (unsigned int at = 0u; at < s_saved.givens; at += 1u)
         {
-            const CliDefineNodeInput given = flags_stored_input(at);
+            CliDefineNodeInput given = {0u, 0u};
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_saved.cell,
+                .offset = s_saved.input_at + ((unsigned long long)at * sizeof(given)),
+                .dst = &given,
+                .bytes = sizeof(given)});
             char node[CLI_FLAGS_TEXT_BYTES];
-            if ((flags_stored_text(given.node, node) == cut) &&
+            const unsigned long long node_length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+                .cell = s_saved.cell, .offset = s_saved.text_at + given.node, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_saved.cell, .offset = s_saved.text_at + given.node, .dst = node, .bytes = node_length});
+            node[node_length] = '\0';
+            if ((node_length == cut) &&
                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = node, .other_pointer = args->path,
                            .size = cut))
             {
-                const CliDefineWord word_text = flags_stored_word(given.define);
+                CliDefineWord word_text = {0u, 0u};
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = s_saved.cell,
+                    .offset = s_saved.word_at + ((unsigned long long)given.define * sizeof(word_text)),
+                    .dst = &word_text,
+                    .bytes = sizeof(word_text)});
                 char name[CLI_FLAGS_TEXT_BYTES];
                 char value[CLI_FLAGS_TEXT_BYTES];
-                (void)flags_stored_text(word_text.name, name);
-                (void)flags_stored_text(word_text.value, value);
+                const unsigned long long name_length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+                    .cell = s_saved.cell, .offset = s_saved.text_at + word_text.name, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = s_saved.cell, .offset = s_saved.text_at + word_text.name, .dst = name, .bytes = name_length});
+                name[name_length] = '\0';
+                const unsigned long long value_length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+                    .cell = s_saved.cell, .offset = s_saved.text_at + word_text.value, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = s_saved.cell, .offset = s_saved.text_at + word_text.value, .dst = value, .bytes = value_length});
+                value[value_length] = '\0';
                 EMBED_CALL(cli_flags_define_dispatch, CompileDbFlagsCtx, .name = name, .value = value,
                            .node_text = node, .each = args->each_define_each, .context = args->context);
             }
@@ -959,14 +925,28 @@ void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args)
     EMBED_CALL(cli_flags_read, CompileDbFlagsCtx, .root = args->root);
     for (unsigned int at = 0u; (s_saved.cell != NULL) && (at < s_saved.includes); at += 1u)
     {
-        const CliIncludeWord include = flags_stored_include(at);
+        CliIncludeWord include = {0u, 0u};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_saved.cell,
+            .offset = s_saved.include_at + ((unsigned long long)at * sizeof(include)),
+            .dst = &include,
+            .bytes = sizeof(include)});
         char path[CLI_FLAGS_TEXT_BYTES];
-        const unsigned long long length = flags_stored_text(include.path, path);
+        const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+            .cell = s_saved.cell, .offset = s_saved.text_at + include.path, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_saved.cell, .offset = s_saved.text_at + include.path, .dst = path, .bytes = length});
+        path[length] = '\0';
         int before = 0;
         unsigned int earlier = 0u;
         while (!before && (earlier < at))
         {
-            const CliIncludeWord other = flags_stored_include(earlier);
+            CliIncludeWord other = {0u, 0u};
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_saved.cell,
+                .offset = s_saved.include_at + ((unsigned long long)earlier * sizeof(other)),
+                .dst = &other,
+                .bytes = sizeof(other)});
             before = (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_saved.cell,
                                                                            .offset = s_saved.text_at + other.path,
                                                                            .src = path,
@@ -1001,9 +981,18 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
     unsigned long long max = 0ULL;
     for (unsigned int at = 0u; (s_saved.cell != NULL) && (at < s_saved.files); at += 1u)
     {
-        const CliDefineNode one = flags_stored_file(at);
+        CliDefineNode one = {0u, 0u, 0u, 0u, 0u};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_saved.cell,
+            .offset = s_saved.file_at + ((unsigned long long)at * sizeof(one)),
+            .dst = &one,
+            .bytes = sizeof(one)});
         char file[CLI_FLAGS_TEXT_BYTES];
-        (void)flags_stored_text(one.path, file);
+        const unsigned long long file_length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+            .cell = s_saved.cell, .offset = s_saved.text_at + one.path, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_saved.cell, .offset = s_saved.text_at + one.path, .dst = file, .bytes = file_length});
+        file[file_length] = '\0';
         if (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = args->path, .cap = CLI_POOL_BYTES}))
         {
             nearest = at;
@@ -1019,14 +1008,28 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
     }
     for (unsigned int type = 0u; (nearest != CLI_JSON_NONE) && (type < 5u); type += 1u)
     {
-        const CliDefineNode file = flags_stored_file(nearest);
+        CliDefineNode file = {0u, 0u, 0u, 0u, 0u};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_saved.cell,
+            .offset = s_saved.file_at + ((unsigned long long)nearest * sizeof(file)),
+            .dst = &file,
+            .bytes = sizeof(file)});
         for (unsigned int at = file.include_first; at < (file.include_first + file.includes); at += 1u)
         {
-            const CliIncludeWord include = flags_stored_include(at);
+            CliIncludeWord include = {0u, 0u};
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_saved.cell,
+                .offset = s_saved.include_at + ((unsigned long long)at * sizeof(include)),
+                .dst = &include,
+                .bytes = sizeof(include)});
             if (include.type == s_order[type])
             {
                 char path[CLI_FLAGS_TEXT_BYTES];
-                (void)flags_stored_text(include.path, path);
+                const unsigned long long path_length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+                    .cell = s_saved.cell, .offset = s_saved.text_at + include.path, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = s_saved.cell, .offset = s_saved.text_at + include.path, .dst = path, .bytes = path_length});
+                path[path_length] = '\0';
                 EMBED_CALL(args->each, CliEachPathTypeCfg, .context = args->context, .path = path,
                            .type = s_order[type]);
             }

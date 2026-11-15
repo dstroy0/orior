@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // preview.c: the preview's state, one for the window: the mode, the view it is bound to with its path in a cell sized
-// to the two, the text last arranged in a cell of its own, the items positioned from it, the width they were positioned for and the
-// rectangle's height, the scroll top, when the text was last looked at, the view's top and cursor's line last seen, and
-// the block marked. A look reads the view's text through the document store and positions it out again only where it
-// differs from the text last positioned; blocks are found by a binary search over their starts, sorted by top and by line as
-// the layout positions them in the source's order
+// to the two, the text last arranged in a cell of its own, the items positioned from it, the width they were positioned
+// for and the rectangle's height, the scroll top, when the text was last looked at, the view's top and cursor's line
+// last seen, and the block marked. A look reads the view's text through the document store and positions it out again
+// only where it differs from the text last positioned; blocks are found by a binary search over their starts, sorted by
+// top and by line as the layout positions them in the source's order
 #include "preview.h"
 
 #include "../editor/document.h"
@@ -40,10 +40,10 @@ static const PreviewEnding s_endings[] = {
 static const char *const s_mode_words[3] = {"off", "beside", "alone"};
 
 // The preview: its mode; the type of the view bound; whether a view is bound, with its key and its path; the text last
-// positioned with its bytes, in a movable cell of its own, NULL where it has no bytes; the items positioned from it; whether they
-// are for it; the width they were positioned for and the rectangle's height, in the page's pixels; the scroll top; the
-// millisecond the text was last looked at; the view's top last seen; whether the cursor's line was seen and which it
-// was; and the block marked, PREVIEW_NONE_AT for none
+// positioned with its bytes, in a movable cell of its own, NULL where it has no bytes; the items positioned from it;
+// whether they are for it; the width they were positioned for and the rectangle's height, in the page's pixels; the
+// scroll top; the millisecond the text was last looked at; the view's top last seen; whether the cursor's line was seen
+// and which it was; and the block marked, PREVIEW_NONE_AT for none
 typedef struct
 {
     unsigned int mode;
@@ -106,35 +106,6 @@ EMBED_INLINE void items_released(const PreviewCtx *args)
     s_preview.marked = PREVIEW_NONE_AT;
 }
 
-// the block `at` copied out of the items' cell
-EMBED_INLINE CliPreviewBlock block_read(const PreviewCtx *args)
-{
-    CliPreviewBlock block = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, args->at),
-                                                            .dst = &block,
-                                                            .bytes = sizeof(block)});
-    return block;
-}
-
-// the item `at` copied out of the items' cell
-EMBED_INLINE CliPreviewItem item_read(const PreviewCtx *args)
-{
-    CliPreviewItem item = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(args->at), .dst = &item, .bytes = sizeof(item)});
-    return item;
-}
-
-// the item `item` written over the item `at` of the items' cell
-EMBED_INLINE void item_written(const PreviewCtx *args)
-{
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                             .offset = CLI_PREVIEW_ITEM_AT(args->at),
-                                                             .src = args->item,
-                                                             .bytes = sizeof(*args->item)});
-}
-
 // `top_px` no higher than the first item and no lower than the last fills the rectangle
 EMBED_INLINE int top_clamped(const PreviewCtx *args)
 {
@@ -151,7 +122,12 @@ EMBED_INLINE int top_clamped(const PreviewCtx *args)
 EMBED_INLINE unsigned int block_by_top(const PreviewCtx *args)
 {
     const unsigned int count = s_preview.items.blocks;
-    if ((count == 0u) || (EMBED_CALL(block_read, PreviewCtx, .at = 0u).top > args->top_px))
+    CliPreviewBlock first = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
+                                                            .dst = &first,
+                                                            .bytes = sizeof(first)});
+    if ((count == 0u) || (first.top > args->top_px))
     {
         return PREVIEW_NONE_AT;
     }
@@ -160,7 +136,13 @@ EMBED_INLINE unsigned int block_by_top(const PreviewCtx *args)
     while ((high - low) > 1u)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (EMBED_CALL(block_read, PreviewCtx, .at = middle).top <= args->top_px)
+        CliPreviewBlock probed = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, middle),
+                                .dst = &probed,
+                                .bytes = sizeof(probed)});
+        if (probed.top <= args->top_px)
         {
             low = middle;
         }
@@ -176,7 +158,12 @@ EMBED_INLINE unsigned int block_by_top(const PreviewCtx *args)
 EMBED_INLINE unsigned int block_by_line(const PreviewCtx *args)
 {
     const unsigned int count = s_preview.items.blocks;
-    if ((count == 0u) || (EMBED_CALL(block_read, PreviewCtx, .at = 0u).line > args->line))
+    CliPreviewBlock first = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
+                                                            .dst = &first,
+                                                            .bytes = sizeof(first)});
+    if ((count == 0u) || (first.line > args->line))
     {
         return PREVIEW_NONE_AT;
     }
@@ -185,7 +172,13 @@ EMBED_INLINE unsigned int block_by_line(const PreviewCtx *args)
     while ((high - low) > 1u)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (EMBED_CALL(block_read, PreviewCtx, .at = middle).line <= args->line)
+        CliPreviewBlock probed = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, middle),
+                                .dst = &probed,
+                                .bytes = sizeof(probed)});
+        if (probed.line <= args->line)
         {
             low = middle;
         }
@@ -216,8 +209,8 @@ EMBED_INLINE void top_led(const PreviewCtx *args)
     s_preview.editor_top = cli_view_top(s_preview.key);
 }
 
-// the slug of the character `at` of a heading's text as GitHub writes an anchor, a character or digit lowered, a space a
-// dash, a dash or an underscore itself: the slug's character, 0 where it has none
+// the slug of the character `at` of a heading's text as GitHub writes an anchor, a character or digit lowered, a space
+// a dash, a dash or an underscore itself: the slug's character, 0 where it has none
 EMBED_INLINE unsigned char slug_character(const PreviewCtx *args)
 {
     const unsigned char one = (unsigned char)args->text[args->at];
@@ -253,22 +246,34 @@ EMBED_INLINE unsigned int heading_of(const PreviewCtx *args)
     unsigned int found = PREVIEW_NONE_AT;
     for (unsigned int block = 0u; (found == PREVIEW_NONE_AT) && (block < items->blocks); block += 1u)
     {
-        const CliPreviewBlock here = EMBED_CALL(block_read, PreviewCtx, .at = block);
+        CliPreviewBlock here = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                                                                .dst = &here,
+                                                                .bytes = sizeof(here)});
         if (!here.heading)
         {
             continue;
         }
-        const unsigned int end =
-            (block + 1u < items->blocks) ? EMBED_CALL(block_read, PreviewCtx, .at = block + 1u).item : items->items;
+        CliPreviewBlock after = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block + 1u),
+                                .dst = &after,
+                                .bytes = sizeof(after)});
+        const unsigned int end = (block + 1u < items->blocks) ? after.item : items->items;
         unsigned int matched = 0u;
         int same = 1;
         for (unsigned int at = here.item + 1u; same && (at < end); at += 1u)
         {
-            const CliPreviewItem item = EMBED_CALL(item_read, PreviewCtx, .at = at);
+            CliPreviewItem item = {0};
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
             for (unsigned int character = 0u; same && (item.type == CLI_PREVIEW_ITEM_TEXT) && (character < item.length);
                  character += 1u)
             {
-                const unsigned char slug = EMBED_CALL(slug_character, PreviewCtx, .text = text + item.text, .at = character);
+                const unsigned char slug =
+                    EMBED_CALL(slug_character, PreviewCtx, .text = text + item.text, .at = character);
                 if (slug == 0u)
                 {
                     continue;
@@ -318,8 +323,8 @@ EMBED_INLINE int path_resolved(const PreviewCtx *args)
     const unsigned long long bound_length = cellul.len(&(CatenaFinitaCfg){.src = bound, .cap = CLI_PATH_MAX_LEN});
     // the bound's last slash, 0 where it has none: the place past it, less one where there is one; a path is far
     // shorter than an unsigned int counts
-    const unsigned long long past_slash =
-        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = bound, .at = bound_length, .set = "/");
+    const unsigned long long past_slash = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                     .text = bound, .at = bound_length, .set = "/");
     const unsigned int folder = (past_slash != 0ULL) ? (unsigned int)(past_slash - 1ULL) : 0u;
     const int rooted = (args->length != 0u) && (args->text[0] == '/');
     // the folder and the address are both read part by part, `/` between, the folder's parts first
@@ -388,7 +393,12 @@ EMBED_INLINE unsigned int address_followed(const PreviewCtx *args)
         {
             return CLI_PREVIEW_OPEN_NONE;
         }
-        EMBED_CALL(top_led, PreviewCtx, .top_px = EMBED_CALL(block_read, PreviewCtx, .at = block).top);
+        CliPreviewBlock here = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                                                                .dst = &here,
+                                                                .bytes = sizeof(here)});
+        EMBED_CALL(top_led, PreviewCtx, .top_px = here.top);
         open->top_px = s_preview.top_px;
         open->target = CLI_PREVIEW_OPEN_PLACE;
         return open->target;
@@ -438,8 +448,8 @@ unsigned int cli_preview_type(const CliPreviewCfg *args)
     // the last dot of the name after the last slash, `length` where the name has none, each found a word at a time
     const unsigned long long name =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path, .at = length, .set = "/");
-    const unsigned long long past_dot =
-        EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path + name, .at = length - name, .set = ".");
+    const unsigned long long past_dot = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                   .text = path + name, .at = length - name, .set = ".");
     const unsigned long long dot = (past_dot != 0ULL) ? (name + past_dot - 1ULL) : length;
     char ending[16];
     unsigned int ending_length = 0u;
@@ -639,7 +649,9 @@ const CliPreviewItem *cli_preview_item_row(const CliPreviewItemCfg *args)
     {
         return NULL;
     }
-    s_row = EMBED_CALL(item_read, PreviewCtx, .at = args->at);
+    s_row = (CliPreviewItem){0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(args->at), .dst = &s_row, .bytes = sizeof(s_row)});
     if (s_row.type == CLI_PREVIEW_ITEM_TEXT)
     {
         s_row.length = (s_row.length < CLI_PREVIEW_ROW_TEXT) ? s_row.length : CLI_PREVIEW_ROW_TEXT;
@@ -663,11 +675,20 @@ unsigned int cli_preview_item_first(const CliPreviewItemCfg *args)
     {
         return 0u;
     }
-    while ((block > 0u) && (EMBED_CALL(block_read, PreviewCtx, .at = block).depth > 0u))
+    CliPreviewBlock here = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                                                            .dst = &here,
+                                                            .bytes = sizeof(here)});
+    while ((block > 0u) && (here.depth > 0u))
     {
         block -= 1u;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                                                                .dst = &here,
+                                                                .bytes = sizeof(here)});
     }
-    return EMBED_CALL(block_read, PreviewCtx, .at = block).item;
+    return here.item;
 }
 
 int cli_preview_item_extent(const CliPreviewItemCfg *args)
@@ -702,11 +723,24 @@ unsigned long long cli_preview_scroll_line_at(const CliPreviewScrollCfg *args)
     const unsigned int at = EMBED_CALL(block_by_top, PreviewCtx, .top_px = args->top_px);
     if (at == PREVIEW_NONE_AT)
     {
-        return (s_preview.items.blocks != 0u) ? EMBED_CALL(block_read, PreviewCtx, .at = 0u).line : 0ULL;
+        CliPreviewBlock first = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
+                                                                .dst = &first,
+                                                                .bytes = sizeof(first)});
+        return first.line;
     }
-    const CliPreviewBlock here = EMBED_CALL(block_read, PreviewCtx, .at = at);
-    const CliPreviewBlock next =
-        (at + 1u < s_preview.items.blocks) ? EMBED_CALL(block_read, PreviewCtx, .at = at + 1u) : here;
+    CliPreviewBlock here = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at),
+                                                            .dst = &here,
+                                                            .bytes = sizeof(here)});
+    CliPreviewBlock after = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at + 1u),
+                                                            .dst = &after,
+                                                            .bytes = sizeof(after)});
+    const CliPreviewBlock next = (at + 1u < s_preview.items.blocks) ? after : here;
     if (next.top <= here.top)
     {
         return here.line;
@@ -730,9 +764,17 @@ int cli_preview_scroll_top_of(const CliPreviewScrollCfg *args)
     {
         return 0;
     }
-    const CliPreviewBlock here = EMBED_CALL(block_read, PreviewCtx, .at = at);
-    const CliPreviewBlock next =
-        (at + 1u < s_preview.items.blocks) ? EMBED_CALL(block_read, PreviewCtx, .at = at + 1u) : here;
+    CliPreviewBlock here = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at),
+                                                            .dst = &here,
+                                                            .bytes = sizeof(here)});
+    CliPreviewBlock after = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at + 1u),
+                                                            .dst = &after,
+                                                            .bytes = sizeof(after)});
+    const CliPreviewBlock next = (at + 1u < s_preview.items.blocks) ? after : here;
     if (next.line <= here.line)
     {
         return here.top;
@@ -746,10 +788,20 @@ int cli_preview_scroll_top_of(const CliPreviewScrollCfg *args)
 // the block item of the block `at` read, its mark flag put where `here` and taken off where not, and written back
 EMBED_INLINE void block_marked(const PreviewCtx *args)
 {
-    const unsigned int at = EMBED_CALL(block_read, PreviewCtx, .at = args->at).item;
-    CliPreviewItem item = EMBED_CALL(item_read, PreviewCtx, .at = at);
+    CliPreviewBlock marked = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, args->at),
+                                                            .dst = &marked,
+                                                            .bytes = sizeof(marked)});
+    const unsigned int at = marked.item;
+    CliPreviewItem item = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
     item.flags = args->here ? (item.flags | CLI_PREVIEW_HERE) : (item.flags & ~CLI_PREVIEW_HERE);
-    EMBED_CALL(item_written, PreviewCtx, .at = at, .item = &item);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                             .offset = CLI_PREVIEW_ITEM_AT(at),
+                                                             .src = &item,
+                                                             .bytes = sizeof(CliPreviewItem)});
 }
 
 int cli_preview_mark_line(const CliPreviewMarkCfg *args)
@@ -784,7 +836,9 @@ unsigned int cli_preview_mark_press(const CliPreviewMarkCfg *args)
     for (unsigned int at = EMBED_CALL(cli_preview_item.first, CliPreviewItemCfg, .top_px = y); at < items->items;
          at += 1u)
     {
-        const CliPreviewItem item = EMBED_CALL(item_read, PreviewCtx, .at = at);
+        CliPreviewItem item = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
         if ((item.type == CLI_PREVIEW_ITEM_BLOCK) && (item.y > y))
         {
             break;

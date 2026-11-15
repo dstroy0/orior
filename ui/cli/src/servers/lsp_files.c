@@ -168,26 +168,6 @@ EMBED_INLINE unsigned int files_position_alloc(const LspFilesCtx *args)
     return vacant;
 }
 
-// the version of the open file at `place` set to `version`
-EMBED_INLINE void files_version_set(const LspFilesCtx *args)
-{
-    CliLspFile file;
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(args->place), .dst = &file, .bytes = sizeof(file)});
-    file.version = args->version;
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(args->place), .src = &file, .bytes = sizeof(file)});
-}
-
-// the version of the open file at `place`
-EMBED_INLINE unsigned long long files_version(const LspFilesCtx *args)
-{
-    CliLspFile file;
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(args->place), .dst = &file, .bytes = sizeof(file)});
-    return file.version;
-}
-
 // the text of an open file stored: 1, or 0 with why given
 EMBED_INLINE int files_text_save(const LspFilesCtx *args)
 {
@@ -235,7 +215,12 @@ int cli_lsp_open(const CliLspErrMsgTextCfg *args)
     const unsigned int place = EMBED_CALL(files_position_alloc, LspFilesCtx, .lsp = args->lsp, .uri = uri);
     if (place < CLI_LSP_FILES)
     {
-        EMBED_CALL(files_version_set, LspFilesCtx, .place = place, .version = 1ULL);
+        CliLspFile versioned;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_files, .offset = LSP_FILE_AT(place), .dst = &versioned, .bytes = sizeof(versioned)});
+        versioned.version = 1ULL;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_files, .offset = LSP_FILE_AT(place), .src = &versioned, .bytes = sizeof(versioned)});
     }
     const int saved = (place < CLI_LSP_FILES) &&
                       EMBED_CALL(files_text_save, LspFilesCtx, .place = place, .text = args->text, .cell = args->cell,
@@ -277,8 +262,16 @@ int cli_lsp_change(const CliLspErrMsgTextCfg *args)
     unsigned long long version = 0ULL;
     if (place < CLI_LSP_FILES)
     {
-        version = EMBED_CALL(files_version, LspFilesCtx, .place = place) + 1ULL;
-        EMBED_CALL(files_version_set, LspFilesCtx, .place = place, .version = version);
+        CliLspFile file = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(place), .dst = &file, .bytes = sizeof(file)});
+        version = file.version + 1ULL;
+        CliLspFile versioned;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_files, .offset = LSP_FILE_AT(place), .dst = &versioned, .bytes = sizeof(versioned)});
+        versioned.version = version;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_files, .offset = LSP_FILE_AT(place), .src = &versioned, .bytes = sizeof(versioned)});
     }
     const int saved = (place < CLI_LSP_FILES) &&
                       EMBED_CALL(files_text_save, LspFilesCtx, .place = place, .text = args->text, .cell = args->cell,
@@ -396,9 +389,13 @@ unsigned long long cli_lsp_version(const CliLspPathOutCfg *args)
     EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = args->path, .uri_out = uri,
                .capacity = sizeof(uri));
     const unsigned int place = EMBED_CALL(files_position, LspFilesCtx, .lsp = args->lsp, .uri = uri);
-    const unsigned long long version =
-        (place < CLI_LSP_FILES) ? EMBED_CALL(files_version, LspFilesCtx, .place = place) : 0ULL;
-    return version;
+    CliLspFile file = {0};
+    if (place < CLI_LSP_FILES)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(place), .dst = &file, .bytes = sizeof(file)});
+    }
+    return file.version;
 }
 
 int cli_lsp_has(const CliLspPathOutCfg *args)

@@ -26,20 +26,6 @@ typedef struct
     CliDbOpen *open;
 } DbPaneActCtx;
 
-// the open connection `at`, NULL where it is not open, read out of the connections cell
-EMBED_INLINE CliDbOpen *open_read(const DbPaneActCtx *args)
-{
-    CliDbOpen *open = NULL;
-    if (g_cli_db_pane_state.connections_cell != NULL)
-    {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_OPEN_AT(args->at),
-                                                                .dst = &open,
-                                                                .bytes = sizeof(open)});
-    }
-    return open;
-}
-
 // the connection `at`'s open one set to `open`, NULL for none, with its transaction's state as the open one has it,
 // empty for none, each written into the connections cell
 EMBED_INLINE void open_written(const DbPaneActCtx *args)
@@ -74,7 +60,12 @@ EMBED_INLINE int chosen_open(const DbPaneActCtx *args)
 {
     (void)args;
     const CliDbPaneState *const pane = &g_cli_db_pane_state;
-    return (pane->chosen != CLI_DB_PANE_NONE) && (EMBED_CALL(open_read, DbPaneActCtx, .at = pane->chosen) != NULL);
+    CliDbOpen *open = NULL;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                            .dst = &open,
+                                                            .bytes = sizeof(open)});
+    return (pane->chosen != CLI_DB_PANE_NONE) && (open != NULL);
 }
 
 const char *cli_db_pane_head_tool(const CliDbPaneHeadCfg *args)
@@ -224,7 +215,11 @@ EMBED_INLINE void chosen_closed(const DbPaneActCtx *args)
 {
     (void)args;
     CliDbPaneState *const pane = &g_cli_db_pane_state;
-    CliDbOpen *const open = EMBED_CALL(open_read, DbPaneActCtx, .at = pane->chosen);
+    CliDbOpen *open = NULL;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                            .dst = &open,
+                                                            .bytes = sizeof(open)});
     EMBED_CALL(cli_db_grid.clear, CliDbGridCfg, .open = open);
     EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = open);
     EMBED_CALL(open_written, DbPaneActCtx, .at = pane->chosen, .open = NULL);

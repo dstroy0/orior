@@ -31,53 +31,8 @@ typedef struct
 } DiffViewOptionCtx;
 
 // the row `at`'s record read out of the rows cell into `arranged`
-EMBED_INLINE void positioned_read(const DiffViewOptionCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
-                                                            .offset = CLI_DIFF_VIEW_ROW_AT(args->at),
-                                                            .dst = args->arranged,
-                                                            .bytes = sizeof(CliDiffViewLaid)});
-}
-
 // the first row of the change `at`, read out of the rows cell
-EMBED_INLINE unsigned int change_row_read(const DiffViewOptionCtx *args)
-{
-    unsigned int row = 0u;
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
-                            .offset = g_cli_diff_view.change_row_at + ((unsigned long long)args->at * sizeof(row)),
-                            .dst = &row,
-                            .bytes = sizeof(row)});
-    return row;
-}
-
 // the line `line` of `side` copied into `units_out`, a row's units, cut to CLI_DIFF_VIEW_ROW_UNITS: how many
-EMBED_INLINE unsigned long long line_units_read(const DiffViewOptionCtx *args)
-{
-    unsigned long long start = 0ULL;
-    unsigned long long length = 0ULL;
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = g_cli_diff_view.lines_cell,
-                            .offset = args->side->start_at + ((unsigned long long)args->line * sizeof(start)),
-                            .dst = &start,
-                            .bytes = sizeof(start)});
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = g_cli_diff_view.lines_cell,
-                            .offset = args->side->length_at + ((unsigned long long)args->line * sizeof(length)),
-                            .dst = &length,
-                            .bytes = sizeof(length)});
-    const unsigned long long copied = (length < CLI_DIFF_VIEW_ROW_UNITS) ? length : CLI_DIFF_VIEW_ROW_UNITS;
-    if (copied != 0ULL)
-    {
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = g_cli_diff_view.lines_cell,
-                                .offset = args->side->unit_at + (start * sizeof(unsigned short)),
-                                .dst = args->units_out,
-                                .bytes = copied * sizeof(unsigned short)});
-    }
-    return copied;
-}
-
 // whether the setting `key` among the settings `entries` reads `value`
 EMBED_INLINE int setting_is(const DiffViewOptionCtx *args)
 {
@@ -96,7 +51,8 @@ EMBED_INLINE unsigned int row_at_right(const DiffViewOptionCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         CliDiffViewLaid positioned;
-        EMBED_CALL(positioned_read, DiffViewOptionCtx, .at = middle, .arranged = &positioned);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.rows_cell, .offset = CLI_DIFF_VIEW_ROW_AT(middle), .dst = &positioned, .bytes = sizeof(positioned)});
         if (positioned.right_at < args->at)
         {
             low = middle + 1u;
@@ -166,7 +122,8 @@ unsigned int cli_diff_view_option_toggle(const CliDiffViewOptionOnCfg *args)
     CliDiffViewLaid positioned = {0};
     if (args->at < view->rows)
     {
-        EMBED_CALL(positioned_read, DiffViewOptionCtx, .at = args->at, .arranged = &positioned);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.rows_cell, .offset = CLI_DIFF_VIEW_ROW_AT(args->at), .dst = &positioned, .bytes = sizeof(positioned)});
     }
     const unsigned int right_at = (args->at < view->rows) ? positioned.right_at : 0u;
     err_msg.at = 0ULL;
@@ -224,7 +181,8 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
         return 0;
     }
     CliDiffViewLaid positioned;
-    EMBED_CALL(positioned_read, DiffViewOptionCtx, .at = args->at, .arranged = &positioned);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = g_cli_diff_view.rows_cell, .offset = CLI_DIFF_VIEW_ROW_AT(args->at), .dst = &positioned, .bytes = sizeof(positioned)});
     CliDiffViewRow *const row = args->row;
     *row = (CliDiffViewRow){0};
     row->type = positioned.type;
@@ -235,14 +193,36 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
     if (row->has_left)
     {
         row->left_line = positioned.left;
-        row->left_count = EMBED_CALL(line_units_read, DiffViewOptionCtx, .side = &view->left, .line = positioned.left,
-                                     .units_out = row->left_units_copied);
+        // the line's start and length among its side's lines, then its units, as many as a row holds
+        unsigned long long left_start = 0ULL;
+        unsigned long long left_length = 0ULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.lines_cell, .offset = (&view->left)->start_at + ((unsigned long long)positioned.left * sizeof(left_start)), .dst = &left_start, .bytes = sizeof(left_start)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.lines_cell, .offset = (&view->left)->length_at + ((unsigned long long)positioned.left * sizeof(left_length)), .dst = &left_length, .bytes = sizeof(left_length)});
+        row->left_count = (left_length < CLI_DIFF_VIEW_ROW_UNITS) ? left_length : CLI_DIFF_VIEW_ROW_UNITS;
+        if (row->left_count != 0ULL)
+        {
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = g_cli_diff_view.lines_cell, .offset = (&view->left)->unit_at + (left_start * sizeof(unsigned short)), .dst = row->left_units_copied, .bytes = row->left_count * sizeof(unsigned short)});
+        }
     }
     if (row->has_right)
     {
         row->right_line = positioned.right;
-        row->right_count = EMBED_CALL(line_units_read, DiffViewOptionCtx, .side = &view->right, .line = positioned.right,
-                                      .units_out = row->right_units_copied);
+        // the line's start and length among its side's lines, then its units, as many as a row holds
+        unsigned long long right_start = 0ULL;
+        unsigned long long right_length = 0ULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.lines_cell, .offset = (&view->right)->start_at + ((unsigned long long)positioned.right * sizeof(right_start)), .dst = &right_start, .bytes = sizeof(right_start)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_diff_view.lines_cell, .offset = (&view->right)->length_at + ((unsigned long long)positioned.right * sizeof(right_length)), .dst = &right_length, .bytes = sizeof(right_length)});
+        row->right_count = (right_length < CLI_DIFF_VIEW_ROW_UNITS) ? right_length : CLI_DIFF_VIEW_ROW_UNITS;
+        if (row->right_count != 0ULL)
+        {
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = g_cli_diff_view.lines_cell, .offset = (&view->right)->unit_at + (right_start * sizeof(unsigned short)), .dst = row->right_units_copied, .bytes = row->right_count * sizeof(unsigned short)});
+        }
     }
     return 1;
 }
@@ -276,7 +256,10 @@ unsigned int cli_diff_view_step(const CliDiffViewAtRowLengthCfg *args)
         while ((high - low) > 1u)
         {
             const unsigned int middle = low + ((high - low) / 2u);
-            if (EMBED_CALL(change_row_read, DiffViewOptionCtx, .at = middle) <= args->at)
+            unsigned int change_row = 0u;
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = g_cli_diff_view.rows_cell, .offset = g_cli_diff_view.change_row_at + ((unsigned long long)middle * sizeof(change_row)), .dst = &change_row, .bytes = sizeof(change_row)});
+            if (change_row <= args->at)
             {
                 low = middle;
             }
@@ -288,7 +271,10 @@ unsigned int cli_diff_view_step(const CliDiffViewAtRowLengthCfg *args)
         view->change_at = low;
     }
     cli_diff_view_where_written(args);
-    return EMBED_CALL(change_row_read, DiffViewOptionCtx, .at = view->change_at);
+    unsigned int change_row = 0u;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = g_cli_diff_view.rows_cell, .offset = g_cli_diff_view.change_row_at + ((unsigned long long)view->change_at * sizeof(change_row)), .dst = &change_row, .bytes = sizeof(change_row)});
+    return change_row;
 }
 
 const char *cli_diff_view_where(const CliDiffViewAtRowLengthCfg *args)

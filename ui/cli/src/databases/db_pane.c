@@ -1,13 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_pane.c: the Database pane's state, its rows and its runs. The connections the tree lists are in one movable
-// cell sized to them with the open one of each, each transaction's state and the tree retained of each, positioned in a cell of
-// the read and written once; a read again matches the open ones by name, and a connection the tree no longer lists is
-// closed. The labels are in one movable cell, positioned again as a
-// connection opens or closes, and read out of it a label at a time. A statement runs on a thread of its own into a
-// cell sized to the max an answer takes;
-// the thread sets its end and wakes the view's thread, whose step adopts the answer into the grid, or opens the ask
-// where the run confirms first, and gives the run's cells back
+// cell sized to them with the open one of each, each transaction's state and the tree retained of each, positioned in a
+// cell of the read and written once; a read again matches the open ones by name, and a connection the tree no longer
+// lists is closed. The labels are in one movable cell, positioned again as a connection opens or closes, and read out
+// of it a label at a time. A statement runs on a thread of its own into a cell sized to the max an answer takes; the
+// thread sets its end and wakes the view's thread, whose step adopts the answer into the grid, or opens the ask where
+// the run confirms first, and gives the run's cells back
 #include "db_pane_internal.h"
 
 // the max bytes of the connections' list; the sentences of the pane with no connection and of one not connected; the
@@ -30,32 +29,7 @@ typedef struct
     unsigned int at;
     const char *text;
     unsigned long long size;
-    CliDbConnection *connection_out;
-    CliDbPaneTree *retained_out;
 } DbPaneCtx;
-
-// the connection `at` read out of the connections cell into `connection_out`
-EMBED_INLINE void connection_read(const DbPaneCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_CONNECTION_AT(args->at),
-                                                            .dst = args->connection_out,
-                                                            .bytes = sizeof(CliDbConnection)});
-}
-
-// the open connection `at`, NULL where it is not open, read out of the connections cell
-EMBED_INLINE CliDbOpen *open_read(const DbPaneCtx *args)
-{
-    CliDbOpen *open = NULL;
-    if (g_cli_db_pane_state.connections_cell != NULL)
-    {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_OPEN_AT(args->at),
-                                                                .dst = &open,
-                                                                .bytes = sizeof(open)});
-    }
-    return open;
-}
 
 // the transaction's state of the connection `at` as its open one `open` has it written into the connections cell
 EMBED_INLINE void transaction_written(const DbPaneCtx *args)
@@ -87,12 +61,15 @@ void cli_db_pane_labels_positioned(const CliDbPaneCtx *args)
     CliDbConnection connection;
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        EMBED_CALL(connection_read, DbPaneCtx, .at = at, .connection_out = &connection);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                .dst = &connection,
+                                                                .bytes = sizeof(CliDbConnection)});
         bytes += cellul.len(&(CatenaFinitaCfg){.src = connection.name, .cap = CLI_NAME_MAX_LEN}) +
                  cellul.len(&(CatenaFinitaCfg){.src = connection.type, .cap = 16ULL}) + sizeof(PANE_OPEN_MARK) + 4ULL;
     }
-    // the labels positioned in the temporary tier, each's place first and the texts after, then written into their movable
-    // cell whole; the cell before given back first
+    // the labels positioned in the temporary tier, each's place first and the texts after, then written into their
+    // movable cell whole; the cell before given back first
     const unsigned long long starts = (unsigned long long)pane->connections * sizeof(unsigned long long);
     if (pane->labels != NULL)
     {
@@ -109,12 +86,20 @@ void cli_db_pane_labels_positioned(const CliDbPaneCtx *args)
     VerbaLinea line = {(char *)(positioned + starts), bytes, 0ULL};
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        EMBED_CALL(connection_read, DbPaneCtx, .at = at, .connection_out = &connection);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                .dst = &connection,
+                                                                .bytes = sizeof(CliDbConnection)});
         label_at[at] = starts + line.at;
         (void)mmgr_line_put(&line, connection.name);
         (void)mmgr_line_put(&line, " (");
         (void)mmgr_line_put(&line, connection.type);
-        (void)mmgr_line_put(&line, (EMBED_CALL(open_read, DbPaneCtx, .at = at) != NULL) ? ")" PANE_OPEN_MARK : ")");
+        CliDbOpen *open = NULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_OPEN_AT(at),
+                                                                .dst = &open,
+                                                                .bytes = sizeof(open)});
+        (void)mmgr_line_put(&line, (open != NULL) ? ")" PANE_OPEN_MARK : ")");
         mmgr_line_ch(&line, '\0');
     }
     pane->labels = g_cli_guard->movable_buf_alloc(starts + line.at, g_cli_db_pane_owner);
@@ -157,14 +142,26 @@ void cli_db_pane_note_set(const CliDbPaneCtx *args)
     if (text == NULL)
     {
         // the sentence the state is as: no connection chosen, one chosen and not connected, or none where it is
+        CliDbOpen *open = NULL;
+        if (pane->chosen != CLI_DB_PANE_NONE)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                    .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                    .dst = &open,
+                                    .bytes = sizeof(open)});
+        }
         if (pane->chosen == CLI_DB_PANE_NONE)
         {
             text = PANE_NONE_CHOSEN;
         }
-        else if (EMBED_CALL(open_read, DbPaneCtx, .at = pane->chosen) == NULL)
+        else if (open == NULL)
         {
             CliDbConnection connection;
-            EMBED_CALL(connection_read, DbPaneCtx, .at = pane->chosen, .connection_out = &connection);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                    .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
+                                                                    .dst = &connection,
+                                                                    .bytes = sizeof(CliDbConnection)});
             (void)mmgr_line_put(&line, connection.name);
             (void)mmgr_line_put(&line, PANE_NOT_CONNECTED);
             (void)mmgr_line_finish(&line);
@@ -191,8 +188,15 @@ EMBED_INLINE CliDbOpen *open_named(const DbPaneCtx *args)
     CliDbConnection connection;
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        CliDbOpen *const open = EMBED_CALL(open_read, DbPaneCtx, .at = at);
-        EMBED_CALL(connection_read, DbPaneCtx, .at = at, .connection_out = &connection);
+        CliDbOpen *open = NULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_OPEN_AT(at),
+                                                                .dst = &open,
+                                                                .bytes = sizeof(open)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                .dst = &connection,
+                                                                .bytes = sizeof(CliDbConnection)});
         if ((open != NULL) &&
             cellul.eq(&(CatenaFinitaCfg){.src = connection.name, .other = args->name, .cap = CLI_NAME_MAX_LEN}))
         {
@@ -200,15 +204,6 @@ EMBED_INLINE CliDbOpen *open_named(const DbPaneCtx *args)
         }
     }
     return NULL;
-}
-
-// the retained tree of the connection `at` read out of the connections cell into `retained_out`
-EMBED_INLINE void retained_read(const DbPaneCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_RETAINED_AT(args->at),
-                                                            .dst = args->retained_out,
-                                                            .bytes = sizeof(CliDbPaneTree)});
 }
 
 void cli_db_pane_read(const CliDbPaneCfg *args)
@@ -232,8 +227,8 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
                                                .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_db_pane_owner)
                                   : CLI_JSON_NONE;
     const unsigned int count = (root != CLI_JSON_NONE) ? json.node[root].count : 0u;
-    // the connections, the open one of each, the transactions and the retained trees positioned in a cell of the read sized to
-    // the list, then written once into the connections cell
+    // the connections, the open one of each, the transactions and the retained trees positioned in a cell of the read
+    // sized to the list, then written once into the connections cell
     const unsigned long long connection_bytes = (unsigned long long)count * sizeof(CliDbConnection);
     const unsigned long long open_bytes = (unsigned long long)count * sizeof(CliDbOpen *);
     const unsigned long long transaction_bytes = (unsigned long long)count * CLI_DB_PANE_TRANSACTION;
@@ -275,15 +270,25 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
     }
     g_cli_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
     g_cli_guard->persistent_buf_release(listed, g_cli_db_pane_owner);
-    // an open connection the tree no longer lists is closed; a retained tree moves to its connection's new place, and one
-    // of a connection no longer listed is released
+    // an open connection the tree no longer lists is closed; a retained tree moves to its connection's new place, and
+    // one of a connection no longer listed is released
     CliDbConnection before;
     CliDbPaneTree retained_before;
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        CliDbOpen *const open_before = EMBED_CALL(open_read, DbPaneCtx, .at = at);
-        EMBED_CALL(connection_read, DbPaneCtx, .at = at, .connection_out = &before);
-        EMBED_CALL(retained_read, DbPaneCtx, .at = at, .retained_out = &retained_before);
+        CliDbOpen *open_before = NULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_OPEN_AT(at),
+                                                                .dst = &open_before,
+                                                                .bytes = sizeof(open_before)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                .dst = &before,
+                                                                .bytes = sizeof(CliDbConnection)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_RETAINED_AT(at),
+                                                                .dst = &retained_before,
+                                                                .bytes = sizeof(CliDbPaneTree)});
         int listed_still = 0;
         int moved = 0;
         for (unsigned int each = 0u; each < read_count; each += 1u)
@@ -332,7 +337,10 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
     pane->chosen = CLI_DB_PANE_NONE;
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        EMBED_CALL(connection_read, DbPaneCtx, .at = at, .connection_out = &before);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                .dst = &before,
+                                                                .bytes = sizeof(CliDbConnection)});
         pane->chosen =
             cellul.eq(&(CatenaFinitaCfg){.src = before.name, .other = pane->chosen_name, .cap = CLI_NAME_MAX_LEN})
                 ? at
@@ -348,8 +356,12 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
     }
     EMBED_CALL(cli_db_pane_internal.labels_positioned, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.note_set, CliDbPaneCtx, .text = NULL);
-    if ((pane->chosen != CLI_DB_PANE_NONE) && (EMBED_CALL(open_read, DbPaneCtx, .at = pane->chosen) != NULL) &&
-        (pane->nodes == 0u))
+    CliDbOpen *chosen_open = NULL;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                            .dst = &chosen_open,
+                                                            .bytes = sizeof(chosen_open)});
+    if ((chosen_open != NULL) && (pane->nodes == 0u))
     {
         (void)EMBED_CALL(cli_db_pane_internal.level_read, CliDbPaneCtx, .at = CLI_DB_PANE_NONE);
         EMBED_CALL(cli_db_pane_internal.displayed_positioned, CliDbPaneCtx, .at = 0u);
@@ -420,7 +432,8 @@ int cli_db_pane_row(const CliDbPaneCfg *args)
     {
         return 0;
     }
-    // the node's place read out of the displayed cell, the node out of the nodes, and its texts into the row's own bytes
+    // the node's place read out of the displayed cell, the node out of the nodes, and its texts into the row's own
+    // bytes
     unsigned int place = 0u;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->displayed,
                                                             .offset = (unsigned long long)args->at * sizeof(place),
@@ -480,13 +493,20 @@ int cli_db_pane_run(const CliDbPaneCfg *args)
     {
         return 0;
     }
-    if ((EMBED_CALL(open_read, DbPaneCtx, .at = pane->chosen) == NULL) &&
-        !EMBED_CALL(cli_db_pane_internal.connected, CliDbPaneCtx, .text = NULL, .root = args->root))
+    CliDbOpen *open = NULL;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                            .dst = &open,
+                                                            .bytes = sizeof(open)});
+    if ((open == NULL) && !EMBED_CALL(cli_db_pane_internal.connected, CliDbPaneCtx, .text = NULL, .root = args->root))
     {
         return 0;
     }
     CliDbConnection connection;
-    EMBED_CALL(connection_read, DbPaneCtx, .at = pane->chosen, .connection_out = &connection);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
+                                                            .dst = &connection,
+                                                            .bytes = sizeof(CliDbConnection)});
     CliDbPaneRunning *const run = &pane->run;
     // the statement and its answer are the run's thread's buffers, so they are fixed outside the pool, one set for
     // the one run located at a time, where they punch no hole in the persistent tier
@@ -502,7 +522,11 @@ int cli_db_pane_run(const CliDbPaneCfg *args)
     run->statement[args->size] = '\0';
     run->size = args->size;
     run->answered = args->answered;
-    run->open = EMBED_CALL(open_read, DbPaneCtx, .at = pane->chosen);
+    run->open = NULL;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                            .dst = &run->open,
+                                                            .bytes = sizeof(run->open)});
     run->connection = pane->chosen;
     run->out = (VerbaLinea){run->answer, CLI_DB_PANE_ANSWER, 0ULL};
     run->ran = 0;
@@ -570,7 +594,10 @@ EMBED_INLINE void confirm_asked(const DbPaneCtx *args)
                                       .object = confirm, .name = "count"),
                    .length_pointer = NULL);
     CliDbConnection connection;
-    EMBED_CALL(connection_read, DbPaneCtx, .at = run->connection, .connection_out = &connection);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_CONNECTION_AT(run->connection),
+                                                            .dst = &connection,
+                                                            .bytes = sizeof(CliDbConnection)});
     const char *const name = connection.name;
     char sentence[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line = {sentence, sizeof(sentence), 0ULL};
@@ -627,7 +654,10 @@ int cli_db_pane_step(const CliDbPaneCfg *args)
     }
     run->located = 0;
     CliDbConnection connection;
-    EMBED_CALL(connection_read, DbPaneCtx, .at = run->connection, .connection_out = &connection);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_CONNECTION_AT(run->connection),
+                                                            .dst = &connection,
+                                                            .bytes = sizeof(CliDbConnection)});
     const char *const name = connection.name;
     const int confirms =
         run->ran && cellul.starts(&(CatenaFinitaCfg){.src = run->answer, .cap = run->out.at, .other = "{\"confirm\""});
@@ -647,7 +677,12 @@ int cli_db_pane_step(const CliDbPaneCfg *args)
                          .title = name);
     }
     // the transaction as the run left it, read on the view's thread now that the run's thread has ended
-    if ((run->connection < pane->connections) && (EMBED_CALL(open_read, DbPaneCtx, .at = run->connection) == run->open))
+    CliDbOpen *open = NULL;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                            .offset = CLI_DB_PANE_OPEN_AT(run->connection),
+                                                            .dst = &open,
+                                                            .bytes = sizeof(open)});
+    if ((run->connection < pane->connections) && (open == run->open))
     {
         EMBED_CALL(transaction_written, DbPaneCtx, .at = run->connection, .open = run->open);
     }

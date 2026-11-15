@@ -105,24 +105,7 @@ EMBED_INLINE int cli_py_seen_is(const PythonPathsSearchCtx *args)
 }
 
 // the record `index` records into the counted cell read
-EMBED_INLINE CliPyCount cli_py_counted_read(const PythonPathsSearchCtx *args)
-{
-    CliPyCount record;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_search.counted.cell,
-                                                           .offset = (embed_word)args->index * sizeof(CliPyCount),
-                                                           .dst = &record,
-                                                           .bytes = sizeof(record)});
-    return record;
-}
-
 // the record `record` written `index` records into the counted cell
-EMBED_INLINE void cli_py_counted_write(const PythonPathsSearchCtx *args)
-{
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_search.counted.cell,
-                                                            .offset = (embed_word)args->index * sizeof(CliPyCount),
-                                                            .src = args->record,
-                                                            .bytes = sizeof(*args->record)});
-}
 // whether a file of the tree is a script a search reads: one ending in .py in no folder of an environment, of what a
 // build writes, or of a cache
 EMBED_INLINE int cli_search(const PythonPathsSearchCtx *args)
@@ -235,14 +218,18 @@ static void cli_seen_count(void)
             EMBED_CALL(cli_py_cell_grown, PythonPathsSearchCtx, .store = &s_search.counted,
                        .needed = ((unsigned long long)s_search.counts + 1ULL) * sizeof(CliPyCount)))
         {
-            EMBED_CALL(cli_py_counted_write, PythonPathsSearchCtx, .index = at, .record = &record);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = s_search.counted.cell, .offset = (embed_word)at * sizeof(CliPyCount), .src = &record, .bytes = sizeof(CliPyCount)});
             s_search.counts += 1u;
         }
         if (at < s_search.counts)
         {
-            CliPyCount found = EMBED_CALL(cli_py_counted_read, PythonPathsSearchCtx, .index = at);
+            CliPyCount found;
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_search.counted.cell, .offset = (embed_word)at * sizeof(found), .dst = &found, .bytes = sizeof(found)});
             found.count += 1u;
-            EMBED_CALL(cli_py_counted_write, PythonPathsSearchCtx, .index = at, .record = &found);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = s_search.counted.cell, .offset = (embed_word)at * sizeof(CliPyCount), .src = &found, .bytes = sizeof(CliPyCount)});
         }
     }
 }
@@ -326,11 +313,15 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
         // while they order after it, and it written where they stop
         for (unsigned int at = 1u; at < s_search.counts; at += 1u)
         {
-            const CliPyCount pivot = EMBED_CALL(cli_py_counted_read, PythonPathsSearchCtx, .index = at);
+            CliPyCount pivot;
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = s_search.counted.cell, .offset = (embed_word)at * sizeof(pivot), .dst = &pivot, .bytes = sizeof(pivot)});
             unsigned int place = at;
             while (place > 0u)
             {
-                const CliPyCount before = EMBED_CALL(cli_py_counted_read, PythonPathsSearchCtx, .index = place - 1u);
+                CliPyCount before;
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = s_search.counted.cell, .offset = (embed_word)(place - 1u) * sizeof(before), .dst = &before, .bytes = sizeof(before)});
                 const int after = (before.count < pivot.count) ||
                                   ((before.count == pivot.count) &&
                                    (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = before.path,
@@ -339,10 +330,12 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
                 {
                     break;
                 }
-                EMBED_CALL(cli_py_counted_write, PythonPathsSearchCtx, .index = place, .record = &before);
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                    .cell = s_search.counted.cell, .offset = (embed_word)place * sizeof(CliPyCount), .src = &before, .bytes = sizeof(CliPyCount)});
                 place -= 1u;
             }
-            EMBED_CALL(cli_py_counted_write, PythonPathsSearchCtx, .index = place, .record = &pivot);
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = s_search.counted.cell, .offset = (embed_word)place * sizeof(CliPyCount), .src = &pivot, .bytes = sizeof(CliPyCount)});
         }
         memor.cpy(&(MemoriaCfg){.dst = s_search.root,
                                 .src = root,
@@ -353,7 +346,9 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
     const unsigned int count = (s_search.counts < args->max) ? s_search.counts : args->max;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const CliPyCount record = EMBED_CALL(cli_py_counted_read, PythonPathsSearchCtx, .index = at);
+        CliPyCount record;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_search.counted.cell, .offset = (embed_word)at * sizeof(record), .dst = &record, .bytes = sizeof(record)});
         EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = record.path);
     }
     return count;

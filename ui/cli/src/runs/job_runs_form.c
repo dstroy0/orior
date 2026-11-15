@@ -42,16 +42,6 @@ EMBED_INLINE unsigned long long form_starts_bytes(const FormCtx *args)
     return (g_cli_job_runs_store.form_params + 1ULL) * sizeof(unsigned int);
 }
 
-// the form's starts read into `starts`
-EMBED_INLINE void form_starts_read(const FormCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = g_cli_job_runs_store.form,
-                            .offset = 0ULL,
-                            .dst = args->starts,
-                            .bytes = EMBED_CALL(form_starts_bytes, FormCtx, .param = 0u)});
-}
-
 // the value of the param `param` the `length` bytes at `bytes`: the values after it moved in place by the change in
 // its bytes, through a cell of the call's own, the value written and the starts after it moved
 EMBED_INLINE void form_set(const FormCtx *args)
@@ -63,7 +53,11 @@ EMBED_INLINE void form_set(const FormCtx *args)
     }
     const unsigned int params = store->form_params;
     unsigned int starts[CLI_JOB_RUNS_PARAMS_MAX + 1u];
-    EMBED_CALL(form_starts_read, FormCtx, .starts = starts);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_job_runs_store.form,
+                            .offset = 0ULL,
+                            .dst = starts,
+                            .bytes = EMBED_CALL(form_starts_bytes, FormCtx, .param = 0u)});
     const unsigned long long values_at = EMBED_CALL(form_starts_bytes, FormCtx, .param = 0u);
     const unsigned long long before = starts[args->param + 1u] - starts[args->param];
     const unsigned long long tail = starts[params] - starts[args->param + 1u];
@@ -140,7 +134,11 @@ unsigned long long cli_job_runs_form_value(const CliJobRunsCtx *args)
         return 0ULL;
     }
     unsigned int starts[CLI_JOB_RUNS_PARAMS_MAX + 1u];
-    EMBED_CALL(form_starts_read, FormCtx, .starts = starts);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_job_runs_store.form,
+                            .offset = 0ULL,
+                            .dst = starts,
+                            .bytes = EMBED_CALL(form_starts_bytes, FormCtx, .param = 0u)});
     const unsigned long long length = starts[args->param + 1u] - starts[args->param];
     if (length != 0ULL)
     {

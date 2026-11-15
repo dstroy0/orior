@@ -457,17 +457,6 @@ void cli_tests_pane_toggle(const CliTestsPaneCfg *args)
     }
 }
 
-// the test `at` marked given to the run going, or not
-EMBED_INLINE void tests_given_set(const TestsPaneCtx *args)
-{
-    TestsTest test;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_tests.cell, .offset = TESTS_TEST_AT(args->at), .dst = &test, .bytes = sizeof(test)});
-    test.given = (int)args->file;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-        .cell = s_tests.cell, .offset = TESTS_TEST_AT(args->at), .src = &test, .bytes = sizeof(test)});
-}
-
 int cli_tests_pane_run(const CliTestsPaneCfg *args)
 {
     cli_test_runs_stop();
@@ -494,7 +483,12 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < s_tests.tests; at += 1u)
     {
-        EMBED_CALL(tests_given_set, TestsPaneCtx, .at = at, .file = 0u);
+        TestsTest given_test;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &given_test, .bytes = sizeof(given_test)});
+        given_test.given = (int)(0u);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .src = &given_test, .bytes = sizeof(given_test)});
     }
     if (args->failed)
     {
@@ -506,7 +500,16 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
                 (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &test, .bytes = sizeof(test)});
                 s_supplied[count] = text + test.id;
-                EMBED_CALL(tests_given_set, TestsPaneCtx, .at = at, .file = 1u);
+                TestsTest given_test;
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                        .offset = TESTS_TEST_AT(at),
+                                                                        .dst = &given_test,
+                                                                        .bytes = sizeof(given_test)});
+                given_test.given = (int)(1u);
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                         .offset = TESTS_TEST_AT(at),
+                                                                         .src = &given_test,
+                                                                         .bytes = sizeof(given_test)});
                 count += 1u;
             }
         }
@@ -534,7 +537,16 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
             count += 1u;
             for (unsigned int at = file.first; at < file.first + file.count; at += 1u)
             {
-                EMBED_CALL(tests_given_set, TestsPaneCtx, .at = at, .file = 1u);
+                TestsTest given_test;
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                        .offset = TESTS_TEST_AT(at),
+                                                                        .dst = &given_test,
+                                                                        .bytes = sizeof(given_test)});
+                given_test.given = (int)(1u);
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                         .offset = TESTS_TEST_AT(at),
+                                                                         .src = &given_test,
+                                                                         .bytes = sizeof(given_test)});
             }
         }
         if (count == 0u)

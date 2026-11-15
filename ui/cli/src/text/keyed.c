@@ -31,16 +31,6 @@ typedef struct
     const CliKeyedEntry *entry;
 } KeyedCtx;
 
-// the entry at `at` written into its page
-EMBED_INLINE void keyed_entry_write(const KeyedCtx *args)
-{
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = args->keyed_out->page[args->at / CLI_KEYED_PAGE],
-                            .offset = (embed_word)(args->at % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
-                            .src = args->entry,
-                            .bytes = sizeof(CliKeyedEntry)});
-}
-
 CliKeyedEntry cli_keyed_entry(const CliKeyedCfg *args)
 {
     CliKeyedEntry entry = {0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
@@ -119,7 +109,11 @@ EMBED_INLINE void keyed_compact(const KeyedCtx *args)
         const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = keyed, .at = at);
         if (one.used)
         {
-            EMBED_CALL(keyed_entry_write, KeyedCtx, .keyed_out = keyed, .at = count, .entry = &one);
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = keyed->page[(count) / CLI_KEYED_PAGE],
+                                    .offset = (embed_word)((count) % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
+                                    .src = &one,
+                                    .bytes = sizeof(CliKeyedEntry)});
             count += 1u;
         }
     }
@@ -191,8 +185,11 @@ int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
                                  (unsigned int)adjacent_size,
                                  text_at,
                                  args->size_value};
-    EMBED_CALL(keyed_entry_write, KeyedCtx, .keyed_out = args->keyed_out, .at = args->keyed_out->entries,
-               .entry = &entry);
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->keyed_out->page[(args->keyed_out->entries) / CLI_KEYED_PAGE],
+                            .offset = (embed_word)((args->keyed_out->entries) % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
+                            .src = &entry,
+                            .bytes = sizeof(CliKeyedEntry)});
     args->keyed_out->entries += 1u;
     return 1;
 }
@@ -219,7 +216,11 @@ void cli_keyed_remove_at(const CliKeyedCfg *args)
     }
     one.used = 0;
     one.cell = NULL;
-    EMBED_CALL(keyed_entry_write, KeyedCtx, .keyed_out = args->keyed_out, .at = args->at, .entry = &one);
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->keyed_out->page[(args->at) / CLI_KEYED_PAGE],
+                            .offset = (embed_word)((args->at) % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
+                            .src = &one,
+                            .bytes = sizeof(CliKeyedEntry)});
 }
 
 void cli_keyed_remove(const CliKeyedKeyAdjacentCfg *args)

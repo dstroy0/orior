@@ -72,23 +72,7 @@ typedef struct
 } CliBundleFolder;
 
 // the plugin at `at` read out of the cell into `plugin`
-EMBED_INLINE void cli_plugin_read(const PluginsBundleCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_plugins_cell,
-                                                           .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
-                                                           .dst = args->plugin,
-                                                           .bytes = sizeof(CliBundlePlugin)});
-}
-
 // `plugin` written into the cell at `at`
-EMBED_INLINE void cli_plugin_write(const PluginsBundleCtx *args)
-{
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_plugins_cell,
-                                                            .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
-                                                            .src = args->plugin,
-                                                            .bytes = sizeof(CliBundlePlugin)});
-}
-
 // the plugins' cell grown to `needed` bytes where it is less, doubled from its size, its records copied over, the
 // cell before given back: 1, or 0 where the cells cannot meet it
 EMBED_INLINE int cli_cell_grown(const PluginsBundleCtx *args)
@@ -275,19 +259,22 @@ static void cli_folder_each(const CliEachNameIsFolderCfg *args)
     CliBundlePlugin before;
     while (place > 0u)
     {
-        EMBED_CALL(cli_plugin_read, PluginsBundleCtx, .at = place - 1u, .plugin = &before);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_plugins_cell, .offset = (embed_word)(place - 1u) * sizeof(CliBundlePlugin), .dst = &before, .bytes = sizeof(CliBundlePlugin)});
         if (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = before.id, .other_pointer = args->name) <= 0)
         {
             break;
         }
-        EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = place, .plugin = &before);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_plugins_cell, .offset = (embed_word)place * sizeof(CliBundlePlugin), .src = &before, .bytes = sizeof(CliBundlePlugin)});
         place -= 1u;
     }
     CliBundlePlugin found = {{0}, 0ULL, 0, 0};
     VerbaLinea id = {found.id, sizeof(found.id), 0ULL};
     mmgr_line_put(&id, args->name);
     (void)mmgr_line_finish(&id);
-    EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = place, .plugin = &found);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = s_plugins_cell, .offset = (embed_word)place * sizeof(CliBundlePlugin), .src = &found, .bytes = sizeof(CliBundlePlugin)});
     s_count += 1u;
 }
 
@@ -348,7 +335,8 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
 EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
 {
     CliBundlePlugin plugin;
-    EMBED_CALL(cli_plugin_read, PluginsBundleCtx, .at = args->at, .plugin = &plugin);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_plugins_cell, .offset = (embed_word)args->at * sizeof(CliBundlePlugin), .dst = &plugin, .bytes = sizeof(CliBundlePlugin)});
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ULL;
     const unsigned char *const bytes =
@@ -359,7 +347,8 @@ EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
     if (bytes == NULL)
     {
         plugin.bundled = 0;
-        EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = args->at, .plugin = &plugin);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_plugins_cell, .offset = (embed_word)args->at * sizeof(CliBundlePlugin), .src = &plugin, .bytes = sizeof(CliBundlePlugin)});
         return 1;
     }
     int done = EMBED_CALL(cli_array_appended, PluginsBundleCtx, .prefix = "s_plugin_", .at = args->at, .bytes = bytes,
@@ -372,7 +361,8 @@ EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
     }
     g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_bundle_owner));
     plugin.bundled = done;
-    EMBED_CALL(cli_plugin_write, PluginsBundleCtx, .at = args->at, .plugin = &plugin);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = s_plugins_cell, .offset = (embed_word)args->at * sizeof(CliBundlePlugin), .src = &plugin, .bytes = sizeof(CliBundlePlugin)});
     return done;
 }
 
@@ -393,7 +383,8 @@ EMBED_INLINE int cli_table_appended(const PluginsBundleCtx *args)
     for (unsigned int at = 0u; at < s_count; at += 1u)
     {
         CliBundlePlugin plugin;
-        EMBED_CALL(cli_plugin_read, PluginsBundleCtx, .at = at, .plugin = &plugin);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_plugins_cell, .offset = (embed_word)at * sizeof(CliBundlePlugin), .dst = &plugin, .bytes = sizeof(CliBundlePlugin)});
         if (!plugin.bundled)
         {
             continue;

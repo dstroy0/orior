@@ -73,15 +73,6 @@ EMBED_INLINE const CarcerMovableEntry *within_message_alloc(const DapWithinCtx *
     return message;
 }
 
-// the size a message's cell holds in its first word
-EMBED_INLINE unsigned long long within_message_size(const DapWithinCtx *args)
-{
-    unsigned long long size = 0ULL;
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = args->message, .offset = 0ULL, .dst = &size, .bytes = sizeof(size)});
-    return size;
-}
-
 // a message's token pushed on a queue under a ticket of its own, this thread asleep while every slot is in flight: 1,
 // or 0 where no more come, the message given back
 EMBED_INLINE int within_queue(const DapWithinCtx *args)
@@ -107,8 +98,8 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_queue_wake, .seen = room);
     }
-    (void)embed_ticket_ring_pass_push(&queue->turnstiles, address, &queue->ring, stamp, (void *)(embed_word)args->message,
-                                   &seen);
+    (void)embed_ticket_ring_pass_push(&queue->turnstiles, address, &queue->ring, stamp,
+                                      (void *)(embed_word)args->message, &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
     return 1;
 }
@@ -340,7 +331,9 @@ static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
         {
             return 0ULL;
         }
-        s_pending_size = EMBED_CALL(within_message_size, DapWithinCtx, .message = s_pending);
+        s_pending_size = 0ULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_pending, .offset = 0ULL, .dst = &s_pending_size, .bytes = sizeof(s_pending_size)});
         VerbaLinea line = {s_pending_head, sizeof(s_pending_head), 0ULL};
         mmgr_line_put(&line, "Content-Length: ");
         mmgr_line_decimal(&line, s_pending_size, 1u);
@@ -377,7 +370,9 @@ static void within_serve(void *context)
     const CarcerMovableEntry *request = NULL;
     while ((request = EMBED_CALL(within_pop, DapWithinCtx, .queue = &s_incoming)) != NULL)
     {
-        const unsigned long long size = EMBED_CALL(within_message_size, DapWithinCtx, .message = request);
+        unsigned long long size = 0ULL;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = request, .offset = 0ULL, .dst = &size, .bytes = sizeof(size)});
         char *const bytes = g_cli_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_debug_owner);
         int goes_on = bytes != NULL;
         if (bytes != NULL)

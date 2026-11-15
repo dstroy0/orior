@@ -76,17 +76,6 @@ EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
     g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_code_owner));
 }
 
-// one declaration of a stored file, read out of its cell
-EMBED_INLINE CliDeclaration find_symbol_read(const SymbolsFindCtx *args)
-{
-    CliDeclaration read = {0u, 0u, 0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->branch->cell,
-                                                            .offset = (embed_word)args->symbol * sizeof(CliDeclaration),
-                                                            .dst = &read,
-                                                            .bytes = sizeof(read)});
-    return read;
-}
-
 // two runs of bytes in two stored files' cells ordered by their first difference over the shorter
 EMBED_INLINE int find_bytes_order(const SymbolsFindCtx *args)
 {
@@ -140,10 +129,18 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
                .branch_out = &other_read);
     const CliTreeBranch *const one_file = &one_read;
     const CliTreeBranch *const other_file = &other_read;
-    const CliDeclaration left =
-        EMBED_CALL(find_symbol_read, SymbolsFindCtx, .branch = one_file, .symbol = args->one_scored_pointer->symbol);
-    const CliDeclaration right = EMBED_CALL(find_symbol_read, SymbolsFindCtx, .branch = other_file,
-                                            .symbol = args->other_scored_pointer->symbol);
+    CliDeclaration left = {0u, 0u, 0u, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = one_file->cell,
+        .offset = (embed_word)args->one_scored_pointer->symbol * sizeof(CliDeclaration),
+        .dst = &left,
+        .bytes = sizeof(left)});
+    CliDeclaration right = {0u, 0u, 0u, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = other_file->cell,
+        .offset = (embed_word)args->other_scored_pointer->symbol * sizeof(CliDeclaration),
+        .dst = &right,
+        .bytes = sizeof(right)});
     const unsigned int shorter = (left.length < right.length) ? left.length : right.length;
     int order = EMBED_CALL(find_bytes_order, SymbolsFindCtx, .one = one_file, .one_at = left.name, .other = other_file,
                            .other_at = right.name, .bytes = shorter);

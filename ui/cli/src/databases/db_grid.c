@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_grid.c: a statement's result as the grid draws it. The adopt reads the run's answer into a tree for the call
-// alone and positions two movable cells, each positioned in a cell of the call and written once: the head, a column a slot of
-// numbers and a message line a slot, then every label, type, line and the title as texts with their ends; and the
-// stretch, a start, a length and a null flag a cell, then every cell's bytes. Every reader copies out of the cells. The
-// result's sentence is in its own bytes, positioned again as the rows read or the end change. The step follows the first
-// row in view with its speed and the smoothed time a read takes, and reads the stretch the view heads into in one read
-// of the run, the rows outside it let go
+// alone and positions two movable cells, each positioned in a cell of the call and written once: the head, a column a
+// slot of numbers and a message line a slot, then every label, type, line and the title as texts with their ends; and
+// the stretch, a start, a length and a null flag a cell, then every cell's bytes. Every reader copies out of the cells.
+// The result's sentence is in its own bytes, positioned again as the rows read or the end change. The step follows the
+// first row in view with its speed and the smoothed time a read takes, and reads the stretch the view heads into in one
+// read of the run, the rows outside it let go
 #include "db_grid.h"
 
 #include "db_pane.h"
@@ -39,9 +39,9 @@ typedef struct
 } GridLine;
 
 // The grid: the head's movable cell, its columns from its start, its lines from `line_at`, whether they are a
-// failure's, its texts from `text_at`, and the head as it is positioned in a cell of the call with its columns, lines and
-// texts, NULL between layings; the title in its own bytes and its place and bytes in the head's texts, as the tag's and
-// the zone's; the run's connection; the stretch's movable cell, its first row, how many rows it stores, its cells'
+// failure's, its texts from `text_at`, and the head as it is positioned in a cell of the call with its columns, lines
+// and texts, NULL between layings; the title in its own bytes and its place and bytes in the head's texts, as the tag's
+// and the zone's; the run's connection; the stretch's movable cell, its first row, how many rows it stores, its cells'
 // starts from its start, their lengths from `length_at`, their null flags from `null_at` and its text from
 // `cell_text_at`; the rows read and whether the run ended, with its time; the sentence in its own bytes with its end,
 // and how many; the column panned to; the rows the view reached; and the motion's first row followed, when, its speed
@@ -107,7 +107,6 @@ typedef struct
     unsigned long long count;
     char *dst;
     unsigned long long capacity;
-    GridColumn *column_out;
     unsigned long long *start_out;
     unsigned long long *length_pointer;
     unsigned char *null_out;
@@ -145,15 +144,6 @@ EMBED_INLINE unsigned long long head_text_read(const GridCtx *args)
     }
     args->dst[copied] = '\0';
     return copied;
-}
-
-// the column `count`'s numbers read out of the head cell into `column_out`
-EMBED_INLINE void column_read(const GridCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
-                                                            .offset = GRID_COLUMN_AT(args->count),
-                                                            .dst = args->column_out,
-                                                            .bytes = sizeof(GridColumn)});
 }
 
 // the cell `count` of the stretch read: its start into `start_out`, its bytes into `length_pointer` and whether it is
@@ -205,8 +195,9 @@ EMBED_INLINE void stretch_released(const GridCtx *args)
     s_grid.cell_text_at = 0ULL;
 }
 
-// the rows array `node` of the tree, `rows` of them from the row `from`, positioned as the stretch in a cell of this call
-// and written once into a movable cell sized to them: 1, or 0 where the cells cannot meet them, the stretch as it was
+// the rows array `node` of the tree, `rows` of them from the row `from`, positioned as the stretch in a cell of this
+// call and written once into a movable cell sized to them: 1, or 0 where the cells cannot meet them, the stretch as it
+// was
 EMBED_INLINE int stretch_positioned(const GridCtx *args)
 {
     const unsigned long long cells = (unsigned long long)args->rows * s_grid.columns;
@@ -276,8 +267,8 @@ EMBED_INLINE int stretch_positioned(const GridCtx *args)
     return cell != NULL;
 }
 
-// the result's sentence positioned again in its bytes: the title, the rows read with a plus while the server has more, the
-// time, the zone and the tag, or the title and the failure
+// the result's sentence positioned again in its bytes: the title, the rows read with a plus while the server has more,
+// the time, the zone and the tag, or the title and the failure
 EMBED_INLINE void sentence_positioned(const GridCtx *args)
 {
     (void)args;
@@ -313,8 +304,8 @@ EMBED_INLINE void sentence_positioned(const GridCtx *args)
     s_grid.sentence_length = mmgr_line_finish(&line);
 }
 
-// a text of `size` bytes put into the head's texts as they are positioned at `count` bytes in, with its end: the place it
-// is at
+// a text of `size` bytes put into the head's texts as they are positioned at `count` bytes in, with its end: the place
+// it is at
 EMBED_INLINE unsigned long long head_put(const GridCtx *args)
 {
     if (args->size != 0ULL)
@@ -325,8 +316,8 @@ EMBED_INLINE unsigned long long head_put(const GridCtx *args)
     return args->count;
 }
 
-// the head positioned in a cell of this call for `count` columns, `rows` lines and `size` bytes of texts, its columns, lines
-// and texts pointed into it until it is stored: 1, or 0 where the cell cannot meet it
+// the head positioned in a cell of this call for `count` columns, `rows` lines and `size` bytes of texts, its columns,
+// lines and texts pointed into it until it is stored: 1, or 0 where the cell cannot meet it
 EMBED_INLINE int head_taken(const GridCtx *args)
 {
     const unsigned long long columns = ((unsigned long long)args->count * sizeof(GridColumn) + 7ULL) & ~7ULL;
@@ -358,8 +349,8 @@ EMBED_INLINE int head_stored(const GridCtx *args)
     const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(s_grid.head_bytes, g_cli_db_pane_owner);
     if (cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = s_grid.head_positioned, .bytes = s_grid.head_bytes});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = cell, .offset = 0ULL, .src = s_grid.head_positioned, .bytes = s_grid.head_bytes});
     }
     if (s_grid.head_cell != NULL)
     {
@@ -474,8 +465,8 @@ EMBED_INLINE void widths_positioned(const GridCtx *args)
     for (unsigned int column = 0u; column < s_grid.columns; column += 1u)
     {
         GridColumn *const positioned = &s_grid.column[column];
-        unsigned long long widest =
-            EMBED_CALL(characters_of, GridCtx, .text = s_grid.head_text + positioned->label, .size = positioned->label_length);
+        unsigned long long widest = EMBED_CALL(characters_of, GridCtx, .text = s_grid.head_text + positioned->label,
+                                               .size = positioned->label_length);
         for (unsigned long long row = 0ULL; row < width_rows; row += 1ULL)
         {
             const unsigned long long at = (row * s_grid.columns) + column;
@@ -595,7 +586,8 @@ int cli_db_grid_adopt(const CliDbGridCfg *args)
                                               .json_read = &json, .object = column, .name = "name"),
                            .length_pointer = &length);
             positioned->label_length = (label != NULL) ? length : 0ULL;
-            positioned->label = EMBED_CALL(head_put, GridCtx, .text = label, .size = positioned->label_length, .count = used);
+            positioned->label =
+                EMBED_CALL(head_put, GridCtx, .text = label, .size = positioned->label_length, .count = used);
             used += positioned->label_length + 1ULL;
             const char *const type =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
@@ -603,12 +595,14 @@ int cli_db_grid_adopt(const CliDbGridCfg *args)
                                               .json_read = &json, .object = column, .name = "type"),
                            .length_pointer = &length);
             positioned->type_length = (type != NULL) ? length : 0ULL;
-            positioned->type = EMBED_CALL(head_put, GridCtx, .text = type, .size = positioned->type_length, .count = used);
+            positioned->type =
+                EMBED_CALL(head_put, GridCtx, .text = type, .size = positioned->type_length, .count = used);
             used += positioned->type_length + 1ULL;
-            positioned->numeric = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
-                                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                          .json_read = &json, .object = column, .name = "numeric"),
-                                       .type = CFG_JSON_TRUE);
+            positioned->numeric =
+                EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
+                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                              .json_read = &json, .object = column, .name = "numeric"),
+                           .type = CFG_JSON_TRUE);
         }
         for (unsigned int at = 0u; at < notice_count; at += 1u)
         {
@@ -631,8 +625,8 @@ int cli_db_grid_adopt(const CliDbGridCfg *args)
                                              .json_read = &json, .node = rows, .type = CFG_JSON_ARRAY)
                                       ? json.node[rows].count
                                       : 0u;
-        adopted =
-            !has_columns || EMBED_CALL(stretch_positioned, GridCtx, .json = &json, .node = rows, .rows = page, .from = 0ULL);
+        adopted = !has_columns ||
+                  EMBED_CALL(stretch_positioned, GridCtx, .json = &json, .node = rows, .rows = page, .from = 0ULL);
         s_grid.read = has_columns ? page : 0ULL;
         s_grid.done = (tag_length != 0ULL) || !has_columns;
         unsigned long long ms_length = 0ULL;
@@ -690,12 +684,19 @@ int cli_db_grid_column(const CliDbGridCfg *args)
     }
     GridColumn positioned;
     GridColumn panned;
-    EMBED_CALL(column_read, GridCtx, .count = args->column_at, .column_out = &positioned);
-    EMBED_CALL(column_read, GridCtx, .count = s_grid.offset, .column_out = &panned);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
+                                                            .offset = GRID_COLUMN_AT(args->column_at),
+                                                            .dst = &positioned,
+                                                            .bytes = sizeof(GridColumn)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
+                                                            .offset = GRID_COLUMN_AT(s_grid.offset),
+                                                            .dst = &panned,
+                                                            .bytes = sizeof(GridColumn)});
     CliDbGridColumn *const column = args->column;
     *column = (CliDbGridColumn){0};
-    column->label_length = EMBED_CALL(head_text_read, GridCtx, .from = positioned.label, .size = positioned.label_length,
-                                      .dst = column->label_copied, .capacity = sizeof(column->label_copied));
+    column->label_length =
+        EMBED_CALL(head_text_read, GridCtx, .from = positioned.label, .size = positioned.label_length,
+                   .dst = column->label_copied, .capacity = sizeof(column->label_copied));
     column->label = column->label_copied;
     column->type_length = EMBED_CALL(head_text_read, GridCtx, .from = positioned.type, .size = positioned.type_length,
                                      .dst = column->type_copied, .capacity = sizeof(column->type_copied));
@@ -784,7 +785,10 @@ int cli_db_grid_cell(const CliDbGridCfg *args)
     EMBED_CALL(cell_numbers_read, GridCtx, .count = at, .start_out = &start, .length_pointer = &length,
                .null_out = &null);
     GridColumn column;
-    EMBED_CALL(column_read, GridCtx, .count = args->column_at, .column_out = &column);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
+                                                            .offset = GRID_COLUMN_AT(args->column_at),
+                                                            .dst = &column,
+                                                            .bytes = sizeof(GridColumn)});
     CliDbGridCell *const cell = args->cell;
     *cell = (CliDbGridCell){0};
     cell->null = null != 0u;

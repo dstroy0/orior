@@ -248,9 +248,9 @@ EMBED_INLINE void comms_order_sorted(const CommsViewCtx *args)
     }
 }
 
-// every text of the view written into `line`, and where `item` is not NULL each item positioned with its texts' places, the
-// messages under the channels opened positioned into `message`, no more than `messages_max` of them: how many messages into
-// `messages_out`, and the summary's place positioned
+// every text of the view written into `line`, and where `item` is not NULL each item positioned with its texts' places,
+// the messages under the channels opened positioned into `message`, no more than `messages_max` of them: how many
+// messages into `messages_out`, and the summary's place positioned
 EMBED_INLINE void comms_written(const CommsViewCtx *args)
 {
     VerbaLinea *const line = args->line;
@@ -263,9 +263,10 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
         const int is_part = !parts_group && (at <= args->parts);
         CommsItem positioned = {0};
         positioned.type = (parts_group || channels_group) ? CLI_COMMS_ROW_GROUP
-                    : is_part                       ? CLI_COMMS_ROW_PART
-                                                    : CLI_COMMS_ROW_CHANNEL;
-        positioned.index = (positioned.type == CLI_COMMS_ROW_GROUP) ? COMMS_NONE : args->order[is_part ? at - 1u : at - 2u];
+                          : is_part                       ? CLI_COMMS_ROW_PART
+                                                          : CLI_COMMS_ROW_CHANNEL;
+        positioned.index =
+            (positioned.type == CLI_COMMS_ROW_GROUP) ? COMMS_NONE : args->order[is_part ? at - 1u : at - 2u];
         positioned.message_first = messages;
         positioned.name = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
         if (positioned.type == CLI_COMMS_ROW_GROUP)
@@ -319,11 +320,11 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
         else
         {
             CliCommsTraffic traffic = {0};
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = g_cli_comms.tables,
-                                    .offset = COMMS_TRAFFIC_AT + ((unsigned long long)positioned.index * sizeof(traffic)),
-                                    .dst = &traffic,
-                                    .bytes = sizeof(traffic)});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = g_cli_comms.tables,
+                .offset = COMMS_TRAFFIC_AT + ((unsigned long long)positioned.index * sizeof(traffic)),
+                .dst = &traffic,
+                .bytes = sizeof(traffic)});
             mmgr_line_put(line, traffic.name);
             positioned.name_length = EMBED_CALL(comms_place, CommsViewCtx, .line = line) - positioned.name;
             positioned.status = EMBED_CALL(comms_place, CommsViewCtx, .line = line);
@@ -353,8 +354,9 @@ EMBED_INLINE void comms_written(const CommsViewCtx *args)
             size_t front = 0u;
             (void)anularis.seg_front(&(AnularisCfg){.ring = &ring->ring, .out_index = &front});
             // the messages stored are at max CLI_COMMS_STORED_MAX, inside an unsigned int
-            const unsigned int stored =
-                s_pane.open[positioned.index] ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &ring->ring}) : 0u;
+            const unsigned int stored = s_pane.open[positioned.index]
+                                            ? (unsigned int)anularis.seg_inflight(&(AnularisCfg){.ring = &ring->ring})
+                                            : 0u;
             for (unsigned int one = 0u; one < stored; one += 1u)
             {
                 if ((args->item != NULL) && (messages >= args->messages_max))
@@ -528,38 +530,6 @@ EMBED_INLINE void comms_listed(const CommsViewCtx *args)
     s_pane.listed = 1;
 }
 
-// the first row of the item `at`, read out of the cell
-EMBED_INLINE unsigned int comms_first_row(const CommsViewCtx *args)
-{
-    unsigned int row = 0u;
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_pane.cell,
-                            .offset = s_pane.first_row_at + ((unsigned long long)args->at * sizeof(row)),
-                            .dst = &row,
-                            .bytes = sizeof(row)});
-    return row;
-}
-
-// the item `at` read out of the cell into `item`
-EMBED_INLINE void comms_item_read(const CommsViewCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_pane.cell,
-                            .offset = s_pane.item_at + ((unsigned long long)args->at * sizeof(CommsItem)),
-                            .dst = args->item,
-                            .bytes = sizeof(CommsItem)});
-}
-
-// the message `at` read out of the cell into `message`
-EMBED_INLINE void comms_message_read(const CommsViewCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_pane.cell,
-                            .offset = s_pane.message_at + ((unsigned long long)args->at * sizeof(CommsMessage)),
-                            .dst = args->message,
-                            .bytes = sizeof(CommsMessage)});
-}
-
 // `count` bytes of the text at `key` copied into `name_out`, a buffer of CLI_COMMS_ROW_TEXT bytes, with an end, cut to
 // the buffer: the bytes copied
 EMBED_INLINE unsigned long long comms_text_read(const CommsViewCtx *args)
@@ -583,7 +553,13 @@ EMBED_INLINE unsigned int comms_item_under(const CommsViewCtx *args)
     while ((high - low) > 1u)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (EMBED_CALL(comms_first_row, CommsViewCtx, .at = middle) <= args->at)
+        unsigned int first_row = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_pane.cell,
+                                .offset = s_pane.first_row_at + ((unsigned long long)(middle) * sizeof(first_row)),
+                                .dst = &first_row,
+                                .bytes = sizeof(first_row)});
+        if (first_row <= args->at)
         {
             low = middle;
         }
@@ -627,19 +603,41 @@ unsigned long long cli_comms_pane_deadline_ms(const CliCommsPaneCfg *args)
 unsigned int cli_comms_pane_rows(const CliCommsPaneCfg *args)
 {
     (void)args;
-    return (s_pane.cell != NULL) ? EMBED_CALL(comms_first_row, CommsViewCtx, .at = s_pane.items) : 0u;
+    unsigned int first_row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.first_row_at + ((unsigned long long)(s_pane.items) * sizeof(first_row)),
+                            .dst = &first_row,
+                            .bytes = sizeof(first_row)});
+    return first_row;
 }
 
 int cli_comms_pane_row(const CliCommsPaneCfg *args)
 {
-    if ((s_pane.cell == NULL) || (args->at >= EMBED_CALL(comms_first_row, CommsViewCtx, .at = s_pane.items)))
+    unsigned int first_row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.first_row_at + ((unsigned long long)(s_pane.items) * sizeof(first_row)),
+                            .dst = &first_row,
+                            .bytes = sizeof(first_row)});
+    if ((s_pane.cell == NULL) || (args->at >= first_row))
     {
         return 0;
     }
     const unsigned int place = EMBED_CALL(comms_item_under, CommsViewCtx, .at = args->at, .key = s_pane.items);
     CommsItem item;
-    EMBED_CALL(comms_item_read, CommsViewCtx, .at = place, .item = &item);
-    const unsigned int inner = args->at - EMBED_CALL(comms_first_row, CommsViewCtx, .at = place);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.item_at + ((unsigned long long)(place) * sizeof(CommsItem)),
+                            .dst = &item,
+                            .bytes = sizeof(CommsItem)});
+    unsigned int item_first_row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.first_row_at + ((unsigned long long)(place) * sizeof(item_first_row)),
+                            .dst = &item_first_row,
+                            .bytes = sizeof(item_first_row)});
+    const unsigned int inner = args->at - item_first_row;
     CliCommsRow *const row = args->row;
     *row = (CliCommsRow){0};
     row->name = row->name_copied;
@@ -648,7 +646,12 @@ int cli_comms_pane_row(const CliCommsPaneCfg *args)
     if (inner != 0u)
     {
         CommsMessage message;
-        EMBED_CALL(comms_message_read, CommsViewCtx, .at = item.message_first + inner - 1u, .message = &message);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_pane.cell,
+            .offset =
+                s_pane.message_at + ((unsigned long long)(item.message_first + inner - 1u) * sizeof(CommsMessage)),
+            .dst = &message,
+            .bytes = sizeof(CommsMessage)});
         row->type = CLI_COMMS_ROW_MESSAGE;
         row->name_length = EMBED_CALL(comms_text_read, CommsViewCtx, .key = message.from, .count = message.from_length,
                                       .name_out = row->name_copied);
@@ -671,14 +674,30 @@ int cli_comms_pane_row(const CliCommsPaneCfg *args)
 
 void cli_comms_pane_toggle(const CliCommsPaneCfg *args)
 {
-    if ((s_pane.cell == NULL) || (args->at >= EMBED_CALL(comms_first_row, CommsViewCtx, .at = s_pane.items)))
+    unsigned int first_row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.first_row_at + ((unsigned long long)(s_pane.items) * sizeof(first_row)),
+                            .dst = &first_row,
+                            .bytes = sizeof(first_row)});
+    if ((s_pane.cell == NULL) || (args->at >= first_row))
     {
         return;
     }
     const unsigned int place = EMBED_CALL(comms_item_under, CommsViewCtx, .at = args->at, .key = s_pane.items);
     CommsItem item;
-    EMBED_CALL(comms_item_read, CommsViewCtx, .at = place, .item = &item);
-    if ((item.type != CLI_COMMS_ROW_CHANNEL) || (args->at != EMBED_CALL(comms_first_row, CommsViewCtx, .at = place)))
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.item_at + ((unsigned long long)(place) * sizeof(CommsItem)),
+                            .dst = &item,
+                            .bytes = sizeof(CommsItem)});
+    unsigned int item_first_row = 0u;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_pane.cell,
+                            .offset = s_pane.first_row_at + ((unsigned long long)(place) * sizeof(item_first_row)),
+                            .dst = &item_first_row,
+                            .bytes = sizeof(item_first_row)});
+    if ((item.type != CLI_COMMS_ROW_CHANNEL) || (args->at != item_first_row))
     {
         return;
     }

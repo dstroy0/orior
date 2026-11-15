@@ -115,22 +115,6 @@ typedef struct
 
 // the repository `at`'s record read out of the repositories' cell into `repository_out`, and the commit `at`'s record
 // read out of the graph's cell into `drawn_out`
-EMBED_INLINE void repository_read(const GitLogCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
-                                                            .offset = GIT_LOG_REPOSITORY_AT(args->at),
-                                                            .dst = args->repository_out,
-                                                            .bytes = sizeof(CliRepository)});
-}
-
-EMBED_INLINE void drawn_read(const GitLogCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.graph_cell,
-                                                            .offset = GIT_LOG_DRAWN_AT(args->at),
-                                                            .dst = args->drawn_out,
-                                                            .bytes = sizeof(CliDrawn)});
-}
-
 // the first sixteen hexadecimal digits of the id `text` as a number
 EMBED_INLINE unsigned long long id_number(const GitLogCtx *args)
 {
@@ -170,7 +154,8 @@ EMBED_INLINE void root_write(const GitLogCtx *args)
     const int listed = (s_log.repositories_cell != NULL) && (s_log.chosen < s_log.repositories);
     if (listed)
     {
-        EMBED_CALL(repository_read, GitLogCtx, .at = s_log.chosen, .repository_out = &chosen);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.repositories_cell, .offset = GIT_LOG_REPOSITORY_AT(s_log.chosen), .dst = &chosen, .bytes = sizeof(CliRepository)});
     }
     const char *const relative =
         listed ? EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_log.repositories_text,
@@ -190,20 +175,13 @@ EMBED_INLINE void root_write(const GitLogCtx *args)
 EMBED_INLINE const char *commit_id(const GitLogCtx *args)
 {
     CliDrawn drawn;
-    EMBED_CALL(drawn_read, GitLogCtx, .at = args->at, .drawn_out = &drawn);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_log.graph_cell, .offset = GIT_LOG_DRAWN_AT(args->at), .dst = &drawn, .bytes = sizeof(CliDrawn)});
     return EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_log.graph_text, .at = drawn.id,
                       .dst = args->out, .capacity = CLI_GIT_LOG_ID);
 }
 
 // the record of the opened commit `at` read out of the records' cell into `record_out`
-EMBED_INLINE void opened_read(const GitLogCtx *args)
-{
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.opened,
-                                                            .offset = GIT_LOG_OPENED_AT(args->at),
-                                                            .dst = args->record_out,
-                                                            .bytes = sizeof(*args->record_out)});
-}
-
 // the place of the opened commit's record at the graph's place `which`: the pane's `opens` where none is there
 EMBED_INLINE unsigned int opened_at(const GitLogCtx *args)
 {
@@ -213,7 +191,8 @@ EMBED_INLINE unsigned int opened_at(const GitLogCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         GitLogOpened record;
-        EMBED_CALL(opened_read, GitLogCtx, .at = middle, .record_out = &record);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(middle), .dst = &record, .bytes = sizeof(record)});
         if (record.commit == args->which)
         {
             return middle;
@@ -287,7 +266,8 @@ EMBED_INLINE unsigned int commit_of(const GitLogCtx *args)
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        EMBED_CALL(opened_read, GitLogCtx, .at = middle, .record_out = &record);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(middle), .dst = &record, .bytes = sizeof(record)});
         low = (record.row <= args->at) ? middle + 1u : low;
         high = (record.row <= args->at) ? high : middle;
     }
@@ -295,7 +275,8 @@ EMBED_INLINE unsigned int commit_of(const GitLogCtx *args)
     {
         return args->at - 1u;
     }
-    EMBED_CALL(opened_read, GitLogCtx, .at = low - 1u, .record_out = &record);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT((low - 1u)), .dst = &record, .bytes = sizeof(record)});
     const unsigned int block = 1u + (record.displayed ? ((record.count != 0u) ? record.count : 1u) : 0u);
     if (args->at < record.row + block)
     {
@@ -334,7 +315,8 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
     CliRepository chosen = {0};
     if (log->chosen < log->repositories)
     {
-        EMBED_CALL(repository_read, GitLogCtx, .at = log->chosen, .repository_out = &chosen);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.repositories_cell, .offset = GIT_LOG_REPOSITORY_AT(log->chosen), .dst = &chosen, .bytes = sizeof(CliRepository)});
     }
     (void)EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &log->repositories_text,
                      .at = chosen.path, .dst = folder, .capacity = sizeof(folder));
@@ -419,7 +401,8 @@ EMBED_INLINE void opened_found(const GitLogCtx *args)
     for (unsigned int record = 0u; record < log->opens; record += 1u)
     {
         GitLogOpened opened;
-        EMBED_CALL(opened_read, GitLogCtx, .at = record, .record_out = &opened);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(record), .dst = &opened, .bytes = sizeof(opened)});
         opened.commit = CLI_GIT_GRAPH;
         for (unsigned int at = 0u; (opened.commit == CLI_GIT_GRAPH) && (at < log->commits); at += 1u)
         {
@@ -649,7 +632,8 @@ EMBED_INLINE void list(const GitLogCtx *args)
     for (unsigned int at = 0u; at < log->opens; at += 1u)
     {
         GitLogOpened record;
-        EMBED_CALL(opened_read, GitLogCtx, .at = at, .record_out = &record);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(at), .dst = &record, .bytes = sizeof(record)});
         if (record.cell != NULL)
         {
             (void)g_cli_guard->movable_buf_release(record.cell, g_cli_git_log_owner);
@@ -813,7 +797,10 @@ int cli_git_log_row(const CliGitLogCfg *args)
         const int listed = (log->repositories != 0u) && (log->chosen < log->repositories);
         if (listed)
         {
-            EMBED_CALL(repository_read, GitLogCtx, .at = log->chosen, .repository_out = &chosen);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
+                                                                    .offset = GIT_LOG_REPOSITORY_AT(log->chosen),
+                                                                    .dst = &chosen,
+                                                                    .bytes = sizeof(CliRepository)});
         }
         row->type = CLI_GIT_LOG_ROW_BRANCH;
         row->text =
@@ -833,7 +820,8 @@ int cli_git_log_row(const CliGitLogCfg *args)
     const unsigned int commit = EMBED_CALL(commit_of, GitLogCtx, .at = args->at, .under_out = &under,
                                            .record_out = &record, .opened_out = &opened);
     CliDrawn drawn_read_out;
-    EMBED_CALL(drawn_read, GitLogCtx, .at = commit, .drawn_out = &drawn_read_out);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_log.graph_cell, .offset = GIT_LOG_DRAWN_AT(commit), .dst = &drawn_read_out, .bytes = sizeof(CliDrawn)});
     const CliDrawn *const drawn = &drawn_read_out;
     row->id = EMBED_CALL(commit_id, GitLogCtx, .at = commit, .out = row->id_copied);
     if (under == 0u)
@@ -913,7 +901,8 @@ int cli_git_log_ref(const CliGitLogCfg *args)
     CliDrawn drawn = {0};
     if (commit != CLI_GIT_GRAPH)
     {
-        EMBED_CALL(drawn_read, GitLogCtx, .at = commit, .drawn_out = &drawn);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.graph_cell, .offset = GIT_LOG_DRAWN_AT(commit), .dst = &drawn, .bytes = sizeof(CliDrawn)});
     }
     if ((commit == CLI_GIT_GRAPH) || (under != 0u) || (args->which >= drawn.refs))
     {
@@ -950,7 +939,8 @@ EMBED_INLINE void commit_toggle(const GitLogCtx *args)
     if (at < s_log.opens)
     {
         GitLogOpened record;
-        EMBED_CALL(opened_read, GitLogCtx, .at = at, .record_out = &record);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(at), .dst = &record, .bytes = sizeof(record)});
         record.displayed = !record.displayed;
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(at), .src = &record, .bytes = sizeof(record)});

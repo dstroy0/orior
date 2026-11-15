@@ -286,30 +286,6 @@ EMBED_INLINE CliKeyedEntry slice_store(const ServersSliceCtx *args)
     return entry;
 }
 
-// the opener `at` of the slice stored as `entry` with `head`
-EMBED_INLINE unsigned int slice_opener_at(const ServersSliceCtx *args)
-{
-    unsigned int was = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = args->entry.cell,
-        .offset = (embed_word)(args->entry.text_at + sizeof(*args->head_read) + (args->at * sizeof(was))),
-        .dst = &was,
-        .bytes = sizeof(was)});
-    return was;
-}
-
-// the line at `at` of the slice stored as `entry` with `head`
-EMBED_INLINE CliServersSliceLine slice_line_at(const ServersSliceCtx *args)
-{
-    CliServersSliceLine one = {CLI_JSON_NONE, 0u};
-    const unsigned long long place = args->entry.text_at + sizeof(*args->head_read) +
-                                     ((unsigned long long)args->head_read->openers * sizeof(unsigned int)) +
-                                     ((unsigned long long)args->at * sizeof(one));
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = args->entry.cell, .offset = (embed_word)place, .dst = &one, .bytes = sizeof(one)});
-    return one;
-}
-
 // where the tree's root of the slice stored as `entry` with `head` starts in the cell, the paths after it
 EMBED_INLINE unsigned long long slice_root_at(const ServersSliceCtx *args)
 {
@@ -357,8 +333,14 @@ EMBED_INLINE int slice_line_in(const ServersSliceCtx *args)
     unsigned int *into = args->into;
     for (unsigned int at = 0u; at < args->head_read->lines; at += 1u)
     {
-        const CliServersSliceLine one =
-            EMBED_CALL(slice_line_at, ServersSliceCtx, .entry = args->entry, .head_read = args->head_read, .at = at);
+        CliServersSliceLine one = {CLI_JSON_NONE, 0u};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = args->entry.cell,
+            .offset = (embed_word)(args->entry.text_at + sizeof(*args->head_read) +
+                                   ((unsigned long long)args->head_read->openers * sizeof(unsigned int)) +
+                                   ((unsigned long long)(at) * sizeof(one))),
+            .dst = &one,
+            .bytes = sizeof(one)});
         if ((one.path == 0u) && (one.line == args->line))
         {
             *into = at;
@@ -385,7 +367,12 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
         // the stored view's openers are at max CLI_SERVERS_SLICE_OPENERS
         for (unsigned int at = 0u; at < head.openers; at += 1u)
         {
-            opener[at] = EMBED_CALL(slice_opener_at, ServersSliceCtx, .entry = stored, .head_read = &head, .at = at);
+            opener[at] = 0u;
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = stored.cell,
+                                    .offset = (embed_word)(stored.text_at + sizeof(head) + ((at) * sizeof(opener[at]))),
+                                    .dst = &opener[at],
+                                    .bytes = sizeof(opener[at])});
         }
         (void)EMBED_CALL(slice_root, ServersSliceCtx, .entry = stored, .head_read = &head, .root_out = stored_root);
     }
@@ -708,8 +695,13 @@ static void slice_gather_job(const CliServersJobCfg *args)
                (head.openers == gather->head.openers);
     for (unsigned int at = 0u; same && (at < head.openers); at += 1u)
     {
-        same = EMBED_CALL(slice_opener_at, ServersSliceCtx, .entry = stored, .head_read = &head, .at = at) ==
-               gather->opener[at];
+        unsigned int was = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = stored.cell,
+                                .offset = (embed_word)(stored.text_at + sizeof(head) + ((at) * sizeof(was))),
+                                .dst = &was,
+                                .bytes = sizeof(was)});
+        same = was == gather->opener[at];
     }
     CliLsp *const server =
         same ? EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = gather->path) : NULL;
@@ -775,8 +767,13 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
     unsigned int at = 0u;
     while (same && (at < named))
     {
-        same = EMBED_CALL(slice_opener_at, ServersSliceCtx, .entry = stored, .head_read = &head, .at = at) ==
-               args->opener[at];
+        unsigned int was = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = stored.cell,
+                                .offset = (embed_word)(stored.text_at + sizeof(head) + ((at) * sizeof(was))),
+                                .dst = &was,
+                                .bytes = sizeof(was)});
+        same = was == args->opener[at];
         at += 1u;
     }
     char root[CLI_PATH_MAX_LEN];
@@ -866,10 +863,17 @@ int cli_servers_slice_out(const CliServersPathLineFromCtx *args)
     int moved = 1;
     if (stored.used)
     {
-        const CliServersSliceLine one =
-            (*line < head.lines)
-                ? EMBED_CALL(slice_line_at, ServersSliceCtx, .entry = stored, .head_read = &head, .at = *line)
-                : (CliServersSliceLine){CLI_JSON_NONE, 0u};
+        CliServersSliceLine one = {CLI_JSON_NONE, 0u};
+        if (*line < head.lines)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = stored.cell,
+                                    .offset = (embed_word)(stored.text_at + sizeof(head) +
+                                                           ((unsigned long long)head.openers * sizeof(unsigned int)) +
+                                                           ((unsigned long long)(*line) * sizeof(one))),
+                                    .dst = &one,
+                                    .bytes = sizeof(one)});
+        }
         if (one.path == CLI_JSON_NONE)
         {
             moved = 0;
@@ -1042,14 +1046,28 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
                 cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = &json,
                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                    .object = range, .name = "end"));
-            const CliServersSliceLine from =
-                (start.line < head.lines)
-                    ? EMBED_CALL(slice_line_at, ServersSliceCtx, .entry = found, .head_read = &head, .at = start.line)
-                    : (CliServersSliceLine){CLI_JSON_NONE, 0u};
-            const CliServersSliceLine to =
-                (end.line < head.lines)
-                    ? EMBED_CALL(slice_line_at, ServersSliceCtx, .entry = found, .head_read = &head, .at = end.line)
-                    : (CliServersSliceLine){CLI_JSON_NONE, 0u};
+            CliServersSliceLine from = {CLI_JSON_NONE, 0u};
+            if (start.line < head.lines)
+            {
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = found.cell,
+                    .offset = (embed_word)(found.text_at + sizeof(head) +
+                                           ((unsigned long long)head.openers * sizeof(unsigned int)) +
+                                           ((unsigned long long)(start.line) * sizeof(from))),
+                    .dst = &from,
+                    .bytes = sizeof(from)});
+            }
+            CliServersSliceLine to = {CLI_JSON_NONE, 0u};
+            if (end.line < head.lines)
+            {
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = found.cell,
+                    .offset = (embed_word)(found.text_at + sizeof(head) +
+                                           ((unsigned long long)head.openers * sizeof(unsigned int)) +
+                                           ((unsigned long long)(end.line) * sizeof(to))),
+                    .dst = &to,
+                    .bytes = sizeof(to)});
+            }
             // a diagnostic on a line of another file, or on a bracket the slice closes, is of the slice and not the
             // file
             if ((from.path != 0u) || (to.path != 0u) || (to.line < from.line))

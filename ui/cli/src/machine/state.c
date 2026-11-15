@@ -475,15 +475,6 @@ void cli_state_entries_release(CliStateEntries *entries)
     entries->count = 0u;
 }
 
-// the entry `at` read out of the entries' cell
-static CliStateEntry state_entry(const CliStateEntries *entries, unsigned int at)
-{
-    CliStateEntry entry = {0ULL, 0ULL};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
-    return entry;
-}
-
 // the text at `text_at` of the entries' cell read into `out`, `capacity` bytes, a 0 after it: `out`, or NULL where
 // it does not fit
 static const char *state_text(const CliStateEntries *entries, unsigned long long text_at, char *out,
@@ -507,7 +498,9 @@ static unsigned int state_entry_find(const CliStateEntries *entries, const char 
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES});
     for (unsigned int at = 0u; (entries != NULL) && (entries->cell != NULL) && (at < entries->count); at += 1u)
     {
-        const CliStateEntry entry = state_entry(entries, at);
+        CliStateEntry entry = {0ULL, 0ULL};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
         if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
                 .cell = entries->cell, .offset = entry.key_at, .src = key, .bytes = (embed_word)(length + 1ULL)}) == 0)
         {
@@ -525,7 +518,10 @@ const char *cli_state_entry_value(const CliStateEntries *entries, const char *ke
     {
         return NULL;
     }
-    return state_text(entries, state_entry(entries, at).value_at, out, capacity);
+    CliStateEntry entry = {0ULL, 0ULL};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
+    return state_text(entries, entry.value_at, out, capacity);
 }
 
 unsigned long long cli_state_entry_size(const CliStateEntries *entries, const char *key)
@@ -535,8 +531,11 @@ unsigned long long cli_state_entry_size(const CliStateEntries *entries, const ch
     {
         return CLI_STATE_NONE;
     }
-    return g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-        .cell = entries->cell, .offset = state_entry(entries, at).value_at, .bytes = CLI_STATE_ENTRIES_TEXT});
+    CliStateEntry entry = {0ULL, 0ULL};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
+    return g_cli_guard->movable_buf_measure(
+        &(CarcerMovableCfg){.cell = entries->cell, .offset = entry.value_at, .bytes = CLI_STATE_ENTRIES_TEXT});
 }
 
 const char *cli_state_entry_key(const CliStateEntries *entries, unsigned int at, char *out, unsigned long long capacity)
@@ -545,7 +544,10 @@ const char *cli_state_entry_key(const CliStateEntries *entries, unsigned int at,
     {
         return NULL;
     }
-    return state_text(entries, state_entry(entries, at).key_at, out, capacity);
+    CliStateEntry entry = {0ULL, 0ULL};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
+    return state_text(entries, entry.key_at, out, capacity);
 }
 
 const char *cli_state_entry_text(const CliStateEntries *entries, unsigned int at, char *out,
@@ -555,7 +557,10 @@ const char *cli_state_entry_text(const CliStateEntries *entries, unsigned int at
     {
         return NULL;
     }
-    return state_text(entries, state_entry(entries, at).value_at, out, capacity);
+    CliStateEntry entry = {0ULL, 0ULL};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
+    return state_text(entries, entry.value_at, out, capacity);
 }
 
 int cli_state_value_save(const CliStateValueCfg *args)

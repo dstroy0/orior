@@ -99,27 +99,12 @@ static ServersProblemFile problems_file_at(unsigned int at)
     return file;
 }
 
-// the head of a report's cell, and the diagnostic `at` of it, each read out of the cell
-static CliServerReportHead problems_head(const CarcerMovableEntry *report)
-{
-    CliServerReportHead head = {0u, 0ULL};
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
-    return head;
-}
-
-static CliServerStoredDiagnostic problems_item(const CarcerMovableEntry *report, unsigned int at)
-{
-    CliServerStoredDiagnostic item = {0ULL, 0ULL, 0ULL, 0ULL, 0u, 0ULL, 0ULL};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
-    return item;
-}
-
 // the path of a report read out of its cell into `out`, CLI_PATH_MAX_LEN bytes: its length
 static unsigned long long problems_path(const CarcerMovableEntry *report, char *out)
 {
-    const CliServerReportHead head = problems_head(report);
+    CliServerReportHead head = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     const unsigned long long length = g_cli_guard->movable_buf_measure(
         &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .bytes = CLI_PATH_MAX_LEN - 1ULL});
     (void)g_cli_guard->movable_buf_read(
@@ -142,19 +127,24 @@ static unsigned long long problems_message(const CarcerMovableEntry *report, con
 }
 
 // the head of a file whose report has diagnostics: each message cut to its first line where it lies, the diagnostics
-// in the order displayed, written back into the report's cell, the errors counted and the name found from the path's end
+// in the order displayed, written back into the report's cell, the errors counted and the name found from the path's
+// end
 static void problems_file_built(const CarcerMovableEntry *report, ServersProblemFile *file)
 {
     file->report = report;
     file->errors = 0u;
     file->closed = 0;
-    const CliServerReportHead head = problems_head(report);
+    CliServerReportHead head = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     // the diagnostics read into a cell of this call, cut, sorted and written back
     CliServerStoredDiagnostic *const items = g_cli_guard->temporary_buf_alloc(
         ((unsigned long long)head.count + 1ULL) * sizeof(CliServerStoredDiagnostic), g_cli_servers_owner);
     for (unsigned int at = 0u; (items != NULL) && (at < head.count); at += 1u)
     {
-        items[at] = problems_item(report, at);
+        items[at] = (CliServerStoredDiagnostic){0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .dst = &items[at], .bytes = sizeof(items[at])});
         char message[CLI_PROBLEMS_MESSAGE];
         const unsigned long long read = problems_message(report, &items[at], message, sizeof(message));
         const unsigned long long line = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
@@ -184,7 +174,9 @@ static void problems_file_built(const CarcerMovableEntry *report, ServersProblem
 // whether the report `report` is of the file at `path`
 static int problems_report_is(const CarcerMovableEntry *report, const char *path)
 {
-    const CliServerReportHead head = problems_head(report);
+    CliServerReportHead head = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
     return g_cli_guard->movable_buf_compare(
                &(CarcerMovableCfg){.cell = report, .offset = head.path_at, .src = path, .bytes = length + 1ULL}) == 0;
@@ -257,7 +249,10 @@ static void problems_woken(void)
 static void problems_reported(const CliServerDiagnosticsCfg *args)
 {
     ServersProblemsReport report = {{0}, {NULL, 0ULL, 0u, 0}, 0};
-    if ((args->report != NULL) && (problems_head(args->report).count != 0u) && (args->taken != NULL))
+    CliServerReportHead head = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = args->report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+    if ((args->report != NULL) && (head.count != 0u) && (args->taken != NULL))
     {
         problems_file_built(args->report, &report.file);
         report.has_file = 1;
@@ -301,8 +296,8 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_problems.room, .seen = room);
     }
-    (void)embed_ticket_ring_pass_push(&s_problems.turnstiles, address, &s_problems.ring, stamp, (void *)(embed_word)cell,
-                                   &seen);
+    (void)embed_ticket_ring_pass_push(&s_problems.turnstiles, address, &s_problems.ring, stamp,
+                                      (void *)(embed_word)cell, &seen);
     problems_woken();
 }
 
@@ -438,7 +433,9 @@ CliProblemsCounts cli_servers_problems_counts(void)
     for (unsigned int at = 0u; at < s_problems.count; at += 1u)
     {
         const ServersProblemFile file = problems_file_at(at);
-        const CliServerReportHead head = problems_head(file.report);
+        CliServerReportHead head = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = file.report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
         counts.files += 1u;
         counts.items += head.count;
         counts.rows += 1u + (file.closed ? 0u : head.count);
@@ -461,7 +458,9 @@ int cli_servers_problems_row(unsigned int at, CliProblemRow *row)
     for (unsigned int place = 0u; place < s_problems.count; place += 1u)
     {
         const ServersProblemFile file = problems_file_at(place);
-        const CliServerReportHead head = problems_head(file.report);
+        CliServerReportHead head = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = file.report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
         const unsigned int under = file.closed ? 0u : head.count;
         if (at == first)
         {
@@ -481,7 +480,12 @@ int cli_servers_problems_row(unsigned int at, CliProblemRow *row)
         }
         if (at < (first + 1u + under))
         {
-            const CliServerStoredDiagnostic item = problems_item(file.report, at - first - 1u);
+            CliServerStoredDiagnostic item = {0};
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = file.report,
+                                    .offset = CLI_SERVER_REPORT_ITEM_AT(at - first - 1u),
+                                    .dst = &item,
+                                    .bytes = sizeof(item)});
             (void)problems_path(file.report, s_path);
             const unsigned long long length = problems_message(file.report, &item, s_message, sizeof(s_message));
             *row = (CliProblemRow){0,      s_path,         "",           0ULL, 0u, 0, item.severity, s_message,
@@ -500,11 +504,16 @@ int cli_servers_problems_span(const char *path, unsigned int at, CliProblemSpan 
         const CarcerMovableEntry *const report = problems_file_at(place).report;
         if (problems_report_is(report, path))
         {
-            if (at >= problems_head(report).count)
+            CliServerReportHead head = {0};
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+            if (at >= head.count)
             {
                 return 0;
             }
-            const CliServerStoredDiagnostic item = problems_item(report, at);
+            CliServerStoredDiagnostic item = {0};
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
             *span = (CliProblemSpan){item.severity, item.from_line, item.from_col, item.to_line, item.to_col};
             return 1;
         }
@@ -525,7 +534,10 @@ int cli_servers_problems_press(unsigned int at, CliProblemRow *row)
                 .cell = s_problems.table, .offset = CLI_PROBLEMS_FILE_AT(place), .src = &file, .bytes = sizeof(file)});
             return 0;
         }
-        first += 1u + (file.closed ? 0u : problems_head(file.report).count);
+        CliServerReportHead head = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = file.report, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+        first += 1u + (file.closed ? 0u : head.count);
     }
     return cli_servers_problems_row(at, row) && !row->is_file;
 }

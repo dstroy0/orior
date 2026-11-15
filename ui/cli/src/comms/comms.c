@@ -539,16 +539,6 @@ EMBED_INLINE unsigned int comms_traffic_get(const CommsCtx *args)
     return at;
 }
 
-// the part `part_at` written back to the parts' table as `part`
-EMBED_INLINE void comms_part_write(const CommsCtx *args)
-{
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = g_cli_comms.tables,
-                            .offset = COMMS_PARTS_AT + ((unsigned long long)args->part_at * sizeof(CliCommsPart)),
-                            .src = args->part,
-                            .bytes = sizeof(CliCommsPart)});
-}
-
 // the channel's traffic at `traffic_at` counted, nothing where it is CLI_COMMS_CHANNELS: a send refused where
 // `refused`, else a message of `size` bytes
 EMBED_INLINE void comms_traffic_counted(const CommsCtx *args)
@@ -651,7 +641,11 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
     if (!granted)
     {
         part.refused += 1ULL;
-        EMBED_CALL(comms_part_write, CommsCtx, .part_at = at, .part = &part);
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                                .offset = COMMS_PARTS_AT + ((unsigned long long)(at) * sizeof(CliCommsPart)),
+                                .src = &part,
+                                .bytes = sizeof(CliCommsPart)});
         EMBED_CALL(comms_traffic_counted, CommsCtx, .traffic_at = traffic_at, .refused = 1);
         mmgr_line_put(args->err_msg, name);
         mmgr_line_put(args->err_msg, " may not send on ");
@@ -660,7 +654,11 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
         return 0;
     }
     part.sent_count += 1ULL;
-    EMBED_CALL(comms_part_write, CommsCtx, .part_at = at, .part = &part);
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = g_cli_comms.tables,
+                            .offset = COMMS_PARTS_AT + ((unsigned long long)(at) * sizeof(CliCommsPart)),
+                            .src = &part,
+                            .bytes = sizeof(CliCommsPart)});
     if (traffic_at != CLI_COMMS_CHANNELS)
     {
         EMBED_CALL(comms_traffic_counted, CommsCtx, .traffic_at = traffic_at, .size = args->size);
