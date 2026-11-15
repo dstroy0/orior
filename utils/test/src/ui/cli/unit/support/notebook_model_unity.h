@@ -11,24 +11,29 @@
 static inline CliNotebookCell notebook_cell_at(const CliNotebookModel *model, unsigned int at)
 {
     CliNotebookCell cell;
-    EMBED_CALL(cli_notebook_model_internal.cell_read, CliNotebookModelCtx, .model = (CliNotebookModel *)(embed_word)model,
-               .cell = at, .cell_out = &cell);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)model)->cells_cell,
+                                                            .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                                            .dst = &cell,
+                                                            .bytes = sizeof(CliNotebookCell)});
     return cell;
 }
 
 // `cell` written as the cell `at` of `model`
 static inline void notebook_cell_set(CliNotebookModel *model, unsigned int at, const CliNotebookCell *cell)
 {
-    EMBED_CALL(cli_notebook_model_internal.cell_written, CliNotebookModelCtx, .model = model, .cell = at,
-               .cell_read = cell);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = model->cells_cell, .offset = CLI_NOTEBOOK_CELL_AT(at), .src = cell, .bytes = sizeof(CliNotebookCell)});
 }
 
 // the output `at` of `model`
 static inline CliNotebookOutput notebook_output_at(const CliNotebookModel *model, unsigned int at)
 {
     CliNotebookOutput output;
-    EMBED_CALL(cli_notebook_model_internal.output_read, CliNotebookModelCtx,
-               .model = (CliNotebookModel *)(embed_word)model, .output = at, .output_out = &output);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)model)->outputs_cell,
+                            .offset = CLI_NOTEBOOK_OUTPUT_AT(at),
+                            .dst = &output,
+                            .bytes = sizeof(CliNotebookOutput)});
     return output;
 }
 
@@ -36,8 +41,10 @@ static inline CliNotebookOutput notebook_output_at(const CliNotebookModel *model
 static inline CliNotebookGone notebook_gone_at(const CliNotebookModel *model, unsigned int at)
 {
     CliNotebookGone gone;
-    EMBED_CALL(cli_notebook_model_internal.gone_read, CliNotebookModelCtx, .model = (CliNotebookModel *)(embed_word)model,
-               .at = at, .gone_out = &gone);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)model)->gone_cell,
+                                                            .offset = CLI_NOTEBOOK_GONE_AT(at),
+                                                            .dst = &gone,
+                                                            .bytes = sizeof(CliNotebookGone)});
     return gone;
 }
 
@@ -62,10 +69,9 @@ static inline int notebook_texts_contain(const CliNotebookModel *model, const ch
             &(CarcerMovableCfg){.cell = model->text_cell, .offset = 0ULL, .dst = texts, .bytes = model->output_used});
     }
     texts[model->output_used] = '\0';
-    const int found = cellul.find(&(CatenaFinitaCfg){.src = texts,
-                                                     .cap = model->output_used,
-                                                     .other = text,
-                                                     .other_cap = CLI_UNITY_LENGTH(text)}) != NULL;
+    const int found =
+        cellul.find(&(CatenaFinitaCfg){
+            .src = texts, .cap = model->output_used, .other = text, .other_cap = CLI_UNITY_LENGTH(text)}) != NULL;
     g_cli_guard->persistent_buf_release(texts, g_cli_notebook_open_owner);
     return found;
 }

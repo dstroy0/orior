@@ -35,8 +35,8 @@ typedef struct CliVimCtx CliVimCtx;
 // text typed carries
 #define CLI_VIM_KEY_OPEN '\x01'
 #define CLI_VIM_KEY_CLOSE '\x02'
-// the keys no character carries, as the control bytes their chords type: Escape, Ctrl+R, Ctrl+D and Ctrl+U; and gg among
-// the motions, past every character of the basic plane
+// the keys no character carries, as the control bytes their chords type: Escape, Ctrl+R, Ctrl+D and Ctrl+U; and gg
+// among the motions, past every character of the basic plane
 #define CLI_VIM_ESCAPE 0x1bu
 #define CLI_VIM_REDO 0x12u
 #define CLI_VIM_DOWN 0x04u
@@ -103,10 +103,10 @@ typedef struct
 
 extern CliVimState g_cli_vim_state;
 
-// A command parsed from the keys typed: whether it is none, waits for more keys or is whole; its register's character, 0
-// for none; whether a count was typed and the count; its command or operator's character, 0 for a motion alone; its
-// motion's character, CLI_VIM_TOP for gg; the character after f F t T or r; the text object's i or a and the character after
-// it; whether a doubled operator takes whole lines; and whether it acts on visual mode's selection
+// A command parsed from the keys typed: whether it is none, waits for more keys or is whole; its register's character,
+// 0 for none; whether a count was typed and the count; its command or operator's character, 0 for a motion alone; its
+// motion's character, CLI_VIM_TOP for gg; the character after f F t T or r; the text object's i or a and the character
+// after it; whether a doubled operator takes whole lines; and whether it acts on visual mode's selection
 #define CLI_VIM_PARSE_NONE 0u
 #define CLI_VIM_PARSE_WAIT 1u
 #define CLI_VIM_PARSE_WHOLE 2u
@@ -187,14 +187,13 @@ struct CliVimCtx
 };
 
 // the texts (vim.c): the part `part` written anew with `length` bytes of `text` in a cell of its own, its old cell
-// given back: 1, or 0 where the cells cannot meet the text, the part as it was; the bytes of the part `part`; the
-// part's bytes copied out into `bytes_out` of `length` bytes with their end: how many were copied; the part's bytes
+// given back: 1, or 0 where the cells cannot meet the text, the part as it was; the part's bytes copied out into
+// `bytes_out` of `length` bytes with their end: how many were copied; the part's bytes
 // copied out whole with their end into a cell of the temporary tier, their count into `length_out`, which the caller
 // gives back: the cell, or NULL where the cells cannot meet it; the view `at`'s part `part`'s place among the parts;
 // the view `at`'s mode set to `mode`, the label following; the label written anew from the mode and the keys typed; and
 // the code point `character` written as UTF-8 into `bytes_out`, four bytes at max: how many
 int cli_vim_part_put(const CliVimCtx *args);
-unsigned long long cli_vim_part_length(const CliVimCtx *args);
 unsigned long long cli_vim_part_copy(const CliVimCtx *args);
 char *cli_vim_part_alloc(const CliVimCtx *args);
 unsigned int cli_vim_part_of(const CliVimCtx *args);
@@ -205,13 +204,13 @@ unsigned long long cli_vim_character_written(const CliVimCtx *args);
 void cli_vim_parse(const CliVimCtx *args);
 // the text read through the view `key` (vim_motions.c): how many lines; the units of the line `line`, their count into
 // `length_out`; the character at `place`, CLI_VIM_LINE_END past its line's end; the place a character on from `place`,
-// across a line's end, and a character back: 1 with it into `place_out`, or 0 at the text's end or start; a character's type,
-// 0 for a blank or a line's end, 1 for a word's character and 2 for any other, with `big` 1 for every character but a blank;
-// a line's first character that is not blank, its last character where all are; its last character; the place Vim's cursor
-// is at, the selection's head in visual mode; the cursor put at `place`, the line and the column cut to the text,
-// on a character outside insert mode, the column moves go back to let go unless `goal_stays`; where the motion `name` with
-// `character`, counted `count` times where `counted`, goes from `from`, into `found`; and the cursor or visual mode's head
-// moved by it
+// across a line's end, and a character back: 1 with it into `place_out`, or 0 at the text's end or start; a character's
+// type, 0 for a blank or a line's end, 1 for a word's character and 2 for any other, with `big` 1 for every character
+// but a blank; a line's first character that is not blank, its last character where all are; its last character; the
+// place Vim's cursor is at, the selection's head in visual mode; the cursor put at `place`, the line and the column cut
+// to the text, on a character outside insert mode, the column moves go back to let go unless `goal_stays`; where the
+// motion `name` with `character`, counted `count` times where `counted`, goes from `from`, into `found`; and the cursor
+// or visual mode's head moved by it
 unsigned long long cli_vim_lines(const CliVimCtx *args);
 const unsigned short *cli_vim_line(const CliVimCtx *args);
 void cli_vim_line_end(const CliVimCtx *args);
@@ -231,9 +230,9 @@ void cli_vim_object(const CliVimCtx *args);
 // the operators and commands (vim_commands.c): the operator `name` applied to the span `span_read` with the register
 // `register_name`; a command with an operator applied to its motion, its object or its lines; the text `length` bytes
 // of `text` stored in the register `register_name`, " and with `yanked` 0 taking it too, a capital adding to its
-// character's; insert mode entered at `place`; insert mode left, the cursor a character back; the case of each character from
-// `from` to `to` turned; `count` lines joined from `line`; a command run; and the search for `length` bytes of
-// `text`, back where `back`, as a whole word where `word_text`, the cursor put where it finds
+// character's; insert mode entered at `place`; insert mode left, the cursor a character back; the case of each
+// character from `from` to `to` turned; `count` lines joined from `line`; a command run; and the search for `length`
+// bytes of `text`, back where `back`, as a whole word where `word_text`, the cursor put where it finds
 void cli_vim_apply(const CliVimCtx *args);
 void cli_vim_operate(const CliVimCtx *args);
 void cli_vim_store(const CliVimCtx *args);
@@ -255,7 +254,6 @@ void cli_vim_chosen_run(const CliVimCtx *args);
 typedef struct
 {
     int (*part_put)(const CliVimCtx *args);
-    unsigned long long (*part_length)(const CliVimCtx *args);
     unsigned long long (*part_copy)(const CliVimCtx *args);
     char *(*part_alloc)(const CliVimCtx *args);
     unsigned int (*part_of)(const CliVimCtx *args);
@@ -264,11 +262,10 @@ typedef struct
     unsigned long long (*character_written)(const CliVimCtx *args);
     void (*parse)(const CliVimCtx *args);
 } CliVimNsInternal;
-EMBED_TABLE_LAYOUT(CliVimNsInternal, part_put, part_length, part_copy, part_alloc, part_of, mode_set, label_settled,
+EMBED_TABLE_LAYOUT(CliVimNsInternal, part_put, part_copy, part_alloc, part_of, mode_set, label_settled,
                    character_written, parse);
 EMBED_TABLE_STORAGE CliVimNsInternal cli_vim_internal EMBED_UNUSED = {
     .part_put = cli_vim_part_put,
-    .part_length = cli_vim_part_length,
     .part_copy = cli_vim_part_copy,
     .part_alloc = cli_vim_part_alloc,
     .part_of = cli_vim_part_of,
@@ -296,8 +293,8 @@ typedef struct
     void (*move_by)(const CliVimCtx *args);
     void (*object)(const CliVimCtx *args);
 } CliVimMotionsNsInternal;
-EMBED_TABLE_LAYOUT(CliVimMotionsNsInternal, lines, line, line_end, character_at, forward, backward, type, first_character,
-                   last_col, head, put, motion, move_by, object);
+EMBED_TABLE_LAYOUT(CliVimMotionsNsInternal, lines, line, line_end, character_at, forward, backward, type,
+                   first_character, last_col, head, put, motion, move_by, object);
 EMBED_TABLE_STORAGE CliVimMotionsNsInternal cli_vim_motions_internal EMBED_UNUSED = {
     .lines = cli_vim_lines,
     .line = cli_vim_line,

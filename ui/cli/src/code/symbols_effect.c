@@ -881,7 +881,8 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
     char *const scratch = (stored != NULL) ? cli_branch_copy_alloc() : NULL;
     if (scratch != NULL)
     {
-        EMBED_CALL(cli_symbols_tree_branch.branch_copy, CliSymbolsTreeBranchCfg, .branch = stored, .scratch = scratch);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = stored->cell, .dst = scratch, .bytes = stored->bytes});
     }
     const unsigned int count = (scratch != NULL) ? stored->count : 0u;
     for (unsigned int each = 0u; each < count; each += 1u)

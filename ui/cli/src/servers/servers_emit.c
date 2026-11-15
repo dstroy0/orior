@@ -69,10 +69,8 @@ void cli_servers_tree_path(const CliServersPathErrMsgCtx *args)
     {
         // each mount read out of the process's cell
         CliMount mount;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
-                                                               .offset = (embed_word)at * sizeof(CliMount),
-                                                               .dst = &mount,
-                                                               .bytes = sizeof(mount)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = mounts.cell, .offset = (embed_word)at * sizeof(CliMount), .dst = &mount, .bytes = sizeof(mount)});
         const embed_word base = cellul.len(&(CatenaFinitaCfg){.src = mount.path, .cap = CLI_PATH_MAX_LEN});
         mounted = EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = integer, .other_pointer = mount.path,
                              .size = base) &&
@@ -321,7 +319,12 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
         EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_input, .key = key);
     if (stored != CLI_KEYED_NONE)
     {
-        *entry = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_input, .at = stored);
+        *entry = (CliKeyedEntry){0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_servers_input.page[stored / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(stored % CLI_KEYED_PAGE) * sizeof(*entry),
+                                .dst = entry,
+                                .bytes = sizeof(*entry)});
         return 1;
     }
     char path[CLI_PATH_MAX_LEN];
@@ -353,7 +356,12 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
             : CLI_KEYED_NONE;
     if (placed != CLI_KEYED_NONE)
     {
-        *entry = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_input, .at = placed);
+        *entry = (CliKeyedEntry){0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_servers_input.page[placed / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(placed % CLI_KEYED_PAGE) * sizeof(*entry),
+                                .dst = entry,
+                                .bytes = sizeof(*entry)});
     }
     return placed != CLI_KEYED_NONE;
 }
@@ -383,7 +391,12 @@ EMBED_INLINE void emit_items_position(const ServersEmitCtx *args)
                                               .keyed = &g_cli_servers_supplied, .key = key);
         if (place != CLI_KEYED_NONE)
         {
-            supplied = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_supplied, .at = place);
+            supplied = (CliKeyedEntry){0};
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = g_cli_servers_supplied.page[place / CLI_KEYED_PAGE],
+                                    .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(supplied),
+                                    .dst = &supplied,
+                                    .bytes = sizeof(supplied)});
         }
         (void)EMBED_CALL(emit_input_names, ServersEmitCtx, .key = key, .uri = args->uri, .entry_out = &names);
     }
@@ -444,9 +457,15 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
         // each text stored read out of its cell into the JSON reader's own cell for this call
         const unsigned int place =
             EMBED_CALL(cli_keyed_key.find_hash, CliKeyedKeyCfg, .keyed = stores[store], .key = args->key, .hash = hash);
-        const CliKeyedEntry one = (place != CLI_KEYED_NONE) ? EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg,
-                                                                         .keyed = stores[store], .at = place)
-                                                            : (CliKeyedEntry){0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+        CliKeyedEntry one = {0};
+        if (place != CLI_KEYED_NONE)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = stores[store]->page[place / CLI_KEYED_PAGE],
+                                    .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
+                                    .dst = &one,
+                                    .bytes = sizeof(one)});
+        }
         sizes[store] = one.used ? one.text_size : 0ULL;
         stored[store] =
             (sizes[store] > 0ULL) ? g_cli_guard->temporary_buf_alloc(sizes[store], g_cli_servers_owner) : NULL;
@@ -472,8 +491,8 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CfgJsonToken *const scanned =
         (tokens_max != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken),
-                                                               g_cli_servers_owner)
-                            : NULL;
+                                                              g_cli_servers_owner)
+                           : NULL;
     const int reserved =
         (nodes == 0u) || ((scanned != NULL) && EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
                                                           .json = &json, .nodes_max = nodes, .text_max = bytes,
@@ -520,8 +539,8 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     unsigned int positioned = 0u;
     if (items != NULL)
     {
-        EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = roots[0], .filtered = 1, .key = args->key,
-                   .uri = uri, .items = items, .capacity = max, .positioned = &positioned);
+        EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = roots[0], .filtered = 1,
+                   .key = args->key, .uri = uri, .items = items, .capacity = max, .positioned = &positioned);
         for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)
         {
             EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = id, .filtered = 0, .key = args->key,

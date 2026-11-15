@@ -193,8 +193,9 @@ void cli_vim_apply(const CliVimCtx *args)
         (void)EMBED_CALL(cli_view_vim.indent, CliViewVimCfg, .key = args->key, .from = span->start, .to = span->end,
                          .deeper = name == '>', .err_msg = args->err_msg);
         EMBED_CALL(cli_vim_motions_internal.put, CliVimCtx, .at = args->at, .key = args->key,
-                   .place = (CliPosition){span->start.line, EMBED_CALL(cli_vim_motions_internal.first_character, CliVimCtx,
-                                                                       .key = args->key, .line = span->start.line)});
+                   .place =
+                       (CliPosition){span->start.line, EMBED_CALL(cli_vim_motions_internal.first_character, CliVimCtx,
+                                                                  .key = args->key, .line = span->start.line)});
     }
     else if (name == 'd')
     {
@@ -274,7 +275,7 @@ void cli_vim_operate(const CliVimCtx *args)
         if ((command->name == 'c') && word &&
             (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = motion == 'W',
                         .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key,
-                                             .place = from)) != 0u))
+                                                .place = from)) != 0u))
         {
             motion = (motion == 'w') ? 'e' : 'E';
         }
@@ -413,7 +414,8 @@ void cli_vim_join(const CliVimCtx *args)
         const unsigned short *const next = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
                                                       .line = line + 1ULL, .length_out = &length);
         unsigned long long lead = 0ULL;
-        while ((next != NULL) && (lead < length) && EMBED_CALL(cli_text_table.white, CliTextCfg, .character = next[lead]))
+        while ((next != NULL) && (lead < length) &&
+               EMBED_CALL(cli_text_table.white, CliTextCfg, .character = next[lead]))
         {
             lead += 1ULL;
         }
@@ -479,7 +481,12 @@ EMBED_INLINE void commands_paste(const CliVimCtx *args)
     {
         return;
     }
-    const unsigned long long length = EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = at);
+    CliVimPart part = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                                                            .offset = (unsigned long long)at * sizeof(part),
+                                                            .dst = &part,
+                                                            .bytes = sizeof(part)});
+    const unsigned long long length = part.length;
     if (length == 0ULL)
     {
         return;
@@ -641,8 +648,8 @@ EMBED_INLINE void commands_characters(const CliVimCtx *args)
     else if ((name == 'r') && (head.col + times <= length))
     {
         char bytes[4];
-        const unsigned long long character_bytes =
-            EMBED_CALL(cli_vim_internal.character_written, CliVimCtx, .character = command->character, .bytes_out = bytes);
+        const unsigned long long character_bytes = EMBED_CALL(cli_vim_internal.character_written, CliVimCtx,
+                                                              .character = command->character, .bytes_out = bytes);
         char *const cell = g_cli_guard->temporary_buf_alloc((times * character_bytes) + 1ULL, g_cli_vim_owner);
         if (cell == NULL)
         {
@@ -677,7 +684,8 @@ EMBED_INLINE void commands_stepped(const CliVimCtx *args)
                .place = EMBED_CALL(commands_cursor, CliVimCtx, .key = args->key));
 }
 
-// i a I A: insert mode at the cursor, after its character, at the line's first character that is not blank, or at its end
+// i a I A: insert mode at the cursor, after its character, at the line's first character that is not blank, or at its
+// end
 EMBED_INLINE void commands_inserted(const CliVimCtx *args)
 {
     const CliPosition head = EMBED_CALL(cli_vim_motions_internal.head, CliVimCtx, .at = args->at, .key = args->key);
@@ -685,7 +693,8 @@ EMBED_INLINE void commands_inserted(const CliVimCtx *args)
     const unsigned short *const units = EMBED_CALL(cli_vim_motions_internal.line, CliVimCtx, .key = args->key,
                                                    .line = head.line, .length_out = &length);
     unsigned long long first = 0ULL;
-    while ((units != NULL) && (first < length) && EMBED_CALL(cli_text_table.white, CliTextCfg, .character = units[first]))
+    while ((units != NULL) && (first < length) &&
+           EMBED_CALL(cli_text_table.white, CliTextCfg, .character = units[first]))
     {
         first += 1ULL;
     }

@@ -93,12 +93,6 @@ char *cli_branch_copy_alloc(void)
     return g_cli_guard->temporary_buf_alloc(s_cell_max, g_cli_code_owner);
 }
 
-void cli_branch_copy(const CliSymbolsTreeBranchCfg *args)
-{
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = args->branch->cell, .dst = args->scratch, .bytes = args->branch->bytes});
-}
-
 const char *cli_branch_copy_path(const CliSymbolsTreeBranchScratchCfg *args)
 {
     return args->scratch_read + args->branch->path;

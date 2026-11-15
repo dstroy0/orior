@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_pane_bar.c: the Debug pane's bar and field. The bar's steps, each with the state it acts in: Continue and the
 // steps forward while the session followed is stopped, Pause while it runs, the steps backward while it is stopped and
-// steps back, and displayed only for a session that steps back, Restart once a start is remembered, Stop while a session
-// is followed; each run on the stopped thread, a Python session's Step Into through the step across. The field takes
-// a watch's expression in Variables and an expression to evaluate in the chosen frame in Console
+// steps back, and displayed only for a session that steps back, Restart once a start is remembered, Stop while a
+// session is followed; each run on the stopped thread, a Python session's Step Into through the step across. The field
+// takes a watch's expression in Variables and an expression to evaluate in the chosen frame in Console
 #include "debug_internal.h"
 #include "debug_pane_internal.h"
 
@@ -290,8 +290,11 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
     CliDebugPaneEntry chosen = {0};
     if (framed)
     {
-        EMBED_CALL(cli_debug_pane_internal.entry_read, CliDebugPaneCtx, .store = frames,
-                   .at = g_cli_debug_pane.frame_at, .entry_out = &chosen);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = frames->entry,
+                                .offset = CLI_DEBUG_PANE_ENTRY_AT(g_cli_debug_pane.frame_at),
+                                .dst = &chosen,
+                                .bytes = sizeof(CliDebugPaneEntry)});
     }
     const int evaluated =
         g_cli_debug_pane.requests->evaluate(&(CliDebugOutErrMsgCfg){.out = &out,
@@ -354,7 +357,10 @@ EMBED_INLINE void bar_watched(const DebugPaneBarCtx *args)
     entry.type = CLI_DEBUG_ROW_WATCH;
     entry.text = text;
     entry.text_length = args->length;
-    EMBED_CALL(cli_debug_pane_internal.entry_written, CliDebugPaneCtx, .store = watches, .at = at, .entry = &entry);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = watches->entry,
+                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                             .src = &entry,
+                                                             .bytes = sizeof(CliDebugPaneEntry)});
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
 }
 

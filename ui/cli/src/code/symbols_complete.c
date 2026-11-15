@@ -83,7 +83,8 @@ EMBED_INLINE void complete_type_declare(const SymbolsCompleteCtx *args)
     char *const scratch = ((branch != NULL) && branch->used) ? cli_branch_copy_alloc() : NULL;
     if (scratch != NULL)
     {
-        EMBED_CALL(cli_symbols_tree_branch.branch_copy, CliSymbolsTreeBranchCfg, .branch = branch, .scratch = scratch);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = branch->cell, .dst = scratch, .bytes = branch->bytes});
     }
     for (unsigned int at = 0u; (scratch != NULL) && (args->type_out[0] == '\0') && (at < branch->count); at += 1u)
     {

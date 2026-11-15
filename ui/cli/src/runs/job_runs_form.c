@@ -163,7 +163,8 @@ void cli_job_runs_filter_apply(const CliJobRunsCtx *args)
     for (unsigned int group = 0u; group < store->groups; group += 1u)
     {
         CliJobRunsGroup one;
-        EMBED_CALL(cli_job_runs_cells.group_read, CliJobRunsCellCfg, .at = group, .group = &one);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(*(&one))});
         one.listed = 0u;
         for (unsigned int member = 0u; member < one.count; member += 1u)
         {

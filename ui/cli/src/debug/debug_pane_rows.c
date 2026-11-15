@@ -97,15 +97,19 @@ EMBED_INLINE int rows_number(const DebugPaneRowsCtx *args)
 // the entry `at` of `store` read into `entry_out`
 EMBED_INLINE void rows_entry_read(const DebugPaneRowsCtx *args)
 {
-    EMBED_CALL(cli_debug_pane_internal.entry_read, CliDebugPaneCtx, .store = args->store, .at = args->at,
-               .entry_out = args->entry_out);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                            .dst = args->entry_out,
+                                                            .bytes = sizeof(CliDebugPaneEntry)});
 }
 
 // the entry `at` of `store` written from `entry_out`
 EMBED_INLINE void rows_entry_written(const DebugPaneRowsCtx *args)
 {
-    EMBED_CALL(cli_debug_pane_internal.entry_written, CliDebugPaneCtx, .store = args->store, .at = args->at,
-               .entry = args->entry_out);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                             .src = args->entry_out,
+                                                             .bytes = sizeof(CliDebugPaneEntry)});
 }
 
 // the order of `length` bytes of `text` against the key of the open set's entry `at`: below 0, 0 or above 0; the key

@@ -62,7 +62,12 @@ unsigned long long cli_servers_run_count(const CliServersKeyCtx *args)
     unsigned long long run = 0ULL;
     if (stored != CLI_KEYED_NONE)
     {
-        const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_runs, .at = stored);
+        CliKeyedEntry one = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_runs.page[stored / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(stored % CLI_KEYED_PAGE) * sizeof(one),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
         if (one.text_size == sizeof(run))
         {
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
@@ -85,7 +90,12 @@ int cli_servers_run_last(const CliServersKeyCtx *args)
     unsigned long long last = 0ULL;
     if (stored != CLI_KEYED_NONE)
     {
-        const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_runs, .at = stored);
+        CliKeyedEntry one = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_runs.page[stored / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(stored % CLI_KEYED_PAGE) * sizeof(one),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
         if (one.text_size == sizeof(last))
         {
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){

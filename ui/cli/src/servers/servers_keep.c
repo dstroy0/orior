@@ -189,7 +189,12 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     char named[CLI_NAME_MAX_LEN] = "";
     if (found)
     {
-        const CliKeyedEntry one = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_languages, .at = place);
+        CliKeyedEntry one = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_languages.page[place / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
         const unsigned long long bytes =
             (one.adjacent_size < sizeof(named)) ? one.adjacent_size : (sizeof(named) - 1ULL);
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){

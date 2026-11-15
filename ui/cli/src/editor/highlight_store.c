@@ -163,14 +163,6 @@ EMBED_INLINE void cli_copy(const HighlightStoreCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = copy->text, .src = args->read->text, .bytes = args->read->text_size});
 }
 
-// the entry `at` of the list read off its cell, and written into it
-static CliGrammarEntry cli_grammar_listed(unsigned int at)
-{
-    CliGrammarEntry entry;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_grammars, .offset = (embed_word)at * sizeof(entry), .dst = &entry, .bytes = sizeof(entry)});
-    return entry;
-}
 // the list of the grammars stored taken once at CLI_GRAMMARS_MAX entries, every place empty, where none is: 1, or
 // 0 where the cellblock cannot meet it; under the lock
 static int cli_grammars_taken(void)
@@ -220,7 +212,9 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     unsigned int free_at = s_grammar_capacity;
     for (unsigned int at = 0u; at < s_grammar_capacity; at += 1u)
     {
-        const CliGrammarEntry listed = cli_grammar_listed(at);
+        CliGrammarEntry listed = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_grammars, .offset = (embed_word)at * sizeof(listed), .dst = &listed, .bytes = sizeof(listed)});
         entry_at = (listed.used &&
                     (cellul.eq(&(CatenaFinitaCfg){.src = listed.key, .other = args->key, .cap = CLI_POOL_BYTES})))
                        ? at
@@ -229,7 +223,11 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     }
     if (entry_at != s_grammar_capacity)
     {
-        CliGrammarEntry listed = cli_grammar_listed(entry_at);
+        CliGrammarEntry listed = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
+                                                                .offset = (embed_word)entry_at * sizeof(listed),
+                                                                .dst = &listed,
+                                                                .bytes = sizeof(listed)});
         (void)g_cli_guard->movable_buf_release(listed.region, g_cli_grammars_owner);
         listed.used = 0;
         listed.region = NULL;
@@ -360,10 +358,10 @@ EMBED_INLINE unsigned long long cli_grammar_parts(const HighlightStoreCtx *args)
 
 // The parts of a read's work state at the sizes the grammar's JSON bounds, its `nodes` and the `used` bytes of its
 // texts: a pattern's nodes and parts no more than three for each of its characters and one more, its items no more than
-// its characters; rules, own entries, states, words and their lists no more than the JSON's nodes, tokens two for each and
-// names one more; the texts no more than four bytes for each byte and a terminator each; and the rules listed, which a
-// state's includes repeat, at their limit. The work state is one cell, sized on a first pass over its parts and placed
-// in on a second: the cell, for the caller to give back, or NULL where the cellblock cannot meet it
+// its characters; rules, own entries, states, words and their lists no more than the JSON's nodes, tokens two for each
+// and names one more; the texts no more than four bytes for each byte and a terminator each; and the rules listed,
+// which a state's includes repeat, at their limit. The work state is one cell, sized on a first pass over its parts and
+// placed in on a second: the cell, for the caller to give back, or NULL where the cellblock cannot meet it
 EMBED_INLINE unsigned char *cli_grammar_capacity(const HighlightStoreCtx *args)
 {
     const unsigned long long nodes = args->json->nodes;
@@ -408,8 +406,8 @@ EMBED_INLINE unsigned long long cli_coloring_parts(const HighlightStoreCtx *args
     args->highlight_work_state_pointer->cols =
         EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
                    .bytes = (args->highlight_work_state_pointer->max + 1ULL) * sizeof(unsigned int));
-    // a run for each character, one past the colored part and one for an empty line, and a mark for each state stacked and
-    // one more
+    // a run for each character, one past the colored part and one for an empty line, and a mark for each state stacked
+    // and one more
     args->highlight_work_state_pointer->run_col = EMBED_CALL(
         cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
         .bytes = (args->highlight_work_state_pointer->max + 3ULL + CLI_HIGHLIGHT_STACK) * sizeof(unsigned int));
@@ -432,9 +430,9 @@ EMBED_INLINE unsigned long long cli_coloring_parts(const HighlightStoreCtx *args
 }
 
 // the work state of a coloring of `count` lines, taken in one cell as the coloring begins, as wide as the longest
-// line's characters, a line's characters being no more than its bytes nor than a line is read to, sized on a first pass over
-// its parts and placed in on a second: the work state, its cell into `*cell` for the coloring to give back as it ends,
-// or NULL where the cellblock cannot meet it
+// line's characters, a line's characters being no more than its bytes nor than a line is read to, sized on a first pass
+// over its parts and placed in on a second: the work state, its cell into `*cell` for the coloring to give back as it
+// ends, or NULL where the cellblock cannot meet it
 EMBED_INLINE CliHighlightWorkState *cli_coloring_capacity(const HighlightStoreCtx *args)
 {
     unsigned char **cell = args->cell_pointer;
@@ -485,7 +483,11 @@ EMBED_INLINE unsigned int cli_grammar_entry_get(const HighlightStoreCtx *args)
     unsigned int entry_at = 0u;
     while (entry_at < s_grammar_capacity)
     {
-        const CliGrammarEntry listed = cli_grammar_listed(entry_at);
+        CliGrammarEntry listed = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
+                                                                .offset = (embed_word)entry_at * sizeof(listed),
+                                                                .dst = &listed,
+                                                                .bytes = sizeof(listed)});
         if (listed.used &&
             (cellul.eq(&(CatenaFinitaCfg){.src = listed.key, .other = args->key, .cap = CLI_POOL_BYTES})))
         {
@@ -507,7 +509,11 @@ static int cli_color(const HighlightStoreCtx *args)
     CliGrammar grammar;
     if (has_entry)
     {
-        const CliGrammarEntry listed = cli_grammar_listed(entry_at);
+        CliGrammarEntry listed = {0};
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
+                                                                .offset = (embed_word)entry_at * sizeof(listed),
+                                                                .dst = &listed,
+                                                                .bytes = sizeof(listed)});
         region = cli_grammar_copied(&listed, &grammar);
     }
     if (!has_entry)
@@ -569,7 +575,9 @@ unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
     {
         return 0u;
     }
-    const CliGrammarEntry listed = cli_grammar_listed(entry_at);
+    CliGrammarEntry listed = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_grammars, .offset = (embed_word)entry_at * sizeof(listed), .dst = &listed, .bytes = sizeof(listed)});
     CliGrammar grammar;
     unsigned char *const region = cli_grammar_copied(&listed, &grammar);
     if (region == NULL)

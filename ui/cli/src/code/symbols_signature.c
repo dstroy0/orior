@@ -248,7 +248,8 @@ EMBED_INLINE int signature_file_read(const SymbolsSignatureCtx *args)
                                   .signature_read = args->signature, .path = path);
     if (spoken)
     {
-        EMBED_CALL(cli_symbols_tree_branch.branch_copy, CliSymbolsTreeBranchCfg, .branch = branch, .scratch = scratch);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = branch->cell, .dst = scratch, .bytes = branch->bytes});
     }
     return spoken;
 }

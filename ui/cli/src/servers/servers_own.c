@@ -161,8 +161,12 @@ EMBED_INLINE int own_had(const ServersOwnCtx *args)
     {
         return 0;
     }
-    const CliKeyedEntry one =
-        EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_checked, .at = place);
+    CliKeyedEntry one = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_servers_checked.page[place / CLI_KEYED_PAGE],
+                            .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
+                            .dst = &one,
+                            .bytes = sizeof(one)});
     const unsigned long long size = one.text_size;
     // the JSON stored read out of its cell into the reader's own cell for this call
     char *const stored = g_cli_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_servers_owner);

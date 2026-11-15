@@ -219,8 +219,12 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
         return 0;
     }
     // the text put on the line out of its cell, a window at a time
-    const CliKeyedEntry one =
-        EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_texts, .at = place);
+    CliKeyedEntry one = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_servers_texts.page[place / CLI_KEYED_PAGE],
+                            .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
+                            .dst = &one,
+                            .bytes = sizeof(one)});
     for (unsigned long long at = 0ULL; at < one.text_size;)
     {
         char window[SERVERS_FILES_WINDOW];
@@ -245,8 +249,12 @@ char *cli_servers_text_alloc(const CliServersPathSizeTypeCfg *args)
         *args->size_pointer = 0ULL;
         return NULL;
     }
-    const CliKeyedEntry one =
-        EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_texts, .at = place);
+    CliKeyedEntry one = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_servers_texts.page[place / CLI_KEYED_PAGE],
+                            .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
+                            .dst = &one,
+                            .bytes = sizeof(one)});
     *args->size_pointer = one.text_size;
     char *const reserved = g_cli_guard->temporary_buf_alloc(one.text_size + 1ULL, g_cli_servers_owner);
     if (reserved != NULL)

@@ -25,12 +25,12 @@
 #define CLI_JOB_RUNS_TYPE_CHOICE "choice"
 #define CLI_JOB_RUNS_TYPE_MANY "many"
 
-// the store's mosts, each the places of one table of tokens: the runs retained, the oldest ended released past them; the
-// params of a job the form positions; the sections the rows are in, a group's and a job's each of the catalog's jobs and
-// the chosen job's; a line's plain bytes retained; the spans one line carries; the plain bytes, and the spans, one run's
-// window of CLI_LINES_MAX lines holds, the oldest lines released as a new one needs the room; and the reports on
-// their way from the runs' threads to the view's thread at once, the slots of their ticket ring as a two's power, and
-// the bytes the slots take, the reports' part of the rings block
+// the store's mosts, each the places of one table of tokens: the runs retained, the oldest ended released past them;
+// the params of a job the form positions; the sections the rows are in, a group's and a job's each of the catalog's
+// jobs and the chosen job's; a line's plain bytes retained; the spans one line carries; the plain bytes, and the spans,
+// one run's window of CLI_LINES_MAX lines holds, the oldest lines released as a new one needs the room; and the reports
+// on their way from the runs' threads to the view's thread at once, the slots of their ticket ring as a two's power,
+// and the bytes the slots take, the reports' part of the rings block
 #define CLI_JOB_RUNS_MAX 32u
 #define CLI_JOB_RUNS_PARAMS_MAX 64u
 #define CLI_JOB_RUNS_SECTIONS_MAX ((2u * CLI_LINE_JOBS) + 1u + (2u * CLI_JOB_RUNS_PARAMS_MAX) + (3u * CLI_JOB_RUNS_MAX))
@@ -67,8 +67,9 @@ typedef struct
 
 // The rings of a run's lines, MMgr's, over one set's span of the rings block: the plain text, a byte ring; the line
 // records and the spans, each a segment ring with a record a segment; the bytes each ring streams; and the text bytes
-// ever put and ever consumed, whose difference places a line's bytes ahead of the text ring's tail. A set's span positions
-// its text, its records and its spans each on the block's boundary; a set for each run the pane holds makes its part
+// ever put and ever consumed, whose difference places a line's bytes ahead of the text ring's tail. A set's span
+// positions its text, its records and its spans each on the block's boundary; a set for each run the pane holds makes
+// its part
 typedef struct
 {
     mmgr_ring text;
@@ -164,8 +165,8 @@ extern CliJobRunsStore g_cli_job_runs_store;
 // (job_runs.c)
 extern const CliRunSink cli_job_runs_sink;
 
-// a group, a run or a section `at` read whole out of its cell into the copy, and a copy written whole into the cell at
-// `at`, the cell taken where none is there: 1, or 0 where the cells cannot meet it (job_runs.c)
+// a group's, a run's or a section's copy written whole into the cell at `at`, the cell taken where none is there: 1,
+// or 0 where the cells cannot meet it (job_runs.c)
 typedef struct
 {
     unsigned int at;
@@ -173,39 +174,30 @@ typedef struct
     CliJobRunsRun *run;
     CliJobRunsSection *section;
 } CliJobRunsCellCfg;
-void cli_job_runs_group_read(const CliJobRunsCellCfg *args);
 int cli_job_runs_group_write(const CliJobRunsCellCfg *args);
-void cli_job_runs_run_read(const CliJobRunsCellCfg *args);
 int cli_job_runs_run_write(const CliJobRunsCellCfg *args);
-void cli_job_runs_section_read(const CliJobRunsCellCfg *args);
 int cli_job_runs_section_write(const CliJobRunsCellCfg *args);
 
 typedef struct
 {
-    void (*group_read)(const CliJobRunsCellCfg *args);
     int (*group_write)(const CliJobRunsCellCfg *args);
-    void (*run_read)(const CliJobRunsCellCfg *args);
     int (*run_write)(const CliJobRunsCellCfg *args);
-    void (*section_read)(const CliJobRunsCellCfg *args);
     int (*section_write)(const CliJobRunsCellCfg *args);
 } CliJobRunsCellsNs;
-EMBED_TABLE_LAYOUT(CliJobRunsCellsNs, group_read, group_write, run_read, run_write, section_read, section_write);
+EMBED_TABLE_LAYOUT(CliJobRunsCellsNs, group_write, run_write, section_write);
 EMBED_TABLE_STORAGE CliJobRunsCellsNs cli_job_runs_cells EMBED_UNUSED = {
-    .group_read = cli_job_runs_group_read,
     .group_write = cli_job_runs_group_write,
-    .run_read = cli_job_runs_run_read,
     .run_write = cli_job_runs_run_write,
-    .section_read = cli_job_runs_section_read,
     .section_write = cli_job_runs_section_write,
 };
 
 typedef struct CliJobRunsCtx CliJobRunsCtx;
 
-// the sections and the rows positioned anew from the store (job_runs_rows.c); the form positioned empty for the job chosen, none
-// where none is; the byte a job set anew from the filter, each group's count of those it lets are; the values of
-// the form's params into `values`, each param the form leaves empty taking its default; the value of the param
-// `param` copied out of the form's cell into `value_out` of CLI_JOB_RUNS_FIELD_MAX bytes with its end: its bytes; and
-// the choice `choice` of the param `param` taken, or let go where it was, a choice of many turned among the others
+// the sections and the rows positioned anew from the store (job_runs_rows.c); the form positioned empty for the job
+// chosen, none where none is; the byte a job set anew from the filter, each group's count of those it lets are; the
+// values of the form's params into `values`, each param the form leaves empty taking its default; the value of the
+// param `param` copied out of the form's cell into `value_out` of CLI_JOB_RUNS_FIELD_MAX bytes with its end: its bytes;
+// and the choice `choice` of the param `param` taken, or let go where it was, a choice of many turned among the others
 // taken (job_runs_form.c)
 void cli_job_runs_sections_settle(const CliJobRunsCtx *args);
 void cli_job_runs_form_clear(const CliJobRunsCtx *args);

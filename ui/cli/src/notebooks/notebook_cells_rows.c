@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook_cells_rows.c: an open notebook's rows: the row each cell starts at settled as the cells change, a row found
-// by a binary search over those starts and over its cell's outputs' starts, the rows from the top positioned into a frame
-// with their texts, runs and sentences, the top moved by a wheel or to a place, and the sentences the rows show, each
-// written into a cell sized to it
+// by a binary search over those starts and over its cell's outputs' starts, the rows from the top positioned into a
+// frame with their texts, runs and sentences, the top moved by a wheel or to a place, and the sentences the rows show,
+// each written into a cell sized to it
 #include "../command_line/cli_internal.h"
 #include "notebook_cells_internal.h"
 
@@ -52,8 +52,11 @@ typedef struct
 EMBED_INLINE CliNotebookCell cell_of(const NotebookRowsCtx *args)
 {
     CliNotebookCell cell;
-    EMBED_CALL(cli_notebook_model_internal.cell_read, CliNotebookModelCtx,
-               .model = (CliNotebookModel *)(embed_word)args->model_read, .cell = args->cell, .cell_out = &cell);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)args->model_read)->cells_cell,
+                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                            .dst = &cell,
+                            .bytes = sizeof(CliNotebookCell)});
     return cell;
 }
 
@@ -61,9 +64,11 @@ EMBED_INLINE CliNotebookCell cell_of(const NotebookRowsCtx *args)
 EMBED_INLINE CliNotebookOutput output_of(const NotebookRowsCtx *args)
 {
     CliNotebookOutput output;
-    EMBED_CALL(cli_notebook_model_internal.output_read, CliNotebookModelCtx,
-               .model = (CliNotebookModel *)(embed_word)args->model_read, .output = args->output,
-               .output_out = &output);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)args->model_read)->outputs_cell,
+                            .offset = CLI_NOTEBOOK_OUTPUT_AT(args->output),
+                            .dst = &output,
+                            .bytes = sizeof(CliNotebookOutput)});
     return output;
 }
 
@@ -137,14 +142,18 @@ void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args)
              gone += 1u)
         {
             CliNotebookGone one;
-            EMBED_CALL(cli_notebook_model_internal.gone_read, CliNotebookModelCtx, .model = model, .at = gone,
-                       .gone_out = &one);
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->gone_cell,
+                                                                    .offset = CLI_NOTEBOOK_GONE_AT(gone),
+                                                                    .dst = &one,
+                                                                    .bytes = sizeof(CliNotebookGone)});
             stale = EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = at, .first_run = one.first_run,
                                .last_run = one.last_run, .edited = 0u, .gone = 1);
         }
         cell.stale = stale;
-        EMBED_CALL(cli_notebook_model_internal.cell_written, CliNotebookModelCtx, .model = model, .cell = at,
-                   .cell_read = &cell);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                                                 .src = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     }
 }
 
@@ -341,8 +350,8 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
         {
             const CliNotebookCell one = EMBED_CALL(cell_of, NotebookRowsCtx, .model_read = model, .cell = other);
             if ((other == args->cell) ||
-                !EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
-                            .first_run = one.first_run, .last_run = one.last_run, .edited = one.edited, .gone = 0))
+                !EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = one.first_run,
+                            .last_run = one.last_run, .edited = one.edited, .gone = 0))
             {
                 continue;
             }
@@ -353,10 +362,13 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
         for (unsigned int gone = 0u; gone < model->gone_count; gone += 1u)
         {
             CliNotebookGone one;
-            EMBED_CALL(cli_notebook_model_internal.gone_read, CliNotebookModelCtx,
-                       .model = (CliNotebookModel *)(embed_word)model, .at = gone, .gone_out = &one);
-            if (EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
-                           .first_run = one.first_run, .last_run = one.last_run, .edited = 0u, .gone = 1))
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)model)->gone_cell,
+                                    .offset = CLI_NOTEBOOK_GONE_AT(gone),
+                                    .dst = &one,
+                                    .bytes = sizeof(CliNotebookGone)});
+            if (EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = one.first_run,
+                           .last_run = one.last_run, .edited = 0u, .gone = 1))
             {
                 mmgr_line_put(out, listed ? ", a cell since deleted" : "a cell since deleted");
                 listed = 1;

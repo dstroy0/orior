@@ -3,9 +3,10 @@
 // vim.c: Vim's state and its entries. The views with Vim's keys are as records of one movable cell in the order of
 // their keys, found by halving; every text, the registers' and each view's, is a part, its bytes a movable cell of
 // its own sized to them, taken as the part is written and given back as it is written again or emptied. The views'
-// and the parts' cells are each taken once at their max as Vim begins. A key or a character typed becomes a token, a code
-// point, the keys no character carries their chords' control bytes; the tokens typed of a command are as a part and are
-// read as a command each time one comes, and a whole command runs, its keys taken for `.` where it changes the text
+// and the parts' cells are each taken once at their max as Vim begins. A key or a character typed becomes a token, a
+// code point, the keys no character carries their chords' control bytes; the tokens typed of a command are as a part
+// and are read as a command each time one comes, and a whole command runs, its keys taken for `.` where it changes the
+// text
 #include "vim_internal.h"
 
 #include "../text/text.h"
@@ -43,11 +44,10 @@ EMBED_INLINE int vim_begun(const CliVimCtx *args)
     const CliVimPart empty = {NULL, 0ULL};
     for (unsigned int at = 0u; at < CLI_VIM_REGISTERS; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = g_cli_vim_state.part,
-                                .offset = (unsigned long long)(at) * sizeof(CliVimPart),
-                                .src = &empty,
-                                .bytes = sizeof(CliVimPart)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                                                                 .offset = (unsigned long long)at * sizeof(CliVimPart),
+                                                                 .src = &empty,
+                                                                 .bytes = sizeof(CliVimPart)});
     }
     state->parts = CLI_VIM_REGISTERS;
     state->views = 0u;
@@ -82,17 +82,6 @@ int cli_vim_part_put(const CliVimCtx *args)
                             .src = &put,
                             .bytes = sizeof(CliVimPart)});
     return 1;
-}
-
-unsigned long long cli_vim_part_length(const CliVimCtx *args)
-{
-    CliVimPart part;
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = g_cli_vim_state.part,
-                            .offset = (unsigned long long)(args->part) * sizeof(CliVimPart),
-                            .dst = &part,
-                            .bytes = sizeof(CliVimPart)});
-    return part.length;
 }
 
 unsigned long long cli_vim_part_copy(const CliVimCtx *args)
@@ -260,7 +249,7 @@ EMBED_INLINE int vim_view_added(const CliVimCtx *args)
                                 .bytes = sizeof(CliVimView)});
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
-                                .offset = (unsigned long long)(from) * sizeof(CliVimView),
+                                .offset = (unsigned long long)from * sizeof(CliVimView),
                                 .src = &moved,
                                 .bytes = sizeof(CliVimView)});
     }
@@ -318,11 +307,10 @@ EMBED_INLINE void vim_view_removed(const CliVimCtx *args)
     for (unsigned int from = args->at + 1u; from < state->views; from += 1u)
     {
         CliVimView moved;
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
-                                .offset = (unsigned long long)(from) * sizeof(CliVimView),
-                                .dst = &moved,
-                                .bytes = sizeof(CliVimView)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.view,
+                                                                .offset = (unsigned long long)from * sizeof(CliVimView),
+                                                                .dst = &moved,
+                                                                .bytes = sizeof(CliVimView)});
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
                                 .offset = (unsigned long long)(from - 1u) * sizeof(CliVimView),
@@ -332,11 +320,10 @@ EMBED_INLINE void vim_view_removed(const CliVimCtx *args)
     for (unsigned int from = first + CLI_VIM_VIEW_PARTS; from < state->parts; from += 1u)
     {
         CliVimPart moved;
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = g_cli_vim_state.part,
-                                .offset = (unsigned long long)(from) * sizeof(CliVimPart),
-                                .dst = &moved,
-                                .bytes = sizeof(CliVimPart)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                                                                .offset = (unsigned long long)from * sizeof(CliVimPart),
+                                                                .dst = &moved,
+                                                                .bytes = sizeof(CliVimPart)});
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_vim_state.part,
                                 .offset = (unsigned long long)(from - CLI_VIM_VIEW_PARTS) * sizeof(CliVimPart),
@@ -408,7 +395,12 @@ EMBED_INLINE int vim_view_on(const CliVimCtx *args)
 // cells cannot meet it
 EMBED_INLINE int vim_part_added(const CliVimCtx *args)
 {
-    const unsigned long long length = EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = args->part);
+    CliVimPart part = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                                                            .offset = (unsigned long long)args->part * sizeof(part),
+                                                            .dst = &part,
+                                                            .bytes = sizeof(part)});
+    const unsigned long long length = part.length;
     char *const joined = g_cli_guard->temporary_buf_alloc(length + args->length + 1ULL, g_cli_vim_owner);
     if (joined == NULL)
     {
@@ -563,8 +555,19 @@ EMBED_INLINE void vim_repeated(const CliVimCtx *args)
         EMBED_CALL(cli_vim_internal.part_of, CliVimCtx, .at = args->at, .part = CLI_VIM_PART_LAST_KEYS);
     const unsigned int insert_part =
         EMBED_CALL(cli_vim_internal.part_of, CliVimCtx, .at = args->at, .part = CLI_VIM_PART_LAST_INSERT);
-    const unsigned long long keys_length = EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = keys_part);
-    const unsigned long long insert_length = EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = insert_part);
+    CliVimPart keys_read = {0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                                                            .offset = (unsigned long long)keys_part * sizeof(keys_read),
+                                                            .dst = &keys_read,
+                                                            .bytes = sizeof(keys_read)});
+    const unsigned long long keys_length = keys_read.length;
+    CliVimPart insert_read = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                            .offset = (unsigned long long)insert_part * sizeof(insert_read),
+                            .dst = &insert_read,
+                            .bytes = sizeof(insert_read)});
+    const unsigned long long insert_length = insert_read.length;
     if (keys_length == 0ULL)
     {
         return;
@@ -641,8 +644,8 @@ unsigned long long cli_vim_character_written(const CliVimCtx *args)
     return 4ULL;
 }
 
-// the token `character` taken by the view `at`: Escape lets the keys typed go and ends visual mode; another is put after
-// the keys typed, which run as a command once they are whole and go where they are none
+// the token `character` taken by the view `at`: Escape lets the keys typed go and ends visual mode; another is put
+// after the keys typed, which run as a command once they are whole and go where they are none
 EMBED_INLINE void vim_taken(const CliVimCtx *args)
 {
     CliVimView view;
@@ -664,7 +667,13 @@ EMBED_INLINE void vim_taken(const CliVimCtx *args)
         EMBED_CALL(cli_vim_internal.label_settled, CliVimCtx, .at = args->at);
         return;
     }
-    if (EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = typed_part) + 4ULL > CLI_VIM_TYPED_MAX)
+    CliVimPart part_next = {0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                            .offset = (unsigned long long)typed_part * sizeof(part_next),
+                            .dst = &part_next,
+                            .bytes = sizeof(part_next)});
+    if (part_next.length + 4ULL > CLI_VIM_TYPED_MAX)
     {
         (void)EMBED_CALL(cli_vim_internal.part_put, CliVimCtx, .part = typed_part, .text = "", .length = 0ULL);
     }
@@ -851,7 +860,7 @@ int cli_vim_key(const CliVimCfg *args)
     const unsigned int at = (unsigned int)place;
     CliVimView view;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.view,
-                                                            .offset = (unsigned long long)(at) * sizeof(CliVimView),
+                                                            .offset = (unsigned long long)at * sizeof(CliVimView),
                                                             .dst = &view,
                                                             .bytes = sizeof(CliVimView)});
     // the modifier keys read off the key's name, Mod and Ctrl the same
@@ -944,7 +953,7 @@ int cli_vim_text(const CliVimCfg *args)
     const unsigned int at = (unsigned int)place;
     CliVimView view;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.view,
-                                                            .offset = (unsigned long long)(at) * sizeof(CliVimView),
+                                                            .offset = (unsigned long long)at * sizeof(CliVimView),
                                                             .dst = &view,
                                                             .bytes = sizeof(CliVimView)});
     if (view.mode == CLI_VIM_INSERT)
@@ -960,12 +969,12 @@ int cli_vim_text(const CliVimCfg *args)
     }
     const unsigned int prompt_part =
         EMBED_CALL(cli_vim_internal.part_of, CliVimCtx, .at = at, .part = CLI_VIM_PART_PROMPT);
-    // each character a token; what follows a character that opens insert mode or the prompt goes into the view or the prompt,
-    // the view read again after each token
+    // each character a token; what follows a character that opens insert mode or the prompt goes into the view or the
+    // prompt, the view read again after each token
     for (unsigned long long read = 0ULL; read < args->length;)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.view,
-                                                                .offset = (unsigned long long)(at) * sizeof(CliVimView),
+                                                                .offset = (unsigned long long)at * sizeof(CliVimView),
                                                                 .dst = &view,
                                                                 .bytes = sizeof(CliVimView)});
         if (view.prompt_open)
@@ -983,7 +992,7 @@ int cli_vim_text(const CliVimCfg *args)
         }
         unsigned long long bytes = 0ULL;
         const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->text,
-                                               .size = args->length, .at = read, .length = &bytes);
+                                                  .size = args->length, .at = read, .length = &bytes);
         read += (bytes != 0ULL) ? bytes : 1ULL;
         EMBED_CALL(vim_taken, CliVimCtx, .at = at, .key = args->key, .character = character, .err_msg = args->err_msg);
     }
@@ -1009,7 +1018,7 @@ const CliVimShape *cli_vim_shape(const CliVimCfg *args)
     const unsigned int at = (unsigned int)place;
     CliVimView view;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.view,
-                                                            .offset = (unsigned long long)(at) * sizeof(CliVimView),
+                                                            .offset = (unsigned long long)at * sizeof(CliVimView),
                                                             .dst = &view,
                                                             .bytes = sizeof(CliVimView)});
     if (!view.on)

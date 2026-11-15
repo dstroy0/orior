@@ -66,8 +66,12 @@ void cli_servers_forget_tokens(void)
 {
     for (unsigned int at = 0u; at < g_cli_servers_parses.entries; at += 1u)
     {
-        const CliKeyedEntry one =
-            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_parses, .at = at);
+        CliKeyedEntry one = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_servers_parses.page[at / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
         CliServersParseHead head = {0ULL, 1u, 0u, 0u, 0u, 0u};
         if (one.used && (one.text_size >= sizeof(head)))
         {

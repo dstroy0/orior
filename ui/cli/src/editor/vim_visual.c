@@ -66,8 +66,15 @@ EMBED_INLINE void visual_pasted(const CliVimCtx *args)
     at = (name == '0') ? CLI_VIM_REGISTER_YANKED : at;
     at = ((name >= 'a') && (name <= 'z')) ? CLI_VIM_REGISTER_CHARACTERS + (name - 'a') : at;
     at = ((name >= 'A') && (name <= 'Z')) ? CLI_VIM_REGISTER_CHARACTERS + (name - 'A') : at;
-    const unsigned long long retained_length =
-        (at < CLI_VIM_REGISTERS) ? EMBED_CALL(cli_vim_internal.part_length, CliVimCtx, .part = at) : 0ULL;
+    CliVimPart part = {0};
+    if (at < CLI_VIM_REGISTERS)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_vim_state.part,
+                                                                .offset = (unsigned long long)at * sizeof(part),
+                                                                .dst = &part,
+                                                                .bytes = sizeof(part)});
+    }
+    const unsigned long long retained_length = part.length;
     if (retained_length == 0ULL)
     {
         return;

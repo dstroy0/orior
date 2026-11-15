@@ -275,7 +275,12 @@ EMBED_INLINE CliKeyedEntry slice_store(const ServersSliceCtx *args)
     {
         return entry;
     }
-    entry = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_slices, .at = place);
+    entry = (CliKeyedEntry){0};
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_slices.page[place / CLI_KEYED_PAGE],
+                            .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(entry),
+                            .dst = &entry,
+                            .bytes = sizeof(entry)});
     if (entry.text_size < sizeof(*args->head))
     {
         entry.used = 0;
@@ -338,7 +343,7 @@ EMBED_INLINE int slice_line_in(const ServersSliceCtx *args)
             .cell = args->entry.cell,
             .offset = (embed_word)(args->entry.text_at + sizeof(*args->head_read) +
                                    ((unsigned long long)args->head_read->openers * sizeof(unsigned int)) +
-                                   ((unsigned long long)(at) * sizeof(one))),
+                                   ((unsigned long long)at * sizeof(one))),
             .dst = &one,
             .bytes = sizeof(one)});
         if ((one.path == 0u) && (one.line == args->line))
@@ -583,8 +588,12 @@ static void slice_owing(const CliEachKeyedEntryCfg *args)
     unsigned long long version = 0ULL;
     if (published != CLI_KEYED_NONE)
     {
-        const CliKeyedEntry one =
-            EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_published, .at = published);
+        CliKeyedEntry one = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_published.page[published / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(published % CLI_KEYED_PAGE) * sizeof(one),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
         if (one.text_size == sizeof(version))
         {
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){

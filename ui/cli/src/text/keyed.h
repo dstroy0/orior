@@ -55,9 +55,7 @@ typedef struct
     unsigned int entries_max;
 } CliKeyed;
 
-// the entry at the place `at`, below the places ever taken, read out of its page; the bytes of every key and the text
-// beside it, each ended by a 0; and the entry at `at` taken out
-CliKeyedEntry cli_keyed_entry(const CliKeyedCfg *args);
+// the bytes of every key and the text beside it, each ended by a 0; and the entry at `at` taken out
 unsigned long long cli_keyed_listing_size(const CliKeyedCfg *args);
 void cli_keyed_remove_at(const CliKeyedCfg *args);
 // the texts made empty, at max `entries_max` of them; `size` bytes of `text`, or of `text_cell` from `text_at` where
@@ -116,13 +114,11 @@ struct CliKeyedCfg
 
 typedef struct
 {
-    CliKeyedEntry (*entry)(const CliKeyedCfg *args);
     unsigned long long (*listed_size)(const CliKeyedCfg *args);
     void (*remove_at)(const CliKeyedCfg *args);
 } CliKeyedNs;
-EMBED_TABLE_LAYOUT(CliKeyedNs, entry, listed_size, remove_at);
+EMBED_TABLE_LAYOUT(CliKeyedNs, listed_size, remove_at);
 EMBED_TABLE_STORAGE CliKeyedNs cli_keyed_table EMBED_UNUSED = {
-    .entry = cli_keyed_entry,
     .listed_size = cli_keyed_listing_size,
     .remove_at = cli_keyed_remove_at,
 };

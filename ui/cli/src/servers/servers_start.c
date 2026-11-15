@@ -434,7 +434,12 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     }
     for (unsigned int one = 0u; one < s_reopen.entries; one += 1u)
     {
-        const CliKeyedEntry entry = EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &s_reopen, .at = one);
+        CliKeyedEntry entry = {0};
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_reopen.page[one / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(one % CLI_KEYED_PAGE) * sizeof(entry),
+                                .dst = &entry,
+                                .bytes = sizeof(entry)});
         if (!entry.used)
         {
             continue;

@@ -51,9 +51,15 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     const char *key = args->key_read;
     const unsigned int place =
         EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_checked, .key = key);
-    const CliKeyedEntry one = (place != CLI_KEYED_NONE) ? EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg,
-                                                                     .keyed = &g_cli_servers_checked, .at = place)
-                                                        : (CliKeyedEntry){0, 0u, NULL, 0ULL, 0u, 0u, 0ULL, 0ULL};
+    CliKeyedEntry one = {0};
+    if (place != CLI_KEYED_NONE)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = g_cli_servers_checked.page[place / CLI_KEYED_PAGE],
+                                .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
+    }
     const unsigned long long size = one.used ? one.text_size : 0ULL;
     // the JSON stored read out of its cell into the reader's own cell for this call
     char *const stored =
