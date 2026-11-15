@@ -461,7 +461,7 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
     {
         return;
     }
-    // the name added last moves up past each name that orders before it, so the newest stand first
+    // the name added last moves up past each name that orders before it: the newest stand first
     const unsigned int last = matching->names->count - 1u;
     unsigned int place = last;
     char before[CLI_PATH_MAX_LEN];

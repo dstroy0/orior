@@ -106,7 +106,7 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
             count += 1u;
         }
     }
-    // the tokens' cell stands under the words' until the words are given back, so the tier takes no hole
+    // the tokens' cell stands under the words' until the words are given back: the tier takes no hole
     s_words_tokens = tokens;
     return count;
 }
