@@ -107,9 +107,9 @@ typedef struct
 // again after it, and the max bytes of lines it colors, the last line it colors maybe past them, and its colors are
 // passed on in steps, and the bytes of a coloring that colors every line asked; the lines colored at once where a
 // coloring stops at the first entered as before, and where it does not, CLI_DOC_STEP where its bytes reach no further;
-// the capacity a step's colors are written in, a state's longest text, the capacity a text's states hold past them and
-// the places of its index they are found by, the bytes a coloring's capacity is written in, the share of what a text's
-// capacity for its states or its runs is taken for that it holds past it, and no line
+// the capacity a step's colors are written in, a state's longest text, the places of the index a text's states are
+// found by and the max states it has, half those places, the bytes a coloring's capacity is written in, the share of
+// what a text's capacity for its states or its runs is taken for that it holds past it, and no line
 #define CLI_DOC_ROOT 0u
 #define CLI_DOC_STEP 256u
 #define CLI_DOC_STEP_BYTES 16384ULL
@@ -118,8 +118,8 @@ typedef struct
 #define CLI_DOC_RUN 4096u
 #define CLI_DOC_COLORS_CAPACITY (1ULL << 20u)
 #define CLI_DOC_STATE 8192u
-#define CLI_DOC_STATES_CAPACITY (256u << 10u)
 #define CLI_DOC_INDEX_POSITIONS 16384u
+#define CLI_DOC_STATES_MAX (CLI_DOC_INDEX_POSITIONS / 2u)
 #define CLI_DOC_NONE 0xffffffffu
 
 // what the walk saves of a line: how many runs it found and the column the line ends at, then the runs' columns and
@@ -241,20 +241,35 @@ typedef struct
     const char *grammar;
 } DocumentBranchCtx;
 
+// the cell of the state at the place `at` among the text's states, NULL past them
+EMBED_INLINE const CarcerMovableEntry *branch_state_cell(const DocumentBranchCtx *args)
+{
+    const CarcerMovableEntry *cell = NULL;
+    if ((args->one_read->state_cells != NULL) && (args->at < args->one_read->state_count))
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = args->one_read->state_cells,
+                                .offset = (unsigned long long)args->at * sizeof(const CarcerMovableEntry *),
+                                .dst = &cell,
+                                .bytes = sizeof(const CarcerMovableEntry *)});
+    }
+    return cell;
+}
+
 // the state at the place `at` among the text's states copied into `text_out`, CLI_DOC_STATE bytes, ended by a NUL: its
 // length, 0 with an empty text where no state is there
 EMBED_INLINE unsigned long long branch_state_text(const DocumentBranchCtx *args)
 {
     args->text_out[0] = '\0';
-    if ((args->one_read->state == NULL) || (args->at >= args->one_read->state_used))
+    const CarcerMovableEntry *const cell =
+        EMBED_CALL(branch_state_cell, DocumentBranchCtx, .one_read = args->one_read, .at = args->at);
+    if (cell == NULL)
     {
         return 0ULL;
     }
-    const embed_word measured =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = args->one_read->state, .offset = args->at});
+    const embed_word measured = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = cell});
     const unsigned long long length = (measured < CLI_DOC_STATE) ? measured : (CLI_DOC_STATE - 1ULL);
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = args->one_read->state, .offset = args->at, .dst = args->text_out, .bytes = length});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = args->text_out, .bytes = length});
     args->text_out[length] = '\0';
     return length;
 }
@@ -330,11 +345,12 @@ EMBED_INLINE unsigned int branch_state_hash(const DocumentBranchCtx *args)
 // whether the state at the place `at` among the text's states is `length` bytes of `text`
 EMBED_INLINE int branch_state_is(const DocumentBranchCtx *args)
 {
-    // the text's NUL is compared with the state's, so a state the text only starts differs from it there
-    return ((args->at + args->length) < args->one_read->state_used) &&
-           (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
-                .cell = args->one_read->state, .offset = args->at, .src = args->text, .bytes = args->length + 1ULL}) ==
-            0);
+    const CarcerMovableEntry *const cell =
+        EMBED_CALL(branch_state_cell, DocumentBranchCtx, .one_read = args->one_read, .at = args->at);
+    // the state's length is compared first, so a state the text only starts differs from it
+    return (cell != NULL) && (g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = cell}) == args->length) &&
+           (g_cli_guard->movable_buf_compare(
+                &(CarcerMovableCfg){.cell = cell, .src = args->text, .bytes = args->length + 1ULL}) == 0);
 }
 
 // the state at the place `at` put at the first place of the index free from its hash's
@@ -365,8 +381,8 @@ EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
     }
 }
 
-// the index taken at its max where it is untaken: 1, or 0 where the cells cannot meet it or half of it holds
-// states
+// the index and the states' cells taken at their max where they are untaken: 1, or 0 where the cells cannot meet
+// them or half of the index holds states
 EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
 {
     if (args->one->state_indexed == 0u)
@@ -377,9 +393,17 @@ EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
         {
             return 0;
         }
+        const CarcerMovableEntry *const cells =
+            g_cli_guard->movable_buf_alloc(CLI_DOC_STATES_MAX * sizeof(const CarcerMovableEntry *), g_cli_editor_owner);
+        if (cells == NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+            return 0;
+        }
         EMBED_CALL(branch_cell_zeroed, DocumentBranchCtx, .entry = cell, .at_u64 = 0ULL,
                    .bytes = CLI_DOC_INDEX_POSITIONS * sizeof(unsigned int));
         args->one->state_index = cell;
+        args->one->state_cells = cells;
         args->one->state_indexed = CLI_DOC_INDEX_POSITIONS;
     }
     return (2u * (args->one->state_count + 1u)) <= args->one->state_indexed;
@@ -422,46 +446,42 @@ static unsigned int branch_state(const DocumentBranchCtx *args)
         }
         entry = (entry + 1u) & (args->one->state_indexed - 1u);
     }
-    const unsigned long long needed = (unsigned long long)args->one->state_used + length + 1ULL;
-    if (needed > CLI_DOC_STATES_CAPACITY)
+    if (args->one->state_count >= CLI_DOC_STATES_MAX)
     {
         args->one->refused = 1;
         return CLI_DOC_ROOT;
     }
-    // the states are in a cell sized to them: one sized for the state added taken, the states copied into it
-    // through a work cell, and the state written after them
-    const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(needed, g_cli_editor_owner);
-    if (grown == NULL)
+    // the state in a cell of its own sized to its text, its identity written after the states' before it, its
+    // place the number of states before it
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(length + 1ULL, g_cli_editor_owner);
+    if (cell == NULL)
     {
         args->one->refused = 1;
         return CLI_DOC_ROOT;
     }
-    if (args->one->state_used != 0u)
-    {
-        char *const work = g_cli_guard->temporary_buf_alloc(args->one->state_used, g_cli_editor_owner);
-        if (work == NULL)
-        {
-            (void)g_cli_guard->movable_buf_release(grown, g_cli_editor_owner);
-            args->one->refused = 1;
-            return CLI_DOC_ROOT;
-        }
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = args->one->state, .dst = work, .bytes = args->one->state_used});
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = grown, .src = work, .bytes = args->one->state_used});
-        g_cli_guard->persistent_buf_release(work, g_cli_editor_owner);
-    }
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->text, .bytes = length + 1ULL});
+    const unsigned int at = args->one->state_count;
     (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = grown, .offset = args->one->state_used, .src = args->text, .bytes = length + 1ULL});
-    (void)g_cli_guard->movable_buf_release(args->one->state, g_cli_editor_owner);
-    args->one->state = grown;
-    const unsigned int at = args->one->state_used;
-    // the states take no more than their capacity
-    args->one->state_used = (unsigned int)needed;
-    EMBED_CALL(branch_index_append, DocumentBranchCtx, .one = args->one, .at = at);
+        &(CarcerMovableCfg){.cell = args->one->state_cells,
+                            .offset = (unsigned long long)at * sizeof(const CarcerMovableEntry *),
+                            .src = &cell,
+                            .bytes = sizeof(const CarcerMovableEntry *)});
     args->one->state_count += 1u;
+    EMBED_CALL(branch_index_append, DocumentBranchCtx, .one = args->one, .at = at);
     args->one->state_last = at;
     return at;
+}
+
+void cli_document_states_released(const CliDocumentCtx *args)
+{
+    CliStoredText *const one = args->one;
+    for (unsigned int at = 0u; at < one->state_count; at += 1u)
+    {
+        const CarcerMovableEntry *const cell =
+            EMBED_CALL(branch_state_cell, DocumentBranchCtx, .one_read = one, .at = at);
+        (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+    }
+    one->state_count = 0u;
 }
 
 // the line `line` of `lines` written as UTF-8 into `out`, a surrogate pair read as the one character it makes
@@ -1120,7 +1140,7 @@ EMBED_INLINE void branch_scope_read(const DocumentBranchCtx *args)
     args->scope->used = 0u;
     args->scope->place = CLI_DOC_NONE;
     args->scope->moved = 1;
-    if ((place == CLI_DOC_NONE) || (place >= args->one_read->state_used))
+    if ((place == CLI_DOC_NONE) || (place >= args->one_read->state_count))
     {
         return;
     }
@@ -2328,11 +2348,9 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = one->grammar, .src = args->grammar, .bytes = length + 1ULL});
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->names = names;
-        // the states' cell goes back, the next state taking one sized to it, and the index's entries are cleared
-        (void)g_cli_guard->movable_buf_release(one->state, g_cli_editor_owner);
-        one->state = NULL;
-        one->state_used = 0u;
-        one->state_count = 0u;
+        // the states' cells go back, their identities' cell staying for the states to come, and the index's entries
+        // are cleared
+        EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = one);
         if (one->state_indexed != 0u)
         {
             EMBED_CALL(branch_cell_zeroed, DocumentBranchCtx, .entry = one->state_index, .at_u64 = 0ULL,

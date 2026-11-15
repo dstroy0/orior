@@ -345,7 +345,8 @@ EMBED_INLINE void stored_cells_free(const DocumentStoreCtx *args)
     EMBED_CALL(stored_cells_release, DocumentStoreCtx, .stored = &args->one->lines);
     EMBED_CALL(stored_cells_release, DocumentStoreCtx, .stored = &args->one->head);
     EMBED_CALL(hunks_forgotten, DocumentStoreCtx, .one = args->one);
-    (void)g_cli_guard->movable_buf_release(args->one->state, g_cli_editor_owner);
+    EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = args->one);
+    (void)g_cli_guard->movable_buf_release(args->one->state_cells, g_cli_editor_owner);
     (void)g_cli_guard->movable_buf_release(args->one->state_index, g_cli_editor_owner);
     (void)g_cli_guard->movable_buf_release(args->one->roles, g_cli_editor_owner);
     (void)g_cli_guard->movable_buf_release(args->one->run, g_cli_editor_owner);

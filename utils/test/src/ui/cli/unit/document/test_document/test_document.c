@@ -51,6 +51,8 @@ static char s_printed[DOCUMENT_AT_ONCE_TEXTS + 1u][1u << 16u];
 // what each step of the live sequences recorded
 static int s_branch_run_result;
 static int s_branch_step[12];
+// the state the branch's second line is entered in, as the walk left it
+static char s_branch_entered[64];
 static int s_at_once_run_result;
 static int s_at_once_during;
 static int s_at_once_ended;
@@ -134,6 +136,14 @@ static void branch_run_result(void)
     s_branch_step[0] = EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "branch", .grammar = "branch", .named = 1);
     cli_document_walk();
     s_branch_step[6] = EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "branch", .from = 100ull, .to = 110ull);
+    // the second line is entered in the comment's state, which the states' index answers by its number
+    unsigned long long entered_size = 0ull;
+    char *const second = cli_document_lines_alloc(&(CliDocumentKeyCfg){.key = "branch", .first = 1ull, .last = 1ull, .size_pointer = &entered_size, .state = s_branch_entered, .capacity = sizeof(s_branch_entered), .owner = g_cli_editor_owner});
+    s_branch_step[7] = second != NULL;
+    if (second != NULL)
+    {
+        g_cli_guard->persistent_buf_release(second, g_cli_editor_owner);
+    }
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "branch");
 }
 
@@ -425,6 +435,13 @@ void test_a_text_read_complete_names_the_lines_the_page_stores(void)
 {
     branch_run_result();
     TEST_ASSERT_TRUE(s_branch_step[6]);
+}
+
+void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(void)
+{
+    branch_run_result();
+    TEST_ASSERT_TRUE(s_branch_step[7]);
+    TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){.src = s_branch_entered, .cap = sizeof(s_branch_entered), .other = "comment", .other_cap = 8ull}));
 }
 
 void test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar(void)

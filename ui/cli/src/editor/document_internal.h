@@ -63,10 +63,11 @@ typedef struct
 // the serial they were found at, read back while the serial is and found anew as it moves; and as it is colored,
 // the key of the
 // grammar it is colored by, empty for none, and how many names that grammar's tokens take; the states its lines are
-// colored from and end in, each written once and ended by a NUL, in a movable cell sized to them, a line's state the
-// place its text starts at, each state found again by its hash in an index of CLI_DOC_INDEX_POSITIONS places in a
-// movable cell, each place its state's place plus 1, 0 for none, with how many states there are and the place found
-// last; the line the walk works out from, whether the cells refused its colors, the changes written to it since it was
+// colored from and end in, each written once and ended by a NUL in a movable cell of its own sized to its text, the
+// cells' identities in a movable cell of CLI_DOC_STATES_MAX places, a line's state the number of states before it, each
+// state found again by its hash in an index of CLI_DOC_INDEX_POSITIONS places in a movable cell, each place its state's
+// number plus 1, 0 for none, with how many states there are and the number found last; the line the walk works out
+// from, whether the cells refused its colors, the changes written to it since it was
 // stored, which its colors are passed on with, and whether the names its grammar's tokens take were passed on since it
 // was colored by the grammar; and the lines from `cached_from` to before `cached_to`, those the page holds about its
 // view, the only lines whose runs are passed on, every line until the page names them; and the characters of each line
@@ -103,8 +104,7 @@ typedef struct CliStoredText
     int hunks_known;
     char grammar[CLI_NAME_MAX_LEN];
     unsigned int names;
-    const CarcerMovableEntry *state;
-    unsigned int state_used;
+    const CarcerMovableEntry *state_cells;
     const CarcerMovableEntry *state_index;
     unsigned int state_indexed;
     unsigned int state_count;
@@ -156,6 +156,9 @@ int cli_document_paged_count(const CliDocumentCtx *args);
 void cli_document_serial_move(const CliDocumentCtx *args);
 void cli_document_holder_add(const CliDocumentCtx *args);
 void cli_document_holder_end(const CliDocumentCtx *args);
+// the states' cells of `one` given back and their count cleared, their identities' cell and the index as they are
+// (document_branch.c)
+void cli_document_states_released(const CliDocumentCtx *args);
 // the walk of the texts' colors woken for `one`, which moved: a walker started on a thread of its own where the walk
 // runs on threads, another text than those walked has lines to color, and fewer walk than the machine has processors
 // to spare; under the lock (document_branch.c)
@@ -190,14 +193,16 @@ typedef struct
     void (*holder_add)(const CliDocumentCtx *args);
     void (*holder_end)(const CliDocumentCtx *args);
     void (*wake)(const CliDocumentCtx *args);
+    void (*states_released)(const CliDocumentCtx *args);
 } CliDocumentNsTable;
-EMBED_TABLE_LAYOUT(CliDocumentNsTable, paged_count, serial_move, holder_add, holder_end, wake);
+EMBED_TABLE_LAYOUT(CliDocumentNsTable, paged_count, serial_move, holder_add, holder_end, wake, states_released);
 EMBED_TABLE_STORAGE CliDocumentNsTable cli_document_internal EMBED_UNUSED = {
     .paged_count = cli_document_paged_count,
     .serial_move = cli_document_serial_move,
     .holder_add = cli_document_holder_add,
     .holder_end = cli_document_holder_end,
     .wake = cli_document_wake,
+    .states_released = cli_document_states_released,
 };
 
 #endif
