@@ -365,7 +365,8 @@ static unsigned long long cells_in_use(unsigned long long *owners)
 }
 
 // a document of many lines opened, changed and closed over six rounds: the cells in use after the last round are no
-// more than after the first, which holds that a closed document gives its cells back
+// more than after the second, which holds that a closed document gives its cells back. The first round fills the
+// tables sized to live data, the tree's records of the file among them, which the second round reads as they stand
 static void cells_rounds_checked(void)
 {
     static char s_lines[96u * 1024u];
@@ -392,7 +393,7 @@ static void cells_rounds_checked(void)
             (void)asked("close-all", NULL);
         }
         after_last = cells_in_use(s_last_owners);
-        if (round == 0u)
+        if (round == 1u)
         {
             after_first = cells_in_use(s_first_owners);
         }
@@ -400,8 +401,8 @@ static void cells_rounds_checked(void)
     cli_check(every_round_opened && (cli_view_count() == 0u), "the rounds' document opens and closes each round");
     if (after_last > after_first)
     {
-        // each owner that holds more after the sixth round than after the first, beside the check that reads it
-        (void)fprintf(stderr, "  cells in use after the first round %llu, after the sixth %llu\n", after_first,
+        // each owner that holds more after the sixth round than after the second, beside the check that reads it
+        (void)fprintf(stderr, "  cells in use after the second round %llu, after the sixth %llu\n", after_first,
                       after_last);
         for (size_t at = 0u; (at < mmgr_owner_table_count) && (at < MMGR_CARCER_OWNERS); at += 1u)
         {

@@ -27,7 +27,8 @@
     harness.py window debug [--seconds 45]                       run under cdb, the stack where it faults
     harness.py window memory [--id N] [--port P]                 its process tree's working set, private working set and
                                                                  commit, by type and with the page's heap through a port
-    harness.py window luminance [--floor 78] [--each 6]          the dark scheme's tokens by lightness, with their rules
+    harness.py window luminance [--floor 78] [--plugins P...]    the palette's colors and the plugins' tokens by lightness,
+                                                                 the chrome off the ladder marked
     harness.py window cpu [--minutes 2] [--step 5] [--spike 150] its processor time each step, its busiest threads, a
                                                                  stack of the busiest past the spike, to window_cpu.txt
     harness.py window gpu [--seconds 50] [--id N]                its process tree's GPU 3D engine share each second and
@@ -1472,7 +1473,9 @@ def cmd_in_job(a):
     return 0
 
 
-STYLE = os.path.join(ROOT, "ui", "gui", "src-js", "style.css")
+PALETTE_HEADER = os.path.join(ROOT, "includes", "window", "palette.h")
+PALETTE_SOURCE = os.path.join(ROOT, "includes", "window", "palette.c")
+PLUGINS = os.path.join(ROOT, "ui", "plugins")
 
 
 def srgb_channel(value):
@@ -1497,32 +1500,116 @@ def color_parsed(text):
     return None
 
 
+def palette_fields():
+    """The palette's fields in order from palette.h, each (name, count), an array its count and a color 1."""
+    with open(PALETTE_HEADER, encoding="utf-8") as retained:
+        header = retained.read()
+    end = header.index("} GuiPalette;")
+    struct = header[header.rindex("typedef struct", 0, end) : end]
+    sizes = {"GUI_MARKS": 8, "GUI_TERMINAL_COLORS": 16}
+    fields = []
+    for name, count in re.findall(r"GuiColor (\w+)(?:\[(\w+)\])?;", struct):
+        fields.append((name, int(sizes.get(count, count)) if count else 1))
+    return fields
+
+
+def palette_colors():
+    """The dark palette's colors from palette.c in the fields' order: {field or field[at]: (r, g, b, alpha)}, the
+    alpha 255 where the color is opaque."""
+    with open(PALETTE_SOURCE, encoding="utf-8") as retained:
+        source = retained.read()
+    dark = source[source.index("s_dark = {") : source.index("};", source.index("s_dark = {"))]
+    values = []
+    for words in re.findall(r"GUI_RGBA?\(([^)]*)\)", dark):
+        parts = [int(part.strip().rstrip("u"), 0) for part in words.split(",")]
+        values.append(tuple(parts) + ((255,) if len(parts) == 3 else ()))
+    colors = {}
+    at = 0
+    for name, count in palette_fields():
+        for index in range(count):
+            if at < len(values):
+                colors[name if count == 1 else "%s[%d]" % (name, index)] = values[at]
+            at += 1
+    return colors
+
+
+def palette_names():
+    """Each palette field's name as Colors shows it, from the named table of palette.c: {field or field[at]: name}."""
+    with open(PALETTE_SOURCE, encoding="utf-8") as retained:
+        source = retained.read()
+    names = {}
+    for name, field in re.findall(r'PALETTE_NAMED\("([^"]+)", (\w+)\)', source):
+        names[field] = name
+    for name, field, at in re.findall(r'PALETTE_NAMED_AT\("([^"]+)", (\w+), (\d+)ULL\)', source):
+        names["%s[%s]" % (field, at)] = name
+    return names
+
+
+def plugin_tokens():
+    """Every grammar plugin's token colors: [(plugin, token, (r, g, b, alpha))]."""
+    import json
+
+    tokens = []
+    for folder in sorted(os.listdir(PLUGINS)):
+        path = os.path.join(PLUGINS, folder, "plugin.json")
+        if not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8") as retained:
+            try:
+                plugin = json.load(retained)
+            except ValueError:
+                continue
+        for token, value in (plugin.get("palette") or {}).items():
+            hexed = re.match(r"#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?$", value)
+            if hexed:
+                color = tuple(int(hexed.group(1)[at : at + 2], 16) for at in (0, 2, 4))
+                tokens.append((folder, token, color + (int(hexed.group(2), 16) if hexed.group(2) else 255,)))
+    return tokens
+
+
 def cmd_luminance(a):
-    """Every color token of the dark scheme ranked by its CIE lightness, from --floor down, with how many rules of
-    the stylesheet read it and the first of them: the tokens located as bright as the operators show beside what
-    they paint."""
-    with open(STYLE, encoding="utf-8") as retained:
-        css = retained.read()
-    root = css[: css.index('[data-scheme="light"]')]
-    tokens = {}
-    for name, value in re.findall(r"(--[\w-]+):\s*([^;]+);", root):
-        color = color_parsed(value.strip())
-        if color and name not in tokens:
-            tokens[name] = (lightness(*color), value.strip())
-    uses = {}
-    for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
-        for line in body.split(";"):
-            for name in tokens:
-                if "var(%s)" % name in line:
-                    uses.setdefault(name, []).append("%s %s" % (selector.strip().split("\n")[-1].strip()[:48], line.split(":")[0].strip()))
-    for name, (light, value) in sorted(tokens.items(), key=lambda one: -one[1][0]):
+    """The window's colors on the luminance ladder: every color of the dark palette and every token of the grammar
+    plugins' palettes ranked by CIE lightness from --floor down, with the field and the name Colors shows. The two
+    rungs the ladder holds the chrome under are printed first, the operators' and the editor text's: a color of the
+    chrome at or above the operators' rung, or above the text's, is listed as off the ladder."""
+    colors = palette_colors()
+    names = palette_names()
+    text_light = lightness(*colors["editor_text"][:3])
+    operators = [token for token in plugin_tokens() if token[1] == "operator"]
+    operator_light = max((lightness(*token[2][:3]) for token in operators), default=100.0)
+    print("rungs: operators %.1f, editor text %.1f" % (operator_light, text_light))
+    # a translucent color is seen over the chrome's surface: its lightness is the composite's
+    surface = colors["surface"][:3]
+
+    def seen(color):
+        share = color[3] / 255.0
+        return tuple(int(round(color[at] * share + surface[at] * (1.0 - share))) for at in range(3))
+
+    ranked = [(lightness(*seen(color)), field, names.get(field, ""), color) for field, color in colors.items()]
+    off = []
+    for light, field, name, color in sorted(ranked, key=lambda one: -one[0]):
         if light < a.floor:
             break
-        where = uses.get(name, [])
-        print("%5.1f  %-22s %-26s %3d uses" % (light, name, value, len(where)))
-        for one in where[: a.each]:
-            print("           %s" % one)
-    return 0
+        alpha = "" if color[3] == 255 else " alpha %d, #%02x%02x%02x seen" % ((color[3],) + seen(color))
+        chrome = not field.startswith(("editor_", "token", "terminal", "mark", "lattice")) and field not in ("caret", "match", "match_on", "bead_glint", "bead_caustic", "grain", "fuse_core")
+        # the ladder's rungs are whole numbers: a color on the text's rung is on the ladder, one above it is off
+        mark = ""
+        if chrome and round(light) >= round(operator_light):
+            mark = "  off the ladder: at the operators' rung"
+        elif chrome and round(light) > round(text_light):
+            mark = "  off the ladder: above the editor's text"
+        if mark:
+            off.append(field)
+        print("%5.1f  %-22s %-30s #%02x%02x%02x%s%s" % (light, field, name, color[0], color[1], color[2], alpha, mark))
+    print("tokens:")
+    for plugin, token, color in sorted(plugin_tokens(), key=lambda one: -lightness(*one[2][:3])):
+        light = lightness(*color[:3])
+        if light < a.floor:
+            break
+        if a.plugins and plugin not in a.plugins:
+            continue
+        print("%5.1f  %-12s %-32s #%02x%02x%02x" % (light, plugin, token, color[0], color[1], color[2]))
+    return 1 if off else 0
 
 
 def register(sub):
@@ -1708,9 +1795,9 @@ def register(sub):
     p.add_argument("--count", type=int, default=12, help="how many of the largest allocations are listed")
     p.set_defaults(fn=cmd_regions)
 
-    p = window.add_parser("luminance", help="the dark scheme's color tokens by CIE lightness, from --floor down, with the rules that paint them")
-    p.add_argument("--floor", type=float, default=78.0, help="the lightness below which tokens are left out")
-    p.add_argument("--each", type=int, default=6, help="how many of a token's rules are listed")
+    p = window.add_parser("luminance", help="the dark palette's colors and the grammar plugins' tokens by CIE lightness, from --floor down, the chrome off the ladder marked")
+    p.add_argument("--floor", type=float, default=78.0, help="the lightness below which colors are left out")
+    p.add_argument("--plugins", nargs="*", default=[], help="the plugins whose tokens are listed, every plugin where none is named")
     p.set_defaults(fn=cmd_luminance)
 
     p = window.add_parser("cpu", help="the window's processor time each --step s for --minutes, its busiest threads, "
