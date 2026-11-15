@@ -305,48 +305,42 @@ EMBED_INLINE void cli_source_date(const RunnerCommandCtx *args)
 // it leads displayed in `set`
 EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
 {
-    static char s_settings_buf[256][CLI_PATH_MAX_LEN];
-    static char s_path[1u << 16u];
 #if defined(_WIN32)
-    const char separator = ';';
+    static const char s_separator[2] = ";";
 #else
-    const char separator = ':';
+    static const char s_separator[2] = ":";
 #endif
-    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
-    const char *const names[1] = {args->name};
-    unsigned int count = 0u;
-    const char *from = s_path;
-    for (const char *place = s_path;; place += 1)
+    // the PATH's folders read off the cell the process holds them in, each without the program joined into a PATH
+    // text in a cell of the temporary tier for the call
+    const CliToolchainsFolders folders = cli_toolchains_run_folders();
+    char *const path = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_runs_owner);
+    if (path == NULL)
     {
-        if ((place[0] != separator) && (place[0] != '\0'))
-        {
-            continue;
-        }
+        return;
+    }
+    const char *const names[1] = {args->name};
+    VerbaLinea joined = {path, CLI_PATH_TEXT, 0ULL};
+    unsigned int kept = 0u;
+    for (unsigned int at = 0u; at < folders.count; at += 1u)
+    {
         char folder[CLI_PATH_MAX_LEN];
         char found[CLI_PATH_MAX_LEN];
-        VerbaLinea named = {folder, sizeof(folder), 0ULL};
-        mmgr_line_put_n(&named, from, (unsigned long long)(place - from));
-        if ((place > from) && (mmgr_line_finish(&named) != 0ULL) && (count < 256u) &&
-            !EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names, .count = 1u,
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
+                                                               .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                               .dst = folder,
+                                                               .bytes = CLI_PATH_MAX_LEN});
+        if (!EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names, .count = 1u,
                         .path = found))
         {
-            memor.cpy(
-                &(MemoriaCfg){.dst = s_settings_buf[count],
-                              .src = folder,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
-            count += 1u;
+            mmgr_line_put(&joined, (kept != 0u) ? s_separator : "");
+            mmgr_line_put(&joined, folder);
+            kept += 1u;
         }
-        if (place[0] == '\0')
-        {
-            break;
-        }
-        from = place + 1;
     }
-    EMBED_CALL(cli_path_count_size_internal.path_join, CliPathCountSizeCtx,
-               .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])s_settings_buf, .count = count, .path_out = s_path,
-               .size = sizeof(s_path));
+    (void)mmgr_line_finish(&joined);
     EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = args->command, .name = "PATH",
-               .value = s_path);
+               .value = path);
+    g_cli_guard->persistent_buf_release(path, g_cli_runs_owner);
     mmgr_line_put(args->set, (args->set->at != 0ULL) ? "\nPATH=<PATH without " : "PATH=<PATH without ");
     mmgr_line_put(args->set, args->name);
     mmgr_line_ch(args->set, '>');

@@ -145,7 +145,7 @@ struct CliBinaryPathReportCfg
 struct CliBinaryPathOriorPathCfg
 {
     const char *path;
-    const char (*orior_path)[CLI_PATH_MAX_LEN];
+    const CarcerMovableEntry *orior_path;
     unsigned int count;
     CliBinaryReport *report;
     VerbaLinea *err_msg;
@@ -171,7 +171,7 @@ struct CliBinaryBytesSizeCfg
 struct CliBinaryPathOriorPathCountCfg
 {
     const char *path;
-    const char (*orior_path)[CLI_PATH_MAX_LEN];
+    const CarcerMovableEntry *orior_path;
     unsigned int count;
     QuerySink sink;
 };

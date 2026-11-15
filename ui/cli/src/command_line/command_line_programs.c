@@ -9,7 +9,6 @@
 #include "../programs/binary.h"
 #include "../programs/executables.h"
 #include "../programs/sea.h"
-#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 #include "callback_cfg.h"
 #include "command_line_internal.h"
@@ -120,37 +119,12 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     }
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = read_state->path,
                .size = sizeof(read_state->path));
-#if defined(_WIN32)
-    const char between = ';';
-#else
-    const char between = ':';
-#endif
-    // the PATH's folders in a cell of the max it names, one for each mark between them and one more
-    unsigned int max = 1u;
-    max += (unsigned int)EMBED_CALL(
-        cli_text_size_byte.count, CliTextSizeByteCfg, .text = read_state->path,
-        .size = cellul.len(&(CatenaFinitaCfg){.src = read_state->path, .cap = CLI_POOL_BYTES}), .byte = between);
-    char (*const folder)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, g_cli_command_line_owner);
-    unsigned int folders = 0u;
-    for (const char *part = read_state->path; (folder != NULL) && (part != NULL) && (folders < max);)
-    {
-        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES, .byte = between});
-        const embed_word size = (end != NULL) ? (embed_word)(end - part)
-                                              : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_POOL_BYTES});
-        if ((size > 0u) && (size < CLI_PATH_MAX_LEN))
-        {
-            memor.cpy(&(MemoriaCfg){.dst = folder[folders], .src = part, .bytes = size});
-            folder[folders][size] = '\0';
-            folders += 1u;
-        }
-        part = (end != NULL) ? end + 1 : NULL;
-    }
+    // the PATH's folders in the cell the process holds them in
+    const CliToolchainsFolders folders = cli_toolchains_run_folders();
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     const int read = EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = args->words[1],
-                                .orior_path = (const char (*)[CLI_PATH_MAX_LEN])folder, .count = folders,
-                                .report = &read_state->report, .err_msg = &err_msg);
-    g_cli_guard->persistent_buf_release(folder, g_cli_command_line_owner);
+                                .orior_path = folders.cell, .count = folders.count, .report = &read_state->report,
+                                .err_msg = &err_msg);
     if (!read)
     {
         g_cli_guard->persistent_buf_release(read_state, g_cli_command_line_owner);

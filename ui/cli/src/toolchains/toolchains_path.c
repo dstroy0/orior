@@ -156,6 +156,9 @@ typedef struct
     unsigned int capacity;
     unsigned int list_entries;
     const char (*from)[CLI_PATH_MAX_LEN];
+    const CarcerMovableEntry *cell;
+    unsigned long long *bytes;
+    unsigned long long needed;
 } ToolchainsPathCtx;
 // the login shell's PATH into `path`: 1 once it has been read, its reading begun the first time it is requested
 EMBED_INLINE int cli_shell_path(const ToolchainsPathCtx *args)
@@ -497,6 +500,112 @@ void cli_toolchains_run_path(const CliToolchainsCountPathCfg *args)
 {
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg, .ahead = NULL, .count = 0u,
                .path = args->path, .size = args->size);
+}
+
+// The folders of the PATH every step runs with and of the PATH a program gets on its own: each list in a movable cell
+// the process holds, its bytes beside it, grown as the folders outgrow it
+static const CarcerMovableEntry *s_run_cell;
+static unsigned long long s_run_bytes;
+static const CarcerMovableEntry *s_system_cell;
+static unsigned long long s_system_bytes;
+
+// the cell `cell` of `bytes` grown to `needed` bytes where it is less: the cell after, NULL where the cells cannot
+// meet it
+EMBED_INLINE const CarcerMovableEntry *cli_cell_grown(const ToolchainsPathCtx *args)
+{
+    if (args->needed <= *args->bytes)
+    {
+        return args->cell;
+    }
+    if (args->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(args->cell, g_cli_toolchains_owner);
+    }
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(args->needed, g_cli_toolchains_owner);
+    *args->bytes = (cell != NULL) ? args->needed : 0ULL;
+    return cell;
+}
+
+// the folders of the PATH `text` written into the cell, each at its place, terminated, the separators found a word
+// at a time: how many
+EMBED_INLINE unsigned int cli_cell_split(const ToolchainsPathCtx *args)
+{
+    static const char s_separators[2] = {CLI_SEPARATOR, '\0'};
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_PATH_TEXT});
+    unsigned int count = 0u;
+    unsigned long long from = 0ULL;
+    while (from <= length)
+    {
+        const unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                 .text = args->text, .at = from, .size = length, .set = s_separators);
+        char folder[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {folder, sizeof(folder), 0ULL};
+        mmgr_line_put_n(&line, args->text + from, at - from);
+        if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
+        {
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->cell,
+                                                                    .offset = (embed_word)count * CLI_PATH_MAX_LEN,
+                                                                    .src = folder,
+                                                                    .bytes = line.at + 1ULL});
+            count += 1u;
+        }
+        from = at + 1ULL;
+    }
+    return count;
+}
+
+CliToolchainsFolders cli_toolchains_run_folders(void)
+{
+    CliToolchainsFolders folders = {NULL, 0u};
+    // the PATH's text in a cell of the temporary tier for the call, its folders into the process's cell, one slot for
+    // each separator and one more
+    char *const text = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
+    if (text == NULL)
+    {
+        return folders;
+    }
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = text, .size = CLI_PATH_TEXT);
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_PATH_TEXT});
+    const unsigned long long needed =
+        (1ULL + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = length,
+                           .byte = CLI_SEPARATOR)) *
+        CLI_PATH_MAX_LEN;
+    s_run_cell = EMBED_CALL(cli_cell_grown, ToolchainsPathCtx, .cell = s_run_cell, .bytes = &s_run_bytes,
+                            .needed = needed);
+    folders.cell = s_run_cell;
+    folders.count =
+        (s_run_cell != NULL) ? EMBED_CALL(cli_cell_split, ToolchainsPathCtx, .text = text, .cell = s_run_cell) : 0u;
+    g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
+    return folders;
+}
+
+CliToolchainsFolders cli_toolchains_system_folders(void)
+{
+    CliToolchainsFolders folders = {NULL, 0u};
+    // the system's folders read at their bound into a cell of the temporary tier for the call, then written into the
+    // process's cell at their count
+    char(*const scratch)[CLI_PATH_MAX_LEN] = g_cli_guard->temporary_buf_alloc(
+        (unsigned long long)CLI_PATH_FOLDERS * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
+    if (scratch == NULL)
+    {
+        return folders;
+    }
+    const unsigned int count = EMBED_CALL(cli_toolchains_count.system_path, CliToolchainsCountCfg, .folders = scratch,
+                                          .capacity = CLI_PATH_FOLDERS);
+    s_system_cell = EMBED_CALL(cli_cell_grown, ToolchainsPathCtx, .cell = s_system_cell, .bytes = &s_system_bytes,
+                               .needed = (unsigned long long)count * CLI_PATH_MAX_LEN);
+    for (unsigned int at = 0u; (s_system_cell != NULL) && (at < count); at += 1u)
+    {
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_system_cell,
+            .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+            .src = scratch[at],
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = scratch[at], .cap = CLI_PATH_MAX_LEN}) + 1ULL});
+    }
+    folders.cell = s_system_cell;
+    folders.count = (s_system_cell != NULL) ? count : 0u;
+    g_cli_guard->persistent_buf_release(scratch, g_cli_toolchains_owner);
+    return folders;
 }
 
 unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args)

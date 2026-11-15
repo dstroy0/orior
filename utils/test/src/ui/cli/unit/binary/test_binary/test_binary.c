@@ -149,7 +149,13 @@ static void program_read(void)
     windows_program_written(s_main, 3u);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_app, .relative = "main.exe", .joined = s_program);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = s_program, .bytes = s_bytes, .size = sizeof(s_bytes)));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = s_program, .orior_path = (const char (*)[CLI_PATH_MAX_LEN])s_tools, .count = 1u, .report = &s_report, .err_msg = &s_err_msg));
+    // the tools folder handed as orior's PATH in a movable cell, as the process hands its folders
+    const CarcerMovableEntry *const folders = g_cli_guard->movable_buf_alloc(CLI_PATH_MAX_LEN, g_cli_text_owner);
+    TEST_ASSERT_NOT_NULL(folders);
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = folders, .offset = 0u, .src = s_tools[0], .bytes = CLI_PATH_MAX_LEN});
+    const int read = EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = s_program, .orior_path = folders, .count = 1u, .report = &s_report, .err_msg = &s_err_msg);
+    (void)g_cli_guard->movable_buf_release(folders, g_cli_text_owner);
+    TEST_ASSERT_TRUE(read);
 }
 #endif
 

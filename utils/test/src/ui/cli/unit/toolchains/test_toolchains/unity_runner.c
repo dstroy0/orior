@@ -32,6 +32,8 @@ extern void test_a_star_matches_the_run_after_it(void);
 extern void test_a_star_matches_a_run_with_dots(void);
 extern void test_the_end_after_a_star_must_match(void);
 extern void test_versions_sort_as_numbers(void);
+extern void test_the_run_paths_folders_fill_the_processs_cell_at_their_count(void);
+extern void test_the_systems_folders_fill_the_processs_cell(void);
 extern void test_a_folder_is_added_at_the_paths_end(void);
 extern void test_a_folder_already_on_the_path_is_not_added_twice(void);
 extern void test_an_empty_path_contains_the_folder_added(void);
@@ -122,12 +124,14 @@ int main(void)
   run_test(test_a_star_matches_a_run_with_dots, "test_a_star_matches_a_run_with_dots", 422);
   run_test(test_the_end_after_a_star_must_match, "test_the_end_after_a_star_must_match", 427);
   run_test(test_versions_sort_as_numbers, "test_versions_sort_as_numbers", 432);
-  run_test(test_a_folder_is_added_at_the_paths_end, "test_a_folder_is_added_at_the_paths_end", 438);
-  run_test(test_a_folder_already_on_the_path_is_not_added_twice, "test_a_folder_already_on_the_path_is_not_added_twice", 445);
-  run_test(test_an_empty_path_contains_the_folder_added, "test_an_empty_path_contains_the_folder_added", 451);
-  run_test(test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator, "test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator", 458);
-  run_test(test_a_tool_in_a_chosen_folder_is_found_there_first, "test_a_tool_in_a_chosen_folder_is_found_there_first", 468);
-  run_test(test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once, "test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once", 500);
+  run_test(test_the_run_paths_folders_fill_the_processs_cell_at_their_count, "test_the_run_paths_folders_fill_the_processs_cell_at_their_count", 438);
+  run_test(test_the_systems_folders_fill_the_processs_cell, "test_the_systems_folders_fill_the_processs_cell", 480);
+  run_test(test_a_folder_is_added_at_the_paths_end, "test_a_folder_is_added_at_the_paths_end", 492);
+  run_test(test_a_folder_already_on_the_path_is_not_added_twice, "test_a_folder_already_on_the_path_is_not_added_twice", 499);
+  run_test(test_an_empty_path_contains_the_folder_added, "test_an_empty_path_contains_the_folder_added", 505);
+  run_test(test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator, "test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator", 512);
+  run_test(test_a_tool_in_a_chosen_folder_is_found_there_first, "test_a_tool_in_a_chosen_folder_is_found_there_first", 522);
+  run_test(test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once, "test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once", 554);
 
   return UNITY_END();
 }

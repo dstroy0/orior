@@ -232,33 +232,31 @@ int cli_runner_bash(const CliRunnerNameCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "bash", .cap = CLI_POOL_BYTES}) + 1u});
     return 1;
 #else
-    static char s_folders[256][CLI_PATH_MAX_LEN];
-    const unsigned int count = EMBED_CALL(cli_capacity_folders_internal.path_folders, CliCapacityFoldersCtx,
-                                          .folders = s_folders, .capacity_u32 = 256u);
-    for (unsigned int at = 0u; at < count; at += 1u)
+    // the folders of the PATH every step runs with, each read off the cell the process holds them in
+    const CliToolchainsFolders folders = cli_toolchains_run_folders();
+    for (unsigned int at = 0u; at < folders.count; at += 1u)
     {
+        char folder[CLI_PATH_MAX_LEN];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
+                                                               .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                               .dst = folder,
+                                                               .bytes = CLI_PATH_MAX_LEN});
         char git[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(cli_found_in, RunnerCtx, .under = s_folders[at], .name = "\\git.exe", .path = git))
+        if (!EMBED_CALL(cli_found_in, RunnerCtx, .under = folder, .name = "\\git.exe", .path = git))
         {
             continue;
         }
-        // the folder above the one git is in
-        char *cut = EMBED_CALL(
-            cli_text_byte.last, CliTextByteCfg, .text = s_folders[at],
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_POOL_BYTES}), .byte = '\\');
-        char *const forward = EMBED_CALL(
-            cli_text_byte.last, CliTextByteCfg, .text = s_folders[at],
-            .length_value = cellul.len(&(CatenaFinitaCfg){.src = s_folders[at], .cap = CLI_POOL_BYTES}), .byte = '/');
-        cut = ((forward != NULL) && ((cut == NULL) || (forward > cut))) ? forward : cut;
-        if (cut == NULL)
+        // the folder above the one git is in: the folder cut at its last slash of either type, found a word at a time
+        const unsigned long long past_slash = EMBED_CALL(
+            cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
+            .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_PATH_MAX_LEN}), .set = "\\/");
+        if (past_slash == 0ULL)
         {
             continue;
         }
-        cut[0] = '\0';
-        if (EMBED_CALL(cli_found_in, RunnerCtx, .under = s_folders[at], .name = "\\bin\\bash.exe",
-                       .path = args->path) ||
-            EMBED_CALL(cli_found_in, RunnerCtx, .under = s_folders[at], .name = "\\usr\\bin\\bash.exe",
-                       .path = args->path))
+        folder[past_slash - 1ULL] = '\0';
+        if (EMBED_CALL(cli_found_in, RunnerCtx, .under = folder, .name = "\\bin\\bash.exe", .path = args->path) ||
+            EMBED_CALL(cli_found_in, RunnerCtx, .under = folder, .name = "\\usr\\bin\\bash.exe", .path = args->path))
         {
             return 1;
         }

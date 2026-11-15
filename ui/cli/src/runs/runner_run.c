@@ -112,33 +112,10 @@ static int cli_find_init(const RunnerRunCtx *args)
     mmgr_line_finish(&why);
     if (args->made->found)
     {
-        static char s_path[1u << 16u];
-        static char s_folders[256][CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path,
-                   .size = sizeof(s_path));
-#if defined(_WIN32)
-        const char separator = ';';
-#else
-        const char separator = ':';
-#endif
-        unsigned int count = 0u;
-        const char *from = s_path;
-        for (const char *at = s_path;; at += 1)
-        {
-            if (((at[0] == separator) || (at[0] == '\0')) && (at > from) && (count < 256u))
-            {
-                VerbaLinea line = {s_folders[count], CLI_PATH_MAX_LEN, 0ULL};
-                mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
-                count += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
-            }
-            if (at[0] == '\0')
-            {
-                break;
-            }
-            from = (at[0] == separator) ? (at + 1) : from;
-        }
+        // the folders of the PATH every step runs with, in the cell the process holds them in
+        const CliToolchainsFolders folders = cli_toolchains_run_folders();
         EMBED_CALL(cli_binary_path_orior_path_count.print, CliBinaryPathOriorPathCountCfg, .path = args->made->file,
-                   .orior_path = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = count, .sink = sink);
+                   .orior_path = folders.cell, .count = folders.count, .sink = sink);
         EMBED_CALL(cli_executables_root.built_advice, CliExecutablesRootCfg, .root = args->run->root, .id = id,
                    .lines = args->run->lines, .sink = sink);
         EMBED_CALL(cli_executables_table.compare_build, CliExecutablesCfg, .root = args->run->root, .id = id,

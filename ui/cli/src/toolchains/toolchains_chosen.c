@@ -86,6 +86,7 @@ typedef struct
     const char *program;
     const char *text;
     unsigned long long against;
+    unsigned long long needed;
 } ToolchainsChosenCtx;
 // The folders the reader gave, by tool, read into a tree sized to them with capacity for one folder more, which
 // persistent_buf_release releases: the object of them
@@ -123,10 +124,30 @@ int cli_toolchains_on_choose(const CliToolchainsIdFolderCfg *args)
     return supplied != NULL;
 }
 
+// The toolchains the reader chose, each a record of its id then its folder, in a movable cell the process holds and
+// grows as the records outgrow it
+#define CLI_CHOSEN_RECORD (CLI_NAME_MAX_LEN + CLI_PATH_MAX_LEN)
+static const CarcerMovableEntry *s_chosen_cell;
+static unsigned long long s_chosen_bytes;
+
+// the process's cell grown to `needed` bytes where it is less: the cell after, NULL where the cells cannot meet it
+EMBED_INLINE const CarcerMovableEntry *cli_chosen_cell_grown(const ToolchainsChosenCtx *args)
+{
+    if (args->needed <= s_chosen_bytes)
+    {
+        return s_chosen_cell;
+    }
+    if (s_chosen_cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(s_chosen_cell, g_cli_toolchains_found_owner);
+    }
+    s_chosen_cell = g_cli_guard->movable_buf_alloc(args->needed, g_cli_toolchains_found_owner);
+    s_chosen_bytes = (s_chosen_cell != NULL) ? args->needed : 0ULL;
+    return s_chosen_cell;
+}
+
 void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
 {
-    static char s_ids[256][CLI_NAME_MAX_LEN];
-    static char s_folders[256][CLI_PATH_MAX_LEN];
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
@@ -141,19 +162,34 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
         return;
     }
     EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = &json, .object = chosen);
-    for (unsigned int item = json.node[chosen].first; (item != CLI_JSON_NONE) && (count < 256u);
+    // the items counted first, the process's cell grown to a record for each, then each written as its id and folder
+    unsigned int items = 0u;
+    for (unsigned int item = json.node[chosen].first; item != CLI_JSON_NONE; item = json.node[item].next)
+    {
+        items += 1u;
+    }
+    const CarcerMovableEntry *const cell = EMBED_CALL(cli_chosen_cell_grown, ToolchainsChosenCtx,
+                                                      .needed = (unsigned long long)items * CLI_CHOSEN_RECORD);
+    for (unsigned int item = json.node[chosen].first; (item != CLI_JSON_NONE) && (cell != NULL);
          item = json.node[item].next)
     {
         const char *const folder = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                               .json_read = &json, .node = item, .length_pointer = NULL);
         if (folder != NULL)
         {
-            (void)cellul.copy(&(CatenaFinitaCfg){
-                .dst = s_ids[count], .src = json.text + json.node[item].key, .cap = CLI_NAME_MAX_LEN});
-            memor.cpy(
-                &(MemoriaCfg){.dst = s_folders[count],
-                              .src = folder,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
+            char id[CLI_NAME_MAX_LEN];
+            (void)cellul.copy(
+                &(CatenaFinitaCfg){.dst = id, .src = json.text + json.node[item].key, .cap = CLI_NAME_MAX_LEN});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = cell,
+                .offset = (embed_word)count * CLI_CHOSEN_RECORD,
+                .src = id,
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN}) + 1ULL});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = cell,
+                .offset = ((embed_word)count * CLI_CHOSEN_RECORD) + CLI_NAME_MAX_LEN,
+                .src = folder,
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_PATH_MAX_LEN}) + 1ULL});
             count += 1u;
         }
     }
@@ -163,8 +199,16 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(args->each_callback, CliEachIdFolderCfg, .context = args->context, .id = s_ids[at],
-                   .folder = s_folders[at]);
+        char id[CLI_NAME_MAX_LEN];
+        char folder[CLI_PATH_MAX_LEN];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = cell, .offset = (embed_word)at * CLI_CHOSEN_RECORD, .dst = id, .bytes = CLI_NAME_MAX_LEN});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell,
+                                                               .offset = ((embed_word)at * CLI_CHOSEN_RECORD) +
+                                                                         CLI_NAME_MAX_LEN,
+                                                               .dst = folder,
+                                                               .bytes = CLI_PATH_MAX_LEN});
+        EMBED_CALL(args->each_callback, CliEachIdFolderCfg, .context = args->context, .id = id, .folder = folder);
     }
 }
 

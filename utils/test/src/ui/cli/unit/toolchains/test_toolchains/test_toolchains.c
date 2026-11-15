@@ -435,6 +435,60 @@ void test_versions_sort_as_numbers(void)
     TEST_ASSERT_GREATER_THAN_INT(0, EMBED_CALL(cli_toolchains_a_internal.natural, CliToolchainsACtx, .a = "Python312", .b = "Python39"));
 }
 
+void test_the_run_paths_folders_fill_the_processs_cell_at_their_count(void)
+{
+    // the folders are as many as the PATH's entries that are no empty text, each at its place in the cell
+    static char s_path[1u << 17u];
+    EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
+    unsigned int expected = 0u;
+    char first[CLI_PATH_MAX_LEN] = {0};
+    const char *from = s_path;
+    for (const char *at = s_path;; at += 1)
+    {
+        if ((at[0] == TOOLCHAINS_SEPARATOR[0]) || (at[0] == '\0'))
+        {
+            if ((at > from) && ((unsigned long long)(at - from) < CLI_PATH_MAX_LEN))
+            {
+                if (expected == 0u)
+                {
+                    memor.cpy(&(MemoriaCfg){.dst = first, .src = from, .bytes = (embed_word)(at - from)});
+                }
+                expected += 1u;
+            }
+            if (at[0] == '\0')
+            {
+                break;
+            }
+            from = at + 1;
+        }
+    }
+    const CliToolchainsFolders folders = cli_toolchains_run_folders();
+    TEST_ASSERT_EQUAL_UINT(expected, folders.count);
+    TEST_ASSERT_TRUE((expected == 0u) || (folders.cell != NULL));
+    if (expected != 0u)
+    {
+        char read[CLI_PATH_MAX_LEN];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell, .offset = 0u, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+        TEST_ASSERT_EQUAL_STRING(first, read);
+    }
+    // a second reading fills the same cell: the process holds one
+    const CliToolchainsFolders again = cli_toolchains_run_folders();
+    TEST_ASSERT_EQUAL_UINT(folders.count, again.count);
+    TEST_ASSERT_TRUE(folders.cell == again.cell);
+}
+
+void test_the_systems_folders_fill_the_processs_cell(void)
+{
+    const CliToolchainsFolders folders = cli_toolchains_system_folders();
+    TEST_ASSERT_TRUE((folders.count == 0u) || (folders.cell != NULL));
+    for (unsigned int at = 0u; at < folders.count; at += 1u)
+    {
+        char read[CLI_PATH_MAX_LEN];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+        TEST_ASSERT_TRUE(read[0] != '\0');
+    }
+}
+
 void test_a_folder_is_added_at_the_paths_end(void)
 {
     char out[256];

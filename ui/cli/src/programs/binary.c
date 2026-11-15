@@ -26,7 +26,6 @@ typedef struct
 
 static CliQueued s_queue[CLI_BINARY_LIBRARIES];
 static char s_seen[CLI_BINARY_LIBRARIES][CLI_NAME_MAX_LEN];
-static char s_system_path[CLI_PATH_FOLDERS][CLI_PATH_MAX_LEN];
 
 unsigned long long cli_binary_number(const CliBinaryBytesSizeCfg *args)
 {
@@ -76,9 +75,10 @@ typedef struct
     unsigned int machine;
     char (*folders)[CLI_PATH_MAX_LEN];
     const char (*folders_callback)[CLI_PATH_MAX_LEN];
+    const CarcerMovableEntry *folders_cell;
     char *at;
     const char *path;
-    const char (*orior_path)[CLI_PATH_MAX_LEN];
+    const CarcerMovableEntry *orior_path;
     unsigned int orior_count;
     CliBinaryReport *report;
     VerbaLinea *err_msg;
@@ -283,6 +283,30 @@ EMBED_INLINE int cli_in_folders(const BinaryCtx *args)
     return 0;
 }
 
+// the library `name` in one of the `count` folders of the cell, each CLI_PATH_MAX_LEN bytes from its place, its path
+// into `at`: 1, or 0
+EMBED_INLINE int cli_in_cell(const BinaryCtx *args)
+{
+    for (unsigned int each = 0u; each < args->count; each += 1u)
+    {
+        char folder[CLI_PATH_MAX_LEN];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->folders_cell,
+                                                               .offset = (embed_word)each * CLI_PATH_MAX_LEN,
+                                                               .dst = folder,
+                                                               .bytes = CLI_PATH_MAX_LEN});
+        VerbaLinea line = {args->at, CLI_PATH_MAX_LEN, 0ULL};
+        mmgr_line_put(&line, folder);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, args->name);
+        if ((mmgr_line_finish(&line) != 0ULL) &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->at))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // A Windows program's libraries read into the report, each looked for and those found beside it or on a PATH read for
 // their own in turn
 EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
@@ -309,8 +333,7 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
                                 .src = ".",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_POOL_BYTES}) + 1u});
     }
-    const unsigned int system_count = EMBED_CALL(cli_toolchains_count.system_path, CliToolchainsCountCfg,
-                                                 .folders = s_system_path, .capacity = CLI_PATH_FOLDERS);
+    const CliToolchainsFolders system_folders = cli_toolchains_system_folders();
     unsigned int machine = 0u;
     const int imports =
         EMBED_CALL(cli_binary_err_msg.pe_imports, CliBinaryErrMsgCfg, .bytes = bytes, .size = size, .machine = &machine,
@@ -397,13 +420,12 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
                 library->found = CLI_FOUND_SYSTEM;
             }
         }
-        else if (EMBED_CALL(cli_in_folders, BinaryCtx,
-                            .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])s_system_path, .count = system_count,
+        else if (EMBED_CALL(cli_in_cell, BinaryCtx, .folders_cell = system_folders.cell, .count = system_folders.count,
                             .name = one->name, .at = library->at))
         {
             library->found = CLI_FOUND_SYSTEM_PATH;
         }
-        else if (EMBED_CALL(cli_in_folders, BinaryCtx, .folders_callback = args->orior_path, .count = args->orior_count,
+        else if (EMBED_CALL(cli_in_cell, BinaryCtx, .folders_cell = args->orior_path, .count = args->orior_count,
                             .name = one->name, .at = library->at))
         {
             library->found = CLI_FOUND_ORIOR_PATH;
@@ -455,7 +477,7 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
 int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
 {
     const char *path = args->path;
-    const char (*orior_path)[CLI_PATH_MAX_LEN] = args->orior_path;
+    const CarcerMovableEntry *const orior_path = args->orior_path;
     CliBinaryReport *report = args->report;
     VerbaLinea *err_msg = args->err_msg;
     report->libraries = 0u;

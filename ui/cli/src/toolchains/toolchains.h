@@ -169,6 +169,17 @@ unsigned int cli_toolchains_system_path(const CliToolchainsCountCfg *args);
 // front of it
 void cli_toolchains_run_path(const CliToolchainsCountPathCfg *args);
 void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args);
+// Folders in a movable cell the process holds: the cell, each folder CLI_PATH_MAX_LEN bytes from its place,
+// terminated, and how many; a cell of NULL with a count of 0 where the cells cannot meet them
+typedef struct
+{
+    const CarcerMovableEntry *cell;
+    unsigned int count;
+} CliToolchainsFolders;
+// the PATH every step runs with as its folders, read anew at each call into the process's cell, which grows as the
+// folders outgrow it; and the folders of the PATH a program gets when it is opened on its own, the same way
+CliToolchainsFolders cli_toolchains_run_folders(void);
+CliToolchainsFolders cli_toolchains_system_folders(void);
 // the folders that exist of those written by system as `positions` writes them, each pattern's in order, put into
 // `folders` from `count`: the count after
 unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args);
