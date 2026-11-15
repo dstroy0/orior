@@ -282,6 +282,22 @@ void test_the_searchs_cells_are_released_as_it_ends(void)
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_cargo_owner));
 }
 
+void test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back(void)
+{
+    static const char *const s_supplied[3] = {"crate/src/lib.rs::at_top", "crate/src/main.rs::in_main",
+                                              "crate/src/flat/below.rs::under_flat"};
+    char dir[CLI_PATH_MAX_LEN];
+    package_found();
+    const unsigned long long found_in_use = mmgr_owner_in_use(g_cli_cargo_owner);
+    (void)found_written();
+    TEST_ASSERT_TRUE(EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = "cargo_found",
+                                .full = dir, .capacity = CLI_PATH_MAX_LEN));
+    const unsigned int targets = EMBED_CALL(cli_cargo_tests_input_table.cargo_targets_free, CliCargoTestsInputCfg,
+                                            .root = dir, .supplied = s_supplied, .count = 3u);
+    TEST_ASSERT_EQUAL_UINT(2u, targets);
+    TEST_ASSERT_EQUAL_UINT64(found_in_use, mmgr_owner_in_use(g_cli_cargo_owner));
+}
+
 void test_a_rust_test_is_rust(void)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = "crate/src/lib.rs::at_top"));

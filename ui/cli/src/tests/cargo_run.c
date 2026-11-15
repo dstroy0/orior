@@ -22,12 +22,31 @@ typedef struct
 // requested of it are reported
 #define CLI_CARGO_NAMES_MAX 16000ULL
 
-// the max targets a run reaches
-#define CLI_CARGO_GROUPS 1024u
-
 static CliCargoTests s_tests;
-static CliCargoGroup s_groups[CLI_CARGO_GROUPS];
-static unsigned int s_order[CLI_CARGO_FOUND];
+// the run's targets, the tests requested in their targets' order and each test's target: one take of the run sized to
+// the tests found, held until the run's workers are started
+static char *s_run_cell;
+static CliCargoGroup *s_groups;
+static unsigned int *s_order;
+
+// the run's take sized to the tests found: the targets, the order and each test's target after
+EMBED_INLINE void run_cell_take(void)
+{
+    const unsigned long long found = s_tests.count;
+    s_run_cell = g_cli_guard->temporary_buf_alloc(
+        found * (sizeof(CliCargoGroup) + (2ULL * sizeof(unsigned int))), g_cli_cargo_owner);
+    s_groups = (CliCargoGroup *)s_run_cell;
+    s_order = (unsigned int *)(s_run_cell + (found * sizeof(CliCargoGroup)));
+}
+
+// the run's take given back
+EMBED_INLINE void run_cell_release(void)
+{
+    g_cli_guard->persistent_buf_release(s_run_cell, g_cli_cargo_owner);
+    s_run_cell = NULL;
+    s_groups = NULL;
+    s_order = NULL;
+}
 
 typedef struct
 {
@@ -82,8 +101,13 @@ static unsigned int run_group(const CargoRunCtx *args)
     const char *root = args->root;
     unsigned int count = args->count;
     EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = root, .tests = &s_tests);
+    run_cell_take();
+    if (s_run_cell == NULL)
+    {
+        return 0u;
+    }
     unsigned int groups = 0u;
-    unsigned int group_of[CLI_CARGO_FOUND] = {0u};
+    unsigned int *const group_of = s_order + s_tests.count;
     for (unsigned int at = 0u; at < s_tests.count; at += 1u)
     {
         unsigned int group = 0u;
@@ -93,13 +117,13 @@ static unsigned int run_group(const CargoRunCtx *args)
         {
             group += 1u;
         }
-        if ((group == groups) && (groups < CLI_CARGO_GROUPS))
+        if (group == groups)
         {
             s_groups[groups] = (CliCargoGroup){at, 0u, 0u, 0u, 1};
             groups += 1u;
         }
         group_of[at] = group;
-        s_groups[group].total += (group < groups) ? 1u : 0u;
+        s_groups[group].total += 1u;
     }
     unsigned int positioned = 0u;
     unsigned int group_count = 0u;
@@ -135,6 +159,7 @@ unsigned int cli_cargo_targets_free(const CliCargoTestsInputCfg *args)
 {
     const unsigned int groups =
         EMBED_CALL(run_group, CargoRunCtx, .root = args->root, .supplied = args->supplied, .count = args->count);
+    run_cell_release();
     return groups;
 }
 
@@ -469,7 +494,9 @@ int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args)
                              .err_msg = args->err_msg);
         group += 1u;
     }
-    // each worker took its tests' names into the run, so the tests found are given back once every one is started
+    // each worker took its tests' names into the run: the tests found and the run's take are given back once every one
+    // is started
+    run_cell_release();
     CliCargoPiece *piece = s_tests.pieces;
     while (piece != NULL)
     {
