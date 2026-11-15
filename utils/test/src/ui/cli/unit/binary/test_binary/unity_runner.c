@@ -12,6 +12,7 @@ extern void test_a_windows_program_releases_its_machine_imports_and_delayed_impo
 extern void test_windows_a_system_library_is_the_systems(void);
 extern void test_windows_a_library_in_oriors_folders_is_found_through_them(void);
 extern void test_windows_a_library_a_library_loads_found_nowhere_is_missing(void);
+extern void test_windows_a_library_two_files_load_is_reported_once_by_the_first(void);
 extern void test_windows_a_delayed_import_found_nowhere_is_missing(void);
 extern void test_windows_the_library_only_impero_finds_is_reported(void);
 extern void test_windows_only_the_library_impero_finds_is_copied_adjacent_the_program(void);
@@ -84,13 +85,14 @@ int main(void)
   run_test(test_windows_a_system_library_is_the_systems, "test_windows_a_system_library_is_the_systems", 186);
   run_test(test_windows_a_library_in_oriors_folders_is_found_through_them, "test_windows_a_library_in_oriors_folders_is_found_through_them", 196);
   run_test(test_windows_a_library_a_library_loads_found_nowhere_is_missing, "test_windows_a_library_a_library_loads_found_nowhere_is_missing", 206);
-  run_test(test_windows_a_delayed_import_found_nowhere_is_missing, "test_windows_a_delayed_import_found_nowhere_is_missing", 216);
-  run_test(test_windows_the_library_only_impero_finds_is_reported, "test_windows_the_library_only_impero_finds_is_reported", 226);
-  run_test(test_windows_only_the_library_impero_finds_is_copied_adjacent_the_program, "test_windows_only_the_library_impero_finds_is_copied_adjacent_the_program", 240);
-  run_test(test_a_linux_program_releases_the_libraries_it_needs, "test_a_linux_program_releases_the_libraries_it_needs", 255);
-  run_test(test_a_linux_program_releases_its_run_paths, "test_a_linux_program_releases_its_run_paths", 264);
-  run_test(test_a_linux_program_releases_the_newest_glibc_it_requires, "test_a_linux_program_releases_the_newest_glibc_it_requires", 271);
-  run_test(test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths, "test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths", 279);
+  run_test(test_windows_a_library_two_files_load_is_reported_once_by_the_first, "test_windows_a_library_two_files_load_is_reported_once_by_the_first", 216);
+  run_test(test_windows_a_delayed_import_found_nowhere_is_missing, "test_windows_a_delayed_import_found_nowhere_is_missing", 227);
+  run_test(test_windows_the_library_only_impero_finds_is_reported, "test_windows_the_library_only_impero_finds_is_reported", 237);
+  run_test(test_windows_only_the_library_impero_finds_is_copied_adjacent_the_program, "test_windows_only_the_library_impero_finds_is_copied_adjacent_the_program", 251);
+  run_test(test_a_linux_program_releases_the_libraries_it_needs, "test_a_linux_program_releases_the_libraries_it_needs", 266);
+  run_test(test_a_linux_program_releases_its_run_paths, "test_a_linux_program_releases_its_run_paths", 275);
+  run_test(test_a_linux_program_releases_the_newest_glibc_it_requires, "test_a_linux_program_releases_the_newest_glibc_it_requires", 282);
+  run_test(test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths, "test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths", 290);
 
   return UNITY_END();
 }

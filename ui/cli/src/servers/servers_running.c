@@ -117,8 +117,6 @@ void cli_servers_let_go(void)
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_published);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_texts);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_parses);
-    EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_inspected);
-    cli_servers_inspect_let_go();
     const unsigned int reserved = running_alloc_all();
     for (unsigned int at = 0u; at < reserved; at += 1u)
     {

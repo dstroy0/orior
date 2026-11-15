@@ -78,13 +78,11 @@
 #define GUI_WINDOW_FORMAT_ON_SAVE_KEY "format-on-save"
 #define GUI_WINDOW_TRIM_KEY "trim"
 #define GUI_WINDOW_FINAL_NEWLINE_KEY "final-newline"
-// the Edit menu's settings: the continuation indents, the operator sign's line, the documentation margin and the
-// docstring's form; the key a retained macro is saved under, the name after it; and the max bytes read off the clipboard
-// for a comparison
+// the Edit menu's settings: the continuation indents, the operator sign's line and the documentation margin; the key
+// a retained macro is saved under, the name after it; and the max bytes read off the clipboard for a comparison
 #define GUI_WINDOW_CONTINUATION_KEY "continuation"
 #define GUI_WINDOW_OPERATOR_KEY "operator-next-line"
 #define GUI_WINDOW_DOC_MARGIN_KEY "doc-margin"
-#define GUI_WINDOW_DOCSTRING_FORM_KEY "docstring-form"
 #define GUI_WINDOW_MACRO_KEY "macro."
 #define GUI_WINDOW_CLIPBOARD_BYTES (1u << 20u)
 // the max Local History snapshots of a file read for Undo History, past what a file retains
@@ -3422,7 +3420,7 @@ EMBED_INLINE int window_edit_is(const GuiWindowCtx *args)
 {
     static const char *const s_edit_commands[] = {"undo-history",       "compare-clipboard", "macro-record",
                                                   "macro-play",         "macro-retain",        "continuation",
-                                                  "operator-next-line", "doc-margin",        "docstring-form"};
+                                                  "operator-next-line", "doc-margin"};
     return EMBED_CALL(window_name_among, GuiWindowCtx, .name = args->name, .words = s_edit_commands,
                       .count = sizeof(s_edit_commands) / sizeof(s_edit_commands[0]));
 }
@@ -3719,15 +3717,11 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_OPERATOR_KEY, .value = on ? "true" : "false");
         return 1;
     }
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_DOC_MARGIN_KEY) ||
-        EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_DOCSTRING_FORM_KEY))
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_DOC_MARGIN_KEY))
     {
         if (first == NULL)
         {
-            cli_notice_post(EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_DOC_MARGIN_KEY)
-                                ? "Give the margin's columns, or none."
-                                : "Name the docstring's form.",
-                            1);
+            cli_notice_post("Give the margin's columns, or none.", 1);
             return 0;
         }
         EMBED_CALL(window_setting_apply, GuiWindowCtx, .window = window, .key = name, .value = first);

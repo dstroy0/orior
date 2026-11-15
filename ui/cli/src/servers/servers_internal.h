@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_internal.h: what the servers' sources share: a server's spec as toolchains.json writes it; the servers
 // running, those that failed and how often each ended; the texts and parses of the files the editor has open; the
-// tree's check, its queue and what it receives; each file's diagnostics as its server last gave them, the inspections'
-// findings, the checkers' and what a build tool and a family give; and the shapes the servers' answers are written in
+// tree's check, its queue and what it receives; each file's diagnostics as its server last gave them, the checkers'
+// findings and what a build tool and a family give; and the shapes the servers' answers are written in
 #ifndef SERVERS_INTERNAL_H
 #define SERVERS_INTERNAL_H
 #include "../code/symbols.h"
@@ -90,8 +90,7 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 
 // how long a request is waited on, and a search of the whole tree, in milliseconds; how many files the check has open
 // at once; how long it waits for a file's diagnostics and for any after them; how often an ended server is started
-// again, at max that many times within that many milliseconds; and the max bytes of a file the inspections and the
-// check read
+// again, at max that many times within that many milliseconds; and the max bytes of a file the check reads
 #define CLI_SERVERS_REQUEST_TIMEOUT_MS 5000ull
 #define CLI_SERVERS_SEARCHING 60000ull
 #define CLI_SERVERS_CHECKING 6u
@@ -288,12 +287,10 @@ extern CliKeyed g_cli_servers_texts;
 extern CliKeyed g_cli_servers_parses;
 
 // each file's diagnostics as its server last gave them, a JSON array by its key with its URI, under their own lock;
-// and, by the file's key under the checks' lock, the inspections' findings, a JSON array with the file's URI; the
-// checkers', a JSON object of each checker's array by its id, its ids in order, with the URI; the names a build tool
-// gives the file, one to a line; and what each Python class's family sets, `class attribute` one to a line
-// (servers_emit.c)
+// and, by the file's key under the checks' lock, the checkers' findings, a JSON object of each checker's array by its
+// id, its ids in order, with the URI; the names a build tool gives the file, one to a line; and what each Python
+// class's family sets, `class attribute` one to a line (servers_emit.c)
 extern CliKeyed g_cli_servers_published;
-extern CliKeyed g_cli_servers_inspected;
 extern CliKeyed g_cli_servers_checked;
 extern CliKeyed g_cli_servers_input;
 extern CliKeyed g_cli_servers_supplied;
@@ -446,7 +443,7 @@ int cli_servers_cut_send(const CliServersErrMsgServerCtx *args);
 void cli_servers_key_get(const CliServersPathKeyCtx *args);
 void cli_servers_uri_get(const CliServersPathUriCtx *args);
 // a file's diagnostics passed on whole: its server's, less its reports of an attribute a class's family sets and of a
-// name a build tool gives it, then the inspections', then each checker's; and a checker's findings stored, `[[path,
+// name a build tool gives it, then each checker's; and a checker's findings stored, `[[path,
 // [diagnostic]]]`, each file's diagnostics passed on whose findings changed (servers_emit.c)
 void cli_servers_emit_file(const CliServersSinkKeyCtx *args);
 // every file it names passed on where `always`, changed or the same, as a file the editor opens receives its findings
@@ -455,15 +452,6 @@ void cli_servers_findings_store(const CliServersSizeCtx *args);
 // a path as it is in `tree`, its slashes forward, or whole where it is outside it or `tree` is NULL
 void cli_servers_tree_path(const CliServersPathErrMsgCtx *args);
 
-// a file's text read into the inspections' tree, or the file taken out of it where `text` is NULL, each file's
-// findings that changed passed on, the root's Python and JavaScript read first on a thread of its own where the tree
-// contains another root or none; and the same for a file of the root the tree contains (servers_inspect.c)
-void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args);
-void cli_servers_inspect_again(const CliServersPathSizeLanguageCtx *args);
-// the inspections' tree let go, as another tree opens; and the root the tree was read from into `root`, sized for
-// CLI_PATH_MAX_LEN: 1, or 0 where it contains none
-void cli_servers_inspect_let_go(void);
-int cli_servers_tree_read(const CliServersRootTypeCtx *args);
 // the diagnostics of each file whose server reports an attribute a class has not passed on whole again, as what a
 // class's family sets moved (servers_emit.c)
 void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args);
@@ -1409,14 +1397,12 @@ EMBED_TABLE_STORAGE CliServersSizeNs cli_servers_size_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*inspect)(const CliServersPathSizeRootSinkCtx *args);
     void (*run_checkers)(const CliServersPathSizeRootSinkCtx *args);
     void (*check_own)(const CliServersPathSizeRootSinkCtx *args);
     int (*own_reads)(const CliServersPathSizeRootSinkCtx *args);
 } CliServersPathSizeRootSinkNs;
-EMBED_TABLE_LAYOUT(CliServersPathSizeRootSinkNs, inspect, run_checkers, check_own, own_reads);
+EMBED_TABLE_LAYOUT(CliServersPathSizeRootSinkNs, run_checkers, check_own, own_reads);
 EMBED_TABLE_STORAGE CliServersPathSizeRootSinkNs cli_servers_path_size_root_sink_internal EMBED_UNUSED = {
-    .inspect = cli_servers_inspect,
     .run_checkers = cli_servers_run_checkers,
     .check_own = cli_servers_check_own,
     .own_reads = cli_servers_own_reads,
@@ -1424,24 +1410,13 @@ EMBED_TABLE_STORAGE CliServersPathSizeRootSinkNs cli_servers_path_size_root_sink
 
 typedef struct
 {
-    void (*inspect_again)(const CliServersPathSizeLanguageCtx *args);
     int (*plugins_open)(const CliServersPathSizeLanguageCtx *args);
     void (*plugins_change)(const CliServersPathSizeLanguageCtx *args);
 } CliServersPathSizeLanguageNs;
-EMBED_TABLE_LAYOUT(CliServersPathSizeLanguageNs, inspect_again, plugins_open, plugins_change);
+EMBED_TABLE_LAYOUT(CliServersPathSizeLanguageNs, plugins_open, plugins_change);
 EMBED_TABLE_STORAGE CliServersPathSizeLanguageNs cli_servers_path_size_language_internal EMBED_UNUSED = {
-    .inspect_again = cli_servers_inspect_again,
     .plugins_open = cli_servers_plugins_open,
     .plugins_change = cli_servers_plugins_change,
-};
-
-typedef struct
-{
-    int (*tree_read)(const CliServersRootTypeCtx *args);
-} CliServersRootTypeNs;
-EMBED_TABLE_LAYOUT(CliServersRootTypeNs, tree_read);
-EMBED_TABLE_STORAGE CliServersRootTypeNs cli_servers_root_type_internal EMBED_UNUSED = {
-    .tree_read = cli_servers_tree_read,
 };
 
 typedef struct

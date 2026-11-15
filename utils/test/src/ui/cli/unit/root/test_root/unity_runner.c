@@ -13,6 +13,7 @@ extern void test_a_mounted_path_written_relative_to_the_tree_names_the_mount(voi
 extern void test_a_path_of_the_tree_is_written_from_its_top(void);
 extern void test_a_path_climbing_out_of_a_mount_is_refused(void);
 extern void test_a_mount_that_does_not_exist_is_refused(void);
+extern void test_mounts_past_the_cells_first_size_are_each_reached(void);
 extern void test_an_unmounted_name_is_no_longer_reached(void);
 
 
@@ -82,7 +83,8 @@ int main(void)
   run_test(test_a_path_of_the_tree_is_written_from_its_top, "test_a_path_of_the_tree_is_written_from_its_top", 102);
   run_test(test_a_path_climbing_out_of_a_mount_is_refused, "test_a_path_climbing_out_of_a_mount_is_refused", 111);
   run_test(test_a_mount_that_does_not_exist_is_refused, "test_a_mount_that_does_not_exist_is_refused", 119);
-  run_test(test_an_unmounted_name_is_no_longer_reached, "test_an_unmounted_name_is_no_longer_reached", 125);
+  run_test(test_mounts_past_the_cells_first_size_are_each_reached, "test_mounts_past_the_cells_first_size_are_each_reached", 125);
+  run_test(test_an_unmounted_name_is_no_longer_reached, "test_an_unmounted_name_is_no_longer_reached", 156);
 
   return UNITY_END();
 }

@@ -29,7 +29,7 @@ static const CliLeafSegment s_directive_segments[] = {
     {"include", CLI_LEAF_INCLUDE}, {"define", CLI_LEAF_DEFINE},       {"undef", CLI_LEAF_UNDEF},
     {"if", CLI_LEAF_IF},           {"ifdef", CLI_LEAF_IFDEF},         {"ifndef", CLI_LEAF_IFNDEF},
     {"elif", CLI_LEAF_ELIF},       {"else", CLI_LEAF_ELSE},           {"endif", CLI_LEAF_ENDIF},
-    {"defined", CLI_LEAF_DEFINED}, {"continued", CLI_LEAF_CONTINUED},
+    {"defined", CLI_LEAF_DEFINED}, {"continued", CLI_LEAF_CONTINUED}, {"test", CLI_LEAF_TEST},
 };
 static const CliLeafSegment s_role_segments[] = {
     {"parameter", CLI_LEAF_PARAMETER}, {"memory", CLI_LEAF_MEMORY},
@@ -43,6 +43,7 @@ static const CliLeafSegment s_role_segments[] = {
     {"statement", CLI_LEAF_STATEMENT}, {"separator", CLI_LEAF_SEPARATOR},
     {"call", CLI_LEAF_CALL},           {"assign", CLI_LEAF_ASSIGN},
     {"function", CLI_LEAF_FUNCTION},   {"depth", CLI_LEAF_DEPTH},
+    {"module", CLI_LEAF_MODULE},
 };
 static const CliLeafSegment s_typed_segments[] = {
     {"number", CLI_LEAF_OF_NUMBER},

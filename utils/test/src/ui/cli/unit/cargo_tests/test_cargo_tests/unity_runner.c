@@ -18,6 +18,7 @@ extern void test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_t
 extern void test_a_found_test_reports_its_line(void);
 extern void test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece(void);
 extern void test_the_searchs_cells_are_released_as_it_ends(void);
+extern void test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back(void);
 extern void test_a_rust_test_is_rust(void);
 extern void test_a_rust_file_is_rust(void);
 extern void test_a_python_test_is_not_rust(void);
@@ -97,15 +98,16 @@ int main(void)
   run_test(test_a_found_test_reports_its_line, "test_a_found_test_reports_its_line", 235);
   run_test(test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece, "test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece", 252);
   run_test(test_the_searchs_cells_are_released_as_it_ends, "test_the_searchs_cells_are_released_as_it_ends", 269);
-  run_test(test_a_rust_test_is_rust, "test_a_rust_test_is_rust", 285);
-  run_test(test_a_rust_file_is_rust, "test_a_rust_file_is_rust", 290);
-  run_test(test_a_python_test_is_not_rust, "test_a_python_test_is_not_rust", 295);
-  run_test(test_a_passing_result_line, "test_a_passing_result_line", 300);
-  run_test(test_a_failing_result_line, "test_a_failing_result_line", 305);
-  run_test(test_an_ignored_result_line, "test_an_ignored_result_line", 310);
-  run_test(test_the_summary_is_no_result, "test_the_summary_is_no_result", 315);
-  run_test(test_each_failures_message_and_panic_location_are_read, "test_each_failures_message_and_panic_location_are_read", 320);
-  run_test(test_a_builds_first_error_and_its_location_are_read, "test_a_builds_first_error_and_its_location_are_read", 331);
+  run_test(test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back, "test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back", 285);
+  run_test(test_a_rust_test_is_rust, "test_a_rust_test_is_rust", 301);
+  run_test(test_a_rust_file_is_rust, "test_a_rust_file_is_rust", 306);
+  run_test(test_a_python_test_is_not_rust, "test_a_python_test_is_not_rust", 311);
+  run_test(test_a_passing_result_line, "test_a_passing_result_line", 316);
+  run_test(test_a_failing_result_line, "test_a_failing_result_line", 321);
+  run_test(test_an_ignored_result_line, "test_an_ignored_result_line", 326);
+  run_test(test_the_summary_is_no_result, "test_the_summary_is_no_result", 331);
+  run_test(test_each_failures_message_and_panic_location_are_read, "test_each_failures_message_and_panic_location_are_read", 336);
+  run_test(test_a_builds_first_error_and_its_location_are_read, "test_a_builds_first_error_and_its_location_are_read", 347);
 
   return UNITY_END();
 }

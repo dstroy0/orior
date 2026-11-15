@@ -38,7 +38,6 @@
     owner_(g_cli_git_log_owner, "cli_git_log")                           \
     owner_(g_cli_gradle_owner, "cli_gradle")                             \
     owner_(g_cli_grammars_owner, "cli_grammars")                         \
-    owner_(g_cli_inspect_owner, "cli_inspect")                           \
     owner_(g_cli_ipp_owner, "cli_ipp")                                   \
     owner_(g_cli_job_runs_owner, "cli_job_runs")                         \
     owner_(g_cli_leaves_owner, "cli_leaves")                             \

@@ -364,22 +364,6 @@ typedef struct
 
 typedef struct
 {
-    void *context;
-    const char *path;
-    const char *finding;
-    unsigned long long size;
-} CliInspectFoundCfg;
-
-typedef struct
-{
-    void *context;
-    const char *path;
-    const char *class_name;
-    const char *attribute;
-} CliInspectSuppliedCfg;
-
-typedef struct
-{
     const void *items;
     unsigned int at;
 } CliItemsAtCfg;

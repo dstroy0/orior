@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_actions.c: the quick fixes and refactorings for a span of a file: the inspections' and the checkers' fixes
+// servers_actions.c: the quick fixes and refactorings for a span of a file: the checkers' fixes
 // of the findings that touch it first, then what its server offers, then what each plugin server that has open it
 // offers, each given the diagnostics it gave that touch it, a fix offered for a diagnostic and again for its note
 // listed once, those that can be carried out first and the preferred fixes before the rest. An action of a plugin's

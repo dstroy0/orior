@@ -17,17 +17,19 @@ typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 // the cells the search for Rust's tests occupies; and a cell of `max` of `width` bytes, or of twice `*capacity` where
 // that is more, containing the `*capacity` of `cell`, `cell` given back and `*capacity` raised: the cell, or NULL where
 
-// what a token of Rust's text is: a word, `::`, or a sign
-#define CLI_RUST_WORD 0u
-#define CLI_RUST_PATH 1u
-#define CLI_RUST_MARK 2u
+// what a token of Rust's text is to the search, by its leaf's roles: an attribute that marks a test, the name a
+// function or a module is declared by, the brace that opens or closes a region, and the end of a statement
+#define CLI_RUST_TEST 0u
+#define CLI_RUST_FUNCTION 1u
+#define CLI_RUST_MODULE 2u
+#define CLI_RUST_OPEN 3u
+#define CLI_RUST_CLOSE 4u
+#define CLI_RUST_END 5u
 
-// A token: its type, its character where it is a sign, where its text starts in the file and its bytes where it is a word,
-// and the line it is on, counted from 0
+// A token: its type, where its text starts in the file and its bytes, and the line it is on, counted from 0
 typedef struct
 {
     unsigned int type;
-    unsigned int character;
     unsigned long long start;
     unsigned int size;
     unsigned int line;
@@ -82,13 +84,11 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args);
 // the targets cli_cargo_targets found given back, which their next finding does as well (cargo_targets.c)
 void cli_cargo_firsts_free(void);
 
-// the tokens of `size` bytes of Rust, each with the line it is on: comments, strings and characters passed over,
-// and a lifetime no token, counted and then put into a cell of their count, the cell of the file before given back;
-// what they contain put after what the search contains: the count put; and every cell of the search given back, the
-// search left empty (cargo_scan.c)
+// the tokens of `size` bytes of Rust read off the leaves its grammar's walk saves, each with the line it is on,
+// counted and then put into a cell of their count, the cell of the file before given back; and what they contain put
+// after what the search contains: the count put (cargo_scan.c)
 void cli_cargo_tokens(const CliCargoTestsCtx *args);
 unsigned int cli_cargo_scan(const CliCargoTestsCtx *args);
-void cli_cargo_scan_free(void);
 
 struct CliCargoTestsACtx
 {

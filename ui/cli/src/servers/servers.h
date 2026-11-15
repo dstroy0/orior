@@ -22,11 +22,6 @@
 // whole checks the tree. A file's diagnostics contain each checker's findings, a checker's fixes offered as quick
 // fixes.
 //
-// The inspections read every Python and JavaScript file of the tree once a file of the tree is passed over, on a thread
-// of their own, and each file again as the editor changes it, as it changes on the disk, and as the editor closes it. A
-// file's diagnostics go to the editor whole: its server's, then the inspections'. A finding's fix is offered with the
-// server's quick fixes.
-//
 // Every answer is written as JSON into the line passed for it; a path in it is written as it is in the tree where a
 // tree is given, and whole otherwise (servers_*.c)
 #ifndef SERVERS_H
@@ -258,7 +253,7 @@ int cli_servers_problems_press(unsigned int at, CliProblemRow *row);
 void cli_servers_problems_check(const char *root);
 
 // the file at `path` passed to its language's server, started at `root` where it is not running, and its text to the
-// inspections and the checkers: `true` or `false` written as a server took it; its new text given; and the file let go
+// checkers: `true` or `false` written as a server took it; its new text given; and the file let go
 // as the editor closes it, read again as the disk stores it. Each 1, or 0 with why given (servers_files.c)
 int cli_servers_open(const CliServersRootCfg *args);
 int cli_servers_change(const CliServersRootCfg *args);

@@ -9,6 +9,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_each_fault_of_the_pom_is_found(void);
+extern void test_a_dependency_listed_again_past_the_cells_first_size_is_found(void);
 extern void test_nothing_else_is_found(void);
 extern void test_a_misnamed_elements_fix_renames_the_opening_and_closing_tag(void);
 extern void test_a_propertys_fix_offers_its_nearest_name(void);
@@ -83,18 +84,19 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\maven\\test_maven\\test_maven.c");
   run_test(test_each_fault_of_the_pom_is_found, "test_each_fault_of_the_pom_is_found", 84);
-  run_test(test_nothing_else_is_found, "test_nothing_else_is_found", 94);
-  run_test(test_a_misnamed_elements_fix_renames_the_opening_and_closing_tag, "test_a_misnamed_elements_fix_renames_the_opening_and_closing_tag", 100);
-  run_test(test_a_propertys_fix_offers_its_nearest_name, "test_a_propertys_fix_offers_its_nearest_name", 107);
-  run_test(test_a_snapshot_offers_the_command_that_fetches_its_newest_build, "test_a_snapshot_offers_the_command_that_fetches_its_newest_build", 114);
-  run_test(test_broken_xml_is_found, "test_broken_xml_is_found", 121);
-  run_test(test_group_id_is_offered_as_a_snippet, "test_group_id_is_offered_as_a_snippet", 127);
-  run_test(test_a_closing_tag_is_offered, "test_a_closing_tag_is_offered", 135);
-  run_test(test_a_property_completes_after_its_dot, "test_a_property_completes_after_its_dot", 142);
-  run_test(test_a_scope_completes, "test_a_scope_completes", 149);
-  run_test(test_a_compiler_property_completes_inside_the_properties, "test_a_compiler_property_completes_inside_the_properties", 154);
-  run_test(test_every_xml_files_memory_is_released, "test_every_xml_files_memory_is_released", 160);
-  run_test(test_every_models_memory_is_released, "test_every_models_memory_is_released", 167);
+  run_test(test_a_dependency_listed_again_past_the_cells_first_size_is_found, "test_a_dependency_listed_again_past_the_cells_first_size_is_found", 94);
+  run_test(test_nothing_else_is_found, "test_nothing_else_is_found", 113);
+  run_test(test_a_misnamed_elements_fix_renames_the_opening_and_closing_tag, "test_a_misnamed_elements_fix_renames_the_opening_and_closing_tag", 119);
+  run_test(test_a_propertys_fix_offers_its_nearest_name, "test_a_propertys_fix_offers_its_nearest_name", 126);
+  run_test(test_a_snapshot_offers_the_command_that_fetches_its_newest_build, "test_a_snapshot_offers_the_command_that_fetches_its_newest_build", 133);
+  run_test(test_broken_xml_is_found, "test_broken_xml_is_found", 140);
+  run_test(test_group_id_is_offered_as_a_snippet, "test_group_id_is_offered_as_a_snippet", 146);
+  run_test(test_a_closing_tag_is_offered, "test_a_closing_tag_is_offered", 154);
+  run_test(test_a_property_completes_after_its_dot, "test_a_property_completes_after_its_dot", 161);
+  run_test(test_a_scope_completes, "test_a_scope_completes", 168);
+  run_test(test_a_compiler_property_completes_inside_the_properties, "test_a_compiler_property_completes_inside_the_properties", 173);
+  run_test(test_every_xml_files_memory_is_released, "test_every_xml_files_memory_is_released", 179);
+  run_test(test_every_models_memory_is_released, "test_every_models_memory_is_released", 186);
 
   return UNITY_END();
 }

@@ -1214,8 +1214,6 @@ static void edit_checked(void)
                   state_saved("operator-next-line", "true"),
               "operator-next-line on shows checked and is saved");
     cli_check(asked("operator-next-line", NULL) && !s_window.operator_next_line, "and without a word turns off");
-    cli_check(!asked("docstring-form", NULL), "docstring-form without a word is refused");
-    cli_check(asked("docstring-form", "google") && state_saved("docstring-form", "google"), "docstring-form is saved");
 }
 
 // the cursor of the view displayed put at the line `line` and the unit `col`

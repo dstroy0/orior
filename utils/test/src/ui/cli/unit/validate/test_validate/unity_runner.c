@@ -19,6 +19,7 @@ extern void test_information_is_a_note(void);
 extern void test_a_timeout_is_the_heartbeats_barrier(void);
 extern void test_a_stack_overflow_is_the_kernels_recursion_barrier(void);
 extern void test_a_theorems_axioms_are_read(void);
+extern void test_a_theorems_untrusted_axioms_are_reported_at_its_declaration(void);
 extern void test_a_theorem_with_no_axioms_is_read(void);
 extern void test_an_instance_timeout_is_its_own_barrier(void);
 extern void test_a_messages_type_names_its_barrier(void);
@@ -98,13 +99,14 @@ int main(void)
   run_test(test_a_timeout_is_the_heartbeats_barrier, "test_a_timeout_is_the_heartbeats_barrier", 172);
   run_test(test_a_stack_overflow_is_the_kernels_recursion_barrier, "test_a_stack_overflow_is_the_kernels_recursion_barrier", 178);
   run_test(test_a_theorems_axioms_are_read, "test_a_theorems_axioms_are_read", 184);
-  run_test(test_a_theorem_with_no_axioms_is_read, "test_a_theorem_with_no_axioms_is_read", 198);
-  run_test(test_an_instance_timeout_is_its_own_barrier, "test_an_instance_timeout_is_its_own_barrier", 210);
-  run_test(test_a_messages_type_names_its_barrier, "test_a_messages_type_names_its_barrier", 219);
-  run_test(test_a_fault_of_the_proof_is_no_barrier, "test_a_fault_of_the_proof_is_no_barrier", 226);
-  run_test(test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms, "test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms", 233);
-  run_test(test_the_copy_reports_what_it_changed, "test_the_copy_reports_what_it_changed", 247);
-  run_test(test_a_limit_of_zero_is_unchanged, "test_a_limit_of_zero_is_unchanged", 258);
+  run_test(test_a_theorems_untrusted_axioms_are_reported_at_its_declaration, "test_a_theorems_untrusted_axioms_are_reported_at_its_declaration", 198);
+  run_test(test_a_theorem_with_no_axioms_is_read, "test_a_theorem_with_no_axioms_is_read", 222);
+  run_test(test_an_instance_timeout_is_its_own_barrier, "test_an_instance_timeout_is_its_own_barrier", 234);
+  run_test(test_a_messages_type_names_its_barrier, "test_a_messages_type_names_its_barrier", 243);
+  run_test(test_a_fault_of_the_proof_is_no_barrier, "test_a_fault_of_the_proof_is_no_barrier", 250);
+  run_test(test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms, "test_the_copy_raises_the_files_limits_and_queries_each_theorems_axioms", 257);
+  run_test(test_the_copy_reports_what_it_changed, "test_the_copy_reports_what_it_changed", 271);
+  run_test(test_a_limit_of_zero_is_unchanged, "test_a_limit_of_zero_is_unchanged", 282);
 
   return UNITY_END();
 }

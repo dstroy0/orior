@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_files.c: the files the editor has open: a file passed to its language's server, to the plugins' servers of
-// its language and its text to the inspections and the checkers as it opens, each new text given, and the file let go
-// as the editor closes it, the inspections and orior's own reading reading it again as the disk stores it. Where the
+// its language and its text to the checkers as it opens, each new text given, and the file let go as the editor
+// closes it, orior's own reading reading it again as the disk stores it. Where the
 // tree's check is on, a file the editor closes is checked as the disk stores it before its server lets it go. A file
 // the check open is the editor's once it opens, and a file its server has open already receives the diagnostics it last
 // gave. A server whose spec slices is given the tree's slice for the view in place of each text (servers_slice.c)
@@ -58,8 +58,6 @@ int cli_servers_open(const CliServersRootCfg *args)
     const char *text = args->text;
     const CliServersSink *sink = args->sink;
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = args->root,
-               .path = path, .text = text, .size = args->size, .sink = sink);
     EMBED_CALL(files_text_store, ServersFilesCtx, .path = path, .text = text, .size = args->size);
     g_cli_servers.sink = *sink;
     g_cli_servers.has_sink = 1;
@@ -144,8 +142,6 @@ int cli_servers_change(const CliServersRootCfg *args)
     const char *path = args->path;
     const char *text = args->text;
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_servers_path_size_language_internal.inspect_again, CliServersPathSizeLanguageCtx, .path = path,
-               .text = text, .size = args->size);
     EMBED_CALL(files_text_store, ServersFilesCtx, .path = path, .text = text, .size = args->size);
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
@@ -187,8 +183,6 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
     const char *const disk = (const char *)mapped;
     const int integer =
         (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = disk, .size = read);
-    EMBED_CALL(cli_servers_path_size_language_internal.inspect_again, CliServersPathSizeLanguageCtx, .path = path,
-               .text = integer ? disk : NULL, .size = integer ? read : 0ULL);
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
     if (integer && EMBED_CALL(files_checked_sink, ServersFilesCtx, .root = root, .sink = &s_sink))

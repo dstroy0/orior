@@ -3,7 +3,7 @@
 // servers_changed.c: a batch of changes made on the disk while the tree's check is on: each server is notified of them,
 // and a server that checks a file at a time is given each file the editor has open again, which it then reads against a
 // header or a module that changed under it; a file gone loses its diagnostics; each file changed is read again by the
-// inspections and the checkers; and the files changed are checked again, with the files of the tree whose includes or
+// checkers; and the files changed are checked again, with the files of the tree whose includes or
 // imports name one of them as a word, by a file of the same toolchain
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -452,9 +452,6 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
                                                        .size_pointer = &size, .owner = g_cli_servers_owner);
         const int integer = (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                            .bytes = (const char *)mapped, .size = size);
-        EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = args->root,
-                   .path = path, .text = integer ? (const char *)mapped : NULL, .size = integer ? size : 0ULL,
-                   .sink = &s_emit);
         g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
         if (integer)
         {

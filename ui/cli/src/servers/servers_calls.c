@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // servers_calls.c: the call hierarchy: the function at a place as its top, as its server finds it where the server
 // answers for calls, as the tree's leaves give it where the file's grammar names its functions and regions
-// (symbols_calls.c), and as the inspections' tree finds it elsewhere; and the functions that call a function, or that
+// (symbols_calls.c); and the functions that call a function, or that
 // it calls, each with the places of its calls, from where the hierarchy's top came from. A function is written with its
 // name and what the server reports of it, its file and the span of its name, the file its calls are in and where
 // each starts, and the server's or the tree's own name for it, which is given back to read the level below it
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
-#include "../inspect/inspect_tree.h"
 #include "servers_internal.h"
 
 #include "../text/text.h"
@@ -37,9 +36,6 @@ typedef struct
     const char *site;
     const CliServersCalls *calls;
     const char *file;
-    const CliFacts *facts;
-    unsigned int function;
-    const CliInspectSpan *sites_inspect_span_pointer;
     char *root;
     char *file_out;
     VerbaLinea *err_msg;

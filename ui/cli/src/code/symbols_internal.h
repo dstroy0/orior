@@ -90,8 +90,8 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 #define CLI_LEAF_OF_NUMBER 0x0800ull
 #define CLI_LEAF_OF_STRING 0x1000ull
 // and a directive's role, a segment of a name whose second segment is `directive`: `include`, `define`, `undef`, the
-// conditions `if`, `ifdef`, `ifndef`, `elif`, `else` and `endif`, `defined` in a condition, and `continued`, the mark
-// that carries a directive on to the next line
+// conditions `if`, `ifdef`, `ifndef`, `elif`, `else` and `endif`, `defined` in a condition, `continued`, the mark
+// that carries a directive on to the next line, and `test`, the attribute that marks a test
 #define CLI_LEAF_INCLUDE 0x2000ull
 #define CLI_LEAF_DEFINE 0x4000ull
 #define CLI_LEAF_UNDEF 0x8000ull
@@ -124,8 +124,8 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 // and the structure a grammar names: `open` and `close`, a bracket that opens or closes a pair; `region`, a bracket
 // whose pair encloses a region of statements; `statement`, the mark that ends a statement; `separator`, the mark
 // between the items of a list; `call`, a name a call names; `assign`, the operator that gives a name its value;
-// `function`, with `declaration`, the name a function is declared by; and `depth`, a token whose `open` or `close`
-// counts the depth its pair is at
+// `function`, with `declaration`, the name a function is declared by; `depth`, a token whose `open` or `close`
+// counts the depth its pair is at; and `module`, with `declaration`, the name a module is declared by
 #define CLI_LEAF_OPEN 0x200000000ull
 #define CLI_LEAF_CLOSE 0x400000000ull
 #define CLI_LEAF_REGION 0x800000000ull
@@ -135,6 +135,8 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 #define CLI_LEAF_ASSIGN 0x8000000000ull
 #define CLI_LEAF_FUNCTION 0x10000000000ull
 #define CLI_LEAF_DEPTH 0x20000000000ull
+#define CLI_LEAF_TEST 0x80000000000ull
+#define CLI_LEAF_MODULE 0x100000000000ull
 
 // the operation an operator's name names in a segment past its first, 0 for none: `not`, `complement`, `multiply`,
 // `divide`, `remainder`, `add`, `subtract`, `shiftleft`, `shiftright`, `less`, `atmost`, `greater`, `atleast`, `equal`,

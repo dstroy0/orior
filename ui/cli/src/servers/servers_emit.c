@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_emit.c: each file's diagnostics as its server last gave them, the inspections' findings and the checkers',
-// what a build tool gives a file and what each Python class's family sets; and a file's diagnostics passed on whole:
-// its server's, less its reports of an attribute a class's family sets and of a name a build tool gives it, then the
-// inspections', then each checker's, the checkers by their ids in order
+// servers_emit.c: each file's diagnostics as its server last gave them, the checkers' findings, what a build tool
+// gives a file and what each Python class's family sets; and a file's diagnostics passed on whole: its server's, less
+// its reports of an attribute a class's family sets and of a name a build tool gives it, then each checker's, the
+// checkers by their ids in order
 #include "../builds/builds.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
@@ -17,14 +17,12 @@
 #define CLI_SERVERS_EMIT_WIDER 64ULL
 
 CliKeyed g_cli_servers_published = {"published diagnostics", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
-CliKeyed g_cli_servers_inspected = {"inspections' findings", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliKeyed g_cli_servers_checked = {"checkers' findings", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliKeyed g_cli_servers_input = {"names build tools give", {NULL}, 0u, 4096u};
 CliKeyed g_cli_servers_supplied = {"names supplied", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 
-// the stores a file's report is read from, in the order its diagnostics are: its server's, its inspections' and its
-// checkers'
-#define SERVERS_EMIT_STORES 3u
+// the stores a file's report is read from, in the order its diagnostics are: its server's and its checkers'
+#define SERVERS_EMIT_STORES 2u
 
 void cli_servers_uri_get(const CliServersPathUriCtx *args)
 {
@@ -431,10 +429,9 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = args->sink->tree,
                .path = path, .out = &where);
     const unsigned long long displayed_length = mmgr_line_finish(&where);
-    // the file's stored texts, the server's, the inspections' and the checkers', and the nodes and bytes the tree they
-    // are read into takes, a node for each token and the bytes of each text, as a tree read whole takes
-    CliKeyed *const stores[SERVERS_EMIT_STORES] = {&g_cli_servers_published, &g_cli_servers_inspected,
-                                                   &g_cli_servers_checked};
+    // the file's stored texts, the server's and the checkers', and the nodes and bytes the tree they are read into
+    // takes, a node for each token and the bytes of each text, as a tree read whole takes
+    CliKeyed *const stores[SERVERS_EMIT_STORES] = {&g_cli_servers_published, &g_cli_servers_checked};
     char *stored[SERVERS_EMIT_STORES];
     unsigned long long sizes[SERVERS_EMIT_STORES];
     unsigned int tokens[SERVERS_EMIT_STORES];
@@ -481,7 +478,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
         (nodes == 0u) || ((scanned != NULL) && EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
                                                           .json = &json, .nodes_max = nodes, .text_max = bytes,
                                                           .what = "a file's report", .owner = g_cli_servers_owner));
-    unsigned int roots[SERVERS_EMIT_STORES] = {CLI_JSON_NONE, CLI_JSON_NONE, CLI_JSON_NONE};
+    unsigned int roots[SERVERS_EMIT_STORES] = {CLI_JSON_NONE, CLI_JSON_NONE};
     for (unsigned int store = 0u; reserved && (store < SERVERS_EMIT_STORES); store += 1u)
     {
         char quiet[256];
@@ -507,12 +504,11 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
         }
         return;
     }
-    // the diagnostics the tree contains at max: the server's, the inspections', and each checker's array
-    unsigned int max = EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[0]) +
-                        EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[1]);
+    // the diagnostics the tree contains at max: the server's and each checker's array
+    unsigned int max = EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = roots[0]);
     const unsigned int first_checker = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
-                                                  .json_read = &json, .node = roots[2], .type = CFG_JSON_OBJECT)
-                                           ? json.node[roots[2]].first
+                                                  .json_read = &json, .node = roots[1], .type = CFG_JSON_OBJECT)
+                                           ? json.node[roots[1]].first
                                            : CLI_JSON_NONE;
     for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)
     {
@@ -525,8 +521,6 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     if (items != NULL)
     {
         EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = roots[0], .filtered = 1, .key = args->key,
-                   .uri = uri, .items = items, .capacity = max, .positioned = &positioned);
-        EMBED_CALL(emit_items_position, ServersEmitCtx, .json = &json, .array = roots[1], .filtered = 0, .key = args->key,
                    .uri = uri, .items = items, .capacity = max, .positioned = &positioned);
         for (unsigned int id = first_checker; id != CLI_JSON_NONE; id = json.node[id].next)
         {

@@ -98,9 +98,6 @@
         "-",
         { "label": "Toggle Line Comment", "command": "comment", "keys": "Ctrl+/", "needs": "editor" },
         { "label": "Format Document", "command": "format", "keys": "Shift+Alt+F", "args": "[--check] <file>...", "needs": "editor", "console": true },
-        { "label": "Write Docstring", "command": "docstring", "needs": "editor" },
-        { "label": "Docstring Form…", "command": "docstring-form", "args": "[google|numpy|rest|plain]" },
-        { "label": "Sort Methods by Name", "command": "sort-methods", "needs": "editor" },
         { "label": "Fill Paragraph", "command": "fill-paragraph", "needs": "editor" },
         {
           "label": "Formatting",
@@ -658,7 +655,6 @@
         { "command": "type-hints", "args": "[on|off]", "setting": true, "hidden": true },
         { "command": "parameter-hints", "args": "[on|off]", "setting": true, "hidden": true },
         { "command": "shape-search", "args": "[on|off]", "setting": true, "hidden": true },
-        { "command": "docstring-form", "setting": true, "hidden": true },
         { "command": "checkers", "setting": true, "reader": true, "hidden": true },
         { "command": "environment", "setting": true, "each": true, "machine": true, "reader": true, "hidden": true },
         { "command": "continuation", "args": "[on|off]", "setting": true, "hidden": true },

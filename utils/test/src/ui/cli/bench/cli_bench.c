@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cli_bench.c: the command line's common paths timed over a corpus, the tree's own C: each file read, read as UTF-8,
-// counted in UTF-16 units, decoded to characters, searched for a needle, sifted for it, its facts set in the tree's
-// index, parsed, its declarations read, its lines colored with the C grammar; the corpus's paths sorted; the tree's
+// counted in UTF-16 units, decoded to characters, searched for a needle, sifted for it, its declarations read, its
+// lines colored with the C grammar; the corpus's paths sorted; the tree's
 // JSON read and written again; and the tree searched. Each is run `repeat` times and the best time recorded; a row is
 // written for each as `name<tab>bytes<tab>microseconds<tab>megabytes a second`, the corpus and the repeats first.
 // The corpus is a file of paths, one a line; the tree's top is the second argument
@@ -10,8 +10,6 @@
 #include "../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../../ui/cli/src/editor/highlight.h"
-#include "../../../../../../ui/cli/src/inspect/inspect.h"
-#include "../../../../../../ui/cli/src/inspect/inspect_tree.h"
 #include "../../../../../../ui/cli/src/text/json_tree.h"
 #include "../../../../../../ui/cli/src/text/regexp.h"
 #include "../../../../../../ui/cli/src/text/sift.h"
@@ -23,10 +21,6 @@
 
 #define BENCH_FILES 4096u
 #define BENCH_NEEDLE "persistent_buf_release"
-#define BENCH_RUNS (1u << 20u)
-#define BENCH_LINES (1u << 17u)
-#define BENCH_FOLDS (1u << 16u)
-#define BENCH_RANGES (1u << 18u)
 
 static char (*s_paths)[CLI_PATH_MAX_LEN];
 static unsigned int s_count;
@@ -165,40 +159,6 @@ static void bench_sift_file(unsigned long long whole)
     }
     g_cli_guard->persistent_buf_release(text, g_checks_owner);
     bench_row("sift whole", counted);
-}
-
-static void each_facts(const BenchEachCfg *args)
-{
-    const char *path = args->path;
-    unsigned long long size = args->size;
-    const char *const language = EMBED_CALL(cli_inspect_table.language_get, CliInspectCfg, .path = path);
-    if (language != NULL)
-    {
-        (void)EMBED_CALL(cli_inspect_tree_path_language.set, CliInspectTreePathLanguageCfg, .path = path, .language = language, .text = (const char *)args->bytes, .size = size);
-    }
-}
-
-static CliInspectRun *s_runs;
-static unsigned int *s_line_first;
-static unsigned int *s_line_runs;
-static unsigned int *s_fold_first;
-static unsigned int *s_fold_last;
-static CliInspectSpan *s_ranges;
-
-static void each_parse(const BenchEachCfg *args)
-{
-    const char *path = args->path;
-    unsigned long long size = args->size;
-    void *context = args->context;
-    const char *const language = EMBED_CALL(cli_inspect_table.language_get, CliInspectCfg, .path = path);
-    if (language == NULL)
-    {
-        return;
-    }
-    CliParsed parsed;
-    EMBED_CALL(cli_inspect_parsed.parsed_begin, CliInspectParsedCfg, .parsed = &parsed, .runs = s_runs, .runs_max = BENCH_RUNS, .line_first = s_line_first, .line_runs = s_line_runs, .lines_max = BENCH_LINES, .fold_first = s_fold_first, .fold_last = s_fold_last, .folds_max = BENCH_FOLDS, .ranges = s_ranges, .ranges_max = BENCH_RANGES);
-    *(unsigned long long *)context +=
-        (unsigned long long)EMBED_CALL(cli_inspect_language_text.parse, CliInspectLanguageTextCfg, .language = language, .text = (const char *)args->bytes, .size = size, .parsed = &parsed);
 }
 
 static void declared(const CliDeclaredCfg *args)
@@ -502,21 +462,6 @@ int main(int argc, char **argv)
     sum = 0ull;
     bench_row("sift", bench_pass(each_sift, &sum));
     bench_sift_file(whole);
-    bench_row("facts", bench_pass(each_facts, NULL));
-    cli_inspect_tree_clear();
-    s_runs = g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_RUNS * sizeof(CliInspectRun), g_checks_owner);
-    s_line_first =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), g_checks_owner);
-    s_line_runs =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), g_checks_owner);
-    s_fold_first =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), g_checks_owner);
-    s_fold_last =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), g_checks_owner);
-    s_ranges =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)BENCH_RANGES * sizeof(CliInspectSpan), g_checks_owner);
-    sum = 0ull;
-    bench_row("parse", bench_pass(each_parse, &sum));
     sum = 0ull;
     bench_row("symbols", bench_pass(each_symbols, &sum));
     if (bench_grammar_cached())

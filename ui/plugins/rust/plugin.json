@@ -33,6 +33,7 @@
     ],
     "tokenizer": {
       "root": [
+        ["#\\[\\s*(?:[A-Za-z_]\\w*::)*test\\s*\\]","keyword.directive.test"],
         ["#!?\\[","keyword.directive","@attribute"],
         {"include":"@whitespace"},
         ["(macro_rules!)(\\s*)([A-Za-z_]\\w*)",["predefined","","identifier.declaration.function"]],

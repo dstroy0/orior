@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// testing_found.c: a tree's tests found. A file's tests are read from its facts: a class's body is the lines after its
-// own indented deeper than it, blank lines among them, and a function in a class's body is a method of it where no
-// function of the class contains it; a function outside every class is a test where no function contains it. The tree's
-// Python files are its files named as the rules name a test file, outside the folders not searched and inside the
-// rules' folders where they name any, in the order of their paths; its Rust tests follow them
+// testing_found.c: a tree's tests found. A file's tests are read off the declarations its grammar plugin's walk names:
+// a class's body is the lines after its own indented deeper than it, blank lines among them, and a function in a
+// class's body is a method of it where no function of the class contains it; a function outside every class is a
+// test where no function contains it. The tree's Python files are its files named as the rules name a test file,
+// outside the folders not searched and inside the rules' folders where they name any, in the order of their paths;
+// its Rust tests follow them
+#include "../code/symbols_internal.h"
 #include "../command_line/pool.h"
 #include "../editor/files.h"
-#include "../inspect/inspect.h"
 #include "../text/json_tree.h"
 #include "cargo_tests.h"
 
@@ -18,17 +19,43 @@ static const char *const s_not_searched[10] = {"venv",        ".venv", "env",  "
                                                "__pycache__", "build", "dist", ".tox",         ".nox"};
 
 // no function or class of a test
-#define CLI_TESTS_NONE 0xffffffffu
+#define TESTS_NONE 0xffffffffu
 
-// A search's work state, under the tests' lock: the rules and the Rust tests; and a file's part, one cell sized to the
-// file by a walk that counts its facts and given back as the file's tests are passed on: the facts, its lines' starts,
-// each class's body's last line, and its tests, each its function and its class, CLI_TESTS_NONE where it has none
+// the test frameworks' own names: the base a test case inherits, the method that builds a class, and the start of a
+// test case's test methods' names
+#define CLI_TESTS_CASE_BASE "TestCase"
+#define CLI_TESTS_BUILDER "__init__"
+#define CLI_TESTS_CASE_START "test"
+
+// the declarations a file's cell holds first
+#define CLI_TESTS_DECLARED 64u
+
+// A declaration a file names: 1 in `class_of` where it declares a class, 0 a function; where its name's bytes start in
+// the text and how many; its line; its body's last line; and, for a class, 1 where it inherits a test case's base
 typedef struct
 {
-    CliFacts facts;
+    int class_of;
+    unsigned long long at;
+    unsigned int size;
+    unsigned int line;
+    unsigned int body_end;
+    int test_case;
+} TestsDeclared;
+
+// A search's work state, under the tests' lock: the rules and the Rust tests; and a file's part: the text, its
+// declarations in a cell grown as they come, their count and capacity, 1 in `refused` where the cells refused one, the
+// leaves the walk saved, its lines' starts and their count, and its tests, each its function and its class,
+// TESTS_NONE where it has none
+typedef struct
+{
+    const char *text;
+    TestsDeclared *declared;
+    unsigned int count;
+    unsigned int capacity;
+    int refused;
+    CliLeafRead read;
     unsigned int *line_start;
     unsigned int lines;
-    unsigned int *body_end;
     unsigned int *test_function;
     unsigned int *test_class;
     CliTestRules rules;
@@ -40,14 +67,11 @@ static CliTestsWorkState *s_work_state;
 
 typedef struct
 {
-    unsigned char **at;
-    unsigned long long bytes;
     const char *text;
     unsigned long long size;
     unsigned int line;
-    unsigned int lines;
     int *blank;
-    CliInspectText text_inspect_text;
+    unsigned int at;
     unsigned int class_at;
     const CliTestRules *rules;
     int *test_case;
@@ -59,15 +83,6 @@ typedef struct
     void *context;
     const char *root;
 } TestingFoundCtx;
-// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
-EMBED_INLINE void *found_part(const TestingFoundCtx *args)
-{
-    unsigned char **at = args->at;
-    void *const part = *at;
-    *at += (args->bytes + 7ULL) & ~7ULL;
-    return part;
-}
-
 // the lines of `size` bytes of `text`: one more than its newlines, the last line's start after a final newline counted
 // as a line's
 EMBED_INLINE unsigned int found_lines(const TestingFoundCtx *args)
@@ -86,67 +101,49 @@ EMBED_INLINE unsigned int found_lines(const TestingFoundCtx *args)
     return lines;
 }
 
-// a file's part taken for the counts of a walk over its `size` bytes of `text` and the work state's pointers set into
-// it: the cell, or NULL where the file is not read or no cell is left
-EMBED_INLINE void *found_part_alloc(const TestingFoundCtx *args)
+// the declarations' cell grown to hold one more: 1, or 0 where the cells refuse it
+EMBED_INLINE int found_declared_alloc(void)
 {
-    const char *text = args->text;
-    unsigned long long size = args->size;
-    CliFacts counted;
-    EMBED_CALL(cli_inspect_facts_language.facts_counting, CliInspectFactsLanguageCfg, .facts = &counted);
-    if (!EMBED_CALL(cli_inspect_facts_language.facts, CliInspectFactsLanguageCfg, .language = "python", .text = text,
-                    .size = size, .facts = &counted))
+    CliTestsWorkState *const work = s_work_state;
+    const unsigned int capacity = (work->capacity == 0u) ? CLI_TESTS_DECLARED : (work->capacity * 2u);
+    TestsDeclared *const grown =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(TestsDeclared), g_cli_tests_owner);
+    if (grown == NULL)
     {
-        return NULL;
+        return 0;
     }
-    const unsigned int lines = EMBED_CALL(found_lines, TestingFoundCtx, .text = text, .size = size);
-    const unsigned long long bytes =
-        (counted.imports * sizeof(CliInspectImport)) + (counted.classes * sizeof(CliInspectClass)) +
-        (counted.functions * sizeof(CliInspectFunction)) + (counted.findings * sizeof(CliInspectFinding)) +
-        (counted.fixes * sizeof(CliInspectFix)) + (counted.edits * sizeof(CliInspectEdit)) +
-        (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
-        ((unsigned long long)counted.classes * sizeof(unsigned int)) +
-        (2ULL * counted.functions * sizeof(unsigned int)) + (12ULL * 8ULL);
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
-    if (cell == NULL)
+    if (work->count != 0u)
     {
-        return NULL;
+        memor.cpy(
+            &(MemoriaCfg){.dst = grown, .src = work->declared, .bytes = (embed_word)work->count * sizeof(TestsDeclared)});
     }
-    unsigned char *at = cell;
-    CliInspectImport *const imports =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.imports * sizeof(CliInspectImport));
-    CliInspectClass *const classes =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.classes * sizeof(CliInspectClass));
-    CliInspectFunction *const functions =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.functions * sizeof(CliInspectFunction));
-    CliInspectFinding *const findings =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.findings * sizeof(CliInspectFinding));
-    CliInspectFix *const fixes =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.fixes * sizeof(CliInspectFix));
-    CliInspectEdit *const edits =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.edits * sizeof(CliInspectEdit));
-    CliInspectName *const names =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.names * sizeof(CliInspectName));
-    char *const pool = EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = counted.used);
-    s_work_state->line_start =
-        EMBED_CALL(found_part, TestingFoundCtx, .at = &at, .bytes = (unsigned long long)lines * sizeof(unsigned int));
-    s_work_state->lines = lines;
-    s_work_state->body_end = EMBED_CALL(found_part, TestingFoundCtx, .at = &at,
-                                        .bytes = (unsigned long long)counted.classes * sizeof(unsigned int));
-    s_work_state->test_function = EMBED_CALL(found_part, TestingFoundCtx, .at = &at,
-                                             .bytes = (unsigned long long)counted.functions * sizeof(unsigned int));
-    s_work_state->test_class = EMBED_CALL(found_part, TestingFoundCtx, .at = &at,
-                                          .bytes = (unsigned long long)counted.functions * sizeof(unsigned int));
-    EMBED_CALL(cli_inspect_facts_table.facts_begin, CliInspectFactsCfg, .facts = &s_work_state->facts,
-               .imports = imports, .imports_max = counted.imports, .classes = classes, .classes_max = counted.classes,
-               .functions = functions, .functions_max = counted.functions, .findings = findings,
-               .findings_max = counted.findings, .fixes = fixes, .fixes_max = counted.fixes, .edits = edits,
-               .edits_max = counted.edits, .names = names, .names_max = counted.names, .text_out = pool,
-               .text_max = counted.used);
-    return cell;
+    g_cli_guard->persistent_buf_release(work->declared, g_cli_tests_owner);
+    work->declared = grown;
+    work->capacity = capacity;
+    return 1;
 }
 
-// the indent of the line at `line` of `size` bytes of `text`, `lines` of them
+// a declaration the walk names put on the file's declarations, where it declares a function or a class
+static void found_declared(const CliDeclaredCfg *args)
+{
+    CliTestsWorkState *const work = (CliTestsWorkState *)args->context;
+    const int class_of = cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "class", .cap = CLI_POOL_BYTES});
+    if (!class_of && !cellul.eq(&(CatenaFinitaCfg){.src = args->type, .other = "function", .cap = CLI_POOL_BYTES}))
+    {
+        return;
+    }
+    if ((work->count == work->capacity) && !found_declared_alloc())
+    {
+        work->refused = 1;
+        return;
+    }
+    // the name is in the copy the walk reads, which holds each line at the text's own bytes
+    work->declared[work->count] = (TestsDeclared){
+        class_of, (unsigned long long)(args->name - work->read.first), (unsigned int)args->length, args->line, args->line, 0};
+    work->count += 1u;
+}
+
+// the indent of the line at `line` of `size` bytes of `text`, and whether the line is blank
 EMBED_INLINE unsigned int found_indent(const TestingFoundCtx *args)
 {
     const char *text = args->text;
@@ -154,7 +151,7 @@ EMBED_INLINE unsigned int found_indent(const TestingFoundCtx *args)
     int *blank = args->blank;
     const unsigned long long start = s_work_state->line_start[args->line];
     const unsigned long long end =
-        (args->line + 1u < args->lines) ? s_work_state->line_start[args->line + 1u] - 1u : size;
+        (args->line + 1u < s_work_state->lines) ? s_work_state->line_start[args->line + 1u] - 1u : size;
     unsigned long long at = start;
     at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = at, .size = end,
                     .set = " \t\r\f\v");
@@ -162,7 +159,7 @@ EMBED_INLINE unsigned int found_indent(const TestingFoundCtx *args)
     return (unsigned int)(at - start);
 }
 
-// each class's body's last line, from its own line, the lines of `size` bytes of `text`
+// each line's start, and each declaration's body's last line, from its own line, the lines of `size` bytes of `text`
 EMBED_INLINE void found_bodies(const TestingFoundCtx *args)
 {
     const char *text = args->text;
@@ -173,103 +170,113 @@ EMBED_INLINE void found_bodies(const TestingFoundCtx *args)
         s_work_state->line_start[lines] = (unsigned int)at;
         at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size).next;
     }
-    for (unsigned int at = 0u; at < s_work_state->facts.classes; at += 1u)
+    for (unsigned int at = 0u; at < s_work_state->count; at += 1u)
     {
-        const unsigned int start = s_work_state->facts.class_of[at].from.line;
+        const unsigned int start = s_work_state->declared[at].line;
         int blank = 0;
         const unsigned int own = (start < lines) ? EMBED_CALL(found_indent, TestingFoundCtx, .text = text, .size = size,
-                                                              .line = start, .lines = lines, .blank = &blank)
+                                                              .line = start, .blank = &blank)
                                                  : 0u;
         unsigned int end = start;
         for (unsigned int line = start + 1u; line < lines; line += 1u)
         {
-            const unsigned int indent = EMBED_CALL(found_indent, TestingFoundCtx, .text = text, .size = size,
-                                                   .line = line, .lines = lines, .blank = &blank);
+            const unsigned int indent =
+                EMBED_CALL(found_indent, TestingFoundCtx, .text = text, .size = size, .line = line, .blank = &blank);
             if (!blank && (indent <= own))
             {
                 break;
             }
             end = line;
         }
-        s_work_state->body_end[at] = end;
+        s_work_state->declared[at].body_end = end;
     }
 }
 
-// the class whose body contains `line`, CLI_TESTS_NONE where none does
-EMBED_INLINE unsigned int found_class_get(const TestingFoundCtx *args)
+// each class marked where a name on its line after its own ends in a test case's base
+EMBED_INLINE void found_bases(const TestingFoundCtx *args)
 {
-    for (unsigned int at = 0u; at < s_work_state->facts.classes; at += 1u)
+    const unsigned long long base_size = sizeof(CLI_TESTS_CASE_BASE) - 1u;
+    for (unsigned int at = 0u; at < s_work_state->count; at += 1u)
     {
-        if ((s_work_state->facts.class_of[at].from.line < args->line) && (args->line <= s_work_state->body_end[at]))
+        TestsDeclared *const class_of = &s_work_state->declared[at];
+        if (!class_of->class_of)
         {
-            return at;
+            continue;
+        }
+        for (unsigned int leaf = 0u; leaf < s_work_state->read.count; leaf += 1u)
+        {
+            const CliLeaf *const one = &s_work_state->read.leaf[leaf];
+            const unsigned long long size = one->to - one->from;
+            if ((one->line == class_of->line) && (one->from > class_of->at) && ((one->is & CLI_LEAF_NAME) != 0u) &&
+                (size >= base_size) &&
+                (memor.cmp(&(MemoriaCfg){.src = args->text + one->to - base_size,
+                                         .other = CLI_TESTS_CASE_BASE,
+                                         .bytes = (embed_word)base_size}) == 0))
+            {
+                class_of->test_case = 1;
+            }
         }
     }
-    return CLI_TESTS_NONE;
 }
 
-// a text of the facts
-EMBED_INLINE const char *found_text(const TestingFoundCtx *args)
+// the innermost class whose body contains `line`, TESTS_NONE where none does
+EMBED_INLINE unsigned int found_class_get(const TestingFoundCtx *args)
 {
-    return s_work_state->facts.text + args->text_inspect_text.at;
+    unsigned int found = TESTS_NONE;
+    for (unsigned int at = 0u; at < s_work_state->count; at += 1u)
+    {
+        const TestsDeclared *const one = &s_work_state->declared[at];
+        if (one->class_of && (one->line < args->line) && (args->line <= one->body_end))
+        {
+            found = at;
+        }
+    }
+    return found;
 }
 
-// whether the class at `class_at` collects its tests: it inherits a `TestCase`, or is named as the rules name a test
-// class and sets no `__init__`; and whether it inherits one
+// whether the declaration at `at` is named `word`
+EMBED_INLINE int found_named(const TestingFoundCtx *args)
+{
+    const TestsDeclared *const one = &s_work_state->declared[args->at];
+    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES});
+    return (one->size == size) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->text + one->at, .other = args->file, .bytes = size}) == 0);
+}
+
+// whether the class at `class_at` collects its tests: it inherits a test case's base, or is named as the rules name a
+// test class and no function of its body builds it; and whether it inherits one
 EMBED_INLINE int found_collect(const TestingFoundCtx *args)
 {
     const CliTestRules *rules = args->rules;
     int *test_case = args->test_case;
-    const CliInspectClass *const class_of = &s_work_state->facts.class_of[args->class_at];
-    *test_case = 0;
-    for (unsigned int at = 0u; at < class_of->bases; at += 1u)
-    {
-        const CliInspectText base = s_work_state->facts.name[class_of->base_first + at].name;
-        *test_case |= (base.size >= 8u) &&
-                      (memor.cmp(&(MemoriaCfg){
-                           .src = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = base) + base.size - 8u,
-                           .other = "TestCase",
-                           .bytes = 8u}) == 0);
-    }
+    const TestsDeclared *const class_of = &s_work_state->declared[args->class_at];
+    *test_case = class_of->test_case;
     if (*test_case)
     {
         return 1;
     }
-    for (unsigned int at = 0u; at < s_work_state->facts.functions; at += 1u)
+    for (unsigned int at = 0u; at < s_work_state->count; at += 1u)
     {
-        const CliInspectFunction *const one = &s_work_state->facts.function[at];
-        const unsigned int other =
-            (one->name.size == 8u) && (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(found_text, TestingFoundCtx,
-                                                                                 .text_inspect_text = one->name),
-                                                               .other = "__init__",
-                                                               .bytes = 8u}) == 0)
-                ? EMBED_CALL(found_class_get, TestingFoundCtx, .line = one->from.line)
-                : CLI_TESTS_NONE;
-        if ((other != CLI_TESTS_NONE) && (s_work_state->facts.class_of[other].name.size == class_of->name.size) &&
-            (memor.cmp(
-                 &(MemoriaCfg){.src = EMBED_CALL(found_text, TestingFoundCtx,
-                                                 .text_inspect_text = s_work_state->facts.class_of[other].name),
-                               .other = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = class_of->name),
-                               .bytes = class_of->name.size}) == 0))
+        if (!s_work_state->declared[at].class_of &&
+            EMBED_CALL(found_named, TestingFoundCtx, .text = args->text, .at = at, .file = CLI_TESTS_BUILDER) &&
+            (EMBED_CALL(found_class_get, TestingFoundCtx, .line = s_work_state->declared[at].line) == args->class_at))
         {
             return 0;
         }
     }
     return EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = rules,
-                      .rule = &rules->classes,
-                      .name = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = class_of->name),
-                      .size = class_of->name.size);
+                      .rule = &rules->classes, .name = args->text + class_of->at, .size = class_of->size);
 }
 
-// whether a function other than the one at `function` contains it, one starting after the line `after` where `bounded`
+// whether a function other than the one at `function` contains it, one on a line after `after` where `bounded`
 EMBED_INLINE int found_nest(const TestingFoundCtx *args)
 {
-    const CliInspectFunction *const inner = &s_work_state->facts.function[args->function];
-    for (unsigned int at = 0u; at < s_work_state->facts.functions; at += 1u)
+    const TestsDeclared *const inner = &s_work_state->declared[args->function];
+    for (unsigned int at = 0u; at < s_work_state->count; at += 1u)
     {
-        const CliInspectFunction *const outer = &s_work_state->facts.function[at];
-        if ((at != args->function) && (!args->bounded || (outer->first > args->after)) &&
-            (outer->first < inner->first) && (inner->last <= outer->last))
+        const TestsDeclared *const outer = &s_work_state->declared[at];
+        if ((at != args->function) && !outer->class_of && (!args->bounded || (outer->line > args->after)) &&
+            (outer->line < inner->line) && (inner->body_end <= outer->body_end))
         {
             return 1;
         }
@@ -277,28 +284,34 @@ EMBED_INLINE int found_nest(const TestingFoundCtx *args)
     return 0;
 }
 
-// the tests of the facts read, listed in the order of their lines, those of one line in the order of their functions:
-// their count
+// the tests among the declarations, in the order of their lines: their count
 EMBED_INLINE unsigned int found_tests(const TestingFoundCtx *args)
 {
     const CliTestRules *rules = args->rules;
     unsigned int count = 0u;
-    for (unsigned int at = 0u; at < s_work_state->facts.functions; at += 1u)
+    for (unsigned int at = 0u; at < s_work_state->count; at += 1u)
     {
-        const CliInspectFunction *const function = &s_work_state->facts.function[at];
-        const unsigned int class_at = EMBED_CALL(found_class_get, TestingFoundCtx, .line = function->from.line);
-        const char *const name = EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = function->name);
-        const unsigned int size = function->name.size;
+        const TestsDeclared *const function = &s_work_state->declared[at];
+        if (function->class_of)
+        {
+            continue;
+        }
+        const unsigned int class_at = EMBED_CALL(found_class_get, TestingFoundCtx, .line = function->line);
+        const char *const name = args->text + function->at;
+        const unsigned int size = function->size;
         int is_test = 0;
-        if (class_at != CLI_TESTS_NONE)
+        if (class_at != TESTS_NONE)
         {
             int test_case = 0;
-            const int collected = EMBED_CALL(found_collect, TestingFoundCtx, .class_at = class_at, .rules = rules,
-                                             .test_case = &test_case);
+            const int collected = EMBED_CALL(found_collect, TestingFoundCtx, .text = args->text, .class_at = class_at,
+                                             .rules = rules, .test_case = &test_case);
             const int method = !EMBED_CALL(found_nest, TestingFoundCtx, .function = at, .bounded = 1,
-                                           .after = s_work_state->facts.class_of[class_at].from.line);
+                                           .after = s_work_state->declared[class_at].line);
             const int test_name =
-                test_case ? ((size >= 4u) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "test", .bytes = 4u}) == 0))
+                test_case ? ((size >= sizeof(CLI_TESTS_CASE_START) - 1u) &&
+                             (memor.cmp(&(MemoriaCfg){.src = name,
+                                                      .other = CLI_TESTS_CASE_START,
+                                                      .bytes = sizeof(CLI_TESTS_CASE_START) - 1u}) == 0))
                           : EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg,
                                        .rules_read = rules, .rule = &rules->functions, .name = name, .size = size);
             is_test = collected && method && test_name;
@@ -316,74 +329,107 @@ EMBED_INLINE unsigned int found_tests(const TestingFoundCtx *args)
             count += 1u;
         }
     }
-    for (unsigned int at = 1u; at < count; at += 1u)
-    {
-        const unsigned int function = s_work_state->test_function[at];
-        const unsigned int class_at = s_work_state->test_class[at];
-        const unsigned int line = s_work_state->facts.function[function].from.line;
-        unsigned int place = at;
-        while ((place > 0u) && (s_work_state->facts.function[s_work_state->test_function[place - 1u]].from.line > line))
-        {
-            s_work_state->test_function[place] = s_work_state->test_function[place - 1u];
-            s_work_state->test_class[place] = s_work_state->test_class[place - 1u];
-            place -= 1u;
-        }
-        s_work_state->test_function[place] = function;
-        s_work_state->test_class[place] = class_at;
-    }
     return count;
 }
 
-// the tests of `file`, its `size` bytes of `text`, each passed to `each`, in a part taken for the file and given
-// back after
+// the file's leaves and declarations read off the walk, and its lines' starts and tests given cells: 1, or 0 where the
+// walk does not read the file or the cells refuse it
+EMBED_INLINE int found_read(const TestingFoundCtx *args)
+{
+    CliTestsWorkState *const work = s_work_state;
+    work->text = args->text;
+    work->declared = NULL;
+    work->count = 0u;
+    work->capacity = 0u;
+    work->refused = 0;
+    work->line_start = NULL;
+    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    const int leaved =
+        (languages != NULL) &&
+        EMBED_CALL(cli_symbols_path_internal.leaves_declare, CliSymbolsPathCtx, .languages = languages,
+                   .path = args->file, .state = "root", .text = args->text, .size = args->size, .read = &work->read,
+                   .each = found_declared, .context = work);
+    if (languages != NULL)
+    {
+        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
+    }
+    g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
+    if (!leaved || work->refused)
+    {
+        return 0;
+    }
+    work->lines = EMBED_CALL(found_lines, TestingFoundCtx, .text = args->text, .size = args->size);
+    const unsigned long long bytes = ((unsigned long long)work->lines + (2ULL * work->count)) * sizeof(unsigned int);
+    work->line_start = g_cli_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
+    if (work->line_start == NULL)
+    {
+        return 0;
+    }
+    work->test_function = work->line_start + work->lines;
+    work->test_class = work->test_function + work->count;
+    return 1;
+}
+
+// the file's cells given back
+EMBED_INLINE void found_release(void)
+{
+    CliTestsWorkState *const work = s_work_state;
+    g_cli_guard->persistent_buf_release(work->read.leaf, g_cli_leaves_owner);
+    work->read.leaf = NULL;
+    work->read.count = 0u;
+    work->read.capacity = 0u;
+    g_cli_guard->persistent_buf_release(work->declared, g_cli_tests_owner);
+    work->declared = NULL;
+    work->count = 0u;
+    work->capacity = 0u;
+    g_cli_guard->persistent_buf_release(work->line_start, g_cli_tests_owner);
+    work->line_start = NULL;
+}
+
+// the tests of `file`, its `size` bytes of `text`, each passed to `each`, in cells taken for the file and given back
+// after
 static void found_in(const TestingFoundCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    void *const part = EMBED_CALL(found_part_alloc, TestingFoundCtx, .text = text, .size = size);
-    if (part == NULL)
+    const int read = EMBED_CALL(found_read, TestingFoundCtx, .file = args->file, .text = text, .size = size);
+    if (read)
     {
-        return;
-    }
-    if (!EMBED_CALL(cli_inspect_facts_language.facts, CliInspectFactsLanguageCfg, .language = "python", .text = text,
-                    .size = size, .facts = &s_work_state->facts))
-    {
-        g_cli_guard->persistent_buf_release(part, g_cli_tests_owner);
-        return;
-    }
-    EMBED_CALL(found_bodies, TestingFoundCtx, .text = text, .size = size);
-    const unsigned int count = found_tests(args);
-    for (unsigned int at = 0u; at < count; at += 1u)
-    {
-        const CliInspectFunction *const function = &s_work_state->facts.function[s_work_state->test_function[at]];
-        const unsigned int class_at = s_work_state->test_class[at];
-        char id[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea line = {id, sizeof(id), 0ULL};
-        mmgr_line_put(&line, args->file);
-        mmgr_line_put(&line, "::");
-        if (class_at != CLI_TESTS_NONE)
+        EMBED_CALL(found_bodies, TestingFoundCtx, .text = text, .size = size);
+        EMBED_CALL(found_bases, TestingFoundCtx, .text = text);
+        const unsigned int count = EMBED_CALL(found_tests, TestingFoundCtx, .text = text, .rules = args->rules);
+        for (unsigned int at = 0u; at < count; at += 1u)
         {
-            mmgr_line_put_n(&line,
-                            EMBED_CALL(found_text, TestingFoundCtx,
-                                       .text_inspect_text = s_work_state->facts.class_of[class_at].name),
-                            s_work_state->facts.class_of[class_at].name.size);
+            const TestsDeclared *const function = &s_work_state->declared[s_work_state->test_function[at]];
+            const unsigned int class_at = s_work_state->test_class[at];
+            const TestsDeclared *const class_of =
+                (class_at != TESTS_NONE) ? &s_work_state->declared[class_at] : NULL;
+            char id[CLI_PATH_MAX_LEN * 2u];
+            char class_name[CLI_NAME_MAX_LEN];
+            char name[CLI_NAME_MAX_LEN];
+            VerbaLinea line = {id, sizeof(id), 0ULL};
+            VerbaLinea class_line = {class_name, sizeof(class_name), 0ULL};
+            VerbaLinea name_line = {name, sizeof(name), 0ULL};
+            mmgr_line_put(&line, args->file);
             mmgr_line_put(&line, "::");
+            if (class_of != NULL)
+            {
+                mmgr_line_put_n(&line, text + class_of->at, class_of->size);
+                mmgr_line_put(&line, "::");
+                mmgr_line_put_n(&class_line, text + class_of->at, class_of->size);
+            }
+            mmgr_line_put_n(&line, text + function->at, function->size);
+            mmgr_line_put_n(&name_line, text + function->at, function->size);
+            if (!mmgr_line_finish(&line) || !mmgr_line_finish(&name_line) ||
+                ((class_of != NULL) && !mmgr_line_finish(&class_line)))
+            {
+                continue;
+            }
+            CliTest test = {id, args->file, (class_of != NULL) ? class_name : NULL, name, function->line};
+            EMBED_CALL(args->each, CliTestEachCfg, .context = args->context, .test = &test);
         }
-        mmgr_line_put_n(&line, EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = function->name),
-                        function->name.size);
-        if (!mmgr_line_finish(&line))
-        {
-            continue;
-        }
-        CliTest test = {
-            id, args->file,
-            (class_at != CLI_TESTS_NONE) ? EMBED_CALL(found_text, TestingFoundCtx,
-                                                      .text_inspect_text = s_work_state->facts.class_of[class_at].name)
-                                         : NULL,
-            EMBED_CALL(found_text, TestingFoundCtx, .text_inspect_text = function->name), function->from.line};
-        EMBED_CALL(args->each, CliTestEachCfg, .context = args->context, .test = &test);
     }
-    g_cli_guard->persistent_buf_release(part, g_cli_tests_owner);
+    found_release();
 }
 
 // whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as

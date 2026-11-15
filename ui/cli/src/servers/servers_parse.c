@@ -1,13 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_parse.c: the parse of a file the editor has open: orior's own where the file is Python or JavaScript, and
-// its server's semantic tokens and folding ranges where its server gives them, none where neither reads it or the
-// file is given its server as a slice, orior's highlighter coloring it and its server not asked. A parse is cached, by
-// the file's key with its text's hash, until the file's text changes, and is read one at a time, so that a parse
-// requested for again meanwhile waits for it and is answered from what was cached. Orior's own parse is counted, then
-// read into storage of what it counted; a server's into storage of what its answers give
+// servers_parse.c: the parse of a file the editor has open: its server's semantic tokens and folding ranges where
+// its server gives them, none where no server reads it or the file is given its server as a slice, orior's
+// highlighter coloring it and its server not asked. A parse is cached, by the file's key with its text's hash, until
+// the file's text changes, and is read one at a time, so that a parse requested for again meanwhile waits for it and
+// is answered from what was cached, into storage of what its answers give
 #include "../command_line/pool.h"
-#include "../inspect/inspect.h"
 #include "servers_internal.h"
 
 // The head of a parse cached: its text's hash, whether it is orior's own, and its lines', runs', folds' and spans'
@@ -23,18 +21,6 @@ typedef struct
 } CliServersParseHead;
 // the max token types a server's legend names
 #define CLI_SERVERS_LEGEND 256u
-
-// The parse's storage, each part in a cell of its count, given back with the parsing lock: the runs, each line's first
-// run and how many it has, the folds by their first and last lines, and the spans
-typedef struct
-{
-    CliInspectRun *run;
-    unsigned int *line_first;
-    unsigned int *line_runs;
-    unsigned int *fold_first;
-    unsigned int *fold_last;
-    CliInspectSpan *range;
-} CliServersParseWorkState;
 
 typedef struct
 {
@@ -64,7 +50,6 @@ typedef struct
     VerbaLinea *err_msg;
     const unsigned char *legend;
     unsigned int legends;
-    const CliInspectSpan *spans;
     VerbaLinea *out;
 } ServersParseCtx;
 unsigned long long cli_servers_hash_get(const CliServersReadStateCtx *args)
