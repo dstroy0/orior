@@ -228,7 +228,8 @@ int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args)
 // The beads over the first GUI_TABS_BEADS tabs of `count`, drawn as their presses are at `time_ms`: the atlas
 // positioned out for the widest tab in the tab's shape, each tab's cell at its place in the row's whole side_menu with
 // the row at rest, lit by the window's lights, over the second segment of the block's tab beads part. A cell at the
-// row's rest keeps its bake while the claim slides the row, the bead drawn where the tab is: 0, as no tab waits to bake
+// row's rest, the frame's tabs_rest, keeps its bake while the claim and a side pane move the row, the bead drawn where
+// the tab is: 0, as no tab waits to bake
 EMBED_INLINE unsigned int tabs_beads_draw(const TabsCtx *args)
 {
     const GuiTabsGlyphsFrameCfg *const drawn = args->drawn;
@@ -243,11 +244,9 @@ EMBED_INLINE unsigned int tabs_beads_draw(const TabsCtx *args)
     const int reach = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_BEAD_REACH, .scale = scale);
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = scale);
     const int radius = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_RADIUS, .scale = scale);
-    // a tab at the row's rest: the row a gap under the work's inside top, the tab clear of the row's top and its line
+    // a tab at the row's rest: the tab clear of the row's top and its line, at its own offset along the row
     const int clear = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLEAR, .scale = scale);
-    const int rest_top = frame->inside.y +
-                         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_GAP, .scale = scale) +
-                         clear;
+    const int rest_top = frame->tabs_rest.y + clear;
     const int tall = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = scale) -
                      clear - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     GuiRect cells[GUI_TABS_BEADS];
@@ -257,7 +256,8 @@ EMBED_INLINE unsigned int tabs_beads_draw(const TabsCtx *args)
     {
         const GuiRect rect =
             EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = drawn->glyphs, .frame = frame, .at = at);
-        cells[at] = (GuiRect){rect.x + frame->tabs_left - pad, rest_top - pad, rect.width - gap, tall};
+        cells[at] = (GuiRect){frame->tabs_rest.x + (rect.x - frame->tabs.x) + frame->tabs_left - pad, rest_top - pad,
+                              rect.width - gap, tall};
         placed[at] = (GuiRect){rect.x - pad, rect.y - pad, rect.width - gap, tall};
         widest = (cells[at].width > widest) ? cells[at].width : widest;
     }

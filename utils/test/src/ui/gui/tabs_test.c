@@ -115,6 +115,44 @@ int main(void)
     cli_check((risen.y == frame.tabs_row.y + GUI_TAB_CLEAR) &&
                   (risen.height == frame.tabs_row.height - GUI_TAB_CLEAR - 1) && (risen.y < frame.tabs.y),
               "halfway through the claim a tab is whole in the row risen out of the work's head");
+    // the tabs' beads bake at the row's rest, and keep their bake as the claim moves the row and as a side pane
+    // slides in beside it
+    GuiButtons buttons;
+    EMBED_CALL(gui_buttons.init, GuiButtonsCfg, .buttons = &buttons);
+    GuiAutohideNumbers at_rest = frame.claim;
+    at_rest.claim = 0;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &at_rest);
+    (void)EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .glyphs = &glyphs, .frame = &frame,
+                     .raster = &raster, .palette = palette, .buttons = &buttons, .time_ms = 1000ULL);
+    const GuiRect origin = buttons.atlas.origin[0];
+    cli_check((buttons.atlas.baked == 7u) && (origin.width > 0), "the three tabs' beads bake at the row's rest");
+    // the bar and the strip back, the work halfway to giving them their insets: the row moves, the beads' cells do not
+    GuiAutohideNumbers inset = at_rest;
+    inset.claim = GUI_FIXED_ONE;
+    inset.reveal_top = GUI_FIXED_ONE;
+    inset.lag_top = GUI_FIXED_ONE;
+    inset.inset_top = GUI_FIXED_ONE / 2;
+    inset.reveal_left = GUI_FIXED_ONE;
+    inset.lag_left = GUI_FIXED_ONE;
+    inset.inset_left = GUI_FIXED_ONE / 2;
+    inset.reveal_tabs = GUI_FIXED_ONE;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &inset);
+    const GuiRect moved =
+        EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
+    (void)EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .glyphs = &glyphs, .frame = &frame,
+                     .raster = &raster, .palette = palette, .buttons = &buttons, .time_ms = 1016ULL);
+    cli_check(((moved.x != plain.x) || (moved.y != plain.y)) && (buttons.atlas.origin[0].x == origin.x) &&
+                  (buttons.atlas.origin[0].y == origin.y),
+              "the beads keep their cells as the work gives the bar and the strip their insets");
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1,
+               .away = GUI_FIXED_ONE / 2);
+    const GuiRect beside =
+        EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
+    (void)EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .glyphs = &glyphs, .frame = &frame,
+                     .raster = &raster, .palette = palette, .buttons = &buttons, .time_ms = 1032ULL);
+    cli_check((beside.x != moved.x) && (buttons.atlas.origin[0].x == origin.x) &&
+                  (buttons.atlas.origin[0].y == origin.y),
+              "the beads keep their cells as a side pane slides in beside the row");
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
