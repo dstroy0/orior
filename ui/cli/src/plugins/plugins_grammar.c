@@ -26,42 +26,6 @@ typedef struct
 static const CarcerMovableEntry *s_grammars[CLI_PLUGIN_GRAMMARS_MAX];
 static unsigned int s_grammar_count;
 
-// the plugin `at` of the list read off its cell
-static CliPluginGrammar grammar_listed(unsigned int at)
-{
-    CliPluginGrammar listed = {{0}, 0ULL};
-    const unsigned long long bytes = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_grammars[at]});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_grammars[at], .offset = 0ULL, .dst = &listed.stamp, .bytes = sizeof(listed.stamp)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars[at],
-                                                            .offset = CLI_PLUGIN_GRAMMAR_ID_AT,
-                                                            .dst = listed.id,
-                                                            .bytes = bytes - CLI_PLUGIN_GRAMMAR_ID_AT});
-    return listed;
-}
-
-// the plugin `id` listed after the others with `stamp`, in a cell sized to the two: 1, or 0 where the list is at
-// its max or the cells cannot meet it; under the lock
-static int cli_grammar_listed_put(const char *id, unsigned long long stamp)
-{
-    const unsigned long long id_bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN - 1u}) + 1ULL;
-    const CarcerMovableEntry *const cell =
-        (s_grammar_count < CLI_PLUGIN_GRAMMARS_MAX)
-            ? g_cli_guard->movable_buf_alloc(CLI_PLUGIN_GRAMMAR_ID_AT + id_bytes, g_cli_plugins_owner)
-            : NULL;
-    if (cell == NULL)
-    {
-        return 0;
-    }
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &stamp, .bytes = sizeof(stamp)});
-    (void)g_cli_guard->movable_buf_write(
-        &(CarcerMovableCfg){.cell = cell, .offset = CLI_PLUGIN_GRAMMAR_ID_AT, .src = id, .bytes = id_bytes});
-    s_grammars[s_grammar_count] = cell;
-    s_grammar_count += 1u;
-    return 1;
-}
-
 // The plugin sought: its id, and the folder its language is for, empty for none; the tree its tables are read
 // from; whether one of that id was found and its grammar made whole, the last, the one that is, written into
 // `whole`; and why where it was not
@@ -83,7 +47,48 @@ typedef struct
     const char *key;
     const CliGrownLine *whole;
     VerbaLinea *err_msg;
+    unsigned int at;
+    const char *id;
+    unsigned long long stamp;
 } PluginsGrammarCtx;
+
+// the plugin `at` of the list read off its cell
+static CliPluginGrammar grammar_listed(const PluginsGrammarCtx *args)
+{
+    CliPluginGrammar listed = {{0}, 0ULL};
+    const unsigned long long bytes =
+        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_grammars[args->at]});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_grammars[args->at], .offset = 0ULL, .dst = &listed.stamp, .bytes = sizeof(listed.stamp)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars[args->at],
+                                                            .offset = CLI_PLUGIN_GRAMMAR_ID_AT,
+                                                            .dst = listed.id,
+                                                            .bytes = bytes - CLI_PLUGIN_GRAMMAR_ID_AT});
+    return listed;
+}
+
+// the plugin `id` listed after the others with `stamp`, in a cell sized to the two: 1, or 0 where the list is at
+// its max or the cells cannot meet it; under the lock
+static int cli_grammar_listed_put(const PluginsGrammarCtx *args)
+{
+    const unsigned long long id_bytes =
+        cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_NAME_MAX_LEN - 1u}) + 1ULL;
+    const CarcerMovableEntry *const cell =
+        (s_grammar_count < CLI_PLUGIN_GRAMMARS_MAX)
+            ? g_cli_guard->movable_buf_alloc(CLI_PLUGIN_GRAMMAR_ID_AT + id_bytes, g_cli_plugins_owner)
+            : NULL;
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &args->stamp, .bytes = sizeof(args->stamp)});
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = cell, .offset = CLI_PLUGIN_GRAMMAR_ID_AT, .src = args->id, .bytes = id_bytes});
+    s_grammars[s_grammar_count] = cell;
+    s_grammar_count += 1u;
+    return 1;
+}
 // a text's stamp, FNV-1a over its bytes
 EMBED_INLINE unsigned long long cli_grammar_stamp(const PluginsGrammarCtx *args)
 {
@@ -228,7 +233,7 @@ static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
     CliPluginGrammar listed = {{0}, 0ULL};
     while (at < s_grammar_count)
     {
-        listed = grammar_listed(at);
+        listed = EMBED_CALL(grammar_listed, PluginsGrammarCtx, .at = at);
         if (cellul.eq(&(CatenaFinitaCfg){.src = listed.id, .other = args->id, .cap = CLI_POOL_BYTES}))
         {
             break;
@@ -243,7 +248,7 @@ static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
         // a grammar whose stamp the cells cannot hold is made whole again the next time it is sought
         if (stored && (at == s_grammar_count))
         {
-            (void)cli_grammar_listed_put(args->id, stamp);
+            (void)EMBED_CALL(cli_grammar_listed_put, PluginsGrammarCtx, .id = args->id, .stamp = stamp);
         }
         else if (stored)
         {

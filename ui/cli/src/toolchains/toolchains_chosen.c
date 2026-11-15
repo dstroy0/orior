@@ -45,22 +45,6 @@ static CliToolsFound s_found;
 // the states a search is cached with: those found by what the search reads, not by a variable or the tree
 static const char *const s_found_states[4] = {"chosen", "path", "found", "missing"};
 
-// the tool cached at `place` read off its cell into `tool`
-static void found_read(unsigned int place, CliToolFound *tool)
-{
-    ToolFoundHead head = {0u, 0u, 0u};
-    memor.set(&(MemoriaCfg){.dst = tool, .val = 0, .bytes = sizeof(*tool)});
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = s_found.tool[place], .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-        .cell = s_found.tool[place], .offset = sizeof(head), .dst = tool->id, .bytes = head.id_bytes});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_found.tool[place],
-                                                            .offset = sizeof(head) + head.id_bytes,
-                                                            .dst = tool->program,
-                                                            .bytes = head.program_bytes});
-    tool->state = s_found_states[head.state & 3u];
-}
-
 // every tool's cell given back, the cache empty
 static void found_emptied(void)
 {
@@ -87,7 +71,25 @@ typedef struct
     const char *text;
     unsigned long long against;
     unsigned long long needed;
+    unsigned int place;
+    CliToolFound *tool;
 } ToolchainsChosenCtx;
+
+// the tool cached at `place` read off its cell into `tool`
+static void found_read(const ToolchainsChosenCtx *args)
+{
+    ToolFoundHead head = {0u, 0u, 0u};
+    memor.set(&(MemoriaCfg){.dst = args->tool, .val = 0, .bytes = sizeof(*args->tool)});
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_found.tool[args->place], .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = s_found.tool[args->place], .offset = sizeof(head), .dst = args->tool->id, .bytes = head.id_bytes});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_found.tool[args->place],
+                                                            .offset = sizeof(head) + head.id_bytes,
+                                                            .dst = args->tool->program,
+                                                            .bytes = head.program_bytes});
+    args->tool->state = s_found_states[head.state & 3u];
+}
 // The folders the reader gave, by tool, read into a tree sized to them with capacity for one folder more, which
 // persistent_buf_release releases: the object of them
 EMBED_INLINE unsigned int cli_chosen_read(const ToolchainsChosenCtx *args)
@@ -168,8 +170,8 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
     {
         items += 1u;
     }
-    const CarcerMovableEntry *const cell = EMBED_CALL(cli_chosen_cell_grown, ToolchainsChosenCtx,
-                                                      .needed = (unsigned long long)items * CLI_CHOSEN_RECORD);
+    const CarcerMovableEntry *const cell =
+        EMBED_CALL(cli_chosen_cell_grown, ToolchainsChosenCtx, .needed = (unsigned long long)items * CLI_CHOSEN_RECORD);
     for (unsigned int item = json.node[chosen].first; (item != CLI_JSON_NONE) && (cell != NULL);
          item = json.node[item].next)
     {
@@ -203,11 +205,11 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
         char folder[CLI_PATH_MAX_LEN];
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = cell, .offset = (embed_word)at * CLI_CHOSEN_RECORD, .dst = id, .bytes = CLI_NAME_MAX_LEN});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell,
-                                                               .offset = ((embed_word)at * CLI_CHOSEN_RECORD) +
-                                                                         CLI_NAME_MAX_LEN,
-                                                               .dst = folder,
-                                                               .bytes = CLI_PATH_MAX_LEN});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = cell,
+                                .offset = ((embed_word)at * CLI_CHOSEN_RECORD) + CLI_NAME_MAX_LEN,
+                                .dst = folder,
+                                .bytes = CLI_PATH_MAX_LEN});
         EMBED_CALL(args->each_callback, CliEachIdFolderCfg, .context = args->context, .id = id, .folder = folder);
     }
 }
@@ -385,7 +387,7 @@ EMBED_INLINE unsigned int found_position(const ToolchainsChosenCtx *args)
             break;
         }
         CliToolFound tool;
-        found_read(place, &tool);
+        EMBED_CALL(found_read, ToolchainsChosenCtx, .place = place, .tool = &tool);
         if (cellul.eq(&(CatenaFinitaCfg){.src = tool.id, .other = args->id, .cap = CLI_NAME_MAX_LEN}))
         {
             break;
@@ -550,7 +552,7 @@ static void found_write(void)
     for (unsigned int at = 0u; at < s_found.count; at += 1u)
     {
         CliToolFound tool;
-        found_read(at, &tool);
+        EMBED_CALL(found_read, ToolchainsChosenCtx, .place = at, .tool = &tool);
         mmgr_line_put(&out, (at != 0u) ? ",\n    " : "\n    ");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                    .text_bytes = (const unsigned char *)tool.id,
@@ -581,7 +583,7 @@ int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
     memor.set(&(MemoriaCfg){.dst = &tool, .val = 0, .bytes = sizeof(tool)});
     if (place < s_found.count)
     {
-        found_read(place, &tool);
+        EMBED_CALL(found_read, ToolchainsChosenCtx, .place = place, .tool = &tool);
     }
     // a program cached that is gone from its folder is searched for again
     const int cached = (place < s_found.count) &&

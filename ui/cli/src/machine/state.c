@@ -121,6 +121,9 @@ typedef struct
     unsigned long long length;
     const char *path;
     const CliJsonFiles *files;
+    const CliStateEntries *entries_read;
+    unsigned long long text_at;
+    unsigned long long capacity;
 } StateCtx;
 // whether a folder's entry is a JSON file
 EMBED_INLINE int cli_json_file_include(const StateCtx *args)
@@ -477,42 +480,45 @@ void cli_state_entries_release(const CliStateEntriesCfg *args)
 
 // the text at `text_at` of the entries' cell read into `out`, `capacity` bytes, a 0 after it: `out`, or NULL where
 // it does not fit
-static const char *state_text(const CliStateEntries *entries, unsigned long long text_at, char *out,
-                              unsigned long long capacity)
+static const char *state_text(const StateCtx *args)
 {
-    const unsigned long long length = g_cli_guard->movable_buf_measure(
-        &(CarcerMovableCfg){.cell = entries->cell, .offset = text_at, .bytes = (embed_word)capacity});
-    if (length >= capacity)
+    const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+        .cell = args->entries_read->cell, .offset = args->text_at, .bytes = (embed_word)args->capacity});
+    if (length >= args->capacity)
     {
         return NULL;
     }
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = entries->cell, .offset = text_at, .dst = out, .bytes = (embed_word)length});
-    out[length] = '\0';
-    return out;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = args->entries_read->cell, .offset = args->text_at, .dst = args->out, .bytes = (embed_word)length});
+    args->out[length] = '\0';
+    return args->out;
 }
 
 // the place among the entries of the one with `key`, the count where none has it
-static unsigned int state_entry_find(const CliStateEntries *entries, const char *key)
+static unsigned int state_entry_find(const StateCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES});
-    for (unsigned int at = 0u; (entries != NULL) && (entries->cell != NULL) && (at < entries->count); at += 1u)
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
+    for (unsigned int at = 0u;
+         (args->entries_read != NULL) && (args->entries_read->cell != NULL) && (at < args->entries_read->count);
+         at += 1u)
     {
         CliStateEntry entry = {0ULL, 0ULL};
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
-                .cell = entries->cell, .offset = entry.key_at, .src = key, .bytes = (embed_word)(length + 1ULL)}) == 0)
+            .cell = args->entries_read->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
+        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entries_read->cell,
+                                                                 .offset = entry.key_at,
+                                                                 .src = args->key,
+                                                                 .bytes = (embed_word)(length + 1ULL)}) == 0)
         {
             return at;
         }
     }
-    return (entries != NULL) ? entries->count : 0u;
+    return (args->entries_read != NULL) ? args->entries_read->count : 0u;
 }
 
 const char *cli_state_entry_value(const CliStateEntryCfg *args)
 {
-    const unsigned int at = state_entry_find(args->entries, args->key);
+    const unsigned int at = EMBED_CALL(state_entry_find, StateCtx, .entries_read = args->entries, .key = args->key);
     if ((args->entries == NULL) || (at >= args->entries->count))
     {
         return NULL;
@@ -520,12 +526,13 @@ const char *cli_state_entry_value(const CliStateEntryCfg *args)
     CliStateEntry entry = {0ULL, 0ULL};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->entries->cell, .offset = CLI_STATE_ENTRY_AT(at), .dst = &entry, .bytes = sizeof(entry)});
-    return state_text(args->entries, entry.value_at, args->out, args->capacity);
+    return EMBED_CALL(state_text, StateCtx, .entries_read = args->entries, .text_at = entry.value_at, .out = args->out,
+                      .capacity = args->capacity);
 }
 
 unsigned long long cli_state_entry_size(const CliStateEntryCfg *args)
 {
-    const unsigned int at = state_entry_find(args->entries, args->key);
+    const unsigned int at = EMBED_CALL(state_entry_find, StateCtx, .entries_read = args->entries, .key = args->key);
     if ((args->entries == NULL) || (at >= args->entries->count))
     {
         return CLI_STATE_NONE;
@@ -546,7 +553,8 @@ const char *cli_state_entry_key(const CliStateEntryCfg *args)
     CliStateEntry entry = {0ULL, 0ULL};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->entries->cell, .offset = CLI_STATE_ENTRY_AT(args->at), .dst = &entry, .bytes = sizeof(entry)});
-    return state_text(args->entries, entry.key_at, args->out, args->capacity);
+    return EMBED_CALL(state_text, StateCtx, .entries_read = args->entries, .text_at = entry.key_at, .out = args->out,
+                      .capacity = args->capacity);
 }
 
 const char *cli_state_entry_text(const CliStateEntryCfg *args)
@@ -558,7 +566,8 @@ const char *cli_state_entry_text(const CliStateEntryCfg *args)
     CliStateEntry entry = {0ULL, 0ULL};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->entries->cell, .offset = CLI_STATE_ENTRY_AT(args->at), .dst = &entry, .bytes = sizeof(entry)});
-    return state_text(args->entries, entry.value_at, args->out, args->capacity);
+    return EMBED_CALL(state_text, StateCtx, .entries_read = args->entries, .text_at = entry.value_at, .out = args->out,
+                      .capacity = args->capacity);
 }
 
 int cli_state_value_save(const CliStateValueCfg *args)

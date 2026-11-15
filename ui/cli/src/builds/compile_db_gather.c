@@ -44,38 +44,44 @@ typedef struct
     const char *path;
     const char *root;
     const CliInputs *inputs;
+    char *compiler;
 } CompileDbGatherCtx;
 // the compiler `compiler`, its backslashes made slashes, put among the database's in order where it is not there yet
 // and the list has room, the database marked one that names cl where it is
-static void cli_compiler_note(CliDatabase *database, char *compiler)
+static void cli_compiler_note(const CompileDbGatherCtx *args)
 {
-    EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = compiler,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
+    EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->compiler,
+               .size = cellul.len(&(CatenaFinitaCfg){.src = args->compiler, .cap = CLI_POOL_BYTES}), .from = '\\',
+               .to = '/');
     unsigned int place = 0u;
-    while ((place < database->compilers) &&
-           (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = database->compiler[place],
-                       .other_pointer = compiler) < 0))
+    while ((place < args->database->compilers) &&
+           (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = args->database->compiler[place],
+                       .other_pointer = args->compiler) < 0))
     {
         place += 1u;
     }
-    if (((place < database->compilers) &&
-         (cellul.eq(&(CatenaFinitaCfg){.src = database->compiler[place], .other = compiler, .cap = CLI_POOL_BYTES}))) ||
-        (database->compilers >= CLI_COMPILERS))
+    if (((place < args->database->compilers) &&
+         (cellul.eq(&(CatenaFinitaCfg){
+             .src = args->database->compiler[place], .other = args->compiler, .cap = CLI_POOL_BYTES}))) ||
+        (args->database->compilers >= CLI_COMPILERS))
     {
         return;
     }
-    for (unsigned int move = database->compilers; move > place; move -= 1u)
+    for (unsigned int move = args->database->compilers; move > place; move -= 1u)
     {
         memor.cpy(&(MemoriaCfg){
-            .dst = database->compiler[move],
-            .src = database->compiler[move - 1u],
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = database->compiler[move - 1u], .cap = CLI_POOL_BYTES}) + 1u});
+            .dst = args->database->compiler[move],
+            .src = args->database->compiler[move - 1u],
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->database->compiler[move - 1u], .cap = CLI_POOL_BYTES}) +
+                     1u});
     }
-    memor.cpy(&(MemoriaCfg){.dst = database->compiler[place],
-                            .src = compiler,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = compiler, .cap = CLI_POOL_BYTES}) + 1u});
-    database->compilers += 1u;
-    database->msvc = database->msvc || EMBED_CALL(cli_compile_db_table.is_cl, CliCompileDbCfg, .compiler = compiler);
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->database->compiler[place],
+                      .src = args->compiler,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->compiler, .cap = CLI_POOL_BYTES}) + 1u});
+    args->database->compilers += 1u;
+    args->database->msvc =
+        args->database->msvc || EMBED_CALL(cli_compile_db_table.is_cl, CliCompileDbCfg, .compiler = args->compiler);
 }
 
 // a database of the entries `entries`, given to clangd from `folder` where one is given, with the compilers they name
@@ -121,7 +127,7 @@ static void cli_of_entries(const CompileDbGatherCtx *args)
         }
         if (found)
         {
-            cli_compiler_note(args->database, compiler);
+            EMBED_CALL(cli_compiler_note, CompileDbGatherCtx, .database = args->database, .compiler = compiler);
         }
     }
 }
@@ -194,7 +200,7 @@ static void cli_compiler_found(const CliEachAtCfg *args)
     }
     if (found)
     {
-        cli_compiler_note(sift->database, compiler);
+        EMBED_CALL(cli_compiler_note, CompileDbGatherCtx, .database = sift->database, .compiler = compiler);
     }
 }
 

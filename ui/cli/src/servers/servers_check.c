@@ -20,27 +20,6 @@ static unsigned int s_checker_index[CLI_SERVERS_CHECKING];
 // the first checker serves the ring of the files a change puts first, the others the tree's files
 EMBED_STATIC_ASSERT(CLI_SERVERS_CHECKING >= 2u, "the check needs a checker for each of its two rings");
 
-// the place of `path` among the tree's files, CLI_SERVERS_NO_FILE where it is not one; with the queue's lock acquired
-static unsigned int check_file_find(const char *path)
-{
-    // the path with its 0 against each file's text in the cell, the start of each read from the cell's starts
-    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}) + 1u;
-    for (unsigned int at = 0u; (s_queue.files_cell != NULL) && (at < s_queue.file_count); at += 1u)
-    {
-        unsigned long long start = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = s_queue.files_cell, .offset = CLI_SERVERS_FILE_AT(at), .dst = &start, .bytes = sizeof(start)});
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_queue.files_cell,
-                                                                 .offset = CLI_SERVERS_FILES_TEXT_AT(&s_queue, start),
-                                                                 .src = path,
-                                                                 .bytes = size}) == 0)
-        {
-            return at;
-        }
-    }
-    return CLI_SERVERS_NO_FILE;
-}
-
 // every file waiting let go: the generation moved on, so a checker drops each as it pops it and gives its server's
 // reference back, the checkers woken to do so; with the queue's lock acquired
 static void check_queue_clear(void)
@@ -55,7 +34,29 @@ typedef struct
     const CliServersSink *sink;
     unsigned long long done;
     unsigned long long total;
+    const char *path;
 } ServersCheckCtx;
+
+// the place of `path` among the tree's files, CLI_SERVERS_NO_FILE where it is not one; with the queue's lock acquired
+static unsigned int check_file_find(const ServersCheckCtx *args)
+{
+    // the path with its 0 against each file's text in the cell, the start of each read from the cell's starts
+    const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u;
+    for (unsigned int at = 0u; (s_queue.files_cell != NULL) && (at < s_queue.file_count); at += 1u)
+    {
+        unsigned long long start = 0ULL;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_queue.files_cell, .offset = CLI_SERVERS_FILE_AT(at), .dst = &start, .bytes = sizeof(start)});
+        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_queue.files_cell,
+                                                                 .offset = CLI_SERVERS_FILES_TEXT_AT(&s_queue, start),
+                                                                 .src = args->path,
+                                                                 .bytes = size}) == 0)
+        {
+            return at;
+        }
+    }
+    return CLI_SERVERS_NO_FILE;
+}
 // how far the check has gone reported where it goes
 EMBED_INLINE void check_progress_emit(const ServersCheckCtx *args)
 {
@@ -244,7 +245,8 @@ int cli_servers_check_allocs(const CliServersPathLspCtx *args)
         CliServersWaiting waiting = {lsp, ""};
         EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = lsp);
         consumed = EMBED_CALL(cli_servers_queue_internal.check_queue_append, CliServersQueueCtx, .queue = &s_queue,
-                              .path = args->path, .waiting = &waiting, .file = check_file_find(args->path), .front = 1);
+                              .path = args->path, .waiting = &waiting,
+                              .file = EMBED_CALL(check_file_find, ServersCheckCtx, .path = args->path), .front = 1);
         if (consumed)
         {
             char uri[CLI_PATH_MAX_LEN];
@@ -314,7 +316,7 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
     {
         for (unsigned int at = 0u; at < args->count; at += 1u)
         {
-            if (check_file_find(args->files[at]) == CLI_SERVERS_NO_FILE)
+            if (EMBED_CALL(check_file_find, ServersCheckCtx, .path = args->files[at]) == CLI_SERVERS_NO_FILE)
             {
                 EMBED_CALL(cli_servers_queue_files_internal.check_files_append, CliServersQueueFilesCtx,
                            .queue = &s_queue, .files = &args->files[at], .count = 1u);
@@ -367,7 +369,7 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         // a tree's file already waiting is not queued again
-        const unsigned int file = check_file_find(args->paths[at]);
+        const unsigned int file = EMBED_CALL(check_file_find, ServersCheckCtx, .path = args->paths[at]);
         unsigned char waiting = 0u;
         if (file != CLI_SERVERS_NO_FILE)
         {

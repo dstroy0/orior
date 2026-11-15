@@ -98,12 +98,6 @@ static TerminalModel s_terminal = {
 static TerminalTab s_tab_places[TERMINAL_TABS_MAX];
 static unsigned char s_tab_taken[TERMINAL_TABS_MAX];
 
-// a tab's place made free as the tab goes
-static void terminal_tab_freed(const TerminalTab *tab)
-{
-    s_tab_taken[tab - s_tab_places] = 0u;
-}
-
 typedef struct
 {
     int at;
@@ -128,7 +122,14 @@ typedef struct
     unsigned long long *retain_out;
     const char *path;
     const char *key;
+    const TerminalTab *tab_read;
 } TerminalCtx;
+
+// a tab's place made free as the tab goes
+static void terminal_tab_freed(const TerminalCtx *args)
+{
+    s_tab_taken[args->tab_read - s_tab_places] = 0u;
+}
 
 // the terminal's place stored TERMINAL_PLACE_REST_MS after this change where no other comes before then
 EMBED_INLINE void terminal_dirty(void)
@@ -700,7 +701,7 @@ EMBED_INLINE void terminal_wait_free(const TerminalCtx *args)
     }
     if (args->tab->shell.state != CLI_TERMINAL_SHELL_RUNNING)
     {
-        terminal_tab_freed(args->tab);
+        EMBED_CALL(terminal_tab_freed, TerminalCtx, .tab_read = args->tab);
     }
 }
 
@@ -715,7 +716,7 @@ EMBED_INLINE void terminal_close(const TerminalCtx *args)
     EMBED_CALL(cli_terminal_shell.end, CliTerminalShellCfg, .shell = &tab->shell, .now_ms = cli_clock_milliseconds());
     if (tab->shell.state != CLI_TERMINAL_SHELL_RUNNING)
     {
-        terminal_tab_freed(tab);
+        EMBED_CALL(terminal_tab_freed, TerminalCtx, .tab_read = tab);
     }
     else if (s_terminal.closings < TERMINAL_CLOSING)
     {
@@ -1232,7 +1233,7 @@ int cli_terminal_tabs_step(void)
         }
         else
         {
-            terminal_tab_freed(tab);
+            EMBED_CALL(terminal_tab_freed, TerminalCtx, .tab_read = tab);
         }
     }
     s_terminal.closings = left;
@@ -1412,7 +1413,7 @@ void cli_terminal_tabs_end(void)
         if ((s_terminal.tabs == 1u) && (s_terminal.tab[0]->shell.state == CLI_TERMINAL_SHELL_IDLE))
         {
             EMBED_CALL(terminal_unstore, TerminalCtx, .tab = s_terminal.tab[0], .on = 0);
-            terminal_tab_freed(s_terminal.tab[0]);
+            EMBED_CALL(terminal_tab_freed, TerminalCtx, .tab_read = s_terminal.tab[0]);
             s_terminal.tabs = 0u;
         }
     }

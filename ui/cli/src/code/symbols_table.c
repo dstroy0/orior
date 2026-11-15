@@ -40,6 +40,7 @@ typedef struct
     unsigned long long bytes;
     unsigned int parent;
     int folder;
+    const CarcerMovableEntry *entry;
 } SymbolsTableCtx;
 EMBED_INLINE unsigned long long cli_hash(const SymbolsTableCtx *args)
 {
@@ -139,14 +140,15 @@ unsigned int cli_branch_get(const CliSymbolsTreePathCfg *args)
 }
 
 // `bytes` of zeros written from the start of the movable cell `cell`, a block at a time
-EMBED_INLINE void cli_cell_zeroed(const CarcerMovableEntry *cell, unsigned long long bytes)
+EMBED_INLINE void cli_cell_zeroed(const SymbolsTableCtx *args)
 {
     static const unsigned char s_zeros[4096];
-    for (unsigned long long done = 0ULL; done < bytes; done += sizeof(s_zeros))
+    for (unsigned long long done = 0ULL; done < args->bytes; done += sizeof(s_zeros))
     {
-        const unsigned long long step = ((bytes - done) < sizeof(s_zeros)) ? (bytes - done) : sizeof(s_zeros);
+        const unsigned long long step =
+            ((args->bytes - done) < sizeof(s_zeros)) ? (args->bytes - done) : sizeof(s_zeros);
         (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = cell, .offset = done, .src = s_zeros, .bytes = step});
+            &(CarcerMovableCfg){.cell = args->entry, .offset = done, .src = s_zeros, .bytes = step});
     }
 }
 
@@ -174,7 +176,8 @@ EMBED_INLINE unsigned int cli_place_taken(const SymbolsTableCtx *args)
         {
             return CLI_BRANCHES_MAX;
         }
-        cli_cell_zeroed(s_chunk[chunk], (unsigned long long)CLI_BRANCH_CHUNK * sizeof(CliTreeBranch));
+        EMBED_CALL(cli_cell_zeroed, SymbolsTableCtx, .entry = s_chunk[chunk],
+                   .bytes = (unsigned long long)CLI_BRANCH_CHUNK * sizeof(CliTreeBranch));
     }
     unsigned int word = 0u;
     while (s_chunk_bits[chunk][word] == ~0ULL)

@@ -32,18 +32,23 @@ static const char *const s_symbol[3][4] = {
 static char s_path[GUI_FACES][CLI_PATH_MAX_LEN];
 static int s_looked[GUI_FACES];
 
+typedef struct
+{
+    unsigned int face;
+} FacesCtx;
+
 // the path of `face` found: the code faces among the monospace fonts, the interface face and its bold among the sans
 // families, the reading face among the serif families and the symbol face among its own
-static const char *faces_path(unsigned int face)
+static const char *faces_path(const FacesCtx *args)
 {
-    if (face >= GUI_FACES)
+    if (args->face >= GUI_FACES)
     {
         return "";
     }
-    if (!s_looked[face])
+    if (!s_looked[args->face])
     {
         char paths[4][CLI_PATH_MAX_LEN];
-        if (face <= GUI_FACE_CODE_BOLD_ITALIC)
+        if (args->face <= GUI_FACE_CODE_BOLD_ITALIC)
         {
             EMBED_CALL(cli_font_families.monospace, CliFontFamiliesCfg, .paths = paths);
             for (unsigned int code = GUI_FACE_CODE; code <= GUI_FACE_CODE_BOLD_ITALIC; code += 1u)
@@ -52,7 +57,7 @@ static const char *faces_path(unsigned int face)
                 s_looked[code] = 1;
             }
         }
-        else if ((face == GUI_FACE_HEAD) || (face == GUI_FACE_HEAD_BOLD))
+        else if ((args->face == GUI_FACE_HEAD) || (args->face == GUI_FACE_HEAD_BOLD))
         {
             EMBED_CALL(cli_font_families.find, CliFontFamiliesCfg, .families = s_sans,
                        .count = sizeof(s_sans) / sizeof(s_sans[0]), .paths = paths);
@@ -61,7 +66,7 @@ static const char *faces_path(unsigned int face)
             s_looked[GUI_FACE_HEAD] = 1;
             s_looked[GUI_FACE_HEAD_BOLD] = 1;
         }
-        else if (face == GUI_FACE_TEXT)
+        else if (args->face == GUI_FACE_TEXT)
         {
             EMBED_CALL(cli_font_families.find, CliFontFamiliesCfg, .families = s_serif,
                        .count = sizeof(s_serif) / sizeof(s_serif[0]), .paths = paths);
@@ -76,12 +81,12 @@ static const char *faces_path(unsigned int face)
             s_looked[GUI_FACE_SYMBOL] = 1;
         }
     }
-    return s_path[face];
+    return s_path[args->face];
 }
 
 static int faces_size(unsigned int face, unsigned long long *size)
 {
-    const char *const path = faces_path(face);
+    const char *const path = EMBED_CALL(faces_path, FacesCtx, .face = face);
     return (path[0] != '\0') &&
            EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = size);
 }
@@ -89,8 +94,9 @@ static int faces_size(unsigned int face, unsigned long long *size)
 static int faces_read(unsigned int face, unsigned char *at, unsigned long long size)
 {
     unsigned long long got = 0ULL;
-    return EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = faces_path(face), .from = 0ULL,
-                      .bytes_bytes = at, .count_u64 = size, .got = &got) &&
+    return EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx,
+                      .path = EMBED_CALL(faces_path, FacesCtx, .face = face), .from = 0ULL, .bytes_bytes = at,
+                      .count_u64 = size, .got = &got) &&
            (got == size);
 }
 

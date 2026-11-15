@@ -21,50 +21,6 @@ typedef struct
     unsigned int capacity;
 } HistoryStamps;
 
-// `stamp` added at the end of `stamps`, the cell grown to twice its capacity where it is full: 1, or 0 where the
-// cells refuse the growth
-static int history_stamp_add(HistoryStamps *stamps, unsigned long long stamp)
-{
-    if (stamps->count == stamps->capacity)
-    {
-        const unsigned int capacity = (stamps->capacity != 0u) ? stamps->capacity * 2u : 16u;
-        const CarcerMovableEntry *const grown =
-            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(stamp), g_cli_editor_owner);
-        if (grown == NULL)
-        {
-            return 0;
-        }
-        for (unsigned int at = 0u; at < stamps->count; at += 1u)
-        {
-            unsigned long long held = 0ULL;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = stamps->cell, .offset = (embed_word)at * sizeof(held), .dst = &held, .bytes = sizeof(held)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-                .cell = grown, .offset = (embed_word)at * sizeof(held), .src = &held, .bytes = sizeof(held)});
-        }
-        if (stamps->cell != NULL)
-        {
-            (void)g_cli_guard->movable_buf_release(stamps->cell, g_cli_editor_owner);
-        }
-        stamps->cell = grown;
-        stamps->capacity = capacity;
-    }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-        .cell = stamps->cell, .offset = (embed_word)stamps->count * sizeof(stamp), .src = &stamp, .bytes = sizeof(stamp)});
-    stamps->count += 1u;
-    return 1;
-}
-
-// the stamps' cell given back and the list emptied
-static void history_stamps_release(HistoryStamps *stamps)
-{
-    if (stamps->cell != NULL)
-    {
-        (void)g_cli_guard->movable_buf_release(stamps->cell, g_cli_editor_owner);
-    }
-    *stamps = (HistoryStamps){NULL, 0u, 0u};
-}
-
 typedef struct
 {
     const char *snapshot;
@@ -82,7 +38,57 @@ typedef struct
     unsigned long long before_size;
     VerbaLinea *err_msg;
     HistoryStamps *stamps;
+    unsigned long long stamp;
 } HistoryCtx;
+
+// `stamp` added at the end of `stamps`, the cell grown to twice its capacity where it is full: 1, or 0 where the
+// cells refuse the growth
+static int history_stamp_add(const HistoryCtx *args)
+{
+    if (args->stamps->count == args->stamps->capacity)
+    {
+        const unsigned int capacity = (args->stamps->capacity != 0u) ? args->stamps->capacity * 2u : 16u;
+        const CarcerMovableEntry *const grown =
+            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(args->stamp), g_cli_editor_owner);
+        if (grown == NULL)
+        {
+            return 0;
+        }
+        for (unsigned int at = 0u; at < args->stamps->count; at += 1u)
+        {
+            unsigned long long held = 0ULL;
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->stamps->cell,
+                                                                    .offset = (embed_word)at * sizeof(held),
+                                                                    .dst = &held,
+                                                                    .bytes = sizeof(held)});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = grown, .offset = (embed_word)at * sizeof(held), .src = &held, .bytes = sizeof(held)});
+        }
+        if (args->stamps->cell != NULL)
+        {
+            (void)g_cli_guard->movable_buf_release(args->stamps->cell, g_cli_editor_owner);
+        }
+        args->stamps->cell = grown;
+        args->stamps->capacity = capacity;
+    }
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->stamps->cell,
+                            .offset = (embed_word)args->stamps->count * sizeof(args->stamp),
+                            .src = &args->stamp,
+                            .bytes = sizeof(args->stamp)});
+    args->stamps->count += 1u;
+    return 1;
+}
+
+// the stamps' cell given back and the list emptied
+static void history_stamps_release(const HistoryCtx *args)
+{
+    if (args->stamps->cell != NULL)
+    {
+        (void)g_cli_guard->movable_buf_release(args->stamps->cell, g_cli_editor_owner);
+    }
+    *args->stamps = (HistoryStamps){NULL, 0u, 0u};
+}
 // whether the snapshot at `snapshot` contains `size` bytes of `text`, the snapshot mapped where it lies and let go
 EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
 {
@@ -138,7 +144,8 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
                        .character = character) ||
             (character == '.') || (character == '_') || (character == '-'))
         {
-            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
+            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                       .character = character);
         }
     }
     const int fits = mmgr_line_ok(&line);
@@ -180,7 +187,7 @@ static void cli_stamp_each(const CliEachNameIsFolderCfg *args)
         }
         value = (value * 10ULL) + (unsigned long long)(digit - '0');
     }
-    (void)history_stamp_add(stamps, value);
+    (void)EMBED_CALL(history_stamp_add, HistoryCtx, .stamps = stamps, .stamp = value);
 }
 
 // the stamps of a folder read into `stamps` in order, the oldest first: their count
@@ -197,19 +204,23 @@ EMBED_INLINE unsigned int cli_stamps(const HistoryCtx *args)
         unsigned int place = at;
         // the stamp before the place, moved up while it orders after the stamp
         unsigned long long before = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = stamps->cell,
-                                                                .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * sizeof(before),
-                                                                .dst = &before,
-                                                                .bytes = sizeof(before)});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = stamps->cell,
+                                .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * sizeof(before),
+                                .dst = &before,
+                                .bytes = sizeof(before)});
         while ((place > 0u) && (before > stamp))
         {
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-                .cell = stamps->cell, .offset = (embed_word)place * sizeof(before), .src = &before, .bytes = sizeof(before)});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = stamps->cell,
+                                                                     .offset = (embed_word)place * sizeof(before),
+                                                                     .src = &before,
+                                                                     .bytes = sizeof(before)});
             place -= 1u;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = stamps->cell,
-                                                                    .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * sizeof(before),
-                                                                    .dst = &before,
-                                                                    .bytes = sizeof(before)});
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = stamps->cell,
+                                    .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * sizeof(before),
+                                    .dst = &before,
+                                    .bytes = sizeof(before)});
         }
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = stamps->cell, .offset = (embed_word)place * sizeof(stamp), .src = &stamp, .bytes = sizeof(stamp)});
@@ -239,10 +250,10 @@ EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
         return 0;
     }
     HistoryStamps stamps = {NULL, 0u, 0u};
-    const int written = EMBED_CALL(cli_snapshot_write, HistoryCtx, .folder = folder, .stamps = &stamps,
-                                   .before = args->before, .before_size = args->before_size, .text = args->text,
-                                   .size = size, .err_msg = args->err_msg);
-    history_stamps_release(&stamps);
+    const int written =
+        EMBED_CALL(cli_snapshot_write, HistoryCtx, .folder = folder, .stamps = &stamps, .before = args->before,
+                   .before_size = args->before_size, .text = args->text, .size = size, .err_msg = args->err_msg);
+    EMBED_CALL(history_stamps_release, HistoryCtx, .stamps = &stamps);
     return written;
 }
 
@@ -271,14 +282,16 @@ EMBED_INLINE int cli_snapshot_write(const HistoryCtx *args)
             mmgr_line_put(args->err_msg, ": it could not be written");
             return 0;
         }
-        stamp_count += history_stamp_add(stamps, at) ? 1u : 0u;
+        stamp_count += EMBED_CALL(history_stamp_add, HistoryCtx, .stamps = stamps, .stamp = at) ? 1u : 0u;
         at += 1ULL;
     }
     if (stamp_count != 0u)
     {
         unsigned long long last = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = stamps->cell, .offset = (embed_word)(stamp_count - 1u) * sizeof(last), .dst = &last, .bytes = sizeof(last)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = stamps->cell,
+                                                                .offset = (embed_word)(stamp_count - 1u) * sizeof(last),
+                                                                .dst = &last,
+                                                                .bytes = sizeof(last)});
         if (EMBED_CALL(cli_snapshot_path, HistoryCtx, .folder = folder, .at = last, .path_out = snapshot) &&
             EMBED_CALL(cli_snapshot_same, HistoryCtx, .snapshot = snapshot, .text = args->text, .size = size))
         {
@@ -336,7 +349,7 @@ unsigned int cli_history_stamps(const CliHistoryStampsCfg *args)
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = stamps.cell, .dst = args->stamps_out, .bytes = (embed_word)copied * sizeof(unsigned long long)});
     }
-    history_stamps_release(&stamps);
+    EMBED_CALL(history_stamps_release, HistoryCtx, .stamps = &stamps);
     return copied;
 }
 

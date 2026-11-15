@@ -40,6 +40,7 @@ typedef struct
     const CliRegion *region;
     unsigned long long *delivered;
     VerbaLinea *err_msg;
+    embed_u64 stamp;
 } InterfaceClientCtx;
 
 // the message of `size` bytes at `message` queued, its body in its entry or a region: a message past the queue's
@@ -133,11 +134,11 @@ static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u6
 }
 
 // a popped entry's slot released and the next ticket moved past it
-static void client_released(CliIpcClient *client, embed_u64 stamp)
+static void client_released(const InterfaceClientCtx *args)
 {
     embed_u64 seen = 0u;
-    (void)embed_ticket_ring_drain_release(&client->turnstiles, &client->ring, stamp, &seen);
-    client->taken += 1u;
+    (void)embed_ticket_ring_drain_release(&args->client->turnstiles, &args->client->ring, args->stamp, &seen);
+    args->client->taken += 1u;
 }
 
 // what comes read until the end breaks: each message queued, and each other frame stored as the answer waited on
@@ -322,7 +323,7 @@ void cli_ipc_leave(const CliIpcClientCfg *args)
         {
             EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
         }
-        client_released(args->client, stamp);
+        EMBED_CALL(client_released, InterfaceClientCtx, .client = args->client, .stamp = stamp);
     }
     EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &args->client->end);
     args->client->answer = NULL;
@@ -411,6 +412,6 @@ int cli_ipc_next(const CliIpcClientCfg *args)
     {
         EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
     }
-    client_released(args->client, stamp);
+    EMBED_CALL(client_released, InterfaceClientCtx, .client = args->client, .stamp = stamp);
     return 1;
 }

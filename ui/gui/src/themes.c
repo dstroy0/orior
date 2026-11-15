@@ -33,6 +33,7 @@ typedef struct
     int on;
     const char *mark;
     const char *color_text;
+    char character;
 } ThemesCtx;
 
 // the theme at `at` of `themes_read` read into `theme`, which is left zero where the themes have no cell
@@ -642,9 +643,10 @@ void gui_theme_icon_remove(const GuiThemesAtIconCfg *args)
 }
 
 // a byte in lower case where it is an ASCII capital
-EMBED_INLINE char theme_lower(char character)
+EMBED_INLINE char theme_lower(const ThemesCtx *args)
 {
-    return ((character >= 'A') && (character <= 'Z')) ? (char)(character + ('a' - 'A')) : character;
+    return ((args->character >= 'A') && (args->character <= 'Z')) ? (char)(args->character + ('a' - 'A'))
+                                                                  : args->character;
 }
 
 // whether `pattern` covers `name`, `length` bytes: `*` is for any characters and `?` for one byte, the rest compared
@@ -668,7 +670,8 @@ EMBED_INLINE int theme_pattern_covers(const ThemesCtx *args)
             reading += 1ULL;
         }
         else if ((pattern[reading] == '?') ||
-                 ((pattern[reading] != '\0') && (theme_lower(pattern[reading]) == theme_lower(name[at]))))
+                 ((pattern[reading] != '\0') && (EMBED_CALL(theme_lower, ThemesCtx, .character = pattern[reading]) ==
+                                                 EMBED_CALL(theme_lower, ThemesCtx, .character = name[at]))))
         {
             reading += 1ULL;
             at += 1ULL;

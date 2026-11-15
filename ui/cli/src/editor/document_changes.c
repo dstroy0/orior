@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // document_changes.c: a text's changes against its last commit's file answered off one pass of the store's diff each
-// time they are asked for; nothing is retained between asks. A pass passes each change to a reader that retains the one it
-// seeks, or marks the lines of a run, and counts them all
+// time they are asked for; nothing is retained between asks. A pass passes each change to a reader that retains the one
+// it seeks, or marks the lines of a run, and counts them all
 #include "document_changes.h"
 
 #include "../command_line/pool.h"
@@ -29,6 +29,8 @@ typedef struct
 {
     const CliChange *change;
     unsigned long long line;
+    const char *key;
+    ChangesPass *pass;
 } ChangesCtx;
 
 // the first line the gutter marks a change on: its first newer line, or for lines taken out alone the line above them,
@@ -96,10 +98,10 @@ static void changes_passed(const CliEachHunkCfg *args)
 }
 
 // one pass over the changes of the text under `key` with `pass` as the reader: 1 where the store has the changes
-static int changes_pass(const char *key, ChangesPass *pass)
+static int changes_pass(const ChangesCtx *args)
 {
-    return EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = key,
-                      .each = changes_passed, .context = pass);
+    return EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = args->key,
+                      .each = changes_passed, .context = args->pass);
 }
 
 int cli_document_change_find(const CliChangeCfg *args)
@@ -107,7 +109,7 @@ int cli_document_change_find(const CliChangeCfg *args)
     ChangesPass pass = {
         args->line, args->at == CLI_CHANGE_NONE, args->at, 0, {0u, 0u, 0u, 0u}, 0u, 0u, 0, {0u, 0u, 0u, 0u}, NULL, 0ULL,
         0u};
-    const int has = changes_pass(args->key, &pass);
+    const int has = EMBED_CALL(changes_pass, ChangesCtx, .key = args->key, .pass = &pass);
     if (args->count_out != NULL)
     {
         *args->count_out = has ? pass.count : 0u;
@@ -208,7 +210,7 @@ void cli_document_change_marks(const CliChangeCfg *args)
     ChangesPass pass = {
         0ULL,       0,          CLI_CHANGE_NONE, 0, {0u, 0u, 0u, 0u}, 0u, 0u, 0, {0u, 0u, 0u, 0u}, args->marks_out,
         args->line, args->count};
-    (void)changes_pass(args->key, &pass);
+    (void)EMBED_CALL(changes_pass, ChangesCtx, .key = args->key, .pass = &pass);
 }
 
 unsigned int cli_document_change_mark(const CliChangeCfg *args)

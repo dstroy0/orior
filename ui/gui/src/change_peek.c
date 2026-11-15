@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// change_peek.c: the change peek positioned under the change's line as the editor draws it, its head with the sentence over
-// the change and the controls from the right, its rows the change's lines as the store answers them; the box and the
-// controls positioned are for the press that follows. The peek retains the key and the place of the change displayed and when it
-// was displayed; every read of the change itself is one pass of the store's diff
+// change_peek.c: the change peek positioned under the change's line as the editor draws it, its head with the sentence
+// over the change and the controls from the right, its rows the change's lines as the store answers them; the box and
+// the controls positioned are for the press that follows. The peek retains the key and the place of the change
+// displayed and when it was displayed; every read of the change itself is one pass of the store's diff
 #include "change_peek.h"
 
 #include "../../../includes/window/frame.h"
@@ -40,6 +40,9 @@ typedef struct
     GuiColor color;
     unsigned int at;
     const char *key;
+    CliChange *change_out;
+    unsigned int *count_out;
+    const CliChange *change;
 } ChangePeekCtx;
 
 // `pixels` of the page at the peek's scale
@@ -60,14 +63,14 @@ EMBED_INLINE void peek_displayed(const ChangePeekCtx *args)
 
 // the change displayed read anew off the store, into `change_out` with how many changes are into `count_out`: 1, or 0
 // where none is displayed or it is gone, which closes the peek
-EMBED_INLINE int peek_change(CliChange *change_out, unsigned int *count_out)
+EMBED_INLINE int peek_change(const ChangePeekCtx *args)
 {
     if (s_displayed.at == CLI_CHANGE_NONE)
     {
         return 0;
     }
     if (!EMBED_CALL(cli_document_change.find, CliChangeCfg, .key = s_displayed.key, .at = s_displayed.at,
-                    .change_out = change_out, .count_out = count_out))
+                    .change_out = args->change_out, .count_out = args->count_out))
     {
         s_displayed.at = CLI_CHANGE_NONE;
         return 0;
@@ -113,11 +116,11 @@ EMBED_INLINE void peek_control_draw(const ChangePeekCtx *args)
 }
 
 // the line the peek is under: the change's last newer line, or the line above lines taken out
-EMBED_INLINE unsigned long long peek_under(const CliChange *change)
+EMBED_INLINE unsigned long long peek_under(const ChangePeekCtx *args)
 {
-    return (change->now_to > change->now_from)
-               ? (unsigned long long)change->now_to - 1ULL
-               : (unsigned long long)EMBED_CALL(cli_document_change.marked_from, CliChangeCfg, .change = change);
+    return (args->change->now_to > args->change->now_from)
+               ? (unsigned long long)args->change->now_to - 1ULL
+               : (unsigned long long)EMBED_CALL(cli_document_change.marked_from, CliChangeCfg, .change = args->change);
 }
 
 void gui_change_peek_draw(const GuiChangePeekCfg *args)
@@ -125,16 +128,17 @@ void gui_change_peek_draw(const GuiChangePeekCfg *args)
     s_places = (ChangePeekPlaces){{0, 0, 0, 0}, {{0, 0, 0, 0}}};
     CliChange change;
     unsigned int count = 0u;
-    if (!peek_change(&change, &count))
+    if (!EMBED_CALL(peek_change, ChangePeekCtx, .change_out = &change, .count_out = &count))
     {
         return;
     }
     const unsigned int removed = change.then_to - change.then_from;
     const unsigned int rows = removed + (change.now_to - change.now_from);
     GuiRect anchor;
-    if ((rows == 0u) || !EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg,
-                                    .editor_read = args->editor_read, .place = args->place, .cell = args->cell,
-                                    .scale = args->scale, .line = peek_under(&change), .col = 0ULL, .rect = &anchor))
+    if ((rows == 0u) ||
+        !EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = args->editor_read,
+                    .place = args->place, .cell = args->cell, .scale = args->scale,
+                    .line = EMBED_CALL(peek_under, ChangePeekCtx, .change = &change), .col = 0ULL, .rect = &anchor))
     {
         return;
     }
@@ -285,8 +289,9 @@ int gui_change_peek_step(const GuiChangePeekCfg *args)
                      cellul.eq(&(CatenaFinitaCfg){.src = s_displayed.key, .other = args->key, .cap = CLI_NAME_MAX_LEN});
     CliChange change;
     unsigned int at = CLI_CHANGE_NONE;
-    if (!EMBED_CALL(cli_document_change.step, CliChangeCfg, .key = args->key, .at = same ? s_displayed.at : CLI_CHANGE_NONE,
-                    .line = args->line, .by = args->by, .change_out = &change, .at_out = &at))
+    if (!EMBED_CALL(cli_document_change.step, CliChangeCfg, .key = args->key,
+                    .at = same ? s_displayed.at : CLI_CHANGE_NONE, .line = args->line, .by = args->by,
+                    .change_out = &change, .at_out = &at))
     {
         return 0;
     }
@@ -326,7 +331,7 @@ int gui_change_peek_revert(const GuiChangePeekCfg *args)
 {
     CliChange change;
     unsigned int count = 0u;
-    if (!peek_change(&change, &count))
+    if (!EMBED_CALL(peek_change, ChangePeekCtx, .change_out = &change, .count_out = &count))
     {
         mmgr_line_put(args->err_msg, "no change is displayed");
         return 0;

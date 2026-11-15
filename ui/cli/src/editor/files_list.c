@@ -381,14 +381,14 @@ static unsigned int s_explorer_capacity;
 static embed_atomic_u32 s_explorer_stale;
 
 // the place of the listing of the folder `dir`, or FILES_EXPLORER_NONE where it was never listed
-static unsigned int explorer_folder(const char *dir)
+static unsigned int explorer_folder(const FilesListCtx *args)
 {
     for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .dst = &folder, .bytes = sizeof(folder)});
-        if (cellul.eq(&(CatenaFinitaCfg){.src = folder.dir, .other = dir, .cap = CLI_PATH_MAX_LEN}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = folder.dir, .other = args->path, .cap = CLI_PATH_MAX_LEN}))
         {
             return at;
         }
@@ -399,7 +399,7 @@ static unsigned int explorer_folder(const char *dir)
 // the folder `dir` listed for the explorer, its path located as long as its parent's listing does, the folders' cell
 // grown to twice its capacity where it is full: the listing's place, or FILES_EXPLORER_NONE where it could not be
 // read or the cells refuse the growth
-static unsigned int explorer_list(const char *dir)
+static unsigned int explorer_list(const FilesListCtx *args)
 {
     if (s_explorer_root == NULL)
     {
@@ -434,13 +434,13 @@ static unsigned int explorer_list(const char *dir)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     CliFileEntries *const entries =
-        EMBED_CALL(cli_files_listing.entries_alloc, CliFilesEntriesCfg, .root = s_explorer_root, .dir = dir,
+        EMBED_CALL(cli_files_listing.entries_alloc, CliFilesEntriesCfg, .root = s_explorer_root, .dir = args->path,
                    .owner = g_cli_editor_owner, .err_msg = &err_msg);
     if (entries == NULL)
     {
         return FILES_EXPLORER_NONE;
     }
-    const FilesExplorerFolder folder = {dir, entries, 0};
+    const FilesExplorerFolder folder = {args->path, entries, 0};
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
                                                              .offset = (embed_word)s_explorer_folders * sizeof(folder),
                                                              .src = &folder,
@@ -454,7 +454,7 @@ void cli_files_explorer_show(const CliFilesExplorerCfg *args)
     if ((s_explorer_root == NULL) && (args->root != NULL))
     {
         s_explorer_root = args->root;
-        const unsigned int top = explorer_list("");
+        const unsigned int top = EMBED_CALL(explorer_list, FilesListCtx, .path = "");
         if (top != FILES_EXPLORER_NONE)
         {
             FilesExplorerFolder folder = {NULL, NULL, 0};
@@ -497,7 +497,8 @@ static int explorer_walk(FilesExplorerFolder folder, unsigned int depth, unsigne
     for (unsigned int at = 0u; at < folder.entries->count; at += 1u)
     {
         const CliFileEntry *const entry = &folder.entries->entry[at];
-        const unsigned int under_at = entry->dir ? explorer_folder(entry->path) : FILES_EXPLORER_NONE;
+        const unsigned int under_at =
+            entry->dir ? EMBED_CALL(explorer_folder, FilesListCtx, .path = entry->path) : FILES_EXPLORER_NONE;
         FilesExplorerFolder under = {NULL, NULL, 0};
         if (under_at != FILES_EXPLORER_NONE)
         {
@@ -660,7 +661,7 @@ int cli_files_explorer_press(const CliFilesExplorerCfg *args)
     {
         return 0;
     }
-    const unsigned int listed = explorer_folder(row.path);
+    const unsigned int listed = EMBED_CALL(explorer_folder, FilesListCtx, .path = row.path);
     if (listed != FILES_EXPLORER_NONE)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
@@ -675,7 +676,7 @@ int cli_files_explorer_press(const CliFilesExplorerCfg *args)
                                                                  .bytes = sizeof(folder)});
         return 1;
     }
-    const unsigned int opened = explorer_list(row.path);
+    const unsigned int opened = EMBED_CALL(explorer_list, FilesListCtx, .path = row.path);
     if (opened != FILES_EXPLORER_NONE)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};

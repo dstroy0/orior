@@ -4,9 +4,9 @@
 // folder containing one it lists or at the tree's top, or a file in a folder the tree does not contain that git does
 // not ignore, git queried once a listing for each such folder. Every path is, in a tree git cannot read
 #include "../code/symbols.h"
+#include "../command_line/pool.h"
 #include "../machine/trust.h"
 #include "../text/text.h"
-#include "../command_line/pool.h"
 #include "files_internal.h"
 
 // What git reported of one folder outside the tree it was queried about: where the folder's path starts in the
@@ -32,18 +32,29 @@ typedef struct
 } TrackedCache;
 static TrackedCache s_cache;
 
+typedef struct
+{
+    const char *outside;
+    unsigned long long at;
+    int *ignored;
+    int ignored_value;
+    const CarcerMovableEntry *entry;
+    unsigned long long *capacity;
+    unsigned long long used;
+    unsigned long long needed;
+} FilesTrackedCtx;
+
 // a movable cell of at least `needed` bytes holding the first `used` bytes of `cell`: `cell` itself where its
 // `capacity` bytes hold them, else a cell of twice the capacity until they fit, the bytes copied through, `cell`
 // given back and `capacity` set to the new bytes; NULL where the cells refuse the growth, `cell` and `capacity` kept
-static const CarcerMovableEntry *tracked_cell_fit(const CarcerMovableEntry *cell, unsigned long long *capacity,
-                                                  unsigned long long used, unsigned long long needed)
+static const CarcerMovableEntry *tracked_cell_fit(const FilesTrackedCtx *args)
 {
-    if (needed <= *capacity)
+    if (args->needed <= *args->capacity)
     {
-        return cell;
+        return args->entry;
     }
-    unsigned long long grown = (*capacity != 0ULL) ? *capacity : 1024ULL;
-    while (grown < needed)
+    unsigned long long grown = (*args->capacity != 0ULL) ? *args->capacity : 1024ULL;
+    while (grown < args->needed)
     {
         grown *= 2ULL;
     }
@@ -52,30 +63,22 @@ static const CarcerMovableEntry *tracked_cell_fit(const CarcerMovableEntry *cell
     {
         return NULL;
     }
-    for (unsigned long long at = 0ULL; at < used; at += CLI_PATH_MAX_LEN)
+    for (unsigned long long at = 0ULL; at < args->used; at += CLI_PATH_MAX_LEN)
     {
         char piece[CLI_PATH_MAX_LEN];
-        const unsigned long long size = (used - at < sizeof(piece)) ? used - at : sizeof(piece);
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
+        const unsigned long long size = (args->used - at < sizeof(piece)) ? args->used - at : sizeof(piece);
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = args->entry, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
         (void)g_cli_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = moved, .offset = (embed_word)at, .src = piece, .bytes = (embed_word)size});
     }
-    if (cell != NULL)
+    if (args->entry != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+        (void)g_cli_guard->movable_buf_release(args->entry, g_cli_editor_owner);
     }
-    *capacity = grown;
+    *args->capacity = grown;
     return moved;
 }
-
-typedef struct
-{
-    const char *outside;
-    unsigned long long at;
-    int *ignored;
-    int ignored_value;
-} FilesTrackedCtx;
 // the answer cached for `outside` of the listing made at `at`: 1 with whether git ignores it, or 0 where none is
 // cached; the answers cached for a listing before let go
 EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
@@ -97,8 +100,10 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
                                                                 .dst = &cached,
                                                                 .bytes = sizeof(cached)});
         char path[CLI_PATH_MAX_LEN];
-        const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
-            .cell = s_cache.text, .offset = (embed_word)cached.path_at, .bytes = (embed_word)(s_cache.used - cached.path_at)});
+        const unsigned long long length =
+            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_cache.text,
+                                                                 .offset = (embed_word)cached.path_at,
+                                                                 .bytes = (embed_word)(s_cache.used - cached.path_at)});
         const unsigned long long size = (length < sizeof(path)) ? length : (sizeof(path) - 1ULL);
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_cache.text, .offset = (embed_word)cached.path_at, .dst = path, .bytes = (embed_word)size});
@@ -119,10 +124,14 @@ EMBED_INLINE void tracked_append(const FilesTrackedCtx *args)
         return;
     }
     const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->outside, .cap = CLI_POOL_BYTES}) + 1ULL;
-    const CarcerMovableEntry *const cached = tracked_cell_fit(
-        s_cache.cached, &s_cache.capacity, s_cache.count * sizeof(TrackedCached), (s_cache.count + 1ULL) * sizeof(TrackedCached));
+    const CarcerMovableEntry *const cached = EMBED_CALL(
+        tracked_cell_fit, FilesTrackedCtx, .entry = s_cache.cached, .capacity = &s_cache.capacity,
+        .used = s_cache.count * sizeof(TrackedCached), .needed = (s_cache.count + 1ULL) * sizeof(TrackedCached));
     const CarcerMovableEntry *const text =
-        (cached != NULL) ? tracked_cell_fit(s_cache.text, &s_cache.text_capacity, s_cache.used, s_cache.used + bytes) : NULL;
+        (cached != NULL)
+            ? EMBED_CALL(tracked_cell_fit, FilesTrackedCtx, .entry = s_cache.text, .capacity = &s_cache.text_capacity,
+                         .used = s_cache.used, .needed = s_cache.used + bytes)
+            : NULL;
     s_cache.cached = (cached != NULL) ? cached : s_cache.cached;
     s_cache.text = (text != NULL) ? text : s_cache.text;
     if ((cached == NULL) || (text == NULL))

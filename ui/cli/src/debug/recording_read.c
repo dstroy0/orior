@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// recording_read.c: a recorded run read from the recorder's lines, its steps, frames, files, threads and raises positioned
-// in one movable cell the replay owns with the lines they came from, and what the replay reads of it by index: a step,
-// a frame, a step by frame, a file, a thread, a raise, a name and a line record
+// recording_read.c: a recorded run read from the recorder's lines, its steps, frames, files, threads and raises
+// positioned in one movable cell the replay owns with the lines they came from, and what the replay reads of it by
+// index: a step, a frame, a step by frame, a file, a thread, a raise, a name and a line record
 #include "../command_line/pool.h"
 #include "../text/text.h"
 #include "recording_internal.h"
@@ -220,7 +220,8 @@ EMBED_INLINE void *read_part(const RecordingReadCtx *args)
 }
 
 // the work cell taken for the counts of its `size` bytes of `text` and its parts set into it, the frames and files
-// zero and the names one empty name, each part's place retained on the recording: 1, or 0 with the read holding no tables
+// zero and the names one empty name, each part's place retained on the recording: 1, or 0 with the read holding no
+// tables
 EMBED_INLINE int read_work_alloc(const RecordingReadCtx *args)
 {
     CliRecording *const recording = args->recording;
@@ -557,11 +558,11 @@ static void read_stacks_released(void)
 }
 
 // the read's cells given back
-static void read_work_released(ReadWork *work)
+static void read_work_released(const RecordingReadCtx *args)
 {
-    g_cli_guard->persistent_buf_release(work->cell, g_cli_debug_owner);
-    g_cli_guard->persistent_buf_release(work->text, g_cli_debug_owner);
-    memor.set(&(MemoriaCfg){.dst = work, .val = 0, .bytes = sizeof(*work)});
+    g_cli_guard->persistent_buf_release(args->work->cell, g_cli_debug_owner);
+    g_cli_guard->persistent_buf_release(args->work->text, g_cli_debug_owner);
+    memor.set(&(MemoriaCfg){.dst = args->work, .val = 0, .bytes = sizeof(*args->work)});
 }
 
 void cli_recording_let_go(void)
@@ -714,7 +715,7 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     if (!EMBED_CALL(read_work_alloc, RecordingReadCtx, .work = &work, .recording = recording, .text = text,
                     .size = size))
     {
-        read_work_released(&work);
+        EMBED_CALL(read_work_released, RecordingReadCtx, .work = &work);
         return;
     }
     unsigned long long at = 0ULL;
@@ -751,5 +752,5 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     {
         cli_recording_let_go();
     }
-    read_work_released(&work);
+    EMBED_CALL(read_work_released, RecordingReadCtx, .work = &work);
 }
