@@ -15,8 +15,6 @@ typedef struct
     CliInspectPosition from;
     CliInspectPosition to;
 } PySet;
-// the max offsets of a statement's tokens that set a name, which are no reads
-#define CLI_PY_SKIPS 4096u
 
 // how a set name's fix takes it out: it has none; `as name` taken out; `name =` taken out and its value retained; the
 // line that sets it taken out
@@ -30,6 +28,10 @@ static unsigned int s_set_count;
 static CliInspectSet s_read;
 static CliInspectSet s_declared;
 static unsigned int *s_equals;
+// the offsets of a statement's tokens that set a name, which are no reads: a list of the reading's cell, one for each
+// token at max
+static unsigned int *s_skip;
+static unsigned int s_skips;
 
 void cli_inspect_py_unread_layout(const CliInspectPartitionCtx *args)
 {
@@ -42,9 +44,9 @@ void cli_inspect_py_unread_layout(const CliInspectPartitionCtx *args)
     s_equals =
         EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                    .bytes = (unsigned long long)(CLI_INSPECT_TOKENS / 8u + 1u) * sizeof(unsigned int));
+    s_skip = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                        .bytes = (unsigned long long)CLI_INSPECT_TOKENS * sizeof(unsigned int));
 }
-static unsigned int s_skip[CLI_PY_SKIPS];
-static unsigned int s_skips;
 
 int cli_py_depth_at(const CliInspectPySrcToksCfg *args)
 {
@@ -195,7 +197,7 @@ EMBED_INLINE void unread_set(const InspectPyUnreadCtx *args)
 // an offset that sets a name, and so is no read, recorded
 EMBED_INLINE void unread_skip(const InspectPyUnreadCtx *args)
 {
-    if (s_skips < CLI_PY_SKIPS)
+    if (s_skips < CLI_INSPECT_TOKENS)
     {
         s_skip[s_skips] = args->offset;
         s_skips += 1u;

@@ -6,32 +6,42 @@
 #include "../text/text.h"
 #include "inspect_py.h"
 
-// the max open brackets a line contains, and the max functions open around a line
-#define CLI_PY_STACK 4096u
-
 // the brackets, the stops and the separators, which a parse colors as delimiters, every other operator as an operator
 static const char *const s_delimiters[9] = {"(", ")", "[", "]", "{", "}", ",", ";", "."};
 
 // the names the file's classes have; the functions open around the line being painted, each its header's line, the
-// line past its block, and its parameters, `count` of them from `first` among the parameters' tokens
+// line past its block, and its parameters, `count` of them from `first` among the parameters' tokens; and the open
+// brackets of the line being painted: lists of the reading's cell, one scope for each line and one bracket for each
+// token at max
 static CliInspectSet s_classes;
-static unsigned int s_scope_at[CLI_PY_STACK];
-static unsigned int s_scope_end[CLI_PY_STACK];
-static unsigned int s_scope_first[CLI_PY_STACK];
-static unsigned int s_scope_count[CLI_PY_STACK];
+static unsigned int *s_scope_at;
+static unsigned int *s_scope_end;
+static unsigned int *s_scope_first;
+static unsigned int *s_scope_count;
 static unsigned int s_scopes;
 static unsigned int *s_params;
 static unsigned int s_param_count;
+static unsigned int *s_stack;
 
 void cli_inspect_py_parse_layout(const CliInspectPartitionCtx *args)
 {
     EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_classes,
                .partition = args->partition);
+    const unsigned long long scopes = CLI_INSPECT_LINES;
+    s_scope_at = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                            .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
+    s_scope_end = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                             .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
+    s_scope_first = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                               .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
+    s_scope_count = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                               .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
     s_params =
         EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                    .bytes = (unsigned long long)(CLI_INSPECT_TOKENS / 4u) * sizeof(unsigned int));
+    s_stack = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                         .bytes = (unsigned long long)CLI_INSPECT_TOKENS * sizeof(unsigned int));
 }
-static unsigned int s_stack[CLI_PY_STACK];
 
 typedef struct
 {
@@ -144,7 +154,7 @@ EMBED_INLINE void parse_scopes(const InspectPyParseCtx *args)
     }
     if (EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = src,
                    .line = &g_cli_py_line[args->index], .word_text = "def") &&
-        (s_scopes < CLI_PY_STACK))
+        (s_scopes < CLI_INSPECT_LINES))
     {
         s_scope_at[s_scopes] = args->index;
         s_scope_end[s_scopes] = EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = args->index);
@@ -265,7 +275,7 @@ EMBED_INLINE void parse_bracket(const InspectPyParseCtx *args)
         EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "{"))
     {
         *args->depth_pointer += 1;
-        if (*args->stack < CLI_PY_STACK)
+        if (*args->stack < CLI_INSPECT_TOKENS)
         {
             s_stack[*args->stack] = args->offset;
             *args->stack += 1u;
