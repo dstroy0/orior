@@ -74,6 +74,21 @@ int cli_test_has_pytest(const CliTestRunsPythonCtx *args)
     return has;
 }
 
+// The files of a run's supplied tests, tables in one cell of the temporary tier sized to the run's tests: the file each
+// test is of, each file's first test and how many tests it has, the files in the order the shares take them, and the
+// share each file goes to
+typedef struct
+{
+    unsigned int *file_of;
+    unsigned int *file_first;
+    unsigned int *file_size;
+    unsigned int *by_size;
+    unsigned int *share_of;
+} CliTestFiles;
+
+// the tables a run's tests take: five counts of unsigned ints
+#define CLI_TEST_TABLES 5ULL
+
 typedef struct
 {
     const char *id;
@@ -94,18 +109,12 @@ typedef struct
     unsigned int file;
     unsigned int before;
     unsigned int shares;
-    const unsigned int *share_of;
     const unsigned int *sizes;
     CliTestRun *run_out;
     unsigned int positioned;
+    const CliTestFiles *file_tables;
 } TestPythonCtx;
 
-// the files of a run's supplied tests: the file each test is of, each file's first test and how many tests it has, and
-// the files in the order the shares take them
-static unsigned int s_file_of[CLI_TEST_NAMED];
-static unsigned int s_file_first[CLI_TEST_NAMED];
-static unsigned int s_file_size[CLI_TEST_NAMED];
-static unsigned int s_by_size[CLI_TEST_NAMED];
 // the length of the file part of a test's name, before its first `::`
 EMBED_INLINE unsigned long long test_file_length(const TestPythonCtx *args)
 {
@@ -115,8 +124,8 @@ EMBED_INLINE unsigned long long test_file_length(const TestPythonCtx *args)
                           : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_POOL_BYTES});
 }
 
-// the `count` supplied tests of `run` grouped by the file their names begin with, into s_file_of, s_file_first and
-// s_file_size, the files in the order their first tests come: how many files
+// the `count` supplied tests of `run` grouped by the file their names begin with, into the tables' file of each,
+// each file's first and size, the files in the order their first tests come: how many files
 EMBED_INLINE unsigned int test_files_grouped(const TestPythonCtx *args)
 {
     unsigned int files = 0u;
@@ -126,20 +135,20 @@ EMBED_INLINE unsigned int test_files_grouped(const TestPythonCtx *args)
         unsigned int file = 0u;
         while (
             (file < files) &&
-            !((EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[s_file_first[file]]) == length) &&
-              EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->run->supplied[s_file_first[file]],
+            !((EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[args->file_tables->file_first[file]]) == length) &&
+              EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->run->supplied[args->file_tables->file_first[file]],
                          .other_pointer = args->run->supplied[at], .size = length)))
         {
             file += 1u;
         }
         if (file == files)
         {
-            s_file_first[files] = at;
-            s_file_size[files] = 0u;
+            args->file_tables->file_first[files] = at;
+            args->file_tables->file_size[files] = 0u;
             files += 1u;
         }
-        s_file_of[at] = file;
-        s_file_size[file] += 1u;
+        args->file_tables->file_of[at] = file;
+        args->file_tables->file_size[file] += 1u;
     }
     return files;
 }
@@ -148,44 +157,45 @@ EMBED_INLINE unsigned int test_files_grouped(const TestPythonCtx *args)
 // that sorts ahead of the other's
 EMBED_INLINE int test_file_ahead(const TestPythonCtx *args)
 {
-    const char *const before_name = args->run->supplied[s_file_first[args->before]];
-    const char *const name = args->run->supplied[s_file_first[args->file]];
+    const char *const before_name = args->run->supplied[args->file_tables->file_first[args->before]];
+    const char *const name = args->run->supplied[args->file_tables->file_first[args->file]];
     const unsigned long long before_length = EMBED_CALL(test_file_length, TestPythonCtx, .id = before_name);
     const unsigned long long length = EMBED_CALL(test_file_length, TestPythonCtx, .id = name);
     const embed_iword named_after = memor.cmp(&(MemoriaCfg){
         .src = before_name, .other = name, .bytes = (embed_word)((before_length < length) ? before_length : length)});
-    return (s_file_size[args->before] < s_file_size[args->file]) ||
-           ((s_file_size[args->before] == s_file_size[args->file]) &&
+    return (args->file_tables->file_size[args->before] < args->file_tables->file_size[args->file]) ||
+           ((args->file_tables->file_size[args->before] == args->file_tables->file_size[args->file]) &&
             ((named_after > 0) || ((named_after == 0) && (before_length > length))));
 }
 
-// the `files` of `run`'s tests put into s_by_size, those with the max tests first and those with as many by name
+// the `files` of `run`'s tests put into the tables' order by size, those with the max tests first and those with as
+// many by name
 EMBED_INLINE void test_files_sorted(const TestPythonCtx *args)
 {
     for (unsigned int file = 0u; file < args->files; file += 1u)
     {
         unsigned int place = file;
         while ((place > 0u) && EMBED_CALL(test_file_ahead, TestPythonCtx, .run = args->run, .file = file,
-                                          .before = s_by_size[place - 1u]))
+                                          .before = args->file_tables->by_size[place - 1u], .file_tables = args->file_tables))
         {
-            s_by_size[place] = s_by_size[place - 1u];
+            args->file_tables->by_size[place] = args->file_tables->by_size[place - 1u];
             place -= 1u;
         }
-        s_by_size[place] = file;
+        args->file_tables->by_size[place] = file;
     }
 }
 
-// the tests of each of the `files` that `share_of` gives the share `share`, file after file in s_by_size's order, positioned
-// in `run_out`'s order from `positioned`: the place after the last
+// the tests of each of the `files` that the tables' shares give the share `share`, file after file in their order by
+// size, positioned in `run_out`'s order from `positioned`: the place after the last
 EMBED_INLINE unsigned int test_share_positioned(const TestPythonCtx *args)
 {
     unsigned int positioned = args->positioned;
     for (unsigned int at = 0u; at < args->files; at += 1u)
     {
-        const unsigned int file = s_by_size[at];
-        for (unsigned int one = 0u; (args->share_of[file] == args->share) && (one < args->count); one += 1u)
+        const unsigned int file = args->file_tables->by_size[at];
+        for (unsigned int one = 0u; (args->file_tables->share_of[file] == args->share) && (one < args->count); one += 1u)
         {
-            if (s_file_of[one] == file)
+            if (args->file_tables->file_of[one] == file)
             {
                 args->run_out->order[positioned] = one;
                 positioned += 1u;
@@ -195,8 +205,9 @@ EMBED_INLINE unsigned int test_share_positioned(const TestPythonCtx *args)
     return positioned;
 }
 
-// the `count` tests of `run_out` positioned in its order share by share: each of the `shares` that `sizes` gives a test, its
-// first place and size, its tests those of the `files` that `share_of` gives it, file after file in s_by_size's order
+// the `count` tests of `run_out` positioned in its order share by share: each of the `shares` that `sizes` gives a test,
+// its first place and size, its tests those of the `files` the tables' shares give it, file after file in their order
+// by size
 EMBED_INLINE void test_shares_positioned(const TestPythonCtx *args)
 {
     CliTestRun *const run = args->run_out;
@@ -210,8 +221,8 @@ EMBED_INLINE void test_shares_positioned(const TestPythonCtx *args)
         }
         run->share_from[run->shares] = positioned;
         positioned =
-            EMBED_CALL(test_share_positioned, TestPythonCtx, .run_out = run, .files = args->files, .share_of = args->share_of,
-                       .share = share, .count = args->count, .positioned = positioned);
+            EMBED_CALL(test_share_positioned, TestPythonCtx, .run_out = run, .files = args->files,
+                       .file_tables = args->file_tables, .share = share, .count = args->count, .positioned = positioned);
         run->share_size[run->shares] = positioned - run->share_from[run->shares];
         run->shares += 1u;
     }
@@ -219,28 +230,41 @@ EMBED_INLINE void test_shares_positioned(const TestPythonCtx *args)
 
 void cli_test_shares(const CliTestRunsRunCountCtx *args)
 {
-    const unsigned int files = EMBED_CALL(test_files_grouped, TestPythonCtx, .run = args->run, .count = args->count);
-    EMBED_CALL(test_files_sorted, TestPythonCtx, .run = args->run, .files = files);
+    CliTestRun *const run = args->run;
+    run->shares = 0u;
+    // the tables in one cell of the call, each sized to the tests, given back as the shares are positioned
+    const unsigned long long counted = (args->count != 0u) ? args->count : 1u;
+    unsigned int *const cells =
+        g_cli_guard->temporary_buf_alloc(CLI_TEST_TABLES * counted * sizeof(unsigned int), g_cli_tests_owner);
+    if (cells == NULL)
+    {
+        return;
+    }
+    const CliTestFiles tables = {cells, cells + counted, cells + (2ULL * counted), cells + (3ULL * counted),
+                                 cells + (4ULL * counted)};
+    const unsigned int files =
+        EMBED_CALL(test_files_grouped, TestPythonCtx, .run = run, .count = args->count, .file_tables = &tables);
+    EMBED_CALL(test_files_sorted, TestPythonCtx, .run = run, .files = files, .file_tables = &tables);
     const unsigned int max_shares = (files > 1u) ? files : 1u;
     unsigned int shares = (args->max < 1u) ? 1u : args->max;
     shares = (shares > max_shares) ? max_shares : shares;
     shares = (shares > CLI_TEST_WORKERS) ? CLI_TEST_WORKERS : shares;
-    unsigned int share_of[CLI_TEST_NAMED];
     unsigned int sizes[CLI_TEST_WORKERS];
     memor.set(&(MemoriaCfg){.dst = sizes, .val = 0, .bytes = sizeof(sizes)});
     for (unsigned int at = 0u; at < files; at += 1u)
     {
-        const unsigned int file = s_by_size[at];
+        const unsigned int file = tables.by_size[at];
         unsigned int min = 0u;
         for (unsigned int share = 1u; share < shares; share += 1u)
         {
             min = (sizes[share] < sizes[min]) ? share : min;
         }
-        share_of[file] = min;
-        sizes[min] += s_file_size[file];
+        tables.share_of[file] = min;
+        sizes[min] += tables.file_size[file];
     }
-    EMBED_CALL(test_shares_positioned, TestPythonCtx, .run_out = args->run, .count = args->count, .files = files,
-               .shares = shares, .share_of = share_of, .sizes = sizes);
+    EMBED_CALL(test_shares_positioned, TestPythonCtx, .run_out = run, .count = args->count, .files = files,
+               .shares = shares, .file_tables = &tables, .sizes = sizes);
+    g_cli_guard->persistent_buf_release(cells, g_cli_tests_owner);
 }
 
 // a result received of a Python process: counted where it is new, and reported
