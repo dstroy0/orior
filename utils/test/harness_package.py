@@ -29,8 +29,9 @@ INSTALL_TEXT = (
     "\n"
     "The install shows the license and asks you to accept it, copies the programs into\n"
     "your programs folder or the folder you name, and puts imp and tab on your PATH\n"
-    "where neither name is taken. --no-imp and --no-tab leave a name out, and\n"
-    "--aliases writes shell aliases in place of links. imp file uninstall takes\n"
+    "where neither name is taken. --no-imp and --no-tab leave a name out,\n"
+    "--aliases writes shell aliases in place of links, and --checks-host user@host\n"
+    "names the Linux host the window's checks run on. imp file uninstall takes\n"
     "everything out again; with --files it removes your settings too.\n"
 )
 

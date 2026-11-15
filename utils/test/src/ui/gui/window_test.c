@@ -344,6 +344,77 @@ static void failed_save_checked(void)
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path);
 }
 
+// the bytes every owner of the cellblock has in use, summed, and each owner's own into `owners` where given: what a
+// closed document gives back comes off these. The comms owner is left out: its log records each ask the check makes
+static unsigned long long cells_in_use(unsigned long long *owners)
+{
+    unsigned long long in_use = 0ULL;
+    for (size_t at = 0u; (at < mmgr_owner_table_count) && (at < MMGR_CARCER_OWNERS); at += 1u)
+    {
+        const int logs_asks = cellul.eq(&(CatenaFinitaCfg){
+            .src = mmgr_owner_table[at].name, .other = "cli_comms", .cap = CLI_POOL_BYTES});
+        const unsigned long long own =
+            logs_asks ? 0ULL : (unsigned long long)mmgr_owner_in_use(&mmgr_owner_table[at]);
+        in_use += own;
+        if (owners != NULL)
+        {
+            owners[at] = own;
+        }
+    }
+    return in_use;
+}
+
+// a document of many lines opened, changed and closed over six rounds: the cells in use after the last round are no
+// more than after the first, which holds that a closed document gives its cells back
+static void cells_rounds_checked(void)
+{
+    static char s_lines[96u * 1024u];
+    VerbaLinea lines = {s_lines, sizeof(s_lines), 0ULL};
+    for (unsigned int line = 0u; mmgr_line_ok(&lines) && (lines.at + 48ULL < sizeof(s_lines)); line += 1u)
+    {
+        mmgr_line_put(&lines, "line ");
+        mmgr_line_decimal(&lines, line, 1u);
+        mmgr_line_put(&lines, " of the rounds' document, held and let go\n");
+    }
+    (void)mmgr_line_finish(&lines);
+    tabs_closed("rounds.txt", s_lines, NULL, NULL);
+    static unsigned long long s_first_owners[MMGR_CARCER_OWNERS];
+    static unsigned long long s_last_owners[MMGR_CARCER_OWNERS];
+    unsigned long long after_first = 0ULL;
+    unsigned long long after_last = 0ULL;
+    int every_round_opened = 1;
+    for (unsigned int round = 0u; round < 6u; round += 1u)
+    {
+        every_round_opened = every_round_opened && tab_opened("rounds.txt");
+        typed("x");
+        for (unsigned int asks = 0u; (cli_view_count() != 0u) && (asks < 4u); asks += 1u)
+        {
+            (void)asked("close-all", NULL);
+        }
+        after_last = cells_in_use(s_last_owners);
+        if (round == 0u)
+        {
+            after_first = cells_in_use(s_first_owners);
+        }
+    }
+    cli_check(every_round_opened && (cli_view_count() == 0u), "the rounds' document opens and closes each round");
+    if (after_last > after_first)
+    {
+        // each owner that holds more after the sixth round than after the first, beside the check that reads it
+        (void)fprintf(stderr, "  cells in use after the first round %llu, after the sixth %llu\n", after_first,
+                      after_last);
+        for (size_t at = 0u; (at < mmgr_owner_table_count) && (at < MMGR_CARCER_OWNERS); at += 1u)
+        {
+            if (s_last_owners[at] > s_first_owners[at])
+            {
+                (void)fprintf(stderr, "    %s %llu -> %llu\n", mmgr_owner_table[at].name, s_first_owners[at],
+                              s_last_owners[at]);
+            }
+        }
+    }
+    cli_check(after_last <= after_first, "a closed document gives its cells back over six rounds");
+}
+
 static void reduce_motion_checked(void)
 {
     (void)asked("reduce-motion", "off");
@@ -1369,10 +1440,11 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[22] = {{"saves", saves_checked},
+static const WindowCheck s_checks[23] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
+                                         {"cells_rounds", cells_rounds_checked},
                                          {"reduce_motion", reduce_motion_checked},
                                          {"place", place_checked},
                                          {"table", table_checked},

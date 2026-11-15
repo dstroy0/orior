@@ -596,6 +596,10 @@
             { "label": "Terminal log lines", "command": "lines", "args": "<count>", "setting": true }
           ]
         },
+        { "label": "Window Checks", "command": "checks", "items": [
+            { "label": "Linux host the checks run on", "command": "host", "args": "[user@host]", "setting": true, "machine": true }
+          ]
+        },
         { "label": "Color Theme", "command": "theme-choose", "args": "<dark|light|theme>" },
         { "label": "New", "command": "theme-new" },
         { "label": "Delete", "command": "theme-delete" },

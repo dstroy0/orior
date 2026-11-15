@@ -9,6 +9,7 @@
 #define _DARWIN_C_SOURCE
 #endif
 #include "install.h"
+#include "state.h"
 #include "../toolchains/toolchains.h"
 #include "../toolchains/toolchains_internal.h"
 
@@ -124,11 +125,26 @@ int cli_install_options(const CliInstallCfg *args)
         {
             options->files = 1;
         }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--checks-host", .cap = CLI_POOL_BYTES}))
+        {
+            // the Linux host the window's checks run on takes the next word, as user@host
+            VerbaLinea host = {options->checks_host, sizeof(options->checks_host), 0ULL};
+            if (at + 1u < args->count)
+            {
+                at += 1u;
+                mmgr_line_put(&host, args->words[at]);
+            }
+            if (mmgr_line_finish(&host) == 0ULL)
+            {
+                mmgr_line_put(args->err_msg, "--checks-host takes the host after it, as user@host");
+                return 0;
+            }
+        }
         else if ((word[0] == '-') || (options->folder[0] != '\0'))
         {
             mmgr_line_put(args->err_msg, word);
             mmgr_line_put(args->err_msg, " is not a word install takes: [folder] [--accept] [--yes] [--no-imp] "
-                                         "[--no-tab] [--aliases] [--files]");
+                                         "[--no-tab] [--aliases] [--checks-host user@host] [--files]");
             return 0;
         }
         else
@@ -500,7 +516,8 @@ EMBED_INLINE int install_placed(InstallCtx *args)
     return whole;
 }
 
-// the reader's orior folder made, where the settings, themes and terminal logs go
+// the reader's orior folder made, where the settings, themes and terminal logs go; and the Linux host the window's
+// checks run on saved as the setting checks.host where the install named one
 EMBED_INLINE int install_defaults(const InstallCtx *args)
 {
     char home[CLI_PATH_MAX_LEN];
@@ -514,6 +531,17 @@ EMBED_INLINE int install_defaults(const InstallCtx *args)
         mmgr_line_put(args->cfg->err_msg, home);
         mmgr_line_put(args->cfg->err_msg, " could not be made");
         return 0;
+    }
+    if (args->cfg->options->checks_host[0] != '\0')
+    {
+        if (!cli_state_value_save(&(CliStateValueCfg){.folder = home, .key = CLI_INSTALL_CHECKS_HOST_KEY,
+                                                      .value = args->cfg->options->checks_host,
+                                                      .err_msg = args->cfg->err_msg}))
+        {
+            return 0;
+        }
+        EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg, .text = "the window's checks run on ",
+                   .other = args->cfg->options->checks_host, .path = "");
     }
     EMBED_CALL(install_said, InstallCtx, .cfg = args->cfg, .text = "your files are in ", .other = home, .path = "");
     return 1;

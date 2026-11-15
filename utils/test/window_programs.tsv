@@ -1,11 +1,14 @@
-program	systems	for
-git	all	the repositories the tests make and read
-python	all	the files the tests run and the debugger they attach
-clangd	all	the language server the C tests ask
-clang	all	the compiler the C tests build with
-pdflatex	all	the LaTeX file the preview's tests make into pages
-pdftocairo	all	the pages the preview's tests draw
-bash	posix	the jobs the tests start
-gdb	posix	the debugger the tests attach
-lldb-dap	posix	the debugger the tests attach
-WebKitWebDriver	posix	the driver the window is driven through
+program	systems	workflow	for
+bash	all	checks	the script that builds and runs each check
+clang	all	checks	the compiler the command line, the window and each check are built with
+cmake	all	checks	the build that makes MMgr's modules for the target
+ninja	all	checks	the build tool CMake drives
+python	all	checks	the harness and the files the checks run
+git	all	checks	the repositories the checks make and read
+rsync	posix	host	the copy that brings the tree's parts to a host
+xvfb-run	posix	host	the display in memory the window's checks open on a host without one
+clangd	all	language	the language server the C checks ask
+pdflatex	all	preview	the LaTeX file the preview's checks make into pages
+pdftocairo	all	preview	the pages the preview's checks draw
+gdb	posix	debug	the debugger the checks attach
+lldb-dap	posix	debug	the debugger the checks attach

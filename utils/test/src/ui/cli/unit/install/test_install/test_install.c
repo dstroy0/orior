@@ -21,17 +21,27 @@ void tearDown(void)
 
 void test_the_words_fill_the_options(void)
 {
-    const char *const words[] = {"--accept", "--no-tab", "D:/somewhere/orior", "--yes"};
+    const char *const words[] = {"--accept", "--no-tab", "D:/somewhere/orior", "--checks-host", "me@box", "--yes"};
     CliInstallOptions options;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_install.options, CliInstallCfg, .words = words, .count = 4u, .options = &options,
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_install.options, CliInstallCfg, .words = words, .count = 6u, .options = &options,
                                 .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_INT(1, options.accepted);
     TEST_ASSERT_EQUAL_INT(1, options.yes);
     TEST_ASSERT_EQUAL_INT(0, options.skipped[0]);
     TEST_ASSERT_EQUAL_INT(1, options.skipped[1]);
     TEST_ASSERT_EQUAL_STRING("D:/somewhere/orior", options.folder);
+    TEST_ASSERT_EQUAL_STRING("me@box", options.checks_host);
     TEST_ASSERT_EQUAL_INT(0, options.aliases);
     TEST_ASSERT_EQUAL_INT(0, options.files);
+}
+
+void test_the_checks_host_without_a_host_is_refused(void)
+{
+    const char *const words[] = {"--checks-host"};
+    CliInstallOptions options;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_install.options, CliInstallCfg, .words = words, .count = 1u, .options = &options,
+                                 .err_msg = &s_err_msg));
+    CLI_TEST_ASSERT_CONTAINS("--checks-host takes the host", s_why);
 }
 
 void test_a_word_not_taken_is_refused(void)

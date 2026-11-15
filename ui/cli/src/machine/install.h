@@ -22,9 +22,12 @@ typedef struct CliInstallCfg CliInstallCfg;
 #define CLI_INSTALL_SHIMS "bin"
 #define CLI_INSTALL_LINKS ".local/bin"
 
+// the setting the install writes the Linux host the window's checks run on under, which Preferences edits
+#define CLI_INSTALL_CHECKS_HOST_KEY "checks.host"
+
 // what the install's or the uninstall's words asked for: the install folder, "" for the default; the license accepted
-// on the command line; every question answered yes; shell aliases in place of links; each program left out; and the
-// reader's files removed by the uninstall
+// on the command line; every question answered yes; shell aliases in place of links; each program left out; the Linux
+// host the window's checks run on, "" for none; and the reader's files removed by the uninstall
 typedef struct
 {
     char folder[CLI_PATH_MAX_LEN];
@@ -32,6 +35,7 @@ typedef struct
     int yes;
     int aliases;
     int skipped[CLI_INSTALL_PROGRAMS];
+    char checks_host[CLI_PATH_MAX_LEN];
     int files;
 } CliInstallOptions;
 

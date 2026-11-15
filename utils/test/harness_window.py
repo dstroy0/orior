@@ -38,6 +38,8 @@
     harness.py window wiggle [--rounds 40] [--seed 1]            the system's cursor over the edges with a wobble:
                                                                  activations, almost, near misses, passes, leaves
     harness.py window in-job --id N                           whether a process sits in a job
+    harness.py window check [NAME...] [--on HOST | --docker]     the window's C checked here, or on a Linux host over ssh
+                                                                 or in the harness's Linux image (harness_window_host.py)
     harness.py window test [arg...]                              the window's suite, ui/test/src (harness_window_test.py)
     harness.py window motion [--port P] [--edges E] [--rounds N] the window's motions as each edge's part comes and goes,
                                                                  what is not smooth and what does not match, ranked, to
@@ -380,6 +382,10 @@ def cmd_check(a):
     """The window's C checked without a display: every *_test.c under utils/test/src/ui/gui, or those named."""
     import harness_cli
 
+    if a.docker or (a.on is not None):
+        import harness_window_host
+
+        return harness_window_host.checks_on_host(a)
     seen = []
     env = harness_cli.checks_env(a)
     if a.only:
@@ -1590,6 +1596,8 @@ def register(sub):
     p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")
     p.add_argument("--owners", action="store_true", help="each check's end prints MMgr's owner table, every owner's bytes now and its peak")
     p.add_argument("--only", default="", help="of window_test.c, the checks named here alone, separated by commas, as table or saves,closes")
+    p.add_argument("--on", nargs="?", const="", default=None, metavar="HOST", help="the checks run on this Linux host over ssh, as user@host; alone, on the host the preference checks.host names (harness_window_host.py)")
+    p.add_argument("--docker", action="store_true", help="the checks run in the harness's Linux image, the container orior-ui-linux (harness_window_host.py)")
     p.set_defaults(fn=cmd_check)
     p = window.add_parser("icon", help="the program's icon file written from the eye: ui/gui/src/orior.ico, built into the window on Windows")
     p.set_defaults(fn=cmd_icon)
