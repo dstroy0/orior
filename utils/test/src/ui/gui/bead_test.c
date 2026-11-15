@@ -160,9 +160,13 @@ int main(void)
                   EMBED_CALL(gui_bead_blit_table.tool_bake, GuiBeadBlitCfg, .atlas = &atlas_store, .tool = 0u),
               "a shape chosen anew unbakes every button, and a button bakes again in the tab's shape");
     const unsigned int tab_idle = EMBED_CALL(gui_bead.frame, GuiBeadCfg, .press = 0, .one = BEAD_TEST_ONE);
-    cli_check((GUI_BEAD_MIX_OF(plane_a_at(atlas, 0u, tab_idle, BEAD_TEST_PAD + 1u, BEAD_TEST_PAD + BEAD_TEST_SIDE - 2u)) == 0u) &&
-                  (GUI_BEAD_MIX_OF(plane_a_at(atlas, 0u, tab_idle, BEAD_TEST_PAD + 1u, BEAD_TEST_PAD + 1u)) > 0u),
+    // a tab bends no light and frosts no halo: its plane marks the covered pixels alone
+    cli_check((GUI_BEAD_MASK_OF(plane_a_at(atlas, 0u, tab_idle, BEAD_TEST_PAD + 1u, BEAD_TEST_PAD + BEAD_TEST_SIDE - 2u)) != 0u) &&
+                  (GUI_BEAD_MASK_OF(plane_a_at(atlas, 0u, tab_idle, BEAD_TEST_PAD, BEAD_TEST_PAD)) == 0u),
               "a tab's bead covers its box's lower corner and leaves its top corner outside the rounding");
+    cli_check((GUI_BEAD_MIX_OF(plane_a_at(atlas, 0u, tab_idle, BEAD_TEST_PAD - 2u, BEAD_TEST_PAD + (BEAD_TEST_SIDE / 2u))) == 0u) &&
+                  (GUI_BEAD_DX_OF(plane_a_at(atlas, 0u, tab_idle, BEAD_TEST_PAD + 2u, BEAD_TEST_PAD + (BEAD_TEST_SIDE / 2u))) == 0),
+              "a tab's bead frosts no halo and bends no light");
     (void)EMBED_CALL(gui_bead_bake_table.bake, GuiBeadBakeCfg, .atlas = &atlas_store, .pixels = pixels_span, .colors = colors,
                      .width = BEAD_TEST_SIDE, .height = BEAD_TEST_SIDE, .pad = BEAD_TEST_PAD, .reach = BEAD_TEST_REACH,
                      .cells = moved, .tools = 2u, .lights = lights, .light_count = light_count);

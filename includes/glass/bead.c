@@ -38,6 +38,10 @@
 #define BEAD_GLINT_LEVEL 0.6
 #define BEAD_GLINT_DIM 0.25
 #define BEAD_GLINT_FLAT 0.35
+// a tab's flat top keeps a faint share of the glint, and its press takes most of the glint off: the light visibly
+// changes under a press on a face too flat to slide it
+#define BEAD_GLINT_FLAT_TAB 0.1
+#define BEAD_GLINT_DIM_TAB 0.7
 // the max pixels of the shadow's kernel to each side, and a column of the cell for the vertical pass
 #define BEAD_KERNEL_MAX 24u
 #define BEAD_CELL_MAX 256u
@@ -392,15 +396,15 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
         drop_y[at] = -way.y / over * lift;
         weight[at] = (strengths > 0.0) ? light.strength / strengths : 0.0;
     }
-    // a tab is clear glass on the row: it casts no shadow, its rim darkens half as much as a dome's, and its glint lies
-    // on its curved edges alone, its flat top as clear as the glass under it
+    // a tab is clear glass on the row: it casts no shadow, bends no light, frosts no halo, its rim darkens half as
+    // much as a dome's, and its glint lies on its curved edges with a faint sheen on its flat top
     const int tab = atlas->shape == GUI_BEAD_SHAPE_TAB;
     const double shadow_strength = tab ? 0.0 : 1.0 - (BEAD_SHADOW_FADE_PRESSED * share);
     const double rim_strength = tab ? 0.5 : 1.0;
-    const double glint_flat = tab ? 0.0 : BEAD_GLINT_FLAT;
+    const double glint_flat = tab ? BEAD_GLINT_FLAT_TAB : BEAD_GLINT_FLAT;
     const double eta = 1.0 / GUI_BEAD_INDEX;
     const double sharp = BEAD_GLINT_SHARP * (1.0 - (BEAD_GLINT_SOFTEN * share));
-    const double glint_strength = 1.0 - (BEAD_GLINT_DIM * share);
+    const double glint_strength = 1.0 - ((tab ? BEAD_GLINT_DIM_TAB : BEAD_GLINT_DIM) * share);
     const double caustic_center = BEAD_CAUSTIC_CENTER + (BEAD_CAUSTIC_SHIFT * share);
     const double reach = (double)atlas->reach;
     const double pad = (double)atlas->pad;
@@ -428,7 +432,7 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
             // glass
             int offset_x = 0;
             int offset_y = 0;
-            if (covered > 0.0)
+            if ((covered > 0.0) && !tab)
             {
                 const double cosine = normal.z;
                 const double bent = 1.0 - (eta * eta * (1.0 - (cosine * cosine)));
@@ -475,7 +479,7 @@ EMBED_INLINE void bead_frame_bake(const BeadCtx *args)
             }
             const double outside = arith_max(distance, 0.0);
             const double halo = EMBED_CALL(bead_held, BeadCtx, .value = 1.0 - (outside / pad), .low = 0.0, .high = 1.0);
-            const double mix = (1.0 - covered) * halo * halo;
+            const double mix = tab ? 0.0 : ((1.0 - covered) * halo * halo);
             const double shadow = (1.0 - unshaded) * shadow_strength * (1.0 - covered);
             // the rim darkens where the dome turns away from the eye, max on the side away from the light
             const double rim = arith_pow(1.0 - normal.z, BEAD_RIM_POWER) * covered * rim_strength *

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tabs_test.c: the tabs row's check: a tab whose text has changes not saved is wider by the mark and the gap after it,
-// the mark drawn before its name in the hover's color, and a tab whose close waits on a second shows ×? for its close
+// tabs_test.c: the tabs row's check: a tab whose text has changes not saved is wider by the dot and the gap after it,
+// the dot drawn before its name in the hover's color, and a tab whose close waits on a second shows ×? for its close
 // mark, which is wider and still at the tab's right
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/gui/src/tabs.h"
@@ -58,9 +58,7 @@ int main(void)
     const GuiRect plain = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
     const GuiRect changed = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
     const GuiRect waiting = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
-    const float mark = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = GUI_TAB_SIZE, .text = "\xe2\x97\x8f", .length = 3u);
-    cli_check(mark > 0.0f, "the code face, or the face it falls back on, draws the mark");
-    cli_check(changed.width - plain.width == (int)roundf(mark) + GUI_TAB_GAP, "a changed tab is wider by the mark and the gap after it");
+    cli_check(changed.width - plain.width == GUI_TAB_DOT + GUI_TAB_GAP, "a changed tab is wider by the dot and the gap after it");
     cli_check(changed.x == plain.x + plain.width, "the tabs are in a row");
     const GuiRect plain_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
     const GuiRect waiting_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
@@ -72,10 +70,10 @@ int main(void)
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u), "the raster is taken");
     (void)EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .glyphs = &glyphs, .frame = &frame, .raster = &raster, .palette = palette);
     const int left = GUI_TAB_PAD_LEFT;
-    const GuiRect plain_mark = {plain.x + left, plain.y, (int)roundf(mark), plain.height};
-    const GuiRect changed_mark = {changed.x + left, changed.y, (int)roundf(mark), changed.height};
-    cli_check(colored(&raster, changed_mark, palette->hover), "the mark is before a changed tab's name in the hover's color");
-    cli_check(!colored(&raster, plain_mark, palette->hover), "a tab as it opened has no mark");
+    const GuiRect plain_mark = {plain.x + left, plain.y, GUI_TAB_DOT, plain.height};
+    const GuiRect changed_mark = {changed.x + left, changed.y, GUI_TAB_DOT, changed.height};
+    cli_check(colored(&raster, changed_mark, palette->hover), "the dot is before a changed tab's name in the hover's color");
+    cli_check(!colored(&raster, plain_mark, palette->hover), "a tab as it opened has no dot");
     // the tabs are in one side_menu, and the row is a window on it that the slide moves left over the side_menu
     const int whole = EMBED_CALL(gui_tabs_glyphs.whole, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame);
     cli_check(whole == (waiting.x + waiting.width) - frame.tabs.x, "the side_menu is as wide as the tabs from the row's left edge");

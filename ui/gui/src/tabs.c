@@ -30,7 +30,65 @@ typedef struct
     unsigned long long *length;
     const GuiTabsGlyphsFrameCfg *drawn;
     unsigned int count;
+    GuiRaster *raster;
+    GuiRect box;
+    GuiRect clip;
+    unsigned int radius;
+    unsigned int corners;
+    GuiColor color;
 } TabsCtx;
+
+// the displayed tab's tint over its box, cut to `clip`: `color` at its own alpha along the box's edges, fading to
+// nothing at the box's center, each pixel's alpha the greater of its shares across and down from the center; a pixel
+// outside a rounded top corner is left
+EMBED_INLINE void tabs_tint_draw(const TabsCtx *args)
+{
+    GuiRaster *const raster = args->raster;
+    const GuiRect box = args->box;
+    const GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->clip,
+                                   .other = (GuiRect){0, 0, (int)raster->width, (int)raster->height});
+    if ((box.width <= 0) || (box.height <= 0) || EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = met))
+    {
+        return;
+    }
+    const float half_width = (float)box.width / 2.0f;
+    const float half_height = (float)box.height / 2.0f;
+    const float center_x = (float)box.x + half_width;
+    const float center_y = (float)box.y + half_height;
+    const float radius = (float)args->radius;
+    const unsigned int edge_alpha = GUI_ALPHA_OF(args->color);
+    for (int y = met.y; y < met.y + met.height; y += 1)
+    {
+        GuiColor *const row = raster->pixels + ((unsigned long long)(unsigned int)y * raster->width);
+        const float down = ((float)y + 0.5f) - center_y;
+        for (int x = met.x; x < met.x + met.width; x += 1)
+        {
+            const float across = ((float)x + 0.5f) - center_x;
+            // a top corner rounded: the pixel is left where it lies past the corner's arc
+            const int at_left = across < -(half_width - radius);
+            const int at_right = across > half_width - radius;
+            const int at_top = down < -(half_height - radius);
+            if (at_top && ((at_left && ((args->corners & GUI_RASTER_CORNER_TOP_LEFT) != 0u)) ||
+                           (at_right && ((args->corners & GUI_RASTER_CORNER_TOP_RIGHT) != 0u))))
+            {
+                const float corner_x = arith_abs_f32(across) - (half_width - radius);
+                const float corner_y = -down - (half_height - radius);
+                if ((corner_x * corner_x) + (corner_y * corner_y) > radius * radius)
+                {
+                    continue;
+                }
+            }
+            const float share_x = arith_abs_f32(across) / half_width;
+            const float share_y = arith_abs_f32(down) / half_height;
+            const float share = (share_x > share_y) ? share_x : share_y;
+            // the share is within 1, so the alpha is within the color's own, a byte
+            const unsigned int alpha = (unsigned int)(((float)edge_alpha * share) + 0.5f);
+            row[(unsigned int)x] = EMBED_CALL(gui_color.over, GuiRasterCfg,
+                                              .color = (args->color & 0x00ffffffu) | (alpha << 24u),
+                                              .background_color = row[(unsigned int)x]);
+        }
+    }
+}
 
 // the close mark the tab `tab` shows, ×? while its close waits on a second, its length into `length`
 EMBED_INLINE const char *tabs_close_text(const TabsCtx *args)
@@ -276,11 +334,11 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
             continue;
         }
         // the tabs are fewer than an int counts
-        const int displayed = (int)at == displayed;
+        const int shown = (int)at == displayed;
         // Each tab a box, its top corners rounded and its foot open on the row's line, a line one pixel wide up its
-        // sides and over its top, and a gap before the next. Every tab is clear amethyst: a translucent violet
-        // ground the lattice shows through under its bead, the displayed tab's deeper, in the tab's line; the
-        // others in the widget's line
+        // sides and over its top, and a gap before the next. Every tab is clear glass the lattice shows through under
+        // its bead; the displayed tab carries its tint along its edges, fading to nothing at its center, in the tab's
+        // line; the others in the widget's line
         const unsigned int radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                              .pixels = GUI_TAB_RADIUS, .scale = scale);
         const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = scale);
@@ -288,10 +346,18 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
         // a corner is round only where the row's edge does not cut the tab
         const unsigned int top = ((met.x == rect.x) ? GUI_RASTER_CORNER_TOP_LEFT : 0u) |
                                  ((met.x + met.width == rect.x + rect.width) ? GUI_RASTER_CORNER_TOP_RIGHT : 0u);
+        if (shown)
+        {
+            EMBED_CALL(tabs_tint_draw, TabsCtx, .raster = raster, .box = box, .clip = met, .radius = radius,
+                       .corners = top, .color = ground);
+        }
+        else
+        {
+            EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box,
+                       .radius = radius, .color = ground_idle, .corners = top);
+        }
         EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box, .radius = radius,
-                   .color = displayed ? ground : ground_idle, .corners = top);
-        EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = box, .radius = radius,
-                   .color = displayed ? displayed_line : box_line, .corners = top, .stroke = one);
+                   .color = shown ? displayed_line : box_line, .corners = top, .stroke = one);
         const int baseline =
             EMBED_CALL(gui_glyphs_face.baseline, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = GUI_FACE_CODE,
                        .size = size, .top = rect.y, .pixel_height = rect.height);
@@ -301,17 +367,9 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
         if (EMBED_CALL(tabs_changed, TabsCtx, .tab = at))
         {
             const int dot = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_DOT, .scale = scale);
-            const GuiRect disc = {left, rect.y + ((rect.height - dot) / 2), dot, dot};
-            const GuiRect disc_met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = disc, .other = met);
-            if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = disc_met))
-            {
-                // a disc's radius is half its side, inside an unsigned int
-                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = disc,
-                           .radius = (unsigned int)(dot / 2), .color = mark, .corners = GUI_RASTER_CORNER_TOP_LEFT |
-                                                                                        GUI_RASTER_CORNER_TOP_RIGHT |
-                                                                                        GUI_RASTER_CORNER_BOTTOM_LEFT |
-                                                                                        GUI_RASTER_CORNER_BOTTOM_RIGHT);
-            }
+            EMBED_CALL(gui_raster_color.dot, GuiRasterColorCfg, .raster = raster, .color = mark,
+                       .x_f32 = (float)left + ((float)dot / 2.0f), .y_f32 = (float)rect.y + ((float)rect.height / 2.0f),
+                       .radius_f32 = (float)dot / 2.0f, .clip = met);
         }
         unsigned long long length = 0ULL;
         const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .at = at, .length = &length);
@@ -319,7 +377,7 @@ unsigned int gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                          .face = GUI_FACE_CODE, .size = size,
                          .x_f32 = (float)(left + EMBED_CALL(tabs_changed_width, TabsCtx, .glyphs = glyphs, .tab = at,
                                                             .size = size, .scale = scale)),
-                         .y = baseline, .text = name, .length = length, .color = displayed ? text : text_2,
+                         .y = baseline, .text = name, .length = length, .color = shown ? text : text_2,
                          .clip = met);
         const GuiRect close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = glyphs,
                                          .frame = args->frame, .at = at);
