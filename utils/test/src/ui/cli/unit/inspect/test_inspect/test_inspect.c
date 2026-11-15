@@ -406,3 +406,13 @@ void test_methods_in_order_are_unchanged(void)
 {
     TEST_ASSERT_FALSE(methods_sorted("python", "class A:\n    def a(self):\n        pass\n\n    def b(self):\n        pass\n", 1u));
 }
+
+void test_a_classs_attributes_set_and_read_are_counted_and_its_take_given_back(void)
+{
+    static const char s_text[] = "class Point:\n    def __init__(self, x):\n        self.x = x\n        self.y = 0\n\n    def norm(self):\n        return self.x + self.z\n";
+    TEST_ASSERT_TRUE(facts_read("python", s_text));
+    TEST_ASSERT_EQUAL_UINT(1u, s_facts.classes);
+    TEST_ASSERT_EQUAL_UINT(4u, s_facts.class_of[0].has);
+    TEST_ASSERT_EQUAL_UINT(2u, s_facts.class_of[0].reads);
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_inspect_owner));
+}

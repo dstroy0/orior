@@ -5,20 +5,45 @@
 #include "../text/text.h"
 #include "inspect_py.h"
 
-// the max attributes one class sets and reads that are recorded, and the bytes of the base being read
-#define CLI_PY_ATTRIBUTES 16384u
+// the bytes of the base being read
 #define CLI_PY_BASE (4u * CLI_NAME_MAX_LEN)
 
 // the operators that set a name to a value made from its own
 static const char *const s_augmented[13] = {
     "+=", "-=", "*=", "/=", "//=", "%=", "**=", "|=", "&=", "^=", "@=", "<<=", ">>="};
 
-// the attributes a class sets, each `size` bytes at `at`, and the tokens of those it reads
-static const char *s_has[CLI_PY_ATTRIBUTES];
-static unsigned int s_has_size[CLI_PY_ATTRIBUTES];
+// the attributes a class sets, each `size` bytes at `at`, and the tokens of those it reads: one take of the class
+// sized to its body's tokens, each attribute one of them at most
+static char *s_class_cell;
+static const char **s_has;
+static unsigned int *s_has_size;
 static unsigned int s_has_count;
-static const CliInspectTok *s_reads[CLI_PY_ATTRIBUTES];
+static const CliInspectTok **s_reads;
 static unsigned int s_read_count;
+static unsigned int s_attributes;
+
+// the class's take sized to the `tokens` of its body: the attributes set, the tokens read, and the sizes after
+EMBED_INLINE void classes_cell_take(unsigned int tokens)
+{
+    s_class_cell = g_cli_guard->temporary_buf_alloc(
+        (unsigned long long)tokens * (sizeof(const char *) + sizeof(const CliInspectTok *) + sizeof(unsigned int)),
+        g_cli_inspect_owner);
+    s_attributes = (s_class_cell != NULL) ? tokens : 0u;
+    s_has = (const char **)s_class_cell;
+    s_reads = (const CliInspectTok **)(s_class_cell + ((unsigned long long)s_attributes * sizeof(const char *)));
+    s_has_size = (unsigned int *)(s_class_cell + ((unsigned long long)s_attributes *
+                                                  (sizeof(const char *) + sizeof(const CliInspectTok *))));
+    s_has_count = 0u;
+    s_read_count = 0u;
+}
+
+// the class's take given back
+EMBED_INLINE void classes_cell_release(void)
+{
+    g_cli_guard->persistent_buf_release(s_class_cell, g_cli_inspect_owner);
+    s_class_cell = NULL;
+    s_attributes = 0u;
+}
 
 typedef struct
 {
@@ -62,7 +87,7 @@ EMBED_INLINE void classes_has(const InspectPyClassesCtx *args)
             return;
         }
     }
-    if (s_has_count < CLI_PY_ATTRIBUTES)
+    if (s_has_count < s_attributes)
     {
         s_has[s_has_count] = args->at;
         s_has_size[s_has_count] = args->size;
@@ -313,7 +338,7 @@ EMBED_INLINE void classes_method_line(const InspectPyClassesCtx *args)
             {
                 EMBED_CALL(classes_has, InspectPyClassesCtx, .at = src + name->start, .size = name->end - name->start);
             }
-            else if (s_read_count < CLI_PY_ATTRIBUTES)
+            else if (s_read_count < s_attributes)
             {
                 s_reads[s_read_count] = name;
                 s_read_count += 1u;
@@ -377,8 +402,9 @@ void cli_py_classes(const CliInspectPySrcSizeCfg *args)
         const unsigned int bases = facts->names - base_first;
         const unsigned int end = EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = at);
         const unsigned int body_indent = (at + 1u < g_cli_py_lines) ? g_cli_py_line[at + 1u].indent : 0u;
-        s_has_count = 0u;
-        s_read_count = 0u;
+        const unsigned int body_first = (at + 1u < end) ? g_cli_py_line[at + 1u].first : g_cli_inspect_toks;
+        const unsigned int body_end = (end < g_cli_py_lines) ? g_cli_py_line[end].first : g_cli_inspect_toks;
+        classes_cell_take(body_end - body_first);
         int dynamic = 0;
         for (unsigned int index = at + 1u; index < end; index += 1u)
         {
@@ -410,6 +436,7 @@ void cli_py_classes(const CliInspectPySrcSizeCfg *args)
                              .name = args->src + read->start, .size = read->end - read->start, .alias = NULL,
                              .alias_size = 0ULL, .from = read->from, .to = read->to);
         }
+        classes_cell_release();
         if (facts->classes == facts->classes_max)
         {
             facts->full = 1;
