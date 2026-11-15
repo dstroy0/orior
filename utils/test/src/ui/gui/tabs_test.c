@@ -49,49 +49,71 @@ int main(void)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         CliShape shape;
-        cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_keys[at], .text = "int a;\n", .size = 7ull, .shape = &shape) && EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_keys[at], .path = "src/thread.c"),
+        cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_keys[at], .text = "int a;\n",
+                             .size = 7ull, .shape = &shape) &&
+                      EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_keys[at], .path = "src/thread.c"),
                   "a view is opened on the file");
     }
     EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = s_keys[1]);
     EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = s_keys[2]);
-    cli_view_closing_set(2u, 1);
-    const GuiRect plain = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
-    const GuiRect changed = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
-    const GuiRect waiting = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
-    cli_check(changed.width - plain.width == GUI_TAB_DOT + GUI_TAB_GAP, "a changed tab is wider by the dot and the gap after it");
+    cli_view_closing_set(&(CliViewAtCfg){.at = 2u, .closing = 1});
+    const GuiRect plain =
+        EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
+    const GuiRect changed =
+        EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
+    const GuiRect waiting =
+        EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
+    cli_check(changed.width - plain.width == GUI_TAB_DOT + GUI_TAB_GAP,
+              "a changed tab is wider by the dot and the gap after it");
     cli_check(changed.x == plain.x + plain.width, "the tabs are in a row");
-    const GuiRect plain_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
-    const GuiRect waiting_close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
+    const GuiRect plain_close =
+        EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
+    const GuiRect waiting_close =
+        EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 2u);
     cli_check(waiting_close.width > plain_close.width, "the close mark waiting on a second, ×?, is wider than ×");
-    cli_check((waiting.width - changed.width) == (waiting_close.width - plain_close.width), "the tab grows by what its close mark grows");
-    cli_check(waiting_close.x + waiting_close.width + GUI_TAB_PAD_RIGHT == waiting.x + waiting.width, "the close mark is at the tab's right, its padding after it");
+    cli_check((waiting.width - changed.width) == (waiting_close.width - plain_close.width),
+              "the tab grows by what its close mark grows");
+    cli_check(waiting_close.x + waiting_close.width + GUI_TAB_PAD_RIGHT == waiting.x + waiting.width,
+              "the close mark is at the tab's right, its padding after it");
 
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u), "the raster is taken");
-    (void)EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .glyphs = &glyphs, .frame = &frame, .raster = &raster, .palette = palette);
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
+              "the raster is taken");
+    (void)EMBED_CALL(gui_tabs_glyphs_frame.draw, GuiTabsGlyphsFrameCfg, .glyphs = &glyphs, .frame = &frame,
+                     .raster = &raster, .palette = palette);
     const int left = GUI_TAB_PAD_LEFT;
     const GuiRect plain_mark = {plain.x + left, plain.y, GUI_TAB_DOT, plain.height};
     const GuiRect changed_mark = {changed.x + left, changed.y, GUI_TAB_DOT, changed.height};
-    cli_check(colored(&raster, changed_mark, palette->hover), "the dot is before a changed tab's name in the hover's color");
+    cli_check(colored(&raster, changed_mark, palette->hover),
+              "the dot is before a changed tab's name in the hover's color");
     cli_check(!colored(&raster, plain_mark, palette->hover), "a tab as it opened has no dot");
     // the tabs are in one side_menu, and the row is a window on it that the slide moves left over the side_menu
     const int whole = EMBED_CALL(gui_tabs_glyphs.whole, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame);
-    cli_check(whole == (waiting.x + waiting.width) - frame.tabs.x, "the side_menu is as wide as the tabs from the row's left edge");
+    cli_check(whole == (waiting.x + waiting.width) - frame.tabs.x,
+              "the side_menu is as wide as the tabs from the row's left edge");
     frame.tabs_left = 30;
-    const GuiRect slid = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
-    cli_check((slid.x == changed.x - 30) && (slid.width == changed.width), "a slide moves each tab left by its pixels and retains its width");
-    cli_check(EMBED_CALL(gui_tabs_glyphs.whole, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame) == whole, "a slide retains the side_menu's width");
+    const GuiRect slid =
+        EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 1u);
+    cli_check((slid.x == changed.x - 30) && (slid.width == changed.width),
+              "a slide moves each tab left by its pixels and retains its width");
+    cli_check(EMBED_CALL(gui_tabs_glyphs.whole, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame) == whole,
+              "a slide retains the side_menu's width");
     unsigned int hit_at = 9u;
     int hit_closing = 0;
-    cli_check(EMBED_CALL(gui_tabs_glyphs_frame_count.hit, GuiTabsGlyphsFrameCountCfg, .glyphs = &glyphs, .frame = &frame, .x = slid.x + 2, .y = slid.y + 2, .at_pointer = &hit_at, .closing = &hit_closing) && (hit_at == 1u),
+    cli_check(EMBED_CALL(gui_tabs_glyphs_frame_count.hit, GuiTabsGlyphsFrameCountCfg, .glyphs = &glyphs,
+                         .frame = &frame, .x = slid.x + 2, .y = slid.y + 2, .at_pointer = &hit_at,
+                         .closing = &hit_closing) &&
+                  (hit_at == 1u),
               "a press finds the tab where the slide put it");
     frame.tabs_left = 0;
     // halfway through the claim the row is whole, risen by half out of the work's head, each tab with it
     GuiAutohideNumbers numbers = frame.claim;
     numbers.claim = GUI_FIXED_ONE / 2;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
-    const GuiRect risen = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
-    cli_check((risen.y == frame.tabs_row.y + GUI_TAB_CLEAR) && (risen.height == frame.tabs_row.height - GUI_TAB_CLEAR - 1) && (risen.y < frame.tabs.y),
+    const GuiRect risen =
+        EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &glyphs, .frame = &frame, .at = 0u);
+    cli_check((risen.y == frame.tabs_row.y + GUI_TAB_CLEAR) &&
+                  (risen.height == frame.tabs_row.height - GUI_TAB_CLEAR - 1) && (risen.y < frame.tabs.y),
               "halfway through the claim a tab is whole in the row risen out of the work's head");
     raster.pixels = NULL;
     raster.width = 0u;

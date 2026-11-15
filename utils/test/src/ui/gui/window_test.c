@@ -168,7 +168,8 @@ static int tab_opened_by(const char *command, const char *name)
     const int opened = asked(command, path);
     const int displayed = cli_view_displayed();
     char displayed_path[CLI_PATH_MAX_LEN];
-    const int is = opened && (displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path) &&
+    const int is = opened && (displayed >= 0) &&
+                   cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = displayed_path}) &&
                    cellul.eq(&(CatenaFinitaCfg){
                        .src = displayed_path, .cap = CLI_POOL_BYTES, .other = name, .other_cap = CLI_POOL_BYTES});
     if (!is)
@@ -190,7 +191,8 @@ static int tab_opened(const char *name)
 static int changed(unsigned int at)
 {
     char key[CLI_NAME_MAX_LEN];
-    return cli_view_key(at, key) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key);
+    return cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}) &&
+           EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key);
 }
 
 // every tab closed, a changed one by the second close it waits on, and the tree's files written afresh
@@ -291,7 +293,7 @@ static void closes_checked(void)
     typed("x");
     (void)asked("close-editor", NULL);
     cli_check(cli_view_count() == 2u, "the changed tab is after the first close");
-    cli_check(cli_view_closing(1u), "and its close waits on a second");
+    cli_check(cli_view_closing(&(CliViewAtCfg){.at = 1u}), "and its close waits on a second");
     (void)asked("close-editor", NULL);
     cli_check(cli_view_count() == 1u, "the second close closes it");
     (void)asked("close-editor", NULL);
@@ -303,7 +305,7 @@ static void closes_checked(void)
     typed("x");
     (void)asked("close-all", NULL);
     cli_check(cli_view_count() == 1u, "Close All closes the unchanged tabs");
-    cli_check(cli_view_closing(0u), "and marks the changed one");
+    cli_check(cli_view_closing(&(CliViewAtCfg){.at = 0u}), "and marks the changed one");
 }
 
 static void save_rows_checked(void)
@@ -373,7 +375,8 @@ static void place_checked(void)
     cli_check(asked("file", path), "a path with a line and a column opens through the interface");
     const int displayed = cli_view_displayed();
     char displayed_path[CLI_PATH_MAX_LEN];
-    cli_check((displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path) &&
+    cli_check((displayed >= 0) &&
+                  cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = displayed_path}) &&
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = displayed_path, .cap = CLI_POOL_BYTES, .other = "placed.txt", .other_cap = 11u}),
               "the file of the path before the line and the column is as the tab displayed");
@@ -627,35 +630,37 @@ static void autoscroll_checked(void)
     const int displayed = cli_view_displayed();
     cli_check(displayed >= 0, "the tall file is displayed for the autoscroll");
     char key[CLI_NAME_MAX_LEN];
-    if ((displayed < 0) || !cli_view_key((unsigned int)displayed, key))
+    if ((displayed < 0) || !cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = key}))
     {
         return;
     }
     // the view placed deep in the file comes to rest there first
     stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
-    const unsigned long long start = cli_view_top(key);
+    const unsigned long long start = cli_view_top(&(CliViewAtCfg){.key = key});
     const GuiRect editor = s_window.frame.editor;
     const int x = editor.x + (editor.width / 2);
     const int y = editor.y + (editor.height / 2);
     pressed_with(x, y, GUI_BUTTON_MIDDLE);
     cli_check(s_window.autoscroll, "a middle press in the text starts the autoscroll");
     stepped_for(200ULL);
-    cli_check(cli_view_top(key) == start, "the pointer still at the press point scrolls nothing");
+    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == start,
+              "the pointer still at the press point scrolls nothing");
     moved(x, y + 100);
     stepped_for(300ULL);
-    const unsigned long long down = cli_view_top(key);
+    const unsigned long long down = cli_view_top(&(CliViewAtCfg){.key = key});
     cli_check(down > start, "the pointer held below the press point scrolls the view down");
     moved(x, y - 100);
     stepped_for(300ULL);
-    cli_check(cli_view_top(key) < down, "the pointer held above the press point scrolls it back up");
+    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) < down,
+              "the pointer held above the press point scrolls it back up");
     moved(x, y + 100);
     pressed_with(x, y + 100, GUI_BUTTON_LEFT);
     cli_check(!s_window.autoscroll, "the next press ends the autoscroll");
     // the scroll eases to where the autoscroll last put it, then is
     stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
-    const unsigned long long ended = cli_view_top(key);
+    const unsigned long long ended = cli_view_top(&(CliViewAtCfg){.key = key});
     stepped_for(200ULL);
-    cli_check(cli_view_top(key) == ended, "the view is once it ends");
+    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == ended, "the view is once it ends");
     // a click: the button let go within the rest pixels of the press point leaves the scroll to run
     pressed_with(x, y, GUI_BUTTON_MIDDLE);
     moved(x, y + GUI_AUTOSCROLL_REST_PIXELS);
@@ -667,7 +672,7 @@ static void autoscroll_checked(void)
     pressed_with(x, y, GUI_BUTTON_MIDDLE);
     moved(x, y + 100);
     stepped_for(300ULL);
-    cli_check(cli_view_top(key) > ended, "the drag scrolls the view down");
+    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) > ended, "the drag scrolls the view down");
     // the frame's height is a pixel count well inside an int
     const int below = (int)s_window.frame.height + 40;
     moved(x, below);
@@ -675,9 +680,9 @@ static void autoscroll_checked(void)
     cli_check(!s_window.autoscroll,
               "the middle button let go after a drag ends the autoscroll, outside the window too");
     stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
-    const unsigned long long dragged = cli_view_top(key);
+    const unsigned long long dragged = cli_view_top(&(CliViewAtCfg){.key = key});
     stepped_for(200ULL);
-    cli_check(cli_view_top(key) == dragged, "the view is once the drag ends");
+    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == dragged, "the view is once the drag ends");
 }
 
 static int same(const char *text, const char *required)
@@ -1258,7 +1263,7 @@ static void cursor_put(unsigned long long line, unsigned long long col)
     const int displayed = cli_view_displayed();
     char key[CLI_NAME_MAX_LEN];
     // the view displayed is among the views
-    if ((displayed >= 0) && cli_view_key((unsigned int)displayed, key))
+    if ((displayed >= 0) && cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = key}))
     {
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -1276,8 +1281,8 @@ static int displayed_at(const char *name, unsigned long long line)
     char key[CLI_NAME_MAX_LEN];
     CliPosition cursor = {0ULL, 0ULL};
     // the view displayed is among the views
-    return (displayed >= 0) && cli_view_path_at((unsigned int)displayed, path) &&
-           cli_view_key((unsigned int)displayed, key) &&
+    return (displayed >= 0) && cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = path}) &&
+           cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = key}) &&
            cellul.eq(&(CatenaFinitaCfg){
                .src = path, .cap = CLI_PATH_MAX_LEN, .other = name, .other_cap = CLI_PATH_MAX_LEN}) &&
            cli_view_cursor(&(CliViewCursorCfg){.key = key, .cursor = &cursor, .anchor = NULL}) && (cursor.line == line);

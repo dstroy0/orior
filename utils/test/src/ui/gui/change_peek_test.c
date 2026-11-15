@@ -6,9 +6,9 @@
 // changes the next wraps from the second to the first and the previous from the first to the last; Escape closes the
 // peek, after which no box is drawn or pressed; and a change just displayed has not settled against a scroll
 #include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/frame.h"
 #include "../../../../../ui/cli/src/editor/document_changes.h"
 #include "../../../../../ui/cli/src/editor/view_edits.h"
-#include "../../../../../includes/window/frame.h"
 #include "../../../../../ui/gui/src/change_peek.h"
 #include "../cli/cli_check.h"
 
@@ -52,12 +52,11 @@ static void opened(const char *now, GuiEditor *editor)
 {
     CliShape shape;
     EMBED_CALL(gui_change_peek.close, GuiChangePeekCfg, .key = s_key);
-    cli_view_frame_release((CliViewFrame *)editor->frame);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor->frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = now,
-                         .size = cellul.len(&(CatenaFinitaCfg){.src = now, .cap = CLI_POOL_BYTES}),
-                         .shape = &shape) &&
+                         .size = cellul.len(&(CatenaFinitaCfg){.src = now, .cap = CLI_POOL_BYTES}), .shape = &shape) &&
                   EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = "check/peek.txt"),
               "the text is stored with a view open on it");
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -67,16 +66,17 @@ static void opened(const char *now, GuiEditor *editor)
     (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = s_key,
                      .head_given = 1, .head = s_head, .head_size = sizeof(s_head) - 1u, .each = head_stored_each,
                      .context = NULL);
-    editor->frame = cli_view_frame_alloc(s_key);
+    editor->frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
 }
 
 // the whole text read as `required`
 static int text_is(const char *required)
 {
     unsigned long long size = 0ULL;
-    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key,
-                                  .owner = g_checks_owner, .size_pointer = &size);
-    const int same = (text != NULL) && (size == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
+    char *const text = EMBED_CALL(cli_document_key.text_alloc, CliDocumentKeyCfg, .key = s_key, .owner = g_checks_owner,
+                                  .size_pointer = &size);
+    const int same = (text != NULL) &&
+                     (size == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
                      (memor.cmp(&(MemoriaCfg){.src = text, .other = required, .bytes = size}) == 0);
     g_cli_guard->persistent_buf_release(text, g_checks_owner);
     return same;
@@ -110,9 +110,10 @@ int main(void)
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 800u, .height = 400u),
               "the raster is taken");
     const GuiRect place = {0, 0, 800, 400};
-    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                       .pixels = GUI_CODE_SIZE, .scale = 100);
-    const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
+    const unsigned int size =
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_SIZE, .scale = 100);
+    const float cell =
+        EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
     GuiEditor editor;
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &editor);
 
@@ -186,13 +187,12 @@ int main(void)
               "the previous from the first wraps to the last");
 
     // Escape closes the peek: no box drawn and none pressed
-    cli_check(EMBED_CALL(gui_change_peek.key, GuiChangePeekCfg, .name = "Escape"),
-              "Escape is taken while the peek is");
+    cli_check(EMBED_CALL(gui_change_peek.key, GuiChangePeekCfg, .name = "Escape"), "Escape is taken while the peek is");
     cli_check(!EMBED_CALL(gui_change_peek.key, GuiChangePeekCfg, .name = "Escape"),
               "Escape is not taken once it is closed");
-    cli_check(!EMBED_CALL(gui_change_peek.hit, GuiChangePeekCfg, .x = box.x + 4, .y = added_row.y + 4,
-                          .action_out = &action),
-              "a closed peek takes no press where its box was");
+    cli_check(
+        !EMBED_CALL(gui_change_peek.hit, GuiChangePeekCfg, .x = box.x + 4, .y = added_row.y + 4, .action_out = &action),
+        "a closed peek takes no press where its box was");
     EMBED_CALL(gui_change_peek.draw, GuiChangePeekCfg, .raster = &raster, .glyphs = &glyphs, .palette = palette,
                .editor_read = &editor, .place = place, .bounds = place, .cell = cell, .scale = 100);
     const GuiRect closed = EMBED_CALL(gui_change_peek.box, GuiChangePeekCfg, .scale = 100);
@@ -200,7 +200,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_change_peek.settled, GuiChangePeekCfg, .key = s_key),
               "with no change displayed a scroll moves the view");
 
-    cli_view_frame_release((CliViewFrame *)editor.frame);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor.frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);

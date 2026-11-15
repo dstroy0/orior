@@ -638,7 +638,7 @@ int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args)
         char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
         EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = model->focused,
                    .output = CLI_NOTEBOOK_NONE, .out = key);
-        frame->view = cli_view_frame_alloc(key);
+        frame->view = cli_view_frame_alloc(&(CliViewAtCfg){.key = key});
     }
     *args->frame_out = frame;
     return 1;
@@ -658,7 +658,7 @@ void cli_notebook_model_frame_release(const CliNotebookCellsFrameCfg *args)
     }
     if (frame->view != NULL)
     {
-        cli_view_frame_release(frame->view);
+        cli_view_frame_release(&(CliViewAtCfg){.frame = frame->view});
     }
     g_cli_guard->persistent_buf_release(frame, g_cli_notebook_open_owner);
     *args->frame_out = NULL;

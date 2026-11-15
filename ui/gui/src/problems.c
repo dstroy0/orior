@@ -268,8 +268,10 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
     // the spans of the file the editor shows, its path the displayed view's; a view's place is far inside an int
     const int displayed = cli_view_displayed();
     char displayed_path[CLI_PATH_MAX_LEN];
-    const char *const path =
-        ((displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path)) ? displayed_path : NULL;
+    const char *const path = ((displayed >= 0) && cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed,
+                                                                                   .path_out = displayed_path}))
+                                 ? displayed_path
+                                 : NULL;
     const int thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
     const int up = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 2, .scale = scale);
     CliProblemSpan span;

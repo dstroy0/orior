@@ -129,7 +129,7 @@ static int structure_press(const GuiPaneCfg *args)
     }
     // the view displayed is among the views; its path is copied into the pane's own buffer, which the open reads
     static char s_displayed_path[CLI_PATH_MAX_LEN];
-    if (!cli_view_path_at((unsigned int)displayed, s_displayed_path))
+    if (!cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = s_displayed_path}))
     {
         return 0;
     }

@@ -4,10 +4,10 @@
 // label, the sides sentence and the sentence for two texts that do not differ, the clipboard's text into a movable
 // cell; each side's text is read, a file's from the open view on it or else from the file stored under a key of the
 // view's own for the read alone, a commit's, the last commit's or a snapshot's from git or the history into a cell of
-// the read alone, and positioned as lines of units in a cell of the read alone; the lines are compared, with white space set
-// aside where the option is on, the changes passed by the diff positioned into a cell of the read alone, and the rows positioned
-// from them into a cell of the read alone with the changes' first rows after them; the lines and the rows are then each
-// written once into a movable cell of the view
+// the read alone, and positioned as lines of units in a cell of the read alone; the lines are compared, with white
+// space set aside where the option is on, the changes passed by the diff positioned into a cell of the read alone, and
+// the rows positioned from them into a cell of the read alone with the changes' first rows after them; the lines and
+// the rows are then each written once into a movable cell of the view
 #include "../command_line/pool.h"
 #include "../editor/document.h"
 #include "../editor/files.h"
@@ -296,7 +296,8 @@ EMBED_INLINE int sources_copied(const DiffViewCtx *args)
     view->source = source->source;
     view->size = source->size;
     view->at_ms = source->at_ms;
-    (void)EMBED_CALL(text_retained, DiffViewCtx, .dst = view->root, .capacity = sizeof(view->root), .path = source->root);
+    (void)EMBED_CALL(text_retained, DiffViewCtx, .dst = view->root, .capacity = sizeof(view->root),
+                     .path = source->root);
     (void)EMBED_CALL(text_retained, DiffViewCtx, .dst = view->path, .capacity = sizeof(view->path), .path = args->path);
     (void)EMBED_CALL(text_retained, DiffViewCtx, .dst = view->other_path, .capacity = sizeof(view->other_path),
                      .path = source->other_path);
@@ -328,9 +329,9 @@ EMBED_INLINE void file_side(const DiffViewCtx *args)
     for (unsigned int at = 0u; (side->key == NULL) && (at < views); at += 1u)
     {
         // the open view's key copied into the side's own buffer
-        side->key = (cli_view_path_at(at, open) &&
+        side->key = (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = open}) &&
                      cellul.eq(&(CatenaFinitaCfg){.src = open, .other = args->path, .cap = CLI_PATH_MAX_LEN}) &&
-                     cli_view_key(at, side->keyed))
+                     cli_view_key(&(CliViewAtCfg){.at = at, .key_out = side->keyed}))
                         ? side->keyed
                         : NULL;
     }
@@ -423,8 +424,8 @@ EMBED_INLINE void clipboard_side(const DiffViewCtx *args)
     side->size = view->size;
 }
 
-// the side positioned as lines of units into a cell of the read alone, into `lines` with the cell into `cell_out`: 1, or 0
-// where the cells cannot meet it; an absent side has no line and no cell
+// the side positioned as lines of units into a cell of the read alone, into `lines` with the cell into `cell_out`: 1,
+// or 0 where the cells cannot meet it; an absent side has no line and no cell
 EMBED_INLINE int side_positioned(const DiffViewCtx *args)
 {
     const DiffViewSide *const side = args->side;
@@ -595,8 +596,9 @@ EMBED_INLINE void sides_released(const DiffViewCtx *args)
     }
 }
 
-// the two sides read and positioned as lines into two cells of the read alone, the older into `lines[0]` from `cell_out[0]`
-// and the newer into `lines[1]` from `cell_out[1]`, and the view's sides' counts set: 1, or 0 with why in `err_msg`
+// the two sides read and positioned as lines into two cells of the read alone, the older into `lines[0]` from
+// `cell_out[0]` and the newer into `lines[1]` from `cell_out[1]`, and the view's sides' counts set: 1, or 0 with why in
+// `err_msg`
 EMBED_INLINE int lines_positioned(const DiffViewCtx *args)
 {
     DiffViewSide sides[2];
@@ -635,8 +637,10 @@ EMBED_INLINE int lines_stored(const DiffViewCtx *args)
         return 0;
     }
     unsigned long long at = 0ULL;
-    EMBED_CALL(side_written, DiffViewCtx, .lines_read = &positioned[0], .side_out = &g_cli_diff_view.left, .offset = &at);
-    EMBED_CALL(side_written, DiffViewCtx, .lines_read = &positioned[1], .side_out = &g_cli_diff_view.right, .offset = &at);
+    EMBED_CALL(side_written, DiffViewCtx, .lines_read = &positioned[0], .side_out = &g_cli_diff_view.left,
+               .offset = &at);
+    EMBED_CALL(side_written, DiffViewCtx, .lines_read = &positioned[1], .side_out = &g_cli_diff_view.right,
+               .offset = &at);
     return 1;
 }
 
@@ -705,8 +709,8 @@ static void hunk_found(const CliEachHunkCfg *args)
     found->hunks += 1u;
 }
 
-// the rows positioned from the changes `found` passed, the lines both sides share level, each change's lines paired, its
-// first row among the changes' first rows, in a cell of the read alone and then written once into the view's rows
+// the rows positioned from the changes `found` passed, the lines both sides share level, each change's lines paired,
+// its first row among the changes' first rows, in a cell of the read alone and then written once into the view's rows
 // cell sized to them: 1, or 0 where the cells cannot meet it
 EMBED_INLINE int rows_positioned(const DiffViewCtx *args)
 {
@@ -820,7 +824,8 @@ EMBED_INLINE int compared(const DiffViewCtx *args)
             cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = space ? &loose[0] : &positioned_lines[0],
             .now = space ? &loose[1] : &positioned_lines[1], .each = hunk_found, .context = &found);
         view->refused = !changed;
-        positioned = !changed || EMBED_CALL(rows_positioned, DiffViewCtx, .lines_read = (const CliLines *)(const void *)&found);
+        positioned =
+            !changed || EMBED_CALL(rows_positioned, DiffViewCtx, .lines_read = (const CliLines *)(const void *)&found);
     }
     g_cli_guard->persistent_buf_release(found.hunk, g_cli_diff_view_owner);
     g_cli_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
@@ -834,7 +839,9 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     const int displayed = cli_view_displayed();
     // the view displayed is among the views; its path is copied out of the views table
     char displayed_path[CLI_PATH_MAX_LEN];
-    const int displayed_named = (args->path == NULL) && (displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path);
+    const int displayed_named =
+        (args->path == NULL) && (displayed >= 0) &&
+        cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = displayed_path});
     const char *const path = (args->path != NULL) ? args->path : (displayed_named ? displayed_path : NULL);
     if ((args->root == NULL) || (path == NULL) ||
         ((args->source == CLI_DIFF_VIEW_FILES) && (args->other_path == NULL)) ||
@@ -864,11 +871,11 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     // the two sides' lines in cells of this call, compared, then retained in the view's lines cell
     CliLines positioned[2];
     unsigned char *cells[2] = {NULL, NULL};
-    const int opened =
-        copied &&
-        EMBED_CALL(lines_positioned, DiffViewCtx, .err_msg = args->err_msg, .on = on, .lines = positioned, .cell_out = cells) &&
-        EMBED_CALL(compared, DiffViewCtx, .on = on, .lines = positioned) &&
-        EMBED_CALL(lines_stored, DiffViewCtx, .lines = positioned);
+    const int opened = copied &&
+                       EMBED_CALL(lines_positioned, DiffViewCtx, .err_msg = args->err_msg, .on = on,
+                                  .lines = positioned, .cell_out = cells) &&
+                       EMBED_CALL(compared, DiffViewCtx, .on = on, .lines = positioned) &&
+                       EMBED_CALL(lines_stored, DiffViewCtx, .lines = positioned);
     g_cli_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
     g_cli_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
     if (!opened)
@@ -885,8 +892,8 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     if ((g_cli_diff_view.source == CLI_DIFF_VIEW_HEAD) && (g_cli_diff_view.left.lines == 0u))
     {
         g_cli_diff_view.sides_length =
-            EMBED_CALL(text_retained, DiffViewCtx, .dst = g_cli_diff_view.sides, .capacity = sizeof(g_cli_diff_view.sides),
-                       .path = DIFF_VIEW_UNTRACKED_SIDES);
+            EMBED_CALL(text_retained, DiffViewCtx, .dst = g_cli_diff_view.sides,
+                       .capacity = sizeof(g_cli_diff_view.sides), .path = DIFF_VIEW_UNTRACKED_SIDES);
     }
     g_cli_diff_view.open = 1;
     g_cli_diff_view.change_at = 0u;

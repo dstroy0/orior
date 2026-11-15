@@ -88,7 +88,7 @@ EMBED_INLINE int view_files_by_path(const ViewFilesCtx *args)
     char path[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cli_view_path_at(at, path) &&
+        if (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path}) &&
             (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) == args->length) &&
             (memor.cmp(&(MemoriaCfg){.src = path, .other = args->path, .bytes = args->length}) == 0))
         {
@@ -184,9 +184,9 @@ int cli_view_file_open(const char *root, const char *path, unsigned int rows, un
         return -1;
     }
     // the view is among the views
-    cli_view_show((unsigned int)at);
+    cli_view_show(&(CliViewAtCfg){.at = (unsigned int)at});
     char opened_key[CLI_NAME_MAX_LEN];
-    if ((placed_at != NULL) && cli_view_key((unsigned int)at, opened_key))
+    if ((placed_at != NULL) && cli_view_key(&(CliViewAtCfg){.at = (unsigned int)at, .key_out = opened_key}))
     {
         const CliViewInput placed = {.type = CLI_VIEW_POSITION, .row = placed_at->line, .column = placed_at->col};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = opened_key, .input = &placed,
@@ -195,10 +195,10 @@ int cli_view_file_open(const char *root, const char *path, unsigned int rows, un
     return at;
 }
 
-void cli_view_file_close(unsigned int at)
+void cli_view_file_close(const CliViewAtCfg *args)
 {
     char key[CLI_NAME_MAX_LEN];
-    if (!cli_view_key(at, key))
+    if (!cli_view_key(&(CliViewAtCfg){.at = args->at, .key_out = key}))
     {
         return;
     }
@@ -206,10 +206,10 @@ void cli_view_file_close(unsigned int at)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = key);
 }
 
-void cli_view_session_save(const char *root)
+void cli_view_session_save(const CliViewAtCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    if ((root == NULL) || !EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
+    if ((args->root == NULL) || !EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
     {
         return;
     }
@@ -219,13 +219,15 @@ void cli_view_session_save(const char *root)
     char path[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        bytes +=
-            (cli_view_path_at(at, path) ? cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) : 0ULL) +
-            1ULL;
+        bytes += (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path})
+                      ? cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN})
+                      : 0ULL) +
+                 1ULL;
     }
     // the view displayed is among the views
     char displayed_path[CLI_PATH_MAX_LEN];
-    if ((displayed < 0) || !cli_view_path_at((unsigned int)displayed, displayed_path))
+    if ((displayed < 0) ||
+        !cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = displayed_path}))
     {
         displayed_path[0] = '\0';
     }
@@ -240,7 +242,7 @@ void cli_view_session_save(const char *root)
     mmgr_line_ch(&text, '\n');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cli_view_path_at(at, path))
+        if (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path}))
         {
             mmgr_line_put(&text, path);
         }
@@ -250,7 +252,7 @@ void cli_view_session_save(const char *root)
     char key[CLI_PATH_MAX_LEN + sizeof(CLI_VIEW_SESSION_KEY)];
     VerbaLinea keyed = {key, sizeof(key), 0ULL};
     mmgr_line_put(&keyed, CLI_VIEW_SESSION_KEY);
-    mmgr_line_put(&keyed, root);
+    mmgr_line_put(&keyed, args->root);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     if (mmgr_line_finish(&keyed) != 0ULL)

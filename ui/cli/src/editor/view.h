@@ -32,6 +32,7 @@ typedef struct CliViewFromCfg CliViewFromCfg;
 typedef struct CliViewCursorCfg CliViewCursorCfg;
 typedef struct CliViewInputCfg CliViewInputCfg;
 typedef struct CliViewCfg CliViewCfg;
+typedef struct CliViewWatcher CliViewWatcher;
 typedef struct CliViewPathTypeCfg CliViewPathTypeCfg;
 typedef struct CliViewFullTypeCfg CliViewFullTypeCfg;
 typedef struct CliViewFullCfg CliViewFullCfg;
@@ -134,19 +135,19 @@ typedef struct
 } CliViewFind;
 
 // A view's frame: every count and pointer the window draws from, in cells of the views' owner, immutable once read. The
-// rows are the lines displayed from `from`, the lines a closed fold hides left out, each row's runs at `runs->line[row]`;
-// the closers are among `bytes` from `closers`; each match is a line, a from and a to column; `indent_tabs` is 1 for
-// tabs, 0 for spaces and -1 where nothing set it. The file is a grid of lines by cells and the view a window on it:
-// `top` is its first line and `left` its first cell column. Each row holds its line from its start through the view's
-// last column, so every column stays the file's own and the window draws the row moved left by `left` cells. `widest`
-// is the max cells of any line the view has displayed, the grid's width as the view knows it. After the `count` rows
-// displayed are `stickies` sticky rows, the head lines of the regions the first line under them is inside,
-// outermost first, each with its text and runs as the rows displayed have theirs, for the window to pin over the rows
-// at the view's top; a region opened on a line of its brace alone has the line before as its head. A table file, as
-// its plugin defines the characters for the file extension, has `table` as the delimiter character that separates a
-// line into fields and `table_quote` as the quote character that encloses a field, 0 for none, and `column_count`
-// column offsets and one past them: the field at column index `k` begins at the cell offset `column_offset[k]`, the
-// sum of the previous offset, the previous column's width and one cell for the delimiter, and
+// rows are the lines displayed from `from`, the lines a closed fold hides left out, each row's runs at
+// `runs->line[row]`; the closers are among `bytes` from `closers`; each match is a line, a from and a to column;
+// `indent_tabs` is 1 for tabs, 0 for spaces and -1 where nothing set it. The file is a grid of lines by cells and the
+// view a window on it: `top` is its first line and `left` its first cell column. Each row holds its line from its start
+// through the view's last column, so every column stays the file's own and the window draws the row moved left by
+// `left` cells. `widest` is the max cells of any line the view has displayed, the grid's width as the view knows it.
+// After the `count` rows displayed are `stickies` sticky rows, the head lines of the regions the first line under them
+// is inside, outermost first, each with its text and runs as the rows displayed have theirs, for the window to pin over
+// the rows at the view's top; a region opened on a line of its brace alone has the line before as its head. A table
+// file, as its plugin defines the characters for the file extension, has `table` as the delimiter character that
+// separates a line into fields and `table_quote` as the quote character that encloses a field, 0 for none, and
+// `column_count` column offsets and one past them: the field at column index `k` begins at the cell offset
+// `column_offset[k]`, the sum of the previous offset, the previous column's width and one cell for the delimiter, and
 // `column_offset[column_count]` is the cell after the last column; a column's width is the max width of its fields,
 // or the width a CLI_VIEW_COLUMN input set; a file that is not a table has `table` 0 and a column count of 0
 typedef struct
@@ -182,20 +183,40 @@ typedef struct
 
 // the frame of the view under `key` in cells taken for it, sized to its rows and columns: the frame, or NULL where no
 // view is open under the key or the cells cannot meet it; and a frame's cells released
-CliViewFrame *cli_view_frame_alloc(const char *key);
-void cli_view_frame_release(CliViewFrame *frame);
+// the views' table: the view `key`'s frame, its map over the lines `first` to `last` and its words, each taken and
+// released; the watcher; the view `at`, its key into `key_out` and its path into `path_out`, shown, its close
+// `closing`, its file closed; the sticky lines `on`; the fill `columns`; and the session saved for the tree `root`
+typedef struct
+{
+    const char *key;
+    CliViewFrame *frame;
+    unsigned long long first;
+    unsigned long long last;
+    CliDocumentMap *map;
+    CliDocumentWords *words;
+    const CliViewWatcher *watcher;
+    unsigned int at;
+    char *key_out;
+    char *path_out;
+    int closing;
+    int on;
+    unsigned long long columns;
+    const char *root;
+} CliViewAtCfg;
+CliViewFrame *cli_view_frame_alloc(const CliViewAtCfg *args);
+void cli_view_frame_release(const CliViewAtCfg *args);
 
 // the lines from `first` to `last` of the view under `key` positioned as bars in a cell of the views' owner, as
-// cli_document_map_alloc positions them, a text that indents by tabs a tab's step of cells a unit of the gap that opens a
-// line: the cell, or NULL where no view is open under the key or the cells cannot meet it; and that cell released
-CliDocumentMap *cli_view_map_alloc(const char *key, unsigned long long first, unsigned long long last);
-void cli_view_map_release(CliDocumentMap *map);
+// cli_document_map_alloc positions them, a text that indents by tabs a tab's step of cells a unit of the gap that opens
+// a line: the cell, or NULL where no view is open under the key or the cells cannot meet it; and that cell released
+CliDocumentMap *cli_view_map_alloc(const CliViewAtCfg *args);
+void cli_view_map_release(const CliViewAtCfg *args);
 
 // the names the walk has found within CLI_VIEW_WORD_LINES of the cursor of the view under `key` in a cell of the views'
 // owner, as cli_document_words_alloc reads them: the cell, or NULL where no view is open under the key or the cells
 // cannot meet it; and that cell released
-CliDocumentWords *cli_view_words_alloc(const char *key);
-void cli_view_words_release(CliDocumentWords *words);
+CliDocumentWords *cli_view_words_alloc(const CliViewAtCfg *args);
+void cli_view_words_release(const CliViewAtCfg *args);
 
 // a view opened on the text stored under `key`, its indentation the `.editorconfig` files above the file at `path`
 // give it, in place of a view open on the key: 1, or 0 where no text is stored under the key or the views table is
@@ -213,9 +234,9 @@ typedef struct
     unsigned int rows;
 } CliViewDrawn;
 
-// What watches the views: passed each frame positioned of a view, each view opened, under `key` on the file at `path` from
-// the tree's top, empty for none, and each view about to close, while it still is open
-typedef struct
+// What watches the views: passed each frame positioned of a view, each view opened, under `key` on the file at `path`
+// from the tree's top, empty for none, and each view about to close, while it still is open
+typedef struct CliViewWatcher
 {
     void (*drawn)(const CliViewDrawn *drawn);
     void (*opened)(const char *key, const char *path);
@@ -223,48 +244,48 @@ typedef struct
 } CliViewWatcher;
 
 // the views watched by `watcher` from here on, NULL for none
-void cli_view_watch(const CliViewWatcher *watcher);
+void cli_view_watch(const CliViewAtCfg *args);
 // the views open in the order they were opened, which are the files open as the window's tabs, a view opened with no
 // path a pane's own and among no tab: how many; the key of the
 // one at `at` copied into `key_out`, sized for CLI_NAME_MAX_LEN, and its file's path from the tree's top into
 // `path_out`, sized for CLI_PATH_MAX_LEN, each 1, or 0 past the views; its file's name, the last part of that path,
 // inside `path_out` once the path is copied there, NULL past the views; the place of the one displayed and of the one
-// displayed before it, each -1 for none; the one at `at` displayed, the one displayed before it saved; and whether the close of the
-// one at `at` waits on a second press, set as `closing` asks
+// displayed before it, each -1 for none; the one at `at` displayed, the one displayed before it saved; and whether the
+// close of the one at `at` waits on a second press, set as `closing` asks
 unsigned int cli_view_count(void);
-int cli_view_key(unsigned int at, char *key_out);
-int cli_view_path_at(unsigned int at, char *path_out);
-const char *cli_view_name_at(unsigned int at, char *path_out);
+int cli_view_key(const CliViewAtCfg *args);
+int cli_view_path_at(const CliViewAtCfg *args);
+const char *cli_view_name_at(const CliViewAtCfg *args);
 int cli_view_displayed(void);
 int cli_view_last(void);
-void cli_view_show(unsigned int at);
-int cli_view_closing(unsigned int at);
-void cli_view_closing_set(unsigned int at, int closing);
+void cli_view_show(const CliViewAtCfg *args);
+int cli_view_closing(const CliViewAtCfg *args);
+void cli_view_closing_set(const CliViewAtCfg *args);
 // whether the frames carry sticky rows, 1 as the views start; and that switched `on` or off for every view
 int cli_view_sticky(void);
-void cli_view_sticky_set(int on);
+void cli_view_sticky_set(const CliViewAtCfg *args);
 // the width Fill Paragraph positions words within, in cells, 0 for the view's own columns; and that width set
 unsigned long long cli_view_fill(void);
-void cli_view_fill_set(unsigned long long columns);
+void cli_view_fill_set(const CliViewAtCfg *args);
 // the files open as views (view_files.c): the file at `path`, a whole path inside the tree `root` or one from its top,
 // opened as a view where none is open on it: its text read whole or paged under the key `window:` and its path from the
-// tree's top, its grammar applied, the view opened at `rows` and `columns`; the view displayed, the one displayed before it
-// saved, its cursor put at `place` where it is not NULL, and else at the line and the column the path ends in, each a
-// colon and digits counted from 1, a line alone at its start: the view's place, or -1 where the file was refused, why
-// written into `err_msg`. The view at `at` closed and its text let go. And the session, the views' paths in order, a
-// line each, the displayed one's first, saved in orior's folder under a key of the tree `root`'s own, and the views it
-// names opened again from `entries`
+// tree's top, its grammar applied, the view opened at `rows` and `columns`; the view displayed, the one displayed
+// before it saved, its cursor put at `place` where it is not NULL, and else at the line and the column the path ends
+// in, each a colon and digits counted from 1, a line alone at its start: the view's place, or -1 where the file was
+// refused, why written into `err_msg`. The view at `at` closed and its text let go. And the session, the views' paths
+// in order, a line each, the displayed one's first, saved in orior's folder under a key of the tree `root`'s own, and
+// the views it names opened again from `entries`
 int cli_view_file_open(const char *root, const char *path, unsigned int rows, unsigned int columns,
                        const CliPosition *place, VerbaLinea *err_msg);
-void cli_view_file_close(unsigned int at);
-void cli_view_session_save(const char *root);
+void cli_view_file_close(const CliViewAtCfg *args);
+void cli_view_session_save(const CliViewAtCfg *args);
 void cli_view_session_restore(const char *root, const CliStateEntries *entries, unsigned int rows,
                               unsigned int columns);
 // `input` taken by the view under `key`: 1, or 0 with why given where no view is open under the key or an edit could
 // not be made
 int cli_view_input(const CliViewInputCfg *args);
 // the line at the top of the view under `key`, 0 where no view is open under it
-unsigned long long cli_view_top(const char *key);
+unsigned long long cli_view_top(const CliViewAtCfg *args);
 // the cursor and the anchor of the view under `key`, each where it is given: 1, or 0 where no view is open under it
 int cli_view_cursor(const CliViewCursorCfg *args);
 // the file's path of the view under `key` into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where no view is open

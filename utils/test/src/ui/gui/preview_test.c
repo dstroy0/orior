@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // preview_test.c: the preview part's check on a tree of its own, a Markdown file open as a view: with the mode off the
-// frame has no preview and nothing is drawn; beside, the items are drawn in the editor's right half and the editor retains
-// its left; alone, the preview fills the editor's rectangle; the wheel moves the top by whole rows and no further than
-// the last item fills the rectangle; nothing is drawn outside the rectangle, the draw starting at the item the CLI
-// finds for the top; a press on a link passes the CLI's answer on and a press elsewhere does nothing; the cursor's line
-// draws its block's mark; and a scroll of the editor moves the preview's top with no scroll going back to the editor
+// frame has no preview and nothing is drawn; beside, the items are drawn in the editor's right half and the editor
+// retains its left; alone, the preview fills the editor's rectangle; the wheel moves the top by whole rows and no
+// further than the last item fills the rectangle; nothing is drawn outside the rectangle, the draw starting at the item
+// the CLI finds for the top; a press on a link passes the CLI's answer on and a press elsewhere does nothing; the
+// cursor's line draws its block's mark; and a scroll of the editor moves the preview's top with no scroll going back to
+// the editor
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/gui/src/preview.h"
@@ -41,8 +42,9 @@ static unsigned int drawn_in(const GuiRaster *raster, GuiRect rect)
 // the raster cleared and the preview drawn on it in `frame`
 static void drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame)
 {
-    memor.set(&(MemoriaCfg){.dst = raster->pixels, .val = 0, .bytes = (unsigned long long)raster->width * raster->height *
-                                                                      sizeof(GuiColor)});
+    memor.set(&(MemoriaCfg){.dst = raster->pixels,
+                            .val = 0,
+                            .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
     EMBED_CALL(gui_preview.draw, GuiPreviewCfg, .raster = raster, .glyphs = glyphs, .palette = palette, .frame = frame);
 }
 
@@ -105,9 +107,8 @@ int main(void)
     const int between = frame.map.x - frame.editor.x - whole.width;
     const int shared = whole.width + between;
     GuiRaster raster;
-    cli_check(
-        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
-        "the raster is taken");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
+              "the raster is taken");
 
     cli_check_folder("preview_tree", s_root);
     char notes[CLI_PATH_MAX_LEN];
@@ -129,7 +130,9 @@ int main(void)
     cli_check(place >= 0, "the notes open as a view");
     // the view's place is not negative, as checked
     char key_text[CLI_NAME_MAX_LEN];
-    const char *const key = ((place >= 0) && cli_view_key((unsigned int)place, key_text)) ? key_text : NULL;
+    const char *const key =
+        ((place >= 0) && cli_view_key(&(CliViewAtCfg){.at = (unsigned int)place, .key_out = key_text})) ? key_text
+                                                                                                        : NULL;
     unsigned long long now_ms = 1000ULL;
 
     // off: no rectangle, nothing drawn
@@ -236,8 +239,7 @@ int main(void)
     // the mark is inside the raster, at the block's left less its reach
     const unsigned int edge_x = (unsigned int)(frame.preview.x + mark.x - GUI_PREVIEW_MARK_OUT);
     const unsigned int edge_y = (unsigned int)(frame.preview.y + mark.y - top_now + (mark.height / 2));
-    cli_check(raster.pixels[(edge_y * raster.width) + edge_x] !=
-                  raster.pixels[(edge_y * raster.width) + edge_x - 2u],
+    cli_check(raster.pixels[(edge_y * raster.width) + edge_x] != raster.pixels[(edge_y * raster.width) + edge_x - 2u],
               "the mark is drawn in the signal beside the block");
 
     // a scroll of the editor moves the preview and none goes back
@@ -250,7 +252,7 @@ int main(void)
               "a scroll of the editor moves the preview's top to the same line");
     now_ms += CLI_PREVIEW_LOOK_MS;
     (void)stepped(key, &frame, now_ms);
-    cli_check(cli_view_top(key) == 30ULL, "and no scroll goes back to the editor");
+    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == 30ULL, "and no scroll goes back to the editor");
 
     raster.pixels = NULL;
     EMBED_CALL(gui_glyphs.free, GuiGlyphsCfg, .glyphs = &glyphs);

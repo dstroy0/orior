@@ -288,9 +288,11 @@ static int explorer_current(const GuiPaneCfg *args)
     (void)args;
     const int displayed = cli_view_displayed();
     char displayed_path[CLI_PATH_MAX_LEN];
-    const int named = (displayed >= 0) && cli_view_path_at((unsigned int)displayed, displayed_path);
+    const int named = (displayed >= 0) &&
+                      cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = displayed_path});
     CliExplorerRow listed;
-    for (unsigned int at = 0u; named && cli_files_explorer_row(&(CliFilesExplorerCfg){.at = at, .row = &listed}); at += 1u)
+    for (unsigned int at = 0u; named && cli_files_explorer_row(&(CliFilesExplorerCfg){.at = at, .row = &listed});
+         at += 1u)
     {
         if (!listed.dir &&
             cellul.eq(&(CatenaFinitaCfg){.src = listed.path, .other = displayed_path, .cap = CLI_PATH_MAX_LEN}))

@@ -5,8 +5,8 @@
 // colors of their own, and none on a row the change leaves; a press on the marks' column lands on it and one on the
 // numbers does not; and a text stored against the same file leaves no mark
 #include "../../../../../includes/window/block.h"
-#include "../../../../../ui/cli/src/editor/document_changes.h"
 #include "../../../../../includes/window/frame.h"
+#include "../../../../../ui/cli/src/editor/document_changes.h"
 #include "../../../../../ui/gui/src/editor.h"
 #include "../../../../../ui/gui/src/gutter.h"
 #include "../cli/cli_check.h"
@@ -74,7 +74,7 @@ int main(void)
 
     GuiEditor editor;
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &editor);
-    editor.frame = cli_view_frame_alloc(s_key);
+    editor.frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
     cli_check(editor.frame != NULL, "the view's frame is taken");
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 800u, .height = 400u),
@@ -82,9 +82,10 @@ int main(void)
     const GuiRect place = {0, 0, 800, 400};
     EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &editor, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .place = place, .scale = 100, .key = s_key);
-    const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                       .pixels = GUI_CODE_SIZE, .scale = 100);
-    const float cell = EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
+    const unsigned int size =
+        (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_SIZE, .scale = 100);
+    const float cell =
+        EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .size = size);
     const int text_x = place.x + EMBED_CALL(gui_editor_position_cell.gutter, GuiEditorPositionCellCfg,
                                             .editor_read = &editor, .cell = cell, .scale = 100);
     const int column = text_x - GUI_GUTTER_MARK_RIGHT - 1;
@@ -108,14 +109,15 @@ int main(void)
     head_stored(s_now, sizeof(s_now) - 1u);
     cli_check(changes_count() == 0u, "a text the same as its last commit's has no change");
     // the editor's ground is see-through: a frame starts clear, as the window's frame starts from the ground
-    memor.set(&(MemoriaCfg){.dst = raster.pixels, .val = 0,
+    memor.set(&(MemoriaCfg){.dst = raster.pixels,
+                            .val = 0,
                             .bytes = (unsigned long long)raster.width * raster.height * sizeof(*raster.pixels)});
     EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &editor, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .place = place, .scale = 100, .key = s_key);
     cli_check(pixel_at(&raster, column, (1 * GUI_CODE_LINE) + (GUI_CODE_LINE / 2)) == plain,
               "a text the same as its last commit's carries no mark");
 
-    cli_view_frame_release((CliViewFrame *)editor.frame);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor.frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);

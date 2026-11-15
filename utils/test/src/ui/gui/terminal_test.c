@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // terminal_test.c: the terminal pane's check: a line the xterm grammar reads, each escape sequence a keyword of a
 // dotted token, drawn through the pane as a tab's line is: the sequences take no column, the character after
-// keyword.foreground.1 is in the terminal's red, the character after keyword.reset in the text's color, and the character
-// after keyword.inverse on the text's color as its ground
+// keyword.foreground.1 is in the terminal's red, the character after keyword.reset in the text's color, and the
+// character after keyword.inverse on the text's color as its ground
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/cli/src/plugins/plugins.h"
 #include "../../../../../ui/gui/src/terminal.h"
@@ -71,15 +71,14 @@ int main(void)
     memor.set(&(MemoriaCfg){.dst = &terminal, .val = 0, .bytes = sizeof(terminal)});
     terminal.panel = (CliTerminalPanel){1, 0, 240u, 1u, 0, -1, 1u};
     terminal.view[0] = (CliTerminalView){s_key, 0ull, 40u, 3u, 0u, 0u, 0, 0};
-    terminal.frame[0] = cli_view_frame_alloc(s_key);
+    terminal.frame[0] = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
     terminal.names[0] =
         EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = s_key, .owner = g_checks_owner);
     cli_check((terminal.frame[0] != NULL) && (terminal.names[0] != NULL), "the pane's frame and names are taken");
 
     GuiRaster raster;
-    cli_check(
-        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
-        "the raster is taken");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
+              "the raster is taken");
     EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
                .raster = &raster, .palette = palette);
     const int cell = (int)(EMBED_CALL(gui_glyphs_face_character.cell, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs,
@@ -97,7 +96,7 @@ int main(void)
     cli_check(raster.pixels[((unsigned int)third.y * raster.width) + (unsigned int)third.x] == palette->text,
               "the character after inverse is on the text's color as its ground");
 
-    cli_view_frame_release((CliViewFrame *)terminal.frame[0]);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)terminal.frame[0]});
     g_cli_guard->persistent_buf_release((void *)terminal.names[0], g_checks_owner);
     raster.pixels = NULL;
     raster.width = 0u;

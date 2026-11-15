@@ -464,10 +464,10 @@ void test_the_wheel_leads_the_view_and_the_follow_leads_nothing_back(void)
     const int top = EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0);
     TEST_ASSERT_EQUAL_INT(340, top);
     const unsigned long long line = EMBED_CALL(cli_preview_scroll.line_at, CliPreviewScrollCfg, .top_px = top);
-    TEST_ASSERT_EQUAL_UINT64(line, cli_view_top(PREVIEW_KEY));
+    TEST_ASSERT_EQUAL_UINT64(line, cli_view_top(&(CliViewAtCfg){.key = PREVIEW_KEY}));
     (void)stepped();
     TEST_ASSERT_EQUAL_INT(top, EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0));
-    TEST_ASSERT_EQUAL_UINT64(line, cli_view_top(PREVIEW_KEY));
+    TEST_ASSERT_EQUAL_UINT64(line, cli_view_top(&(CliViewAtCfg){.key = PREVIEW_KEY}));
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_preview_scroll.by, CliPreviewScrollCfg, .delta_px = 1000000));
     TEST_ASSERT_EQUAL_INT(EMBED_CALL(cli_preview_item.extent, CliPreviewItemCfg, .at = 0u) - PREVIEW_HEIGHT,
                           EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0));
@@ -483,9 +483,9 @@ void test_a_scroll_by_the_editor_moves_the_top_and_none_goes_back(void)
     TEST_ASSERT_EQUAL_INT(1, stepped());
     TEST_ASSERT_EQUAL_INT(EMBED_CALL(cli_preview_scroll.top_of, CliPreviewScrollCfg, .line = 40ULL),
                           EMBED_CALL(cli_preview_scroll.top, CliPreviewScrollCfg, .delta_px = 0));
-    TEST_ASSERT_EQUAL_UINT64(40ULL, cli_view_top(PREVIEW_KEY));
+    TEST_ASSERT_EQUAL_UINT64(40ULL, cli_view_top(&(CliViewAtCfg){.key = PREVIEW_KEY}));
     TEST_ASSERT_EQUAL_INT(0, stepped());
-    TEST_ASSERT_EQUAL_UINT64(40ULL, cli_view_top(PREVIEW_KEY));
+    TEST_ASSERT_EQUAL_UINT64(40ULL, cli_view_top(&(CliViewAtCfg){.key = PREVIEW_KEY}));
 }
 
 void test_the_cursor_line_marks_its_block(void)

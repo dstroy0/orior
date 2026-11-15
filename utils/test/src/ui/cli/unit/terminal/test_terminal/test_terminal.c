@@ -663,10 +663,10 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_EQUAL_UINT(24u, pane.rows);
     // the pane is a view of the tab's text, located on the xterm's rows
     TEST_ASSERT_NOT_NULL(pane.key);
-    CliViewFrame *const frame = cli_view_frame_alloc(pane.key);
+    CliViewFrame *const frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = pane.key});
     TEST_ASSERT_NOT_NULL(frame);
     TEST_ASSERT_EQUAL_UINT64(pane.xterm_line, frame->top);
-    cli_view_frame_release(frame);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
     // Control with a character goes to the shell, a plain character comes as text, and Ctrl+` goes on to the window
     TEST_ASSERT_TRUE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "A"}));
     TEST_ASSERT_FALSE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "Ctrl+`"}));

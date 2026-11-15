@@ -886,9 +886,9 @@ int cli_view_open(const CliViewCfg *args)
     return 1;
 }
 
-void cli_view_watch(const CliViewWatcher *watcher)
+void cli_view_watch(const CliViewAtCfg *args)
 {
-    s_watcher = watcher;
+    s_watcher = args->watcher;
 }
 
 void cli_view_close(const CliViewCfg *args)
@@ -952,14 +952,14 @@ unsigned int cli_view_count(void)
     return count;
 }
 
-int cli_view_key(unsigned int at, char *key_out)
+int cli_view_key(const CliViewAtCfg *args)
 {
-    return view_record_key(view_tab_place(at), key_out);
+    return view_record_key(view_tab_place(args->at), args->key_out);
 }
 
-int cli_view_path_at(unsigned int at, char *path_out)
+int cli_view_path_at(const CliViewAtCfg *args)
 {
-    const unsigned int place = view_tab_place(at);
+    const unsigned int place = view_tab_place(args->at);
     if (place == CLI_VIEWS)
     {
         return 0;
@@ -967,20 +967,21 @@ int cli_view_path_at(unsigned int at, char *path_out)
     (void)g_cli_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = ((unsigned long long)place * sizeof(CliView)) + offsetof(CliView, path),
-                            .dst = path_out,
+                            .dst = args->path_out,
                             .bytes = CLI_PATH_MAX_LEN});
     return 1;
 }
 
-const char *cli_view_name_at(unsigned int at, char *path_out)
+const char *cli_view_name_at(const CliViewAtCfg *args)
 {
-    if (!cli_view_path_at(at, path_out))
+    if (!cli_view_path_at(&(CliViewAtCfg){.at = args->at, .path_out = args->path_out}))
     {
         return NULL;
     }
-    return path_out + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path_out,
-                                 .at = cellul.len(&(CatenaFinitaCfg){.src = path_out, .cap = CLI_PATH_MAX_LEN}),
-                                 .set = "/\\");
+    return args->path_out +
+           EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path_out,
+                      .at = cellul.len(&(CatenaFinitaCfg){.src = args->path_out, .cap = CLI_PATH_MAX_LEN}),
+                      .set = "/\\");
 }
 
 int cli_view_displayed(void)
@@ -993,9 +994,9 @@ int cli_view_last(void)
     return view_tab_at(s_last);
 }
 
-void cli_view_show(unsigned int at)
+void cli_view_show(const CliViewAtCfg *args)
 {
-    const unsigned int place = view_tab_place(at);
+    const unsigned int place = view_tab_place(args->at);
     if (place != CLI_VIEWS)
     {
         // a view's place is far inside what an int counts
@@ -1004,9 +1005,9 @@ void cli_view_show(unsigned int at)
     }
 }
 
-int cli_view_closing(unsigned int at)
+int cli_view_closing(const CliViewAtCfg *args)
 {
-    const unsigned int place = view_tab_place(at);
+    const unsigned int place = view_tab_place(args->at);
     int closing = 0;
     if (place != CLI_VIEWS)
     {
@@ -1019,16 +1020,16 @@ int cli_view_closing(unsigned int at)
     return closing;
 }
 
-void cli_view_closing_set(unsigned int at, int closing)
+void cli_view_closing_set(const CliViewAtCfg *args)
 {
-    const unsigned int place = view_tab_place(at);
+    const unsigned int place = view_tab_place(args->at);
     if (place != CLI_VIEWS)
     {
-        (void)g_cli_guard->movable_buf_write(
-            &(CarcerMovableCfg){.cell = s_views,
-                                .offset = ((unsigned long long)place * sizeof(CliView)) + offsetof(CliView, closing),
-                                .src = &closing,
-                                .bytes = sizeof(closing)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = s_views,
+            .offset = ((unsigned long long)place * sizeof(CliView)) + offsetof(CliView, closing),
+            .src = &args->closing,
+            .bytes = sizeof(args->closing)});
     }
 }
 
@@ -1037,9 +1038,9 @@ int cli_view_sticky(void)
     return s_sticky;
 }
 
-void cli_view_sticky_set(int on)
+void cli_view_sticky_set(const CliViewAtCfg *args)
 {
-    s_sticky = on ? 1 : 0;
+    s_sticky = args->on ? 1 : 0;
 }
 
 // the width Fill Paragraph fills to, in cells; 0 for the view's own columns
@@ -1050,9 +1051,9 @@ unsigned long long cli_view_fill(void)
     return s_fill_columns;
 }
 
-void cli_view_fill_set(unsigned long long columns)
+void cli_view_fill_set(const CliViewAtCfg *args)
 {
-    s_fill_columns = columns;
+    s_fill_columns = args->columns;
 }
 
 // the text's lines: how many, as far as the pages' index has read for a paged text
@@ -5694,12 +5695,12 @@ static void view_fold_visit(const CliFoldEachCfg *args)
     }
 }
 
-void cli_view_frame_release(CliViewFrame *frame)
+void cli_view_frame_release(const CliViewAtCfg *args)
 {
-    if (frame != NULL)
+    if (args->frame != NULL)
     {
-        g_cli_guard->persistent_buf_release(frame->runs, g_cli_views_owner);
-        g_cli_guard->persistent_buf_release(frame, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(args->frame->runs, g_cli_views_owner);
+        g_cli_guard->persistent_buf_release(args->frame, g_cli_views_owner);
     }
 }
 
@@ -6146,7 +6147,7 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
     g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
     if (frame->runs == NULL)
     {
-        cli_view_frame_release(frame);
+        cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
         return NULL;
     }
     if ((s_watcher != NULL) && (s_watcher->drawn != NULL))
@@ -6157,10 +6158,10 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
     return frame;
 }
 
-CliViewFrame *cli_view_frame_alloc(const char *key)
+CliViewFrame *cli_view_frame_alloc(const CliViewAtCfg *args)
 {
     CliView copy;
-    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key, .copy = &copy);
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if (view == NULL)
     {
         return NULL;
@@ -6174,10 +6175,10 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     return frame;
 }
 
-unsigned long long cli_view_top(const char *key)
+unsigned long long cli_view_top(const CliViewAtCfg *args)
 {
     CliView copy;
-    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key, .copy = &copy);
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     return (view != NULL) ? view->top : 0ULL;
 }
 
@@ -6205,26 +6206,26 @@ int cli_view_cursor(const CliViewCursorCfg *args)
 // the bytes the runs of the minimap's lines may take as they are read for their bars
 #define CLI_VIEW_MAP_CAPACITY (1024ULL * 1024ULL)
 
-CliDocumentMap *cli_view_map_alloc(const char *key, unsigned long long first, unsigned long long last)
+CliDocumentMap *cli_view_map_alloc(const CliViewAtCfg *args)
 {
     CliView copy;
-    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key, .copy = &copy);
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if (view == NULL)
     {
         return NULL;
     }
     if (view->table != 0u)
     {
-        return EMBED_CALL(view_table_map_alloc, ViewCtx, .view = view, .first = first, .last = last);
+        return EMBED_CALL(view_table_map_alloc, ViewCtx, .view = view, .first = args->first, .last = args->last);
     }
     const unsigned int tab = (view->indent.tabs == 1) ? EMBED_CALL(view_tab, ViewCtx, .view_read = view) : 1u;
-    return EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = key, .first = first, .last = last,
-                      .tab = tab, .owner = g_cli_views_owner);
+    return EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = args->key, .first = args->first,
+                      .last = args->last, .tab = tab, .owner = g_cli_views_owner);
 }
 
-void cli_view_map_release(CliDocumentMap *map)
+void cli_view_map_release(const CliViewAtCfg *args)
 {
-    g_cli_guard->persistent_buf_release(map, g_cli_views_owner);
+    g_cli_guard->persistent_buf_release(args->map, g_cli_views_owner);
 }
 
 int cli_view_path(const CliViewPathTypeCfg *args)
@@ -6508,23 +6509,23 @@ int cli_view_prefix(const CliViewFromCfg *args)
 // empty entry, and its length
 #define CLI_VIEW_WORD_TABLE 8192ULL
 
-CliDocumentWords *cli_view_words_alloc(const char *key)
+CliDocumentWords *cli_view_words_alloc(const CliViewAtCfg *args)
 {
     CliView copy;
-    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key, .copy = &copy);
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if (view == NULL)
     {
         return NULL;
     }
     const CliPosition cursor = view->cursor;
     const unsigned long long first = (cursor.line > CLI_VIEW_WORD_LINES) ? cursor.line - CLI_VIEW_WORD_LINES : 0ULL;
-    return EMBED_CALL(cli_document_words.words_alloc, CliDocumentWordsCfg, .key = key, .first = first,
+    return EMBED_CALL(cli_document_words.words_alloc, CliDocumentWordsCfg, .key = args->key, .first = first,
                       .last = cursor.line + CLI_VIEW_WORD_LINES, .cursor = cursor, .owner = g_cli_views_owner);
 }
 
-void cli_view_words_release(CliDocumentWords *words)
+void cli_view_words_release(const CliViewAtCfg *args)
 {
-    g_cli_guard->persistent_buf_release(words, g_cli_views_owner);
+    g_cli_guard->persistent_buf_release(args->words, g_cli_views_owner);
 }
 
 // the type of a step of edits the CLI answers while its edits are written, which joins them; the step is of no

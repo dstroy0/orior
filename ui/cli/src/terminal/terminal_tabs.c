@@ -215,7 +215,7 @@ EMBED_INLINE void terminal_scroll(const TerminalCtx *args)
 // above it
 EMBED_INLINE int terminal_follows(const TerminalCtx *args)
 {
-    return args->tab->stored && (cli_view_top(args->tab->key) >= args->tab->xterm.base);
+    return args->tab->stored && (cli_view_top(&(CliViewAtCfg){.key = args->tab->key}) >= args->tab->xterm.base);
 }
 
 // the folder the tabs' files are in, into `folder_out`, and the lines each retains, into `retain_out`, as the reader's
@@ -1033,7 +1033,7 @@ EMBED_INLINE void terminal_point(const TerminalCtx *args)
         return;
     }
     // the pane's column counts characters alone; the view's counts the line's units, the SGR sequences among them too
-    const unsigned long long line = cli_view_top(tab->key) + args->row;
+    const unsigned long long line = cli_view_top(&(CliViewAtCfg){.key = tab->key}) + args->row;
     unsigned long long count = 0ULL;
     unsigned short *const units = EMBED_CALL(cli_terminal_xterm_line.units_alloc, CliTerminalXtermLineCfg,
                                              .xterm_read = &tab->xterm, .line = line, .count = &count);

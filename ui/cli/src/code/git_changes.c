@@ -1213,9 +1213,9 @@ int cli_changes_open(const CliGitChangesCfg *args)
     char opened_key[CLI_NAME_MAX_LEN];
     for (unsigned int at = 0u; (key == NULL) && (at < views); at += 1u)
     {
-        key = (cli_view_path_at(at, open) &&
+        key = (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = open}) &&
                cellul.eq(&(CatenaFinitaCfg){.src = open, .other = row.path, .cap = CLI_PATH_MAX_LEN}) &&
-               cli_view_key(at, opened_key))
+               cli_view_key(&(CliViewAtCfg){.at = at, .key_out = opened_key}))
                   ? opened_key
                   : NULL;
     }

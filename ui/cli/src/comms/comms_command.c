@@ -19,8 +19,8 @@ typedef struct
     unsigned int view;
 } CommsCommand;
 
-// The view displayed: its key and its path, each a copy out of the views table in a buffer of the record's own, NULL where
-// no view is displayed, and its cursor's line
+// The view displayed: its key and its path, each a copy out of the views table in a buffer of the record's own, NULL
+// where no view is displayed, and its cursor's line
 typedef struct
 {
     const char *key;
@@ -54,13 +54,14 @@ EMBED_INLINE int command_displayed(const CommsCommandCtx *args)
         return 0;
     }
     // the view displayed is among the views: its key and path copied into the displayed record's own buffers
-    const int named = cli_view_key((unsigned int)displayed, displayed_out->key_text) &&
-                      cli_view_path_at((unsigned int)displayed, displayed_out->path_text);
+    const int named =
+        cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = displayed_out->key_text}) &&
+        cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = displayed_out->path_text});
     displayed_out->key = named ? displayed_out->key_text : NULL;
     displayed_out->path = named ? displayed_out->path_text : NULL;
     CliPosition cursor = {0ULL, 0ULL};
     const int placed = (displayed_out->key != NULL) && EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg,
-                                                              .key = displayed_out->key, .cursor = &cursor);
+                                                                  .key = displayed_out->key, .cursor = &cursor);
     displayed_out->line = cursor.line;
     return placed && (displayed_out->path != NULL);
 }
@@ -86,9 +87,9 @@ EMBED_INLINE int command_private(const CommsCommandCtx *args)
                    .text = written, .size = quoted.at, .err_msg = &err_msg, .owner = g_cli_comms_owner);
     unsigned long long length = 0ULL;
     const char *const characters = (root != CLI_JSON_NONE)
-                                    ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                 .json_read = &read, .node = root, .length_pointer = &length)
-                                    : NULL;
+                                       ? EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                    .json_read = &read, .node = root, .length_pointer = &length)
+                                       : NULL;
     if (characters != NULL)
     {
         (void)mmgr_line_put_n(args->out, characters, length);

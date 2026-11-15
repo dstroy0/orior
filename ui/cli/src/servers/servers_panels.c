@@ -234,7 +234,9 @@ EMBED_INLINE const char *panels_viewed_key(const PanelsCtx *args)
     const int displayed = cli_view_displayed();
     // a view's place is not negative past the test; the key is copied into the panels' own buffer
     static char s_viewed_key[CLI_NAME_MAX_LEN];
-    return ((displayed >= 0) && cli_view_key((unsigned int)displayed, s_viewed_key)) ? s_viewed_key : NULL;
+    return ((displayed >= 0) && cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = s_viewed_key}))
+               ? s_viewed_key
+               : NULL;
 }
 
 // a byte a word holds
@@ -1140,14 +1142,14 @@ EMBED_INLINE void panels_completion_ask(const PanelsCtx *args)
     }
     // the list positioned in a cell of the call's own from the file's words, which go once their texts are copied
     PanelsCompletion *const list = g_cli_guard->temporary_buf_alloc(sizeof(*list), g_cli_servers_owner);
-    CliDocumentWords *const words = cli_view_words_alloc(key);
+    CliDocumentWords *const words = cli_view_words_alloc(&(CliViewAtCfg){.key = key});
     if (list != NULL)
     {
         EMBED_CALL(panels_completion_positioned, PanelsCtx, .list = list, .server = NULL, .words = words,
                    .line = cursor.line, .from = from, .prefix = prefix,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = sizeof(prefix)}));
     }
-    cli_view_words_release(words);
+    cli_view_words_release(&(CliViewAtCfg){.words = words});
     if (list != NULL)
     {
         panels_completion_are(list);
@@ -1759,12 +1761,12 @@ void cli_servers_panels_begin(const CliServersPanelsCfg *args)
     {
         s_panels.completion = g_cli_guard->movable_buf_alloc(sizeof(PanelsCompletion), g_cli_servers_owner);
     }
-    cli_view_watch(&s_panels_watcher);
+    cli_view_watch(&(CliViewAtCfg){.watcher = &s_panels_watcher});
 }
 
 void cli_servers_panels_end(void)
 {
-    cli_view_watch(NULL);
+    cli_view_watch(&(CliViewAtCfg){.watcher = NULL});
     cli_servers_panels_hide();
     (void)g_cli_guard->movable_buf_release(s_panels.completion, g_cli_servers_owner);
     s_panels.completion = NULL;

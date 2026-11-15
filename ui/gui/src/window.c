@@ -263,7 +263,7 @@ EMBED_INLINE void window_trust_answered(const GuiWindowCtx *args);
 void gui_window_end(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
-    cli_view_session_save(cli_command_line_root());
+    cli_view_session_save(&(CliViewAtCfg){.root = cli_command_line_root()});
     cli_terminal_tabs_end();
     cli_servers_problems_end();
     cli_servers_panels_end();
@@ -277,11 +277,11 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(gui_themes_owner.free, GuiThemesOwnerCfg, .themes = &window->themes);
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
-    cli_view_frame_release((CliViewFrame *)window->editor.frame);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->editor.frame});
     g_cli_guard->persistent_buf_release((void *)window->editor.names, g_cli_view_owner);
-    cli_view_map_release((CliDocumentMap *)window->minimap.lines);
-    cli_view_frame_release((CliViewFrame *)window->terminal.frame[0]);
-    cli_view_frame_release((CliViewFrame *)window->terminal.frame[1]);
+    cli_view_map_release(&(CliViewAtCfg){.map = (CliDocumentMap *)window->minimap.lines});
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->terminal.frame[0]});
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->terminal.frame[1]});
     g_cli_guard->persistent_buf_release((void *)window->terminal.names[0], g_cli_view_owner);
     g_cli_guard->persistent_buf_release((void *)window->terminal.names[1], g_cli_view_owner);
     window->editor.frame = NULL;
@@ -469,7 +469,10 @@ EMBED_INLINE const char *window_displayed_key(const GuiWindowCtx *args)
     (void)args;
     const int displayed = cli_view_displayed();
     // the view displayed is among the views
-    return ((displayed >= 0) && cli_view_key((unsigned int)displayed, s_displayed_key)) ? s_displayed_key : NULL;
+    return ((displayed >= 0) &&
+            cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = s_displayed_key}))
+               ? s_displayed_key
+               : NULL;
 }
 
 // the terminal read again of its tabs: the panel, its panes, and each pane's frame of its tab's text and the table of
@@ -482,8 +485,8 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
     {
         const int displayed = cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = view, .out = &terminal->view[view]});
         const char *const key = displayed ? terminal->view[view].key : NULL;
-        cli_view_frame_release((CliViewFrame *)terminal->frame[view]);
-        terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(key) : NULL;
+        cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)terminal->frame[view]});
+        terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
         g_cli_guard->persistent_buf_release((void *)terminal->names[view], g_cli_view_owner);
         terminal->names[view] = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
                                                            .key = key, .owner = g_cli_view_owner)
@@ -530,8 +533,9 @@ EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)
     // the view displayed is among the views: its key and path copied out of the views table
     char displayed_key[CLI_NAME_MAX_LEN];
     char displayed_path[CLI_PATH_MAX_LEN];
-    const int named = (displayed >= 0) && cli_view_key((unsigned int)displayed, displayed_key) &&
-                      cli_view_path_at((unsigned int)displayed, displayed_path);
+    const int named = (displayed >= 0) &&
+                      cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = displayed_key}) &&
+                      cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = displayed_path});
     const char *const key = named ? displayed_key : NULL;
     const char *const path = named ? displayed_path : NULL;
     for (unsigned int at = 0u; at < 2u; at += 1u)
@@ -701,17 +705,19 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
                              .err_msg = &err_msg);
         }
     }
-    cli_view_frame_release((CliViewFrame *)window->editor.frame);
-    window->editor.frame = (key != NULL) ? cli_view_frame_alloc(key) : NULL;
+    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->editor.frame});
+    window->editor.frame = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
     g_cli_guard->persistent_buf_release((void *)window->editor.names, g_cli_view_owner);
     window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = key,
                                                       .owner = g_cli_view_owner)
                                          : NULL;
     if (args->edited || (window->minimap.lines == NULL) || (key == NULL))
     {
-        cli_view_map_release((CliDocumentMap *)window->minimap.lines);
+        cli_view_map_release(&(CliViewAtCfg){.map = (CliDocumentMap *)window->minimap.lines});
         window->minimap.lines =
-            ((key != NULL) && window->map_known) ? cli_view_map_alloc(key, window->map_first, window->map_last) : NULL;
+            ((key != NULL) && window->map_known)
+                ? cli_view_map_alloc(&(CliViewAtCfg){.key = key, .first = window->map_first, .last = window->map_last})
+                : NULL;
     }
     // the map's lines follow the view: a frame that moved the map's first row takes the lines it now is for
     EMBED_CALL(window_map_span, GuiWindowCtx, .window = window);
@@ -886,7 +892,7 @@ EMBED_INLINE void window_scroll_step(const GuiWindowCtx *args)
     const unsigned long long left = (unsigned long long)(window->scroll_across / (double)cell);
     if (crossed != 0LL)
     {
-        const unsigned long long top_before = cli_view_top(key);
+        const unsigned long long top_before = cli_view_top(&(CliViewAtCfg){.key = key});
         const CliViewInput rows = {.type = CLI_VIEW_WHEEL, .wheel_rows = crossed, .top = CLI_VIEW_WHEEL_UNBOUND};
         (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &rows, .err_msg = &err_msg);
         if (left != window->scroll_left_sent)
@@ -895,7 +901,7 @@ EMBED_INLINE void window_scroll_step(const GuiWindowCtx *args)
             (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = &slid,
                              .err_msg = &err_msg);
         }
-        const unsigned long long top_after = cli_view_top(key);
+        const unsigned long long top_after = cli_view_top(&(CliViewAtCfg){.key = key});
         window->scroll_top_sent = top_after;
         window->scroll_left_sent = left;
         if (top_after == top_before)
@@ -975,8 +981,9 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     window->map_first = first;
     window->map_last = last;
     const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
-    cli_view_map_release((CliDocumentMap *)window->minimap.lines);
-    window->minimap.lines = (key != NULL) ? cli_view_map_alloc(key, first, last) : NULL;
+    cli_view_map_release(&(CliViewAtCfg){.map = (CliDocumentMap *)window->minimap.lines});
+    window->minimap.lines =
+        (key != NULL) ? cli_view_map_alloc(&(CliViewAtCfg){.key = key, .first = first, .last = last}) : NULL;
     window->pending = 1;
 }
 
@@ -2610,7 +2617,7 @@ EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args)
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_STICKY_KEY))
     {
-        cli_view_sticky_set(EMBED_CALL(window_setting_on, GuiWindowCtx, .value = args->value));
+        cli_view_sticky_set(&(CliViewAtCfg){.on = EMBED_CALL(window_setting_on, GuiWindowCtx, .value = args->value)});
     }
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->key, .key = GUI_WINDOW_SMOOTH_KEY))
     {
@@ -2655,7 +2662,7 @@ EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args)
         unsigned long long end = 0ULL;
         const unsigned long long columns = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->value,
                                                       .at = 0ULL, .size = size, .end = &end);
-        cli_view_fill_set(((size != 0ULL) && (end == size)) ? columns : 0ULL);
+        cli_view_fill_set(&(CliViewAtCfg){.columns = ((size != 0ULL) && (end == size)) ? columns : 0ULL});
     }
     else if (cellul.starts(&(CatenaFinitaCfg){.src = args->key, .other = GUI_WINDOW_COLOR_KEY, .cap = 64ULL}))
     {
@@ -3244,7 +3251,7 @@ EMBED_INLINE int window_view_run(const GuiWindowCtx *args)
     {
         const int on = EMBED_CALL(window_switch_next, GuiWindowCtx, .words = args->words, .count = args->count,
                                   .on = cli_view_sticky());
-        cli_view_sticky_set(on);
+        cli_view_sticky_set(&(CliViewAtCfg){.on = on});
         EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_STICKY_KEY, .value = on ? "true" : "false");
         EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = window, .event = GUI_PANE_VIEW);
         return 1;
@@ -3561,7 +3568,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         const int displayed = cli_view_displayed();
         // a displayed view is at a place the count holds
         char path[CLI_PATH_MAX_LEN];
-        if ((displayed < 0) || !cli_view_path_at((unsigned int)displayed, path))
+        if ((displayed < 0) || !cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = path}))
         {
             cli_notice_post(&(CliNoticesCfg){.text = "No file is displayed.", .failed = 1});
             return 0;
@@ -3980,8 +3987,8 @@ EMBED_INLINE void window_settings_read(const GuiWindowCtx *args)
     window->editor.whitespace = 0;
     window->autosave = 0;
     window->autosave_ms = GUI_WINDOW_AUTOSAVE_DEFAULT_MS;
-    cli_view_sticky_set(1);
-    cli_view_fill_set(0ULL);
+    cli_view_sticky_set(&(CliViewAtCfg){.on = 1});
+    cli_view_fill_set(&(CliViewAtCfg){.columns = 0ULL});
     window->operator_next_line = 0;
     for (unsigned int each = 0u; (args->entries != NULL) && (each < args->entries->count); each += 1u)
     {
@@ -4256,7 +4263,7 @@ EMBED_INLINE void window_menus_positioned(const GuiWindowCtx *args)
 // the session of the views saved in orior's folder, and the side_menu's group where the tool displayed has the side
 EMBED_INLINE void window_session_save(const GuiWindowCtx *args)
 {
-    cli_view_session_save(cli_command_line_root());
+    cli_view_session_save(&(CliViewAtCfg){.root = cli_command_line_root()});
     const int tool = args->window->side_menu.displayed;
     // the tool displayed is among the tools
     if ((tool >= 0) && g_gui_tools[tool].side)
@@ -4298,7 +4305,7 @@ EMBED_INLINE void window_tab_show(const GuiWindowCtx *args)
 {
     if (args->at < cli_view_count())
     {
-        cli_view_show(args->at);
+        cli_view_show(&(CliViewAtCfg){.at = args->at});
         EMBED_CALL(window_displayed, GuiWindowCtx, .window = args->window);
     }
 }
@@ -4308,17 +4315,18 @@ EMBED_INLINE void window_tab_show(const GuiWindowCtx *args)
 EMBED_INLINE void window_tab_close(const GuiWindowCtx *args)
 {
     char key[CLI_NAME_MAX_LEN];
-    if (!cli_view_key(args->at, key))
+    if (!cli_view_key(&(CliViewAtCfg){.at = args->at, .key_out = key}))
     {
         return;
     }
-    if (EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key) && !cli_view_closing(args->at))
+    if (EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key) &&
+        !cli_view_closing(&(CliViewAtCfg){.at = args->at}))
     {
-        cli_view_closing_set(args->at, 1);
+        cli_view_closing_set(&(CliViewAtCfg){.at = args->at, .closing = 1});
         args->window->pending = 1;
         return;
     }
-    cli_view_file_close(args->at);
+    cli_view_file_close(&(CliViewAtCfg){.at = args->at});
     EMBED_CALL(window_displayed, GuiWindowCtx, .window = args->window);
 }
 
@@ -4371,7 +4379,8 @@ EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
     char key[CLI_NAME_MAX_LEN];
     char relative[CLI_PATH_MAX_LEN];
     const char *const root = cli_command_line_root();
-    if (!cli_view_key(args->at, key) || !cli_view_path_at(args->at, relative) || (root == NULL))
+    if (!cli_view_key(&(CliViewAtCfg){.at = args->at, .key_out = key}) ||
+        !cli_view_path_at(&(CliViewAtCfg){.at = args->at, .path_out = relative}) || (root == NULL))
     {
         return;
     }
@@ -4379,7 +4388,7 @@ EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = relative, .joined = full);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    cli_view_closing_set(args->at, 0);
+    cli_view_closing_set(&(CliViewAtCfg){.at = args->at, .closing = 0});
     if (!args->on)
     {
         EMBED_CALL(window_save_tidy, GuiWindowCtx, .window = args->window, .key = key, .value = full);
@@ -4421,7 +4430,8 @@ EMBED_INLINE void window_tabs_save(const GuiWindowCtx *args)
     char key[CLI_NAME_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cli_view_key(at, key) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key))
+        if (cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}) &&
+            EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key))
         {
             EMBED_CALL(window_tab_save, GuiWindowCtx, .window = args->window, .at = at, .on = args->on);
         }
@@ -4443,7 +4453,8 @@ static void window_file_reread(void *context, const char *path)
     char key[CLI_NAME_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (!cli_view_path_at(at, open) || !cli_view_key(at, key) ||
+        if (!cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = open}) ||
+            !cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}) ||
             !cellul.eq(&(CatenaFinitaCfg){.src = open, .other = path, .cap = CLI_PATH_MAX_LEN}))
         {
             continue;
@@ -4452,7 +4463,7 @@ static void window_file_reread(void *context, const char *path)
         CliPosition cursor = {0ULL, 0ULL};
         CliPosition anchor = {0ULL, 0ULL};
         (void)cli_view_cursor(&(CliViewCursorCfg){.key = key, .cursor = &cursor, .anchor = &anchor});
-        cli_view_file_close(at);
+        cli_view_file_close(&(CliViewAtCfg){.at = at});
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         (void)cli_view_file_open(cli_command_line_root(), path, window->rows, window->columns, &cursor, &err_msg);
@@ -4460,7 +4471,8 @@ static void window_file_reread(void *context, const char *path)
         // the front where it was past the view closed
         if ((displayed >= 0) && ((unsigned int)displayed != at))
         {
-            cli_view_show((displayed > (int)at) ? (unsigned int)(displayed - 1) : (unsigned int)displayed);
+            cli_view_show(
+                &(CliViewAtCfg){.at = (displayed > (int)at) ? (unsigned int)(displayed - 1) : (unsigned int)displayed});
         }
         EMBED_CALL(window_displayed, GuiWindowCtx, .window = window);
         return;
@@ -4609,7 +4621,8 @@ static int window_item_disabled(const CliItem *item)
     char key[CLI_NAME_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        changed = changed || (cli_view_key(at, key) && EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key));
+        changed = changed || (cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}) &&
+                              EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = key));
     }
     const char *const displayed = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
     const int displayed_changed =
@@ -4693,7 +4706,7 @@ EMBED_INLINE unsigned int window_tab_at(const GuiWindowCtx *args)
     char key[CLI_NAME_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cli_view_key(at, key) &&
+        if (cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}) &&
             cellul.eq(&(CatenaFinitaCfg){.src = key, .other = args->name, .cap = CLI_NAME_MAX_LEN}))
         {
             return at;
@@ -4773,7 +4786,7 @@ EMBED_INLINE int window_words_run(const GuiWindowCtx *args)
         char key[CLI_NAME_MAX_LEN];
         for (unsigned int at = cli_view_count(); at > 0u; at -= 1u)
         {
-            if (cli_view_key(at - 1u, key) &&
+            if (cli_view_key(&(CliViewAtCfg){.at = at - 1u, .key_out = key}) &&
                 !cellul.eq(&(CatenaFinitaCfg){.src = key, .other = first, .cap = CLI_NAME_MAX_LEN}))
             {
                 EMBED_CALL(window_tab_close, GuiWindowCtx, .window = window, .at = at - 1u);
@@ -5781,8 +5794,9 @@ EMBED_INLINE GuiStatus window_status_read(const GuiWindowCtx *args)
     // reads
     static char s_status_path[CLI_PATH_MAX_LEN];
     char key[CLI_NAME_MAX_LEN];
-    const int named =
-        (at >= 0) && cli_view_path_at((unsigned int)at, s_status_path) && cli_view_key((unsigned int)at, key);
+    const int named = (at >= 0) &&
+                      cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)at, .path_out = s_status_path}) &&
+                      cli_view_key(&(CliViewAtCfg){.at = (unsigned int)at, .key_out = key});
     const char *const notice = cli_notice_displayed();
     const CliPosition none = {0ULL, 0ULL};
     const CliPosition cursor = (displayed != NULL) ? displayed->cursor : none;
@@ -7715,7 +7729,7 @@ EMBED_INLINE int window_tab_menu(const GuiWindowCtx *args)
     // the rows run with the view's key, copied into the window thread's own buffer, which is while the menu does
     static char s_menu_key[CLI_NAME_MAX_LEN];
     const char *const key = s_menu_key;
-    if (!cli_view_key(args->at, s_menu_key))
+    if (!cli_view_key(&(CliViewAtCfg){.at = args->at, .key_out = s_menu_key}))
     {
         return 0;
     }

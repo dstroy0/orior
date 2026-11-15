@@ -68,7 +68,7 @@ static void views_closed(void)
 {
     while (cli_view_count() != 0u)
     {
-        cli_view_file_close(cli_view_count() - 1u);
+        cli_view_file_close(&(CliViewAtCfg){.at = cli_view_count() - 1u});
     }
 }
 
@@ -193,8 +193,9 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         char key[CLI_NAME_MAX_LEN];
-        TEST_ASSERT_TRUE(cli_view_key(at, key) && cli_view_path_at(at, path));
-        CliViewFrame *const frame = cli_view_frame_alloc(key);
+        TEST_ASSERT_TRUE(cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}) &&
+                         cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path}));
+        CliViewFrame *const frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = key});
         TEST_ASSERT_NOT_NULL(frame);
         const char *const text = frame->bytes;
         int extent_found = 0;
@@ -208,7 +209,7 @@ void test_a_rename_writes_the_name_in_every_files_view(void)
             }
         }
         TEST_ASSERT_TRUE_MESSAGE(extent_found, path);
-        cli_view_frame_release(frame);
+        cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
     }
     views_closed();
 }

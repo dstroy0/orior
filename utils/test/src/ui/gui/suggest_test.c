@@ -47,7 +47,7 @@ int main(void)
     cli_document_walk();
     cli_check(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_key, .path = "src/words.c"),
               "a view is opened on the text");
-    cli_view_show(0u);
+    cli_view_show(&(CliViewAtCfg){.at = 0u});
     const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = 10u, .columns = 80u};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_key, .input = &sized, .err_msg = &why);
     cli_servers_panels_begin(&(CliServersPanelsCfg){.root = "."});

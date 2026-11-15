@@ -1037,7 +1037,8 @@ EMBED_INLINE void requests_view_taken(const RequestsPaneCtx *args)
     // reads
     static char s_asked_key[CLI_NAME_MAX_LEN];
     static char s_asked_path[CLI_PATH_MAX_LEN];
-    if (!cli_view_key((unsigned int)displayed, s_asked_key) || !cli_view_path_at((unsigned int)displayed, s_asked_path))
+    if (!cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = s_asked_key}) ||
+        !cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = s_asked_path}))
     {
         return;
     }
@@ -1149,7 +1150,8 @@ int cli_requests_pane_step(const CliRequestsPaneCfg *args)
     char key[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     CliPosition cursor = {0ULL, 0ULL};
-    if (!cli_view_key((unsigned int)displayed, key) || !cli_view_path_at((unsigned int)displayed, path) ||
+    if (!cli_view_key(&(CliViewAtCfg){.at = (unsigned int)displayed, .key_out = key}) ||
+        !cli_view_path_at(&(CliViewAtCfg){.at = (unsigned int)displayed, .path_out = path}) ||
         !EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = key, .cursor = &cursor))
     {
         return changed;

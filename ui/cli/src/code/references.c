@@ -325,7 +325,7 @@ EMBED_INLINE unsigned int references_view_of(const ReferencesCtx *args)
     char path[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cli_view_path_at(at, path) &&
+        if (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path}) &&
             cellul.eq(&(CatenaFinitaCfg){
                 .src = path, .cap = CLI_PATH_MAX_LEN, .other = args->path, .other_cap = CLI_PATH_MAX_LEN}))
         {
@@ -363,7 +363,7 @@ EMBED_INLINE int references_file_rename(const ReferencesCtx *args)
         at = (unsigned int)opened;
     }
     char key[CLI_NAME_MAX_LEN];
-    if (!cli_view_key(at, key))
+    if (!cli_view_key(&(CliViewAtCfg){.at = at, .key_out = key}))
     {
         mmgr_line_put(args->err_msg, "the view of ");
         mmgr_line_put(args->err_msg, path);
@@ -398,7 +398,7 @@ EMBED_INLINE int references_file_rename(const ReferencesCtx *args)
         {
             written = -1;
         }
-        cli_view_file_close(at);
+        cli_view_file_close(&(CliViewAtCfg){.at = at});
     }
     return written;
 }
@@ -430,7 +430,7 @@ int cli_references_rename(const CliReferencesPlaceCfg *args)
     // the view displayed before is displayed again, the files opened for the rename behind it
     if ((displayed >= 0) && (cli_view_displayed() != displayed))
     {
-        cli_view_show((unsigned int)displayed);
+        cli_view_show(&(CliViewAtCfg){.at = (unsigned int)displayed});
     }
     cli_references_end();
     return written;

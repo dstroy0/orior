@@ -206,7 +206,7 @@ EMBED_INLINE void top_led(const PreviewCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = s_preview.key, .input = &scrolled,
                      .err_msg = &err_msg);
-    s_preview.editor_top = cli_view_top(s_preview.key);
+    s_preview.editor_top = cli_view_top(&(CliViewAtCfg){.key = s_preview.key});
 }
 
 // the slug of the character `at` of a heading's text as GitHub writes an anchor, a character or digit lowered, a space
@@ -541,7 +541,7 @@ int cli_preview_show(const CliPreviewCfg *args)
     s_preview.type = EMBED_CALL(cli_preview.type, CliPreviewCfg, .path = s_preview.path);
     s_preview.top_px = 0;
     s_preview.looked_ms = 0ULL;
-    s_preview.editor_top = cli_view_top(s_preview.key);
+    s_preview.editor_top = cli_view_top(&(CliViewAtCfg){.key = s_preview.key});
     s_preview.cursor_seen = 0;
     return 1;
 }
@@ -606,7 +606,7 @@ int cli_preview_step(const CliPreviewCfg *args)
         g_cli_guard->persistent_buf_release(text, g_cli_preview_owner);
     }
     // the editor's top moved by the editor: the preview follows it to the same place between two blocks
-    const unsigned long long editor_top = cli_view_top(s_preview.key);
+    const unsigned long long editor_top = cli_view_top(&(CliViewAtCfg){.key = s_preview.key});
     if (editor_top != s_preview.editor_top)
     {
         s_preview.editor_top = editor_top;
