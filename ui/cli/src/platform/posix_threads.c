@@ -96,28 +96,39 @@ void embed_word_wake(embed_atomic_word *word)
 #endif
 }
 
+typedef struct
+{
+    CliWake *wake;
+    embed_atomic_word_value seen;
+    unsigned long long milliseconds;
+} PosixThreadsCtx;
+
 // a sleep of `milliseconds` on the wake's word, ended early where the word moves off `seen`: 1 where it moved
-static int wake_sleep(CliWake *wake, embed_atomic_word_value seen, unsigned long long milliseconds)
+static int wake_sleep(const PosixThreadsCtx *args)
 {
     // the word's wait takes nanoseconds: a sleep past what they count sleeps with no end
-    return embed_word_wait(&wake->generation, seen,
-                           (milliseconds < (EMBED_WAIT_INFINITE / 1000000ULL)) ? (embed_u64)milliseconds * 1000000ULL
-                                                                              : EMBED_WAIT_INFINITE);
+    return embed_word_wait(&args->wake->generation, args->seen,
+                           (args->milliseconds < (EMBED_WAIT_INFINITE / 1000000ULL))
+                               ? (embed_u64)args->milliseconds * 1000000ULL
+                               : EMBED_WAIT_INFINITE);
 }
 
 void cli_wake_wait(const CliWakeCtx *args)
 {
-    (void)wake_sleep(args->wake, embed_atomic_word_load(&args->wake->generation), CLI_WAKE_RECHECK_MS);
+    (void)EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake,
+                     .seen = embed_atomic_word_load(&args->wake->generation), .milliseconds = CLI_WAKE_RECHECK_MS);
 }
 
 int cli_wake_wait_for(const CliWakeCtx *args)
 {
-    return wake_sleep(args->wake, embed_atomic_word_load(&args->wake->generation), args->milliseconds_u64);
+    return EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake,
+                      .seen = embed_atomic_word_load(&args->wake->generation), .milliseconds = args->milliseconds_u64);
 }
 
 int cli_wake_wait_seen_for(const CliWakeCtx *args)
 {
-    return wake_sleep(args->wake, args->seen, args->milliseconds_u64);
+    return EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake, .seen = args->seen,
+                      .milliseconds = args->milliseconds_u64);
 }
 
 unsigned int cli_wake_read(const CliWakeCtx *args)
@@ -127,7 +138,8 @@ unsigned int cli_wake_read(const CliWakeCtx *args)
 
 void cli_wake_wait_seen(const CliWakeCtx *args)
 {
-    while (!wake_sleep(args->wake, args->seen, CLI_WAKE_RECHECK_MS))
+    while (!EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake, .seen = args->seen,
+                       .milliseconds = CLI_WAKE_RECHECK_MS))
     {
         // each pass sleeps on the wake and reads it again
     }

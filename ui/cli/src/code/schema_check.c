@@ -30,53 +30,6 @@ typedef struct
 static SchemaBasesPiece *s_bases;
 #define CLI_SCHEMA_BASES_PIECE 4096u
 
-// `size` bytes taken on the stack, a new piece taken where the newest lacks them: where they start, NULL where the
-// cells refuse the piece
-EMBED_INLINE char *bases_alloc(unsigned int size)
-{
-    if ((s_bases == NULL) || (s_bases->capacity - s_bases->used < size))
-    {
-        const unsigned int capacity = (size > CLI_SCHEMA_BASES_PIECE) ? size : CLI_SCHEMA_BASES_PIECE;
-        SchemaBasesPiece *const piece =
-            g_cli_guard->temporary_buf_alloc(sizeof(SchemaBasesPiece) + (unsigned long long)capacity, g_cli_schema_owner);
-        if (piece == NULL)
-        {
-            return NULL;
-        }
-        *piece = (SchemaBasesPiece){s_bases, capacity, 0u};
-        s_bases = piece;
-    }
-    char *const at = (char *)(void *)(s_bases + 1) + s_bases->used;
-    s_bases->used += size;
-    return at;
-}
-
-// the stack as it stands, to cut it back to
-EMBED_INLINE SchemaBasesMark bases_mark(void)
-{
-    return (SchemaBasesMark){s_bases, (s_bases != NULL) ? s_bases->used : 0u};
-}
-
-// the stack cut back to `mark`, the pieces taken past it given back
-EMBED_INLINE void bases_release(SchemaBasesMark mark)
-{
-    while (s_bases != mark.piece)
-    {
-        SchemaBasesPiece *const before = s_bases->before;
-        g_cli_guard->persistent_buf_release(s_bases, g_cli_schema_owner);
-        s_bases = before;
-    }
-    if (s_bases != NULL)
-    {
-        s_bases->used = mark.used;
-    }
-}
-
-void cli_schema_bases_free(void)
-{
-    bases_release((SchemaBasesMark){NULL, 0u});
-}
-
 typedef struct
 {
     const CliSchemaCheck *check_read;
@@ -95,7 +48,57 @@ typedef struct
     unsigned int map;
     const CliJson *json;
     unsigned int finding;
+    unsigned int size;
+    SchemaBasesMark mark;
 } SchemaCheckCtx;
+
+// `size` bytes taken on the stack, a new piece taken where the newest lacks them: where they start, NULL where the
+// cells refuse the piece
+EMBED_INLINE char *bases_alloc(const SchemaCheckCtx *args)
+{
+    if ((s_bases == NULL) || (s_bases->capacity - s_bases->used < args->size))
+    {
+        const unsigned int capacity = (args->size > CLI_SCHEMA_BASES_PIECE) ? args->size : CLI_SCHEMA_BASES_PIECE;
+        SchemaBasesPiece *const piece = g_cli_guard->temporary_buf_alloc(
+            sizeof(SchemaBasesPiece) + (unsigned long long)capacity, g_cli_schema_owner);
+        if (piece == NULL)
+        {
+            return NULL;
+        }
+        *piece = (SchemaBasesPiece){s_bases, capacity, 0u};
+        s_bases = piece;
+    }
+    char *const at = (char *)(void *)(s_bases + 1) + s_bases->used;
+    s_bases->used += args->size;
+    return at;
+}
+
+// the stack as it stands, to cut it back to
+EMBED_INLINE SchemaBasesMark bases_mark(void)
+{
+    return (SchemaBasesMark){s_bases, (s_bases != NULL) ? s_bases->used : 0u};
+}
+
+// the stack cut back to `mark`, the pieces taken past it given back
+EMBED_INLINE void bases_release(const SchemaCheckCtx *args)
+{
+    while (s_bases != args->mark.piece)
+    {
+        SchemaBasesPiece *const before = s_bases->before;
+        g_cli_guard->persistent_buf_release(s_bases, g_cli_schema_owner);
+        s_bases = before;
+    }
+    if (s_bases != NULL)
+    {
+        s_bases->used = args->mark.used;
+    }
+}
+
+void cli_schema_bases_free(void)
+{
+    EMBED_CALL(bases_release, SchemaCheckCtx, .mark = (SchemaBasesMark){NULL, 0u});
+}
+
 // the span a finding about a value is on: its key's where it has one, its own where it has none
 EMBED_INLINE void check_span(const SchemaCheckCtx *args)
 {
@@ -402,7 +405,8 @@ EMBED_INLINE const char *check_base(const SchemaCheckCtx *args)
     }
     size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = id, .at = size, .set = "#");
     // a base is at most a path long, which an unsigned int counts
-    char *const base_at = (size < CLI_PATH_MAX_LEN) ? bases_alloc((unsigned int)size + 1u) : NULL;
+    char *const base_at =
+        (size < CLI_PATH_MAX_LEN) ? EMBED_CALL(bases_alloc, SchemaCheckCtx, .size = (unsigned int)size + 1u) : NULL;
     if (base_at == NULL)
     {
         return args->base;
@@ -445,7 +449,7 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
     unsigned long long size = 0ULL;
     const char *const reference = EMBED_CALL(cli_schema_json_internal.string, CliSchemaJsonCtx, .json = json,
                                              .map = args->schema, .name = "$ref", .size_pointer = &size);
-    char *const doc = (reference != NULL) ? bases_alloc(CLI_PATH_MAX_LEN) : NULL;
+    char *const doc = (reference != NULL) ? EMBED_CALL(bases_alloc, SchemaCheckCtx, .size = CLI_PATH_MAX_LEN) : NULL;
     if (doc != NULL)
     {
         const unsigned int found =
@@ -565,5 +569,5 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
             }
         }
     }
-    bases_release(mark);
+    EMBED_CALL(bases_release, SchemaCheckCtx, .mark = mark);
 }

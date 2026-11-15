@@ -23,39 +23,6 @@ void cli_settings_parts_store(const CliSettingsPartsCtx *args)
     s_types_capacity = args->types_capacity;
 }
 
-// the members of the object `object` of `json`: how many
-EMBED_INLINE unsigned int cli_members_counted(const CliJson *json, unsigned int object)
-{
-    unsigned int count = 0u;
-    for (unsigned int member = json->node[object].first; member != CLI_JSON_NONE; member = json->node[member].next)
-    {
-        count += 1u;
-    }
-    return count;
-}
-
-unsigned int cli_settings_file_members(const CliSettingsLayersCtx *args)
-{
-    const CliJson *const json = &args->chain->json;
-    const unsigned int object = args->chain->values[args->file];
-    unsigned int count = cli_members_counted(json, object);
-    const unsigned int set = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
-                                        .object = object, .name = args->layers->system);
-    const unsigned int machine = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
-                                            .object = object, .name = "machine");
-    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = set,
-                   .type = CFG_JSON_OBJECT))
-    {
-        count += cli_members_counted(json, set);
-    }
-    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = machine,
-                   .type = CFG_JSON_OBJECT))
-    {
-        count += cli_members_counted(json, machine);
-    }
-    return count;
-}
-
 typedef struct
 {
     CliLayers *layers;
@@ -72,7 +39,44 @@ typedef struct
     unsigned int rank;
     const char *key;
     unsigned int value;
+    const CliJson *json;
+    unsigned int object;
 } SettingsPartsCtx;
+
+// the members of the object `object` of `json`: how many
+EMBED_INLINE unsigned int cli_members_counted(const SettingsPartsCtx *args)
+{
+    unsigned int count = 0u;
+    for (unsigned int member = args->json->node[args->object].first; member != CLI_JSON_NONE;
+         member = args->json->node[member].next)
+    {
+        count += 1u;
+    }
+    return count;
+}
+
+unsigned int cli_settings_file_members(const CliSettingsLayersCtx *args)
+{
+    const CliJson *const json = &args->chain->json;
+    const unsigned int object = args->chain->values[args->file];
+    unsigned int count = EMBED_CALL(cli_members_counted, SettingsPartsCtx, .json = json, .object = object);
+    const unsigned int set = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = object, .name = args->layers->system);
+    const unsigned int machine = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = object, .name = "machine");
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = set,
+                   .type = CFG_JSON_OBJECT))
+    {
+        count += EMBED_CALL(cli_members_counted, SettingsPartsCtx, .json = json, .object = set);
+    }
+    if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = machine,
+                   .type = CFG_JSON_OBJECT))
+    {
+        count += EMBED_CALL(cli_members_counted, SettingsPartsCtx, .json = json, .object = machine);
+    }
+    return count;
+}
+
 // a problem of a file put after the layers', its file first
 EMBED_INLINE void cli_file_problem(const SettingsPartsCtx *args)
 {

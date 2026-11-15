@@ -36,24 +36,6 @@ typedef struct
 
 static CliTrustFound s_found[CLI_TRUST_TREES];
 
-// the cached paths of `one` let go
-static void trust_found_let(CliTrustFound *one)
-{
-    (void)g_cli_guard->movable_buf_release(one->paths, g_cli_trust_owner);
-    one->paths = NULL;
-    one->size = 0ULL;
-    one->count = 0u;
-}
-
-void cli_trust_forget(void)
-{
-    for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
-    {
-        s_found[at].has = 0;
-        trust_found_let(&s_found[at]);
-    }
-}
-
 typedef struct
 {
     const char *paths;
@@ -68,7 +50,27 @@ typedef struct
     const char *folder;
     const char *name;
     const char *const *names;
+    CliTrustFound *one;
 } TrustCodeCtx;
+
+// the cached paths of `one` let go
+static void trust_found_let(const TrustCodeCtx *args)
+{
+    (void)g_cli_guard->movable_buf_release(args->one->paths, g_cli_trust_owner);
+    args->one->paths = NULL;
+    args->one->size = 0ULL;
+    args->one->count = 0u;
+}
+
+void cli_trust_forget(void)
+{
+    for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
+    {
+        s_found[at].has = 0;
+        EMBED_CALL(trust_found_let, TrustCodeCtx, .one = &s_found[at]);
+    }
+}
+
 // `count` paths, `size` bytes of them at `paths`, copied into `code`, a cell of the temporary tier where there are
 // any, the caller's for its one call: 1, or 0 with none into `code` where the cellblock could not meet them
 EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
@@ -398,7 +400,7 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_POOL_BYTES}) + 1u});
     one->when = cli_clock_milliseconds();
     one->has = 1;
-    trust_found_let(one);
+    EMBED_CALL(trust_found_let, TrustCodeCtx, .one = one);
     // the paths cached in a movable cell of their bytes; a tree the cells cannot cache is looked through again
     one->paths = (looked.count != 0u) ? g_cli_guard->movable_buf_alloc(looked.size, g_cli_trust_owner) : NULL;
     one->has = (one->paths != NULL) || (looked.count == 0u);

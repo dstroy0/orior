@@ -45,6 +45,8 @@ typedef struct
 
 static CliListing *s_listing;
 
+typedef struct FilesExplorerFolder FilesExplorerFolder;
+
 typedef struct
 {
     const char *text;
@@ -62,6 +64,10 @@ typedef struct
     int counting;
     unsigned long long *count;
     unsigned long long *bytes;
+    const FilesExplorerFolder *folder;
+    unsigned int depth;
+    unsigned int *left;
+    CliExplorerRow *row;
 } FilesListCtx;
 // a text put in the entries' texts: its place
 EMBED_INLINE unsigned int cli_entry_text_store(const FilesListCtx *args)
@@ -362,12 +368,12 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
 
 // One folder the explorer listed: its path from the tree's top, the entry of its parent's listing that names it, empty
 // for the top folder; its entries as cli_files_entries_alloc read them; and whether it is open
-typedef struct
+struct FilesExplorerFolder
 {
     const char *dir;
     CliFileEntries *entries;
     int open;
-} FilesExplorerFolder;
+};
 
 // The explorer: the tree it lists; the folders listed, the top folder first, in a movable cell grown as folders are
 // listed, how many there are and the cell's capacity
@@ -492,11 +498,11 @@ void cli_files_explorer_end(void)
 
 // the row `*left` rows on in the folder `folder` and the open folders under it, `depth` deep, read into `row`: 1 where
 // it was among them, else 0 with `*left` less the rows they show
-static int explorer_walk(FilesExplorerFolder folder, unsigned int depth, unsigned int *left, CliExplorerRow *row)
+static int explorer_walk(const FilesListCtx *args)
 {
-    for (unsigned int at = 0u; at < folder.entries->count; at += 1u)
+    for (unsigned int at = 0u; at < args->folder->entries->count; at += 1u)
     {
-        const CliFileEntry *const entry = &folder.entries->entry[at];
+        const CliFileEntry *const entry = &args->folder->entries->entry[at];
         const unsigned int under_at =
             entry->dir ? EMBED_CALL(explorer_folder, FilesListCtx, .path = entry->path) : FILES_EXPLORER_NONE;
         FilesExplorerFolder under = {NULL, NULL, 0};
@@ -508,16 +514,17 @@ static int explorer_walk(FilesExplorerFolder folder, unsigned int depth, unsigne
                                                                     .bytes = sizeof(under)});
         }
         const int open = (under_at != FILES_EXPLORER_NONE) && under.open;
-        if (*left == 0u)
+        if (*args->left == 0u)
         {
-            if (row != NULL)
+            if (args->row != NULL)
             {
-                *row = (CliExplorerRow){entry->path, entry->name, depth, entry->dir, entry->ignored, open};
+                *args->row = (CliExplorerRow){entry->path, entry->name, args->depth, entry->dir, entry->ignored, open};
             }
             return 1;
         }
-        *left -= 1u;
-        if (open && explorer_walk(under, depth + 1u, left, row))
+        *args->left -= 1u;
+        if (open && EMBED_CALL(explorer_walk, FilesListCtx, .folder = &under, .depth = args->depth + 1u,
+                               .left = args->left, .row = args->row))
         {
             return 1;
         }
@@ -531,7 +538,8 @@ int cli_files_explorer_row(const CliFilesExplorerCfg *args)
     FilesExplorerFolder top = {NULL, NULL, 0};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_explorer, .offset = (embed_word)0u * sizeof(top), .dst = &top, .bytes = sizeof(top)});
-    return (s_explorer_folders != 0u) && explorer_walk(top, 0u, &left, args->row);
+    return (s_explorer_folders != 0u) &&
+           EMBED_CALL(explorer_walk, FilesListCtx, .folder = &top, .depth = 0u, .left = &left, .row = args->row);
 }
 
 unsigned int cli_files_explorer_rows(void)

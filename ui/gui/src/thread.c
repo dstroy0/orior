@@ -477,54 +477,54 @@ static void view_presented(const ViewThreadCtx *args)
 }
 
 // one event answered
-static void view_event(const CliViewEvent *event)
+static void view_event(const ViewThreadCtx *args)
 {
     GuiWindow *const window = &s_view.window;
-    switch (event->type)
+    switch (args->event->type)
     {
     case CLI_VIEW_EVENT_SIZED:
-        if (event->surface == CLI_VIEW_PREFERENCES)
+        if (args->event->surface == CLI_VIEW_PREFERENCES)
         {
-            EMBED_CALL(gui_window_width.preferences_resize, GuiWindowWidthCfg, .window = window, .width = event->width,
-                       .height = event->height, .system_scale = event->scale);
+            EMBED_CALL(gui_window_width.preferences_resize, GuiWindowWidthCfg, .window = window,
+                       .width = args->event->width, .height = args->event->height, .system_scale = args->event->scale);
         }
-        else if (event->surface == CLI_VIEW_DIALOG)
+        else if (args->event->surface == CLI_VIEW_DIALOG)
         {
-            EMBED_CALL(gui_window_dialog_width.resize, GuiWindowWidthCfg, .window = window, .width = event->width,
-                       .height = event->height, .system_scale = event->scale);
+            EMBED_CALL(gui_window_dialog_width.resize, GuiWindowWidthCfg, .window = window, .width = args->event->width,
+                       .height = args->event->height, .system_scale = args->event->scale);
         }
         else
         {
-            s_view.frame_ms = event->frame_ms;
-            (void)EMBED_CALL(gui_window_width.resize, GuiWindowWidthCfg, .window = window, .width = event->width,
-                             .height = event->height, .system_scale = event->scale);
+            s_view.frame_ms = args->event->frame_ms;
+            (void)EMBED_CALL(gui_window_width.resize, GuiWindowWidthCfg, .window = window, .width = args->event->width,
+                             .height = args->event->height, .system_scale = args->event->scale);
             view_icons_order();
         }
         break;
     case CLI_VIEW_EVENT_INPUT:
         // While the dialog shows, it is modal: the window that owns it takes no input but the focus coming and going
-        if (window->dialog.displayed && (event->surface == window->dialog_owner) &&
-            (event->input.type != GUI_INPUT_FOCUS) && (event->input.type != GUI_INPUT_BLUR))
+        if (window->dialog.displayed && (args->event->surface == window->dialog_owner) &&
+            (args->event->input.type != GUI_INPUT_FOCUS) && (args->event->input.type != GUI_INPUT_BLUR))
         {
             break;
         }
-        if (event->surface == CLI_VIEW_DIALOG)
+        if (args->event->surface == CLI_VIEW_DIALOG)
         {
             EMBED_CALL(gui_window_dialog_input_type.input, GuiWindowInputTypeCfg, .window = window,
-                       .input = &event->input);
+                       .input = &args->event->input);
         }
-        else if (event->surface == CLI_VIEW_PREFERENCES)
+        else if (args->event->surface == CLI_VIEW_PREFERENCES)
         {
             EMBED_CALL(gui_window_input_type.preferences_input, GuiWindowInputTypeCfg, .window = window,
-                       .input = &event->input);
+                       .input = &args->event->input);
         }
         else
         {
-            EMBED_CALL(view_input, ViewThreadCtx, .input = &event->input);
+            EMBED_CALL(view_input, ViewThreadCtx, .input = &args->event->input);
         }
         break;
     case CLI_VIEW_EVENT_CLOSING:
-        if (event->surface == CLI_VIEW_DIALOG)
+        if (args->event->surface == CLI_VIEW_DIALOG)
         {
             EMBED_CALL(gui_window_dialog_table.close, GuiWindowCfg, .window = window);
         }
@@ -534,16 +534,16 @@ static void view_event(const CliViewEvent *event)
         }
         break;
     case CLI_VIEW_EVENT_DISPLAYED:
-        EMBED_CALL(cli_window_displayed.show, GuiWindowDisplayedCfg, .window = window, .displayed = event->flag);
+        EMBED_CALL(cli_window_displayed.show, GuiWindowDisplayedCfg, .window = window, .displayed = args->event->flag);
         break;
     case CLI_VIEW_EVENT_MOTION:
-        EMBED_CALL(gui_window_reduced.motion_wish, GuiWindowReducedCfg, .window = window, .reduced = event->flag);
+        EMBED_CALL(gui_window_reduced.motion_wish, GuiWindowReducedCfg, .window = window, .reduced = args->event->flag);
         break;
     case CLI_VIEW_EVENT_PRESENTED:
-        EMBED_CALL(view_presented, ViewThreadCtx, .surface = event->surface);
+        EMBED_CALL(view_presented, ViewThreadCtx, .surface = args->event->surface);
         break;
     case CLI_VIEW_EVENT_REFUSED:
-        if (event->surface == CLI_VIEW_DIALOG)
+        if (args->event->surface == CLI_VIEW_DIALOG)
         {
             EMBED_CALL(gui_window_dialog_table.close, GuiWindowCfg, .window = window);
             s_view.dialog_opened = 0;
@@ -573,7 +573,7 @@ static void view_events_take(void)
         bytes[(length < (CLI_VIEW_EVENT_TEXT - 1u)) ? length : (CLI_VIEW_EVENT_TEXT - 1u)] = '\0';
         event.input.name = bytes;
         event.input.text = bytes;
-        view_event(&event);
+        EMBED_CALL(view_event, ViewThreadCtx, .event = &event);
     }
 }
 

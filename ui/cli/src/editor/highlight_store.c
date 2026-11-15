@@ -69,10 +69,11 @@ typedef struct
     const char *const *lines;
     unsigned int count;
     const CliColored *colored;
+    const CliGrammarEntry *listed;
 } HighlightStoreCtx;
 // a stored grammar's cell copied into a temporary cell and its parts arranged over the copy into `grammar`: the copy,
 // for the caller to give back, or NULL where it could not be taken or the cell could not be read
-static unsigned char *cli_grammar_copied(const CliGrammarEntry *listed, CliGrammar *grammar);
+static unsigned char *cli_grammar_copied(const HighlightStoreCtx *args);
 
 // a part's bytes rounded up to a whole word
 EMBED_INLINE unsigned long long cli_words_get(const HighlightStoreCtx *args)
@@ -278,20 +279,21 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     return 1;
 }
 
-static unsigned char *cli_grammar_copied(const CliGrammarEntry *listed, CliGrammar *grammar)
+static unsigned char *cli_grammar_copied(const HighlightStoreCtx *args)
 {
-    unsigned char *const copy = g_cli_guard->temporary_buf_alloc(listed->size, g_cli_grammars_owner);
+    unsigned char *const copy = g_cli_guard->temporary_buf_alloc(args->listed->size, g_cli_grammars_owner);
     if (copy == NULL)
     {
         return NULL;
     }
-    if (!g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed->region, .dst = copy, .bytes = listed->size}))
+    if (!g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = args->listed->region, .dst = copy, .bytes = args->listed->size}))
     {
         g_cli_guard->persistent_buf_release(copy, g_cli_grammars_owner);
         return NULL;
     }
-    *grammar = listed->grammar;
-    (void)EMBED_CALL(cli_layout, HighlightStoreCtx, .grammar = grammar, .region = copy);
+    *args->grammar = args->listed->grammar;
+    (void)EMBED_CALL(cli_layout, HighlightStoreCtx, .grammar = args->grammar, .region = copy);
     return copy;
 }
 
@@ -514,7 +516,7 @@ static int cli_color(const HighlightStoreCtx *args)
                                                                 .offset = (embed_word)entry_at * sizeof(listed),
                                                                 .dst = &listed,
                                                                 .bytes = sizeof(listed)});
-        region = cli_grammar_copied(&listed, &grammar);
+        region = EMBED_CALL(cli_grammar_copied, HighlightStoreCtx, .listed = &listed, .grammar = &grammar);
     }
     if (!has_entry)
     {
@@ -579,7 +581,8 @@ unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_grammars, .offset = (embed_word)entry_at * sizeof(listed), .dst = &listed, .bytes = sizeof(listed)});
     CliGrammar grammar;
-    unsigned char *const region = cli_grammar_copied(&listed, &grammar);
+    unsigned char *const region =
+        EMBED_CALL(cli_grammar_copied, HighlightStoreCtx, .listed = &listed, .grammar = &grammar);
     if (region == NULL)
     {
         return 0u;
