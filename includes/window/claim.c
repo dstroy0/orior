@@ -329,10 +329,22 @@ int gui_slide_running(const GuiAutohideSlideCfg *args)
 
 unsigned long long gui_slide_end_ms(const GuiAutohideSlideCfg *args)
 {
-    const unsigned long long end_ms = args->slide->start_ms + slide_lasts_ms(args);
+    const unsigned int curve = (args->curve != GUI_CURVE_EASE) ? args->curve : args->slide->curve;
+    // a bead's far edge trails its number by the lag: its slide runs that much longer
+    const unsigned long long end_ms = args->slide->start_ms + slide_lasts_ms(args) +
+                                      ((curve == GUI_CURVE_BEAD) ? GUI_AUTOHIDE_LAG_MS : 0ULL);
     return (((args->slide->from != args->slide->to) || (args->slide->velocity != 0)) && (args->time_ms < end_ms))
                ? end_ms
                : 0ULL;
+}
+
+int gui_slide_lag_at(const GuiAutohideSlideCfg *args)
+{
+    // the lag reaches before the clock's first moment: the slide's start then
+    const unsigned long long behind =
+        (args->time_ms > GUI_AUTOHIDE_LAG_MS) ? args->time_ms - GUI_AUTOHIDE_LAG_MS : 0ULL;
+    return EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = args->slide, .time_ms = behind,
+                      .lasts_ms = args->lasts_ms, .curve = args->curve);
 }
 
 void gui_autohide_init(const GuiAutohideStillCfg *args)
@@ -859,6 +871,25 @@ void gui_autohide_numbers(const GuiAutohideStateCfg *args)
                                              .slide = &claim->inset_bottom, .time_ms = args->time_ms);
     args->numbers->controls_alpha = EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg,
                                                .slide = &claim->controls_alpha, .time_ms = args->time_ms);
+    // each reveal read again the lag behind; less motion asked for, no lag
+    if (claim->still)
+    {
+        args->numbers->lag_top = args->numbers->reveal_top;
+        args->numbers->lag_bottom = args->numbers->reveal_bottom;
+        args->numbers->lag_left = args->numbers->reveal_left;
+        args->numbers->lag_down = args->numbers->reveal_down;
+    }
+    else
+    {
+        args->numbers->lag_top = EMBED_CALL(gui_autohide_slide.lag_at, GuiAutohideSlideCfg, .slide = &claim->reveal_top,
+                                            .time_ms = args->time_ms);
+        args->numbers->lag_bottom = EMBED_CALL(gui_autohide_slide.lag_at, GuiAutohideSlideCfg,
+                                               .slide = &claim->reveal_bottom, .time_ms = args->time_ms);
+        args->numbers->lag_left = EMBED_CALL(gui_autohide_slide.lag_at, GuiAutohideSlideCfg,
+                                             .slide = &claim->reveal_left, .time_ms = args->time_ms);
+        args->numbers->lag_down = EMBED_CALL(gui_autohide_slide.lag_at, GuiAutohideSlideCfg,
+                                             .slide = &claim->reveal_down, .time_ms = args->time_ms);
+    }
     claim->grown_top =
         EMBED_CALL(autohide_grow, ClaimCtx, .autohide_i32 = args->numbers->claim, .reveal = args->numbers->reveal_top,
                    .last = &claim->last_top, .grown = claim->grown_top);

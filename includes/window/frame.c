@@ -63,6 +63,18 @@ EMBED_INLINE int frame_part(const FrameCtx *args)
     return (int)(((long long)args->share * (long long)args->pixels) / GUI_FIXED_ONE);
 }
 
+// the lesser and the greater of a part's place `first` at its reveal and `end` at the reveal's lagged number: a pane
+// spans between the two, and its far edge trails as it comes in, its near edge as it goes
+EMBED_INLINE int frame_least(const FrameCtx *args)
+{
+    return (args->first < args->end) ? args->first : args->end;
+}
+
+EMBED_INLINE int frame_greatest(const FrameCtx *args)
+{
+    return (args->first > args->end) ? args->first : args->end;
+}
+
 // the pane's edges met with the span `left` to `right` across and `top` to `bottom` down, each in the frame's words
 EMBED_INLINE GuiEdges frame_edges_intersect(const FrameCtx *args)
 {
@@ -282,7 +294,8 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
 
 // every part arranged for the frame's size, scale, side and claim; and, where this is not itself the resting layout, the
 // bar, its tools, the controls and the strip positioned again with no claim into the resting rectangles, where their beads
-// bake whatever the claim's slides move them to
+// bake whatever the claim's slides move them to. The tabs row rests with no side beside it as well, and a side pane's
+// arrival moves its beads without a bake
 static void frame_layout(const FrameCtx *args);
 static void frame_rest_positioned(GuiFrame *frame)
 {
@@ -293,6 +306,7 @@ static void frame_rest_positioned(GuiFrame *frame)
     frame->controls_rest = rest.controls;
     frame->top_menu_tools_rest = rest.top_menu_tools;
     frame->side_menu_rest = rest.side_menu;
+    frame->tabs_rest = (GuiRect){rest.inside.x, rest.tabs_row.y, rest.inside.width, rest.tabs_row.height};
 }
 
 static void frame_layout(const FrameCtx *args)
@@ -317,6 +331,11 @@ static void frame_layout(const FrameCtx *args)
         frame_share, FrameCtx, .share = c,
         .pixels = EMBED_CALL(frame_share, FrameCtx, .share = claim->reveal_top, .pixels = gap) -
                   EMBED_CALL(frame_share, FrameCtx, .share = GUI_FIXED_ONE - claim->reveal_top, .pixels = top_menu_height));
+    // the bar's place at its reveal's lagged number: its pane spans between its two places
+    const int top_menu_y_lag = EMBED_CALL(
+        frame_share, FrameCtx, .share = c,
+        .pixels = EMBED_CALL(frame_share, FrameCtx, .share = claim->lag_top, .pixels = gap) -
+                  EMBED_CALL(frame_share, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_top, .pixels = top_menu_height));
     const int top_menu_x = EMBED_CALL(frame_share, FrameCtx, .share = c, .pixels = side_menu_width + (2 * gap));
     args->frame->top_menu = (GuiRect){top_menu_x, top_menu_y, pixel_width - top_menu_x - gap_autohide, top_menu_height};
     // the frame's row: from the bar's foot, pulled up by the head's part come in but not yet given its inset, to the
@@ -339,6 +358,13 @@ static void frame_layout(const FrameCtx *args)
         EMBED_CALL(frame_share, FrameCtx, .share = c,
                    .pixels = EMBED_CALL(frame_share, FrameCtx, .share = claim->reveal_bottom - claim->inset_bottom,
                                         .pixels = status_height + gap));
+    const int status_y_lag =
+        pixel_height - status_height -
+        EMBED_CALL(frame_share, FrameCtx, .share = c,
+                   .pixels = EMBED_CALL(frame_share, FrameCtx, .share = claim->lag_bottom, .pixels = gap)) +
+        EMBED_CALL(frame_share, FrameCtx, .share = c,
+                   .pixels = EMBED_CALL(frame_share, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_bottom,
+                                        .pixels = status_height));
     args->frame->status = (GuiRect){gap_autohide, status_y, pixel_width - (2 * gap_autohide), status_height};
     // the side_menu: below the wordmark's corner however far the bar has come in, slid off to the left until the left is
     // revealed, the work following it back as the left's inset is taken
@@ -351,6 +377,10 @@ static void frame_layout(const FrameCtx *args)
                                                   .pixels = EMBED_CALL(frame_share, FrameCtx,
                                                                        .share = GUI_FIXED_ONE - claim->reveal_left,
                                                                        .pixels = side_menu_width + gap));
+    const int side_menu_x_lag =
+        gap_autohide - EMBED_CALL(frame_share, FrameCtx, .share = c,
+                                  .pixels = EMBED_CALL(frame_share, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_left,
+                                                       .pixels = side_menu_width + gap));
     args->frame->side_menu = (GuiRect){side_menu_x, side_menu_y, side_menu_width, frame_bottom - gap_autohide - side_menu_y};
     const int work_x =
         side_menu_width + (2 * gap_autohide) -
@@ -381,8 +411,16 @@ static void frame_layout(const FrameCtx *args)
         controls_y, controls_width, top_menu_height};
     const int bevel =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROLS_BEVEL, .scale = scale);
+    // the controls' pane spans from the controls' place to their place at the lagged numbers
+    const int controls_y_lag =
+        top_menu_y_lag + EMBED_CALL(frame_share, FrameCtx, .share = c,
+                                    .pixels = EMBED_CALL(frame_share, FrameCtx, .share = claim->lag_down - claim->lag_top,
+                                                         .pixels = top_menu_height + gap));
+    const int controls_pane_y = EMBED_CALL(frame_least, FrameCtx, .first = controls_y, .end = controls_y_lag);
     args->frame->controls_pane =
-        (GuiRect){args->frame->controls.x - bevel, controls_y, controls_width + bevel, top_menu_height};
+        (GuiRect){args->frame->controls.x - bevel, controls_pane_y, controls_width + bevel,
+                  EMBED_CALL(frame_greatest, FrameCtx, .first = controls_y, .end = controls_y_lag) - controls_pane_y +
+                      top_menu_height};
     // the bar's tools are left of the controls, their buttons centred on the controls' row, and move with them
     const int tool = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_TOOL, .scale = scale);
     const int tool_gap =
@@ -423,23 +461,47 @@ static void frame_layout(const FrameCtx *args)
         }
     }
     // the slats: the head's and the left's span from the work's own edge, the wordmark's corner theirs; the foot's
-    // from the status bar's own ends
+    // from the status bar's own ends. Each slat spans from its part's place to the place at the lagged number: the
+    // pane stretches as a bead does, and its contents, in the part's own rectangle, follow the front edge
     int from = 0;
     int to = 0;
     EMBED_CALL(frame_band, FrameCtx,
                .first = (args->frame->work.x < args->frame->top_menu.x) ? args->frame->work.x : args->frame->top_menu.x,
                .end = args->frame->top_menu.x + args->frame->top_menu.width, .grown = claim->grown_top,
                .pulled = claim->pulled_top, .from = &from, .to = &to, .rounded = 1);
-    args->frame->top_menu_band = (GuiRect){from, args->frame->top_menu.y, to - from, args->frame->top_menu.height};
+    const int bar_band_y = EMBED_CALL(frame_least, FrameCtx, .first = top_menu_y, .end = top_menu_y_lag);
+    args->frame->top_menu_band =
+        (GuiRect){from, bar_band_y, to - from,
+                  EMBED_CALL(frame_greatest, FrameCtx, .first = top_menu_y, .end = top_menu_y_lag) - bar_band_y +
+                      top_menu_height};
+    args->frame->top_menu_pane = EMBED_CALL(
+        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->top_menu_band,
+        .other = (GuiRect){args->frame->top_menu.x, bar_band_y, args->frame->top_menu.width, args->frame->top_menu_band.height});
     EMBED_CALL(frame_band, FrameCtx,
                .first = (args->frame->work.y < args->frame->side_menu.y) ? args->frame->work.y : args->frame->side_menu.y,
                .end = args->frame->side_menu.y + args->frame->side_menu.height, .grown = claim->grown_left,
                .pulled = claim->pulled_left, .from = &from, .to = &to, .rounded = 1);
-    args->frame->side_menu_band = (GuiRect){args->frame->side_menu.x, from, args->frame->side_menu.width, to - from};
+    const int side_menu_band_x = EMBED_CALL(frame_least, FrameCtx, .first = side_menu_x, .end = side_menu_x_lag);
+    args->frame->side_menu_band =
+        (GuiRect){side_menu_band_x, from,
+                  EMBED_CALL(frame_greatest, FrameCtx, .first = side_menu_x, .end = side_menu_x_lag) - side_menu_band_x +
+                      side_menu_width,
+                  to - from};
+    args->frame->side_menu_pane =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->side_menu_band,
+                   .other = (GuiRect){side_menu_band_x, args->frame->side_menu.y, args->frame->side_menu_band.width,
+                                      args->frame->side_menu.height});
     EMBED_CALL(frame_band, FrameCtx, .first = args->frame->status.x,
                .end = args->frame->status.x + args->frame->status.width, .grown = claim->grown_bottom,
                .pulled = claim->pulled_bottom, .from = &from, .to = &to, .rounded = 1);
-    args->frame->status_band = (GuiRect){from, args->frame->status.y, to - from, args->frame->status.height};
+    const int status_band_y = EMBED_CALL(frame_least, FrameCtx, .first = status_y, .end = status_y_lag);
+    args->frame->status_band =
+        (GuiRect){from, status_band_y, to - from,
+                  EMBED_CALL(frame_greatest, FrameCtx, .first = status_y, .end = status_y_lag) - status_band_y +
+                      status_height};
+    args->frame->status_pane = EMBED_CALL(
+        gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->status_band,
+        .other = (GuiRect){args->frame->status.x, status_band_y, args->frame->status.width, args->frame->status_band.height});
     // a pane's corners are rounded by the claim's share of the work's radius; the radii are not negative
     args->frame->pane_radius = (unsigned int)EMBED_CALL(
         frame_share, FrameCtx, .share = c,
@@ -452,6 +514,11 @@ static void frame_layout(const FrameCtx *args)
         frame_part, FrameCtx, .share = c,
         .pixels = EMBED_CALL(frame_part, FrameCtx, .share = claim->reveal_top, .pixels = gap * GUI_FIXED_ONE) -
                   EMBED_CALL(frame_part, FrameCtx, .share = GUI_FIXED_ONE - claim->reveal_top,
+                             .pixels = top_menu_height * GUI_FIXED_ONE));
+    const int bar_top_lag = EMBED_CALL(
+        frame_part, FrameCtx, .share = c,
+        .pixels = EMBED_CALL(frame_part, FrameCtx, .share = claim->lag_top, .pixels = gap * GUI_FIXED_ONE) -
+                  EMBED_CALL(frame_part, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_top,
                              .pixels = top_menu_height * GUI_FIXED_ONE));
     const int gap_autohidden = EMBED_CALL(frame_part, FrameCtx, .share = c, .pixels = gap * GUI_FIXED_ONE);
     const int head =
@@ -471,6 +538,13 @@ static void frame_layout(const FrameCtx *args)
                                                .pixels = EMBED_CALL(frame_part, FrameCtx,
                                                                     .share = claim->reveal_bottom - claim->inset_bottom,
                                                                     .pixels = (status_height + gap) * GUI_FIXED_ONE));
+    const int status_top_lag =
+        ((pixel_height - status_height) * GUI_FIXED_ONE) -
+        EMBED_CALL(frame_part, FrameCtx, .share = c,
+                   .pixels = EMBED_CALL(frame_part, FrameCtx, .share = claim->lag_bottom, .pixels = gap * GUI_FIXED_ONE)) +
+        EMBED_CALL(frame_part, FrameCtx, .share = c,
+                   .pixels = EMBED_CALL(frame_part, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_bottom,
+                                        .pixels = status_height * GUI_FIXED_ONE));
     const int side_menu_top =
         head + gap_autohidden +
         EMBED_CALL(frame_part, FrameCtx, .share = c,
@@ -481,6 +555,11 @@ static void frame_layout(const FrameCtx *args)
         EMBED_CALL(frame_part, FrameCtx, .share = c,
                    .pixels = EMBED_CALL(frame_part, FrameCtx, .share = GUI_FIXED_ONE - claim->reveal_left,
                                         .pixels = (side_menu_width + gap) * GUI_FIXED_ONE));
+    const int side_menu_left_lag =
+        gap_autohidden -
+        EMBED_CALL(frame_part, FrameCtx, .share = c,
+                   .pixels = EMBED_CALL(frame_part, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_left,
+                                        .pixels = (side_menu_width + gap) * GUI_FIXED_ONE));
     int from_edge = 0;
     int to_edge = 0;
     const int head_first =
@@ -488,37 +567,52 @@ static void frame_layout(const FrameCtx *args)
     EMBED_CALL(frame_band, FrameCtx, .first = head_first,
                .end = (args->frame->top_menu.x + args->frame->top_menu.width) * GUI_FIXED_ONE, .grown = claim->grown_top,
                .pulled = claim->pulled_top * GUI_FIXED_ONE, .from = &from_edge, .to = &to_edge);
+    // each pane's edges span from the part's place to its place at the lagged number, as the slats do
+    const int bar_edge_top = EMBED_CALL(frame_least, FrameCtx, .first = bar_top, .end = bar_top_lag);
+    const int bar_edge_bottom =
+        EMBED_CALL(frame_greatest, FrameCtx, .first = bar_top, .end = bar_top_lag) + (top_menu_height * GUI_FIXED_ONE);
     args->frame->bar_edges =
-        EMBED_CALL(frame_edges_intersect, FrameCtx,
-                   .edges = (GuiEdges){from_edge, bar_top, to_edge, bar_top + (top_menu_height * GUI_FIXED_ONE)},
-                   .left = args->frame->top_menu.x * GUI_FIXED_ONE, .top = bar_top,
+        EMBED_CALL(frame_edges_intersect, FrameCtx, .edges = (GuiEdges){from_edge, bar_edge_top, to_edge, bar_edge_bottom},
+                   .left = args->frame->top_menu.x * GUI_FIXED_ONE, .top = bar_edge_top,
                    .right = (args->frame->top_menu.x + args->frame->top_menu.width) * GUI_FIXED_ONE,
-                   .bottom = bar_top + (top_menu_height * GUI_FIXED_ONE));
+                   .bottom = bar_edge_bottom);
     const int left_first =
         (args->frame->work.y * GUI_FIXED_ONE < side_menu_top) ? args->frame->work.y * GUI_FIXED_ONE : side_menu_top;
     EMBED_CALL(frame_band, FrameCtx, .first = left_first, .end = footer - gap_autohidden, .grown = claim->grown_left,
                .pulled = claim->pulled_left * GUI_FIXED_ONE, .from = &from_edge, .to = &to_edge);
+    const int side_menu_edge_left = EMBED_CALL(frame_least, FrameCtx, .first = side_menu_left, .end = side_menu_left_lag);
+    const int side_menu_edge_right = EMBED_CALL(frame_greatest, FrameCtx, .first = side_menu_left, .end = side_menu_left_lag) +
+                                     (side_menu_width * GUI_FIXED_ONE);
     args->frame->side_menu_edges =
         EMBED_CALL(frame_edges_intersect, FrameCtx,
-                   .edges = (GuiEdges){side_menu_left, from_edge, side_menu_left + (side_menu_width * GUI_FIXED_ONE), to_edge},
-                   .left = side_menu_left, .top = side_menu_top, .right = side_menu_left + (side_menu_width * GUI_FIXED_ONE),
+                   .edges = (GuiEdges){side_menu_edge_left, from_edge, side_menu_edge_right, to_edge},
+                   .left = side_menu_edge_left, .top = side_menu_top, .right = side_menu_edge_right,
                    .bottom = footer - gap_autohidden);
     EMBED_CALL(frame_band, FrameCtx, .first = gap_autohidden, .end = (pixel_width * GUI_FIXED_ONE) - gap_autohidden,
                .grown = claim->grown_bottom, .pulled = claim->pulled_bottom * GUI_FIXED_ONE, .from = &from_edge,
                .to = &to_edge);
+    const int status_edge_top = EMBED_CALL(frame_least, FrameCtx, .first = status_top, .end = status_top_lag);
+    const int status_edge_bottom =
+        EMBED_CALL(frame_greatest, FrameCtx, .first = status_top, .end = status_top_lag) + (status_height * GUI_FIXED_ONE);
     args->frame->status_edges =
         EMBED_CALL(frame_edges_intersect, FrameCtx,
-                   .edges = (GuiEdges){from_edge, status_top, to_edge, status_top + (status_height * GUI_FIXED_ONE)},
-                   .left = gap_autohidden, .top = status_top, .right = (pixel_width * GUI_FIXED_ONE) - gap_autohidden,
-                   .bottom = status_top + (status_height * GUI_FIXED_ONE));
+                   .edges = (GuiEdges){from_edge, status_edge_top, to_edge, status_edge_bottom}, .left = gap_autohidden,
+                   .top = status_edge_top, .right = (pixel_width * GUI_FIXED_ONE) - gap_autohidden,
+                   .bottom = status_edge_bottom);
     const int controls_top =
         bar_top + EMBED_CALL(frame_part, FrameCtx, .share = c,
                              .pixels = EMBED_CALL(frame_part, FrameCtx, .share = claim->reveal_down - claim->reveal_top,
                                                   .pixels = (top_menu_height + gap) * GUI_FIXED_ONE));
+    const int controls_top_lag =
+        bar_top_lag + EMBED_CALL(frame_part, FrameCtx, .share = c,
+                                 .pixels = EMBED_CALL(frame_part, FrameCtx, .share = claim->lag_down - claim->lag_top,
+                                                      .pixels = (top_menu_height + gap) * GUI_FIXED_ONE));
     args->frame->controls_edges =
-        (GuiEdges){args->frame->controls_pane.x * GUI_FIXED_ONE, controls_top,
+        (GuiEdges){args->frame->controls_pane.x * GUI_FIXED_ONE,
+                   EMBED_CALL(frame_least, FrameCtx, .first = controls_top, .end = controls_top_lag),
                    (args->frame->controls_pane.x + args->frame->controls_pane.width) * GUI_FIXED_ONE,
-                   controls_top + (top_menu_height * GUI_FIXED_ONE)};
+                   EMBED_CALL(frame_greatest, FrameCtx, .first = controls_top, .end = controls_top_lag) +
+                       (top_menu_height * GUI_FIXED_ONE)};
     if (!args->rest)
     {
         frame_rest_positioned(args->frame);

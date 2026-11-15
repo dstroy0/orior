@@ -166,6 +166,7 @@ int main(void)
     GuiAutohideNumbers numbers = frame.claim;
     numbers.claim = GUI_FIXED_ONE;
     numbers.reveal_bottom = GUI_FIXED_ONE;
+    numbers.lag_bottom = GUI_FIXED_ONE;
     numbers.inset_bottom = GUI_FIXED_ONE;
     GuiFrame autohidden = frame;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &autohidden, .numbers = &numbers);

@@ -49,6 +49,10 @@ typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 #define GUI_AUTOHIDE_TREMOR_PX 4
 #define GUI_AUTOHIDE_ADJACENT 3
 #define GUI_AUTOHIDE_TRAIL 16u
+// The lag a pane's far edge trails its front edge by. The frame reads a bead's slide a second time this many
+// milliseconds behind the clock, at its start where the lag reaches before it. The pane stretches between the two
+// readings. A bead's slide runs the lag past its end: the far edge catches up before the slides rest
+#define GUI_AUTOHIDE_LAG_MS 40ull
 
 // A slide: a number of GUI_FIXED_ONE running from `from` to `to` from `start_ms` over its length on its curve, the
 // claim's own GUI_AUTOHIDE_ANIMATION_MS on the page's ease; a slide whose ends are one is at them. A bead's slide
@@ -143,9 +147,12 @@ int gui_ease_table_read(const GuiAutohideShareCfg *args);
 // bound for `to` left running
 int gui_slide_at(const GuiAutohideSlideCfg *args);
 void gui_slide_to(const GuiAutohideTargetCfg *args);
-// whether a slide still runs at `time_ms`; and when it ends where it runs, 0 where it does not
+// whether a slide still runs at `time_ms`; and when it ends where it runs, 0 where it does not: a bead's slide runs
+// GUI_AUTOHIDE_LAG_MS past its length, the lag its far edge trails by
 int gui_slide_running(const GuiAutohideSlideCfg *args);
 unsigned long long gui_slide_end_ms(const GuiAutohideSlideCfg *args);
+// a slide's number GUI_AUTOHIDE_LAG_MS before `time_ms`, its start's where the lag reaches before the slide
+int gui_slide_lag_at(const GuiAutohideSlideCfg *args);
 
 // a claim not holding, every number at 0 and the controls whole
 void gui_autohide_init(const GuiAutohideStillCfg *args);
@@ -174,8 +181,9 @@ unsigned long long gui_autohide_next_deadline_ms(const GuiAutohideCfg *args);
 // whether any slide runs at `time_ms`; and when the last of them ends, `time_ms` where none runs
 int gui_autohide_moving(const GuiAutohideCfg *args);
 unsigned long long gui_autohide_animation_end_ms(const GuiAutohideCfg *args);
-// the numbers at `time_ms` for the frame: each slide's number, each slat's grown share, coming in as its reveal, going
-// as it grew, whole outside the claim, and the points the slats are pulled from
+// the numbers at `time_ms` for the frame: each slide's number, each reveal's lagged number, each slat's grown share,
+// coming in as its reveal, going as it grew, whole outside the claim, and the points the slats are pulled from; with
+// less motion asked for each lagged number is its reveal's
 void gui_autohide_numbers(const GuiAutohideStateCfg *args);
 struct GuiAutohidePointerCfg
 {
@@ -290,12 +298,14 @@ typedef struct
     int (*slide_at)(const GuiAutohideSlideCfg *args);
     int (*slide_running)(const GuiAutohideSlideCfg *args);
     unsigned long long (*slide_end_ms)(const GuiAutohideSlideCfg *args);
+    int (*lag_at)(const GuiAutohideSlideCfg *args);
 } GuiAutohideSlideNs;
-EMBED_TABLE_LAYOUT(GuiAutohideSlideNs, slide_at, slide_running, slide_end_ms);
+EMBED_TABLE_LAYOUT(GuiAutohideSlideNs, slide_at, slide_running, slide_end_ms, lag_at);
 EMBED_TABLE_STORAGE GuiAutohideSlideNs gui_autohide_slide EMBED_UNUSED = {
     .slide_at = gui_slide_at,
     .slide_running = gui_slide_running,
     .slide_end_ms = gui_slide_end_ms,
+    .lag_at = gui_slide_lag_at,
 };
 
 typedef struct

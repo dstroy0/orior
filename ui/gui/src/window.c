@@ -6084,21 +6084,16 @@ void gui_window_draw(const GuiWindowCfg *args)
     const GuiUnder table = EMBED_CALL(gui_glass.table, GuiGlassCfg, .background_fill = background_fill,
                                       .color = palette->deep, .glass = palette->glass, .grain = palette->grain);
     const GuiColor pane = EMBED_CALL(gui_glass.pane_tint, GuiGlassCfg, .glass = palette->glass);
+    // each pane as it is drawn, stretched by its bead's lag, has its corners rounded
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
-               .background_fill = table,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = frame->top_menu_band,
-                                  .other = frame->top_menu),
-               .radius = frame->pane_radius, .inner = pane, .corners_only = 1);
+               .background_fill = table, .rect = frame->top_menu_pane, .radius = frame->pane_radius, .inner = pane,
+               .corners_only = 1);
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
-               .background_fill = table,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = frame->side_menu_band,
-                                  .other = frame->side_menu),
-               .radius = frame->pane_radius, .inner = pane, .corners_only = 1);
+               .background_fill = table, .rect = frame->side_menu_pane, .radius = frame->pane_radius, .inner = pane,
+               .corners_only = 1);
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
-               .background_fill = table,
-               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = frame->status_band,
-                                  .other = frame->status),
-               .radius = frame->pane_radius, .inner = pane, .corners_only = 1);
+               .background_fill = table, .rect = frame->status_pane, .radius = frame->pane_radius, .inner = pane,
+               .corners_only = 1);
     // the work's outline: the lines it is in, as the page draws them, the signal along its head, a thin line of
     // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
     // holes the parts displayed over the work make in it while the claim holds; while Preferences' window holds the

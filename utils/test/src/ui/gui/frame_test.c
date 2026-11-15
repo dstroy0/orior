@@ -10,6 +10,16 @@
 #include "../../../../../includes/window/scrollbar.h"
 #include "../cli/cli_check.h"
 
+// the frame positioned for the claim's numbers, each lagged number its reveal's: the panes unstretched
+static void claimed(GuiFrame *frame, GuiAutohideNumbers *numbers)
+{
+    numbers->lag_top = numbers->reveal_top;
+    numbers->lag_bottom = numbers->reveal_bottom;
+    numbers->lag_left = numbers->reveal_left;
+    numbers->lag_down = numbers->reveal_down;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = frame, .numbers = numbers);
+}
+
 static int same(GuiRect rect, int x, int y, int width, int height)
 {
     return (rect.x == x) && (rect.y == y) && (rect.width == width) && (rect.height == height);
@@ -199,7 +209,7 @@ int main(void)
                   (frame.tabs_share == GUI_FIXED_ONE),
               "outside the claim the tabs row is whole where it is displayed, at its full opacity");
     numbers.claim = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check(same(frame.work, GUI_FRAME_GAP, GUI_FRAME_GAP, 1440 - (2 * GUI_FRAME_GAP), 920 - (2 * GUI_FRAME_GAP)),
               "the claim located, the work is the window less the gap on every side");
     cli_check(frame.top_menu.y + frame.top_menu.height == 0, "the bar is off the window's top");
@@ -214,7 +224,7 @@ int main(void)
                          .holes = (GuiRect[4]){{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}) == 0u,
               "the parts away make no holes");
     numbers.claim = GUI_FIXED_ONE / 2;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     // a half of an odd count of pixels rounds up, as the frame's shares round
     cli_check((frame.work.x == GUI_SIDE_MENU_WIDTH + GUI_FRAME_GAP - ((GUI_SIDE_MENU_WIDTH + GUI_FRAME_GAP + 1) / 2)) &&
                   (frame.work.y == (GUI_TOP_MENU_HEIGHT + GUI_FRAME_GAP + 1) / 2) &&
@@ -233,7 +243,7 @@ int main(void)
     // three tenths through the claim: the tabs row's share at the base's sixteenth nearest it, the row's height at the
     // claim's own share
     numbers.claim = (GUI_FIXED_ONE * 3) / 10;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check((frame.tabs_share == (11 * GUI_FIXED_ONE) / 16) && (frame.tabs.height == 22),
               "the row's share is at the sixteenth nearest the claim's, its height at the claim's own share");
     // the head revealed: the bar comes in as a pane the gap down from the top, past the wordmark's corner; the work
@@ -243,7 +253,7 @@ int main(void)
     numbers.reveal_down = GUI_FIXED_ONE;
     numbers.grown_top = GUI_FIXED_ONE / 2;
     numbers.pulled_top = 700;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check(same(frame.top_menu, GUI_SIDE_MENU_WIDTH + (2 * GUI_FRAME_GAP), GUI_FRAME_GAP,
                    1440 - GUI_SIDE_MENU_WIDTH - (2 * GUI_FRAME_GAP) - GUI_FRAME_GAP, GUI_TOP_MENU_HEIGHT),
               "the bar revealed is the gap down and in, past the wordmark's corner");
@@ -263,11 +273,11 @@ int main(void)
               "the bar's slat makes one hole in the work's head, the gap about it");
     numbers.inset_top = GUI_FIXED_ONE;
     numbers.grown_top = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check((frame.work.y == GUI_FRAME_GAP + GUI_TOP_MENU_HEIGHT + GUI_FRAME_GAP) && (frame.tabs.height == 0),
               "the capacity taken, the work is under the bar and the tabs row, a claim of its own, stays away");
     numbers.reveal_tabs = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check((frame.tabs.height == 31) && (frame.tabs.y == frame.inside.y + GUI_TABS_GAP),
               "the tabs row's own reveal brings it back, a gap under the border line");
     cli_check(same(frame.top_menu_band, GUI_FRAME_GAP, GUI_FRAME_GAP, 1440 - (2 * GUI_FRAME_GAP), GUI_TOP_MENU_HEIGHT),
@@ -275,7 +285,7 @@ int main(void)
     // the controls alone: their tab comes down the gap from the top with the bar away
     numbers.reveal_top = 0;
     numbers.inset_top = 0;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check((frame.controls.y == GUI_FRAME_GAP) && (frame.top_menu.y == -GUI_TOP_MENU_HEIGHT) &&
                   (frame.controls_pane_share == GUI_FIXED_ONE),
               "the controls' tab is the gap down while the bar is away");
@@ -286,7 +296,7 @@ int main(void)
     numbers.reveal_down = 0;
     numbers.reveal_left = GUI_FIXED_ONE;
     numbers.inset_left = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check((frame.side_menu.x == GUI_FRAME_GAP) && (frame.side_menu.y == GUI_FRAME_GAP + GUI_TOP_MENU_HEIGHT + GUI_FRAME_GAP) &&
                   (frame.side_menu.y + frame.side_menu.height == 920 - GUI_FRAME_GAP),
               "the side_menu revealed is the gap in, under the wordmark's corner, to the work's foot");
@@ -300,19 +310,69 @@ int main(void)
     numbers.reveal_left = 0;
     numbers.inset_left = 0;
     numbers.reveal_bottom = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check(same(frame.status, GUI_FRAME_GAP, 920 - GUI_STATUS_HEIGHT - GUI_FRAME_GAP, 1440 - (2 * GUI_FRAME_GAP),
                    GUI_STATUS_HEIGHT) &&
                   (frame.work.y + frame.work.height == 920 - GUI_FRAME_GAP),
               "the status bar revealed is the gap up and in, the work staying until its capacity is taken");
     numbers.inset_bottom = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check(frame.work.y + frame.work.height == 920 - GUI_STATUS_HEIGHT - (2 * GUI_FRAME_GAP),
               "the foot's capacity taken, the work ends above the status bar");
     // the right revealed brings the map back
     numbers.reveal_right = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     cli_check(frame.map.width == 84, "the right revealed brings the map's column back");
+    // the lag: a pane spans from its part's place to the place at its reveal's lagged number, its far edge trailing
+    // as it comes in, its near edge as it goes, and the contents in the part's own rectangle
+    numbers.reveal_bottom = 0;
+    numbers.inset_bottom = 0;
+    numbers.reveal_right = 0;
+    claimed(&frame, &numbers);
+    numbers.reveal_top = GUI_FIXED_ONE / 2;
+    numbers.lag_top = GUI_FIXED_ONE / 4;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    cli_check((frame.top_menu.y == -17) && (frame.top_menu_band.y == -30) &&
+                  (frame.top_menu_band.y + frame.top_menu_band.height == frame.top_menu.y + frame.top_menu.height),
+              "the bar coming in has its pane stretched up from its foot to its lagged place");
+    cli_check((frame.bar_edges.top == -(59 * GUI_FIXED_ONE) / 2) && (frame.bar_edges.bottom == 25 * GUI_FIXED_ONE) &&
+                  same(frame.top_menu_pane, frame.top_menu.x, -30, frame.top_menu.width, 55),
+              "the bar's edges and its pane span the stretch, the edges carrying the half pixel");
+    numbers.reveal_top = GUI_FIXED_ONE / 4;
+    numbers.lag_top = GUI_FIXED_ONE / 2;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    cli_check((frame.top_menu.y == -30) && (frame.top_menu_band.y == -30) && (frame.top_menu_band.height == 55),
+              "the bar going out has its pane stretched down toward the work from its lagged place");
+    numbers.lag_top = numbers.reveal_top;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    cli_check(frame.top_menu_band.height == GUI_TOP_MENU_HEIGHT, "a lagged number at its reveal leaves the pane its height");
+    numbers.reveal_top = 0;
+    numbers.lag_top = 0;
+    numbers.reveal_down = GUI_FIXED_ONE;
+    numbers.lag_down = GUI_FIXED_ONE / 2;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    cli_check((frame.controls.y == GUI_FRAME_GAP) && (frame.controls_pane.y == -17) &&
+                  (frame.controls_pane.y + frame.controls_pane.height == GUI_FRAME_GAP + GUI_TOP_MENU_HEIGHT) &&
+                  (frame.controls_edges.top == -17 * GUI_FIXED_ONE),
+              "the controls' pane coming down stretches up to its lagged place, the controls at its foot");
+    numbers.reveal_down = 0;
+    numbers.lag_down = 0;
+    numbers.reveal_left = GUI_FIXED_ONE;
+    numbers.lag_left = GUI_FIXED_ONE / 2;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    cli_check((frame.side_menu.x == GUI_FRAME_GAP) && (frame.side_menu_band.x == -20) &&
+                  (frame.side_menu_band.x + frame.side_menu_band.width == GUI_FRAME_GAP + GUI_SIDE_MENU_WIDTH) &&
+                  (frame.side_menu_edges.left == -(39 * GUI_FIXED_ONE) / 2) &&
+                  (frame.side_menu_pane.x == -20) && (frame.side_menu_pane.y == frame.side_menu.y),
+              "the side menu coming in stretches left to its lagged place");
+    numbers.reveal_left = 0;
+    numbers.lag_left = 0;
+    numbers.reveal_bottom = GUI_FIXED_ONE;
+    numbers.lag_bottom = GUI_FIXED_ONE / 2;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    cli_check((frame.status.y == 890) && (frame.status_band.y == 890) && (frame.status_band.height == 37) &&
+                  (frame.status_edges.bottom == 927 * GUI_FIXED_ONE) && same(frame.status_pane, GUI_FRAME_GAP, 890, 1440 - (2 * GUI_FRAME_GAP), 37),
+              "the status bar coming in stretches down to its lagged place");
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }

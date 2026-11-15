@@ -32,6 +32,16 @@ static int adjacent(GuiColor one, GuiColor other)
     return (red >= -1) && (red <= 1) && (green >= -1) && (green <= 1) && (blue >= -1) && (blue <= 1);
 }
 
+// the frame positioned for the claim's numbers, each lagged number its reveal's: the panes unstretched
+static void claimed(GuiFrame *frame, GuiAutohideNumbers *numbers)
+{
+    numbers->lag_top = numbers->reveal_top;
+    numbers->lag_bottom = numbers->reveal_bottom;
+    numbers->lag_left = numbers->reveal_left;
+    numbers->lag_down = numbers->reveal_down;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = frame, .numbers = numbers);
+}
+
 // the grain's alpha at x, y as the window positions it
 static unsigned int grain_at(int x, int y)
 {
@@ -104,7 +114,7 @@ int main(void)
     numbers.claim = GUI_FIXED_ONE;
     numbers.reveal_top = GUI_FIXED_ONE;
     numbers.grown_top = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     GuiRect holes[4];
     cli_check(EMBED_CALL(gui_frame_holes_table.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = holes) >= 1u, "the bar's slat makes a hole in the work");
     cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0) && (base.positioned_count == 2u), "the map is positioned again for the claim's frame");
@@ -121,7 +131,7 @@ int main(void)
     // past a row's edge: its foot falls in the middle of a row, which takes the ink at an alpha halfway between the
     // pane's and the sheet's
     numbers.reveal_top = GUI_FIXED_ONE / 4;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     const int foot_row = (GUI_FRAME_GAP / 4) + GUI_TOP_MENU_HEIGHT - (((3 * GUI_TOP_MENU_HEIGHT) + 2) / 4);
     cli_check((frame.bar_edges.bottom == (foot_row * GUI_FIXED_ONE) + (GUI_FIXED_ONE / 2)), "the bar's foot falls in the middle of a row");
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
@@ -133,7 +143,7 @@ int main(void)
               "the row above it is the pane whole");
     cli_check(adjacent(pixel(&raster, hole_x, foot_row + 1), sheet_at(palette, palette->background_fill, hole_x, foot_row + 1)), "and the row below it the sheet");
     numbers.reveal_top = GUI_FIXED_ONE;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 1) && (base.positioned_count == 5u), "the controls' pane located positions the map again");
     // the controls' tab halfway down with the bar away: its pane positioned by the base at the part halfway from the sheet's
@@ -141,7 +151,7 @@ int main(void)
     numbers.reveal_top = 0;
     numbers.inset_top = 0;
     numbers.reveal_down = GUI_FIXED_ONE / 2;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     cli_check((frame.controls_pane_share == GUI_FIXED_ONE / 2) &&
                   (EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.controls_pane.x + (frame.controls_pane.width / 2),
@@ -153,7 +163,7 @@ int main(void)
     numbers.claim = GUI_FIXED_ONE / 2;
     numbers.reveal_top = 0;
     numbers.inset_top = 0;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     const GuiColor half_surface = (palette->surface & 0x00ffffffu) | ((((GUI_ALPHA_OF(palette->surface) * 8u) + 8u) / 16u) << 24u);
@@ -161,7 +171,7 @@ int main(void)
               "halfway through the claim a pixel of the tabs row is its surface at half its alpha over the lattice");
     // the side pane halfway gone: its ground where it is at the part halfway, and the side it has left the lattice
     numbers.claim = 0;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
+    claimed(&frame, &numbers);
     EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1, .away = GUI_FIXED_ONE / 2);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     cli_check((EMBED_CALL(gui_base_table.layer_at, GuiBaseCfg, .base_read = &base, .x = frame.side.x + 2, .y = frame.side.y + 2) ==

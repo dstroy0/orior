@@ -90,8 +90,9 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 // The claim's numbers, each 0 to GUI_FIXED_ONE as the page's claim runs them: the claim, GUI_FIXED_ONE while the work
 // has taken the edges' parts' inset; each edge's reveal, 1 while its part is back; the controls' way down from the
 // bar's place while the bar is away; each edge's inset, 1 once the work has given the part its inset; each slat's grown
-// share along its edge; the controls' opacity; and the point along each edge its slat is pulled from, in pixels, -1 for
-// the middle
+// share along its edge; the controls' opacity; the point along each edge its slat is pulled from, in pixels, -1 for
+// the middle; and the head's, the foot's, the left's and the controls' reveals read again the lag behind, which a
+// pane's far edge trails at
 typedef struct
 {
     int claim;
@@ -111,6 +112,10 @@ typedef struct
     int pulled_top;
     int pulled_left;
     int pulled_bottom;
+    int lag_top;
+    int lag_bottom;
+    int lag_left;
+    int lag_down;
 } GuiAutohideNumbers;
 
 // The four edges of a pane in the frame's words, each a count of pixels with sixteen bits of fraction: where the
@@ -128,9 +133,11 @@ typedef struct
 // side's of no width where none is displayed, the terminal's panel at the inside's foot under both and its views under its
 // side_menu, none while it is closed, the map's at the editor's right, the
 // bar's, the side_menu's and the status bar's located off the window while the claim holds them away; each of those
-// three as the slat its edge shows, the part's rectangle cut to its grown share, and the edges of each slat's pane and
-// of the controls' in the frame's words; the controls' glass pane with its
-// lip and the pane's share of the glass, 0 while the controls are in the bar; the controls' opacity; the panes'
+// three as the slat its edge shows, the part's rectangle cut to its grown share and spanning from the part's place to
+// its place at its reveal's lagged number, and the edges of each slat's pane and of the controls' in the frame's words,
+// spanning the same; each slat met with its part's own span across, the pane as the frame draws it; the controls'
+// glass pane with its lip, spanning from the controls' place to their lagged one, and the pane's share of the glass, 0
+// while the controls are in the bar; the controls' opacity; the panes'
 // corner radius; the work's; the tabs row whole, its foot at the foot of the row displayed, risen out of the work's head as
 // the claim takes it away, with the share of it displayed, which is its opacity, GUI_FIXED_ONE whole; the map whole, its
 // left at the left of the map's column, past the editor's right edge as the claim closes the column; and the side pane
@@ -174,6 +181,9 @@ typedef struct
     GuiRect top_menu_band;
     GuiRect side_menu_band;
     GuiRect status_band;
+    GuiRect top_menu_pane;
+    GuiRect side_menu_pane;
+    GuiRect status_pane;
     GuiRect controls_pane;
     GuiEdges bar_edges;
     GuiEdges side_menu_edges;
@@ -198,6 +208,7 @@ typedef struct
     GuiRect controls_rest;
     GuiRect top_menu_tools_rest;
     GuiRect side_menu_rest;
+    GuiRect tabs_rest;
 } GuiFrame;
 
 // a size in the page's pixels at `scale`, a percent, rounded to a whole pixel

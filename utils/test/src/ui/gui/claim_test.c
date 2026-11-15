@@ -70,9 +70,27 @@ int main(void)
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2450ull, .numbers = &numbers);
     cli_check((numbers.reveal_top > (3 * GUI_FIXED_ONE / 10)) && adjacent(numbers.grown_top, numbers.reveal_top) && (numbers.inset_top == numbers.reveal_top) && (numbers.reveal_tabs == 0),
               "the slat grows with the reveal and the work gives way with it, both at one place, and the tabs row, a claim of its own, stays away");
+    // the lag: the reveal read again the lag behind trails it mid-slide; past the slide's end the slide runs the lag
+    // out, then the lagged number is the reveal's
+    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2450ull, .numbers = &numbers);
+    cli_check((numbers.lag_top < numbers.reveal_top) && (numbers.lag_top >= 0),
+              "mid-slide the lagged reveal trails the reveal");
+    cli_check(numbers.lag_top == EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = &claim.reveal_top, .time_ms = 2450ull - GUI_AUTOHIDE_LAG_MS),
+              "the lagged number is the slide's number the lag behind");
+    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2320ull, .numbers = &numbers);
+    cli_check(numbers.lag_top == 0, "within the lag of the slide's start the lagged number is the start's");
+    cli_check(EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &claim, .time_ms = 2620ull) &&
+                  !EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &claim, .time_ms = 2300ull + GUI_AUTOHIDE_ANIMATION_MS + GUI_AUTOHIDE_LAG_MS),
+              "a bead's slide runs the lag past its end and no longer");
+    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2620ull, .numbers = &numbers);
+    cli_check((numbers.reveal_top == GUI_FIXED_ONE) &&
+                  (numbers.lag_top == EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = &claim.reveal_top, .time_ms = 2620ull - GUI_AUTOHIDE_LAG_MS)),
+              "in the lag past the end the reveal is whole, its lagged number catching up");
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 2900ull, .numbers = &numbers);
     cli_check(adjacent(numbers.reveal_top, GUI_FIXED_ONE) && adjacent(numbers.inset_top, GUI_FIXED_ONE) && adjacent(numbers.reveal_down, GUI_FIXED_ONE) && adjacent(numbers.reveal_tabs, 0),
               "as the reveal ends the capacity is taken and the controls are whole, the tabs row still away");
+    cli_check((numbers.lag_top == numbers.reveal_top) && (numbers.lag_down == numbers.reveal_down),
+              "at rest the lagged numbers are the reveals'");
 
     // the pointer leaves the part: a linger, then the part goes
     g_test_clock_ms = 3000ull;
@@ -169,6 +187,7 @@ int main(void)
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 10100ull + GUI_AUTOHIDE_SHOW_DELAY_MS, .numbers = &numbers);
     cli_check((numbers.reveal_top == GUI_FIXED_ONE) && (numbers.inset_top == GUI_FIXED_ONE) && !EMBED_CALL(gui_autohide.moving, GuiAutohideCfg, .autohide_read = &claim, .time_ms = 10100ull + GUI_AUTOHIDE_SHOW_DELAY_MS),
               "and the bar and its capacity are there at once");
+    cli_check((numbers.lag_top == numbers.reveal_top), "less motion asked for, no lag");
     g_test_clock_ms = 11000ull;
     EMBED_CALL(gui_autohide_on.set, GuiAutohideOnCfg, .claim = &claim, .on = 0, .now_ms = cli_clock_milliseconds());
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 11000ull, .numbers = &numbers);
