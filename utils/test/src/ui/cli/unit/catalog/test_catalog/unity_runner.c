@@ -22,6 +22,7 @@ extern void test_the_tree_has_a_job_of_every_group(void);
 extern void test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size(void);
 extern void test_a_drivers_parts_are_read_from_its_usage(void);
 extern void test_the_catalogs_memory_is_released_as_the_tree_is_read(void);
+extern void test_a_jobs_extent_counts_what_a_copy_takes_and_the_deploy_jobs_come_after_the_catalogs(void);
 
 
 /*=======Mock Management=====*/
@@ -96,6 +97,7 @@ int main(void)
   run_test(test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size, "test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size", 183);
   run_test(test_a_drivers_parts_are_read_from_its_usage, "test_a_drivers_parts_are_read_from_its_usage", 209);
   run_test(test_the_catalogs_memory_is_released_as_the_tree_is_read, "test_the_catalogs_memory_is_released_as_the_tree_is_read", 224);
+  run_test(test_a_jobs_extent_counts_what_a_copy_takes_and_the_deploy_jobs_come_after_the_catalogs, "test_a_jobs_extent_counts_what_a_copy_takes_and_the_deploy_jobs_come_after_the_catalogs", 231);
 
   return UNITY_END();
 }

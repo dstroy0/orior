@@ -227,3 +227,18 @@ void test_the_catalogs_memory_is_released_as_the_tree_is_read(void)
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_catalog_owner));
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_catalog_owner));
 }
+
+void test_a_jobs_extent_counts_what_a_copy_takes_and_the_deploy_jobs_come_after_the_catalogs(void)
+{
+    script_read("build");
+    TEST_ASSERT_EQUAL_UINT(1u, s_catalog.jobs);
+    CliCatalogExtent extent;
+    EMBED_CALL(cli_catalog_from_index.job_extent, CliCatalogFromIndexCfg, .from = &s_catalog, .index = 0u, .extent = &extent);
+    TEST_ASSERT_EQUAL_UINT(s_catalog.job[0].params, extent.params);
+    TEST_ASSERT_EQUAL_UINT(s_catalog.job[0].steps, extent.steps);
+    TEST_ASSERT_GREATER_THAN_UINT64(16ull, extent.text);
+    const unsigned int before = s_catalog.jobs;
+    EMBED_CALL(cli_catalog_root.deploy_jobs, CliCatalogRootCfg, .catalog = &s_catalog, .root = s_root);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(before, s_catalog.jobs);
+    TEST_ASSERT_FALSE(s_catalog.full);
+}

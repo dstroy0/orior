@@ -325,3 +325,31 @@ void test_a_word_that_is_no_key_and_value_is_refused(void)
     job_with_values();
     TEST_ASSERT_FALSE(values_read(s_bare, 1u));
 }
+
+void test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_rooted(void)
+{
+    // the outcome a windowed command leaves: its menu, its command and the command's own words, as the window reads them
+    char why[512];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &err_msg));
+    CliOutcome outcome;
+    memor.set(&(MemoriaCfg){.dst = &outcome, .val = 0, .bytes = sizeof(outcome)});
+    outcome.window = 1;
+    memor.cpy(&(MemoriaCfg){.dst = outcome.menu, .src = "help", .bytes = 5u});
+    memor.cpy(&(MemoriaCfg){.dst = outcome.command, .src = "pointer", .bytes = 8u});
+    memor.cpy(&(MemoriaCfg){.dst = outcome.text, .src = "10\0" "20", .bytes = 6u});
+    outcome.arg_at[0] = 0u;
+    outcome.arg_at[1] = 3u;
+    outcome.args = 2u;
+    outcome.used = 6u;
+    char text[128];
+    VerbaLinea out = mmgr_line_over(text, sizeof(text));
+    EMBED_CALL(cli_command_line_launch_out.launch_words, CliCommandLineLaunchOutCfg, .launch = &outcome, .out = &out);
+    (void)mmgr_line_finish(&out);
+    CLI_TEST_ASSERT_TEXT("help pointer 10 20", text, out.at);
+    TEST_ASSERT_EQUAL_STRING("10", EMBED_CALL(cli_command_line_table.launch_arg, CliCommandLineCfg, .launch = &outcome, .at = 0u));
+    TEST_ASSERT_EQUAL_STRING("20", EMBED_CALL(cli_command_line_table.launch_arg, CliCommandLineCfg, .launch = &outcome, .at = 1u));
+    TEST_ASSERT_EQUAL_STRING("", cli_command_line_tree_name());
+    TEST_ASSERT_NOT_NULL(cli_command_line_launched());
+    TEST_ASSERT_NOT_EQUAL(0u, cli_line_list());
+}

@@ -4,6 +4,7 @@
 // first line, one answering nothing waiting for the keys to rest or a break, Focus stopping every one until it ends,
 // and Silence putting a type away until it is displayed again
 #include "ui/cli/src/command_line/command_line.h"
+#include "ui/cli/src/machine/state.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 void setUp(void)
@@ -161,6 +162,33 @@ void test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is(void)
     CLI_TEST_ASSERT_CONTAINS("Saved # files.", away);
     cli_notices_away_end(&(CliNoticesCfg){.away = away});
     cli_notices_show_again(&(CliNoticesCfg){.type = "Saved # files."});
+    notices_rested();
+}
+
+void test_the_types_put_away_are_restored_from_the_folders_entries(void)
+{
+    static const char s_changes[] = "{\"notices-away\":\"Restored # times.\\n\"}";
+    char folder[CLI_PATH_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
+                                .value = "build/harness/notices_home"));
+    notices_rested();
+    cli_unity_folder("notices_state", folder);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_state_folder.save, CliStateFolderCfg, .folder = folder, .changes = s_changes,
+                                .length = sizeof(s_changes) - 1u, .err_msg = &err_msg));
+    CliStateEntries entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_text_owner});
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    cli_notices_restore(&(CliNoticesCfg){.entries = &entries});
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries, .owner = g_cli_text_owner});
+    char *const away = cli_notices_away_alloc();
+    TEST_ASSERT_NOT_NULL(away);
+    CLI_TEST_ASSERT_CONTAINS("Restored # times.", away);
+    cli_notices_away_end(&(CliNoticesCfg){.away = away});
+    key_pressed("Ctrl+S");
+    cli_notice_post(&(CliNoticesCfg){.text = "Restored 3 times.", .failed = 0});
+    TEST_ASSERT_NULL_MESSAGE(cli_notice_displayed(), "a type restored as put away stays away");
+    cli_notices_show_again(&(CliNoticesCfg){.type = "Restored # times."});
     notices_rested();
 }
 

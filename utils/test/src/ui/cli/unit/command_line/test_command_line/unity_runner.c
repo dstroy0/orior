@@ -31,6 +31,7 @@ extern void test_a_key_sent_twice_contains_both(void);
 extern void test_the_words_after_a_double_dash_come_back_complete(void);
 extern void test_a_key_the_job_does_not_accept_is_refused(void);
 extern void test_a_word_that_is_no_key_and_value_is_refused(void);
+extern void test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_rooted(void);
 
 
 /*=======Mock Management=====*/
@@ -109,6 +110,7 @@ int main(void)
   run_test(test_the_words_after_a_double_dash_come_back_complete, "test_the_words_after_a_double_dash_come_back_complete", 300);
   run_test(test_a_key_the_job_does_not_accept_is_refused, "test_a_key_the_job_does_not_accept_is_refused", 315);
   run_test(test_a_word_that_is_no_key_and_value_is_refused, "test_a_word_that_is_no_key_and_value_is_refused", 322);
+  run_test(test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_rooted, "test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_rooted", 329);
 
   return UNITY_END();
 }

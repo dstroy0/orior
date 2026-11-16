@@ -3,6 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/command_line/command_line.h"
+#include "ui/cli/src/machine/state.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -14,6 +15,7 @@ extern void test_a_break_shows_the_last_notice_waiting(void);
 extern void test_focus_stops_every_notice_until_it_ends(void);
 extern void test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back(void);
 extern void test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is(void);
+extern void test_the_types_put_away_are_restored_from_the_folders_entries(void);
 extern void test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away(void);
 
 
@@ -76,14 +78,15 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\notices\\test_notices\\test_notices.c");
-  run_test(test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds", 52);
-  run_test(test_a_failure_is_fifteen_seconds_and_shows_its_first_line, "test_a_failure_is_fifteen_seconds_and_shows_its_first_line", 68);
-  run_test(test_a_notice_answering_nothing_waits_for_the_keys_to_rest, "test_a_notice_answering_nothing_waits_for_the_keys_to_rest", 79);
-  run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 92);
-  run_test(test_focus_stops_every_notice_until_it_ends, "test_focus_stops_every_notice_until_it_ends", 105);
-  run_test(test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back, "test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back", 123);
-  run_test(test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is, "test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is", 144);
-  run_test(test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away, "test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away", 167);
+  run_test(test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_is_five_seconds", 53);
+  run_test(test_a_failure_is_fifteen_seconds_and_shows_its_first_line, "test_a_failure_is_fifteen_seconds_and_shows_its_first_line", 69);
+  run_test(test_a_notice_answering_nothing_waits_for_the_keys_to_rest, "test_a_notice_answering_nothing_waits_for_the_keys_to_rest", 80);
+  run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 93);
+  run_test(test_focus_stops_every_notice_until_it_ends, "test_focus_stops_every_notice_until_it_ends", 106);
+  run_test(test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back, "test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back", 124);
+  run_test(test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is, "test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is", 145);
+  run_test(test_the_types_put_away_are_restored_from_the_folders_entries, "test_the_types_put_away_are_restored_from_the_folders_entries", 168);
+  run_test(test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away, "test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away", 195);
 
   return UNITY_END();
 }

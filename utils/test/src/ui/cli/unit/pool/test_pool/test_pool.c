@@ -11,6 +11,7 @@
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/editor/files_internal.h"
 #include "ui/cli/src/plugins/plugins.h"
+#include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 #define PAGE 4096ull
@@ -341,6 +342,44 @@ void test_a_grown_line_fills_at_the_max_it_is_given(void)
     TEST_ASSERT_EQUAL_CHAR('\0', grown.cell[cli_grown_size(&grown)]);
     cli_grown_end(&grown);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
+}
+
+void test_a_grown_line_begun_over_again_keeps_its_cell_at_the_size_it_grew_to(void)
+{
+    CliGrownLine grown;
+    cli_grown_begin(&grown, 1ull << 20u, g_checks_owner);
+    mmgr_line_put(&grown.line, "some text that grows the line past its first cell's worth of bytes");
+    const unsigned long long capacity = grown.capacity;
+    cli_grown_reset(&grown);
+    TEST_ASSERT_EQUAL_UINT64(0ull, cli_grown_size(&grown));
+    TEST_ASSERT_EQUAL_UINT64(capacity, grown.capacity);
+    mmgr_line_put(&grown.line, "ab");
+    TEST_ASSERT_EQUAL_UINT64(2ull, cli_grown_size(&grown));
+    TEST_ASSERT_EQUAL_MEMORY("ab", grown.cell, 2u);
+    cli_grown_end(&grown);
+    TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
+}
+
+void test_an_owners_usage_is_the_pools_bytes_its_peak_and_a_zero_and_the_reports_run_outside_a_run(void)
+{
+    char text[96];
+    char pool[32];
+    VerbaLinea out = mmgr_line_over(text, sizeof(text));
+    VerbaLinea pool_line = mmgr_line_over(pool, sizeof(pool));
+    void *const counted = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    g_cli_guard->persistent_buf_release(counted, g_checks_owner);
+    cli_pool_owner_usage_write(g_checks_owner, &out);
+    (void)mmgr_line_finish(&out);
+    mmgr_line_decimal(&pool_line, CLI_POOL_BYTES, 1u);
+    mmgr_line_ch(&pool_line, ' ');
+    (void)mmgr_line_finish(&pool_line);
+    TEST_ASSERT_TRUE_MESSAGE(cellul.starts(&(CatenaFinitaCfg){.src = text, .other = pool, .cap = sizeof(text)}), text);
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = text, .size = out.at, .suffix = " 0"), text);
+    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = out.at, .byte = ' '));
+    // a process in no run reports nothing, and the telemetry line goes to the error stream
+    cli_pool_peaks_report();
+    cli_pool_reported("checks", &out);
+    cli_pool_telemetry_log();
 }
 
 void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
