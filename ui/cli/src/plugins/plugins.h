@@ -141,7 +141,8 @@ struct CliPluginColorCfg
 };
 typedef void (*CliPluginColorEach)(const CliPluginColorCfg *args);
 // each color of the palette of the language plugin `id` passed to `each` with `context`, in the order the plugin
-// writes them: 1 where a plugin of the id is and carries a palette, else 0 (plugins_palette.c)
+// writes them, the reader's copy of a plugin that comes with orior read in its place: 1 where a plugin of the id is
+// and carries a palette, else 0 (plugins_palette.c)
 int cli_plugins_palette_each(const CliPluginsIdEachCfg *args);
 struct CliPluginIdCfg
 {

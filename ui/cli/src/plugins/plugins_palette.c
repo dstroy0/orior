@@ -8,22 +8,39 @@
 #include "../text/text.h"
 #include "plugins.h"
 
-// The plugin sought: its id, where each color goes, and whether a plugin of the id is with a palette
+// The plugin sought: its id, where each color goes, how many plugins of the id the walk passed, which one of them is
+// read, and whether that one is with a palette
 typedef struct
 {
     const char *id;
     CliPluginColorEach each;
     void *context;
+    unsigned int passed;
+    unsigned int wanted;
     int found;
 } PaletteNeedle;
 
-// the plugin's palette read where its id is the one sought: each member of the `palette` object whose value is a
-// string passed on as a color, in the order the plugin writes them
+// the plugins of the id sought counted
+static void cli_palette_count(const CliEachPluginCfg *args)
+{
+    PaletteNeedle *const needle = (PaletteNeedle *)args->context;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = needle->id, .cap = CLI_POOL_BYTES}))
+    {
+        needle->passed += 1u;
+    }
+}
+
+// the plugin's palette read where its id is the one sought and it is the one wanted: each member of the `palette`
+// object whose value is a string passed on as a color, in the order the plugin writes them
 static void cli_palette_each(const CliEachPluginCfg *args)
 {
     PaletteNeedle *const needle = (PaletteNeedle *)args->context;
-    if (needle->found ||
-        !cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = needle->id, .cap = CLI_POOL_BYTES}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = args->plugin->id, .other = needle->id, .cap = CLI_POOL_BYTES}))
+    {
+        return;
+    }
+    needle->passed += 1u;
+    if (needle->passed != needle->wanted)
     {
         return;
     }
@@ -62,7 +79,12 @@ static void cli_palette_each(const CliEachPluginCfg *args)
 
 int cli_plugins_palette_each(const CliPluginsIdEachCfg *args)
 {
-    PaletteNeedle needle = {args->id, args->each, args->context, 0};
+    // the walk passes the plugins that come with orior before the reader's: the last plugin of the id is the reader's
+    // copy where one is, and it is the one read
+    PaletteNeedle needle = {args->id, args->each, args->context, 0u, 0u, 0};
+    EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_palette_count, .context = &needle);
+    needle.wanted = needle.passed;
+    needle.passed = 0u;
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_palette_each, .context = &needle);
     return needle.found;
 }
