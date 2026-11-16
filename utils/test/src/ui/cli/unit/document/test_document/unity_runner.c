@@ -125,8 +125,8 @@ int main(void)
   run_test(test_a_text_read_complete_names_the_lines_the_page_stores, "test_a_text_read_complete_names_the_lines_the_page_stores", 435);
   run_test(test_a_lines_entered_state_reads_back_by_its_number_after_the_walk, "test_a_lines_entered_state_reads_back_by_its_number_after_the_walk", 441);
   run_test(test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were, "test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were", 554);
-  run_test(test_a_runs_roles_say_whether_a_col_is_inside_a_comment, "test_a_runs_roles_say_whether_a_col_is_inside_a_comment", 587);
-  run_test(test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar, "test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar", 603);
+  run_test(test_a_runs_roles_say_whether_a_col_is_inside_a_comment, "test_a_runs_roles_say_whether_a_col_is_inside_a_comment", 592);
+  run_test(test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar, "test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar", 608);
 
   return UNITY_END();
 }

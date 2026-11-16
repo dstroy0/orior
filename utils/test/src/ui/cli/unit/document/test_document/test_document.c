@@ -580,8 +580,13 @@ void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_wer
     cli_document_walk();
     const unsigned int third = runs_of("compact", 2ull);
     pool_given_back();
+    // the pool given back, the next edit colors the text again
+    line_rewritten("compact", 1u, 31u, "a b c");
+    cli_document_walk();
+    const unsigned int again = runs_of("compact", 1ull);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "compact");
     TEST_ASSERT_EQUAL_UINT(5u, third);
+    TEST_ASSERT_EQUAL_UINT(5u, again);
 }
 
 void test_a_runs_roles_say_whether_a_col_is_inside_a_comment(void)

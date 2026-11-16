@@ -953,6 +953,8 @@ static int edit_locked(const CliDocumentErrMsgCfg *args)
     }
     *args->shape = (CliShape){one->lines.lines, one->lines.used};
     EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
+    // a coloring the cells or the grammar refused is tried again from the edit on
+    one->refused = 0;
     one->changes += args->count_u32;
     one->regions_moved = 1;
     EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);

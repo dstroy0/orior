@@ -1657,14 +1657,20 @@ static void symbols_checked(void)
               "Rename Symbol opens its box over the name with the name selected");
     typed("extent");
     key_pressed("Enter");
-    cli_check(
+    const int renamed =
         !s_window.rename.open && asked("save-all", NULL) &&
-            file_reads("sym/use.c", "#include \"shape.h\"\nint total(int n)\n{\n    int w = extent(n) + SIDES;\n    "
-                                    "return w + extent(1);\n}\n") &&
-            file_reads("sym/area.c", "#include \"shape.h\"\nint extent(int n)\n{\n    return n * n * SIDES;\n}\n") &&
-            file_reads("sym/shape.h",
-                       "#ifndef SHAPE_H\n#define SHAPE_H\nint extent(int side);\n#define SIDES 4\n#endif\n"),
-        "Enter renames the name in every file and Save All writes them");
+        file_reads("sym/use.c", "#include \"shape.h\"\nint total(int n)\n{\n    int w = extent(n) + SIDES;\n    "
+                                "return w + extent(1);\n}\n") &&
+        file_reads("sym/area.c", "#include \"shape.h\"\nint extent(int n)\n{\n    return n * n * SIDES;\n}\n") &&
+        file_reads("sym/shape.h", "#ifndef SHAPE_H\n#define SHAPE_H\nint extent(int side);\n#define SIDES 4\n#endif\n");
+    if (!renamed)
+    {
+        // the rename's notice, which says why it was refused, beside the check that reads it
+        const char *const notice = cli_notice_displayed();
+        (void)fprintf(stderr, "  rename: box open %d, notice %s\n", s_window.rename.open,
+                      (notice != NULL) ? notice : "none");
+    }
+    cli_check(renamed, "Enter renames the name in every file and Save All writes them");
 }
 
 // whether the check named `name` runs: every check runs where ORIOR_WINDOW_CHECKS is not set, else those it names,
