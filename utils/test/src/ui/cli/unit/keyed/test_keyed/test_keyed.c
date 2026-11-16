@@ -83,3 +83,19 @@ void test_clearing_lists_nothing(void)
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_keyed);
     assert_listing_size(0ull);
 }
+
+void test_a_key_is_found_by_its_hash_and_the_entry_at_a_place_is_taken_out(void)
+{
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_keyed, .key = "one", .adjacent_value = "b", .text = "text", .size_value = 4ull);
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_keyed, .key = "two", .adjacent_value = "", .text = "more", .size_value = 4ull);
+    const unsigned int hash = EMBED_CALL(cli_keyed_key_adjacent.hash, CliKeyedKeyAdjacentCfg, .keyed = &s_keyed, .key = "one");
+    const unsigned int at = EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_keyed, .key = "one");
+    TEST_ASSERT_NOT_EQUAL(CLI_KEYED_NONE, at);
+    TEST_ASSERT_EQUAL_UINT(at, EMBED_CALL(cli_keyed_key.find_hash, CliKeyedKeyCfg, .keyed = &s_keyed, .key = "one", .hash = hash));
+    const unsigned int none_hash = EMBED_CALL(cli_keyed_key_adjacent.hash, CliKeyedKeyAdjacentCfg, .keyed = &s_keyed, .key = "none");
+    TEST_ASSERT_EQUAL_UINT(CLI_KEYED_NONE, EMBED_CALL(cli_keyed_key.find_hash, CliKeyedKeyCfg, .keyed = &s_keyed, .key = "none", .hash = none_hash));
+    EMBED_CALL(cli_keyed_table.remove_at, CliKeyedCfg, .keyed_out = &s_keyed, .at = at);
+    TEST_ASSERT_EQUAL_UINT(CLI_KEYED_NONE, EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_keyed, .key = "one"));
+    TEST_ASSERT_NOT_EQUAL(CLI_KEYED_NONE, EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &s_keyed, .key = "two"));
+    assert_listing_size(5ull);
+}

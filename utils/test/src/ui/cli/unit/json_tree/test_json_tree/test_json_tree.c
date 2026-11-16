@@ -215,3 +215,35 @@ void test_a_file_is_read_into_a_tree_and_a_missing_file_is_refused_with_why(void
     TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = path, .err_msg = &err_msg, .owner = g_cli_text_owner));
     TEST_ASSERT_NOT_EQUAL(0ull, err_msg.at);
 }
+
+void test_a_tree_is_stored_in_one_cell_and_pinned_back_as_it_was(void)
+{
+    CliJson json;
+    CliJson pinned;
+    CliJsonStored stored = {NULL, NULL, 0u, 0ull};
+    const unsigned int root = tree_read(&json, "{\"a\":[1,2],\"b\":\"text\"}", 0u, 0ull);
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, root);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_stored.json_stored, CliJsonTreeStoredCfg, .json_read = &json, .stored = &stored, .owner = g_cli_text_owner));
+    TEST_ASSERT_NOT_NULL(stored.cell);
+    TEST_ASSERT_EQUAL_UINT(json.nodes, stored.nodes);
+    tree_released(&json);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_stored.json_pinned, CliJsonTreeStoredCfg, .stored_read = &stored, .json = &pinned));
+    TEST_ASSERT_EQUAL_STRING("{\"a\":[1,2],\"b\":\"text\"}", written_of(&pinned, root));
+    tree_released(&pinned);
+    cli_json_stored_release(&(CliJsonStoredCfg){.stored = &stored});
+    TEST_ASSERT_NULL(stored.cell);
+}
+
+void test_a_string_is_quoted_piece_by_piece_with_its_escapes_and_a_character_split_over_two_pieces(void)
+{
+    char buffer[128];
+    char piece[5];
+    VerbaLinea out = {buffer, sizeof(buffer), 0ull};
+    VerbaLinea line;
+    CliJsonQuoting quoting;
+    EMBED_CALL(cli_json_tree_out.json_quoting_begin, CliJsonTreeOutCfg, .out = &out, .quoting = &quoting, .line = &line, .piece = piece, .piece_size = sizeof(piece));
+    mmgr_line_put(&line, "ab\"c\\d\n");
+    mmgr_line_put(&line, "\xe2\x82\xac!");
+    EMBED_CALL(cli_json_tree_out.json_quoting_end, CliJsonTreeOutCfg, .out = &out, .quoting = &quoting, .line = &line);
+    CLI_TEST_ASSERT_TEXT("\"ab\\\"c\\\\d\\n\xe2\x82\xac!\"", buffer, out.at);
+}

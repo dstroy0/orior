@@ -49,3 +49,33 @@ void test_an_unclosed_array_ends_at_the_size(void)
     const CliReply reply = {text, sizeof(text) - 1u};
     TEST_ASSERT_EQUAL_UINT64(reply.size, cli_reply_value_end(&(CliReplyAtCfg){.reply = &reply, .at = 0ull}));
 }
+
+void test_a_string_spans_its_inner_bytes_is_the_word_it_is_and_a_value_is_true_where_it_is(void)
+{
+    TEST_ASSERT_EQUAL_UINT64(4ull, EMBED_CALL(cli_reply_at.string_span, CliReplyAtCfg, .reply = &s_reply, .at = 13ull));
+    TEST_ASSERT_EQUAL_UINT64(1ull, EMBED_CALL(cli_reply_at.string_span, CliReplyAtCfg, .reply = &s_reply, .at = 24ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_reply_at.string_span, CliReplyAtCfg, .reply = &s_reply, .at = 6ull));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &s_reply, .at = 24ull, .word_text = "c"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &s_reply, .at = 24ull, .word_text = "d"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &s_reply, .at = 6ull, .word_text = "1"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_reply_at.reply_true, CliReplyAtCfg, .reply = &s_reply, .at = 28ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_reply_at.reply_true, CliReplyAtCfg, .reply = &s_reply, .at = 6ull));
+}
+
+void test_a_reply_file_is_read_whole_and_let_go(void)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    cli_unity_folder("reply_file", folder);
+    cli_unity_file(folder, "reply.json", "{\"ok\":true}");
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "reply.json", .joined = path);
+    CliReply reply = {NULL, 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_reply_path.read, CliReplyPathCfg, .path = path, .reply_out = &reply));
+    TEST_ASSERT_EQUAL_UINT64(11ull, reply.size);
+    const unsigned long long ok = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply, .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply), .key = "ok");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_reply_at.reply_true, CliReplyAtCfg, .reply = &reply, .at = ok));
+    EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &reply);
+    TEST_ASSERT_NULL(reply.text);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "none.json", .joined = path);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_reply_path.read, CliReplyPathCfg, .path = path, .reply_out = &reply));
+}

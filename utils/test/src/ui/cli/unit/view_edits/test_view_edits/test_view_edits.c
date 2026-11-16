@@ -206,3 +206,20 @@ void test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte(vo
     TEST_ASSERT_EQUAL_UINT64(7ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 4u));
     TEST_ASSERT_EQUAL_UINT64(8ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 40u));
 }
+
+static CliCompletions s_items;
+
+void test_completion_items_are_put_after_each_other_and_made_unique_by_what_they_show(void)
+{
+    EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "get", .label_size = 3ull, .type = "function", .detail = "int get()", .detail_size = 9ull, .insert = "get()", .insert_size = 5ull, .snippet = 0));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "set", .label_size = 3ull, .type = "function", .detail = "", .detail_size = 0ull, .insert = "set($1)", .insert_size = 7ull, .snippet = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = &s_items, .label = "get", .label_size = 3ull, .type = "field", .detail = "", .detail_size = 0ull, .insert = "get", .insert_size = 3ull, .snippet = 0));
+    TEST_ASSERT_EQUAL_UINT(3u, s_items.count);
+    EMBED_CALL(cli_edits_items.completions_unique, CliEditsItemsCfg, .items = &s_items);
+    TEST_ASSERT_EQUAL_UINT(2u, s_items.count);
+    TEST_ASSERT_EQUAL_STRING("function", s_items.item[0].type);
+    TEST_ASSERT_EQUAL_UINT(5u, s_items.item[0].insert_size);
+    TEST_ASSERT_TRUE(s_items.item[1].snippet);
+    TEST_ASSERT_FALSE(s_items.full);
+}

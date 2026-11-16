@@ -14,6 +14,7 @@ extern void test_keys_and_side_values_count_with_their_terminators_and_values_do
 extern void test_replacing_an_entry_counts_the_new_side_value(void);
 extern void test_a_removed_entry_no_longer_counts(void);
 extern void test_clearing_lists_nothing(void);
+extern void test_a_key_is_found_by_its_hash_and_the_entry_at_a_place_is_taken_out(void);
 
 
 /*=======Mock Management=====*/
@@ -80,6 +81,7 @@ int main(void)
   run_test(test_replacing_an_entry_counts_the_new_side_value, "test_replacing_an_entry_counts_the_new_side_value", 64);
   run_test(test_a_removed_entry_no_longer_counts, "test_a_removed_entry_no_longer_counts", 72);
   run_test(test_clearing_lists_nothing, "test_clearing_lists_nothing", 80);
+  run_test(test_a_key_is_found_by_its_hash_and_the_entry_at_a_place_is_taken_out, "test_a_key_is_found_by_its_hash_and_the_entry_at_a_place_is_taken_out", 87);
 
   return UNITY_END();
 }

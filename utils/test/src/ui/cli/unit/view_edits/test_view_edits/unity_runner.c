@@ -21,6 +21,7 @@ extern void test_a_replace_reaches_the_texts_end_where_the_last_lines_differ(voi
 extern void test_a_replace_with_the_same_text_changes_nothing(void);
 extern void test_a_key_with_no_view_is_refused(void);
 extern void test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte(void);
+extern void test_completion_items_are_put_after_each_other_and_made_unique_by_what_they_show(void);
 
 
 /*=======Mock Management=====*/
@@ -93,6 +94,7 @@ int main(void)
   run_test(test_a_replace_with_the_same_text_changes_nothing, "test_a_replace_with_the_same_text_changes_nothing", 175);
   run_test(test_a_key_with_no_view_is_refused, "test_a_key_with_no_view_is_refused", 183);
   run_test(test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte, "test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte", 192);
+  run_test(test_completion_items_are_put_after_each_other_and_made_unique_by_what_they_show, "test_completion_items_are_put_after_each_other_and_made_unique_by_what_they_show", 212);
 
   return UNITY_END();
 }

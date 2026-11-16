@@ -430,3 +430,49 @@ void test_a_runaway_pattern_gives_up(void)
     run_written(40u, "!");
     TEST_ASSERT_FALSE(matched_at("(a|aa)+$", "", s_text, 0ull, &taken));
 }
+
+// whether the ASCII byte `byte` is among the first characters `first`
+static int first_has(const CliRegexpFirst *first, unsigned char byte)
+{
+    return (int)((first->ascii[byte >> 6u] >> (byte & 63u)) & 1ull);
+}
+
+// the repeat node of the pattern read whose child is of `child_type`, CLI_REGEXP_NONE where none is
+static unsigned int repeat_found(unsigned int child_type)
+{
+    for (unsigned int at = 0u; at < s_regexp.nodes; at += 1u)
+    {
+        if ((s_regexp.node[at].type == CLI_REGEXP_REPEAT) && (s_regexp.node[s_regexp.node[at].child].type == child_type))
+        {
+            return at;
+        }
+    }
+    return CLI_REGEXP_NONE;
+}
+
+void test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way(void)
+{
+    TEST_ASSERT_TRUE(regexp_read("[ab]c", ""));
+    const CliRegexpFirst first = EMBED_CALL(cli_regexp_index.first_get, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root);
+    TEST_ASSERT_TRUE(first_has(&first, (unsigned char)'a'));
+    TEST_ASSERT_TRUE(first_has(&first, (unsigned char)'b'));
+    TEST_ASSERT_FALSE(first_has(&first, (unsigned char)'c'));
+    TEST_ASSERT_FALSE(first.empty);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_regexp_index.one_way, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root));
+    // a character node leaves every character outside ASCII to the match
+    TEST_ASSERT_TRUE(first.other);
+    TEST_ASSERT_TRUE(regexp_read("a*", ""));
+    const CliRegexpFirst any = EMBED_CALL(cli_regexp_index.first_get, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.root);
+    TEST_ASSERT_TRUE(first_has(&any, (unsigned char)'a'));
+    TEST_ASSERT_TRUE(any.empty);
+    // a repeat of one character takes the text one way; a repeat of a group that repeats does not
+    unsigned int repeat = repeat_found(CLI_REGEXP_CHAR);
+    TEST_ASSERT_NOT_EQUAL(CLI_REGEXP_NONE, repeat);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_regexp_index.one_way, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.node[repeat].child));
+    TEST_ASSERT_TRUE(s_regexp.node[repeat].one_way);
+    TEST_ASSERT_TRUE(regexp_read("(a*)+", ""));
+    repeat = repeat_found(CLI_REGEXP_GROUP);
+    TEST_ASSERT_NOT_EQUAL(CLI_REGEXP_NONE, repeat);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_regexp_index.one_way, CliRegexpIndexCfg, .regexp = &s_regexp, .index = s_regexp.node[repeat].child));
+    TEST_ASSERT_FALSE(s_regexp.node[repeat].one_way);
+}

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_text_walks.c: the scans over a text's bytes answer as a scan of one byte at a time does, from every position and over every
 // length around a lane's and a word's width, and read nothing past their bounds
+#include "ui/cli/src/text/measured.h"
 #include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -312,4 +313,24 @@ void test_the_folded_compare_agrees_across_words(void)
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "abcdefghij\xc3\xa9", .size = 12ull, .other_pointer = "ABCDEFGHIJ\xc3\xa9"));
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "abcdefghij\xc3", .size = 11ull, .other_pointer = "abcdefghij\xe3"));
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = "abcdefghij[", .size = 11ull, .other_pointer = "abcdefghij{"));
+}
+
+void test_the_place_past_the_last_byte_outside_a_set_before_a_place_is_found_and_zero_where_none_is(void)
+{
+    const char text[] = "ab  cd e";
+    TEST_ASSERT_EQUAL_UINT64(5ull, EMBED_CALL(cli_text_at_size_classes.back_end_class, CliTextAtSizeClassesCfg, .text = text, .at = 5ull, .size = 8ull, .classes = 0u, .set = " "));
+    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_text_at_size_classes.back_end_class, CliTextAtSizeClassesCfg, .text = text, .at = 4ull, .size = 8ull, .classes = 0u, .set = " "));
+    TEST_ASSERT_EQUAL_UINT64(6ull, EMBED_CALL(cli_text_at_size_classes.back_end_class, CliTextAtSizeClassesCfg, .text = text, .at = 7ull, .size = 8ull, .classes = 0u, .set = " "));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_text_at_size_classes.back_end_class, CliTextAtSizeClassesCfg, .text = "  x", .at = 2ull, .size = 3ull, .classes = 0u, .set = " "));
+}
+
+void test_a_measured_line_counts_what_is_written_and_stores_none_of_it(void)
+{
+    char piece[8];
+    VerbaLinea line;
+    EMBED_CALL(cli_measured_piece.measure_begin, CliMeasuredPieceCfg, .line = &line, .piece = piece, .piece_size = sizeof(piece));
+    mmgr_line_put(&line, "twenty characters long!!");
+    mmgr_line_put(&line, "x");
+    TEST_ASSERT_TRUE(mmgr_line_ok(&line));
+    TEST_ASSERT_EQUAL_UINT64(25ull, EMBED_CALL(cli_measured_table.measure, CliMeasuredCfg, .line_read = &line));
 }

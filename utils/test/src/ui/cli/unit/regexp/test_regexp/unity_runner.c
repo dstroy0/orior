@@ -65,6 +65,7 @@ extern void test_a_repetition_a_pass_at_a_time_matches_as_backtracking_does(void
 extern void test_a_repetition_that_goes_too_deep_gives_up(void);
 extern void test_a_repetition_inside_its_stack_matches(void);
 extern void test_a_runaway_pattern_gives_up(void);
+extern void test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way(void);
 
 
 /*=======Mock Management=====*/
@@ -184,6 +185,7 @@ int main(void)
   run_test(test_a_repetition_that_goes_too_deep_gives_up, "test_a_repetition_that_goes_too_deep_gives_up", 412);
   run_test(test_a_repetition_inside_its_stack_matches, "test_a_repetition_inside_its_stack_matches", 419);
   run_test(test_a_runaway_pattern_gives_up, "test_a_runaway_pattern_gives_up", 427);
+  run_test(test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way, "test_a_patterns_first_characters_are_read_at_its_root_and_a_plain_run_takes_the_text_one_way", 453);
 
   return UNITY_END();
 }

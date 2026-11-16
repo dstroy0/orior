@@ -167,3 +167,21 @@ void test_the_pathspecs_name_what_the_patterns_name(void)
         TEST_ASSERT_EQUAL_STRING(s_requested[at], s_words.word_text[at]);
     }
 }
+
+void test_the_include_specs_name_what_is_included_and_the_hidden_specs_what_is_hidden(void)
+{
+    static const char *const s_specs[3] = {"target", "!src/**", "gen/"};
+    s_words.count = 0u;
+    s_words.used = 0u;
+    EMBED_CALL(cli_patterns.include_specs, CliPatternsCfg, .patterns = patterns_read(s_specs, 3u), .words = &s_words);
+    TEST_ASSERT_EQUAL_UINT(2u, s_words.count);
+    TEST_ASSERT_EQUAL_STRING(":(glob" PATTERNS_CASE ")src/**", s_words.word_text[0]);
+    TEST_ASSERT_EQUAL_STRING(":(glob" PATTERNS_CASE ")src/**/**", s_words.word_text[1]);
+    s_words.count = 0u;
+    s_words.used = 0u;
+    EMBED_CALL(cli_patterns.hidden_specs, CliPatternsCfg, .patterns = &s_patterns, .words = &s_words);
+    TEST_ASSERT_EQUAL_UINT(3u, s_words.count);
+    CLI_TEST_ASSERT_CONTAINS("**/target", s_words.word_text[0]);
+    CLI_TEST_ASSERT_CONTAINS("**/target/**", s_words.word_text[1]);
+    CLI_TEST_ASSERT_CONTAINS("**/gen/**", s_words.word_text[2]);
+}

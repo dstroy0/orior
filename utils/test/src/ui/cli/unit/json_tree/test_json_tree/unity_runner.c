@@ -18,6 +18,8 @@ extern void test_a_string_is_quoted_with_its_escapes_past_a_words_width(void);
 extern void test_a_tree_is_built_with_members_set_removed_sorted_appended_copied_and_measured(void);
 extern void test_json_is_written_compact_a_double_as_serde_writes_it_and_a_values_end_found(void);
 extern void test_a_file_is_read_into_a_tree_and_a_missing_file_is_refused_with_why(void);
+extern void test_a_tree_is_stored_in_one_cell_and_pinned_back_as_it_was(void);
+extern void test_a_string_is_quoted_piece_by_piece_with_its_escapes_and_a_character_split_over_two_pieces(void);
 
 
 /*=======Mock Management=====*/
@@ -90,6 +92,8 @@ int main(void)
   run_test(test_a_tree_is_built_with_members_set_removed_sorted_appended_copied_and_measured, "test_a_tree_is_built_with_members_set_removed_sorted_appended_copied_and_measured", 129);
   run_test(test_json_is_written_compact_a_double_as_serde_writes_it_and_a_values_end_found, "test_json_is_written_compact_a_double_as_serde_writes_it_and_a_values_end_found", 169);
   run_test(test_a_file_is_read_into_a_tree_and_a_missing_file_is_refused_with_why, "test_a_file_is_read_into_a_tree_and_a_missing_file_is_refused_with_why", 193);
+  run_test(test_a_tree_is_stored_in_one_cell_and_pinned_back_as_it_was, "test_a_tree_is_stored_in_one_cell_and_pinned_back_as_it_was", 219);
+  run_test(test_a_string_is_quoted_piece_by_piece_with_its_escapes_and_a_character_split_over_two_pieces, "test_a_string_is_quoted_piece_by_piece_with_its_escapes_and_a_character_split_over_two_pieces", 237);
 
   return UNITY_END();
 }

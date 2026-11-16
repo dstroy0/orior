@@ -13,6 +13,8 @@ extern void test_the_end_of_an_object_passes_the_brackets_inside_its_string(void
 extern void test_the_end_of_a_string_is_past_its_closing_quote(void);
 extern void test_the_end_of_a_word_is_at_the_byte_that_follows_it(void);
 extern void test_an_unclosed_array_ends_at_the_size(void);
+extern void test_a_string_spans_its_inner_bytes_is_the_word_it_is_and_a_value_is_true_where_it_is(void);
+extern void test_a_reply_file_is_read_whole_and_let_go(void);
 
 
 /*=======Mock Management=====*/
@@ -80,6 +82,8 @@ int main(void)
   run_test(test_the_end_of_a_string_is_past_its_closing_quote, "test_the_end_of_a_string_is_past_its_closing_quote", 36);
   run_test(test_the_end_of_a_word_is_at_the_byte_that_follows_it, "test_the_end_of_a_word_is_at_the_byte_that_follows_it", 41);
   run_test(test_an_unclosed_array_ends_at_the_size, "test_an_unclosed_array_ends_at_the_size", 46);
+  run_test(test_a_string_spans_its_inner_bytes_is_the_word_it_is_and_a_value_is_true_where_it_is, "test_a_string_spans_its_inner_bytes_is_the_word_it_is_and_a_value_is_true_where_it_is", 53);
+  run_test(test_a_reply_file_is_read_whole_and_let_go, "test_a_reply_file_is_read_whole_and_let_go", 65);
 
   return UNITY_END();
 }

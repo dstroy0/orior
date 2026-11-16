@@ -25,6 +25,7 @@ extern void test_a_set_of_none_is_empty(void);
 extern void test_a_set_text_is_read_line_by_line(void);
 extern void test_no_patterns_name_the_complete_tree(void);
 extern void test_the_pathspecs_name_what_the_patterns_name(void);
+extern void test_the_include_specs_name_what_is_included_and_the_hidden_specs_what_is_hidden(void);
 
 
 /*=======Mock Management=====*/
@@ -103,6 +104,7 @@ int main(void)
   run_test(test_a_set_text_is_read_line_by_line, "test_a_set_text_is_read_line_by_line", 135);
   run_test(test_no_patterns_name_the_complete_tree, "test_no_patterns_name_the_complete_tree", 148);
   run_test(test_the_pathspecs_name_what_the_patterns_name, "test_the_pathspecs_name_what_the_patterns_name", 157);
+  run_test(test_the_include_specs_name_what_is_included_and_the_hidden_specs_what_is_hidden, "test_the_include_specs_name_what_is_included_and_the_hidden_specs_what_is_hidden", 171);
 
   return UNITY_END();
 }
