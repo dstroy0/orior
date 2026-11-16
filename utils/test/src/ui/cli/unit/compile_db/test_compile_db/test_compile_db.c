@@ -24,6 +24,10 @@ static CliDatabase s_own;
 static char s_own_dir[CLI_PATH_MAX_LEN];
 static int s_files_in_temporary_tier;
 static int s_own_run_result;
+static char s_flags_dir[CLI_PATH_MAX_LEN];
+static int s_flags_run_result;
+static char s_listed[1u << 12u];
+static VerbaLinea s_listing;
 
 // a path with each `\` a `/` into `out`, CLI_PATH_MAX_LEN bytes
 static void forward_slashed(const char *path, char *out)
@@ -136,6 +140,53 @@ static void own_gathered(void)
     EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs, CliCompileDbInputsCtx, .root = s_own_dir, .inputs = &s_inputs);
     s_files_in_temporary_tier = mmgr_series_cellularum_temporary_top(cli_pool_series_cellularum()) < top_before;
     EMBED_CALL(cli_compile_db_root_internal.compile_gather, CliCompileDbRootCtx, .root = s_own_dir, .inputs_read = &s_inputs, .database = &s_own);
+}
+
+// a tree whose own database gives two files defines, include folders and a file included first, written once
+static void flags_written(void)
+{
+    if (s_flags_run_result)
+    {
+        return;
+    }
+    s_flags_run_result = 1;
+    char out[CLI_PATH_MAX_LEN];
+    cli_unity_folder("compile_db_flags", s_flags_dir);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_flags_dir, .relative = "out", .joined = out);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = out));
+    cli_unity_file(s_flags_dir, ".clangd", "CompileFlags:\n  CompilationDatabase: out\n");
+    // the entries' files stand under the tree's top, each named from its folder, the tree's top, written with forward
+    // slashes as JSON takes them
+    char slashed[CLI_PATH_MAX_LEN];
+    forward_slashed(s_flags_dir, slashed);
+    VerbaLinea database = {s_listed, sizeof(s_listed), 0ull};
+    mmgr_line_put(&database, "[{\"directory\": \"");
+    mmgr_line_put(&database, slashed);
+    mmgr_line_put(&database, "\", \"file\": \"");
+    mmgr_line_put(&database, slashed);
+    mmgr_line_put(&database, "/src/a.c\", \"command\": \"gcc -DALPHA=1 -DBETA -Iinc -include pre.h -c src/a.c\"}, {\"directory\": \"");
+    mmgr_line_put(&database, slashed);
+    mmgr_line_put(&database, "\", \"file\": \"");
+    mmgr_line_put(&database, slashed);
+    mmgr_line_put(&database, "/src/b.c\", \"command\": \"gcc -DALPHA=1 -Iother -c src/b.c\"}]");
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&database));
+    cli_unity_file(out, "compile_commands.json", s_listed);
+}
+
+// a define written `name=value` on a line of s_listing
+static void define_recorded(const CliDefineEachCfg *args)
+{
+    mmgr_line_put(&s_listing, args->define->name);
+    mmgr_line_ch(&s_listing, '=');
+    mmgr_line_put(&s_listing, (args->define->value != NULL) ? args->define->value : "");
+    mmgr_line_ch(&s_listing, '\n');
+}
+
+// an include folder or file written on a line of s_listing
+static void include_recorded(const CliEachPathTypeCfg *args)
+{
+    mmgr_line_put(&s_listing, args->path);
+    mmgr_line_ch(&s_listing, '\n');
 }
 
 // a word of a command line appended, `|` between them
@@ -252,6 +303,45 @@ void test_nothing_is_written_over_a_trees_own_database(void)
     own_gathered();
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_own_dir, .relative = CLI_COMPILE_WRITTEN, .joined = path);
     TEST_ASSERT_FALSE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));
+}
+
+void test_a_compiler_named_cl_is_msvcs_and_another_is_not(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_compile_db_table.is_cl, CliCompileDbCfg, .compiler = "C:/VS/bin/cl.exe"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_compile_db_table.is_cl, CliCompileDbCfg, .compiler = "cl"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_compile_db_table.is_cl, CliCompileDbCfg, .compiler = "/usr/bin/clang"));
+}
+
+void test_a_files_defines_come_from_its_entry_and_its_folders(void)
+{
+    flags_written();
+    s_listing = (VerbaLinea){s_listed, sizeof(s_listed), 0ull};
+    EMBED_CALL(cli_compile_db_root.defines_get, CliCompileDbRootCfg, .root = s_flags_dir, .path = "src/a.c", .each_define_each = define_recorded, .context = NULL);
+    (void)mmgr_line_finish(&s_listing);
+    CLI_TEST_ASSERT_CONTAINS("ALPHA=1\n", s_listed);
+    CLI_TEST_ASSERT_CONTAINS("BETA=", s_listed);
+    s_listing = (VerbaLinea){s_listed, sizeof(s_listed), 0ull};
+    EMBED_CALL(cli_compile_db_root.defines_get, CliCompileDbRootCfg, .root = s_flags_dir, .path = "src/b.c", .each_define_each = define_recorded, .context = NULL);
+    (void)mmgr_line_finish(&s_listing);
+    CLI_TEST_ASSERT_CONTAINS("ALPHA=1\n", s_listed);
+    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = s_listed, .other = "BETA", .cap = sizeof(s_listed), .other_cap = 5ull}));
+}
+
+void test_a_files_includes_are_its_entrys_and_the_trees_are_every_entrys_once(void)
+{
+    flags_written();
+    s_listing = (VerbaLinea){s_listed, sizeof(s_listed), 0ull};
+    EMBED_CALL(cli_compile_db_root_path.includes_get, CliCompileDbRootPathCfg, .root = s_flags_dir, .path = "src/a.c", .each = include_recorded, .context = NULL);
+    (void)mmgr_line_finish(&s_listing);
+    CLI_TEST_ASSERT_CONTAINS("inc\n", s_listed);
+    CLI_TEST_ASSERT_CONTAINS("pre.h\n", s_listed);
+    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = s_listed, .other = "other", .cap = sizeof(s_listed), .other_cap = 6ull}));
+    s_listing = (VerbaLinea){s_listed, sizeof(s_listed), 0ull};
+    EMBED_CALL(cli_compile_db_root_path.includes_all, CliCompileDbRootPathCfg, .root = s_flags_dir, .each = include_recorded, .context = NULL);
+    (void)mmgr_line_finish(&s_listing);
+    CLI_TEST_ASSERT_CONTAINS("inc\n", s_listed);
+    CLI_TEST_ASSERT_CONTAINS("other\n", s_listed);
+    CLI_TEST_ASSERT_CONTAINS("pre.h\n", s_listed);
 }
 
 void test_a_command_lines_quoted_words_stay_complete(void)

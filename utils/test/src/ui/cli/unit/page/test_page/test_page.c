@@ -168,3 +168,11 @@ void test_a_color_reads_as_written(void)
     TEST_ASSERT_EQUAL_UINT8(11u, rgb[1]);
     TEST_ASSERT_EQUAL_UINT8(12u, rgb[2]);
 }
+
+void test_the_papers_name_is_written_as_ipp_and_pwg_write_it(void)
+{
+    CliPrintLayout layout = {.paper = "character", .landscape = 0, .gray = 0, .has_pages = 0, .copies = 1u};
+    TEST_ASSERT_EQUAL_STRING("na_character_8.5x11in", EMBED_CALL(cli_print_layout.media, CliPrintLayoutCfg, .layout = &layout));
+    CliPrintLayout a4 = {.paper = "a4", .landscape = 0, .gray = 0, .has_pages = 0, .copies = 1u};
+    TEST_ASSERT_EQUAL_STRING("iso_a4_210x297mm", EMBED_CALL(cli_print_layout.media, CliPrintLayoutCfg, .layout = &a4));
+}

@@ -21,6 +21,7 @@ extern void test_an_ipv6_host_is_read_from_its_brackets(void);
 extern void test_an_encrypted_address_is_refused(void);
 extern void test_a_job_is_accepted_and_its_state_reported(void);
 extern void test_a_canceled_job_ended(void);
+extern void test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put(void);
 extern void test_a_format_the_printer_does_not_accept_is_refused(void);
 
 
@@ -96,7 +97,8 @@ int main(void)
   run_test(test_an_encrypted_address_is_refused, "test_an_encrypted_address_is_refused", 256);
   run_test(test_a_job_is_accepted_and_its_state_reported, "test_a_job_is_accepted_and_its_state_reported", 266);
   run_test(test_a_canceled_job_ended, "test_a_canceled_job_ended", 282);
-  run_test(test_a_format_the_printer_does_not_accept_is_refused, "test_a_format_the_printer_does_not_accept_is_refused", 297);
+  run_test(test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put, "test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put", 297);
+  run_test(test_a_format_the_printer_does_not_accept_is_refused, "test_a_format_the_printer_does_not_accept_is_refused", 319);
 
   return UNITY_END();
 }

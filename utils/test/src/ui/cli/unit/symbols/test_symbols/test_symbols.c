@@ -297,6 +297,48 @@ void test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read(v
     CLI_TEST_ASSERT_CONTAINS("area", s_store.label);
 }
 
+static char s_stamps[1024];
+static VerbaLinea s_stamp_line;
+
+// a change the tree stamps written on a line of s_stamp_line
+static void stamp_recorded(const CliEachPathTypeCfg *args)
+{
+    mmgr_line_put(&s_stamp_line, args->path);
+    mmgr_line_ch(&s_stamp_line, '\n');
+}
+
+void test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported(void)
+{
+    tree_begun();
+    const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/area.c");
+    TEST_ASSERT_NOT_EQUAL(CLI_BRANCHES_MAX, file);
+    CliTreeBranch branch;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+    TEST_ASSERT_NOT_NULL(branch.cell);
+    EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = branch.bytes);
+    char *const scratch = cli_branch_copy_alloc();
+    TEST_ASSERT_NOT_NULL(scratch);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = branch.cell, .offset = 0u, .dst = scratch, .bytes = (embed_word)branch.bytes});
+    TEST_ASSERT_EQUAL_STRING("src/area.c", EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path, CliSymbolsTreeBranchScratchCfg, .branch = &branch, .scratch_read = scratch));
+    const CliDeclaration *const declarations = EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations, CliSymbolsTreeBranchScratchCfg, .branch = &branch, .scratch_read = scratch);
+    TEST_ASSERT_NOT_NULL(declarations);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, branch.count);
+    int area_declared = 0;
+    for (unsigned int at = 0u; at < branch.count; at += 1u)
+    {
+        const char *const name = scratch + declarations[at].name;
+        area_declared |= (declarations[at].length == 4u) && (name[0] == 'a') && (name[1] == 'r') && (name[2] == 'e') && (name[3] == 'a');
+    }
+    TEST_ASSERT_TRUE_MESSAGE(area_declared, "area is declared in src/area.c");
+    g_cli_guard->persistent_buf_release(scratch, mmgr_owner_of_buf(cli_pool_series_cellularum(), scratch));
+    // a file written anew moves its stamp, which the tree reports where nothing else reports its changes
+    s_stamp_line = (VerbaLinea){s_stamps, sizeof(s_stamps), 0ull};
+    cli_unity_file(s_tree, "src/use.c", "#include \"shape.h\"\nint use(void)\n{\n    return area(1) + area(2) + SIDES;\n}\n");
+    EMBED_CALL(cli_symbols_context.tree_stamp, CliSymbolsContextCfg, .root = s_tree, .emit = stamp_recorded, .context = NULL);
+    (void)mmgr_line_finish(&s_stamp_line);
+    CLI_TEST_ASSERT_CONTAINS("src/use.c", s_stamps);
+}
+
 void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(void)
 {
     tree_begun();

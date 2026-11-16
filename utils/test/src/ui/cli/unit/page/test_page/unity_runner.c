@@ -18,6 +18,7 @@ extern void test_a_page_not_named_does_not_print(void);
 extern void test_the_page_ranges_read_as_written(void);
 extern void test_a_color_turns_gray_by_its_lightness(void);
 extern void test_a_color_reads_as_written(void);
+extern void test_the_papers_name_is_written_as_ipp_and_pwg_write_it(void);
 
 
 /*=======Mock Management=====*/
@@ -89,6 +90,7 @@ int main(void)
   run_test(test_the_page_ranges_read_as_written, "test_the_page_ranges_read_as_written", 142);
   run_test(test_a_color_turns_gray_by_its_lightness, "test_a_color_turns_gray_by_its_lightness", 154);
   run_test(test_a_color_reads_as_written, "test_a_color_reads_as_written", 163);
+  run_test(test_the_papers_name_is_written_as_ipp_and_pwg_write_it, "test_the_papers_name_is_written_as_ipp_and_pwg_write_it", 172);
 
   return UNITY_END();
 }

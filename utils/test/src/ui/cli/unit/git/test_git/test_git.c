@@ -4,6 +4,7 @@
 // deleted, a merged branch has its own column and joins where it began, a repository owns the deepest folder that contains a path, and each
 // status has one character
 #include "ui/cli/src/code/git_internal.h"
+#include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -517,4 +518,33 @@ void test_clones_go_under_the_home_folder_and_opened_repositories_under_its_repo
     TEST_ASSERT_NOT_EQUAL(0, folder[0]);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_git_err_msg_folder.opened_parent, CliGitErrMsgFolderCfg, .folder = folder, .err_msg = &err_msg));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = folder, .size = CLI_UNITY_LENGTH(folder), .suffix = "/repositories"));
+}
+
+void test_the_log_pane_lists_the_repository_and_its_graph_once_relisted(void)
+{
+    two_commits_made("log_relist", "one\n", "two\n");
+    EMBED_CALL(cli_git_log.relist, CliGitLogCfg, .root = s_root);
+    unsigned int count = 0u;
+    const char *const repo = EMBED_CALL(cli_git_log.repo, CliGitLogCfg, .root = s_root, .count_out = &count);
+    TEST_ASSERT_NOT_NULL(repo);
+    TEST_ASSERT_EQUAL_UINT(1u, count);
+    CLI_TEST_ASSERT_CONTAINS(": ", repo);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(2u, EMBED_CALL(cli_git_log.rows, CliGitLogCfg, .root = s_root));
+}
+
+void test_the_last_commits_text_is_stored_beside_a_document_on_a_worker(void)
+{
+    CliShape shape;
+    two_commits_made("head_later", "one\n", "two\n");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "git:head", .text = "two\n", .size = 4ull, .shape = &shape));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_document.has_head, CliDocumentCfg, .key = "git:head"));
+    cli_git_head_later(&(CliGitRootPathKeyCfg){.root = s_root, .path = "a.txt", .key = "git:head"});
+    CliWake pause = CLI_WAKE_INIT;
+    const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
+    while (!EMBED_CALL(cli_document.has_head, CliDocumentCfg, .key = "git:head") && (cli_clock_milliseconds() < last_ms))
+    {
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 10ULL);
+    }
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_document.has_head, CliDocumentCfg, .key = "git:head"), "the head's text comes within ten seconds");
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "git:head");
 }

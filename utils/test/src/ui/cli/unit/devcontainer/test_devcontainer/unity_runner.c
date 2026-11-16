@@ -29,6 +29,7 @@ extern void test_a_compose_description_names_its_project(void);
 extern void test_a_compose_description_fetches_up_its_service(void);
 extern void test_a_description_with_nothing_to_build_reports_it(void);
 extern void test_a_description_uses_memory_sized_to_it_and_releases_it(void);
+extern void test_json_with_comments_and_trailing_commas_is_made_plain(void);
 
 
 /*=======Mock Management=====*/
@@ -111,6 +112,7 @@ int main(void)
   run_test(test_a_compose_description_fetches_up_its_service, "test_a_compose_description_fetches_up_its_service", 283);
   run_test(test_a_description_with_nothing_to_build_reports_it, "test_a_description_with_nothing_to_build_reports_it", 290);
   run_test(test_a_description_uses_memory_sized_to_it_and_releases_it, "test_a_description_uses_memory_sized_to_it_and_releases_it", 298);
+  run_test(test_json_with_comments_and_trailing_commas_is_made_plain, "test_json_with_comments_and_trailing_commas_is_made_plain", 306);
 
   return UNITY_END();
 }

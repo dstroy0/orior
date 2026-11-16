@@ -10,6 +10,7 @@
 #include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/pages.h"
 #include "ui/cli/src/editor/view.h"
+#include "ui/cli/src/machine/state.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -1983,4 +1984,32 @@ void test_a_pages_edits_are_written_to_the_paged_text(void)
     TEST_ASSERT_EQUAL_MEMORY("xline 0", frame->bytes + frame->row[0].text, 7u);
     cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
     paged_closed();
+}
+
+void test_the_session_saves_the_open_views_paths_and_restores_them_from_the_folders_entries(void)
+{
+    char home[CLI_PATH_MAX_LEN];
+    char restored_key[CLI_NAME_MAX_LEN] = "";
+    paged_view();
+    cli_unity_folder("view_session_home", home);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
+    cli_view_session_save(&(CliViewAtCfg){.root = s_folder});
+    paged_closed();
+    const unsigned int before = cli_view_count();
+    CliStateEntries entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = home, .owner = g_cli_text_owner});
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    cli_view_session_restore(s_folder, &entries, 20u, 80u);
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries, .owner = g_cli_text_owner});
+    TEST_ASSERT_EQUAL_UINT(before + 1u, cli_view_count());
+    for (unsigned int at = 0u; at < cli_view_count(); at += 1u)
+    {
+        char path[CLI_PATH_MAX_LEN];
+        if (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path}) &&
+            EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = path, .size = CLI_UNITY_LENGTH(path), .suffix = "numbered.txt"))
+        {
+            (void)cli_view_key(&(CliViewAtCfg){.at = at, .key_out = restored_key});
+        }
+    }
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(0, restored_key[0], "the numbered file's view is open again");
+    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = restored_key);
 }

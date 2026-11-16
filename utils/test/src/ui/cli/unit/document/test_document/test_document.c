@@ -723,3 +723,23 @@ void test_the_walks_telemetry_switches_on_and_off_around_a_walk(void)
     TEST_ASSERT_EQUAL_UINT64(2ull, shape.lines);
 }
 
+void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(void)
+{
+    static const char s_names[] = "alpha beta\nalp gamma\nalpha x\n";
+    CliShape shape;
+    char grammar[CLI_NAME_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "words", .text = s_names, .size = sizeof(s_names) - 1u, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = grammar, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "words", .grammar = grammar, .named = 1));
+    cli_document_walk();
+    CliDocumentWords *const words = EMBED_CALL(cli_document_words.words_alloc, CliDocumentWordsCfg, .key = "words", .first = 0ull, .last = 2ull, .cursor = {1ull, 3ull}, .owner = g_cli_text_owner);
+    TEST_ASSERT_NOT_NULL(words);
+    TEST_ASSERT_EQUAL_UINT(3u, words->count);
+    CLI_TEST_ASSERT_CONTAINS("beta", words->text);
+    CLI_TEST_ASSERT_CONTAINS("gamma", words->text);
+    g_cli_guard->persistent_buf_release(words, g_cli_text_owner);
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "words");
+}
+

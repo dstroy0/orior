@@ -44,6 +44,7 @@ extern void test_the_shape_of_lines_counts_their_lines_and_units(void);
 extern void test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none(void);
 extern void test_utf16_units_read_as_characters_and_write_as_utf8_and_json(void);
 extern void test_the_walks_telemetry_switches_on_and_off_around_a_walk(void);
+extern void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(void);
 
 
 /*=======Mock Management=====*/
@@ -137,6 +138,7 @@ int main(void)
   run_test(test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none, "test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none", 672);
   run_test(test_utf16_units_read_as_characters_and_write_as_utf8_and_json, "test_utf16_units_read_as_characters_and_write_as_utf8_and_json", 694);
   run_test(test_the_walks_telemetry_switches_on_and_off_around_a_walk, "test_the_walks_telemetry_switches_on_and_off_around_a_walk", 714);
+  run_test(test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out, "test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out", 726);
 
   return UNITY_END();
 }

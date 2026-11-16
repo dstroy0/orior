@@ -44,6 +44,7 @@ extern void test_a_request_stores_its_last_answers_the_last_first(void);
 extern void test_each_request_stores_its_own_answers(void);
 extern void test_a_request_with_no_answers_stored_lists_none(void);
 extern void test_a_large_answers_body_is_stored_cut(void);
+extern void test_a_requests_key_is_its_name_or_its_method_and_address(void);
 
 
 /*=======Mock Management=====*/
@@ -142,6 +143,7 @@ int main(void)
   run_test(test_each_request_stores_its_own_answers, "test_each_request_stores_its_own_answers", 529);
   run_test(test_a_request_with_no_answers_stored_lists_none, "test_a_request_with_no_answers_stored_lists_none", 536);
   run_test(test_a_large_answers_body_is_stored_cut, "test_a_large_answers_body_is_stored_cut", 543);
+  run_test(test_a_requests_key_is_its_name_or_its_method_and_address, "test_a_requests_key_is_its_name_or_its_method_and_address", 555);
 
   return UNITY_END();
 }

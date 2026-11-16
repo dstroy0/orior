@@ -27,6 +27,7 @@ extern void test_a_files_bytes_follow_its_header(void);
 extern void test_a_long_name_goes_in_a_pax_header(void);
 extern void test_a_tar_stream_is_complete_blocks(void);
 extern void test_a_difference_shows_the_removed_and_added_lines(void);
+extern void test_a_jobs_do_names_its_act_and_an_unknown_word_names_none(void);
 
 
 /*=======Mock Management=====*/
@@ -107,6 +108,7 @@ int main(void)
   run_test(test_a_long_name_goes_in_a_pax_header, "test_a_long_name_goes_in_a_pax_header", 181);
   run_test(test_a_tar_stream_is_complete_blocks, "test_a_tar_stream_is_complete_blocks", 198);
   run_test(test_a_difference_shows_the_removed_and_added_lines, "test_a_difference_shows_the_removed_and_added_lines", 203);
+  run_test(test_a_jobs_do_names_its_act_and_an_unknown_word_names_none, "test_a_jobs_do_names_its_act_and_an_unknown_word_names_none", 212);
 
   return UNITY_END();
 }

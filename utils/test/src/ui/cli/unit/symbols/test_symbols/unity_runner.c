@@ -27,6 +27,7 @@ extern void test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view(vo
 extern void test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk(void);
 extern void test_a_token_names_roles_come_off_its_segments(void);
 extern void test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read(void);
+extern void test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported(void);
 extern void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(void);
 
 
@@ -107,7 +108,8 @@ int main(void)
   run_test(test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk, "test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk", 262);
   run_test(test_a_token_names_roles_come_off_its_segments, "test_a_token_names_roles_come_off_its_segments", 276);
   run_test(test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read, "test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read", 284);
-  run_test(test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last, "test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last", 300);
+  run_test(test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported, "test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported", 310);
+  run_test(test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last, "test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last", 342);
 
   return UNITY_END();
 }

@@ -302,3 +302,17 @@ void test_a_description_uses_memory_sized_to_it_and_releases_it(void)
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_devcontainer_owner));
     TEST_ASSERT_LESS_THAN_UINT64(65536ull, mmgr_owner_hw(g_cli_devcontainer_owner));
 }
+
+void test_json_with_comments_and_trailing_commas_is_made_plain(void)
+{
+    static const char s_text[] = "{\n  // the image\n  \"image\": \"a//b\", /* kept? no */\n  \"list\": [1, 2,],\n}\n";
+    char buffer[256];
+    VerbaLinea plain = {buffer, sizeof(buffer), 0ull};
+    EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = s_text, .size = sizeof(s_text) - 1u, .plain = &plain);
+    (void)mmgr_line_finish(&plain);
+    CLI_TEST_ASSERT_CONTAINS("\"image\": \"a//b\"", buffer);
+    CLI_TEST_ASSERT_CONTAINS("\"list\": [1, 2]", buffer);
+    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = buffer, .other = "// the", .cap = sizeof(buffer), .other_cap = 7ull}));
+    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = buffer, .other = "kept?", .cap = sizeof(buffer), .other_cap = 6ull}));
+    TEST_ASSERT_NULL(cellul.find(&(CatenaFinitaCfg){.src = buffer, .other = ",\n}", .cap = sizeof(buffer), .other_cap = 4ull}));
+}

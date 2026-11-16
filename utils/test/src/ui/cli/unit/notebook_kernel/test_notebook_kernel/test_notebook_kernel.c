@@ -5,7 +5,9 @@
 // back from the step, every code cell run in order, and the kernel restarted and stopped with no cell left running.
 // The cases on a live kernel are ignored on a machine with no Python kernel
 #include "ui/cli/src/notebooks/notebook_cells_internal.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/notebooks/notebook_kernel.h"
+#include "ui/cli/src/notebooks/zmtp.h"
 #include "ui/query/src/query_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 #include "utils/test/src/ui/cli/unit/support/notebook_model_unity.h"
@@ -209,4 +211,22 @@ void test_restart_and_stop_leave_no_cell_running(void)
     const char *const label = EMBED_CALL(cli_notebook_kernel_state.label, CliNotebookKernelStateCfg,
                                          .key = "kernel:a", .length_out = &length);
     CLI_TEST_ASSERT_TEXT("no kernel", label, length);
+}
+
+void test_a_message_is_written_whole_as_the_wire_carries_it(void)
+{
+    const CliZmtpFrame frames[2] = {{(const unsigned char *)"ab", 2ULL}, {(const unsigned char *)"c", 1ULL}};
+    unsigned long long size = 0ULL;
+    unsigned char *const message = EMBED_CALL(cli_zmtp.message_init, CliZmtpCfg, .frames = frames, .count = 2u, .size = &size);
+    TEST_ASSERT_NOT_NULL(message);
+    TEST_ASSERT_EQUAL_UINT64(7ULL, size);
+    // each frame's head is its flags, MORE on every frame but the last, and its size; its body after it
+    TEST_ASSERT_EQUAL_UINT8(0x01u, message[0]);
+    TEST_ASSERT_EQUAL_UINT8(0x02u, message[1]);
+    TEST_ASSERT_EQUAL_UINT8((unsigned char)'a', message[2]);
+    TEST_ASSERT_EQUAL_UINT8((unsigned char)'b', message[3]);
+    TEST_ASSERT_EQUAL_UINT8(0x00u, message[4]);
+    TEST_ASSERT_EQUAL_UINT8(0x01u, message[5]);
+    TEST_ASSERT_EQUAL_UINT8((unsigned char)'c', message[6]);
+    g_cli_guard->persistent_buf_release(message, mmgr_owner_of_buf(cli_pool_series_cellularum(), message));
 }

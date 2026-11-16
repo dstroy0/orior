@@ -208,3 +208,11 @@ void test_a_difference_shows_the_removed_and_added_lines(void)
     EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = "a\nb\nc\n", .old_size = 6ull, .new_text = "a\nB\nc\n", .new_size = 6ull);
     CLI_TEST_ASSERT_TEXT("  @@ line 2|  - b|  + B", s_printed, s_printed_line.at);
 }
+
+void test_a_jobs_do_names_its_act_and_an_unknown_word_names_none(void)
+{
+    TEST_ASSERT_EQUAL_INT(CLI_DEPLOY_PREVIEW, EMBED_CALL(cli_deploy_table.act_get, CliDeployCfg, .word_text = "preview"));
+    TEST_ASSERT_EQUAL_INT(CLI_DEPLOY_SEND, EMBED_CALL(cli_deploy_table.act_get, CliDeployCfg, .word_text = "send"));
+    TEST_ASSERT_EQUAL_INT(CLI_DEPLOY_ROLL_BACK, EMBED_CALL(cli_deploy_table.act_get, CliDeployCfg, .word_text = "roll back"));
+    TEST_ASSERT_EQUAL_INT(-1, EMBED_CALL(cli_deploy_table.act_get, CliDeployCfg, .word_text = "ship"));
+}

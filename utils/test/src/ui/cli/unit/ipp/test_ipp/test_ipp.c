@@ -294,6 +294,28 @@ void test_a_canceled_job_ended(void)
     TEST_ASSERT_GREATER_OR_EQUAL_INT(7, state);
 }
 
+void test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put(void)
+{
+    message_decoded();
+    const CliIppGroup *const job = EMBED_CALL(cli_ipp_tag.group_get, CliIppTagCfg, .message_read = &s_back, .tag = CLI_IPP_JOB, .after = 0u);
+    TEST_ASSERT_NOT_NULL(job);
+    // the job group is the last: none of its tag comes after it
+    const unsigned int job_at = (unsigned int)(job - s_back.group);
+    TEST_ASSERT_NULL(EMBED_CALL(cli_ipp_tag.group_get, CliIppTagCfg, .message_read = &s_back, .tag = CLI_IPP_JOB, .after = job_at + 1u));
+    TEST_ASSERT_NULL(EMBED_CALL(cli_ipp_tag.group_get, CliIppTagCfg, .message_read = &s_back, .tag = 0x04u, .after = 0u));
+    int copies = 0;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_ipp_name.first_number, CliIppNameCfg, .message_read = &s_back, .group = job, .name = "copies", .number = &copies));
+    TEST_ASSERT_EQUAL_INT(2, copies);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_ipp_name.first_number, CliIppNameCfg, .message_read = &s_back, .group = job, .name = "none", .number = &copies));
+    const unsigned int attributes = s_message.attributes;
+    const unsigned int values = s_message.values;
+    EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_message, .name = "ipp-attribute-fidelity");
+    EMBED_CALL(cli_ipp_message_type.truth, CliIppMessageTypeCfg, .message = &s_message, .type = CLI_IPP_BOOLEAN, .value = 1);
+    TEST_ASSERT_EQUAL_UINT(attributes + 1u, s_message.attributes);
+    TEST_ASSERT_EQUAL_UINT(values + 1u, s_message.values);
+    TEST_ASSERT_FALSE(s_message.full);
+}
+
 void test_a_format_the_printer_does_not_accept_is_refused(void)
 {
     printer_found();

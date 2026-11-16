@@ -551,3 +551,19 @@ void test_a_large_answers_body_is_stored_cut(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = big, .name = "cut"), .type = CFG_JSON_TRUE));
     TEST_ASSERT_EQUAL_UINT64(CLI_REQUESTS_HISTORY_BODY_MAX, s_json->node[body].length);
 }
+
+void test_a_requests_key_is_its_name_or_its_method_and_address(void)
+{
+    static const char s_calls[] = "### make\nGET http://h/a\n\n### other\nGET http://h/b\n\n###\nPOST http://h/c\n";
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_text_table.key_at, CliRequestsTextCfg, .text = s_calls, .size = sizeof(s_calls) - 1u, .line = 1ull, .out = &out, .err_msg = &err_msg));
+    CLI_TEST_ASSERT_TEXT("make", s_out, out.at);
+    out.at = 0ull;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_text_table.key_at, CliRequestsTextCfg, .text = s_calls, .size = sizeof(s_calls) - 1u, .line = 4ull, .out = &out, .err_msg = &err_msg));
+    CLI_TEST_ASSERT_TEXT("other", s_out, out.at);
+    out.at = 0ull;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_text_table.key_at, CliRequestsTextCfg, .text = s_calls, .size = sizeof(s_calls) - 1u, .line = 7ull, .out = &out, .err_msg = &err_msg));
+    CLI_TEST_ASSERT_TEXT("POST http://h/c", s_out, out.at);
+}
