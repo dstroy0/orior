@@ -5,44 +5,103 @@
 // name's definition in effect is found through includes, conditions and the compilation database's defines; a slice is cut for a view; and a name's usages,
 // definition, completions, hints, spans, bracket pair and call hierarchy are read
 #include "ui/cli/src/code/symbols.h"
+#include "ui/cli/src/code/symbols_tree.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the tree a group of cases reads: the walk of a tree is one for the process, each group walking its own once on arriving
-typedef enum
-{
-    TREE_NONE = 0,
-    TREE_SIGNATURE,
-    TREE_EFFECT,
-    TREE_SLICE,
-    TREE_SLICES,
-    TREE_USAGES
-} SymbolsTree;
-
+// the tree the cases over a walked tree read: a header, a definition and a file that calls it, walked once for the process
+static const char s_shape_text[] = "#ifndef SHAPE_H\n#define SHAPE_H\nint area(int side);\n#define SIDES 4\n#endif\n";
+static const char s_area_text[] = "#include \"shape.h\"\nint area(int n)\n{\n    return n * n * SIDES;\n}\n";
 static const char s_use_text[] = "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n";
-static const char s_indent_text[] = "def total(n):\n    w = area(n) + 1\n    return w\n\nx = 2\n";
-static const unsigned int s_slice_openers[2] = {6u, 10u};
+static char s_tree[CLI_PATH_MAX_LEN];
+static int s_begun;
+static char s_reached[1024];
+static VerbaLinea s_reached_line = {s_reached, sizeof(s_reached), 0ull};
+static char s_sliced[2048];
+static VerbaLinea s_sliced_line = {s_sliced, sizeof(s_sliced), 0ull};
+static unsigned int s_windows;
+static unsigned int s_first_window_first;
 
-static const char *const s_area_usages[5] = {"src/u/use.c:3:12-16", "src/u/use.c:4:15-19", "src/u/shape.h:2:4-8", "src/u/area.c:1:4-8", NULL};
-static const char *const s_sides_usages[4] = {"src/u/use.c:3:22-27", "src/u/shape.h:3:8-13", "src/u/area.c:3:21-26", NULL};
-static const char *const s_parameter_usages[2] = {"src/u/area.c:1:13-14", "src/u/area.c:3:17-18"};
-static const char *const s_local_usages[2] = {"src/u/use.c:3:8-9", "src/u/use.c:4:11-12"};
+// the tree written and walked, waited for as the window waits for it
+static void tree_begun(void)
+{
+    if (s_begun)
+    {
+        return;
+    }
+    s_begun = 1;
+    cli_unity_folder("build/harness/symbols_tree", s_tree);
+    const char *const init[2] = {"init", "-q"};
+    cli_unity_git(s_tree, init, 2u);
+    char src[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_tree, .relative = "src", .joined = src);
+    (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = src);
+    cli_unity_file(s_tree, "src/shape.h", s_shape_text);
+    cli_unity_file(s_tree, "src/area.c", s_area_text);
+    cli_unity_file(s_tree, "src/use.c", s_use_text);
+    const char *const add[2] = {"add", "-A"};
+    cli_unity_git(s_tree, add, 2u);
+    EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = s_tree);
+    EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = s_tree);
+    CliWake pause = CLI_WAKE_INIT;
+    const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
+    while (cli_tree_unwalked() && (cli_clock_milliseconds() < last_ms))
+    {
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 5ULL);
+    }
+    TEST_ASSERT_FALSE_MESSAGE(cli_tree_unwalked(), "the tree is walked");
+}
 
-static char s_out[1u << 20u];
-static char s_error[256];
-static SymbolsTree s_tree;
+// a function a call hierarchy reaches written as `path:line name sites`, `|` between them
+static void reached_recorded(const CliCallReachedCfg *args)
+{
+    mmgr_line_put(&s_reached_line, (s_reached_line.at > 0ull) ? "|" : "");
+    mmgr_line_put(&s_reached_line, args->path);
+    mmgr_line_ch(&s_reached_line, ':');
+    mmgr_line_decimal(&s_reached_line, args->line, 1u);
+    mmgr_line_ch(&s_reached_line, ' ');
+    mmgr_line_put_n(&s_reached_line, args->name, args->length);
+    mmgr_line_ch(&s_reached_line, ' ');
+    mmgr_line_decimal(&s_reached_line, args->count, 1u);
+}
 
-static int s_stop_run_result;
-static int s_stop_seen;
-static unsigned long long s_stop_total;
-static unsigned long long s_stop_done;
-static int s_stop_ended;
-static int s_stop_unwalked;
-static unsigned int s_stop_found;
-static unsigned int s_stop_answered;
+// the functions the call hierarchy entry `each` reaches from line `line` of `path`, NUL-terminated in s_reached
+static const char *reached_of(int (*each)(const CliSymbolsPathContextLineCfg *args), const char *path, unsigned int line)
+{
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    s_reached_line.at = 0ull;
+    TEST_ASSERT_EQUAL_INT(1, each(&(CliSymbolsPathContextLineCfg){.path = path, .line = line, .each = reached_recorded, .err_msg = &err_msg}));
+    (void)mmgr_line_finish(&s_reached_line);
+    return s_reached;
+}
 
-static int s_slices_run_result;
-static int s_slices_cut;
+// a slice's line written after the others as `line:text`, a newline between them
+static void slice_line_recorded(const CliSliceLineCfg *args)
+{
+    if (args->line == CLI_SLICE_NOWHERE)
+    {
+        mmgr_line_put(&s_sliced_line, "-:");
+    }
+    else
+    {
+        mmgr_line_decimal(&s_sliced_line, args->line, 1u);
+        mmgr_line_ch(&s_sliced_line, ':');
+    }
+    mmgr_line_put_n(&s_sliced_line, args->text, args->length);
+    mmgr_line_ch(&s_sliced_line, '\n');
+}
+
+// a window counted, the first one's first line kept; every window cut
+static int window_counted(const CliSliceWindowCfg *args)
+{
+    if (s_windows == 0u)
+    {
+        s_first_window_first = args->first;
+    }
+    s_windows += 1u;
+    return 1;
+}
 
 // a declaration written after the others, `name type line` joined by `|`
 static void declaration_recorded(const CliDeclaredCfg *args)
@@ -162,5 +221,107 @@ void test_a_words_start_ranks_over_characters(void)
 void test_a_query_that_names_none_does_not_answer(void)
 {
     TEST_ASSERT_EQUAL_INT64(-1ll, score_of("xyz", "paint"));
+}
+
+void test_the_tree_is_listed_and_its_first_reading_has_ended_with_every_file_done(void)
+{
+    tree_begun();
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = s_tree));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = "build/harness/no_such_tree"));
+    unsigned long long done = 0ull;
+    unsigned long long total = 0ull;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_symbols_done.tree_walk_progress, CliSymbolsDoneCfg, .done = &done, .total = &total));
+    TEST_ASSERT_EQUAL_UINT64(total, done);
+}
+
+void test_the_call_hierarchy_names_the_function_at_a_line_its_callers_and_its_callees(void)
+{
+    tree_begun();
+    TEST_ASSERT_EQUAL_STRING("src/use.c:1 total 0", reached_of(cli_symbols_function_at, "src/use.c", 1u));
+    TEST_ASSERT_EQUAL_STRING("src/use.c:1 total 2", reached_of(cli_symbols_callers, "src/area.c", 1u));
+    TEST_ASSERT_EQUAL_STRING("src/shape.h:2 area 2", reached_of(cli_symbols_callees, "src/use.c", 1u));
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_symbols_path_context_line.function_at, CliSymbolsPathContextLineCfg, .path = "src/use.c", .line = 0u, .each = reached_recorded, .err_msg = &err_msg));
+}
+
+void test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view(void)
+{
+    tree_begun();
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned int opener[1] = {2u};
+    s_sliced_line.at = 0ull;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path.slice_each, CliSymbolsPathCfg, .path = "src/use.c", .text = s_use_text, .size = sizeof(s_use_text) - 1u, .first = 3u, .last = 4u, .opener = opener, .openers = 1u, .each_slice_line = slice_line_recorded, .err_msg = &err_msg));
+    (void)mmgr_line_finish(&s_sliced_line);
+    CLI_TEST_ASSERT_CONTAINS("2:{\n", s_sliced);
+    CLI_TEST_ASSERT_CONTAINS("3:    int w = area(n) + SIDES;\n", s_sliced);
+    CLI_TEST_ASSERT_CONTAINS("4:    return w + area(1);\n", s_sliced);
+}
+
+void test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk(void)
+{
+    tree_begun();
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    s_sliced_line.at = 0ull;
+    s_windows = 0u;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path_text_size_context_err_msg.slices_each, CliSymbolsPathTextSizeContextErrMsgCfg, .path = "src/use.c", .text = s_use_text, .size = sizeof(s_use_text) - 1u, .height = 3u, .each_slice_line = slice_line_recorded, .window = window_counted, .err_msg = &err_msg));
+    (void)mmgr_line_finish(&s_sliced_line);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_windows);
+    TEST_ASSERT_EQUAL_UINT(0u, s_first_window_first);
+    CLI_TEST_ASSERT_CONTAINS("int total(int n)", s_sliced);
+}
+
+void test_a_token_names_roles_come_off_its_segments(void)
+{
+    TEST_ASSERT_BITS_HIGH(CLI_ROLE_REGION_OPENS | CLI_ROLE_DEPTH_OPENS, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "delimiter.bracket.region.depth.open"));
+    TEST_ASSERT_BITS_HIGH(CLI_ROLE_REGION_CLOSES | CLI_ROLE_CLOSING, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "delimiter.bracket.region.depth.close"));
+    TEST_ASSERT_EQUAL_UINT(CLI_ROLE_QUOTED, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "string"));
+    TEST_ASSERT_BITS_HIGH(CLI_ROLE_NAME | CLI_ROLE_WORD, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "identifier"));
+}
+
+void test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read(void)
+{
+    tree_begun();
+    CliFoundDeclarations *const found = EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = "area", .max = 8u, .owner = g_cli_text_owner);
+    TEST_ASSERT_NOT_NULL(found);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, found->count);
+    TEST_ASSERT_EQUAL_STRING("area", found->found[0].name);
+    g_cli_guard->persistent_buf_release(found, g_cli_text_owner);
+    static CliSignatureStore s_store;
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    // the cursor inside `area(n)` on line 3 of the caller
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path_text_size_out.signature_read, CliSymbolsPathTextSizeOutCfg, .path = "src/use.c", .text = s_use_text, .size = sizeof(s_use_text) - 1u, .state = "root", .line = 3u, .col = 18u, .owner = g_cli_text_owner, .err_msg = &err_msg, .store = &s_store));
+    CLI_TEST_ASSERT_CONTAINS("area", s_store.label);
+}
+
+void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(void)
+{
+    tree_begun();
+    unsigned int before = 0u;
+    unsigned long long bytes = 0ull;
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &before, .bytes_u64s = &bytes);
+    TEST_ASSERT_EQUAL_UINT(3u, before);
+    const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_exists, CliSymbolsTreePathCfg, .path = "src/new.c", .folder = 0);
+    TEST_ASSERT_NOT_EQUAL(CLI_BRANCHES_MAX, file);
+    TEST_ASSERT_EQUAL_UINT(file, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"));
+    CliTreeBranch branch;
+    EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
+    char path[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = &branch, .path_out = path);
+    TEST_ASSERT_EQUAL_STRING("src/new.c", path);
+    unsigned int after = 0u;
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after, .bytes_u64s = &bytes);
+    TEST_ASSERT_EQUAL_UINT(before + 1u, after);
+    EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = file);
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after, .bytes_u64s = &bytes);
+    TEST_ASSERT_EQUAL_UINT(before, after);
+    TEST_ASSERT_EQUAL_UINT(CLI_BRANCHES_MAX, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"));
+    cli_tree_walk_stop();
+    cli_tree_clear();
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after, .bytes_u64s = &bytes);
+    TEST_ASSERT_EQUAL_UINT(0u, after);
 }
 

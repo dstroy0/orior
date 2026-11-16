@@ -3,6 +3,7 @@
 // test_purpose.c: the first comment past the license says what a file is for, a file uses another by its name or an import of its
 // name, and a file's purpose names the files of the tree that use it
 #include "ui/cli/src/code/purpose.h"
+#include "ui/cli/src/code/purpose_lines.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static char s_out[1u << 14u];
@@ -123,5 +124,38 @@ void test_tex_input_uses_a_file(void)
 void test_a_word_in_prose_does_not_use_a_file(void)
 {
     TEST_ASSERT_FALSE(text_uses("the preview shows\n", "preview.js", "preview"));
+}
+
+void test_a_span_is_trimmed_at_its_start_and_both_ends_and_its_start_read(void)
+{
+    const char text[] = "  ab \t";
+    const CliSpan span = {text, sizeof(text) - 1u};
+    const CliSpan start = EMBED_CALL(cli_purpose_lines_span.purpose_trimmed_start, CliPurposeLinesSpanCfg, .span = span);
+    TEST_ASSERT_EQUAL_PTR(text + 2, start.at);
+    TEST_ASSERT_EQUAL_UINT64(4ull, start.length);
+    const CliSpan both = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = span);
+    TEST_ASSERT_EQUAL_PTR(text + 2, both.at);
+    TEST_ASSERT_EQUAL_UINT64(2ull, both.length);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_purpose_lines_span.purpose_starts, CliPurposeLinesSpanCfg, .span = both, .text = "ab"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_purpose_lines_span.purpose_starts, CliPurposeLinesSpanCfg, .span = both, .text = "abc"));
+}
+
+void test_a_text_states_a_license_by_either_word_in_any_case(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_purpose_lines.purpose_license, CliPurposeLinesCfg, .text = "Copyright (C) 2026", .length = 18ull));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_purpose_lines.purpose_license, CliPurposeLinesCfg, .text = "SPDX-LICENSE-Identifier: x", .length = 26ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_purpose_lines.purpose_license, CliPurposeLinesCfg, .text = "the parser's head", .length = 17ull));
+}
+
+void test_comment_lines_lose_their_marks_and_are_joined_by_newlines(void)
+{
+    const char one[] = "  // one  ";
+    const char two[] = "/// two";
+    const char three[] = "# three";
+    const CliSpan lines[3] = {{one, sizeof(one) - 1u}, {two, sizeof(two) - 1u}, {three, sizeof(three) - 1u}};
+    char joined[64];
+    VerbaLinea out = mmgr_line_over(joined, sizeof(joined));
+    EMBED_CALL(cli_purpose_lines_count.purpose_uncommented, CliPurposeLinesCountCfg, .lines = lines, .count = 3u, .mark = "//", .out = &out);
+    CLI_TEST_ASSERT_TEXT("one\ntwo\nthree", joined, out.at);
 }
 

@@ -3,6 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/code/git_internal.h"
+#include "ui/cli/src/text/text.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -40,6 +41,10 @@ extern void test_a_folder_sharing_a_prefix_is_not_the_repository(void);
 extern void test_a_path_no_repository_contains_has_no_owner(void);
 extern void test_each_status_has_one_character(void);
 extern void test_each_lists_texts_are_released(void);
+extern void test_a_lists_texts_are_stored_read_moved_into_a_cell_when_located_and_released(void);
+extern void test_the_text_before_a_commit_its_author_and_subject_and_no_remote_to_count_against(void);
+extern void test_a_merge_in_conflict_has_its_three_stages_and_a_clean_file_none(void);
+extern void test_clones_go_under_the_home_folder_and_opened_repositories_under_its_repositories(void);
 
 
 /*=======Mock Management=====*/
@@ -101,39 +106,43 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\git\\test_git\\test_git.c");
-  run_test(test_a_clone_of_an_https_url_ending_in_git, "test_a_clone_of_an_https_url_ending_in_git", 178);
-  run_test(test_a_clone_of_an_https_url_ending_in_a_slash, "test_a_clone_of_an_https_url_ending_in_a_slash", 183);
-  run_test(test_a_clone_of_an_ssh_address, "test_a_clone_of_an_ssh_address", 188);
-  run_test(test_a_clone_of_a_short_ssh_address, "test_a_clone_of_a_short_ssh_address", 193);
-  run_test(test_a_clone_of_a_windows_path, "test_a_clone_of_a_windows_path", 198);
-  run_test(test_a_url_with_no_path_names_no_folder, "test_a_url_with_no_path_names_no_folder", 203);
-  run_test(test_blanks_name_no_folder, "test_blanks_name_no_folder", 208);
-  run_test(test_a_commit_with_no_message_is_refused, "test_a_commit_with_no_message_is_refused", 213);
-  run_test(test_a_commit_releases_its_memory_created_or_refused, "test_a_commit_releases_its_memory_created_or_refused", 220);
-  run_test(test_the_commit_contains_the_part, "test_the_commit_contains_the_part", 230);
-  run_test(test_the_file_stays_as_it_was, "test_the_file_stays_as_it_was", 238);
-  run_test(test_the_commit_contains_that_file_alone, "test_the_commit_contains_that_file_alone", 245);
-  run_test(test_what_was_staged_apart_stays_staged, "test_what_was_staged_apart_stays_staged", 253);
-  run_test(test_the_tree_is_on_a_new_branch_with_its_last_commits_subject, "test_the_tree_is_on_a_new_branch_with_its_last_commits_subject", 262);
-  run_test(test_a_branch_is_renamed_and_another_switched_to, "test_a_branch_is_renamed_and_another_switched_to", 287);
-  run_test(test_a_branch_not_merged_is_not_deleted, "test_a_branch_not_merged_is_not_deleted", 294);
-  run_test(test_a_branch_is_merged, "test_a_branch_is_merged", 301);
-  run_test(test_a_merged_branch_is_deleted_and_main_alone_is_left, "test_a_merged_branch_is_deleted_and_main_alone_is_left", 309);
-  run_test(test_a_name_git_refuses_is_refused, "test_a_name_git_refuses_is_refused", 328);
-  run_test(test_a_merged_branch_has_its_own_column, "test_a_merged_branch_has_its_own_column", 335);
-  run_test(test_the_merge_opens_the_column, "test_the_merge_opens_the_column", 345);
-  run_test(test_each_column_continues_end_anothers_commit, "test_each_column_continues_end_anothers_commit", 351);
-  run_test(test_a_column_joins_where_it_began, "test_a_column_joins_where_it_began", 357);
-  run_test(test_one_column_remains_after_the_join, "test_one_column_remains_after_the_join", 363);
-  run_test(test_the_first_commit_ends_the_column, "test_the_first_commit_ends_the_column", 369);
-  run_test(test_a_branchs_line_has_its_own_color, "test_a_branchs_line_has_its_own_color", 375);
-  run_test(test_a_file_at_the_top_belongs_to_the_top_repository, "test_a_file_at_the_top_belongs_to_the_top_repository", 381);
-  run_test(test_a_file_in_a_repository_belongs_to_it, "test_a_file_in_a_repository_belongs_to_it", 386);
-  run_test(test_the_deepest_repository_owner_a_path, "test_the_deepest_repository_owner_a_path", 391);
-  run_test(test_a_folder_sharing_a_prefix_is_not_the_repository, "test_a_folder_sharing_a_prefix_is_not_the_repository", 396);
-  run_test(test_a_path_no_repository_contains_has_no_owner, "test_a_path_no_repository_contains_has_no_owner", 401);
-  run_test(test_each_status_has_one_character, "test_each_status_has_one_character", 406);
-  run_test(test_each_lists_texts_are_released, "test_each_lists_texts_are_released", 418);
+  run_test(test_a_clone_of_an_https_url_ending_in_git, "test_a_clone_of_an_https_url_ending_in_git", 179);
+  run_test(test_a_clone_of_an_https_url_ending_in_a_slash, "test_a_clone_of_an_https_url_ending_in_a_slash", 184);
+  run_test(test_a_clone_of_an_ssh_address, "test_a_clone_of_an_ssh_address", 189);
+  run_test(test_a_clone_of_a_short_ssh_address, "test_a_clone_of_a_short_ssh_address", 194);
+  run_test(test_a_clone_of_a_windows_path, "test_a_clone_of_a_windows_path", 199);
+  run_test(test_a_url_with_no_path_names_no_folder, "test_a_url_with_no_path_names_no_folder", 204);
+  run_test(test_blanks_name_no_folder, "test_blanks_name_no_folder", 209);
+  run_test(test_a_commit_with_no_message_is_refused, "test_a_commit_with_no_message_is_refused", 214);
+  run_test(test_a_commit_releases_its_memory_created_or_refused, "test_a_commit_releases_its_memory_created_or_refused", 221);
+  run_test(test_the_commit_contains_the_part, "test_the_commit_contains_the_part", 231);
+  run_test(test_the_file_stays_as_it_was, "test_the_file_stays_as_it_was", 239);
+  run_test(test_the_commit_contains_that_file_alone, "test_the_commit_contains_that_file_alone", 246);
+  run_test(test_what_was_staged_apart_stays_staged, "test_what_was_staged_apart_stays_staged", 254);
+  run_test(test_the_tree_is_on_a_new_branch_with_its_last_commits_subject, "test_the_tree_is_on_a_new_branch_with_its_last_commits_subject", 263);
+  run_test(test_a_branch_is_renamed_and_another_switched_to, "test_a_branch_is_renamed_and_another_switched_to", 288);
+  run_test(test_a_branch_not_merged_is_not_deleted, "test_a_branch_not_merged_is_not_deleted", 295);
+  run_test(test_a_branch_is_merged, "test_a_branch_is_merged", 302);
+  run_test(test_a_merged_branch_is_deleted_and_main_alone_is_left, "test_a_merged_branch_is_deleted_and_main_alone_is_left", 310);
+  run_test(test_a_name_git_refuses_is_refused, "test_a_name_git_refuses_is_refused", 329);
+  run_test(test_a_merged_branch_has_its_own_column, "test_a_merged_branch_has_its_own_column", 336);
+  run_test(test_the_merge_opens_the_column, "test_the_merge_opens_the_column", 346);
+  run_test(test_each_column_continues_end_anothers_commit, "test_each_column_continues_end_anothers_commit", 352);
+  run_test(test_a_column_joins_where_it_began, "test_a_column_joins_where_it_began", 358);
+  run_test(test_one_column_remains_after_the_join, "test_one_column_remains_after_the_join", 364);
+  run_test(test_the_first_commit_ends_the_column, "test_the_first_commit_ends_the_column", 370);
+  run_test(test_a_branchs_line_has_its_own_color, "test_a_branchs_line_has_its_own_color", 376);
+  run_test(test_a_file_at_the_top_belongs_to_the_top_repository, "test_a_file_at_the_top_belongs_to_the_top_repository", 382);
+  run_test(test_a_file_in_a_repository_belongs_to_it, "test_a_file_in_a_repository_belongs_to_it", 387);
+  run_test(test_the_deepest_repository_owner_a_path, "test_the_deepest_repository_owner_a_path", 392);
+  run_test(test_a_folder_sharing_a_prefix_is_not_the_repository, "test_a_folder_sharing_a_prefix_is_not_the_repository", 397);
+  run_test(test_a_path_no_repository_contains_has_no_owner, "test_a_path_no_repository_contains_has_no_owner", 402);
+  run_test(test_each_status_has_one_character, "test_each_status_has_one_character", 407);
+  run_test(test_each_lists_texts_are_released, "test_each_lists_texts_are_released", 419);
+  run_test(test_a_lists_texts_are_stored_read_moved_into_a_cell_when_located_and_released, "test_a_lists_texts_are_stored_read_moved_into_a_cell_when_located_and_released", 430);
+  run_test(test_the_text_before_a_commit_its_author_and_subject_and_no_remote_to_count_against, "test_the_text_before_a_commit_its_author_and_subject_and_no_remote_to_count_against", 467);
+  run_test(test_a_merge_in_conflict_has_its_three_stages_and_a_clean_file_none, "test_a_merge_in_conflict_has_its_three_stages_and_a_clean_file_none", 491);
+  run_test(test_clones_go_under_the_home_folder_and_opened_repositories_under_its_repositories, "test_clones_go_under_the_home_folder_and_opened_repositories_under_its_repositories", 512);
 
   return UNITY_END();
 }

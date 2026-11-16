@@ -3,6 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/code/purpose.h"
+#include "ui/cli/src/code/purpose_lines.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -22,6 +23,9 @@ extern void test_a_rust_mod_uses_a_module(void);
 extern void test_an_include_uses_a_header(void);
 extern void test_tex_input_uses_a_file(void);
 extern void test_a_word_in_prose_does_not_use_a_file(void);
+extern void test_a_span_is_trimmed_at_its_start_and_both_ends_and_its_start_read(void);
+extern void test_a_text_states_a_license_by_either_word_in_any_case(void);
+extern void test_comment_lines_lose_their_marks_and_are_joined_by_newlines(void);
 
 
 /*=======Mock Management=====*/
@@ -83,21 +87,24 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\purpose\\test_purpose\\test_purpose.c");
-  run_test(test_a_scripts_comment_end_its_license, "test_a_scripts_comment_end_its_license", 33);
-  run_test(test_a_rust_files_comment, "test_a_rust_files_comment", 40);
-  run_test(test_a_python_modules_docstring, "test_a_python_modules_docstring", 45);
-  run_test(test_a_stylesheets_block_comment, "test_a_stylesheets_block_comment", 50);
-  run_test(test_a_comment_after_the_code_is_not_the_first, "test_a_comment_after_the_code_is_not_the_first", 55);
-  run_test(test_a_markdown_files_first_paragraph, "test_a_markdown_files_first_paragraph", 60);
-  run_test(test_a_long_comment_is_cut_at_a_sentence, "test_a_long_comment_is_cut_at_a_sentence", 67);
-  run_test(test_a_comments_memory_is_sized_to_its_text_and_released, "test_a_comments_memory_is_sized_to_its_text_and_released", 85);
-  run_test(test_an_import_uses_a_script, "test_an_import_uses_a_script", 93);
-  run_test(test_a_longer_name_is_another_file, "test_a_longer_name_is_another_file", 98);
-  run_test(test_a_python_import_uses_a_module, "test_a_python_import_uses_a_module", 103);
-  run_test(test_a_rust_mod_uses_a_module, "test_a_rust_mod_uses_a_module", 108);
-  run_test(test_an_include_uses_a_header, "test_an_include_uses_a_header", 113);
-  run_test(test_tex_input_uses_a_file, "test_tex_input_uses_a_file", 118);
-  run_test(test_a_word_in_prose_does_not_use_a_file, "test_a_word_in_prose_does_not_use_a_file", 123);
+  run_test(test_a_scripts_comment_end_its_license, "test_a_scripts_comment_end_its_license", 34);
+  run_test(test_a_rust_files_comment, "test_a_rust_files_comment", 41);
+  run_test(test_a_python_modules_docstring, "test_a_python_modules_docstring", 46);
+  run_test(test_a_stylesheets_block_comment, "test_a_stylesheets_block_comment", 51);
+  run_test(test_a_comment_after_the_code_is_not_the_first, "test_a_comment_after_the_code_is_not_the_first", 56);
+  run_test(test_a_markdown_files_first_paragraph, "test_a_markdown_files_first_paragraph", 61);
+  run_test(test_a_long_comment_is_cut_at_a_sentence, "test_a_long_comment_is_cut_at_a_sentence", 68);
+  run_test(test_a_comments_memory_is_sized_to_its_text_and_released, "test_a_comments_memory_is_sized_to_its_text_and_released", 86);
+  run_test(test_an_import_uses_a_script, "test_an_import_uses_a_script", 94);
+  run_test(test_a_longer_name_is_another_file, "test_a_longer_name_is_another_file", 99);
+  run_test(test_a_python_import_uses_a_module, "test_a_python_import_uses_a_module", 104);
+  run_test(test_a_rust_mod_uses_a_module, "test_a_rust_mod_uses_a_module", 109);
+  run_test(test_an_include_uses_a_header, "test_an_include_uses_a_header", 114);
+  run_test(test_tex_input_uses_a_file, "test_tex_input_uses_a_file", 119);
+  run_test(test_a_word_in_prose_does_not_use_a_file, "test_a_word_in_prose_does_not_use_a_file", 124);
+  run_test(test_a_span_is_trimmed_at_its_start_and_both_ends_and_its_start_read, "test_a_span_is_trimmed_at_its_start_and_both_ends_and_its_start_read", 129);
+  run_test(test_a_text_states_a_license_by_either_word_in_any_case, "test_a_text_states_a_license_by_either_word_in_any_case", 143);
+  run_test(test_comment_lines_lose_their_marks_and_are_joined_by_newlines, "test_comment_lines_lose_their_marks_and_are_joined_by_newlines", 150);
 
   return UNITY_END();
 }

@@ -4,6 +4,7 @@
 // deleted, a merged branch has its own column and joins where it began, a repository owns the deepest folder that contains a path, and each
 // status has one character
 #include "ui/cli/src/code/git_internal.h"
+#include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static const char s_part_text[] = "one\nTWO\nthree\nfour\n";
@@ -424,4 +425,96 @@ void test_each_lists_texts_are_released(void)
     s_graph.text.capacity = 0ULL;
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_git_owner));
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_owner_hw(g_cli_git_owner));
+}
+
+void test_a_lists_texts_are_stored_read_moved_into_a_cell_when_located_and_released(void)
+{
+    CliGitText text = {NULL, NULL, 0ull, 0ull, 0, 0};
+    EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &text);
+    TEST_ASSERT_NOT_NULL(text.bytes);
+    const unsigned int first = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &text, .from = "ab", .length = 2ull);
+    const unsigned int second = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &text, .from = "cd", .length = 2ull);
+    TEST_ASSERT_EQUAL_UINT(1u, first);
+    TEST_ASSERT_EQUAL_UINT(4u, second);
+    TEST_ASSERT_EQUAL_STRING("", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &text, .at = 0u));
+    TEST_ASSERT_EQUAL_STRING("cd", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &text, .at = second));
+    // a list that is not located keeps its work cell through its end
+    EMBED_CALL(cli_git_text.text_end, CliGitTextCfg, .text = &text);
+    TEST_ASSERT_NOT_NULL(text.bytes);
+    text.located = 1;
+    EMBED_CALL(cli_git_text.text_end, CliGitTextCfg, .text = &text);
+    TEST_ASSERT_NULL(text.bytes);
+    TEST_ASSERT_NOT_NULL(text.cell);
+    char copied[8];
+    TEST_ASSERT_EQUAL_STRING("ab", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &text, .at = first, .dst = copied, .capacity = sizeof(copied)));
+    TEST_ASSERT_EQUAL_STRING("", EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &text, .at = first, .dst = NULL, .capacity = 0ull));
+    EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &text);
+    TEST_ASSERT_NULL(text.cell);
+    TEST_ASSERT_EQUAL_UINT64(0ull, text.used);
+}
+
+// a repository whose a.txt was committed as `first` and then as `second`
+static void two_commits_made(const char *name, const char *first, const char *second)
+{
+    repository_created(name);
+    cli_unity_file(s_root, "a.txt", first);
+    (void)git_run_result("add", ".", NULL, NULL);
+    (void)git_run_result("commit", "-q", "-m", "first");
+    cli_unity_file(s_root, "a.txt", second);
+    (void)git_run_result("commit", "-q", "-am", "second");
+}
+
+void test_the_text_before_a_commit_its_author_and_subject_and_no_remote_to_count_against(void)
+{
+    two_commits_made("git_before", "one\n", "two\n");
+    char head[64];
+    TEST_ASSERT_TRUE(git_run_result("rev-parse", "HEAD", NULL, NULL));
+    memor.cpy(&(MemoriaCfg){.dst = head, .src = s_out, .bytes = CLI_UNITY_LENGTH(s_out) + 1ull});
+    VerbaLinea out = {s_answer, sizeof(s_answer), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_file.text_before, CliGitRootFileCfg, .root = s_root, .file = "a.txt", .id = head, .out = &out));
+    CLI_TEST_ASSERT_TEXT("one\n", s_answer, out.at);
+    TEST_ASSERT_TRUE(git_run_result("rev-list", "--max-parents=0", "HEAD", NULL));
+    out.at = 0ull;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_git_root_file.text_before, CliGitRootFileCfg, .root = s_root, .file = "a.txt", .id = s_out, .out = &out));
+    char who[64];
+    char what[64];
+    VerbaLinea name = {who, sizeof(who), 0ull};
+    VerbaLinea subject = {what, sizeof(what), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_id.new_by, CliGitRootIdCfg, .root = s_root, .id = head, .name_verba_linea_pointer = &name, .subject = &subject));
+    CLI_TEST_ASSERT_TEXT("t", who, name.at);
+    CLI_TEST_ASSERT_TEXT("second", what, subject.at);
+    unsigned int ahead = 9u;
+    unsigned int behind = 9u;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_git_root_ahead.ahead_behind, CliGitRootAheadCfg, .root = s_root, .ahead = &ahead, .behind = &behind));
+}
+
+void test_a_merge_in_conflict_has_its_three_stages_and_a_clean_file_none(void)
+{
+    two_commits_made("git_stages", "one\n", "two\n");
+    VerbaLinea out = {s_answer, sizeof(s_answer), 0ull};
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_git_root_file_stage.stage_text, CliGitRootFileStageCfg, .root = s_root, .file = "a.txt", .stage = 2u, .out = &out));
+    TEST_ASSERT_TRUE(git_run_result("checkout", "-q", "-b", "topic"));
+    cli_unity_file(s_root, "a.txt", "three\n");
+    (void)git_run_result("commit", "-q", "-am", "topic");
+    TEST_ASSERT_TRUE(git_run_result("checkout", "-q", "main", NULL));
+    cli_unity_file(s_root, "a.txt", "four\n");
+    (void)git_run_result("commit", "-q", "-am", "main");
+    (void)git_run_result("merge", "topic", NULL, NULL);
+    static const char *const s_stages[3] = {"two\n", "four\n", "three\n"};
+    for (unsigned int stage = 1u; stage <= 3u; stage += 1u)
+    {
+        out.at = 0ull;
+        TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_file_stage.stage_text, CliGitRootFileStageCfg, .root = s_root, .file = "a.txt", .stage = stage, .out = &out));
+        CLI_TEST_ASSERT_TEXT(s_stages[stage - 1u], s_answer, out.at);
+    }
+}
+
+void test_clones_go_under_the_home_folder_and_opened_repositories_under_its_repositories(void)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_git_err_msg_folder.clone_parent, CliGitErrMsgFolderCfg, .folder = folder, .err_msg = &err_msg));
+    TEST_ASSERT_NOT_EQUAL(0, folder[0]);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_git_err_msg_folder.opened_parent, CliGitErrMsgFolderCfg, .folder = folder, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = folder, .size = CLI_UNITY_LENGTH(folder), .suffix = "/repositories"));
 }
