@@ -3,6 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/editor/view_edits.h"
+#include "ui/cli/src/text/edits.h"
 #include "ui/cli/src/editor/view_tidy.h"
 #include "ui/cli/src/command_line/pool.h"
 
@@ -19,6 +20,7 @@ extern void test_a_replace_writes_only_the_lines_that_differ_with_the_cursor_bef
 extern void test_a_replace_reaches_the_texts_end_where_the_last_lines_differ(void);
 extern void test_a_replace_with_the_same_text_changes_nothing(void);
 extern void test_a_key_with_no_view_is_refused(void);
+extern void test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte(void);
 
 
 /*=======Mock Management=====*/
@@ -80,16 +82,17 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\view_edits\\test_view_edits\\test_view_edits.c");
-  run_test(test_two_edits_are_written_with_the_cursor_at_the_first, "test_two_edits_are_written_with_the_cursor_at_the_first", 65);
-  run_test(test_one_undo_takes_both_back_and_one_redo_brings_both_again, "test_one_undo_takes_both_back_and_one_redo_brings_both_again", 77);
-  run_test(test_an_edit_after_them_is_a_step_of_its_own, "test_an_edit_after_them_is_a_step_of_its_own", 86);
-  run_test(test_a_tidy_takes_the_blanks_off_the_lines_ends_and_puts_a_line_end_after_the_last_as_one_step, "test_a_tidy_takes_the_blanks_off_the_lines_ends_and_puts_a_line_end_after_the_last_as_one_step", 126);
-  run_test(test_a_tidy_with_nothing_to_change_leaves_the_text_and_its_steps, "test_a_tidy_with_nothing_to_change_leaves_the_text_and_its_steps", 136);
-  run_test(test_trim_alone_retains_a_last_line_without_a_line_end, "test_trim_alone_retains_a_last_line_without_a_line_end", 144);
-  run_test(test_a_replace_writes_only_the_lines_that_differ_with_the_cursor_before_them, "test_a_replace_writes_only_the_lines_that_differ_with_the_cursor_before_them", 152);
-  run_test(test_a_replace_reaches_the_texts_end_where_the_last_lines_differ, "test_a_replace_reaches_the_texts_end_where_the_last_lines_differ", 167);
-  run_test(test_a_replace_with_the_same_text_changes_nothing, "test_a_replace_with_the_same_text_changes_nothing", 174);
-  run_test(test_a_key_with_no_view_is_refused, "test_a_key_with_no_view_is_refused", 182);
+  run_test(test_two_edits_are_written_with_the_cursor_at_the_first, "test_two_edits_are_written_with_the_cursor_at_the_first", 66);
+  run_test(test_one_undo_takes_both_back_and_one_redo_brings_both_again, "test_one_undo_takes_both_back_and_one_redo_brings_both_again", 78);
+  run_test(test_an_edit_after_them_is_a_step_of_its_own, "test_an_edit_after_them_is_a_step_of_its_own", 87);
+  run_test(test_a_tidy_takes_the_blanks_off_the_lines_ends_and_puts_a_line_end_after_the_last_as_one_step, "test_a_tidy_takes_the_blanks_off_the_lines_ends_and_puts_a_line_end_after_the_last_as_one_step", 127);
+  run_test(test_a_tidy_with_nothing_to_change_leaves_the_text_and_its_steps, "test_a_tidy_with_nothing_to_change_leaves_the_text_and_its_steps", 137);
+  run_test(test_trim_alone_retains_a_last_line_without_a_line_end, "test_trim_alone_retains_a_last_line_without_a_line_end", 145);
+  run_test(test_a_replace_writes_only_the_lines_that_differ_with_the_cursor_before_them, "test_a_replace_writes_only_the_lines_that_differ_with_the_cursor_before_them", 153);
+  run_test(test_a_replace_reaches_the_texts_end_where_the_last_lines_differ, "test_a_replace_reaches_the_texts_end_where_the_last_lines_differ", 168);
+  run_test(test_a_replace_with_the_same_text_changes_nothing, "test_a_replace_with_the_same_text_changes_nothing", 175);
+  run_test(test_a_key_with_no_view_is_refused, "test_a_key_with_no_view_is_refused", 183);
+  run_test(test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte, "test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte", 192);
 
   return UNITY_END();
 }

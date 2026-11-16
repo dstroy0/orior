@@ -95,3 +95,23 @@ void test_a_full_line_saves_a_character_that_fits_complete(void)
     TEST_ASSERT_FALSE(decoded(text, sizeof(text) - 1u, 6ull));
     TEST_ASSERT_EQUAL_STRING("ab\xe2\x82\xac", s_out);
 }
+
+void test_one_character_is_read_at_a_place_with_the_bytes_it_takes(void)
+{
+    const unsigned char text[] = "a\xc3\xa9\xff";
+    unsigned int character = 0u;
+    TEST_ASSERT_EQUAL_UINT64(1ull, EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = text, .length = 4ull, .at = 0ull, .character = &character));
+    TEST_ASSERT_EQUAL_UINT('a', character);
+    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = text, .length = 4ull, .at = 1ull, .character = &character));
+    TEST_ASSERT_EQUAL_UINT(0xE9u, character);
+    TEST_ASSERT_EQUAL_UINT64(1ull, EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = text, .length = 4ull, .at = 3ull, .character = &character));
+    TEST_ASSERT_EQUAL_UINT(0xFFFDu, character);
+}
+
+void test_bytes_are_whole_utf8_or_not(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = "a\xe2\x82\xac", .size = 4ull));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = "", .size = 0ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = "a\xe2\x82", .size = 3ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = "\xed\xa0\x80", .size = 3ull));
+}

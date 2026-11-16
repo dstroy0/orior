@@ -7,6 +7,7 @@
 // over the lines that differ alone, to the text's end where the last lines differ, and nothing where the texts read
 // the same
 #include "ui/cli/src/editor/view_edits.h"
+#include "ui/cli/src/text/edits.h"
 #include "ui/cli/src/editor/view_tidy.h"
 #include "ui/cli/src/command_line/pool.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -186,4 +187,22 @@ void test_a_key_with_no_view_is_refused(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = "no_such_view", .edit = &edit,
                                  .count = 1u, .err_msg = &err_msg));
     TEST_ASSERT_NOT_EQUAL(0ULL, err_msg.at);
+}
+
+void test_a_place_and_an_edit_are_written_as_json_and_a_column_finds_its_byte(void)
+{
+    char buffer[96];
+    VerbaLinea out = mmgr_line_over(buffer, sizeof(buffer));
+    EMBED_CALL(cli_edits_position.text_position_write, CliEditsPositionCfg, .place = (CliTextPosition){3u, 7u}, .out = &out);
+    CLI_TEST_ASSERT_TEXT("{\"line\":3,\"col\":7}", buffer, out.at);
+    out = mmgr_line_over(buffer, sizeof(buffer));
+    const CliTextEdit edit = {{1u, 2u}, {1u, 4u}, "a\"b", 3ULL};
+    EMBED_CALL(cli_edits.text_edit_write, CliEditsCfg, .edit = &edit, .out = &out);
+    CLI_TEST_ASSERT_TEXT("{\"from\":{\"line\":1,\"col\":2},\"to\":{\"line\":1,\"col\":4},\"text\":\"a\\\"b\"}", buffer, out.at);
+    // "a", a two byte character, a four byte character of two units, "b": column 2 is byte 3, column 4 is byte 7
+    const char line[] = "a\xc3\xa9\xf0\x9f\x98\x80"
+                        "b";
+    TEST_ASSERT_EQUAL_UINT64(3ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 2u));
+    TEST_ASSERT_EQUAL_UINT64(7ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 4u));
+    TEST_ASSERT_EQUAL_UINT64(8ULL, EMBED_CALL(cli_edits_line.text_byte_get, CliEditsLineCfg, .line = line, .size = sizeof(line) - 1u, .col = 40u));
 }

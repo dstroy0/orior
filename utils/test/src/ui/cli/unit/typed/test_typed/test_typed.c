@@ -42,3 +42,20 @@ void test_a_byte_past_ascii_is_put_whole(void)
     TEST_ASSERT_EQUAL_UINT64(12ull, typed.length);
     EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &typed, .owner = g_cli_text_owner);
 }
+
+void test_an_erase_takes_the_last_character_whole_and_none_from_nothing(void)
+{
+    CliTyped typed = {NULL, 0ull};
+    EMBED_CALL(cli_typed.put, CliTypedCfg, .typed = &typed, .text = "ab\xc3\xa9", .size = 4ull, .max = 64ull,
+               .owner = g_cli_text_owner);
+    EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &typed);
+    char copied[8];
+    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = &typed, .dst = copied, .capacity = sizeof(copied)));
+    TEST_ASSERT_EQUAL_STRING("ab", copied);
+    EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &typed);
+    EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &typed);
+    TEST_ASSERT_EQUAL_UINT64(0ull, typed.length);
+    EMBED_CALL(cli_typed.erase, CliTypedCfg, .typed = &typed);
+    TEST_ASSERT_EQUAL_UINT64(0ull, typed.length);
+    EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &typed, .owner = g_cli_text_owner);
+}

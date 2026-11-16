@@ -14,6 +14,8 @@ extern void test_each_byte_of_a_surrogate_becomes_a_replacement_character(void);
 extern void test_a_full_line_stops_before_a_character_that_does_not_fit(void);
 extern void test_a_full_line_stops_before_a_replacement_that_does_not_fit(void);
 extern void test_a_full_line_saves_a_character_that_fits_complete(void);
+extern void test_one_character_is_read_at_a_place_with_the_bytes_it_takes(void);
+extern void test_bytes_are_whole_utf8_or_not(void);
 
 
 /*=======Mock Management=====*/
@@ -83,6 +85,8 @@ int main(void)
   run_test(test_a_full_line_stops_before_a_character_that_does_not_fit, "test_a_full_line_stops_before_a_character_that_does_not_fit", 73);
   run_test(test_a_full_line_stops_before_a_replacement_that_does_not_fit, "test_a_full_line_stops_before_a_replacement_that_does_not_fit", 82);
   run_test(test_a_full_line_saves_a_character_that_fits_complete, "test_a_full_line_saves_a_character_that_fits_complete", 91);
+  run_test(test_one_character_is_read_at_a_place_with_the_bytes_it_takes, "test_one_character_is_read_at_a_place_with_the_bytes_it_takes", 99);
+  run_test(test_bytes_are_whole_utf8_or_not, "test_bytes_are_whole_utf8_or_not", 111);
 
   return UNITY_END();
 }

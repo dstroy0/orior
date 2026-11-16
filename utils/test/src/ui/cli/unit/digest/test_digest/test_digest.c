@@ -161,3 +161,12 @@ void test_sha256_fed_in_pieces_across_the_blocks_is_the_whole_messages(void)
     EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = digest);
     TEST_ASSERT_EQUAL_STRING("cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0", hex_of(digest, sizeof(digest)));
 }
+
+void test_the_digest_bytes_are_the_hex_digits_bytes(void)
+{
+    unsigned char digest[32];
+    EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = "abc", .size = 3ull, .digest = digest);
+    TEST_ASSERT_EQUAL_STRING("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", hex_of(digest, sizeof(digest)));
+    EMBED_CALL(cli_digest_key.hmac_sha256_bytes, CliDigestKeyCfg, .key = "Jefe", .key_size = 4ull, .message = "what do ya want for nothing?", .message_size = 28ull, .signed_digest = digest);
+    TEST_ASSERT_EQUAL_STRING("5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843", hex_of(digest, sizeof(digest)));
+}

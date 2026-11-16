@@ -98,3 +98,120 @@ void test_a_string_is_quoted_with_its_escapes_past_a_words_width(void)
     TEST_ASSERT_TRUE(mmgr_line_ok(&line));
     CLI_TEST_ASSERT_TEXT("\"abcdefghij\\\"k\\\\l\\u0001m\xc3\xa9\"", written, line.at);
 }
+
+static char s_written[512];
+static char s_why[256];
+
+// a tree read from `text` with room for `nodes_more` nodes and `text_more` bytes to build on: its root
+static unsigned int tree_read(CliJson *json, const char *text, unsigned int nodes_more, unsigned long long text_more)
+{
+    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = nodes_more, .text_more = text_more, .err_msg = &err_msg, .owner = g_cli_text_owner);
+}
+
+// the tree's cell given back
+static void tree_released(CliJson *json)
+{
+    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+}
+
+// the node `node` written on one line, NUL-terminated in s_written
+static const char *written_of(const CliJson *json, unsigned int node)
+{
+    VerbaLinea line = mmgr_line_over(s_written, sizeof(s_written));
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = node, .out = &line, .indent = 0u, .sorted = 0);
+    (void)mmgr_line_finish(&line);
+    return s_written;
+}
+
+void test_a_tree_is_built_with_members_set_removed_sorted_appended_copied_and_measured(void)
+{
+    CliJson json;
+    const unsigned int root = tree_read(&json, "{}", 32u, 256ull);
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, root);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = &json, .nodes = 4u, .text_u64 = 16ull));
+    const unsigned int number = EMBED_CALL(cli_json_tree_text_length_type.json_number_init, CliJsonTreeTextLengthTypeCfg, .json = &json, .text = "12", .length = 2ull);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = root, .name = "b", .value = number);
+    const unsigned int array = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &json, .type = CFG_JSON_ARRAY);
+    EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &json, .array = array, .value = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = &json, .text = "x", .length = 1ull));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = root, .name = "a", .value = array);
+    TEST_ASSERT_EQUAL_STRING("{\"b\":12,\"a\":[\"x\"]}", written_of(&json, root));
+    // a member set again takes the place of the one it had
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = root, .name = "b", .value = EMBED_CALL(cli_json_tree_type.json_init, CliJsonTreeTypeCfg, .json = &json, .type = CFG_JSON_TRUE));
+    TEST_ASSERT_EQUAL_STRING("{\"b\":true,\"a\":[\"x\"]}", written_of(&json, root));
+    EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = &json, .object = root);
+    TEST_ASSERT_EQUAL_STRING("{\"a\":[\"x\"],\"b\":true}", written_of(&json, root));
+    EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = &json, .object = root, .name = "b");
+    TEST_ASSERT_EQUAL_STRING("{\"a\":[\"x\"]}", written_of(&json, root));
+    unsigned int nodes = 0u;
+    unsigned long long text = 0ull;
+    EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = &json, .node = root, .nodes_pointer = &nodes, .text_u64s = &text);
+    TEST_ASSERT_EQUAL_UINT(3u, nodes);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT64(2ull, text);
+    const unsigned int copied = EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = &json, .node = array);
+    TEST_ASSERT_EQUAL_STRING("[\"x\"]", written_of(&json, copied));
+    CliJson other;
+    const unsigned int other_root = tree_read(&other, "[]", 8u, 64ull);
+    const unsigned int moved = EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .node = root, .from = &json, .to = &other);
+    TEST_ASSERT_EQUAL_STRING("{\"a\":[\"x\"]}", written_of(&other, moved));
+    TEST_ASSERT_EQUAL_STRING("[]", written_of(&other, other_root));
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT64(EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root), EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root, .indent = 2u));
+    // a capacity the tree has not marks it full, and a clear takes the mark off
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = &json, .nodes = 100000u, .text_u64 = 16ull));
+    EMBED_CALL(cli_json_tree.json_clear, CliJsonTreeCfg, .json = &json);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = &json, .nodes = 4u, .text_u64 = 16ull));
+    tree_released(&other);
+    tree_released(&json);
+}
+
+void test_json_is_written_compact_a_double_as_serde_writes_it_and_a_values_end_found(void)
+{
+    char buffer[64];
+    VerbaLinea out = mmgr_line_over(buffer, sizeof(buffer));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = " { \"a\" : [ 1 , 2 ] } ", .size = 21ull, .out = &out));
+    CLI_TEST_ASSERT_TEXT("{\"a\":[1,2]}", buffer, out.at);
+    out = mmgr_line_over(buffer, sizeof(buffer));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = "{\"a\":", .size = 5ull, .out = &out));
+    out = mmgr_line_over(buffer, sizeof(buffer));
+    EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &out, .value_f64 = 0.5);
+    CLI_TEST_ASSERT_TEXT("0.5", buffer, out.at);
+    out = mmgr_line_over(buffer, sizeof(buffer));
+    EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &out, .value_f64 = 100000.0);
+    CLI_TEST_ASSERT_TEXT("100000.0", buffer, out.at);
+    out = mmgr_line_over(buffer, sizeof(buffer));
+    EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &out, .value_f64 = 1.5e300);
+    CLI_TEST_ASSERT_TEXT("1.5e300", buffer, out.at);
+    out = mmgr_line_over(buffer, sizeof(buffer));
+    EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .text_bytes = (const unsigned char *)"a\"b\n", .length = 4ull, .out = &out);
+    CLI_TEST_ASSERT_TEXT("a\\\"b\\n", buffer, out.at);
+    TEST_ASSERT_EQUAL_UINT64(4ull, EMBED_CALL(cli_json_tree_text_size.json_value_end, CliJsonTreeTextSizeCfg, .text = "  12 ,", .size = 6ull, .at = 0ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_json_tree_text_size.json_value_end, CliJsonTreeTextSizeCfg, .text = "[1,", .size = 3ull, .at = 0ull));
+}
+
+void test_a_file_is_read_into_a_tree_and_a_missing_file_is_refused_with_why(void)
+{
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea joined = {path, sizeof(path), 0ull};
+    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    cli_unity_folder("json_file", root);
+    cli_unity_file(root, "a.json", "{\"k\":[1]}");
+    mmgr_line_put(&joined, root);
+    mmgr_line_put(&joined, "/a.json");
+    (void)mmgr_line_finish(&joined);
+    CliJson json;
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json, .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+    const unsigned int read = EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = path, .err_msg = &err_msg, .owner = g_cli_text_owner);
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, read);
+    TEST_ASSERT_EQUAL_STRING("{\"k\":[1]}", written_of(&json, read));
+    tree_released(&json);
+    joined.at = 0ull;
+    mmgr_line_put(&joined, root);
+    mmgr_line_put(&joined, "/none.json");
+    (void)mmgr_line_finish(&joined);
+    err_msg.at = 0ull;
+    TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = path, .err_msg = &err_msg, .owner = g_cli_text_owner));
+    TEST_ASSERT_NOT_EQUAL(0ull, err_msg.at);
+}

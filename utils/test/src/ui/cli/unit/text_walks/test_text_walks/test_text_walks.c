@@ -161,6 +161,81 @@ void test_characters_are_counted_across_words(void)
     TEST_ASSERT_EQUAL_UINT64(11ull, EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = text, .size = 12ull));
 }
 
+void test_characters_are_alphabetic_or_alphanumeric_as_unicode_reads_them(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_table.alphabetic, CliTextCfg, .character = 'a'));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_table.alphabetic, CliTextCfg, .character = 0xE9u));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_text_table.alphabetic, CliTextCfg, .character = '7'));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = '7'));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = 0xE9u));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = ' '));
+}
+
+// `out` begun empty over `buffer`
+static VerbaLinea begun(char *buffer, unsigned long long capacity)
+{
+    return mmgr_line_over(buffer, capacity);
+}
+
+void test_a_text_is_written_marked_doubled_replaced_filled_lowered_swapped_and_unescaped(void)
+{
+    char buffer[64];
+    VerbaLinea out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_size_set.append_mark, CliTextSizeSetCfg, .text = "a'b", .set = "'", .mark = '\\', .out = &out);
+    CLI_TEST_ASSERT_TEXT("a\\'b", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_size_set.append_marked_n, CliTextSizeSetCfg, .text = "a'b'c", .size = 3ull, .set = "'", .mark = '\\', .out = &out);
+    CLI_TEST_ASSERT_TEXT("a\\'b", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_set_table.append_double, CliTextSetCfg, .text = "it's", .set = "'", .out = &out);
+    CLI_TEST_ASSERT_TEXT("it''s", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_set_table.append_replace, CliTextSetCfg, .text = "a-b_c", .set = "-_", .with = ".", .out = &out);
+    CLI_TEST_ASSERT_TEXT("a.b.c", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .text = "x=<n>,<n>", .name = "<n>", .value = "7", .out = &out);
+    CLI_TEST_ASSERT_TEXT("x=7,7", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_out_name.append_lower, CliTextOutNameCfg, .text = "AbC", .out = &out);
+    CLI_TEST_ASSERT_TEXT("abc", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    TEST_ASSERT_EQUAL_UINT64(5ull, EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .text = "a.b.c", .from = '.', .to = '/', .out = &out));
+    CLI_TEST_ASSERT_TEXT("a/b/c", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_size_set.append_unescaped, CliTextSizeSetCfg, .text = "a%20b%2Fc", .size = 9ull, .out = &out);
+    CLI_TEST_ASSERT_TEXT("a b/c", buffer, out.at);
+    out = begun(buffer, sizeof(buffer));
+    EMBED_CALL(cli_text_classes.append_save, CliTextClassesCfg, .text = "a b_c", .classes = CLI_TEXT_CHARACTERS | CLI_TEXT_DIGITS, .set = "_", .other = '-', .out = &out);
+    CLI_TEST_ASSERT_TEXT("a-b_c", buffer, out.at);
+}
+
+void test_a_text_is_sorted_searched_trimmed_lowered_and_measured(void)
+{
+    unsigned long long at = 9ull;
+    unsigned long long length = 0ull;
+    unsigned long long end = 0ull;
+    char lowered[8];
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.before_folded, CliTextSizeOneCfg, .one = "Apple", .size = 5ull, .other_pointer = "banana"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_text_size_one.before_folded, CliTextSizeOneCfg, .one = "banana", .size = 6ull, .other_pointer = "Apple"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_at.find_last, CliTextSizeAtCfg, .text = "ab ab", .length_value = 5ull, .required = "ab", .size = 2ull, .at_pointer = &at));
+    TEST_ASSERT_EQUAL_UINT64(3ull, at);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_text_size_at.find_last, CliTextSizeAtCfg, .text = "ab ab", .length_value = 5ull, .required = "zz", .size = 2ull, .at_pointer = &at));
+    TEST_ASSERT_EQUAL_UINT(15u, EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg, .byte = 'f'));
+    TEST_ASSERT_EQUAL_UINT(16u, EMBED_CALL(cli_text_byte.hex_digit, CliTextByteCfg, .byte = 'G'));
+    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = "ab  \n", .size = 5ull));
+    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = "abc=def", .set = "=:"));
+    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .text = "AbC", .out_capacity = lowered, .capacity = sizeof(lowered)));
+    TEST_ASSERT_EQUAL_STRING("abc", lowered);
+    TEST_ASSERT_EQUAL_UINT(0xE9u, EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg, .text = "a\xc3\xa9", .end_value = 3ull, .length = &length));
+    TEST_ASSERT_EQUAL_UINT64(2ull, length);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_type.utf8_valid, CliTextSizeTypeCfg, .text_bytes = (const unsigned char *)"a\xc3\xa9", .size = 3ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_text_size_type.utf8_valid, CliTextSizeTypeCfg, .text_bytes = (const unsigned char *)"a\xc3", .size = 2ull));
+    // a quote at 2 runs to the quote that closes it, the backslash carrying the quote after it
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_at_size.quoted_end, CliTextAtSizeCfg, .text = "x 'a\\'b' y", .at = 2ull, .size = 10ull, .end = &end));
+    TEST_ASSERT_EQUAL_UINT64(8ull, end);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_text_at_size.quoted_end, CliTextAtSizeCfg, .text = "x 'a' y", .at = 0ull, .size = 7ull, .end = &end));
+}
+
 void test_the_byte_of_a_utf16_unit_is_found_across_words(void)
 {
     // ten ASCII bytes, then a two, a three and a four byte character: the units start at bytes 0 to 9, 10, 12, 15,

@@ -10,6 +10,7 @@ extern void tearDown(void);
 extern void test_the_bytes_put_stop_at_a_control_past_a_words_width(void);
 extern void test_a_control_first_puts_nothing(void);
 extern void test_a_byte_past_ascii_is_put_whole(void);
+extern void test_an_erase_takes_the_last_character_whole_and_none_from_nothing(void);
 
 
 /*=======Mock Management=====*/
@@ -74,6 +75,7 @@ int main(void)
   run_test(test_the_bytes_put_stop_at_a_control_past_a_words_width, "test_the_bytes_put_stop_at_a_control_past_a_words_width", 16);
   run_test(test_a_control_first_puts_nothing, "test_a_control_first_puts_nothing", 28);
   run_test(test_a_byte_past_ascii_is_put_whole, "test_a_byte_past_ascii_is_put_whole", 37);
+  run_test(test_an_erase_takes_the_last_character_whole_and_none_from_nothing, "test_an_erase_takes_the_last_character_whole_and_none_from_nothing", 46);
 
   return UNITY_END();
 }

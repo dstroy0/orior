@@ -24,6 +24,7 @@ extern void test_sha256_of_abc(void);
 extern void test_sha256_of_two_blocks(void);
 extern void test_sha256_of_a_million_a(void);
 extern void test_sha256_fed_in_pieces_across_the_blocks_is_the_whole_messages(void);
+extern void test_the_digest_bytes_are_the_hex_digits_bytes(void);
 
 
 /*=======Mock Management=====*/
@@ -102,6 +103,7 @@ int main(void)
   run_test(test_sha256_of_two_blocks, "test_sha256_of_two_blocks", 138);
   run_test(test_sha256_of_a_million_a, "test_sha256_of_a_million_a", 143);
   run_test(test_sha256_fed_in_pieces_across_the_blocks_is_the_whole_messages, "test_sha256_fed_in_pieces_across_the_blocks_is_the_whole_messages", 149);
+  run_test(test_the_digest_bytes_are_the_hex_digits_bytes, "test_the_digest_bytes_are_the_hex_digits_bytes", 165);
 
   return UNITY_END();
 }
