@@ -99,6 +99,26 @@ static void labelled(const char *required)
     CLI_TEST_ASSERT_TEXT(required, shape->label, shape->label_length);
 }
 
+void test_vims_steps_count_the_lines_copy_a_line_and_measure_a_spans_bytes(void)
+{
+    fresh("ab\ncd\xC3\xA9\n");
+    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_view_vim.lines, CliViewVimCfg, .key = s_key));
+    unsigned long long count = 0ull;
+    const unsigned short *const units =
+        EMBED_CALL(cli_view_vim.line, CliViewVimCfg, .key = s_key, .line = 1ull, .count = &count);
+    TEST_ASSERT_NOT_NULL(units);
+    TEST_ASSERT_EQUAL_UINT64(3ull, count);
+    TEST_ASSERT_EQUAL_UINT('c', units[0]);
+    TEST_ASSERT_EQUAL_UINT(0xE9u, units[2]);
+    EMBED_CALL(cli_view_vim.line_end, CliViewVimCfg, .key = s_key, .units = units);
+    TEST_ASSERT_NULL(EMBED_CALL(cli_view_vim.line, CliViewVimCfg, .key = s_key, .line = 9ull, .count = &count));
+    // "ab", the line's end, "cd" and the two bytes of the accented letter
+    TEST_ASSERT_EQUAL_UINT64(7ull, EMBED_CALL(cli_view_vim.span_bytes, CliViewVimCfg, .key = s_key,
+                                              .from = (CliPosition){0ull, 0ull}, .to = (CliPosition){1ull, 3ull}));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_view_vim.span_bytes, CliViewVimCfg, .key = "check:none",
+                                              .from = (CliPosition){0ull, 0ull}, .to = (CliPosition){1ull, 3ull}));
+}
+
 void test_the_motions_move_over_words_blanks_punctuation_and_line_ends_with_counts(void)
 {
     fresh("one two-three  four\n  five six\n\nseven");

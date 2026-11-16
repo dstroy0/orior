@@ -237,6 +237,40 @@ static void words_view(void)
     input_sent_to(s_key2, &released);
 }
 
+// the place of the view under `key` among the views, -1 where none is
+static int place_of(const char *key)
+{
+    int place = -1;
+    for (unsigned int at = 0u; at < cli_view_count(); at += 1u)
+    {
+        char named[CLI_NAME_MAX_LEN];
+        if (cli_view_key(&(CliViewAtCfg){.at = at, .key_out = named}) &&
+            cellul.eq(&(CatenaFinitaCfg){.src = named, .other = key, .cap = CLI_NAME_MAX_LEN}))
+        {
+            // a place among the views is far inside what an int represents
+            place = (int)at;
+        }
+    }
+    return place;
+}
+
+void test_the_view_displayed_and_the_one_displayed_before_it_are_known_by_their_places(void)
+{
+    fresh_named(s_text, "check/view.c");
+    const int first = place_of(s_key);
+    TEST_ASSERT_TRUE(first >= 0);
+    cli_view_show(&(CliViewAtCfg){.at = (unsigned int)first});
+    TEST_ASSERT_EQUAL_INT(first, cli_view_displayed());
+    words_view();
+    const int second = place_of(s_key2);
+    TEST_ASSERT_TRUE((second >= 0) && (second != first));
+    cli_view_show(&(CliViewAtCfg){.at = (unsigned int)second});
+    TEST_ASSERT_EQUAL_INT(second, cli_view_displayed());
+    TEST_ASSERT_EQUAL_INT(first, cli_view_last());
+    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
+}
+
 // a file of three hundred numbered lines written once for the process, opened in the pages with a branch over it,
 // indexed, and viewed sized ten rows
 static void paged_view(void)

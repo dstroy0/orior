@@ -23,6 +23,10 @@ extern void test_a_file_in_a_folder_created_since_is_tracked(void);
 extern void test_a_file_a_folder_further_down_is_tracked(void);
 extern void test_a_file_under_a_folder_git_ignores_is_not_tracked(void);
 extern void test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum(void);
+extern void test_a_folder_and_a_file_are_created_with_the_folders_above_them(void);
+extern void test_the_repository_names_the_paths_it_ignores(void);
+extern void test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped(void);
+extern void test_a_search_asked_to_locate_leaves_its_lines_located_by_file(void);
 
 
 /*=======Mock Management=====*/
@@ -95,6 +99,10 @@ int main(void)
   run_test(test_a_file_a_folder_further_down_is_tracked, "test_a_file_a_folder_further_down_is_tracked", 286);
   run_test(test_a_file_under_a_folder_git_ignores_is_not_tracked, "test_a_file_under_a_folder_git_ignores_is_not_tracked", 292);
   run_test(test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum, "test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum", 298);
+  run_test(test_a_folder_and_a_file_are_created_with_the_folders_above_them, "test_a_folder_and_a_file_are_created_with_the_folders_above_them", 312);
+  run_test(test_the_repository_names_the_paths_it_ignores, "test_the_repository_names_the_paths_it_ignores", 337);
+  run_test(test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped, "test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped", 354);
+  run_test(test_a_search_asked_to_locate_leaves_its_lines_located_by_file, "test_a_search_asked_to_locate_leaves_its_lines_located_by_file", 363);
 
   return UNITY_END();
 }

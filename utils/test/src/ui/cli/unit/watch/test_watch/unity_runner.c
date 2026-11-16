@@ -9,6 +9,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
+extern void test_a_watch_started_passes_a_change_and_passes_none_once_stopped(void);
 extern void test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed(void);
 extern void test_a_hidden_file_written_is_left_out_whole(void);
 extern void test_a_poll_finds_a_written_file(void);
@@ -74,10 +75,11 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\watch\\test_watch\\test_watch.c");
-  run_test(test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed, "test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed", 116);
-  run_test(test_a_hidden_file_written_is_left_out_whole, "test_a_hidden_file_written_is_left_out_whole", 126);
-  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 133);
-  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 139);
+  run_test(test_a_watch_started_passes_a_change_and_passes_none_once_stopped, "test_a_watch_started_passes_a_change_and_passes_none_once_stopped", 92);
+  run_test(test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed, "test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed", 146);
+  run_test(test_a_hidden_file_written_is_left_out_whole, "test_a_hidden_file_written_is_left_out_whole", 156);
+  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 163);
+  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 169);
 
   return UNITY_END();
 }

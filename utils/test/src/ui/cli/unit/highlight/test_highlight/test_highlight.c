@@ -281,6 +281,60 @@ void test_columns_count_as_the_page_counts_them(void)
     TEST_ASSERT_EQUAL_STRING("0 string|1 string|3 string|4 |5 number", line_colored("test", "\"\xF0\x9F\x98\x80\" 7", "root"));
 }
 
+// each name passed written after those before as `place name`, `|` between them
+static char s_names[1024];
+
+static void name_recorded(const CliNameEachCfg *args)
+{
+    VerbaLinea *const out = args->context;
+    mmgr_line_put(out, (args->place != 0u) ? "|" : "");
+    mmgr_line_decimal(out, args->place, 1u);
+    mmgr_line_ch(out, ' ');
+    mmgr_line_put(out, args->name);
+}
+
+void test_a_grammars_names_are_passed_each_with_its_place_the_empty_name_first(void)
+{
+    VerbaLinea out = {s_names, sizeof(s_names), 0ull};
+    const unsigned int count = EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = "test", .each_name_each = name_recorded, .context = &out);
+    (void)mmgr_line_finish(&out);
+    TEST_ASSERT_GREATER_THAN_UINT(1u, count);
+    TEST_ASSERT_EQUAL_CHAR('0', s_names[0]);
+    TEST_ASSERT_EQUAL_CHAR(' ', s_names[1]);
+    TEST_ASSERT_EQUAL_CHAR('|', s_names[2]);
+    CLI_TEST_ASSERT_CONTAINS("keyword", s_names);
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = "none", .each_name_each = name_recorded, .context = &out));
+}
+
+// a line's leaves written as the page reads a line's colors
+static void runs_written(const CliLeavesEachCfg *args)
+{
+    EMBED_CALL(cli_highlight.runs_write, CliHighlightCfg, .leaves = args->leaves, .out = args->context);
+}
+
+void test_a_lines_runs_are_written_as_columns_and_names(void)
+{
+    static const char *const s_lines[1] = {"if (x)"};
+    char ended[64];
+    char why[256];
+    VerbaLinea out = {s_runs, sizeof(s_runs), 0ull};
+    VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root", .lines = s_lines, .count = 1u, .ends = 0, .each = runs_written, .context = &out, .ended = &ended_line, .err_msg = &err_msg));
+    (void)mmgr_line_finish(&out);
+    // the five runs of `if (x)`, each its column and its name's place, the keyword's run first at column 0
+    TEST_ASSERT_EQUAL_CHAR('[', s_runs[0]);
+    TEST_ASSERT_EQUAL_CHAR('0', s_runs[1]);
+    TEST_ASSERT_EQUAL_CHAR(',', s_runs[2]);
+    unsigned int commas = 0u;
+    for (unsigned long long at = 0ull; at < out.at; at += 1ull)
+    {
+        commas += (s_runs[at] == ',') ? 1u : 0u;
+    }
+    TEST_ASSERT_EQUAL_UINT(9u, commas);
+    TEST_ASSERT_EQUAL_CHAR(']', s_runs[out.at - 1ull]);
+}
+
 void test_a_rule_reads_its_groups_and_a_grammar_its_includes(void)
 {
     TEST_ASSERT_EQUAL_STRING("0 label|3 delimiter|4 |5 number", line_colored("test", "key: 1", "root"));

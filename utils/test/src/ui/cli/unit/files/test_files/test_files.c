@@ -308,3 +308,84 @@ void test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cell
     TEST_ASSERT_NOT_NULL_MESSAGE(mark, report);
     TEST_ASSERT_NOT_EQUAL_MESSAGE('0', mark[1], report);
 }
+
+void test_a_folder_and_a_file_are_created_with_the_folders_above_them(void)
+{
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    cli_unity_folder("files_created", s_root);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_out_dir.create_folder, CliFilesRootOutDirCfg, .root = s_root, .dir = "made/deep/er", .err_msg = &err_msg));
+    // a folder there already is refused, with why
+    err_msg.at = 0ull;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_root_out_dir.create_folder, CliFilesRootOutDirCfg, .root = s_root, .dir = "made/deep/er", .err_msg = &err_msg));
+    TEST_ASSERT_NOT_EQUAL(0ull, err_msg.at);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_err_msg_text.create_file, CliFilesRootErrMsgTextCfg, .root = s_root, .file = "made/deep/er/x.txt", .err_msg = &err_msg));
+    // a file there already is refused, its text kept
+    bytes_written(s_root, "made/deep/er/x.txt", "one", 3ull);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_root_err_msg_text.create_file, CliFilesRootErrMsgTextCfg, .root = s_root, .file = "made/deep/er/x.txt", .err_msg = &err_msg));
+    cli_tree_forgotten();
+    const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = s_root);
+    TEST_ASSERT_NOT_NULL(files);
+    int listed = 0;
+    for (unsigned int at = 0u; at < files->count; at += 1u)
+    {
+        listed = listed || cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_files.at, CliFilesCfg, .files = files, .index = at), .other = "made/deep/er/x.txt", .cap = CLI_PATH_MAX_LEN});
+    }
+    EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
+    TEST_ASSERT_TRUE(listed);
+}
+
+void test_the_repository_names_the_paths_it_ignores(void)
+{
+    static const char *const s_paths[2] = {"a.log", "a.c"};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_unity_folder("files_ignored_read", s_root);
+    bytes_written(s_root, ".gitignore", "*.log\n", 6ull);
+    bytes_written(s_root, "a.log", "one", 3ull);
+    bytes_written(s_root, "a.c", "two", 3ull);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = s_root, .request = s_init, .count = 2u, .out = &out, .err_msg = &err_msg));
+    cli_tree_forgotten();
+    unsigned char ignored[2] = {0u, 0u};
+    EMBED_CALL(cli_files_root_paths.ignored_read, CliFilesRootPathsCfg, .root = s_root, .paths = s_paths, .count = 2u, .ignored = ignored);
+    TEST_ASSERT_EQUAL_UINT(1u, ignored[0]);
+    TEST_ASSERT_EQUAL_UINT(0u, ignored[1]);
+}
+
+void test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_git.path_skip, CliFilesGitCfg, .git = 0, .path = ".git/HEAD"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_git.path_skip, CliFilesGitCfg, .git = 0, .path = "crate/target/debug/a"));
+    // where git decides the rest, the target folder is git's to ignore
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_git.path_skip, CliFilesGitCfg, .git = 1, .path = "crate/target/debug/a"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_git.path_skip, CliFilesGitCfg, .git = 0, .path = "src/targets.c"));
+}
+
+void test_a_search_asked_to_locate_leaves_its_lines_located_by_file(void)
+{
+    const CliPatterns none = {0};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_unity_folder("files_located", s_root);
+    bytes_written(s_root, "a.txt", "no\nthe needle\n", 14ull);
+    bytes_written(s_root, "b.txt", "a needle\nneedle two\n", 20ull);
+    cli_tree_forgotten();
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = s_root, .query = "needle", .how = (CliSearching){0, 0, 0}, .set = &none, .out = &out, .err_msg = &err_msg, .located = 1));
+    TEST_ASSERT_EQUAL_UINT(3u, cli_search_located_count());
+    TEST_ASSERT_EQUAL_UINT(2u, cli_search_located_files());
+    CliStandingLine line;
+    TEST_ASSERT_TRUE(cli_search_located_line(&(CliSearchLocatedCfg){.at = 0u, .line_out = &line}));
+    TEST_ASSERT_EQUAL_UINT64(2ull, line.line);
+    TEST_ASSERT_EQUAL_UINT64(5ull, line.col);
+    TEST_ASSERT_EQUAL_UINT(0u, line.file);
+    char text[64];
+    const unsigned long long copied = cli_search_located_text(&(CliSearchLocatedCfg){.line = &line, .out = text, .capacity = sizeof(text)});
+    CLI_TEST_ASSERT_TEXT("the needle", text, copied);
+    TEST_ASSERT_EQUAL_UINT(0u, cli_search_located_file_first(&(CliSearchLocatedCfg){.file = 0u}));
+    TEST_ASSERT_EQUAL_UINT(1u, cli_search_located_file_first(&(CliSearchLocatedCfg){.file = 1u}));
+    TEST_ASSERT_EQUAL_UINT(3u, cli_search_located_file_first(&(CliSearchLocatedCfg){.file = 2u}));
+    char path[CLI_PATH_MAX_LEN];
+    TEST_ASSERT_EQUAL_STRING("b.txt", cli_search_located_path(&(CliSearchLocatedCfg){.file = 1u, .path_out = path}));
+    TEST_ASSERT_FALSE(cli_search_located_line(&(CliSearchLocatedCfg){.at = 3u, .line_out = &line}));
+    cli_search_located_free();
+    TEST_ASSERT_EQUAL_UINT(0u, cli_search_located_count());
+}

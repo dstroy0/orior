@@ -80,6 +80,36 @@ void tearDown(void)
 {
 }
 
+// how many batches a watch started passed to its take
+static unsigned int s_live_batches;
+
+static void live_batch_recorded(const CliWatchBatchCfg *args)
+{
+    (void)args;
+    s_live_batches += 1u;
+}
+
+void test_a_watch_started_passes_a_change_and_passes_none_once_stopped(void)
+{
+    tree_written("watch_live");
+    s_live_batches = 0u;
+    cli_watch_start(&(CliWatchCfg){.root = s_root, .take = live_batch_recorded, .context = NULL});
+    cli_unity_file(s_root, "src/c.rs", "four");
+    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
+    while ((s_live_batches == 0u) && (cli_clock_milliseconds() < until))
+    {
+        CliWake pause = CLI_WAKE_INIT;
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 20ull);
+    }
+    cli_watch_stop();
+    TEST_ASSERT_NOT_EQUAL(0u, s_live_batches);
+    const unsigned int before = s_live_batches;
+    cli_unity_file(s_root, "src/d.rs", "five");
+    CliWake rest = CLI_WAKE_INIT;
+    (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &rest, .milliseconds_u64 = 500ull);
+    TEST_ASSERT_EQUAL_UINT(before, s_live_batches);
+}
+
 static char s_folders[1024];
 static unsigned int s_folders_count;
 static unsigned int s_files_count;
