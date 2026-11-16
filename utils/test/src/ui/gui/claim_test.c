@@ -228,5 +228,29 @@ int main(void)
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 16000ull, .numbers = &numbers);
     cli_check(adjacent(numbers.reveal_tabs, GUI_FIXED_ONE) && adjacent(numbers.reveal_top, 0) && adjacent(numbers.inset_top, 0) && adjacent(numbers.reveal_down, 0),
               "a slide later the tabs row's reveal is whole and the bar, its inset and the controls stay away");
+    // the ease out curve runs from 0 to one and rises
+    cli_check((EMBED_CALL(gui_autohide_share.ease_out, GuiAutohideShareCfg, .share = 0) == 0) &&
+                  (EMBED_CALL(gui_autohide_share.ease_out, GuiAutohideShareCfg, .share = GUI_FIXED_ONE) == GUI_FIXED_ONE) &&
+                  (EMBED_CALL(gui_autohide_share.ease_out, GuiAutohideShareCfg, .share = GUI_FIXED_ONE / 4) <
+                   EMBED_CALL(gui_autohide_share.ease_out, GuiAutohideShareCfg, .share = GUI_FIXED_ONE / 2)) &&
+                  (EMBED_CALL(gui_autohide_share.ease_out, GuiAutohideShareCfg, .share = GUI_FIXED_ONE / 2) < GUI_FIXED_ONE),
+              "the ease out curve runs from 0 to one and rises");
+    // a bead's slide ends the lag past its length, and its lagged number starts with the slide, trails it on the way and
+    // reaches one as the slide ends
+    GuiSlide bead = {0, 0, 0ull};
+    g_test_clock_ms = 20000ull;
+    EMBED_CALL(gui_autohide_target.slide_to, GuiAutohideTargetCfg, .slide_out = &bead, .to = GUI_FIXED_ONE, .delay_ms = 0ull, .time_ms = cli_clock_milliseconds());
+    const unsigned long long bead_end = EMBED_CALL(gui_autohide_slide.slide_end_ms, GuiAutohideSlideCfg, .slide = &bead, .time_ms = 20000ull, .curve = GUI_CURVE_BEAD);
+    cli_check(bead_end == 20000ull + GUI_AUTOHIDE_ANIMATION_MS + GUI_AUTOHIDE_LAG_MS, "a bead's slide ends the lag past its length");
+    cli_check(EMBED_CALL(gui_autohide_slide.slide_end_ms, GuiAutohideSlideCfg, .slide = &bead, .time_ms = bead_end + 1ull, .curve = GUI_CURVE_BEAD) == 0ull, "and past its end it runs no more");
+    cli_check(adjacent(EMBED_CALL(gui_autohide_slide.lag_at, GuiAutohideSlideCfg, .slide = &bead, .time_ms = 20000ull, .curve = GUI_CURVE_BEAD), 0), "the lagged number starts where the slide starts");
+    cli_check(EMBED_CALL(gui_autohide_slide.lag_at, GuiAutohideSlideCfg, .slide = &bead, .time_ms = 20150ull, .curve = GUI_CURVE_BEAD) < EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = &bead, .time_ms = 20150ull, .curve = GUI_CURVE_BEAD),
+              "and trails the slide on the way");
+    cli_check(adjacent(EMBED_CALL(gui_autohide_slide.lag_at, GuiAutohideSlideCfg, .slide = &bead, .time_ms = bead_end, .curve = GUI_CURVE_BEAD), GUI_FIXED_ONE), "and reaches one as the bead's slide ends");
+    // a press in the bar's band shows the bar at once: no rest, its reveal whole with no slide
+    g_test_clock_ms = 30000ull;
+    EMBED_CALL(gui_autohide_pointer.show_now, GuiAutohidePointerCfg, .claim = &claim, .x = 500, .y = 10, .zone = GUI_AUTOHIDE_TOP, .over_parts = 0, .now_ms = cli_clock_milliseconds());
+    EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 30000ull, .numbers = &numbers);
+    cli_check((claim.displayed == GUI_AUTOHIDE_TOP) && adjacent(numbers.reveal_top, GUI_FIXED_ONE), "a press in the bar's band shows the bar at once, its reveal whole with no slide");
     return cli_on_check();
 }

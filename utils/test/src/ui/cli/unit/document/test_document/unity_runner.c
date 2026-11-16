@@ -39,6 +39,10 @@ extern void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(v
 extern void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were(void);
 extern void test_a_runs_roles_say_whether_a_col_is_inside_a_comment(void);
 extern void test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar(void);
+extern void test_find_each_passes_every_match_with_its_line_and_cols(void);
+extern void test_the_shape_of_lines_counts_their_lines_and_units(void);
+extern void test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none(void);
+extern void test_utf16_units_read_as_characters_and_write_as_utf8_and_json(void);
 
 
 /*=======Mock Management=====*/
@@ -127,6 +131,10 @@ int main(void)
   run_test(test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were, "test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were", 556);
   run_test(test_a_runs_roles_say_whether_a_col_is_inside_a_comment, "test_a_runs_roles_say_whether_a_col_is_inside_a_comment", 605);
   run_test(test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar, "test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar", 621);
+  run_test(test_find_each_passes_every_match_with_its_line_and_cols, "test_find_each_passes_every_match_with_its_line_and_cols", 643);
+  run_test(test_the_shape_of_lines_counts_their_lines_and_units, "test_the_shape_of_lines_counts_their_lines_and_units", 664);
+  run_test(test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none, "test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none", 672);
+  run_test(test_utf16_units_read_as_characters_and_write_as_utf8_and_json, "test_utf16_units_read_as_characters_and_write_as_utf8_and_json", 694);
 
   return UNITY_END();
 }

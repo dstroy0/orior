@@ -54,6 +54,13 @@ int main(void)
                       EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_keys[at], .path = "src/thread.c"),
                   "a view is opened on the file");
     }
+    // a tab shows the last part of its file's path, and a tab there is none of names nothing
+    unsigned long long named = 0ull;
+    const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .at = 0u, .length = &named);
+    cli_check((named == 8ull) && (name[0] == 't') && (name[7] == 'c') && (name[8] == '\0'),
+              "a tab shows the last part of its file's path");
+    cli_check((EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .at = 9u, .length = &named)[0] == '\0') && (named == 0ull),
+              "a tab there is none of names nothing");
     EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = s_keys[1]);
     EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = s_keys[2]);
     cli_view_closing_set(&(CliViewAtCfg){.at = 2u, .closing = 1});

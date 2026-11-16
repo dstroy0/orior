@@ -5,6 +5,7 @@
 // rows a hundred pixels a notch, no further than its last, a row marked anew is scrolled into view, and a menu opened
 // anew is at its first row
 #include "../../../../../includes/window/block.h"
+#include "../../../../../includes/window/top_menu.h"
 #include "../../../../../ui/cli/src/command_line/commands.h"
 #include "../../../../../ui/gui/src/menubar.h"
 #include "../cli/cli_check.h"
@@ -67,6 +68,19 @@ int main(void)
     }
     GuiFrame frame = {0};
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
+    // the bar's tools: the first tool stands in the tools row, the pointer on its middle is on it, and off the tools is
+    // on none
+    const GuiRect first_tool =
+        EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = &frame, .tools = &frame.top_menu_tools, .which = 0u);
+    cli_check((first_tool.width > 0) && EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = frame.top_menu_tools,
+                                                   .x = first_tool.x, .y = first_tool.y),
+              "the first tool stands in the tools row");
+    cli_check(EMBED_CALL(gui_top_menu.tools_hit, GuiTopMenuCfg, .frame = &frame, .tools = &frame.top_menu_tools,
+                         .x = first_tool.x + (first_tool.width / 2), .y = first_tool.y + (first_tool.height / 2)) == 0u,
+              "the pointer on the first tool's middle is on it");
+    cli_check(EMBED_CALL(gui_top_menu.tools_hit, GuiTopMenuCfg, .frame = &frame, .tools = &frame.top_menu_tools,
+                         .x = frame.top_menu_tools.x - 30, .y = first_tool.y + (first_tool.height / 2)) == GUI_TOP_MENU_TOOL_NONE,
+              "and off the tools is on none");
     for (unsigned int at = 0u; at < MENUBAR_TEST_ROWS; at += 1u)
     {
         s_rows[at] = (CliItem){"Row", "row", "", "", "", "", 0, 0, 0, 0, 0u};

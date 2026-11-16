@@ -625,3 +625,89 @@ void test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar(void)
     TEST_ASSERT_TRUE(s_paged_step[1]);
 }
 
+// the matches find_each passes, gathered: each match's line, from col and to col in turn, up to eight
+static unsigned long long s_each_found[8][3];
+static unsigned int s_each_count;
+
+static void each_found(const CliFound3Cfg *args)
+{
+    if (s_each_count < 8u)
+    {
+        s_each_found[s_each_count][0] = args->line;
+        s_each_found[s_each_count][1] = args->from;
+        s_each_found[s_each_count][2] = args->to;
+    }
+    s_each_count += 1u;
+}
+
+void test_find_each_passes_every_match_with_its_line_and_cols(void)
+{
+    const CliLines *const lines = lines_of("one two\ntwo one\n");
+    const CliDocNeedle needle = needle_of("one", 0, 1, 0);
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    s_each_count = 0u;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = lines, .needle = &needle, .max = 10ull, .err_msg = &err_msg, .each = each_found, .context = NULL));
+    TEST_ASSERT_EQUAL_UINT(2u, s_each_count);
+    TEST_ASSERT_EQUAL_UINT64(0ull, s_each_found[0][0]);
+    TEST_ASSERT_EQUAL_UINT64(0ull, s_each_found[0][1]);
+    TEST_ASSERT_EQUAL_UINT64(3ull, s_each_found[0][2]);
+    TEST_ASSERT_EQUAL_UINT64(1ull, s_each_found[1][0]);
+    TEST_ASSERT_EQUAL_UINT64(4ull, s_each_found[1][1]);
+    TEST_ASSERT_EQUAL_UINT64(7ull, s_each_found[1][2]);
+    // the max bounds the matches passed
+    s_each_count = 0u;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = lines, .needle = &needle, .max = 1ull, .err_msg = &err_msg, .each = each_found, .context = NULL));
+    TEST_ASSERT_EQUAL_UINT(1u, s_each_count);
+}
+
+void test_the_shape_of_lines_counts_their_lines_and_units(void)
+{
+    const CliLines *const lines = lines_of("one\ntwo\n");
+    const CliShape shape = EMBED_CALL(cli_document_lines_out.shape_get, CliDocumentLinesOutCfg, .lines = lines);
+    TEST_ASSERT_EQUAL_UINT(3u, shape.lines);
+    TEST_ASSERT_EQUAL_UINT64(6ull, shape.units);
+}
+
+void test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none(void)
+{
+    CliShape shape;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "units", .text = "ab\ncd\n", .size = 6ull, .shape = &shape));
+    unsigned short dst[8];
+    unsigned long long count = 9ull;
+    TEST_ASSERT_EQUAL_UINT64(1ull, EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = "units", .line = 1ull, .count = &count, .dst = dst, .capacity = 8ull));
+    TEST_ASSERT_EQUAL_UINT64(2ull, count);
+    TEST_ASSERT_EQUAL_UINT('c', dst[0]);
+    TEST_ASSERT_EQUAL_UINT('d', dst[1]);
+    count = 9ull;
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = "units", .line = 9ull, .count = &count, .dst = dst, .capacity = 8ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull, count);
+    // a text with no last commit's file has no head, and no head line
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_document.has_head, CliDocumentCfg, .key = "units"));
+    count = 9ull;
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg, .key = "units", .line = 0ull, .count = &count, .dst = dst, .capacity = 8ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull, count);
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "units");
+    TEST_ASSERT_EQUAL_UINT(0u, cli_document_walkers());
+}
+
+void test_utf16_units_read_as_characters_and_write_as_utf8_and_json(void)
+{
+    // 'a', a surrogate pair for U+1F600, an unpaired low surrogate, and a quote
+    const unsigned short units[5] = {'a', 0xD83Du, 0xDE00u, 0xDC00u, '"'};
+    unsigned long long consumed = 0ull;
+    TEST_ASSERT_EQUAL_UINT('a', EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units, .count = 5ull, .at = 0ull, .consumed = &consumed));
+    TEST_ASSERT_EQUAL_UINT64(1ull, consumed);
+    TEST_ASSERT_EQUAL_UINT(0x1F600u, EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units, .count = 5ull, .at = 1ull, .consumed = &consumed));
+    TEST_ASSERT_EQUAL_UINT64(2ull, consumed);
+    TEST_ASSERT_EQUAL_UINT(0xFFFDu, EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units, .count = 5ull, .at = 3ull, .consumed = &consumed));
+    TEST_ASSERT_EQUAL_UINT64(1ull, consumed);
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .units = units, .count = 3ull, .out = &out);
+    CLI_TEST_ASSERT_TEXT("a\xF0\x9F\x98\x80", s_out, out.at);
+    out.at = 0ull;
+    EMBED_CALL(cli_document_units_count.units_write, CliDocumentUnitsCountCfg, .units = units, .count = 5ull, .out = &out);
+    TEST_ASSERT_TRUE((out.at >= 4ull) && (s_out[0] == '"') && (s_out[out.at - 1ull] == '"') && (s_out[out.at - 2ull] != '\\'));
+    TEST_ASSERT_TRUE((s_out[out.at - 3ull] == '\\') && (s_out[out.at - 2ull] == '"'));
+}
+

@@ -96,6 +96,23 @@ int main(void)
     cli_check(raster.pixels[((unsigned int)third.y * raster.width) + (unsigned int)third.x] == palette->text,
               "the character after inverse is on the text's color as its ground");
 
+    // the cell a pixel is nearest: the pane's first cell at its top left, a cell further in by its row and column, and
+    // a pixel outside the pane takes its nearest cell
+    unsigned long long row = 0ull;
+    unsigned long long column = 0ull;
+    cli_check(EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
+                         .view = 0u, .x = left + (cell / 2), .y = top + (GUI_TERMINAL_ROW / 2), .row = &row, .column = &column) &&
+                  (row == 0ull) && (column == 0ull),
+              "the pixel at the pane's top left is on its first cell");
+    cli_check(EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
+                         .view = 0u, .x = left + (2 * cell) + (cell / 2), .y = top + GUI_TERMINAL_ROW + (GUI_TERMINAL_ROW / 2),
+                         .row = &row, .column = &column) &&
+                  (row == 1ull) && (column == 2ull),
+              "a pixel further in is on its row and column");
+    cli_check(EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
+                         .view = 0u, .x = left - 40, .y = top - 40, .row = &row, .column = &column) &&
+                  (row == 0ull) && (column == 0ull),
+              "a pixel outside the pane takes its nearest cell");
     cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)terminal.frame[0]});
     g_cli_guard->persistent_buf_release((void *)terminal.names[0], g_checks_owner);
     raster.pixels = NULL;

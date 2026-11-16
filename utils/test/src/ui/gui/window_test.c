@@ -1321,13 +1321,15 @@ static void sticky_notch_checked(void)
     stepped_for(GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
     cli_check(s_window.claim.autohidden && (s_window.editor.frame != NULL) && (s_window.editor.frame->stickies == 1u),
               "typing claims the edges and the function's head is the one sticky row");
+    cli_check(EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = &s_window) != 0ULL,
+              "the window wants a tick while the caret blinks and the claim slides");
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = s_window.frame.scale);
     moved(s_window.frame.work.x + s_window.frame.work.width - 4, 4);
     stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 200ULL);
     cli_check(s_window.frame.controls_pane_share >= GUI_FIXED_ONE, "a rest in the corner brings the controls' pane down");
     // the editor drawn on a raster of its own, clear, with the pane's notch at its top right: the sticky row's ground
     // reaches the raster's left and leaves the bend before the notch clear
-    const int line_height =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = s_window.frame.scale);
     const GuiColor clear = GUI_RGB(1u, 2u, 3u);
     const GuiRect place = {0, 0, 640, 4 * line_height};
     const GuiRect notch = {place.width - 120, 0, 120, 2 * line_height};
@@ -1346,6 +1348,20 @@ static void sticky_notch_checked(void)
     const GuiColor bend = raster.pixels[(y * raster.width) + (unsigned int)(notch.x - ((int)s_window.frame.radius / 2))];
     cli_check(inside != clear, "the sticky row's ground is at the editor's left");
     cli_check(bend == clear, "and it stops short of the bend round the controls' pane");
+    // a press on the sticky row, under the top band the claim reads a press in as the bar's, puts its line at the view's
+    // top, the frame following within a second
+    const GuiRect editor = s_window.frame.editor;
+    const unsigned long long pinned = s_window.editor.frame->row[s_window.editor.frame->count].number;
+    pressed_with(editor.x + 60, editor.y + line_height - 2, GUI_BUTTON_LEFT);
+    released_with(editor.x + 60, editor.y + line_height - 2, GUI_BUTTON_LEFT);
+    const unsigned long long scrolled_until = cli_clock_milliseconds() + 1000ULL;
+    while ((cli_clock_milliseconds() < scrolled_until) &&
+           ((s_window.editor.frame == NULL) || (s_window.editor.frame->top != pinned)))
+    {
+        stepped_for(20ULL);
+    }
+    cli_check((s_window.editor.frame != NULL) && (s_window.editor.frame->top == pinned),
+              "a press on the sticky row puts its line at the view's top");
 }
 
 // The View menu's switches and tool views through the interface: whitespace marks, the eased scroll, the sticky rows
