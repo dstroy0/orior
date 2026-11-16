@@ -3312,6 +3312,20 @@ EMBED_INLINE int view_character_outdent(const ViewCtx *args)
                       .text = lead, .length = line.at, .type = args->type, .err_msg = args->err_msg);
 }
 
+// how many units of `line` before `col` are the quote `unit`, one after a backslash left out
+EMBED_INLINE unsigned int view_quotes_before(const ViewCtx *args)
+{
+    unsigned int count = 0u;
+    unsigned int before = 0u;
+    for (unsigned long long at = 0ULL; at < args->col; at += 1ULL)
+    {
+        const unsigned int here = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->line, .col = at);
+        count += ((here == args->unit) && (before != '\\')) ? 1u : 0u;
+        before = here;
+    }
+    return count;
+}
+
 // one character typed, `length` bytes of `text` as the unit `character`: a closer typed before itself steps over it; an
 // opener typed around a selection wraps it, the selection saved inside, and typed alone brings its closer where what
 // follows allows, the cursor between them, a quote where what comes before allows too; a closing bracket typed on a
@@ -3347,9 +3361,18 @@ EMBED_INLINE int view_character_type(const ViewCtx *args)
         const int next_ok = (next == 0u) || EMBED_CALL(view_blank_unit, ViewCtx, .unit = next) || (next == ';') ||
                             (next == ',') || (next == '.') || (next == ')') || (next == ']') || (next == '}') ||
                             (next == '>');
-        const int prev_ok = !quote || ((prev != 0u) ? (!EMBED_CALL(view_word_unit, ViewCtx, .unit = prev) &&
-                                                       (prev != '\\') && (prev != character))
-                                                    : 1);
+        // a quote typed inside a string or a comment, as the run under the unit before it is named, or after an odd
+        // count of its own kind on the line, those escaped left out, closes or is text, and brings no closer
+        const int quoted =
+            quote && (((EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = args->view->key,
+                                   .line = (unsigned int)from.line, .col = (from.col > 0ULL) ? (from.col - 1ULL) : 0ULL) &
+                        CLI_ROLE_QUOTED) != 0u) ||
+                      ((EMBED_CALL(view_quotes_before, ViewCtx, .view = args->view, .line = from.line, .col = from.col,
+                                   .unit = character) %
+                        2u) == 1u));
+        const int prev_ok = !quote || (!quoted && ((prev != 0u) ? (!EMBED_CALL(view_word_unit, ViewCtx, .unit = prev) &&
+                                                                   (prev != '\\') && (prev != character))
+                                                                : 1));
         if (next_ok && prev_ok)
         {
             char both[16];

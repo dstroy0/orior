@@ -2238,6 +2238,51 @@ unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
     return answer;
 }
 
+// the roles of the run that holds the unit `col` of the line `line` of the text under `key`, as the text saved them
+// for the run's name: 0 where no text is stored under the key, the line saves no runs, the col is before its first
+// run or the names' roles are not read yet
+static unsigned int run_roles_locked(const CliDocumentKeyLineCfg *args)
+{
+    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    if ((one == NULL) || (args->line >= one->lines.lines) || !one->roles_complete)
+    {
+        return 0u;
+    }
+    unsigned int place = 0u;
+    unsigned long long length = 0ULL;
+    unsigned int *const record = EMBED_CALL(branch_line_record, DocumentBranchCtx, .one_read = one,
+                                            .line_number = args->line, .place_out = &place, .length_out = &length);
+    if (record == NULL)
+    {
+        return 0u;
+    }
+    const unsigned int runs = record[0];
+    const unsigned int *const col = record + CLI_DOC_RECORD_HEAD;
+    unsigned int name = CLI_DOC_NONE;
+    for (unsigned int run = 0u; run < runs; run += 1u)
+    {
+        name = (col[run] <= args->col) ? col[run + runs] : name;
+    }
+    g_cli_guard->persistent_buf_release(record, g_cli_editor_owner);
+    unsigned int roles = 0u;
+    if ((name != CLI_DOC_NONE) && (name < one->roles_capacity))
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->roles,
+                                                                .offset = (unsigned long long)name * sizeof(roles),
+                                                                .dst = &roles,
+                                                                .bytes = sizeof(roles)});
+    }
+    return roles & (CLI_DOC_ROLES_KNOWN - 1u);
+}
+
+unsigned int cli_document_run_roles(const CliDocumentKeyLineCfg *args)
+{
+    cli_document_lock_take();
+    const unsigned int answer = run_roles_locked(args);
+    cli_document_lock_give();
+    return answer;
+}
+
 // whether the folds of `one` go on: its regions moved since they last went, every line of it colored, the walk's step
 // over it having colored none and no coloring under way claiming any, and the page holding lines of it
 EMBED_INLINE int branch_folds_ready(const DocumentBranchCtx *args)

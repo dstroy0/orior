@@ -4,6 +4,7 @@
 // and carry each change's lines; a text is stored until it is released; find returns each match with case and without, a pattern's by the regular expressions the
 // colorer reads; a branch is colored by a grammar and read through its view; its uses and brackets read off its
 // grammar's roles; texts colored at once by walkers on threads of their own read as one walked alone; and a paged text is colored the same way through the pages
+#include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/document.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/editor/highlight.h"
@@ -581,6 +582,22 @@ void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_wer
     pool_given_back();
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "compact");
     TEST_ASSERT_EQUAL_UINT(5u, third);
+}
+
+void test_a_runs_roles_say_whether_a_col_is_inside_a_comment(void)
+{
+    CliShape shape;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "roles", .text = "x /* y */ z\n", .size = 12ull, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "roles", .grammar = "branch", .named = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "roles", .from = 0ull, .to = 1ull));
+    cli_document_walk();
+    const unsigned int outside = EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 0u, .col = 0ull);
+    const unsigned int inside = EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 0u, .col = 5ull);
+    const unsigned int none = EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 1u, .col = 0ull);
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "roles");
+    TEST_ASSERT_EQUAL_UINT(0u, outside & CLI_ROLE_QUOTED);
+    TEST_ASSERT_EQUAL_UINT(CLI_ROLE_QUOTED, inside & CLI_ROLE_QUOTED);
+    TEST_ASSERT_EQUAL_UINT(0u, none);
 }
 
 void test_the_branchs_file_opens_as_a_paged_text_colored_by_a_grammar(void)

@@ -301,6 +301,10 @@ CliDocumentWords *cli_document_words_alloc(const CliDocumentWordsCfg *args);
 // where the cells cannot meet the capacity they are found in: 1, or 0 where no text is stored under `key`
 // (document_branch.c)
 unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args);
+// the roles the run that holds the unit `col` of the line `line` of the text under `key` carries, as the grammar's
+// name gives them (symbols.h): 0 where no text is stored under the key, the line saves no runs, the col is before
+// its first run or the names' roles are not read yet (document_branch.c)
+unsigned int cli_document_run_roles(const CliDocumentKeyLineCfg *args);
 typedef void (*CliFoldEach)(const CliFoldEachCfg *args);
 int cli_document_folds_each(const CliDocumentContextCfg *args);
 
@@ -385,6 +389,7 @@ struct CliDocumentKeyLineCfg
 {
     const char *key;
     unsigned int line;
+    unsigned long long col;
     unsigned int *opener;
     unsigned int max_u32;
 };
@@ -659,10 +664,12 @@ EMBED_TABLE_STORAGE CliDocumentKeyFromNs cli_document_key_from EMBED_UNUSED = {
 typedef struct
 {
     unsigned int (*openers)(const CliDocumentKeyLineCfg *args);
+    unsigned int (*run_roles)(const CliDocumentKeyLineCfg *args);
 } CliDocumentKeyLineNs;
-EMBED_TABLE_LAYOUT(CliDocumentKeyLineNs, openers);
+EMBED_TABLE_LAYOUT(CliDocumentKeyLineNs, openers, run_roles);
 EMBED_TABLE_STORAGE CliDocumentKeyLineNs cli_document_key_line EMBED_UNUSED = {
     .openers = cli_document_openers,
+    .run_roles = cli_document_run_roles,
 };
 
 typedef struct

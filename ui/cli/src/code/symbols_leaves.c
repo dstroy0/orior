@@ -209,7 +209,7 @@ unsigned int cli_symbols_name_roles(const CliSymbolsQueryCfg *args)
     EMBED_CALL(cli_leaf_get, SymbolsLeavesCtx, .name = args->name, .leaf = &leaf);
     if ((leaf.is & (CLI_LEAF_STRING | CLI_LEAF_COMMENT)) != 0u)
     {
-        return 0u;
+        return CLI_ROLE_QUOTED;
     }
     const int region = (leaf.is & CLI_LEAF_REGION) != 0u;
     const int opens = (leaf.is & CLI_LEAF_OPEN) != 0u;

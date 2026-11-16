@@ -512,6 +512,171 @@ static void retyped_colored_checked(void)
     (void)asked("close-all", NULL);
 }
 
+// one language's sample: the file's name, whose extension names the plugin, and its text, a line of it at most
+// WINDOW_SAMPLE_LINES and each line's last character a plain one typed back after it is erased
+typedef struct
+{
+    const char *name;
+    const char *text;
+} LanguageSample;
+
+#define WINDOW_SAMPLE_LINES 5u
+#define WINDOW_SAMPLE_RUNS 32u
+
+static const LanguageSample s_language_samples[] = {
+    {"sample.apib", "FORMAT: 1A\n# One\n## Two [/two]\n+ Response 200\n"},
+    {"sample.bat", "@echo off\nset ONE=two\nif \"%ONE%\"==\"two\" echo three\nrem four\n"},
+    {"sample.c", "#include \"a.h\"\n// one\nint two(int three) { return three + 1; }\nstatic const char *four = \"five\";\n"},
+    {"sample.css", ".one { color: #fff; margin: 0 auto; }\n/* two */\n#three > a:hover { width: 10px; }\n"},
+    {"sample.g", "grammar One;\ntwo : THREE+ ;\nTHREE : [a-z]+ ;\n// four\n"},
+    {"sample.groovy", "def one = \"two\"\n// three\nclass Four { int five = 6 }\nprintln one\n"},
+    {"sample.gsm", "1,1->2\n1,0->1\n0,1->1\n0,0->0\n"},
+    {"sample.html", "<html>\n<!-- one -->\n<body class=\"two\">three</body>\n</html>\n"},
+    {"sample.http", "GET /one HTTP/1.1\nHost: two.three\nAccept: */*\n"},
+    {"sample.js", "// one\nconst two = \"three\";\nfunction four(five) { return five + 1; }\nexport { four };\n"},
+    {"sample.jenkinsfile", "pipeline { agent any }\n// one\nnode { echo 'two' }\n"},
+    {"sample.json", "{\"one\": \"two\",\n \"three\": [1, 2, 3],\n \"four\": 5}\n"},
+    {"sample.kt", "fun one(two: Int): Int = two + 1\n// three\nval four = \"five\"\nclass Six(val seven: Int)\n"},
+    {"sample.lean", "def one (two : Nat) : Nat := two + 1\n-- three\ntheorem four : one 1 = 2 := rfl\n"},
+    {"sample.asc", "Version 4\nSHEET 1 880 680\nWIRE 96 80 32 80\nSYMBOL res 80 64 R0\n"},
+    {"sample.md", "# One\nTwo *three* `four`\n- five\n[six](seven)\n"},
+    {"sample.m", "function one = two(three)\n% four\none = three + 1;\nend\n"},
+    {"sample.cir", "* one\nR1 1 0 1k\nV1 1 0 DC 5\n.end\n"},
+    {"sample.org", "* One\n** Two\n- three\n#+TITLE: four\n"},
+    {"sample.txt", "one two\nthree\nfour five six\n"},
+    {"sample.ps1", "# one\n$two = \"three\"\nfunction Four { param($five) $five + 1 }\nWrite-Output $two\n"},
+    {"sample.py", "# one\ndef two(three):\n    return three + 1\nfour = \"five\"\n"},
+    {"sample.qmd", "---\ntitle: \"One\"\n---\n# Two\n"},
+    {"sample.r", "# one\ntwo <- function(three) three + 1\nfour <- \"five\"\nprint(four)\n"},
+    {"sample.raml", "#%RAML 1.0\ntitle: One\n/two:\n  get:\n"},
+    {"sample.rb", "# one\ndef two(three)\n  three + 1\nend\n"},
+    {"sample.rs", "// one\nfn two(three: u32) -> u32 { three + 1 }\nconst FOUR: &str = \"five\";\nstruct Six;\n"},
+    {"sample.asm", "// one\n.section/pm seg_pmco;\nr0 = r1 + r2;\nrts;\n"},
+    {"sample.sh", "#!/bin/sh\n# one\ntwo=\"three\"\necho \"$two\"\n"},
+    {"sample.sql", "-- one\nSELECT two FROM three WHERE four = 'five';\nCREATE TABLE six (seven INT);\n"},
+    {"sample.stg", "group one;\ntwo(three) ::= \"<three>\"\n// four\n"},
+    {"sample.tex", "\\documentclass{article}\n\\begin{document}\nOne \\textbf{two}\n\\end{document}\n"},
+    {"sample.toml", "# one\n[two]\nthree = \"four\"\nfive = 6\n"},
+    {"sample.tsv", "one\ttwo\tthree\n1\t2\t3\n4\t5\t6\n"},
+    {"sample.vhd", "-- one\nlibrary ieee;\nentity two is end;\narchitecture three of two is begin end;\n"},
+    {"sample.ans", "\x1b[31mone\x1b[0m\ntwo \x1b[1mthree\x1b[0m\nfour\n"},
+    {"sample.yml", "one: two\nthree:\n  - four\n  - five\n"},
+    {"sample.zig", "// one\nconst two = @import(\"std\");\npub fn three(four: u32) u32 { return four + 1; }\nconst five = \"six\";\n"},
+};
+
+// the runs of the sample's first rows copied into `words`, WINDOW_SAMPLE_RUNS runs a row at most, each row's count
+// into `counts`: how many rows hold runs
+static unsigned int sample_runs_copied(unsigned int rows, unsigned int words[][2u * WINDOW_SAMPLE_RUNS],
+                                       unsigned int *counts)
+{
+    unsigned int held = 0u;
+    for (unsigned int row = 0u; row < rows; row += 1u)
+    {
+        counts[row] = row_runs_copied(row, words[row], WINDOW_SAMPLE_RUNS);
+        held += (counts[row] != 0u) ? 1u : 0u;
+    }
+    return held;
+}
+
+// whether the sample's first rows' runs are as `before` has them
+static int sample_runs_same(unsigned int rows, unsigned int before[][2u * WINDOW_SAMPLE_RUNS],
+                            const unsigned int *before_counts)
+{
+    unsigned int after[WINDOW_SAMPLE_LINES][2u * WINDOW_SAMPLE_RUNS];
+    unsigned int after_counts[WINDOW_SAMPLE_LINES];
+    (void)sample_runs_copied(rows, after, after_counts);
+    int same = 1;
+    for (unsigned int row = 0u; same && (row < rows); row += 1u)
+    {
+        same = (after_counts[row] == before_counts[row]) && (before_counts[row] != 0u);
+        for (unsigned int at = 0u; same && (at < (2u * before_counts[row])); at += 1u)
+        {
+            same = before[row][at] == after[row][at];
+        }
+    }
+    return same;
+}
+
+// one language's sample opened and colored, then each line's last character erased and typed back: the rows' runs
+// are as they were after every retyping
+static void language_sample_checked(const LanguageSample *sample)
+{
+    tabs_closed(sample->name, sample->text, NULL, NULL);
+    if (!tab_opened(sample->name))
+    {
+        cli_check(0, sample->name);
+        return;
+    }
+    // each line's length in bytes, the lines WINDOW_SAMPLE_LINES at most
+    unsigned int lengths[WINDOW_SAMPLE_LINES];
+    unsigned int rows = 0u;
+    unsigned int length = 0u;
+    for (const char *at = sample->text; (*at != '\0') && (rows < WINDOW_SAMPLE_LINES); at += 1)
+    {
+        if (*at == '\n')
+        {
+            lengths[rows] = length;
+            rows += 1u;
+            length = 0u;
+        }
+        else
+        {
+            length += 1u;
+        }
+    }
+    (void)row_runs_waited(rows - 1u, 3000ULL);
+    unsigned int before[WINDOW_SAMPLE_LINES][2u * WINDOW_SAMPLE_RUNS];
+    unsigned int before_counts[WINDOW_SAMPLE_LINES];
+    int same = sample_runs_copied(rows, before, before_counts) == rows;
+    const char *line = sample->text;
+    for (unsigned int row = 0u; same && (row < rows); row += 1u)
+    {
+        const char last[2] = {line[lengths[row] - 1u], '\0'};
+        cursor_put(row, lengths[row]);
+        key_pressed("Backspace");
+        stepped_for(150ULL);
+        typed(last);
+        stepped_for(150ULL);
+        (void)row_runs_waited(row, 3000ULL);
+        same = sample_runs_same(rows, before, before_counts);
+        if (!same)
+        {
+            // the rows' runs before and after the retyping, beside the check that reads them
+            unsigned int after[WINDOW_SAMPLE_LINES][2u * WINDOW_SAMPLE_RUNS];
+            unsigned int after_counts[WINDOW_SAMPLE_LINES];
+            (void)sample_runs_copied(rows, after, after_counts);
+            (void)fprintf(stderr, "  %s row %u retyped '%s'\n", sample->name, row, last);
+            for (unsigned int each = 0u; each < rows; each += 1u)
+            {
+                (void)fprintf(stderr, "    row %u before %u:", each, before_counts[each]);
+                for (unsigned int at = 0u; at < before_counts[each]; at += 1u)
+                {
+                    (void)fprintf(stderr, " %u:%u", before[each][2u * at], before[each][(2u * at) + 1u]);
+                }
+                (void)fprintf(stderr, " after %u:", after_counts[each]);
+                for (unsigned int at = 0u; at < after_counts[each]; at += 1u)
+                {
+                    (void)fprintf(stderr, " %u:%u", after[each][2u * at], after[each][(2u * at) + 1u]);
+                }
+                (void)fprintf(stderr, "\n");
+            }
+        }
+        line += lengths[row] + 1u;
+    }
+    cli_check(same, sample->name);
+    (void)asked("close-all", NULL);
+    (void)asked("close-all", NULL);
+}
+
+// every language plugin's sample: editing a line leaves the highlighting of every line as it was
+static void languages_colored_checked(void)
+{
+    for (unsigned int at = 0u; at < (sizeof(s_language_samples) / sizeof(s_language_samples[0])); at += 1u)
+    {
+        language_sample_checked(&s_language_samples[at]);
+    }
+}
+
 static void reduce_motion_checked(void)
 {
     (void)asked("reduce-motion", "off");
@@ -1537,13 +1702,14 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[25] = {{"saves", saves_checked},
+static const WindowCheck s_checks[26] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
                                          {"cells_rounds", cells_rounds_checked},
                                          {"typed_colored", typed_colored_checked},
                                          {"retyped_colored", retyped_colored_checked},
+                                         {"languages_colored", languages_colored_checked},
                                          {"reduce_motion", reduce_motion_checked},
                                          {"place", place_checked},
                                          {"table", table_checked},

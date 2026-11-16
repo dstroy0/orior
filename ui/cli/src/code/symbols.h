@@ -225,7 +225,8 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args);
 // closes one, or it closes a bracket pair, ends a statement or parts one; it is a bare name, nothing more; it declares
 // a local, or a parameter; it ends a statement or is a directive's; it is an operator on memory that binds no two
 // values, the name after it one reached through it; it opens a pair whose depth it counts, or closes one; and it names
-// something, whatever else it does; none for a string's or a comment's (symbols_leaves.c)
+// something, whatever else it does; and it is a string's or a comment's, which gives it no other role
+// (symbols_leaves.c)
 #define CLI_ROLE_REGION_OPENS 0x01u
 #define CLI_ROLE_REGION_CLOSES 0x02u
 #define CLI_ROLE_CLOSING 0x04u
@@ -237,6 +238,7 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args);
 #define CLI_ROLE_DEPTH_OPENS 0x100u
 #define CLI_ROLE_DEPTH_CLOSES 0x200u
 #define CLI_ROLE_WORD 0x400u
+#define CLI_ROLE_QUOTED 0x800u
 unsigned int cli_symbols_name_roles(const CliSymbolsQueryCfg *args);
 
 struct CliSymbolsPathCfg
