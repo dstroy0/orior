@@ -95,13 +95,25 @@ void test_a_watch_started_passes_a_change_and_passes_none_once_stopped(void)
     s_live_batches = 0u;
     cli_watch_start(&(CliWatchCfg){.root = s_root, .take = live_batch_recorded, .context = NULL});
     cli_unity_file(s_root, "src/c.rs", "four");
-    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
+    // a system that reports nothing reads the tree every two seconds, and a cold runner spawns git slowly: the wait
+    // spans several readings
+    const unsigned long long began = cli_clock_milliseconds();
+    const unsigned long long until = began + 15000ull;
     while ((s_live_batches == 0u) && (cli_clock_milliseconds() < until))
     {
         CliWake pause = CLI_WAKE_INIT;
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 20ull);
     }
+    const unsigned long long waited = cli_clock_milliseconds() - began;
     cli_watch_stop();
+    if (s_live_batches == 0u)
+    {
+        // a run with no batch reports the wait and what a reading of the tree finds now, which names the part that gave none
+        s_seen_line.at = 0ull;
+        EMBED_CALL(cli_watch_internal.read_again, CliWatchCtx, .root = s_root, .emit = change_recorded, .context = NULL);
+        (void)mmgr_line_finish(&s_seen_line);
+        (void)fprintf(stderr, "  diag watch_live: no batch in %llu ms; a reading now reports '%s'\n", waited, s_seen);
+    }
     TEST_ASSERT_NOT_EQUAL(0u, s_live_batches);
     const unsigned int before = s_live_batches;
     cli_unity_file(s_root, "src/d.rs", "five");

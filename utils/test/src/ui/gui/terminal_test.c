@@ -101,11 +101,11 @@ int main(void)
     unsigned long long row = 0ull;
     unsigned long long column = 0ull;
     cli_check(EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
-                         .view = 0u, .x = left + (cell / 2), .y = top + (GUI_TERMINAL_ROW / 2), .row = &row, .column = &column) &&
+                         .view = 0u, .x = left + (cell / 4), .y = top + (GUI_TERMINAL_ROW / 2), .row = &row, .column = &column) &&
                   (row == 0ull) && (column == 0ull),
               "the pixel at the pane's top left is on its first cell");
     cli_check(EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &terminal, .frame = &frame, .glyphs = &glyphs,
-                         .view = 0u, .x = left + (2 * cell) + (cell / 2), .y = top + GUI_TERMINAL_ROW + (GUI_TERMINAL_ROW / 2),
+                         .view = 0u, .x = left + (2 * cell) + (cell / 4), .y = top + GUI_TERMINAL_ROW + (GUI_TERMINAL_ROW / 2),
                          .row = &row, .column = &column) &&
                   (row == 1ull) && (column == 2ull),
               "a pixel further in is on its row and column");
