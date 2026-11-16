@@ -445,11 +445,13 @@ void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(void)
     TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){.src = s_branch_entered, .cap = sizeof(s_branch_entered), .other = "comment", .other_cap = 8ull}));
 }
 
-// the lines of the text whose runs cell is compacted while the pool is starved, and the bytes left between the tiers
-// for it: the compaction's work cell fits them and the cell it moves the runs into does not; the cell a hole that
-// holds one of the moved cell is taken in, and the cut's margin; and the cells the starving takes at max
+// the lines of the text whose runs cell is compacted while the pool is starved, the bytes of the wide line whose
+// runs pass the cell's room, and the bytes left between the tiers for it: the compaction's work cell fits them and
+// the cell it moves the runs into does not; the cell a hole that holds one of the moved cell is taken in, and the
+// cut's margin; and the cells the starving takes at max
 #define DOCUMENT_COMPACT_LINES 4000u
-#define DOCUMENT_COMPACT_LEFT (136ull << 10u)
+#define DOCUMENT_COMPACT_WIDE 10000u
+#define DOCUMENT_COMPACT_LEFT (860ull << 10u)
 #define DOCUMENT_COMPACT_HOLE (64ull << 10u)
 #define DOCUMENT_COMPACT_MARGIN (32ull << 10u)
 #define DOCUMENT_COMPACT_CELLS 4096u
@@ -553,16 +555,26 @@ static void line_rewritten(const char *key, unsigned int line, unsigned int leng
 
 void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were(void)
 {
-    // the text's first line has three runs and its third five; the second is rewritten twice with many runs and the
-    // runs cell is compacted with the second line's record last; then the first line is rewritten while the pool has
-    // room for the compaction's work cell alone and the compaction is refused: the third line's runs are its own
+    // the text's first line has three runs and its third five; the second is rewritten twice as a wide line of many
+    // runs, the first past the cell's room, after which the runs are gathered again with the second line's record last; then
+    // the first line is rewritten wide past the room while the pool has room for the gathering's work cell alone, and
+    // the gathering is refused: the third line's runs are its own, the first line's none, and the pool given back the
+    // next edit colors the text again
     static char s_compact[4u * DOCUMENT_COMPACT_LINES];
+    static char s_wide[DOCUMENT_COMPACT_WIDE];
     VerbaLinea text = {s_compact, sizeof(s_compact), 0ull};
     mmgr_line_put(&text, "x y\nb\nx y z\n");
     for (unsigned int line = 3u; line < DOCUMENT_COMPACT_LINES; line += 1u)
     {
         mmgr_line_put(&text, "b\n");
     }
+    VerbaLinea wide = {s_wide, sizeof(s_wide), 0ull};
+    mmgr_line_ch(&wide, 'a');
+    while (mmgr_line_ok(&wide) && (wide.at + 2ull < sizeof(s_wide)))
+    {
+        mmgr_line_put(&wide, " a");
+    }
+    const unsigned int wide_length = (unsigned int)mmgr_line_finish(&wide);
     CliShape shape;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "compact", .text = s_compact, .size = text.at, .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "compact", .grammar = "branch", .named = 1));
@@ -570,22 +582,23 @@ void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_wer
     cli_document_walk();
     TEST_ASSERT_EQUAL_UINT(3u, runs_of("compact", 0ull));
     TEST_ASSERT_EQUAL_UINT(5u, runs_of("compact", 2ull));
-    line_rewritten("compact", 1u, 1u, "a b c d e f g h i j k l m n o p");
+    line_rewritten("compact", 1u, 1u, s_wide);
     cli_document_walk();
-    line_rewritten("compact", 1u, 31u, "p o n m l k j i h g f e d c b a");
+    line_rewritten("compact", 1u, wide_length, s_wide);
     cli_document_walk();
-    TEST_ASSERT_EQUAL_UINT(31u, runs_of("compact", 1ull));
-    line_rewritten("compact", 0u, 3u, "x");
+    TEST_ASSERT_EQUAL_UINT(wide_length, runs_of("compact", 1ull));
+    line_rewritten("compact", 0u, 3u, s_wide);
     pool_starved();
     cli_document_walk();
     const unsigned int third = runs_of("compact", 2ull);
+    const unsigned int refused = runs_of("compact", 0ull);
     pool_given_back();
-    // the pool given back, the next edit colors the text again
-    line_rewritten("compact", 1u, 31u, "a b c");
+    line_rewritten("compact", 1u, wide_length, "a b c");
     cli_document_walk();
     const unsigned int again = runs_of("compact", 1ull);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "compact");
     TEST_ASSERT_EQUAL_UINT(5u, third);
+    TEST_ASSERT_EQUAL_UINT(0u, refused);
     TEST_ASSERT_EQUAL_UINT(5u, again);
 }
 

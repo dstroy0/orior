@@ -620,7 +620,9 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
             saved += CLI_DOC_RECORD_HEAD + (2ULL * line_runs);
         }
     }
-    const unsigned long long capacity = saved + args->more;
+    // the cell holds the runs and the words added twice over, so the next saves fill the room before the runs are
+    // gathered again
+    const unsigned long long capacity = 2ULL * (saved + args->more);
     if (capacity > 0xffffffffULL)
     {
         return 0;
