@@ -711,3 +711,15 @@ void test_utf16_units_read_as_characters_and_write_as_utf8_and_json(void)
     TEST_ASSERT_TRUE((s_out[out.at - 3ull] == '\\') && (s_out[out.at - 2ull] == '"'));
 }
 
+void test_the_walks_telemetry_switches_on_and_off_around_a_walk(void)
+{
+    CliShape shape;
+    cli_document_telemetry_on();
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "telemetry", .text = "a b\n", .size = 4ull, .shape = &shape));
+    cli_document_walk();
+    cli_document_telemetry_off();
+    cli_document_walk();
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "telemetry");
+    TEST_ASSERT_EQUAL_UINT64(2ull, shape.lines);
+}
+

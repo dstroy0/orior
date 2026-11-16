@@ -127,6 +127,19 @@ void test_a_line_changed_is_one_change_marked_changed_with_its_two_lines(void)
     TEST_ASSERT_EQUAL_UINT(2u, change.then_to);
 }
 
+void test_the_gutter_marks_a_change_from_its_first_line_and_a_removal_on_the_line_above(void)
+{
+    stored_against("one\nthree\nfour\n");
+    CliChange change;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_change.find, CliChangeCfg, .key = s_key, .at = CLI_CHANGE_NONE,
+                                .line = 0ULL, .change_out = &change));
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_document_change.marked_from, CliChangeCfg, .change = &change));
+    stored_against("one\ntwo\nextra\nthree\nfour\n");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_change.find, CliChangeCfg, .key = s_key, .at = CLI_CHANGE_NONE,
+                                .line = 2ULL, .change_out = &change));
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_document_change.marked_from, CliChangeCfg, .change = &change));
+}
+
 void test_the_marks_of_a_run_of_lines(void)
 {
     stored_against("one\nTWO\nthree\nextra\nfour\n");

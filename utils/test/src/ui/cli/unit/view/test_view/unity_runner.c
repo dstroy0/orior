@@ -152,6 +152,10 @@ extern void test_a_cursor_on_no_word_changes_nothing(void);
 extern void test_a_key_that_adds_a_cursor_moves_none(void);
 extern void test_a_name_the_view_has_no_use_for_does_nothing(void);
 extern void test_a_replace_writes_its_text_over_the_span_as_one_step(void);
+extern void test_sticky_rows_and_the_fill_width_are_switched_for_every_view(void);
+extern void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_walk(void);
+extern void test_the_openers_above_a_line_and_the_texts_folds_come_off_the_coloring(void);
+extern void test_a_pages_edits_are_written_to_the_paged_text(void);
 
 
 /*=======Mock Management=====*/
@@ -353,6 +357,10 @@ int main(void)
   run_test(test_a_key_that_adds_a_cursor_moves_none, "test_a_key_that_adds_a_cursor_moves_none", 1880);
   run_test(test_a_name_the_view_has_no_use_for_does_nothing, "test_a_name_the_view_has_no_use_for_does_nothing", 1887);
   run_test(test_a_replace_writes_its_text_over_the_span_as_one_step, "test_a_replace_writes_its_text_over_the_span_as_one_step", 1894);
+  run_test(test_sticky_rows_and_the_fill_width_are_switched_for_every_view, "test_sticky_rows_and_the_fill_width_are_switched_for_every_view", 1909);
+  run_test(test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_walk, "test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_walk", 1921);
+  run_test(test_the_openers_above_a_line_and_the_texts_folds_come_off_the_coloring, "test_the_openers_above_a_line_and_the_texts_folds_come_off_the_coloring", 1952);
+  run_test(test_a_pages_edits_are_written_to_the_paged_text, "test_a_pages_edits_are_written_to_the_paged_text", 1971);
 
   return UNITY_END();
 }

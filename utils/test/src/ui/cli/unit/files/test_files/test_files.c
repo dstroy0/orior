@@ -6,6 +6,7 @@
 #include "ui/cli/src/code/git.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/code/symbols.h"
+#include "ui/cli/src/command_line/commands.h"
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/editor/files_search_hits.h"
 #include "ui/cli/src/text/base64.h"
@@ -388,4 +389,146 @@ void test_a_search_asked_to_locate_leaves_its_lines_located_by_file(void)
     TEST_ASSERT_FALSE(cli_search_located_line(&(CliSearchLocatedCfg){.at = 3u, .line_out = &line}));
     cli_search_located_free();
     TEST_ASSERT_EQUAL_UINT(0u, cli_search_located_count());
+}
+
+static char s_listed[1024];
+static VerbaLinea s_listed_line = {s_listed, sizeof(s_listed), 0ull};
+
+// a listed path written after the others, `|` between them
+static void path_recorded(const CliEachPathLengthCfg *args)
+{
+    mmgr_line_put(&s_listed_line, (s_listed_line.at > 0ull) ? "|" : "");
+    mmgr_line_put_n(&s_listed_line, args->path, args->length);
+}
+
+void test_a_folders_entries_are_listed_in_a_cell_and_a_folder_listed_by_the_same_means(void)
+{
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    cli_unity_folder("files_entries", s_root);
+    folder_created(s_root, "sub", path);
+    bytes_written(s_root, "a.txt", "x", 1ull);
+    bytes_written(s_root, "sub/b.txt", "y", 1ull);
+    cli_tree_forgotten();
+    CliFileEntries *const top = EMBED_CALL(cli_files_listing.entries_alloc, CliFilesEntriesCfg, .root = s_root, .dir = "", .owner = g_cli_text_owner, .err_msg = &err_msg);
+    TEST_ASSERT_NOT_NULL(top);
+    TEST_ASSERT_EQUAL_UINT(2u, top->count);
+    g_cli_guard->persistent_buf_release(top, g_cli_text_owner);
+    s_listed_line.at = 0ull;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_each.folder_list, CliFilesRootEachCfg, .root = s_root, .folder = "sub", .git = 0, .each = path_recorded, .context = NULL));
+    (void)mmgr_line_finish(&s_listed_line);
+    TEST_ASSERT_EQUAL_STRING("sub/b.txt", s_listed);
+}
+
+void test_a_free_name_is_numbered_a_file_is_written_in_parts_and_a_save_goes_beside_the_file(void)
+{
+    char path[CLI_PATH_MAX_LEN];
+    char full[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    cli_unity_folder("files_free", s_root);
+    bytes_written(s_root, "a.txt", "x", 1ull);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_err_msg.free_in, CliFilesRootErrMsgCfg, .root = s_root, .into = "", .name = "a.txt", .path_out = path, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE_MESSAGE(cellul.starts(&(CatenaFinitaCfg){.src = path, .other = "a", .cap = CLI_PATH_MAX_LEN}), path);
+    TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = path, .other = "a.txt", .cap = CLI_PATH_MAX_LEN}));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_err_msg.free_in, CliFilesRootErrMsgCfg, .root = s_root, .into = "", .name = "new.txt", .path_out = path, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_STRING("new.txt", path);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_root_err_msg.free_in, CliFilesRootErrMsgCfg, .root = s_root, .into = "none", .name = "a.txt", .path_out = path, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_path.write_part, CliFilesRootPathCfg, .root = s_root, .path = "p.txt", .at = 0ull, .data = "hel", .size = 3ull, .last = 0, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_path.write_part, CliFilesRootPathCfg, .root = s_root, .path = "p.txt", .at = 3ull, .data = "lo", .size = 2ull, .last = 1, .err_msg = &err_msg));
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "p.txt", .joined = full);
+    const unsigned long long size = qry_member_file_read(full, s_read, sizeof(s_read) - 1u);
+    TEST_ASSERT_EQUAL_UINT64(5ull, size);
+    TEST_ASSERT_EQUAL_MEMORY("hello", s_read, 5u);
+    char adjacent[CLI_PATH_MAX_LEN];
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_path_err_msg.saving_adjacent, CliFilesPathErrMsgCfg, .path = "D:/trees/t/x.txt", .file = "x.txt", .adjacent = adjacent, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_STRING("D:/trees/t/.x.txt.saving", adjacent);
+}
+
+void test_a_fuzzy_match_scores_the_querys_characters_found_in_their_order(void)
+{
+    unsigned int required[8];
+    unsigned int displayed[16];
+    unsigned int lower[16];
+    unsigned int latest[8];
+    unsigned int hits[8];
+    double score = 0.0;
+    unsigned int hit_count = 0u;
+    const unsigned int requested = EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = "ab", .characters = required, .capacity = 8u);
+    TEST_ASSERT_EQUAL_UINT(2u, requested);
+    const unsigned int count = EMBED_CALL(cli_files_text.characters, CliFilesTextCfg, .text = "xAyb", .capacity = 16u, .displayed = displayed, .lower = lower);
+    TEST_ASSERT_EQUAL_UINT(4u, count);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_count.fuzzy_matches, CliFilesCountCfg, .count = count, .score = &score, .hits = hits, .required = required, .requested_count = requested, .displayed_read = displayed, .lower_read = lower, .latest = latest, .hit_count = &hit_count));
+    TEST_ASSERT_EQUAL_UINT(2u, hit_count);
+    TEST_ASSERT_EQUAL_UINT(1u, hits[0]);
+    TEST_ASSERT_EQUAL_UINT(3u, hits[1]);
+    TEST_ASSERT_TRUE(score > 0.0);
+    const unsigned int reversed = EMBED_CALL(cli_files_query_characters.want, CliFilesQueryLettersCfg, .query = "ba", .characters = required, .capacity = 8u);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_count.fuzzy_matches, CliFilesCountCfg, .count = count, .score = &score, .hits = hits, .required = required, .requested_count = reversed, .displayed_read = displayed, .lower_read = lower, .latest = latest, .hit_count = &hit_count));
+}
+
+void test_the_explorer_lists_the_tree_builds_a_rows_menu_and_reports_a_stale_mark_once(void)
+{
+    static char s_explorer_root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    cli_unity_folder("files_explorer", s_explorer_root);
+    folder_created(s_explorer_root, "sub", path);
+    bytes_written(s_explorer_root, "a.txt", "x", 1ull);
+    bytes_written(s_explorer_root, "sub/b.txt", "y", 1ull);
+    cli_tree_forgotten();
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &err_msg));
+    cli_files_explorer_show(&(CliFilesExplorerCfg){.root = s_explorer_root});
+    TEST_ASSERT_EQUAL_UINT(2u, cli_files_explorer_rows());
+    TEST_ASSERT_TRUE(cli_files_explorer_menu(&(CliFilesExplorerCfg){.at = 0u}));
+    TEST_ASSERT_TRUE(cli_files_explorer_menu(&(CliFilesExplorerCfg){.at = 9u}));
+    (void)cli_files_explorer_changed();
+    TEST_ASSERT_FALSE(cli_files_explorer_changed());
+    cli_files_explorer_stale();
+    cli_files_explorer_stale();
+    TEST_ASSERT_TRUE(cli_files_explorer_changed());
+    TEST_ASSERT_FALSE(cli_files_explorer_changed());
+    cli_files_explorer_end();
+    TEST_ASSERT_EQUAL_UINT(0u, cli_files_explorer_rows());
+    TEST_ASSERT_FALSE(cli_files_explorer_menu(&(CliFilesExplorerCfg){.at = 0u}));
+}
+
+void test_a_tree_unread_is_read_behind_the_window_until_it_is_listed(void)
+{
+    cli_unity_folder("files_behind", s_root);
+    bytes_written(s_root, "a.txt", "x", 1ull);
+    cli_tree_forgotten();
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = s_root));
+    EMBED_CALL(cli_files_root_paths.read_behind, CliFilesRootPathsCfg, .root = s_root);
+    const unsigned long long until = cli_clock_milliseconds() + 10000ull;
+    while (EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = s_root) && (cli_clock_milliseconds() < until))
+    {
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 5u);
+    }
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = s_root));
+    // a tree listed is warmed again without a second listing
+    EMBED_CALL(cli_files_root_paths.warm, CliFilesRootPathsCfg, .root = s_root);
+    EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 50u);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = s_root));
+}
+
+void test_a_workers_lines_are_stored_and_read_back_in_the_order_of_the_files(void)
+{
+    CliSearchHits stores[2];
+    memor.set(&(MemoriaCfg){.dst = stores, .val = 0, .bytes = sizeof(stores)});
+    EMBED_CALL(cli_files_search_hits.hits_put, CliFilesSearchHitsCfg, .hits = &stores[1], .file = 1u, .line = 2ull, .col = 3ull, .text = (const unsigned char *)"second", .size = 6ull);
+    EMBED_CALL(cli_files_search_hits.hits_put, CliFilesSearchHitsCfg, .hits = &stores[0], .file = 0u, .line = 5ull, .col = 1ull, .text = (const unsigned char *)"first", .size = 5ull);
+    EMBED_CALL(cli_files_search_hits.hits_put, CliFilesSearchHitsCfg, .hits = &stores[0], .file = 0u, .line = 9ull, .col = 1ull, .text = (const unsigned char *)"third", .size = 5ull);
+    const CliSearchHit *one = EMBED_CALL(cli_files_search_hits.hits_next, CliFilesSearchHitsCfg, .hits = stores, .stores = 2u);
+    TEST_ASSERT_NOT_NULL(one);
+    TEST_ASSERT_EQUAL_UINT(0u, one->file);
+    TEST_ASSERT_EQUAL_UINT64(5ull, one->line);
+    TEST_ASSERT_EQUAL_MEMORY("first", one->text, 5u);
+    one = EMBED_CALL(cli_files_search_hits.hits_next, CliFilesSearchHitsCfg, .hits = stores, .stores = 2u);
+    TEST_ASSERT_NOT_NULL(one);
+    TEST_ASSERT_EQUAL_UINT64(9ull, one->line);
+    one = EMBED_CALL(cli_files_search_hits.hits_next, CliFilesSearchHitsCfg, .hits = stores, .stores = 2u);
+    TEST_ASSERT_NOT_NULL(one);
+    TEST_ASSERT_EQUAL_UINT(1u, one->file);
+    TEST_ASSERT_EQUAL_UINT64(3ull, one->col);
+    TEST_ASSERT_NULL(EMBED_CALL(cli_files_search_hits.hits_next, CliFilesSearchHitsCfg, .hits = stores, .stores = 2u));
 }

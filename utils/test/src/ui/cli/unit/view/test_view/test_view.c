@@ -1905,3 +1905,82 @@ void test_a_replace_writes_its_text_over_the_span_as_one_step(void)
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
     assert_reads(0ull, 1ull, "int main");
 }
+
+void test_sticky_rows_and_the_fill_width_are_switched_for_every_view(void)
+{
+    TEST_ASSERT_TRUE(cli_view_sticky());
+    cli_view_sticky_set(&(CliViewAtCfg){.on = 0});
+    TEST_ASSERT_FALSE(cli_view_sticky());
+    cli_view_sticky_set(&(CliViewAtCfg){.on = 1});
+    TEST_ASSERT_EQUAL_UINT64(0ull, cli_view_fill());
+    cli_view_fill_set(&(CliViewAtCfg){.columns = 72ull});
+    TEST_ASSERT_EQUAL_UINT64(72ull, cli_view_fill());
+    cli_view_fill_set(&(CliViewAtCfg){.columns = 0ull});
+}
+
+void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_walk(void)
+{
+    main_view();
+    // the names within the word lines of the cursor, the one the cursor is in left out
+    CliDocumentWords *const words = cli_view_words_alloc(&(CliViewAtCfg){.key = s_key});
+    TEST_ASSERT_NOT_NULL(words);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, words->count);
+    CLI_TEST_ASSERT_CONTAINS("main", words->text);
+    cli_view_words_release(&(CliViewAtCfg){.words = words});
+    (void)EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key);
+    typed("x");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key));
+    CliDocumentMap *const map = EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = s_key, .first = 0ull,
+                                           .last = 4ull, .tab = 4u, .owner = g_cli_text_owner);
+    TEST_ASSERT_NOT_NULL(map);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, map->count);
+    TEST_ASSERT_GREATER_THAN_UINT(0u, map->bars);
+    g_cli_guard->persistent_buf_release(map, g_cli_text_owner);
+}
+
+// a fold written after the others as `first-last`, `|` between them
+static void fold_recorded(const CliFoldEachCfg *args)
+{
+    VerbaLinea *const out = args->context;
+    mmgr_line_put(out, (out->at > 0ull) ? "|" : "");
+    mmgr_line_decimal(out, args->first, 1u);
+    mmgr_line_ch(out, '-');
+    mmgr_line_decimal(out, args->last, 1u);
+}
+
+void test_the_openers_above_a_line_and_the_texts_folds_come_off_the_coloring(void)
+{
+    main_view();
+    unsigned int opener[4];
+    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = s_key, .line = 2u,
+                                          .opener = opener, .max_u32 = 4u));
+    TEST_ASSERT_EQUAL_UINT(1u, opener[0]);
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = "check:none",
+                                          .line = 2u, .opener = opener, .max_u32 = 4u));
+    char folds[64];
+    VerbaLinea line = mmgr_line_over(folds, sizeof(folds));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = s_key,
+                                .each_fold_each = fold_recorded, .context = &line));
+    (void)mmgr_line_finish(&line);
+    TEST_ASSERT_TRUE_MESSAGE(cellul.starts(&(CatenaFinitaCfg){.src = folds, .other = "1-", .cap = sizeof(folds)}), folds);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = "check:none",
+                                 .each_fold_each = fold_recorded, .context = &line));
+}
+
+void test_a_pages_edits_are_written_to_the_paged_text(void)
+{
+    static const CliEdit s_edit[1] = {{{0u, 0u}, {0u, 0u}, "x", 1u}};
+    const CliEdit *const changes[1] = {s_edit};
+    const unsigned int edits[1] = {1u};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    paged_view();
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_out.paged_edit, CliDocumentOutCfg, .key = s_paged, .changes = changes,
+                                .edits = edits, .count_u32 = 1u, .err_msg = &err_msg));
+    CliViewFrame *const frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_paged});
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT64(7ull, frame->row[0].length);
+    TEST_ASSERT_EQUAL_MEMORY("xline 0", frame->bytes + frame->row[0].text, 7u);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
+    paged_closed();
+}
