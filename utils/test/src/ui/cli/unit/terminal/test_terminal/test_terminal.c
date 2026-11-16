@@ -987,3 +987,26 @@ void test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_
     TEST_ASSERT_FALSE_MESSAGE(cli_terminal_tabs_key(&(CliTerminalTabsCfg){.name = "A"}), "a key goes on to the window");
     terminal_ended();
 }
+
+void test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen(void)
+{
+    static CliTerminalShell s_idle;
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
+    cli_terminal_tabs_restore(&(CliTerminalTabsCfg){.entries = NULL, .root = NULL});
+    TEST_ASSERT_TRUE(cli_terminal_tabs_command(&(CliTerminalTabsCfg){.name = "toggle", .words = NULL, .count = 0u}));
+    cli_terminal_tabs_size(&(CliTerminalTabsCfg){.view = 0u, .columns = 80u, .rows = 24u});
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long next_ms = cli_terminal_tabs_next_ms();
+    TEST_ASSERT_NOT_EQUAL(0ULL, next_ms);
+    TEST_ASSERT_TRUE_MESSAGE(next_ms <= now_ms + CLI_TERMINAL_LOOK_MS + 100ULL, "a running shell is drained within its look");
+    TEST_ASSERT_EQUAL_UINT64(0ULL, EMBED_CALL(cli_terminal_shell.next_ms, CliTerminalShellCfg, .shell = &s_idle, .now_ms = now_ms));
+    cli_terminal_tabs_wheel(&(CliTerminalTabsCfg){.view = 0u, .notches = 3});
+    CliTerminalView pane;
+    TEST_ASSERT_TRUE(cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = 0u, .out = &pane}));
+    CliViewFrame *const frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = pane.key});
+    TEST_ASSERT_NOT_NULL(frame);
+    TEST_ASSERT_EQUAL_UINT64(pane.xterm_line, frame->top);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
+    terminal_ended();
+}

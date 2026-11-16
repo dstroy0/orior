@@ -4,6 +4,7 @@
 #include "unity.h"
 #include "ui/cli/src/editor/highlight.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/plugins/plugin_catalog.h"
 #include "ui/cli/src/plugins/plugins.h"
 
 /*=======External Functions This Runner Calls=====*/
@@ -41,6 +42,13 @@ extern void test_a_plugin_serves_a_folder_containing_its_table_named_by_the_fold
 extern void test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table(void);
 extern void test_a_folders_grammar_is_stored_under_the_plugin_and_folder(void);
 extern void test_a_word_of_the_folders_table_is_colored_as_a_keyword(void);
+extern void test_a_folder_is_a_language_of_the_folders_plugin_unless_its_table_says_so_or_it_is_excepted(void);
+extern void test_a_plugins_code_is_read_from_its_folder_with_its_manifest_in_hand(void);
+extern void test_a_draft_tree_is_sized_to_the_answers_and_holds_their_copy(void);
+extern void test_a_plugins_sample_tries_a_comment_a_keyword_a_type_and_a_constant(void);
+extern void test_a_catalog_entry_is_checked_field_by_field(void);
+extern void test_every_plugin_with_a_palette_is_listed_and_the_c_palette_names_its_keyword_color(void);
+extern void test_a_palette_color_set_is_written_into_the_readers_copy_of_the_plugin(void);
 
 
 /*=======Mock Management=====*/
@@ -102,38 +110,45 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\plugins\\test_plugins\\test_plugins.c");
-  run_test(test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code, "test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code", 212);
-  run_test(test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers, "test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers", 250);
-  run_test(test_a_plugins_code_is_each_file_its_main_names_in_order, "test_a_plugins_code_is_each_file_its_main_names_in_order", 258);
-  run_test(test_a_file_main_names_outside_its_folder_is_refused, "test_a_file_main_names_outside_its_folder_is_refused", 270);
-  run_test(test_a_file_opens_by_its_complete_name, "test_a_file_opens_by_its_complete_name", 280);
-  run_test(test_a_file_opens_by_its_path, "test_a_file_opens_by_its_path", 287);
-  run_test(test_a_path_opens_whichever_way_its_slashes_lean, "test_a_path_opens_whichever_way_its_slashes_lean", 293);
-  run_test(test_a_file_opens_by_its_extension, "test_a_file_opens_by_its_extension", 299);
-  run_test(test_the_languages_keys_are_in_a_capacity_at_their_max, "test_the_languages_keys_are_in_a_capacity_at_their_max", 309);
-  run_test(test_the_plugins_are_read_in_cells_each_released, "test_the_plugins_are_read_in_cells_each_released", 316);
-  run_test(test_a_name_becomes_an_id, "test_a_name_becomes_an_id", 325);
-  run_test(test_each_run_of_other_characters_is_one_dash, "test_each_run_of_other_characters_is_one_dash", 330);
-  run_test(test_a_name_of_no_characters_has_no_id, "test_a_name_of_no_characters_has_no_id", 335);
-  run_test(test_a_drafted_plugins_id_is_its_names, "test_a_drafted_plugins_id_is_its_names", 340);
-  run_test(test_a_drafted_plugins_extensions_have_no_dots, "test_a_drafted_plugins_extensions_have_no_dots", 345);
-  run_test(test_a_drafted_plugin_has_its_comments, "test_a_drafted_plugin_has_its_comments", 350);
-  run_test(test_a_drafted_plugin_has_each_keyword_once, "test_a_drafted_plugin_has_each_keyword_once", 355);
-  run_test(test_a_block_comment_opens_the_comment_state, "test_a_block_comment_opens_the_comment_state", 361);
-  run_test(test_a_line_comment_runs_to_its_end, "test_a_line_comment_runs_to_its_end", 368);
-  run_test(test_a_drafted_plugins_text_reads_back_as_itself, "test_a_drafted_plugins_text_reads_back_as_itself", 375);
-  run_test(test_a_plugin_from_another_has_its_own_id_extensions_and_words, "test_a_plugin_from_another_has_its_own_id_extensions_and_words", 392);
-  run_test(test_a_plugin_from_another_has_the_others_grammar, "test_a_plugin_from_another_has_the_others_grammar", 401);
-  run_test(test_a_plugin_from_one_not_there_is_refused, "test_a_plugin_from_one_not_there_is_refused", 409);
-  run_test(test_a_plugin_created_has_its_manifest, "test_a_plugin_created_has_its_manifest", 416);
-  run_test(test_a_plugin_created_has_a_sample_in_its_language, "test_a_plugin_created_has_a_sample_in_its_language", 424);
-  run_test(test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin, "test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin", 436);
-  run_test(test_a_plugin_starts_from_another_larger_than_the_answers_own_tree, "test_a_plugin_starts_from_another_larger_than_the_answers_own_tree", 447);
-  run_test(test_a_grammar_is_created_complete_from_the_trees_tables, "test_a_grammar_is_created_complete_from_the_trees_tables", 464);
-  run_test(test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder, "test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder", 486);
-  run_test(test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table, "test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table", 492);
-  run_test(test_a_folders_grammar_is_stored_under_the_plugin_and_folder, "test_a_folders_grammar_is_stored_under_the_plugin_and_folder", 500);
-  run_test(test_a_word_of_the_folders_table_is_colored_as_a_keyword, "test_a_word_of_the_folders_table_is_colored_as_a_keyword", 509);
+  run_test(test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code, "test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code", 217);
+  run_test(test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers, "test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers", 255);
+  run_test(test_a_plugins_code_is_each_file_its_main_names_in_order, "test_a_plugins_code_is_each_file_its_main_names_in_order", 263);
+  run_test(test_a_file_main_names_outside_its_folder_is_refused, "test_a_file_main_names_outside_its_folder_is_refused", 275);
+  run_test(test_a_file_opens_by_its_complete_name, "test_a_file_opens_by_its_complete_name", 285);
+  run_test(test_a_file_opens_by_its_path, "test_a_file_opens_by_its_path", 292);
+  run_test(test_a_path_opens_whichever_way_its_slashes_lean, "test_a_path_opens_whichever_way_its_slashes_lean", 298);
+  run_test(test_a_file_opens_by_its_extension, "test_a_file_opens_by_its_extension", 304);
+  run_test(test_the_languages_keys_are_in_a_capacity_at_their_max, "test_the_languages_keys_are_in_a_capacity_at_their_max", 314);
+  run_test(test_the_plugins_are_read_in_cells_each_released, "test_the_plugins_are_read_in_cells_each_released", 321);
+  run_test(test_a_name_becomes_an_id, "test_a_name_becomes_an_id", 330);
+  run_test(test_each_run_of_other_characters_is_one_dash, "test_each_run_of_other_characters_is_one_dash", 335);
+  run_test(test_a_name_of_no_characters_has_no_id, "test_a_name_of_no_characters_has_no_id", 340);
+  run_test(test_a_drafted_plugins_id_is_its_names, "test_a_drafted_plugins_id_is_its_names", 345);
+  run_test(test_a_drafted_plugins_extensions_have_no_dots, "test_a_drafted_plugins_extensions_have_no_dots", 350);
+  run_test(test_a_drafted_plugin_has_its_comments, "test_a_drafted_plugin_has_its_comments", 355);
+  run_test(test_a_drafted_plugin_has_each_keyword_once, "test_a_drafted_plugin_has_each_keyword_once", 360);
+  run_test(test_a_block_comment_opens_the_comment_state, "test_a_block_comment_opens_the_comment_state", 366);
+  run_test(test_a_line_comment_runs_to_its_end, "test_a_line_comment_runs_to_its_end", 373);
+  run_test(test_a_drafted_plugins_text_reads_back_as_itself, "test_a_drafted_plugins_text_reads_back_as_itself", 380);
+  run_test(test_a_plugin_from_another_has_its_own_id_extensions_and_words, "test_a_plugin_from_another_has_its_own_id_extensions_and_words", 397);
+  run_test(test_a_plugin_from_another_has_the_others_grammar, "test_a_plugin_from_another_has_the_others_grammar", 406);
+  run_test(test_a_plugin_from_one_not_there_is_refused, "test_a_plugin_from_one_not_there_is_refused", 414);
+  run_test(test_a_plugin_created_has_its_manifest, "test_a_plugin_created_has_its_manifest", 421);
+  run_test(test_a_plugin_created_has_a_sample_in_its_language, "test_a_plugin_created_has_a_sample_in_its_language", 429);
+  run_test(test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin, "test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin", 441);
+  run_test(test_a_plugin_starts_from_another_larger_than_the_answers_own_tree, "test_a_plugin_starts_from_another_larger_than_the_answers_own_tree", 452);
+  run_test(test_a_grammar_is_created_complete_from_the_trees_tables, "test_a_grammar_is_created_complete_from_the_trees_tables", 469);
+  run_test(test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder, "test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder", 491);
+  run_test(test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table, "test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table", 497);
+  run_test(test_a_folders_grammar_is_stored_under_the_plugin_and_folder, "test_a_folders_grammar_is_stored_under_the_plugin_and_folder", 505);
+  run_test(test_a_word_of_the_folders_table_is_colored_as_a_keyword, "test_a_word_of_the_folders_table_is_colored_as_a_keyword", 514);
+  run_test(test_a_folder_is_a_language_of_the_folders_plugin_unless_its_table_says_so_or_it_is_excepted, "test_a_folder_is_a_language_of_the_folders_plugin_unless_its_table_says_so_or_it_is_excepted", 527);
+  run_test(test_a_plugins_code_is_read_from_its_folder_with_its_manifest_in_hand, "test_a_plugins_code_is_read_from_its_folder_with_its_manifest_in_hand", 540);
+  run_test(test_a_draft_tree_is_sized_to_the_answers_and_holds_their_copy, "test_a_draft_tree_is_sized_to_the_answers_and_holds_their_copy", 558);
+  run_test(test_a_plugins_sample_tries_a_comment_a_keyword_a_type_and_a_constant, "test_a_plugins_sample_tries_a_comment_a_keyword_a_type_and_a_constant", 574);
+  run_test(test_a_catalog_entry_is_checked_field_by_field, "test_a_catalog_entry_is_checked_field_by_field", 586);
+  run_test(test_every_plugin_with_a_palette_is_listed_and_the_c_palette_names_its_keyword_color, "test_every_plugin_with_a_palette_is_listed_and_the_c_palette_names_its_keyword_color", 626);
+  run_test(test_a_palette_color_set_is_written_into_the_readers_copy_of_the_plugin, "test_a_palette_color_set_is_written_into_the_readers_copy_of_the_plugin", 640);
 
   return UNITY_END();
 }

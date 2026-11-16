@@ -5,6 +5,7 @@
 // whole from the tree's tables, and a plugin serves each folder containing its table
 #include "ui/cli/src/editor/highlight.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/plugins/plugin_catalog.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -23,6 +24,7 @@ static char s_folders_alpha[CLI_NAME_MAX_LEN];
 static char s_folders_beta[CLI_NAME_MAX_LEN];
 static char s_folders_gamma[CLI_NAME_MAX_LEN];
 static char s_folders_delta[CLI_NAME_MAX_LEN];
+static char s_folders_tree[CLI_PATH_MAX_LEN];
 
 // `size` bytes of JSON read into the tree, begun again: its root
 static unsigned int tree_read(const char *text, unsigned long long size)
@@ -172,6 +174,9 @@ static void folders_read(void)
     s_folders_run_result = 1;
     cli_unity_folder("plugins_folders_home", home);
     cli_unity_folder("plugins_folders_tree", tree);
+    VerbaLinea tree_copy = {s_folders_tree, sizeof(s_folders_tree), 0ull};
+    mmgr_line_put(&tree_copy, tree);
+    (void)mmgr_line_finish(&tree_copy);
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
     file_written(home, "plugins/folders/plugin.json", "{\"id\": \"folders\", \"name\": \"Folders\", \"version\": \"1.0.0\", \"type\": \"language\", "
                                                       "\"each\": {\"folder\": \"defs\", \"table\": \"{name}/{name}.table.tsv\", \"unless\": {\"column\": "
@@ -517,4 +522,130 @@ void test_a_word_of_the_folders_table_is_colored_as_a_keyword(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key_err_msg.color, CliHighlightKeyErrMsgCfg, .key = key, .state = "root", .lines = lines, .count = 1u, .out = &out, .err_msg = &err_msg));
     (void)mmgr_line_finish(&out);
     CLI_TEST_ASSERT_CONTAINS("\"keyword\"", s_out);
+}
+
+void test_a_folder_is_a_language_of_the_folders_plugin_unless_its_table_says_so_or_it_is_excepted(void)
+{
+    static const char s_each[] = "{\"folder\": \"defs\", \"table\": \"{name}/{name}.table.tsv\", \"unless\": {\"column\": \"where\", "
+                                 "\"match\": \"^head \\\\d\"}, \"except\": [\"gamma\"]}";
+    folders_read();
+    const unsigned int each = tree_read(s_each, sizeof(s_each) - 1u);
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, each);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_json.folder_exists, CliPluginsJsonCfg, .json = &s_json, .tree = s_folders_tree, .name = "alpha", .each_u32 = each));
+    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_plugins_json.folder_exists, CliPluginsJsonCfg, .json = &s_json, .tree = s_folders_tree, .name = "beta", .each_u32 = each), "a row matched by unless");
+    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_plugins_json.folder_exists, CliPluginsJsonCfg, .json = &s_json, .tree = s_folders_tree, .name = "gamma", .each_u32 = each), "a name among except");
+    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_plugins_json.folder_exists, CliPluginsJsonCfg, .json = &s_json, .tree = s_folders_tree, .name = "delta", .each_u32 = each), "a folder with no table");
+}
+
+void test_a_plugins_code_is_read_from_its_folder_with_its_manifest_in_hand(void)
+{
+    static const char s_manifest[] = "{\"id\": \"inline\", \"name\": \"Inline\", \"version\": \"1.0.0\", \"type\": \"script\", \"main\": \"a.js\"}";
+    static const char s_outside[] = "{\"id\": \"inline\", \"name\": \"Inline\", \"version\": \"1.0.0\", \"type\": \"script\", \"main\": \"../a.js\"}";
+    char dir[CLI_PATH_MAX_LEN];
+    char code[256];
+    char why[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea out = {code, sizeof(code), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_unity_folder("plugins_code_in", dir);
+    file_written(dir, "a.js", "const a = 1;");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id.code_in, CliPluginsIdCfg, .id = "inline", .folder_read = dir, .text = s_manifest, .size = sizeof(s_manifest) - 1u, .out = &out, .err_msg = &err_msg));
+    (void)mmgr_line_finish(&out);
+    TEST_ASSERT_EQUAL_STRING("const a = 1;", code);
+    out.at = 0ull;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugins_id.code_in, CliPluginsIdCfg, .id = "inline", .folder_read = dir, .text = s_outside, .size = sizeof(s_outside) - 1u, .out = &out, .err_msg = &err_msg));
+}
+
+void test_a_draft_tree_is_sized_to_the_answers_and_holds_their_copy(void)
+{
+    CliJson draft;
+    char text[64];
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    const unsigned int answers = EMBED_CALL(cli_plugins_err_msg_json_spec.draft_tree, CliPluginsErrMsgJsonSpecCfg, .json = &s_json, .spec = toy_answers(), .draft = &draft, .err_msg = &err_msg);
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, answers);
+    TEST_ASSERT_NOT_NULL(draft.node);
+    const unsigned int name = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &draft, .object = answers, .name = "name");
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, name);
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &draft, .node = name, .out = &line, .indent = 0u, .sorted = 0);
+    CLI_TEST_ASSERT_TEXT("\"Toy Lang\"", text, line.at);
+    g_cli_guard->persistent_buf_release(draft.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), draft.node));
+}
+
+void test_a_plugins_sample_tries_a_comment_a_keyword_a_type_and_a_constant(void)
+{
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    const unsigned int plugin = toy_drafted();
+    EMBED_CALL(cli_plugins_json_out.sample_get, CliPluginsJsonOutCfg, .json = &s_json, .plugin = plugin, .out = &out);
+    (void)mmgr_line_finish(&out);
+    CLI_TEST_ASSERT_CONTAINS("--", s_out);
+    CLI_TEST_ASSERT_CONTAINS("let", s_out);
+    CLI_TEST_ASSERT_CONTAINS("Int", s_out);
+    CLI_TEST_ASSERT_CONTAINS("true", s_out);
+}
+
+void test_a_catalog_entry_is_checked_field_by_field(void)
+{
+    static const char s_good[] = "{\"id\": \"x\", \"name\": \"X\", \"version\": \"1.0.0\", \"reads\": [\"a\"]}";
+    static const char s_bad_text[] = "{\"id\": 3}";
+    static const char s_bad_list[] = "{\"id\": \"x\", \"reads\": \"a\"}";
+    static const char s_not_object[] = "[1]";
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugin_catalog_err_msg.entry_read, CliPluginCatalogErrMsgCfg, .json = &s_json, .entry_u32 = tree_read(s_good, sizeof(s_good) - 1u), .where = "entries[0]", .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugin_catalog_err_msg.entry_read, CliPluginCatalogErrMsgCfg, .json = &s_json, .entry_u32 = tree_read(s_bad_text, sizeof(s_bad_text) - 1u), .where = "entries[1]", .err_msg = &err_msg));
+    (void)mmgr_line_finish(&err_msg);
+    CLI_TEST_ASSERT_CONTAINS("entries[1]: invalid type: ", s_error);
+    CLI_TEST_ASSERT_CONTAINS("expected a string", s_error);
+    err_msg.at = 0ull;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugin_catalog_err_msg.entry_read, CliPluginCatalogErrMsgCfg, .json = &s_json, .entry_u32 = tree_read(s_bad_list, sizeof(s_bad_list) - 1u), .where = "entries[2]", .err_msg = &err_msg));
+    (void)mmgr_line_finish(&err_msg);
+    CLI_TEST_ASSERT_CONTAINS("expected a sequence", s_error);
+    err_msg.at = 0ull;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugin_catalog_err_msg.entry_read, CliPluginCatalogErrMsgCfg, .json = &s_json, .entry_u32 = tree_read(s_not_object, sizeof(s_not_object) - 1u), .where = "entries[3]", .err_msg = &err_msg));
+    (void)mmgr_line_finish(&err_msg);
+    CLI_TEST_ASSERT_CONTAINS("expected struct Entry", s_error);
+}
+
+// a color of a palette written `name=value` on a line of the line `context`
+static void color_listed(const CliPluginColorCfg *args)
+{
+    VerbaLinea *const line = args->context;
+    mmgr_line_put(line, args->name);
+    mmgr_line_ch(line, '=');
+    mmgr_line_put(line, args->value);
+    mmgr_line_ch(line, '\n');
+}
+
+// the id of a plugin with a palette written on a line of the line `context`
+static void palette_id_listed(const CliPluginIdCfg *args)
+{
+    VerbaLinea *const line = args->context;
+    mmgr_line_put(line, args->id);
+    mmgr_line_ch(line, '\n');
+}
+
+void test_every_plugin_with_a_palette_is_listed_and_the_c_palette_names_its_keyword_color(void)
+{
+    VerbaLinea ids = {s_out, sizeof(s_out), 0ull};
+    EMBED_CALL(cli_plugins_each_id.palettes_each, CliPluginsEachIdCfg, .each = palette_id_listed, .context = &ids);
+    (void)mmgr_line_finish(&ids);
+    CLI_TEST_ASSERT_CONTAINS("c\n", s_out);
+    CLI_TEST_ASSERT_CONTAINS("python\n", s_out);
+    VerbaLinea colors = {s_out, sizeof(s_out), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_each.palette_each, CliPluginsIdEachCfg, .id = "c", .each = color_listed, .context = &colors));
+    (void)mmgr_line_finish(&colors);
+    CLI_TEST_ASSERT_CONTAINS("keyword=#a48cffff\n", s_out);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugins_id_each.palette_each, CliPluginsIdEachCfg, .id = "no-such-plugin", .each = color_listed, .context = &colors));
+}
+
+void test_a_palette_color_set_is_written_into_the_readers_copy_of_the_plugin(void)
+{
+    char home[CLI_PATH_MAX_LEN];
+    cli_unity_folder("plugins_palette_home", home);
+    (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_name_value.palette_set, CliPluginsIdNameValueCfg, .id = "c", .name = "keyword", .value = "#11223344"));
+    VerbaLinea colors = {s_out, sizeof(s_out), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_each.palette_each, CliPluginsIdEachCfg, .id = "c", .each = color_listed, .context = &colors));
+    (void)mmgr_line_finish(&colors);
+    CLI_TEST_ASSERT_CONTAINS("keyword=#11223344\n", s_out);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugins_id_name_value.palette_set, CliPluginsIdNameValueCfg, .id = "no-such-plugin", .name = "keyword", .value = "#11223344"));
 }

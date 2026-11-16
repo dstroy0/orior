@@ -43,6 +43,7 @@ extern void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_rea
 extern void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed(void);
 extern void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked(void);
 extern void test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away(void);
+extern void test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen(void);
 
 
 /*=======Mock Management=====*/
@@ -132,6 +133,7 @@ int main(void)
   run_test(test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed, "test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed", 876);
   run_test(test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked, "test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked", 922);
   run_test(test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away, "test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away", 974);
+  run_test(test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen, "test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen", 991);
 
   return UNITY_END();
 }
