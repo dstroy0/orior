@@ -3,6 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/builds/builds.h"
+#include "ui/cli/src/command_line/pool.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -18,6 +19,12 @@ extern void test_a_value_completes_after_a_dot(void);
 extern void test_a_position_counts_its_column_in_utf16(void);
 extern void test_a_adjacent_name_is_offered(void);
 extern void test_a_far_name_is_not_offered(void);
+extern void test_names_are_measured_a_folder_placed_in_its_tree_and_a_snapshot_version_known(void);
+extern void test_a_words_characters_and_the_run_of_them_before_a_place(void);
+extern void test_lines_are_indexed_in_a_cell_sized_to_them_and_a_lines_start_found(void);
+extern void test_findings_and_their_fixes_are_written_as_the_protocols_diagnostics(void);
+extern void test_plain_items_show_without_their_brackets_and_insert_whole(void);
+extern void test_the_snapshots_line_is_mavens_at_a_pom_and_none_where_no_build_is(void);
 
 
 /*=======Mock Management=====*/
@@ -79,17 +86,23 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\builds\\test_builds\\test_builds.c");
-  run_test(test_gradle_scripts_and_settings_are_gradle, "test_gradle_scripts_and_settings_are_gradle", 58);
-  run_test(test_a_version_catalog_is_a_catalog, "test_a_version_catalog_is_a_catalog", 64);
-  run_test(test_a_pom_is_maven, "test_a_pom_is_maven", 69);
-  run_test(test_a_sconscript_is_scons, "test_a_sconscript_is_scons", 74);
-  run_test(test_a_cargo_manifest_is_none_of_them, "test_a_cargo_manifest_is_none_of_them", 79);
-  run_test(test_a_value_completes_after_what_was_typed, "test_a_value_completes_after_what_was_typed", 84);
-  run_test(test_every_value_completes_when_nothing_is_typed, "test_every_value_completes_when_nothing_is_typed", 91);
-  run_test(test_a_value_completes_after_a_dot, "test_a_value_completes_after_a_dot", 96);
-  run_test(test_a_position_counts_its_column_in_utf16, "test_a_position_counts_its_column_in_utf16", 101);
-  run_test(test_a_adjacent_name_is_offered, "test_a_adjacent_name_is_offered", 117);
-  run_test(test_a_far_name_is_not_offered, "test_a_far_name_is_not_offered", 123);
+  run_test(test_gradle_scripts_and_settings_are_gradle, "test_gradle_scripts_and_settings_are_gradle", 59);
+  run_test(test_a_version_catalog_is_a_catalog, "test_a_version_catalog_is_a_catalog", 65);
+  run_test(test_a_pom_is_maven, "test_a_pom_is_maven", 70);
+  run_test(test_a_sconscript_is_scons, "test_a_sconscript_is_scons", 75);
+  run_test(test_a_cargo_manifest_is_none_of_them, "test_a_cargo_manifest_is_none_of_them", 80);
+  run_test(test_a_value_completes_after_what_was_typed, "test_a_value_completes_after_what_was_typed", 85);
+  run_test(test_every_value_completes_when_nothing_is_typed, "test_every_value_completes_when_nothing_is_typed", 92);
+  run_test(test_a_value_completes_after_a_dot, "test_a_value_completes_after_a_dot", 97);
+  run_test(test_a_position_counts_its_column_in_utf16, "test_a_position_counts_its_column_in_utf16", 102);
+  run_test(test_a_adjacent_name_is_offered, "test_a_adjacent_name_is_offered", 118);
+  run_test(test_a_far_name_is_not_offered, "test_a_far_name_is_not_offered", 124);
+  run_test(test_names_are_measured_a_folder_placed_in_its_tree_and_a_snapshot_version_known, "test_names_are_measured_a_folder_placed_in_its_tree_and_a_snapshot_version_known", 130);
+  run_test(test_a_words_characters_and_the_run_of_them_before_a_place, "test_a_words_characters_and_the_run_of_them_before_a_place", 143);
+  run_test(test_lines_are_indexed_in_a_cell_sized_to_them_and_a_lines_start_found, "test_lines_are_indexed_in_a_cell_sized_to_them_and_a_lines_start_found", 155);
+  run_test(test_findings_and_their_fixes_are_written_as_the_protocols_diagnostics, "test_findings_and_their_fixes_are_written_as_the_protocols_diagnostics", 168);
+  run_test(test_plain_items_show_without_their_brackets_and_insert_whole, "test_plain_items_show_without_their_brackets_and_insert_whole", 202);
+  run_test(test_the_snapshots_line_is_mavens_at_a_pom_and_none_where_no_build_is, "test_the_snapshots_line_is_mavens_at_a_pom_and_none_where_no_build_is", 213);
 
   return UNITY_END();
 }

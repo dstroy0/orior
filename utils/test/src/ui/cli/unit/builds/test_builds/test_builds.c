@@ -3,6 +3,7 @@
 // test_builds.c: build files: the type goes by file name, values complete after what was typed, positions count UTF-16 columns,
 // and near names are offered
 #include "ui/cli/src/builds/builds.h"
+#include "ui/cli/src/command_line/pool.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static CliCompletions s_items;
@@ -124,4 +125,104 @@ void test_a_far_name_is_not_offered(void)
 {
     char adjacent[256];
     TEST_ASSERT_EQUAL_STRING("", adjacent_names("zzz", 1u, adjacent));
+}
+
+void test_names_are_measured_a_folder_placed_in_its_tree_and_a_snapshot_version_known(void)
+{
+    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_builds_a.build_distance, CliBuildsACfg, .a = "kitten", .a_size = 6ull, .b = "sitting", .b_size = 7ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_builds_a.build_distance, CliBuildsACfg, .a = "same", .a_size = 4ull, .b = "same", .b_size = 4ull));
+    char inside[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = "D:/trees/root", .folder = "D:/trees/root\\sub\\deep", .out_capacity = inside);
+    TEST_ASSERT_EQUAL_STRING("sub/deep", inside);
+    EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = "D:/trees/root", .folder = "D:/trees/root", .out_capacity = inside);
+    TEST_ASSERT_EQUAL_STRING("", inside);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_builds_size_version.build_snapshot, CliBuildsSizeVersionCfg, .version = " 1.0-SNAPSHOT ", .size = 14ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_builds_size_version.build_snapshot, CliBuildsSizeVersionCfg, .version = "1.0", .size = 3ull));
+}
+
+void test_a_words_characters_and_the_run_of_them_before_a_place(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg, .character = 'a'));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg, .character = '_'));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg, .character = '$'));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg, .character = '-'));
+    // the run of word characters that ends at the bracket is `bar_9`, from byte 6; one that ends at byte 1 is `x`
+    const char text[] = "x foo.bar_9(";
+    TEST_ASSERT_EQUAL_UINT64(6ull, EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text, .at = 11ull, .of = cli_build_word_character));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text, .at = 1ull, .of = cli_build_word_character));
+}
+
+void test_lines_are_indexed_in_a_cell_sized_to_them_and_a_lines_start_found(void)
+{
+    const char text[] = "ab\ncd\n\nef";
+    CliBuildLines lines;
+    unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_alloc, CliBuildsTextSizeCfg, .text = text, .size = sizeof(text) - 1u, .lines_out = &lines);
+    TEST_ASSERT_NOT_NULL(starts);
+    TEST_ASSERT_EQUAL_UINT(4u, lines.count);
+    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_builds_line.build_line_start, CliBuildsLineCfg, .lines = &lines, .line = 1u));
+    TEST_ASSERT_EQUAL_UINT64(6ull, EMBED_CALL(cli_builds_line.build_line_start, CliBuildsLineCfg, .lines = &lines, .line = 2u));
+    TEST_ASSERT_EQUAL_UINT64(7ull, EMBED_CALL(cli_builds_line.build_line_start, CliBuildsLineCfg, .lines = &lines, .line = 3u));
+    g_cli_guard->persistent_buf_release(starts, mmgr_owner_of_buf(cli_pool_series_cellularum(), starts));
+}
+
+void test_findings_and_their_fixes_are_written_as_the_protocols_diagnostics(void)
+{
+    static const char s_text[] = "let a = 1\nlet b = 2\n";
+    static unsigned int s_starts[4];
+    CliBuildLines lines;
+    EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = s_text, .size = sizeof(s_text) - 1u, .starts = s_starts, .max = 4u, .lines_out = &lines);
+    CliBuildFindings found = {NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
+    EMBED_CALL(cli_builds_lines.build_findings_begin, CliBuildsLinesCfg, .found = &found);
+    TEST_ASSERT_NOT_NULL(found.finding);
+    VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = &found);
+    mmgr_line_put(&msg, "snapshot here");
+    const unsigned int finding = EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = &found, .message = &msg, .lines = &lines, .from = 4ull, .to = 5ull, .severity = CLI_BUILD_NOTE, .code = "snapshot");
+    TEST_ASSERT_EQUAL_UINT(0u, finding);
+    VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = &found);
+    mmgr_line_put(&title, "Fix it");
+    EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = &found, .finding = finding, .title = &title, .lines = &lines, .text = "x", .size = 1ull, .from = 4ull, .to = 5ull);
+    VerbaLinea run = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = &found);
+    mmgr_line_put(&run, "Run it");
+    EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = &found, .finding = finding, .title = &run, .folder = "sub", .folder_size = 3ull, .line_text = "mvn -U", .line_size = 6ull);
+    VerbaLinea twice = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = &found);
+    mmgr_line_put(&twice, "Both");
+    EMBED_CALL(cli_builds_text.build_edit_fix_twice, CliBuildsTextCfg, .found = &found, .finding = finding, .title = &twice, .lines = &lines, .text = "yy", .size = 2ull, .from = 4ull, .to = 5ull, .also_from = 14ull, .also_to = 15ull);
+    TEST_ASSERT_EQUAL_UINT(3u, found.fixes);
+    static char s_written[2048];
+    VerbaLinea out = mmgr_line_over(s_written, sizeof(s_written));
+    EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &found, .out = &out);
+    (void)mmgr_line_finish(&out);
+    CLI_TEST_ASSERT_CONTAINS("[{\"range\":{\"start\":{\"line\":0,\"character\":4},\"end\":{\"line\":0,\"character\":5}},\"severity\":3,\"message\":{\"type\":\"markdown\",\"value\":\"snapshot here\"},\"source\":\"orior\",\"code\":\"snapshot\",\"data\":{\"orior\":[", s_written);
+    CLI_TEST_ASSERT_CONTAINS("{\"title\":\"Fix it\",\"edits\":[{\"from\":{\"line\":0,\"col\":4},\"to\":{\"line\":0,\"col\":5},\"text\":\"x\"}]}", s_written);
+    CLI_TEST_ASSERT_CONTAINS("{\"title\":\"Run it\",\"run\":{\"folder\":\"sub\",\"line\":\"mvn -U\"}}", s_written);
+    CLI_TEST_ASSERT_CONTAINS("{\"title\":\"Both\",\"edits\":[{\"from\":{\"line\":0,\"col\":4},\"to\":{\"line\":0,\"col\":5},\"text\":\"yy\"},{\"from\":{\"line\":1,\"col\":4},\"to\":{\"line\":1,\"col\":5},\"text\":\"yy\"}]}", s_written);
+    g_cli_guard->persistent_buf_release(found.finding, mmgr_owner_of_buf(cli_pool_series_cellularum(), found.finding));
+}
+
+void test_plain_items_show_without_their_brackets_and_insert_whole(void)
+{
+    static const char *const s_words[2] = {"get()", "set"};
+    EMBED_CALL(cli_edits_items.completions_begin, CliEditsItemsCfg, .items = &s_items);
+    EMBED_CALL(cli_builds_items_type.build_items, CliBuildsItemsTypeCfg, .items = &s_items, .type = "method", .detail = "d", .words = s_words, .count = 2u);
+    TEST_ASSERT_EQUAL_UINT(2u, s_items.count);
+    assert_inserts("get()", &s_items, 0u);
+    assert_inserts("set", &s_items, 1u);
+    CLI_TEST_ASSERT_TEXT("get", s_items.text + s_items.item[0].label_at, s_items.item[0].label_size);
+}
+
+void test_the_snapshots_line_is_mavens_at_a_pom_and_none_where_no_build_is(void)
+{
+    char root[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    char line[CLI_PATH_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_unity_folder("builds_snapshots", root);
+    cli_unity_file(root, "pom.xml", "<project/>");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_builds_path_root.build_snapshots_line, CliBuildsPathRootCfg, .path = NULL, .root = root, .folder_out = folder, .line_capacity = line, .err_msg = &err_msg));
+    CLI_TEST_ASSERT_CONTAINS(" -U dependency:resolve", line);
+    TEST_ASSERT_EQUAL_STRING("", folder);
+    cli_unity_folder("builds_no_snapshots", root);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_builds_path_root.build_snapshots_line, CliBuildsPathRootCfg, .path = NULL, .root = root, .folder_out = folder, .line_capacity = line, .err_msg = &err_msg));
+    TEST_ASSERT_NOT_EQUAL(0ull, err_msg.at);
 }
