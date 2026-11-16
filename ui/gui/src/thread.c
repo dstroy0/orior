@@ -8,7 +8,6 @@
 #include "thread.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
-#include "../../cli/src/editor/document.h"
 #include "../../cli/src/command_line/command_line.h"
 #include "../../cli/src/command_line/rings.h"
 #include "window.h"
@@ -114,7 +113,7 @@ static ViewFrameTelemetry s_frame_telemetry;
 static void view_frame_telemetry_log(const ViewThreadCtx *args)
 {
     ViewFrameTelemetry *const told = &s_frame_telemetry;
-    if (args->now_us - told->line_at_us < GUI_MEMORY_MS * 1000ULL)
+    if (!s_view.window.telemetry || (args->now_us - told->line_at_us < GUI_MEMORY_MS * 1000ULL))
     {
         return;
     }
@@ -779,8 +778,6 @@ static void view_run(void *context)
 {
     (void)context;
     GuiWindow *const window = &s_view.window;
-    cli_document_telemetry_on();
-    window->telemetry = 1;
     for (;;)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_view.wake);

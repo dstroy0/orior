@@ -24,6 +24,7 @@
 #include "../../cli/src/command_line/pool.h"
 #include "../../cli/src/comms/comms.h"
 #include "../../cli/src/debug/debug_pane.h"
+#include "../../cli/src/editor/document.h"
 #include "../../cli/src/editor/files.h"
 #include "../../cli/src/editor/history.h"
 #include "../../cli/src/editor/view_edits.h"
@@ -5349,6 +5350,30 @@ static int window_command_named(const char *command, const char *const *words, u
                    .input = &(GuiInput){.type = GUI_INPUT_MOVED, .x = x, .y = y});
         return 1;
     }
+    // The window's telemetry lines to the error stream, `on` or `off`: the cells' log on the memory tick, the frames'
+    // line, the walk's line a step and a frame take's line; off until asked, so a window in use writes nothing
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "telemetry"))
+    {
+        if (count == 0u)
+        {
+            return 0;
+        }
+        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "on");
+        if (!on && !EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "off"))
+        {
+            return 0;
+        }
+        window->telemetry = on;
+        if (on)
+        {
+            cli_document_telemetry_on();
+        }
+        else
+        {
+            cli_document_telemetry_off();
+        }
+        return 1;
+    }
     CliItem item;
     const int keyed = cli_menus_named(&(CliMenusCfg){.name = command, .item = &item});
     const int known = keyed ||
@@ -5785,7 +5810,10 @@ void gui_window_step(const GuiWindowCfg *args)
             EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
                 ? measured.working
                 : 0ULL;
-        cli_pool_telemetry_log();
+        if (window->telemetry)
+        {
+            cli_pool_telemetry_log();
+        }
         window->memory_due_ms = now_ms + GUI_MEMORY_MS;
         window->pending = 1;
     }
@@ -5909,7 +5937,9 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
                    .palette = palette);
         EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &args->window->editor,
                    .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .place = frame->editor,
-                   .scale = frame->scale, .key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u));
+                   .notch = (frame->controls_pane_share > 0) ? frame->controls_pane : (GuiRect){0, 0, 0, 0},
+                   .radius = frame->radius, .scale = frame->scale,
+                   .key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u));
         const unsigned int code_size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                                 .pixels = GUI_CODE_SIZE, .scale = frame->scale);
         EMBED_CALL(gui_problems_path_raster.underlined, GuiProblemsPathRasterCfg, .editor = &args->window->editor,

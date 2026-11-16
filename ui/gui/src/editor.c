@@ -1059,21 +1059,33 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
     {
         const unsigned int at = args->editor->frame->count + pinned;
         // the count of sticky rows is far inside what an int represents
-        const GuiRect row_rect = {args->place.x, args->place.y + ((int)pinned * line_height), args->place.width,
-                                  line_height};
+        const int row_y = args->place.y + ((int)pinned * line_height);
+        // a row the notch is down beside stops short of the notch by the border's bend, inside the border
+        const int notched = !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->notch) &&
+                            (args->notch.y < row_y + line_height) && (args->notch.y + args->notch.height > row_y) &&
+                            (args->notch.x - (int)args->radius < args->place.x + args->place.width);
+        const int row_right = notched ? args->notch.x - (int)args->radius : args->place.x + args->place.width;
+        if (row_right <= args->place.x)
+        {
+            continue;
+        }
+        const GuiRect row_rect = {args->place.x, row_y, row_right - args->place.x, line_height};
+        const GuiRect row_clip =
+            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = text_clip,
+                       .other = (GuiRect){args->place.x, args->place.y, row_right - args->place.x, args->place.height});
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster, .rect = row_rect,
                    .color = args->palette->surface);
         EMBED_CALL(
             editor_row_draw, EditorCtx, .editor = args->editor, .raster = raster, .glyphs = glyphs,
             .palette = args->palette, .place = args->place, .at = at, .line = args->editor->frame->row[at].number,
             .stored_line = &args->editor->frame->row[at], .y = row_rect.y + baseline,
-            .row_rect = (GuiRect){text_clip.x, row_rect.y, text_clip.width, line_height}, .text_x = text_x,
-            .cell = cell, .size = size, .scale = scale, .clip = text_clip, .numbers_right = numbers_right,
+            .row_rect = (GuiRect){row_clip.x, row_rect.y, row_clip.width, line_height}, .text_x = text_x,
+            .cell = cell, .size = size, .scale = scale, .clip = row_clip, .numbers_right = numbers_right,
             .line_height = line_height, .selected = 0, .selected_from = selected_from, .selected_to = selected_to);
         if (pinned + 1u == args->editor->frame->stickies)
         {
             EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                       .rect = (GuiRect){args->place.x, row_rect.y + line_height - 1, args->place.width, 1},
+                       .rect = (GuiRect){args->place.x, row_rect.y + line_height - 1, row_rect.width, 1},
                        .color = args->palette->line);
         }
     }

@@ -1971,6 +1971,11 @@ void cli_document_telemetry_on(void)
     s_telemetry = 1;
 }
 
+void cli_document_telemetry_off(void)
+{
+    s_telemetry = 0;
+}
+
 EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
 {
     CliStoredText *one = args->one;

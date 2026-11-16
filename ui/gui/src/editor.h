@@ -140,10 +140,14 @@ struct GuiEditorPositionCellCfg
     int clamped;
 };
 
+// `notch` is the pane down over the editor's top corner, empty where none is, and `radius` the bend the work's border
+// makes round it: the sticky rows stop short of the notch by the radius
 struct GuiEditorPositionScaleCfg
 {
     GuiEditor *editor;
     GuiRect place;
+    GuiRect notch;
+    unsigned int radius;
     int scale;
     GuiGlyphs *glyphs;
     GuiRaster *raster;

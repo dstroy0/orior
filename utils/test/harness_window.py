@@ -199,9 +199,17 @@ def cmd_start(a):
     else:
         process_id = window_started(port=a.port).pid
     placed = window_placed(process_id, a.display)
+    if placed and a.telemetry:
+        telemetry_on()
     if placed and a.port:
         print("its debugging port %d" % a.port)
     return 0 if placed else 1
+
+
+def telemetry_on():
+    """The running window's telemetry lines turned on through the interface: the cells' log each memory tick, the
+    frames' line, the walk's and the frame take's, to its error stream. A window writes none until asked."""
+    subprocess.run([program(), "help", "telemetry", "on"], cwd=ROOT, stdin=subprocess.DEVNULL, capture_output=True)
 
 
 def cmd_ended(a):
@@ -289,6 +297,7 @@ def cmd_scroll(a):
     if not found:
         return 1
     process_id, handle, _ = found
+    telemetry_on()
     try:
         offset = os.path.getsize(WINDOW_ERRORS)
     except OSError:
@@ -1265,6 +1274,7 @@ def cmd_poll(a):
     if not process_id or not win.alive(process_id):
         print("no window running: harness.py window start")
         return 1
+    telemetry_on()
     cores = os.cpu_count() or 1
     head = ["s", "system%", "window%", "threads", "handles", "working_MiB", "private_MiB", "commit_MiB", "reserve_MiB",
             "pool_MiB", "in_use_MiB", "persistent_peak_MiB", "temporary_peak_MiB", "queue", "lane_passes"]
@@ -1621,6 +1631,7 @@ def register(sub):
     p.add_argument("--display", default=DISPLAY, help="the display's device name")
     p.add_argument("--id", type=int, default=0, help="place this process's window instead of starting one")
     p.add_argument("--port", type=int, default=0, help="the started window's debugging port, none where 0")
+    p.add_argument("--telemetry", action="store_true", help="the window's telemetry lines written to build/harness/window_errors.txt from the start")
     p.set_defaults(fn=cmd_start)
 
     p = window.add_parser("ended", help="every window running from the release program ended")

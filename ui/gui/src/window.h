@@ -278,7 +278,8 @@ typedef struct GuiWindow
     int clicked_x;
     int clicked_y;
     int pending;
-    // whether a frame take writes a telemetry line to the error stream, which the view's thread turns on
+    // whether the window writes its telemetry lines to the error stream: the cells' log on the memory tick, the frames'
+    // line, the walk's line a step and a frame take's line; off until the interface's `telemetry on`
     int telemetry;
     unsigned int pressed;
 } GuiWindow;

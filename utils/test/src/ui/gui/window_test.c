@@ -12,6 +12,7 @@
 #include "../../../../../includes/window/top_menu.h"
 #include "../../../../../ui/cli/src/code/references.h"
 #include "../../../../../ui/cli/src/command_line/command_line.h"
+#include "../../../../../ui/cli/src/editor/document.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/machine/reach.h"
 #include "../../../../../ui/cli/src/machine/state.h"
@@ -1295,6 +1296,58 @@ static int view_checked_on(const char *label)
     return g_cli_menus_open.checked(&item);
 }
 
+// The sticky rows stop short of the controls' pane: the view placed inside a long function with the edges claimed, a
+// rest in the controls' corner brings the pane down over the editor's top corner, and the pinned row's ground ends
+// before the border's bend round the pane
+static void sticky_notch_checked(void)
+{
+    static char s_long[8192];
+    VerbaLinea text = {s_long, sizeof(s_long), 0ULL};
+    mmgr_line_put(&text, "void one(void)\n{\n");
+    for (unsigned int line = 0u; line < 200u; line += 1u)
+    {
+        mmgr_line_put(&text, "    int a_");
+        mmgr_line_decimal(&text, line, 1u);
+        mmgr_line_put(&text, " = 1;\n");
+    }
+    mmgr_line_put(&text, "}\n");
+    (void)mmgr_line_finish(&text);
+    tabs_closed("long.c", s_long, NULL, NULL);
+    cli_check(tab_opened("long.c"), "a long function opens for the sticky rows");
+    char path[CLI_PATH_MAX_LEN];
+    tree_path("long.c:120", path);
+    cli_check(asked("file", path), "the view is placed inside the function");
+    typed("x");
+    stepped_for(GUI_AUTOHIDE_ANIMATION_MS + 100ULL);
+    cli_check(s_window.claim.autohidden && (s_window.editor.frame != NULL) && (s_window.editor.frame->stickies == 1u),
+              "typing claims the edges and the function's head is the one sticky row");
+    moved(s_window.frame.work.x + s_window.frame.work.width - 4, 4);
+    stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 200ULL);
+    cli_check(s_window.frame.controls_pane_share >= GUI_FIXED_ONE, "a rest in the corner brings the controls' pane down");
+    // the editor drawn on a raster of its own, clear, with the pane's notch at its top right: the sticky row's ground
+    // reaches the raster's left and leaves the bend before the notch clear
+    const int line_height =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = s_window.frame.scale);
+    const GuiColor clear = GUI_RGB(1u, 2u, 3u);
+    const GuiRect place = {0, 0, 640, 4 * line_height};
+    const GuiRect notch = {place.width - 120, 0, 120, 2 * line_height};
+    GuiRaster raster;
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = (unsigned int)place.width,
+                         .part = GUI_BLOCK_DIALOG_GROUND, .segment = 0u,
+                         .height = (unsigned int)place.height),
+              "a raster for the editor is made");
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = place, .color = clear);
+    EMBED_CALL(gui_editor_position_scale.draw, GuiEditorPositionScaleCfg, .editor = &s_window.editor, .raster = &raster,
+               .glyphs = &s_window.glyphs, .palette = s_window.palette, .place = place, .notch = notch,
+               .radius = s_window.frame.radius, .scale = s_window.frame.scale, .key = "long.c");
+    // the probes are inside the raster, whose sides an unsigned int represents
+    const unsigned int y = (unsigned int)(line_height - 3);
+    const GuiColor inside = raster.pixels[(y * raster.width) + 2u];
+    const GuiColor bend = raster.pixels[(y * raster.width) + (unsigned int)(notch.x - ((int)s_window.frame.radius / 2))];
+    cli_check(inside != clear, "the sticky row's ground is at the editor's left");
+    cli_check(bend == clear, "and it stops short of the bend round the controls' pane");
+}
+
 // The View menu's switches and tool views through the interface: whitespace marks, the eased scroll, the sticky rows
 // and the claim turned off and on, each saved as its setting and displayed checked in the menu; and a tool view opening
 // and closing the side_menu's tool
@@ -1708,7 +1761,7 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[26] = {{"saves", saves_checked},
+static const WindowCheck s_checks[27] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
@@ -1730,6 +1783,7 @@ static const WindowCheck s_checks[26] = {{"saves", saves_checked},
                                          {"bar_tools", bar_tools_checked},
                                          {"map_collapses", map_collapses_checked},
                                          {"themes", themes_checked},
+                                         {"sticky_notch", sticky_notch_checked},
                                          {"view", view_checked},
                                          {"edit", edit_checked},
                                          {"symbols", symbols_checked},
@@ -1760,6 +1814,9 @@ int main(void)
     }
     cli_command_line_tree_begin(window_woken);
     EMBED_CALL(gui_window_table.start, GuiWindowCfg, .window = &s_window, .woken = window_woken);
+    // the checks read the window's telemetry lines, which a window writes only when asked
+    s_window.telemetry = 1;
+    cli_document_telemetry_on();
     (void)EMBED_CALL(gui_window_width.resize, GuiWindowWidthCfg, .window = &s_window, .width = 1440u, .height = 920u,
                      .system_scale = 100);
     // the tree as the window began it, the name of each file the tabs show is its path from it
