@@ -140,3 +140,42 @@ void test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back(void)
     TEST_ASSERT_TRUE(showing("Formatted 4 places."));
     notices_rested();
 }
+
+void test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
+                                .value = "build/harness/notices_home"));
+    notices_rested();
+    cli_notices_show_again(&(CliNoticesCfg){.type = "Formatted # places."});
+    cli_notices_show_again(&(CliNoticesCfg){.type = "Saved # files."});
+    char *away = cli_notices_away_alloc();
+    if (away != NULL)
+    {
+        cli_notices_away_end(&(CliNoticesCfg){.away = away});
+    }
+    key_pressed("Ctrl+S");
+    cli_notice_post(&(CliNoticesCfg){.text = "Saved 2 files.", .failed = 0});
+    cli_notices_press(&(CliNoticesCfg){.part = CLI_NOTICES_PRESS_SILENCE});
+    away = cli_notices_away_alloc();
+    TEST_ASSERT_NOT_NULL(away);
+    CLI_TEST_ASSERT_CONTAINS("Saved # files.", away);
+    cli_notices_away_end(&(CliNoticesCfg){.away = away});
+    cli_notices_show_again(&(CliNoticesCfg){.type = "Saved # files."});
+    notices_rested();
+}
+
+void test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away(void)
+{
+    notices_rested();
+    cli_notices_pointer();
+    cli_notice_post(&(CliNoticesCfg){.text = "Pressed.", .failed = 0});
+    TEST_ASSERT_TRUE_MESSAGE(showing("Pressed."), "a notice answering a pointer press shows at once");
+    notices_rested();
+    clock_passes(CLI_NOTICES_ANSWERS_MS + 100ULL);
+    cli_notices_input();
+    cli_notice_post(&(CliNoticesCfg){.text = "Nothing answered.", .failed = 0});
+    TEST_ASSERT_NULL_MESSAGE(cli_notice_displayed(), "a notice answering no command waits after input");
+    cli_notices_end();
+    TEST_ASSERT_NULL(cli_notice_displayed());
+    TEST_ASSERT_EQUAL_UINT(0u, cli_notices_waiting());
+}

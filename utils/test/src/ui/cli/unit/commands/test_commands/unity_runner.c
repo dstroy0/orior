@@ -18,6 +18,14 @@ extern void test_arguments_inside_brackets_are_optional(void);
 extern void test_a_choice_counts_as_one_argument(void);
 extern void test_a_required_argument_after_an_optional_group_is_required(void);
 extern void test_the_preferences_list_the_terminals_folder_and_lines_as_settings(void);
+extern void test_a_menu_is_found_by_its_word_and_names_its_title_word_and_split(void);
+extern void test_a_menus_items_are_counted_and_read_into_a_cell_sized_for_them(void);
+extern void test_a_menus_command_a_chains_item_and_a_setting_node_are_found_by_their_words(void);
+extern void test_a_title_opened_marks_its_first_row_and_a_row_pressed_is_chosen_with_every_menu_closed(void);
+extern void test_a_row_with_items_opens_them_beside_it(void);
+extern void test_keys_are_named_with_modifiers_in_any_order_and_an_item_is_found_by_its_keys(void);
+extern void test_the_readers_own_keys_stand_over_the_lists_in_every_read_of_the_item(void);
+extern void test_a_parts_own_rows_take_a_popup_and_a_row_relabeled(void);
 
 
 /*=======Mock Management=====*/
@@ -90,6 +98,14 @@ int main(void)
   run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 174);
   run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 179);
   run_test(test_the_preferences_list_the_terminals_folder_and_lines_as_settings, "test_the_preferences_list_the_terminals_folder_and_lines_as_settings", 200);
+  run_test(test_a_menu_is_found_by_its_word_and_names_its_title_word_and_split, "test_a_menu_is_found_by_its_word_and_names_its_title_word_and_split", 225);
+  run_test(test_a_menus_items_are_counted_and_read_into_a_cell_sized_for_them, "test_a_menus_items_are_counted_and_read_into_a_cell_sized_for_them", 241);
+  run_test(test_a_menus_command_a_chains_item_and_a_setting_node_are_found_by_their_words, "test_a_menus_command_a_chains_item_and_a_setting_node_are_found_by_their_words", 257);
+  run_test(test_a_title_opened_marks_its_first_row_and_a_row_pressed_is_chosen_with_every_menu_closed, "test_a_title_opened_marks_its_first_row_and_a_row_pressed_is_chosen_with_every_menu_closed", 278);
+  run_test(test_a_row_with_items_opens_them_beside_it, "test_a_row_with_items_opens_them_beside_it", 296);
+  run_test(test_keys_are_named_with_modifiers_in_any_order_and_an_item_is_found_by_its_keys, "test_keys_are_named_with_modifiers_in_any_order_and_an_item_is_found_by_its_keys", 324);
+  run_test(test_the_readers_own_keys_stand_over_the_lists_in_every_read_of_the_item, "test_the_readers_own_keys_stand_over_the_lists_in_every_read_of_the_item", 334);
+  run_test(test_a_parts_own_rows_take_a_popup_and_a_row_relabeled, "test_a_parts_own_rows_take_a_popup_and_a_row_relabeled", 350);
 
   return UNITY_END();
 }

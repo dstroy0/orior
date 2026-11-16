@@ -13,6 +13,8 @@ extern void test_a_notice_answering_nothing_waits_for_the_keys_to_rest(void);
 extern void test_a_break_shows_the_last_notice_waiting(void);
 extern void test_focus_stops_every_notice_until_it_ends(void);
 extern void test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back(void);
+extern void test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is(void);
+extern void test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away(void);
 
 
 /*=======Mock Management=====*/
@@ -80,6 +82,8 @@ int main(void)
   run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 92);
   run_test(test_focus_stops_every_notice_until_it_ends, "test_focus_stops_every_notice_until_it_ends", 105);
   run_test(test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back, "test_silence_puts_a_type_away_for_good_and_show_again_brings_it_back", 123);
+  run_test(test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is, "test_the_types_put_away_are_listed_one_a_line_and_none_where_none_is", 144);
+  run_test(test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away, "test_a_pointer_press_is_answered_at_once_and_the_notices_end_takes_every_notice_away", 167);
 
   return UNITY_END();
 }
