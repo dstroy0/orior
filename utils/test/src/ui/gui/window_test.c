@@ -1173,6 +1173,52 @@ static void bar_tools_checked(void)
     moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
 }
 
+// Preferences' own window: sized by the system, a frame owed until it is drawn into its own raster, what a pixel of it
+// is on, and a press on a section's tab in it showing that section
+static void preferences_window_checked(void)
+{
+    key_pressed("Ctrl+,");
+    cli_check(s_window.preferences.displayed, "Ctrl+, opens Preferences");
+    EMBED_CALL(gui_window_width.preferences_resize, GuiWindowWidthCfg, .window = &s_window, .width = 900u,
+               .height = 700u, .system_scale = GUI_SCALE_ONE);
+    cli_check((s_window.preferences.width == 900u) && (s_window.preferences.height == 700u) &&
+                  s_window.preferences_pending && (s_window.preferences_raster.pixels != NULL),
+              "Preferences sized by the system owes a frame and has its raster");
+    EMBED_CALL(gui_window_table.preferences_draw, GuiWindowCfg, .window = &s_window);
+    unsigned int drawn = 0u;
+    for (unsigned int at = 0u; at < (900u * 700u); at += 97u)
+    {
+        drawn |= s_window.preferences_raster.pixels[((at / 900u) * s_window.preferences_raster.width) + (at % 900u)];
+    }
+    cli_check(!s_window.preferences_pending && (drawn != 0u), "Preferences drawn into its raster owes no frame");
+    const GuiRect close = EMBED_CALL(gui_preferences_row.close_rect, GuiPreferencesRowCfg,
+                                     .preferences_read = &s_window.preferences);
+    const GuiRect second = EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg,
+                                      .preferences_read = &s_window.preferences, .at = 1u);
+    cli_check((EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = &s_window,
+                          .input = &(GuiInput){.x = 450, .y = 1}) == GUI_HIT_TOP) &&
+                  (EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = &s_window,
+                              .input = &(GuiInput){.x = close.x + (close.width / 2),
+                                                   .y = close.y + (close.height / 2)}) == GUI_HIT_CLIENT) &&
+                  (EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = &s_window,
+                              .input = &(GuiInput){.x = second.x + (second.width / 2),
+                                                   .y = second.y + (second.height / 2)}) == GUI_HIT_CLIENT) &&
+                  (EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = &s_window,
+                              .input = &(GuiInput){.x = 450, .y = 350}) == GUI_HIT_CLIENT),
+              "Preferences' top edge resizes it, and its close mark, its tabs and its body are its own");
+    const int x = second.x + (second.width / 2);
+    const int y = second.y + (second.height / 2);
+    EMBED_CALL(gui_window_input_type.preferences_input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_DOWN, .x = x, .y = y, .button = GUI_BUTTON_LEFT});
+    EMBED_CALL(gui_window_input_type.preferences_input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_UP, .x = x, .y = y, .button = GUI_BUTTON_LEFT});
+    stepped();
+    cli_check(s_window.preferences.section == 1u, "a press on the second section's tab shows that section");
+    EMBED_CALL(gui_window_table.preferences_close, GuiWindowCfg, .window = &s_window);
+    stepped();
+    cli_check(!s_window.preferences.displayed, "Preferences closed again");
+}
+
 static void terminal_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -1953,7 +1999,7 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[29] = {{"saves", saves_checked},
+static const WindowCheck s_checks[30] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
@@ -1973,6 +2019,7 @@ static const WindowCheck s_checks[29] = {{"saves", saves_checked},
                                          {"autoscroll", autoscroll_checked},
                                          {"tips", tips_checked},
                                          {"bar_tools", bar_tools_checked},
+                                         {"preferences_window", preferences_window_checked},
                                          {"map_collapses", map_collapses_checked},
                                          {"themes", themes_checked},
                                          {"sticky_notch", sticky_notch_checked},
