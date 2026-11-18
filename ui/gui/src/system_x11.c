@@ -18,7 +18,6 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/cursorfont.h>
 #include <X11/keysym.h>
 #include <poll.h>
 #include <unistd.h>
@@ -564,6 +563,16 @@ EMBED_INLINE void system_window_init(const SystemX11Ctx *args)
     min.min_width = (int)CLI_POSITION_MIN_WIDTH;
     min.min_height = (int)CLI_POSITION_MIN_HEIGHT;
     XSetWMNormalHints(args->system->display, args->system->window, &min);
+    // The window draws its own pointer over all of its pixels: the cursor defined on it is one of no pixels, made of a
+    // one-pixel map that is clear. The window retains its reference to the cursor once it is defined on it, so the
+    // cursor and the map are freed at once
+    static const char s_clear = 0;
+    const Pixmap clear = XCreateBitmapFromData(args->system->display, args->system->window, &s_clear, 1u, 1u);
+    XColor black = {0};
+    const Cursor none = XCreatePixmapCursor(args->system->display, clear, clear, &black, &black, 0u, 0u);
+    XDefineCursor(args->system->display, args->system->window, none);
+    XFreeCursor(args->system->display, none);
+    XFreePixmap(args->system->display, clear);
 }
 
 GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
@@ -765,22 +774,6 @@ void gui_system_icon(const GuiSystemTitleIconCfg *args)
     // the words are far fewer than an int counts
     XChangeProperty(args->system->display, args->system->window, icon, XA_CARDINAL, 32, PropModeReplace,
                     (const unsigned char *)s_icon_words, (int)words);
-    XFlush(args->system->display);
-}
-
-void gui_system_cursor_show(const GuiSystemCursorCfg *args)
-{
-    if (args->cursor == GUI_CURSOR_SCROLL)
-    {
-        // the window retains its reference to the cursor once it is defined on it, so the handle is freed at once
-        const Cursor fleur = XCreateFontCursor(args->system->display, XC_fleur);
-        XDefineCursor(args->system->display, args->system->window, fleur);
-        XFreeCursor(args->system->display, fleur);
-    }
-    else
-    {
-        XUndefineCursor(args->system->display, args->system->window);
-    }
     XFlush(args->system->display);
 }
 

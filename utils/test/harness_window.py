@@ -371,18 +371,240 @@ def cmd_move(a):
     if not found:
         return 1
     process_id, handle, _ = found
+    window_joined(process_id)
     via = [(a.via[at], a.via[at + 1]) for at in range(0, len(a.via or []), 2)]
     # the window's own pointer, moved through the interface: the system's cursor stays where the person has it, and
     # the window reads no leave while its own pointer is on
     import time
 
-    for at, (x, y) in enumerate(via + [(a.x, a.y)]):
-        if at:
-            time.sleep(a.pause)
-        subprocess.run([program(), "help", "pointer", str(x), str(y)], cwd=ROOT, stdin=subprocess.DEVNULL,
-                       capture_output=True)
-    print("window %d pointer moved to %d,%d through %d places" % (process_id, a.x, a.y, len(via)))
+    if a.human:
+        import random
+
+        rng = random.Random(a.seed)
+        here = pointer_place_read() or (via + [(a.x, a.y)])[0]
+        for place in via + [(a.x, a.y)]:
+            here = human_moved(human_path(here, place, rng), rng)
+    else:
+        for at, (x, y) in enumerate(via + [(a.x, a.y)]):
+            if at:
+                time.sleep(a.pause)
+            pointer_said([x, y])
+    pointer_place_write(a.x, a.y)
+    print("window %d pointer moved to %d,%d through %d places%s" % (process_id, a.x, a.y, len(via),
+                                                                     " by hand" if a.human else ""))
     return 0
+
+
+POINTER_PLACE = os.path.join(ROOT, "build", "harness", "pointer_place.txt")
+
+
+def pointer_place_read():
+    """Where the harness last put the window's own pointer, as x, y; None where it has put it nowhere yet."""
+    try:
+        with open(POINTER_PLACE, encoding="utf-8") as kept:
+            x, y = kept.read().split()
+        return int(x), int(y)
+    except (OSError, ValueError):
+        return None
+
+
+def pointer_place_write(x, y):
+    """The place the harness put the window's own pointer at, kept for the next human move's start."""
+    os.makedirs(os.path.dirname(POINTER_PLACE), exist_ok=True)
+    with open(POINTER_PLACE, "w", encoding="utf-8") as kept:
+        kept.write("%d %d\n" % (x, y))
+
+
+class WindowPipe:
+    """The harness's own end of a window's comms interface, joined once and kept open, as reach.c joins it. The window's
+    file in orior's home names its pipe and the key that grants the channel `command`. A frame is its length in four
+    bytes, least first, then its bytes. A request is a type byte and its fields, each ended by a 0. The join is 'J' and
+    the key, a listen 'L' and a channel, and a send 'S', the channel and 'B' and the body. A command's body is its id,
+    menu, command and words, each ended by a 0. The window answers it as a message 'M' on answer/ and the id. The
+    message's body is '1' where the command ran and '0' where it did not, then its text."""
+
+    def __init__(self, process_id):
+        home = os.environ.get("APPDATA") if os.name == "nt" else os.path.join(os.path.expanduser("~"), ".local", "share")
+        with open(os.path.join(home, "orior", "windows", "%d.window" % process_id), "rb") as named:
+            fields = named.read().split(b"\0")
+        self.end = open(fields[2].decode(), "r+b", buffering=0)
+        self.id = b"harness%d" % os.getpid()
+        self.messages = []
+        self.request(b"J" + fields[3] + b"\0")
+        self.request(b"L" + b"answer/" + self.id + b"\0")
+
+    def frame_write(self, data):
+        self.end.write(len(data).to_bytes(4, "little") + data)
+
+    def frame_read(self):
+        head = self.whole(4)
+        return self.whole(int.from_bytes(head, "little"))
+
+    def whole(self, size):
+        data = b""
+        while len(data) < size:
+            part = self.end.read(size - len(data))
+            if not part:
+                raise OSError("the window's interface shut")
+            data += part
+        return data
+
+    def request(self, data):
+        """`data` sent and its answer read: the answer's bytes after its type, an error where the window refused. A
+        message can come before the answer, as the window answers a command before the interface answers its send:
+        each one is kept for `command`."""
+        self.frame_write(data)
+        while True:
+            answer = self.frame_read()
+            if answer[:1] == b"R":
+                raise OSError(answer[1:].decode(errors="replace"))
+            if answer[:1] == b"A":
+                return answer[1:]
+            if answer[:1] == b"M":
+                self.messages.append(answer)
+
+    def command(self, menu, command, words):
+        """The command run in the window as the command line runs it: (ran, its text)."""
+        body = b"\0".join([self.id, menu.encode(), command.encode()] + [str(word).encode() for word in words]) + b"\0"
+        self.request(b"S" + b"command\0" + b"B" + body)
+        while True:
+            message = self.messages.pop(0) if self.messages else self.frame_read()
+            if message[:1] != b"M":
+                continue
+            channel, _, rest = message[1:].partition(b"\0")
+            _, _, rest = rest.partition(b"\0")
+            if channel == b"answer/" + self.id and rest[1:2] != b"2":
+                return rest[1:2] == b"1", rest[2:].decode(errors="replace")
+
+
+_JOINED = []
+
+
+def window_joined(process_id):
+    """The harness's pipe to the window `process_id`, joined once for the command that drives it."""
+    if not _JOINED:
+        _JOINED.append(WindowPipe(process_id))
+    return _JOINED[0]
+
+
+def pointer_said(words):
+    """The window's pointer command run with `words` over the harness's one joined pipe: 0 where it ran, else 1."""
+    ran, _ = _JOINED[0].command("help", "pointer", words)
+    return 0 if ran else 1
+
+
+def human_path(start, end, rng):
+    """The places and the pauses of a person's move from `start` to `end`, each (x, y, seconds before it). The time
+    the move takes rises with the log of its length, as Fitts' law gives it, and varies from move to move. The path
+    is a curve bent to one side of the straight line. The speed rises and falls over it on the minimum-jerk curve.
+    Each place shakes by a pixel or so, more while the hand is fast. A long move can pass its end and come back to
+    it slowly. The last place is the end exactly."""
+    import math
+
+    (x0, y0), (x1, y1) = start, end
+    dx, dy = x1 - x0, y1 - y0
+    length = math.hypot(dx, dy)
+    if length < 1.0:
+        return [(x1, y1, 0.0)]
+    seconds = (0.10 + 0.12 * math.log2(length / 12.0 + 1.0)) * rng.uniform(0.85, 1.2)
+    steps = max(4, int(seconds / 0.012))
+    across_x, across_y = -dy / length, dx / length
+    bend = rng.uniform(-0.22, 0.22) * length
+    along = rng.uniform(0.3, 0.7)
+    bend_x, bend_y = x0 + dx * along + across_x * bend, y0 + dy * along + across_y * bend
+    overshoot = (length > 120.0) and (rng.random() < 0.35)
+    past = rng.uniform(4.0, 12.0) if overshoot else 0.0
+    to_x, to_y = x1 + dx / length * past, y1 + dy / length * past
+    places = []
+    for step in range(1, steps + 1):
+        share = step / steps
+        eased = 10 * share ** 3 - 15 * share ** 4 + 6 * share ** 5
+        x = (1 - eased) ** 2 * x0 + 2 * (1 - eased) * eased * bend_x + eased ** 2 * to_x
+        y = (1 - eased) ** 2 * y0 + 2 * (1 - eased) * eased * bend_y + eased ** 2 * to_y
+        speed = 16 * share ** 2 * (1 - share) ** 2
+        shake = 0.4 + 1.4 * speed
+        places.append((round(x + rng.gauss(0.0, shake)), round(y + rng.gauss(0.0, shake)),
+                       seconds / steps * rng.uniform(0.7, 1.3)))
+    if overshoot:
+        back = rng.randint(4, 8)
+        for step in range(1, back + 1):
+            share = step / back
+            places.append((round(to_x + (x1 - to_x) * share + rng.gauss(0.0, 0.4)),
+                           round(to_y + (y1 - to_y) * share + rng.gauss(0.0, 0.4)), rng.uniform(0.015, 0.03)))
+    places[-1] = (x1, y1, places[-1][2])
+    return places
+
+
+def human_moved(places, rng):
+    """Each place sent to the window's own pointer after its pause, the time a send takes counted against the pause.
+    The window reads the speed a hand moves at as near as the sends allow. The result is the place the move ends at."""
+    import time
+
+    for x, y, pause in places:
+        sent_at = time.monotonic()
+        pointer_said([x, y])
+        time.sleep(max(0.0, pause - (time.monotonic() - sent_at)))
+    return places[-1][0], places[-1][1]
+
+
+def human_click(words, rng):
+    """A press, a release or a click as a hand makes it: a click holds its button for 60 to 140 ms, and the pointer
+    can drift a pixel while it is down."""
+    import time
+
+    if words[0] != "click":
+        return pointer_said(words)
+    button = words[1:2]
+    code = pointer_said(["press", *button])
+    time.sleep(rng.uniform(0.06, 0.14))
+    place = pointer_place_read()
+    if place and rng.random() < 0.3:
+        pointer_said([place[0] + rng.choice((-1, 1)), place[1] + rng.choice((-1, 0, 1))])
+    return code or pointer_said(["release", *button])
+
+
+def cmd_pointer(a):
+    """The window's own pointer driven through the interface's pointer command: the window draws the pointer and
+    takes each input as the system's own, the system's cursor left where it is. The words go as they are given; with
+    --human a move and a drag go along a person's path and a click holds as a hand does."""
+    import random
+
+    found = window_of(a.id)
+    if not found:
+        return 1
+    process_id = found[0]
+    window_joined(process_id)
+    words = a.words
+    numbers = [int(word) for word in words if word.lstrip("-").isdigit()]
+    if not a.human:
+        code = pointer_said(words)
+        if (len(words) == 2) and (len(numbers) == 2):
+            pointer_place_write(numbers[0], numbers[1])
+        elif (words[0] == "drag") and (len(numbers) >= 2):
+            pointer_place_write(numbers[-2], numbers[-1])
+        print("window %d pointer %s: exit %d" % (process_id, " ".join(words), code))
+        return code
+    rng = random.Random(a.seed)
+    start = pointer_place_read()
+    if (len(words) == 2) and (len(numbers) == 2):
+        end = human_moved(human_path(start or tuple(numbers), tuple(numbers), rng), rng)
+        pointer_place_write(*end)
+        code = 0
+    elif (words[0] == "drag") and (len(numbers) >= 2) and (len(numbers) % 2 == 0):
+        import time
+
+        code = pointer_said(["press"])
+        time.sleep(rng.uniform(0.05, 0.12))
+        here = start or (numbers[0], numbers[1])
+        for at in range(0, len(numbers), 2):
+            here = human_moved(human_path(here, (numbers[at], numbers[at + 1]), rng), rng)
+        time.sleep(rng.uniform(0.04, 0.10))
+        code = code or pointer_said(["release"])
+        pointer_place_write(*here)
+    else:
+        code = human_click(words, rng)
+    print("window %d pointer %s by hand: exit %d" % (process_id, " ".join(words), code))
+    return code
 
 
 GUI_CHECKS = os.path.join(ROOT, "utils", "test", "src", "ui", "gui", "gui_test.sh")
@@ -1688,7 +1910,18 @@ def register(sub):
     p.add_argument("--pause", type=float, default=0.02, help="the seconds between one move and the next")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.add_argument("--title", default="", help="another window of the process by its title, as Preferences")
+    p.add_argument("--human", action="store_true", help="along a person's path from the pointer's last place, at a "
+                   "hand's speed with its shake and overshoot")
+    p.add_argument("--seed", type=int, default=None, help="the seed of the --human path, the same path for the same seed")
     p.set_defaults(fn=cmd_move)
+    p = window.add_parser("pointer", help="the window's own pointer driven: a press, a release, a click, a drag or the wheel")
+    p.add_argument("words", nargs="+", help="press|release|click [left|middle|right], drag x y [x y ...], wheel up|down [n], "
+                   "x y, or off")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.add_argument("--human", action="store_true", help="a move and a drag along a person's path, at a hand's speed "
+                   "with its shake and overshoot, and a click held as a hand holds it")
+    p.add_argument("--seed", type=int, default=None, help="the seed of the --human path, the same path for the same seed")
+    p.set_defaults(fn=cmd_pointer)
     p = window.add_parser("check", help="the window's C checked without a display, every check where none is named")
     p.add_argument("names", nargs="*", help="checks by name, raster or glyphs, each a *_test.c under utils/test/src/ui/gui")
     p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")

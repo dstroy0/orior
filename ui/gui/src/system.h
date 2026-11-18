@@ -14,7 +14,6 @@
 
 typedef struct GuiSystemPositionTitleCfg GuiSystemPositionTitleCfg;
 typedef struct GuiSystemTitleIconCfg GuiSystemTitleIconCfg;
-typedef struct GuiSystemCursorCfg GuiSystemCursorCfg;
 typedef struct GuiSystemRasterCfg GuiSystemRasterCfg;
 typedef struct GuiSystemCfg GuiSystemCfg;
 typedef struct GuiSystemAreasCfg GuiSystemAreasCfg;
@@ -83,9 +82,6 @@ void gui_system_act(const GuiSystemCfg *args);
 // their own alpha, straight, the system copying them: the title's and the taskbar's icon on Windows, _NET_WM_ICON on
 // X11
 void gui_system_icon(const GuiSystemTitleIconCfg *args);
-// the pointer's shape over the window's client set to `cursor`, GUI_CURSOR_ARROW or GUI_CURSOR_SCROLL as thread.h names
-// them, and retained until the next call
-void gui_system_cursor_show(const GuiSystemCursorCfg *args);
 // where the window is, in the system's own pixels, and whether it fills its monitor; and the scale the system
 // draws it at, 1 at 96 dots an inch
 void gui_system_on_position(const GuiSystemPositionCfg *args);
@@ -116,11 +112,6 @@ struct GuiSystemRasterCfg
     GuiSystem *system;
     const GuiRaster *raster;
     GuiRect part;
-};
-struct GuiSystemCursorCfg
-{
-    GuiSystem *system;
-    unsigned int cursor;
 };
 
 struct GuiSystemCfg
@@ -230,13 +221,4 @@ EMBED_TABLE_LAYOUT(GuiSystemTitleIconNs, icon);
 EMBED_TABLE_STORAGE GuiSystemTitleIconNs gui_system_title_icon EMBED_UNUSED = {
     .icon = gui_system_icon,
 };
-typedef struct
-{
-    void (*show)(const GuiSystemCursorCfg *args);
-} GuiSystemCursorNs;
-EMBED_TABLE_LAYOUT(GuiSystemCursorNs, show);
-EMBED_TABLE_STORAGE GuiSystemCursorNs gui_system_cursor EMBED_UNUSED = {
-    .show = gui_system_cursor_show,
-};
-
 #endif

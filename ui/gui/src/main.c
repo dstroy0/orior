@@ -259,9 +259,6 @@ static void main_woken(void *context)
         case CLI_VIEW_ORDER_ACT:
             EMBED_CALL(gui_system_table.act, GuiSystemCfg, .system = s_system, .act = order.act);
             break;
-        case CLI_VIEW_ORDER_CURSOR:
-            EMBED_CALL(gui_system_cursor.show, GuiSystemCursorCfg, .system = s_system, .cursor = order.act);
-            break;
         case CLI_VIEW_ORDER_PREFERENCES_OPEN:
             EMBED_CALL(main_preferences_open, MainCtx, .order = &order);
             break;

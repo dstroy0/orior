@@ -182,6 +182,11 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
                .now_ms = cli_clock_milliseconds());
     EMBED_CALL(gui_wordmark_still_table.init, GuiWordmarkStillCfg, .wordmark = &args->window->wordmark);
     EMBED_CALL(gui_busy_still_table.init, GuiBusyStillCfg, .busy = &args->window->busy);
+    EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->pointer);
+    EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->preferences_pointer);
+    EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->dialog_pointer);
+    args->window->pointer_alone = 0;
+    args->window->driven_count = 0u;
     EMBED_CALL(gui_hover.init, GuiHoverCfg, .hover = &args->window->hover);
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
     EMBED_CALL(gui_tip.init, GuiTipCfg, .tip = &args->window->tip);
@@ -229,6 +234,7 @@ typedef struct
     unsigned int percent;
     const GuiPreferenceChange *change;
     GuiRect caret;
+    GuiRect other;
     GuiWindowHit *hit;
     const char *name;
     const char *const *words;
@@ -741,27 +747,40 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     }
 }
 
-// The rectangle `caret`, an empty one adding nothing, joined to the frame's changes: their union is the smallest
-// rectangle that holds both
-EMBED_INLINE void window_damage_add(const GuiWindowCtx *args)
+// The smallest rectangle that holds the rectangles `caret` and `other`, an empty one adding nothing
+EMBED_INLINE GuiRect window_rect_join(const GuiWindowCtx *args)
 {
-    GuiWindow *const window = args->window;
     const GuiRect add = args->caret;
+    const GuiRect had = args->other;
     if ((add.width <= 0) || (add.height <= 0))
     {
-        return;
+        return had;
     }
-    const GuiRect had = window->damage;
     if ((had.width <= 0) || (had.height <= 0))
     {
-        window->damage = add;
-        return;
+        return add;
     }
     const int left = (had.x < add.x) ? had.x : add.x;
     const int top = (had.y < add.y) ? had.y : add.y;
     const int right = ((had.x + had.width) > (add.x + add.width)) ? (had.x + had.width) : (add.x + add.width);
     const int foot = ((had.y + had.height) > (add.y + add.height)) ? (had.y + had.height) : (add.y + add.height);
-    window->damage = (GuiRect){left, top, right - left, foot - top};
+    return (GuiRect){left, top, right - left, foot - top};
+}
+
+// The rectangle `caret`, an empty one adding nothing, joined to the frame's changes: their union is the smallest
+// rectangle that holds both
+EMBED_INLINE void window_damage_add(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    window->damage = EMBED_CALL(window_rect_join, GuiWindowCtx, .caret = args->caret, .other = window->damage);
+}
+
+// whether the rectangles `caret` and `other` share a pixel
+EMBED_INLINE int window_rects_meet(const GuiWindowCtx *args)
+{
+    return !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg,
+                       .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->caret,
+                                          .other = args->other));
 }
 
 // The part of the frame a scroll changes: the editor's text and gutter, its two scrollbars and the map's column
@@ -1523,22 +1542,67 @@ void gui_window_flip(const GuiWindowCfg *args)
         EMBED_CALL(gui_framebuffer_rings.flip, GuiFramebufferRingsCfg, .framebuffer = &args->window->framebuffer);
 }
 
+// The pointer lifted off the raster displayed where the pixels saved under it meet `caret`, those pixels put back, so
+// a part drawn again alone under the pointer draws on the frame: 1 where it was lifted
+EMBED_INLINE int window_pointer_lift(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    GuiRaster *const displayed = (window->displayed != NULL) ? window->displayed : window->raster;
+    const GuiRect saved =
+        EMBED_CALL(gui_pointer_raster.saved, GuiPointerRasterCfg, .pointer = &window->pointer, .raster = displayed);
+    if (!EMBED_CALL(window_rects_meet, GuiWindowCtx, .caret = args->caret, .other = saved))
+    {
+        return 0;
+    }
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &window->pointer, .raster = displayed);
+    return 1;
+}
+
+// The pointer put down again on the raster displayed after a lift, over the part drawn again: the rectangle drawn
+// joined to `caret`
+EMBED_INLINE GuiRect window_pointer_drop(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    GuiRaster *const displayed = (window->displayed != NULL) ? window->displayed : window->raster;
+    const GuiRect drawn =
+        EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &window->pointer, .raster = displayed,
+                   .palette = window->palette, .scale = window->frame.scale);
+    return EMBED_CALL(window_rect_join, GuiWindowCtx, .caret = args->caret, .other = drawn);
+}
+
 GuiRect gui_window_caret_draw(const GuiWindowCfg *args)
 {
-    args->window->caret_alone = 0;
-    args->window->caret_color = EMBED_CALL(window_caret_color, GuiWindowCtx, .window_read = args->window);
-    args->window->editor.caret_color = args->window->caret_color;
-    return EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &args->window->editor,
-                      .raster = (args->window->displayed != NULL) ? args->window->displayed : args->window->raster,
-                      .palette = args->window->palette);
+    GuiWindow *const window = args->window;
+    window->caret_alone = 0;
+    window->caret_color = EMBED_CALL(window_caret_color, GuiWindowCtx, .window_read = window);
+    window->editor.caret_color = window->caret_color;
+    // the caret lies in the editor: a pointer over the editor is lifted for the caret's redraw
+    const int lifted = EMBED_CALL(window_pointer_lift, GuiWindowCtx, .window = window, .caret = window->frame.editor);
+    const GuiRect caret = EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &window->editor,
+                                     .raster = (window->displayed != NULL) ? window->displayed : window->raster,
+                                     .palette = window->palette);
+    return lifted ? EMBED_CALL(window_pointer_drop, GuiWindowCtx, .window = window, .caret = caret) : caret;
 }
 
 GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 {
-    args->window->busy_alone = 0;
-    return EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(),
-                      .busy = &args->window->busy,
-                      .raster = (args->window->displayed != NULL) ? args->window->displayed : args->window->raster);
+    GuiWindow *const window = args->window;
+    window->busy_alone = 0;
+    const int lifted =
+        EMBED_CALL(window_pointer_lift, GuiWindowCtx, .window = window, .caret = window->busy.under_rect);
+    const GuiRect busy =
+        EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(), .busy = &window->busy,
+                   .raster = (window->displayed != NULL) ? window->displayed : window->raster);
+    return lifted ? EMBED_CALL(window_pointer_drop, GuiWindowCtx, .window = window, .caret = busy) : busy;
+}
+
+GuiRect gui_window_pointer_draw(const GuiWindowCfg *args)
+{
+    GuiWindow *const window = args->window;
+    window->pointer_alone = 0;
+    return EMBED_CALL(gui_pointer_raster.redrawn, GuiPointerRasterCfg, .pointer = &window->pointer,
+                      .raster = (window->displayed != NULL) ? window->displayed : window->raster,
+                      .palette = window->palette, .scale = window->frame.scale);
 }
 
 // the deadline that set the last wait, its place among gui_window_timeout_ms's deadlines, GUI_WINDOW_WAKES for none
@@ -4220,6 +4284,10 @@ void gui_window_preferences_draw(const GuiWindowCfg *args)
                .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = args->window),
                .values = &args->window->preference_values, .ground = positioned ? ground : NULL,
                .buttons = &args->window->preferences.buttons, .time_ms = cli_clock_milliseconds());
+    // the pointer over the whole frame, which is drawn whole each time
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &args->window->preferences_pointer,
+                     .raster = &args->window->preferences_raster, .palette = args->window->palette,
+                     .scale = args->window->preferences.scale);
 }
 
 void gui_window_preferences_close(const GuiWindowCfg *args)
@@ -5290,6 +5358,133 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
     return ran;
 }
 
+// The input `input` put last on the queue of the inputs the window's own pointer drives, which the view's thread
+// takes as the system's own after the step: 1, or 0 where the queue is full
+EMBED_INLINE int window_driven_put(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if (window->driven_count >= GUI_WINDOW_DRIVEN)
+    {
+        return 0;
+    }
+    window->driven[window->driven_count] = *args->input;
+    window->driven_count += 1u;
+    return 1;
+}
+
+// the number the word `name` writes, a pixel or a count
+EMBED_INLINE int window_word_number(const GuiWindowCtx *args)
+{
+    unsigned long long end = 0ULL;
+    // a pixel of the client and a count of notches are far inside what an int represents
+    return (int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->name, .at = 0ULL,
+                           .size = CLI_POOL_BYTES, .end = &end);
+}
+
+// the button the word `name` names: the middle, the right, or the left for any other word and for none
+EMBED_INLINE unsigned int window_word_button(const GuiWindowCtx *args)
+{
+    if (args->name == NULL)
+    {
+        return GUI_BUTTON_LEFT;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = args->name, .key = "middle"))
+    {
+        return GUI_BUTTON_MIDDLE;
+    }
+    return EMBED_CALL(window_is, GuiWindowCtx, .name = args->name, .key = "right") ? GUI_BUTTON_RIGHT
+                                                                                  : GUI_BUTTON_LEFT;
+}
+
+// The window's own pointer driven by the words of the interface's `pointer` command. Each input goes on the queue the
+// view's thread takes as the system's own, in the order the words give. The words are one of these:
+// - x y: a move to the client's pixel x, y.
+// - press, release or click, and a button: the button pressed, let go, or both where the pointer is. The button is
+//   left, middle or right, and the left where the word is not given.
+// - drag and places, x y each: the left button pressed where the pointer is, a move to each place, and the button let
+//   go at the last place.
+// - wheel, down or up, and a count: the wheel turned that many notches where the pointer is, one where no count is.
+// The result is 1, or 0 where the words are none of these or the queue cannot take all of the inputs
+EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const char *const *const words = args->words;
+    const unsigned int count = args->count;
+    if (count == 0u)
+    {
+        return 0;
+    }
+    window->pointer_own = 1;
+    // the pointer is where the last input on the queue puts it, as the view's thread has not taken it yet
+    const GuiInput *const last = (window->driven_count != 0u) ? &window->driven[window->driven_count - 1u] : NULL;
+    const int x = (last != NULL) ? last->x : window->pointer.x;
+    const int y = (last != NULL) ? last->y : window->pointer.y;
+    const char *const verb = words[0];
+    const char *const named = (count > 1u) ? words[1] : NULL;
+    const int press = EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "press");
+    const int release = EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "release");
+    if (press || release || EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "click"))
+    {
+        if ((window->driven_count + 2u) > GUI_WINDOW_DRIVEN)
+        {
+            return 0;
+        }
+        const unsigned int button = EMBED_CALL(window_word_button, GuiWindowCtx, .name = named);
+        if (!release)
+        {
+            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+                             .input = &(GuiInput){.type = GUI_INPUT_DOWN, .x = x, .y = y, .button = button});
+        }
+        if (!press)
+        {
+            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+                             .input = &(GuiInput){.type = GUI_INPUT_UP, .x = x, .y = y, .button = button});
+        }
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "drag"))
+    {
+        const unsigned int places = (count - 1u) / 2u;
+        if ((places == 0u) || (((count - 1u) % 2u) != 0u) || ((window->driven_count + places + 2u) > GUI_WINDOW_DRIVEN))
+        {
+            return 0;
+        }
+        (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+                         .input = &(GuiInput){.type = GUI_INPUT_DOWN, .x = x, .y = y, .button = GUI_BUTTON_LEFT});
+        int to_x = x;
+        int to_y = y;
+        for (unsigned int place = 0u; place < places; place += 1u)
+        {
+            to_x = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[1u + (2u * place)]);
+            to_y = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[2u + (2u * place)]);
+            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+                             .input = &(GuiInput){.type = GUI_INPUT_MOVED, .x = to_x, .y = to_y});
+        }
+        return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+                          .input = &(GuiInput){.type = GUI_INPUT_UP, .x = to_x, .y = to_y, .button = GUI_BUTTON_LEFT});
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "wheel"))
+    {
+        const int up = (named != NULL) && EMBED_CALL(window_is, GuiWindowCtx, .name = named, .key = "up");
+        if (!up && ((named == NULL) || !EMBED_CALL(window_is, GuiWindowCtx, .name = named, .key = "down")))
+        {
+            return 0;
+        }
+        const int notches = (count > 2u) ? EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[2]) : 1;
+        const int rows = up ? -notches : notches;
+        return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+                          .input = GUI_WHEEL_INPUT(x, y, rows, rows * GUI_WHEEL_UNITS, 0));
+    }
+    if (count < 2u)
+    {
+        return 0;
+    }
+    return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+                      .input = &(GuiInput){.type = GUI_INPUT_MOVED,
+                                           .x = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[0]),
+                                           .y = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[1])});
+}
+
 // a command the command line asks for, through the interface or as the window started: the file a path names opened, or
 // a command of the menus, the window's or the view's run: 1, 0 where its part refused it, and CLI_REACH_NONE where it
 // is none of them
@@ -5325,9 +5520,8 @@ static int window_command_named(const char *command, const char *const *words, u
                        .count = count - first - 2u, .preferred = 0u, .held = 1, .error = error);
         return asked ? CLI_REACH_HOLD : 0;
     }
-    // The window's own pointer for a test: moved to the client's x, y as a pointer move, the system's cursor left where
-    // it is; while it is on, the system's leaves are not read, and a cursor off the window does not end a rest; `off`
-    // gives the pointer back to the system
+    // The window's own pointer for a test, the system's cursor left where it is. While it is on, the system's leaves
+    // are not read, and a cursor off the window does not end a rest; `off` gives the pointer back to the system
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "pointer"))
     {
         if ((count != 0u) && EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "off"))
@@ -5335,20 +5529,7 @@ static int window_command_named(const char *command, const char *const *words, u
             window->pointer_own = 0;
             return 1;
         }
-        if (count < 2u)
-        {
-            return 0;
-        }
-        window->pointer_own = 1;
-        unsigned long long end = 0ULL;
-        // a pixel of the client is far inside what an int represents
-        const int x = (int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = words[0], .at = 0ULL,
-                                      .size = CLI_POOL_BYTES, .end = &end);
-        const int y = (int)EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = words[1], .at = 0ULL,
-                                      .size = CLI_POOL_BYTES, .end = &end);
-        EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = window,
-                   .input = &(GuiInput){.type = GUI_INPUT_MOVED, .x = x, .y = y});
-        return 1;
+        return EMBED_CALL(window_pointer_drive, GuiWindowCtx, .window = window, .words = words, .count = count);
     }
     // The window's telemetry lines to the error stream, `on` or `off`: the cells' log on the memory tick, the frames'
     // line, the walk's line a step and a frame take's line; off until asked, so a window in use writes nothing
@@ -6267,15 +6448,44 @@ void gui_window_draw(const GuiWindowCfg *args)
         EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(),
                    .busy = &args->window->busy, .raster = raster, .palette = palette, .frame = frame);
     }
+    // The pointer last, over every part, the pixels under it saved for its moves. A frame of changes draws it where
+    // the clip holds both its place and the place its pixels were saved at; the changes reach over the pointer
+    // wherever they meet it
+    const GuiRect pointer = EMBED_CALL(
+        window_rect_join, GuiWindowCtx,
+        .caret = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = &args->window->pointer,
+                            .scale = frame->scale),
+        .other = EMBED_CALL(gui_pointer_raster.saved, GuiPointerRasterCfg, .pointer = &args->window->pointer,
+                            .raster = raster));
+    const GuiRect pointer_in = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = pointer, .other = clip);
+    if (!clipped || EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = pointer) ||
+        ((pointer_in.width == pointer.width) && (pointer_in.height == pointer.height)))
+    {
+        (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &args->window->pointer,
+                         .raster = raster, .palette = palette, .scale = frame->scale);
+        args->window->pointer_alone = 0;
+    }
 }
 
 GuiRect gui_window_damage_draw(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
-    const GuiRect damage = window->damage;
-    window->damage = (GuiRect){0, 0, 0, 0};
     GuiRaster *const back = window->raster;
     GuiRaster *const displayed = (window->displayed != NULL) ? window->displayed : back;
+    // changes that meet the pointer, at its place or where its pixels were saved, reach over all of it: the pointer
+    // is then drawn whole over the frame drawn again
+    const GuiRect pointer = EMBED_CALL(
+        window_rect_join, GuiWindowCtx,
+        .caret = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = &window->pointer,
+                            .scale = window->frame.scale),
+        .other = EMBED_CALL(gui_pointer_raster.saved, GuiPointerRasterCfg, .pointer = &window->pointer,
+                            .raster = displayed));
+    if (EMBED_CALL(window_rects_meet, GuiWindowCtx, .caret = window->damage, .other = pointer))
+    {
+        EMBED_CALL(window_damage_add, GuiWindowCtx, .window = window, .caret = pointer);
+    }
+    const GuiRect damage = window->damage;
+    window->damage = (GuiRect){0, 0, 0, 0};
     if (displayed->pixels == NULL)
     {
         return (GuiRect){0, 0, 0, 0};
@@ -6525,6 +6735,110 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
     {
         input->hit = CLI_HIT_GUTTER;
     }
+}
+
+// The pointer's shape for what the system's hit map gives a pixel `at`: a resize arrow on the border and on its
+// corners, the hand on a control, and GUI_POINTER_SHAPES for the client and the caption, which the window shapes
+EMBED_INLINE unsigned int window_pointer_border_shape(const GuiWindowCtx *args)
+{
+    static const unsigned char s_shapes[GUI_HIT_CLOSE + 1u] = {
+        [GUI_HIT_CLIENT] = GUI_POINTER_SHAPES,          [GUI_HIT_CAPTION] = GUI_POINTER_SHAPES,
+        [GUI_HIT_LEFT] = GUI_POINTER_RESIZE_EW,         [GUI_HIT_RIGHT] = GUI_POINTER_RESIZE_EW,
+        [GUI_HIT_TOP] = GUI_POINTER_RESIZE_NS,          [GUI_HIT_BOTTOM] = GUI_POINTER_RESIZE_NS,
+        [GUI_HIT_TOP_LEFT] = GUI_POINTER_RESIZE_NWSE,   [GUI_HIT_BOTTOM_RIGHT] = GUI_POINTER_RESIZE_NWSE,
+        [GUI_HIT_TOP_RIGHT] = GUI_POINTER_RESIZE_NESW,  [GUI_HIT_BOTTOM_LEFT] = GUI_POINTER_RESIZE_NESW,
+        [GUI_HIT_MINIMIZE] = GUI_POINTER_HAND,          [GUI_HIT_MAXIMIZE] = GUI_POINTER_HAND,
+        [GUI_HIT_CLOSE] = GUI_POINTER_HAND,
+    };
+    return (args->at <= GUI_HIT_CLOSE) ? s_shapes[args->at] : GUI_POINTER_SHAPES;
+}
+
+// The pointer's shape on the main window at x, y. The four-way arrow while the autoscroll runs, and the shape of the
+// border, a corner or a control where the pixel is on one. Then a drag's own shape: the arrow left and right while a
+// table's column line is dragged, the beam while the editor's choice is. Else the text beam where a press puts the
+// caret, the arrow up and down on the terminal's top edge, and the hand on a part a press acts on. Elsewhere it is the
+// arrow, with the hourglass while the busy circle shows
+EMBED_INLINE unsigned int window_pointer_shape(const GuiWindowCtx *args)
+{
+    const GuiWindow *const window = args->window_read;
+    if (window->autoscroll)
+    {
+        return GUI_POINTER_MOVE;
+    }
+    const GuiInput at = {.type = GUI_INPUT_MOVED, .x = args->x, .y = args->y};
+    const unsigned int border = EMBED_CALL(
+        window_pointer_border_shape, GuiWindowCtx,
+        .at = EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = &at));
+    if (border != GUI_POINTER_SHAPES)
+    {
+        return border;
+    }
+    if (window->column_drag != 0u)
+    {
+        return GUI_POINTER_RESIZE_EW;
+    }
+    if (window->dragging)
+    {
+        return GUI_POINTER_TEXT;
+    }
+    GuiWindowHit hit = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = args->x, .y = args->y, .hit = &hit);
+    // each hit's shape, the arrow for a hit not named
+    static const unsigned char s_hit_shapes[CLI_HIT_BAR_TOOL + 1u] = {
+        [CLI_HIT_EDITOR] = GUI_POINTER_TEXT,          [CLI_HIT_TERMINAL] = GUI_POINTER_TEXT,
+        [CLI_HIT_QUICK_BOX] = GUI_POINTER_TEXT,       [CLI_HIT_TERMINAL_PANEL] = GUI_POINTER_RESIZE_NS,
+        [CLI_HIT_MENU_TITLE] = GUI_POINTER_HAND,      [CLI_HIT_MENU_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_TAB] = GUI_POINTER_HAND,             [CLI_HIT_TAB_CLOSE] = GUI_POINTER_HAND,
+        [CLI_HIT_TOOL] = GUI_POINTER_HAND,            [CLI_HIT_PANE_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_PANE_ACTION] = GUI_POINTER_HAND,     [CLI_HIT_SUGGEST_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_WORDMARK] = GUI_POINTER_HAND,        [CLI_HIT_TERMINAL_TAB] = GUI_POINTER_HAND,
+        [CLI_HIT_TERMINAL_TAB_CLOSE] = GUI_POINTER_HAND, [CLI_HIT_TERMINAL_NEW] = GUI_POINTER_HAND,
+        [CLI_HIT_TERMINAL_SPLIT] = GUI_POINTER_HAND,  [CLI_HIT_STATUS_NOTICE] = GUI_POINTER_HAND,
+        [CLI_HIT_STATUS_SILENCE] = GUI_POINTER_HAND,  [CLI_HIT_STATUS_FOCUS] = GUI_POINTER_HAND,
+        [CLI_HIT_FOOT_ROW] = GUI_POINTER_HAND,        [CLI_HIT_FOOT_ACTION] = GUI_POINTER_HAND,
+        [CLI_HIT_QUICK_ROW] = GUI_POINTER_HAND,       [CLI_HIT_STATUS_CRUMB] = GUI_POINTER_HAND,
+        [CLI_HIT_CHANGE_PEEK] = GUI_POINTER_HAND,     [CLI_HIT_STICKY] = GUI_POINTER_HAND,
+        [CLI_HIT_BAR_TOOL] = GUI_POINTER_HAND,
+    };
+    const unsigned int shape = (hit.hit <= CLI_HIT_BAR_TOOL) ? s_hit_shapes[hit.hit] : GUI_POINTER_ARROW;
+    return ((shape == GUI_POINTER_ARROW) && window->busy.displayed) ? GUI_POINTER_BUSY : shape;
+}
+
+// The main window's pointer put at x, y in the shape it is in there where `on`, or taken off the window at its last
+// place: a pointer that changed owes its move drawn alone
+EMBED_INLINE void window_pointer_track(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const int x = args->on ? args->x : window->pointer.x;
+    const int y = args->on ? args->y : window->pointer.y;
+    const unsigned int shape = args->on ? EMBED_CALL(window_pointer_shape, GuiWindowCtx, .window_read = window, .x = x,
+                                                     .y = y)
+                                        : window->pointer.shape;
+    if (EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &window->pointer, .x = x, .y = y,
+                   .shape = shape, .shown = args->on))
+    {
+        window->pointer_alone = 1;
+    }
+}
+
+int gui_window_pointer_surface(const GuiWindowPointerCfg *args)
+{
+    GuiPointer *const pointer = args->pointer;
+    const GuiInput *const input = args->input;
+    if (input->type == GUI_INPUT_LEFT)
+    {
+        return EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = pointer, .x = pointer->x,
+                          .y = pointer->y, .shape = pointer->shape, .shown = 0);
+    }
+    const int placed = (input->type == GUI_INPUT_MOVED) || (input->type == GUI_INPUT_DOWN) ||
+                       (input->type == GUI_INPUT_UP) || (input->type == GUI_INPUT_WHEEL);
+    if (!placed)
+    {
+        return 0;
+    }
+    const unsigned int border = EMBED_CALL(window_pointer_border_shape, GuiWindowCtx, .at = args->hit);
+    return EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = pointer, .x = input->x,
+                      .y = input->y, .shape = (border != GUI_POINTER_SHAPES) ? border : GUI_POINTER_ARROW, .shown = 1);
 }
 
 // whether Shift is down on the input
@@ -8015,6 +8329,17 @@ void gui_window_input(const GuiWindowInputTypeCfg *args)
     const GuiInput *input = args->input;
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &s_window_handlers, .window = window,
                .input = input);
+    // the pointer follows each input with a place, in the shape the window is in after the input; a leave takes it
+    // off the window, but the window's own pointer stays while a test drives it
+    if ((input->type == GUI_INPUT_MOVED) || (input->type == GUI_INPUT_DOWN) || (input->type == GUI_INPUT_UP) ||
+        (input->type == GUI_INPUT_WHEEL))
+    {
+        EMBED_CALL(window_pointer_track, GuiWindowCtx, .window = window, .x = input->x, .y = input->y, .on = 1);
+    }
+    else if ((input->type == GUI_INPUT_LEFT) && !window->pointer_own)
+    {
+        EMBED_CALL(window_pointer_track, GuiWindowCtx, .window = window, .on = 0);
+    }
 }
 
 void gui_window_preferences_input(const GuiWindowInputTypeCfg *args)
@@ -8023,4 +8348,11 @@ void gui_window_preferences_input(const GuiWindowInputTypeCfg *args)
     const GuiInput *input = args->input;
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &s_preferences_handlers, .window = window,
                .input = input);
+    if (EMBED_CALL(gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &window->preferences_pointer,
+                   .input = input,
+                   .hit = EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = window,
+                                     .input = input)))
+    {
+        window->preferences_pending = 1;
+    }
 }

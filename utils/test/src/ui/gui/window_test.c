@@ -1219,6 +1219,82 @@ static void preferences_window_checked(void)
     cli_check(!s_window.preferences.displayed, "Preferences closed again");
 }
 
+// the inputs the window's own pointer drove, each taken as the view's thread takes the system's own
+static void driven_taken(void)
+{
+    for (unsigned int at = 0u; at < s_window.driven_count; at += 1u)
+    {
+        EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+                   .input = &s_window.driven[at]);
+    }
+    s_window.driven_count = 0u;
+    stepped();
+}
+
+// The pointer the window draws: its shape over the text, over a tool of the bar and on the border; the sprite in the
+// frame drawn; the pointer off the window on a leave; and the inputs the interface's pointer command drives
+static void pointer_checked(void)
+{
+    tabs_closed("pointed.txt", "one two three four five six seven eight nine ten\nsecond line of text\n", NULL, NULL);
+    cli_check(tab_opened("pointed.txt"), "a file of text opens for the pointer");
+    const GuiRect editor = s_window.frame.editor;
+    const int text_x = editor.x + (editor.width / 2);
+    const int text_y = editor.y + (editor.height / 2);
+    moved(text_x, text_y);
+    cli_check(s_window.pointer.shown && (s_window.pointer.shape == GUI_POINTER_TEXT) && (s_window.pointer.x == text_x),
+              "over the text the pointer is the beam at the pointer's place");
+    EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
+    // the beam's hot point is its middle, a cell of its fill
+    cli_check(!s_window.pointer_alone &&
+                  (s_window.raster->pixels[((unsigned int)text_y * s_window.raster->width) + (unsigned int)text_x] ==
+                   s_window.palette->pointer_fill),
+              "a frame draws the pointer last, its hot point in the beam's fill");
+    const GuiRect tool = EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = &s_window.frame,
+                                    .which = GUI_TOP_MENU_TOOL_PREFERENCES);
+    moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));
+    cli_check((s_window.pointer.shape == GUI_POINTER_HAND) && s_window.pointer_alone,
+              "over a tool of the bar the pointer is the hand, and its move is owed alone");
+    (void)EMBED_CALL(gui_window_table.pointer_draw, GuiWindowCfg, .window = &s_window);
+    cli_check(!s_window.pointer_alone, "the pointer drawn again alone pays its move");
+    moved(1, editor.y + (editor.height / 2));
+    cli_check(s_window.pointer.shape == GUI_POINTER_RESIZE_EW, "on the left border the pointer is the arrow both ways");
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window, .input = GUI_LEFT_INPUT());
+    cli_check(!s_window.pointer.shown, "a leave takes the pointer off the window");
+
+    const char *const place[2] = {"300", "260"};
+    cli_check(asked_words("pointer", place, 2u) && (s_window.driven_count == 1u) &&
+                  (s_window.driven[0].type == GUI_INPUT_MOVED) && (s_window.driven[0].x == 300) &&
+                  s_window.pointer_own,
+              "the pointer command queues a move to its place, the window's own pointer on");
+    const char *const click[2] = {"click", "right"};
+    cli_check(asked_words("pointer", click, 2u) && (s_window.driven_count == 3u) &&
+                  (s_window.driven[1].type == GUI_INPUT_DOWN) && (s_window.driven[2].type == GUI_INPUT_UP) &&
+                  (s_window.driven[1].button == GUI_BUTTON_RIGHT) && (s_window.driven[1].x == 300) &&
+                  (s_window.driven[1].y == 260),
+              "a click queues a press and a release of its button where the queued move puts the pointer");
+    s_window.driven_count = 1u;
+    driven_taken();
+    cli_check(s_window.pointer.shown && (s_window.pointer.x == 300) && (s_window.pointer.y == 260),
+              "the queued move taken puts the pointer at its place");
+    const char *const drag[5] = {"drag", "320", "280", "340", "300"};
+    cli_check(asked_words("pointer", drag, 5u) && (s_window.driven_count == 4u) &&
+                  (s_window.driven[0].type == GUI_INPUT_DOWN) && (s_window.driven[1].type == GUI_INPUT_MOVED) &&
+                  (s_window.driven[2].x == 340) && (s_window.driven[3].type == GUI_INPUT_UP) &&
+                  (s_window.driven[3].y == 300),
+              "a drag queues a press, a move to each place and a release at the last");
+    s_window.driven_count = 0u;
+    const char *const wheel[3] = {"wheel", "up", "2"};
+    cli_check(asked_words("pointer", wheel, 3u) && (s_window.driven_count == 1u) &&
+                  (s_window.driven[0].type == GUI_INPUT_WHEEL) && (s_window.driven[0].rows == -2) &&
+                  (s_window.driven[0].wheel_down == (-2 * GUI_WHEEL_UNITS)),
+              "the wheel up queues its notches toward the top");
+    s_window.driven_count = 0u;
+    const char *const wrong[2] = {"wheel", "sideways"};
+    cli_check(!asked_words("pointer", wrong, 2u) && (s_window.driven_count == 0u),
+              "words the pointer command does not know queue nothing");
+    cli_check(asked("pointer", "off") && !s_window.pointer_own, "off gives the pointer back to the system");
+}
+
 // The window's redraws and waits: the deadline that set a wait named, the changes drawn again on the raster displayed
 // and paid, the busy circle's step paid, and the frame positioned at a stage while the claim slides and at rest after
 static void redraws_checked(void)
@@ -2039,7 +2115,7 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[31] = {{"saves", saves_checked},
+static const WindowCheck s_checks[32] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
@@ -2061,6 +2137,7 @@ static const WindowCheck s_checks[31] = {{"saves", saves_checked},
                                          {"bar_tools", bar_tools_checked},
                                          {"preferences_window", preferences_window_checked},
                                          {"redraws", redraws_checked},
+                                         {"pointer", pointer_checked},
                                          {"map_collapses", map_collapses_checked},
                                          {"themes", themes_checked},
                                          {"sticky_notch", sticky_notch_checked},

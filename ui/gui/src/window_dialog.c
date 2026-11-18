@@ -163,6 +163,9 @@ void gui_window_dialog_draw(const GuiWindowCfg *args)
     EMBED_CALL(gui_dialog_drawing.draw, GuiDialogDrawCfg, .dialog_read = &window->dialog,
                .raster = &window->dialog_raster, .glyphs = &window->glyphs, .palette = window->palette,
                .ground = positioned ? ground : NULL);
+    // the pointer over the whole frame, which is drawn whole each time
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &window->dialog_pointer,
+                     .raster = &window->dialog_raster, .palette = window->palette, .scale = window->dialog.scale);
 }
 
 void gui_window_dialog_close(const GuiWindowCfg *args)
@@ -250,4 +253,11 @@ void gui_window_dialog_input(const GuiWindowInputTypeCfg *args)
 {
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &s_dialog_handlers, .window = args->window,
                .input = args->input);
+    if (EMBED_CALL(gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &args->window->dialog_pointer,
+                   .input = args->input,
+                   .hit = EMBED_CALL(gui_window_dialog_input_hit.hit, GuiWindowInputCfg,
+                                     .window_read = args->window, .input = args->input)))
+    {
+        args->window->dialog_pending = 1;
+    }
 }

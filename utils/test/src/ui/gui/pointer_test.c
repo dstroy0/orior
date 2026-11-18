@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pointer_test.c: the pointer's check: every sprite's tables whole, the cell's pixels at each scale, the rectangle at
 // the hot point, the line, fill and shadow drawn in the palette's colors, the pixels under it put back, a move drawn
-// again, the two rasters kept apart, and a clip that stops the writes outside it
+// again, the two rasters kept apart, a clip that stops the writes outside it, and the sheet baked once and baked again
+// only for a new scale or color
 #include "../../../../../includes/window/palette.h"
 #include "../../../../../includes/window/pointer.h"
 #include "../cli/cli_check.h"
@@ -13,6 +14,7 @@
 static GuiColor s_first[POINTER_SIDE * POINTER_SIDE];
 static GuiColor s_second[POINTER_SIDE * POINTER_SIDE];
 static GuiPointer s_pointer;
+static GuiPalette s_changed;
 
 // every pixel of `raster` the ground
 static void ground_fill(GuiRaster *raster)
@@ -167,5 +169,33 @@ int main(void)
                      .shape = GUI_POINTER_SHAPES + 4u, .shown = 0);
     cli_check((s_pointer.shape == GUI_POINTER_ARROW) && !s_pointer.shown,
               "a shape not known is the arrow, and a pointer put off the window is off it");
+
+    // the arrow's tip in the sheet marked: a draw that bakes again writes the line there, a draw that does not shows
+    // the mark
+    const GuiColor mark = GUI_RGB(0x12u, 0x34u, 0x56u);
+    (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 10, .y = 10,
+                     .shape = GUI_POINTER_ARROW, .shown = 1);
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
+                     .palette = palette, .scale = 100);
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    s_pointer.sheet.pixels[GUI_POINTER_ARROW][0] = mark;
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
+                     .palette = palette, .scale = 100);
+    const GuiColor kept = pixel(&first, 10, 10);
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    cli_check(kept == mark, "a draw at the same scale in the same colors bakes nothing, the sheet's picture put down");
+    s_changed = *palette;
+    s_changed.pointer_line = GUI_RGB(0xc0u, 0x10u, 0x20u);
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
+                     .palette = &s_changed, .scale = 100);
+    const GuiColor baked = pixel(&first, 10, 10);
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    cli_check(baked == s_changed.pointer_line, "a pointer color changed bakes the sheet again in the new color");
+    s_pointer.sheet.pixels[GUI_POINTER_ARROW][0] = mark;
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
+                     .palette = &s_changed, .scale = 200);
+    const GuiColor scaled = pixel(&first, 10, 10);
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    cli_check(scaled == s_changed.pointer_line, "a scale changed bakes the sheet again at the new cell size");
     return cli_on_check();
 }

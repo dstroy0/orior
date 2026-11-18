@@ -13,6 +13,7 @@
 #include "../../../includes/window/dialog.h"
 #include "../../../includes/window/docks.h"
 #include "../../../includes/window/ground.h"
+#include "../../../includes/window/pointer.h"
 #include "../../../includes/window/side_menu.h"
 #include "../../../includes/window/tip.h"
 #include "../../../includes/window/wordmark.h"
@@ -49,6 +50,7 @@ typedef struct GuiWindowAutohideCfg GuiWindowAutohideCfg;
 typedef struct GuiWindowInputCfg GuiWindowInputCfg;
 typedef struct GuiWindowInputTypeCfg GuiWindowInputTypeCfg;
 typedef struct GuiWindowReducedCfg GuiWindowReducedCfg;
+typedef struct GuiWindowPointerCfg GuiWindowPointerCfg;
 typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 
 // the resize border's width in the page's pixels; the rectangles a map of what a pixel is on holds, each title,
@@ -58,6 +60,9 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #define GUI_WINDOW_HIT_CLIENTS (GUI_MENUBAR_TITLES + GUI_MENU_LEVELS + 1u + GUI_TOP_MENU_TOOLS)
 #define GUI_VIEW_FRAME_MS 17u
 #define GUI_MEMORY_MS 2000ULL
+// the inputs the window's own pointer drives that wait for the view's thread at once: a drag's press, its places and
+// its release
+#define GUI_WINDOW_DRIVEN 64u
 
 // The editor's scroll: the rows one notch of the wheel moves; the milliseconds in which an eased scroll covers all but
 // a share of 1/e of its way; the max milliseconds one step counts, so that a late frame does not jump; and the part
@@ -91,7 +96,8 @@ typedef struct
 // panels last had them; when the caret's blink begins, each frame of the view putting it an input rest later, the
 // caret's ink in the last frame drawn, and whether its ink alone has changed, which the caret drawn again over the
 // frame pays with no frame whole;
-// the busy circle, with whether its stage alone has changed; Preferences, what its rows are at, the palette of the
+// the busy circle, with whether its stage alone has changed; the pointer drawn on the main window, with whether its
+// move alone is to be drawn, and the pointers drawn on Preferences' window and the dialog's; Preferences, what its rows are at, the palette of the
 // window's own they change, and the scale the system gave, which the zoom positions the frame at a share of; the claim and
 // whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and the
 // settings ask it; the tree's name, the last part of its folder; the entries of orior's folder read as the window
@@ -135,6 +141,10 @@ typedef struct GuiWindow
     int caret_alone;
     GuiBusy busy;
     int busy_alone;
+    GuiPointer pointer;
+    int pointer_alone;
+    GuiPointer preferences_pointer;
+    GuiPointer dialog_pointer;
     GuiPreferences preferences;
     GuiPreferenceValues preference_values;
     GuiRaster preferences_raster;
@@ -272,6 +282,9 @@ typedef struct GuiWindow
     // whether the window's own pointer is on: a test moves it through the interface's pointer command, and the
     // system's leaves are not read while it is
     int pointer_own;
+    // the inputs the window's own pointer drives, in their order, that the view's thread takes as the system's
+    GuiInput driven[GUI_WINDOW_DRIVEN];
+    unsigned int driven_count;
     unsigned int terminal_dragged;
     unsigned int clicks;
     unsigned long long double_click_deadline_ms;
@@ -306,6 +319,9 @@ int gui_window_resize(const GuiWindowWidthCfg *args);
 void gui_window_preferences_resize(const GuiWindowWidthCfg *args);
 void gui_window_preferences_input(const GuiWindowInputTypeCfg *args);
 unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args);
+// the pointer of Preferences' window or the dialog's put at the input's place in the shape of the border `hit` names,
+// the arrow elsewhere, or taken off the window where the input is a leave: 1 where it changed, which owes its frame
+int gui_window_pointer_surface(const GuiWindowPointerCfg *args);
 void gui_window_preferences_draw(const GuiWindowCfg *args);
 // the window started on the tree the command line found, `woken` waking the view's thread from any thread: the settings
 // orior's folder saved read, the modules begun, the session, the notices put away and the terminal restored, the
@@ -323,6 +339,9 @@ void gui_window_flip(const GuiWindowCfg *args);
 // way
 GuiRect gui_window_caret_draw(const GuiWindowCfg *args);
 GuiRect gui_window_busy_draw(const GuiWindowCfg *args);
+// the pointer drawn again on the raster displayed at its place and in its shape, the pixels under its last place put
+// back first and its redraw paid: the rectangle of both places, empty where the pointer is on neither
+GuiRect gui_window_pointer_draw(const GuiWindowCfg *args);
 // The parts of the frame that changed drawn again on the raster displayed, each part as the frame draws it, every write
 // cut to the union of the changes: that union, the rows of which are to be displayed again, empty where nothing changed
 GuiRect gui_window_damage_draw(const GuiWindowCfg *args);
@@ -411,6 +430,13 @@ struct GuiWindowInputTypeCfg
     const GuiInput *input;
 };
 
+struct GuiWindowPointerCfg
+{
+    GuiPointer *pointer;
+    const GuiInput *input;
+    unsigned int hit;
+};
+
 struct GuiWindowReducedCfg
 {
     GuiWindow *window;
@@ -441,6 +467,7 @@ typedef struct
     void (*flip)(const GuiWindowCfg *args);
     GuiRect (*caret_draw)(const GuiWindowCfg *args);
     GuiRect (*busy_draw)(const GuiWindowCfg *args);
+    GuiRect (*pointer_draw)(const GuiWindowCfg *args);
     GuiRect (*damage_draw)(const GuiWindowCfg *args);
     void (*preferences_close)(const GuiWindowCfg *args);
     void (*step)(const GuiWindowCfg *args);
@@ -448,7 +475,7 @@ typedef struct
     void (*hits)(const GuiWindowHitsCfg *args);
     void (*preferences_hits)(const GuiWindowHitsCfg *args);
 } GuiWindowNs;
-EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, damage_draw,
+EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, pointer_draw, damage_draw,
                    preferences_close, step, tick, hits, preferences_hits);
 EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .end = gui_window_end,
@@ -458,6 +485,7 @@ EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .flip = gui_window_flip,
     .caret_draw = gui_window_caret_draw,
     .busy_draw = gui_window_busy_draw,
+    .pointer_draw = gui_window_pointer_draw,
     .damage_draw = gui_window_damage_draw,
     .preferences_close = gui_window_preferences_close,
     .step = gui_window_step,
@@ -638,6 +666,15 @@ EMBED_TABLE_LAYOUT(GuiWindowDialogNs, draw, close);
 EMBED_TABLE_STORAGE GuiWindowDialogNs gui_window_dialog_table EMBED_UNUSED = {
     .draw = gui_window_dialog_draw,
     .close = gui_window_dialog_close,
+};
+
+typedef struct
+{
+    int (*surface)(const GuiWindowPointerCfg *args);
+} GuiWindowPointerNs;
+EMBED_TABLE_LAYOUT(GuiWindowPointerNs, surface);
+EMBED_TABLE_STORAGE GuiWindowPointerNs gui_window_pointer_table EMBED_UNUSED = {
+    .surface = gui_window_pointer_surface,
 };
 
 #endif

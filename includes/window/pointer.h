@@ -1,10 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pointer.h: the pointer the window draws itself, a sprite of cells in place of the system's cursor. Each shape is one
-// or two layers of a cell table, a layer turned on its diagonal or mirrored where the shape is another's turned. A
-// sprite draws in three passes: its shadow, its line, its fill, each cell a square of pixels at the window's scale. The
-// pixels under a sprite are saved for each of the two rasters the window flips between. A move restores them and
-// draws the sprite at its new place (pointer.c)
+// or two layers of a cell table, a layer turned on its diagonal or mirrored where the shape is another's turned. The
+// sprites are baked once into a sheet: three passes, the shadow, the line and the fill, each cell a square of pixels at
+// the window's scale. They are baked again only when the scale or a pointer color changes. A draw puts the baked
+// picture over the raster. The pixels under a sprite are saved for each of the two rasters the window flips between.
+// A move restores them and draws the sprite at its new place (pointer.c)
 #ifndef GUI_WINDOW_POINTER_H
 #define GUI_WINDOW_POINTER_H
 #include "../raster/raster.h"
@@ -75,8 +76,22 @@ typedef struct
     GuiColor under[GUI_POINTER_UNDER_MAX];
 } GuiPointerMark;
 
-// The pointer: where its hot point is in the client's pixels, its shape, whether it is on the window, and the pixels
-// saved under it on each raster
+// The sprites baked at one cell size in the palette's three pointer colors. Each shape is a picture of its rectangle,
+// its shadow with it, row after row of the rectangle's width. A pixel holds its color multiplied by its alpha, and the
+// alpha it covers what is under it with. A draw puts this picture over the raster and walks no cell table. `made` is 0
+// until the first bake
+typedef struct
+{
+    int made;
+    unsigned int cell;
+    GuiColor shadow;
+    GuiColor line;
+    GuiColor fill;
+    GuiColor pixels[GUI_POINTER_SHAPES][GUI_POINTER_UNDER_MAX];
+} GuiPointerSheet;
+
+// The pointer: where its hot point is in the client's pixels, its shape, whether it is on the window, the pixels
+// saved under it on each raster, and its sprites baked
 typedef struct
 {
     int x;
@@ -84,6 +99,7 @@ typedef struct
     unsigned int shape;
     int shown;
     GuiPointerMark mark[GUI_POINTER_RASTERS];
+    GuiPointerSheet sheet;
 } GuiPointer;
 
 // the pointer made off the window with nothing saved
@@ -98,8 +114,9 @@ unsigned int gui_pointer_cell(const GuiPointerReadCfg *args);
 // the rectangle the sprite covers at its place at `scale`, its shadow with it: empty where the pointer is off the
 // window
 GuiRect gui_pointer_rect(const GuiPointerReadCfg *args);
-// The sprite drawn on `raster` at its place, the pixels under it saved first: the rectangle drawn, empty where the
-// pointer is off the window. A raster with a clip has each write cut to it; the caller gives a clip that holds the
+// The sprite drawn on `raster` at its place, the pixels under it saved first: the rectangle drawn. A pointer off the
+// window draws nothing and forgets the pixels saved on `raster`, which the caller has drawn the frame over: the
+// rectangle is then empty. A raster with a clip has each write cut to it; the caller gives a clip that holds the
 // whole rectangle, and the pixels saved are then the frame's
 GuiRect gui_pointer_draw(const GuiPointerRasterCfg *args);
 // the pixels saved under the sprite on `raster` put back, nothing saved after: the rectangle put back, empty where none
@@ -108,6 +125,8 @@ GuiRect gui_pointer_restore(const GuiPointerRasterCfg *args);
 // the sprite moved on `raster`: the pixels saved put back and the sprite drawn at its place: the smallest rectangle
 // that holds both, empty where neither is
 GuiRect gui_pointer_redrawn(const GuiPointerRasterCfg *args);
+// the rectangle of the pixels saved under the sprite on `raster`, empty where none is saved
+GuiRect gui_pointer_saved(const GuiPointerRasterCfg *args);
 
 struct GuiPointerCfg
 {
@@ -185,12 +204,14 @@ typedef struct
     GuiRect (*draw)(const GuiPointerRasterCfg *args);
     GuiRect (*restore)(const GuiPointerRasterCfg *args);
     GuiRect (*redrawn)(const GuiPointerRasterCfg *args);
+    GuiRect (*saved)(const GuiPointerRasterCfg *args);
 } GuiPointerRasterNs;
-EMBED_TABLE_LAYOUT(GuiPointerRasterNs, draw, restore, redrawn);
+EMBED_TABLE_LAYOUT(GuiPointerRasterNs, draw, restore, redrawn, saved);
 EMBED_TABLE_STORAGE GuiPointerRasterNs gui_pointer_raster EMBED_UNUSED = {
     .draw = gui_pointer_draw,
     .restore = gui_pointer_restore,
     .redrawn = gui_pointer_redrawn,
+    .saved = gui_pointer_saved,
 };
 
 #endif

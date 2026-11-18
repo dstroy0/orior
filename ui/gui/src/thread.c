@@ -64,8 +64,6 @@ typedef struct
     int preferences_opened;
     int close_ordered;
     int icons_ordered;
-    // the pointer's shape last ordered of the system, GUI_CURSOR_ARROW at the start
-    unsigned int cursor_ordered;
     GuiRaster icon_small;
     GuiRaster icon_large;
 } CliView;
@@ -393,22 +391,6 @@ static void view_icons_order(void)
     }
 }
 
-// the pointer's shape ordered of the system where the window's differs from the one last ordered: the four-way arrow
-// while the autoscroll runs, the arrow otherwise
-static void view_cursor_order(void)
-{
-    const unsigned int wanted = s_view.window.autoscroll ? GUI_CURSOR_SCROLL : GUI_CURSOR_ARROW;
-    if (wanted == s_view.cursor_ordered)
-    {
-        return;
-    }
-    const CliViewOrder order = {.type = CLI_VIEW_ORDER_CURSOR, .act = wanted};
-    if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
-    {
-        s_view.cursor_ordered = wanted;
-    }
-}
-
 // an input of the main window: a window control pressed acts as the button is let go over it
 static void view_input(const ViewThreadCtx *args)
 {
@@ -420,7 +402,6 @@ static void view_input(const ViewThreadCtx *args)
         window->pressed = GUI_HIT_CLIENT;
     }
     EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = window, .input = args->input);
-    view_cursor_order();
     if (released && (pressed != GUI_HIT_CLIENT) &&
         (EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = args->input) == pressed))
     {
@@ -705,8 +686,6 @@ static void view_frame(void)
     {
         return;
     }
-    // an autoscroll the frame ended, its editor gone, gives the pointer its arrow back
-    view_cursor_order();
     if (window->pending)
     {
         const unsigned long long draw_from_us = cli_clock_microseconds();
@@ -764,6 +743,12 @@ static void view_frame(void)
         EMBED_CALL(view_part_order, ViewThreadCtx,
                    .part = EMBED_CALL(gui_window_table.caret_draw, GuiWindowCfg, .window = window));
     }
+    // the pointer moved alone over the frame displayed, once no whole frame is on its way to be displayed
+    if (window->pointer_alone && !s_view.presenting_main)
+    {
+        EMBED_CALL(view_part_order, ViewThreadCtx,
+                   .part = EMBED_CALL(gui_window_table.pointer_draw, GuiWindowCfg, .window = window));
+    }
     if (window->busy_alone && !s_view.presenting_main)
     {
         EMBED_CALL(view_part_order, ViewThreadCtx,
@@ -784,6 +769,12 @@ static void view_run(void *context)
         const unsigned long long events_from_us = cli_clock_microseconds();
         view_events_take();
         EMBED_CALL(gui_window_table.step, GuiWindowCfg, .window = window);
+        // the inputs the window's own pointer drove in the step, each taken as the system's own is
+        for (unsigned int at = 0u; at < window->driven_count; at += 1u)
+        {
+            view_input(&(ViewThreadCtx){.input = &window->driven[at]});
+        }
+        window->driven_count = 0u;
         const unsigned long long events_took_us = cli_clock_microseconds() - events_from_us;
         s_frame_telemetry.events_us += events_took_us;
         s_frame_telemetry.events_max_us =
