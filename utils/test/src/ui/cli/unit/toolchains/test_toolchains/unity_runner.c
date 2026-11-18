@@ -43,6 +43,8 @@ extern void test_a_tool_in_a_chosen_folder_is_found_there_first(void);
 extern void test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once(void);
 extern void test_a_tools_program_is_found_in_a_folder_and_a_maps_member_is_this_systems_or_any(void);
 extern void test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_are_counted(void);
+extern void test_a_line_put_in_the_readers_profile_stands_there_once_and_is_taken_out_again(void);
+extern void test_posix_a_folder_put_on_the_readers_path_is_in_the_profile_and_taken_off_again(void);
 
 
 /*=======Mock Management=====*/
@@ -137,6 +139,8 @@ int main(void)
   run_test(test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once, "test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once", 555);
   run_test(test_a_tools_program_is_found_in_a_folder_and_a_maps_member_is_this_systems_or_any, "test_a_tools_program_is_found_in_a_folder_and_a_maps_member_is_this_systems_or_any", 573);
   run_test(test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_are_counted, "test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_are_counted", 597);
+  run_test(test_a_line_put_in_the_readers_profile_stands_there_once_and_is_taken_out_again, "test_a_line_put_in_the_readers_profile_stands_there_once_and_is_taken_out_again", 655);
+  run_test(test_posix_a_folder_put_on_the_readers_path_is_in_the_profile_and_taken_off_again, "test_posix_a_folder_put_on_the_readers_path_is_in_the_profile_and_taken_off_again", 672);
 
   return UNITY_END();
 }
