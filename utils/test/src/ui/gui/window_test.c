@@ -365,6 +365,25 @@ static unsigned long long cells_in_use(unsigned long long *owners)
     return in_use;
 }
 
+// the cells in use once they rest: read again each 50 ms until two readings agree, two seconds at the most, which lets
+// a walk or a release still in flight land before a round is measured
+static unsigned long long cells_settled(unsigned long long *owners)
+{
+    CliWake pause = CLI_WAKE_INIT;
+    unsigned long long before = cells_in_use(owners);
+    const unsigned long long last_ms = cli_clock_milliseconds() + 2000ULL;
+    for (;;)
+    {
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 50ULL);
+        const unsigned long long now = cells_in_use(owners);
+        if ((now == before) || (cli_clock_milliseconds() >= last_ms))
+        {
+            return now;
+        }
+        before = now;
+    }
+}
+
 // a document of many lines opened, changed and closed over six rounds: the cells in use after the last round are no
 // more than after the second, which holds that a closed document gives its cells back. The first round fills the
 // tables sized to live data, the tree's records of the file among them, which the second round reads as they stand
@@ -392,7 +411,7 @@ static void cells_rounds_checked(void)
         {
             (void)asked("close-all", NULL);
         }
-        after_last = cells_in_use(s_round_owners[round]);
+        after_last = cells_settled(s_round_owners[round]);
         if (round == 1u)
         {
             after_first = after_last;
