@@ -33,6 +33,7 @@ extern void test_an_instruction_of_another_length_differs(void);
 extern void test_instructions_ghidra_lacks_end_its_raw_runs_differ(void);
 extern void test_a_raw_run_end_objdumps_read_state_is_skipped(void);
 extern void test_the_loop_over_a_module_finds_every_function_the_same(void);
+extern void test_a_path_is_made_of_its_parts_put_after_each_other(void);
 
 
 /*=======Mock Management=====*/
@@ -119,6 +120,7 @@ int main(void)
   run_test(test_instructions_ghidra_lacks_end_its_raw_runs_differ, "test_instructions_ghidra_lacks_end_its_raw_runs_differ", 247);
   run_test(test_a_raw_run_end_objdumps_read_state_is_skipped, "test_a_raw_run_end_objdumps_read_state_is_skipped", 255);
   run_test(test_the_loop_over_a_module_finds_every_function_the_same, "test_the_loop_over_a_module_finds_every_function_the_same", 266);
+  run_test(test_a_path_is_made_of_its_parts_put_after_each_other, "test_a_path_is_made_of_its_parts_put_after_each_other", 277);
 
   return UNITY_END();
 }

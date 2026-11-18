@@ -14,6 +14,7 @@ extern void test_ruffs_fix_title_is_read(void);
 extern void test_ruffs_fix_edits_are_read(void);
 extern void test_eslints_findings_are_read(void);
 extern void test_shellchecks_findings_are_read(void);
+extern void test_a_checker_reads_its_input_or_a_tree_as_its_spec_says(void);
 
 
 /*=======Mock Management=====*/
@@ -81,6 +82,7 @@ int main(void)
   run_test(test_ruffs_fix_edits_are_read, "test_ruffs_fix_edits_are_read", 90);
   run_test(test_eslints_findings_are_read, "test_eslints_findings_are_read", 102);
   run_test(test_shellchecks_findings_are_read, "test_shellchecks_findings_are_read", 109);
+  run_test(test_a_checker_reads_its_input_or_a_tree_as_its_spec_says, "test_a_checker_reads_its_input_or_a_tree_as_its_spec_says", 116);
 
   return UNITY_END();
 }

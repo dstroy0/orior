@@ -448,3 +448,23 @@ void test_go_is_v_x_where_verbose(void)
     displayed_or_ignored("executable/g/go.mod:g", 1u);
     CLI_TEST_ASSERT_CONTAINS(" -trimpath -v -x -o ", s_displayed[0]);
 }
+
+// a cross build's variable written `name=value` on a line of s_crossed
+static char s_crossed[1024];
+static VerbaLinea s_crossed_line;
+static void cross_recorded(const CliEachNameValueCfg *args)
+{
+    mmgr_line_put(&s_crossed_line, args->name);
+    mmgr_line_ch(&s_crossed_line, '=');
+    mmgr_line_put(&s_crossed_line, args->value);
+    mmgr_line_ch(&s_crossed_line, '\n');
+}
+
+void test_a_build_for_this_machine_crosses_to_no_other_compiler(void)
+{
+    s_crossed_line = (VerbaLinea){s_crossed, sizeof(s_crossed), 0ull};
+    (void)cli_executables_signs();
+    EMBED_CALL(cli_executables_type.cross_env, CliExecutablesTypeCfg, .type = "go", .values = &s_values, .each = cross_recorded, .context = NULL);
+    (void)mmgr_line_finish(&s_crossed_line);
+    TEST_ASSERT_EQUAL_UINT64(0ull, s_crossed_line.at);
+}

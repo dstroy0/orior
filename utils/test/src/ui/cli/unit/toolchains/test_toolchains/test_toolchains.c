@@ -4,6 +4,7 @@
 // found is stored for the next, and a changed PATH searches again; the manifest reads and each id is one tool; the reader adds and removes toolchains
 // and groups; a star matches any run and versions sort as numbers; a folder on the PATH is not added twice; a tool in a chosen folder is found there
 // first; and the PATH a step runs with begins with the folders put ahead of it
+#include "ui/cli/src/text/text.h"
 #include "ui/cli/src/toolchains/toolchains_internal.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../../../../ui/cli/src/command_line/cli_internal.h"
@@ -567,4 +568,61 @@ void test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_on
     TEST_ASSERT_TRUE(first);
     TEST_ASSERT_TRUE(once);
     TEST_ASSERT_TRUE(goes_on);
+}
+
+void test_a_tools_program_is_found_in_a_folder_and_a_maps_member_is_this_systems_or_any(void)
+{
+    static const char s_tool[] = "{\"programs\": [\"none-here\", \"prog\"], \"map\": {\"windows\": \"w\", \"linux\": \"l\", \"macos\": \"m\", \"any\": \"a\"}, \"only\": {\"any\": \"fallback\"}}";
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    unsigned int root = CLI_JSON_NONE;
+    cli_unity_folder("toolchains_programs", dir);
+    // a program on Windows carries an executable's extension, elsewhere its bare name
+    cli_unity_file(dir, "prog", "x");
+    cli_unity_file(dir, "prog.exe", "x");
+    const CliJson *const json = cli_unity_parsed(s_tool, sizeof(s_tool) - 1u, &root);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json, .dir = dir, .tool = root, .path = path));
+    CLI_TEST_ASSERT_CONTAINS("prog", path);
+    const unsigned int map = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "map");
+    const unsigned int chosen = EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = json, .map = map);
+    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, chosen);
+    // the member of this system's own key comes before the "any" member
+    TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = chosen, .length_pointer = NULL), .other = "a", .cap = 4ull}));
+    const unsigned int only = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "only");
+    const unsigned int any = EMBED_CALL(cli_toolchains_json_map.for_system, CliToolchainsJsonMapCfg, .json = json, .map = only);
+    TEST_ASSERT_EQUAL_STRING("fallback", EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = any, .length_pointer = NULL));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_toolchains_id_path.chosen_program, CliToolchainsIdPathCfg, .id = "no-such-tool", .path = path));
+}
+
+void test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_are_counted(void)
+{
+    static char s_folders[256][CLI_PATH_MAX_LEN];
+    char read[CLI_PATH_MAX_LEN];
+    char dir[CLI_PATH_MAX_LEN];
+    char pattern[CLI_PATH_MAX_LEN];
+    CliToolchainsPaths paths = {NULL, 0u, 0u};
+    TEST_ASSERT_TRUE(cli_toolchains_paths_add(&(CliToolchainsPathsCfg){.paths = &paths, .path = "/first"}));
+    TEST_ASSERT_TRUE(cli_toolchains_paths_add(&(CliToolchainsPathsCfg){.paths = &paths, .path = "/second"}));
+    TEST_ASSERT_EQUAL_UINT(2u, paths.count);
+    TEST_ASSERT_NOT_NULL(paths.cell);
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = paths.cell, .offset = CLI_PATH_MAX_LEN, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+    TEST_ASSERT_EQUAL_STRING("/second", read);
+    cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &paths});
+    TEST_ASSERT_NULL(paths.cell);
+    TEST_ASSERT_EQUAL_UINT(0u, paths.count);
+    // the versions a pattern names, each a folder, newest first
+    cli_unity_folder("toolchains_versions", dir);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "v1.2", .joined = read);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = read));
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "v1.10", .joined = read);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = read));
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "v*", .joined = pattern);
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_toolchains_count.folders_get, CliToolchainsCountCfg, .pattern = pattern, .paths = &paths));
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = paths.cell, .offset = 0u, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = read, .size = CLI_UNITY_LENGTH(read), .suffix = "v1.10"));
+    cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &paths});
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, EMBED_CALL(cli_toolchains_count.path_folders, CliToolchainsCountCfg, .folders = s_folders, .capacity = 256u));
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, EMBED_CALL(cli_toolchains_count.system_path, CliToolchainsCountCfg, .folders = s_folders, .capacity = 256u));
+    (void)EMBED_CALL(cli_toolchains_count.tree_tools, CliToolchainsCountCfg, .folders = s_folders, .capacity = 256u);
+    EMBED_CALL(cli_toolchains_environment_table.set_environment, CliToolchainsEnvironmentCfg, .environment = NULL);
 }

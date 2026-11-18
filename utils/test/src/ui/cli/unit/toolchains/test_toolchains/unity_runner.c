@@ -2,6 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
+#include "ui/cli/src/text/text.h"
 #include "ui/cli/src/toolchains/toolchains_internal.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../../../../ui/cli/src/command_line/cli_internal.h"
@@ -40,6 +41,8 @@ extern void test_an_empty_path_contains_the_folder_added(void);
 extern void test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator(void);
 extern void test_a_tool_in_a_chosen_folder_is_found_there_first(void);
 extern void test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once(void);
+extern void test_a_tools_program_is_found_in_a_folder_and_a_maps_member_is_this_systems_or_any(void);
+extern void test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_are_counted(void);
 
 
 /*=======Mock Management=====*/
@@ -101,37 +104,39 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\toolchains\\test_toolchains\\test_toolchains.c");
-  run_test(test_a_read_the_cells_refuse_reports_no_chosen_folder, "test_a_read_the_cells_refuse_reports_no_chosen_folder", 157);
-  run_test(test_posix_a_login_shells_path_is_read, "test_posix_a_login_shells_path_is_read", 186);
-  run_test(test_posix_a_shell_that_prints_nothing_has_no_path, "test_posix_a_shell_that_prints_nothing_has_no_path", 204);
-  run_test(test_the_jobs_need_git_bash_and_python, "test_the_jobs_need_git_bash_and_python", 221);
-  run_test(test_a_tree_of_python_files_uses_pythons_tools_and_the_tools_the_jobs_need, "test_a_tree_of_python_files_uses_pythons_tools_and_the_tools_the_jobs_need", 243);
-  run_test(test_a_tree_uses_no_tool_whose_files_it_does_not_contain, "test_a_tree_uses_no_tool_whose_files_it_does_not_contain", 255);
-  run_test(test_with_no_tree_open_only_the_tools_the_jobs_need_are_used, "test_with_no_tree_open_only_the_tools_the_jobs_need_are_used", 266);
-  run_test(test_a_check_stores_what_each_search_found_in_oriors_folder, "test_a_check_stores_what_each_search_found_in_oriors_folder", 276);
-  run_test(test_the_next_search_reads_what_was_stored, "test_the_next_search_reads_what_was_stored", 295);
-  run_test(test_a_changed_path_searches_again, "test_a_changed_path_searches_again", 308);
-  run_test(test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https_page, "test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https_page", 317);
-  run_test(test_a_toolchain_is_added_its_id_created_from_its_name, "test_a_toolchain_is_added_its_id_created_from_its_name", 361);
-  run_test(test_a_toolchain_is_not_added_twice, "test_a_toolchain_is_not_added_twice", 368);
-  run_test(test_an_id_impero_has_is_refused, "test_an_id_impero_has_is_refused", 375);
-  run_test(test_an_empty_group_is_added_and_the_readers_groups_are_stored, "test_an_empty_group_is_added_and_the_readers_groups_are_stored", 381);
-  run_test(test_the_readers_groups_come_after_oriors_own, "test_the_readers_groups_come_after_oriors_own", 388);
-  run_test(test_a_group_containing_a_tool_stays, "test_a_group_containing_a_tool_stays", 396);
-  run_test(test_a_toolchain_impero_has_is_not_removed, "test_a_toolchain_impero_has_is_not_removed", 402);
-  run_test(test_a_readers_toolchain_and_its_empty_group_are_removed_and_the_other_group_stays, "test_a_readers_toolchain_and_its_empty_group_are_removed_and_the_other_group_stays", 409);
-  run_test(test_a_star_matches_the_run_after_it, "test_a_star_matches_the_run_after_it", 417);
-  run_test(test_a_star_matches_a_run_with_dots, "test_a_star_matches_a_run_with_dots", 422);
-  run_test(test_the_end_after_a_star_must_match, "test_the_end_after_a_star_must_match", 427);
-  run_test(test_versions_sort_as_numbers, "test_versions_sort_as_numbers", 432);
-  run_test(test_the_run_paths_folders_fill_the_processs_cell_at_their_count, "test_the_run_paths_folders_fill_the_processs_cell_at_their_count", 438);
-  run_test(test_the_systems_folders_fill_the_processs_cell, "test_the_systems_folders_fill_the_processs_cell", 480);
-  run_test(test_a_folder_is_added_at_the_paths_end, "test_a_folder_is_added_at_the_paths_end", 492);
-  run_test(test_a_folder_already_on_the_path_is_not_added_twice, "test_a_folder_already_on_the_path_is_not_added_twice", 499);
-  run_test(test_an_empty_path_contains_the_folder_added, "test_an_empty_path_contains_the_folder_added", 505);
-  run_test(test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator, "test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator", 512);
-  run_test(test_a_tool_in_a_chosen_folder_is_found_there_first, "test_a_tool_in_a_chosen_folder_is_found_there_first", 522);
-  run_test(test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once, "test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once", 554);
+  run_test(test_a_read_the_cells_refuse_reports_no_chosen_folder, "test_a_read_the_cells_refuse_reports_no_chosen_folder", 158);
+  run_test(test_posix_a_login_shells_path_is_read, "test_posix_a_login_shells_path_is_read", 187);
+  run_test(test_posix_a_shell_that_prints_nothing_has_no_path, "test_posix_a_shell_that_prints_nothing_has_no_path", 205);
+  run_test(test_the_jobs_need_git_bash_and_python, "test_the_jobs_need_git_bash_and_python", 222);
+  run_test(test_a_tree_of_python_files_uses_pythons_tools_and_the_tools_the_jobs_need, "test_a_tree_of_python_files_uses_pythons_tools_and_the_tools_the_jobs_need", 244);
+  run_test(test_a_tree_uses_no_tool_whose_files_it_does_not_contain, "test_a_tree_uses_no_tool_whose_files_it_does_not_contain", 256);
+  run_test(test_with_no_tree_open_only_the_tools_the_jobs_need_are_used, "test_with_no_tree_open_only_the_tools_the_jobs_need_are_used", 267);
+  run_test(test_a_check_stores_what_each_search_found_in_oriors_folder, "test_a_check_stores_what_each_search_found_in_oriors_folder", 277);
+  run_test(test_the_next_search_reads_what_was_stored, "test_the_next_search_reads_what_was_stored", 296);
+  run_test(test_a_changed_path_searches_again, "test_a_changed_path_searches_again", 309);
+  run_test(test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https_page, "test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https_page", 318);
+  run_test(test_a_toolchain_is_added_its_id_created_from_its_name, "test_a_toolchain_is_added_its_id_created_from_its_name", 362);
+  run_test(test_a_toolchain_is_not_added_twice, "test_a_toolchain_is_not_added_twice", 369);
+  run_test(test_an_id_impero_has_is_refused, "test_an_id_impero_has_is_refused", 376);
+  run_test(test_an_empty_group_is_added_and_the_readers_groups_are_stored, "test_an_empty_group_is_added_and_the_readers_groups_are_stored", 382);
+  run_test(test_the_readers_groups_come_after_oriors_own, "test_the_readers_groups_come_after_oriors_own", 389);
+  run_test(test_a_group_containing_a_tool_stays, "test_a_group_containing_a_tool_stays", 397);
+  run_test(test_a_toolchain_impero_has_is_not_removed, "test_a_toolchain_impero_has_is_not_removed", 403);
+  run_test(test_a_readers_toolchain_and_its_empty_group_are_removed_and_the_other_group_stays, "test_a_readers_toolchain_and_its_empty_group_are_removed_and_the_other_group_stays", 410);
+  run_test(test_a_star_matches_the_run_after_it, "test_a_star_matches_the_run_after_it", 418);
+  run_test(test_a_star_matches_a_run_with_dots, "test_a_star_matches_a_run_with_dots", 423);
+  run_test(test_the_end_after_a_star_must_match, "test_the_end_after_a_star_must_match", 428);
+  run_test(test_versions_sort_as_numbers, "test_versions_sort_as_numbers", 433);
+  run_test(test_the_run_paths_folders_fill_the_processs_cell_at_their_count, "test_the_run_paths_folders_fill_the_processs_cell_at_their_count", 439);
+  run_test(test_the_systems_folders_fill_the_processs_cell, "test_the_systems_folders_fill_the_processs_cell", 481);
+  run_test(test_a_folder_is_added_at_the_paths_end, "test_a_folder_is_added_at_the_paths_end", 493);
+  run_test(test_a_folder_already_on_the_path_is_not_added_twice, "test_a_folder_already_on_the_path_is_not_added_twice", 500);
+  run_test(test_an_empty_path_contains_the_folder_added, "test_an_empty_path_contains_the_folder_added", 506);
+  run_test(test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator, "test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator", 513);
+  run_test(test_a_tool_in_a_chosen_folder_is_found_there_first, "test_a_tool_in_a_chosen_folder_is_found_there_first", 523);
+  run_test(test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once, "test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once", 555);
+  run_test(test_a_tools_program_is_found_in_a_folder_and_a_maps_member_is_this_systems_or_any, "test_a_tools_program_is_found_in_a_folder_and_a_maps_member_is_this_systems_or_any", 573);
+  run_test(test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_are_counted, "test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_are_counted", 597);
 
   return UNITY_END();
 }

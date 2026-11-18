@@ -20,6 +20,7 @@ extern void test_a_linux_program_releases_the_libraries_it_needs(void);
 extern void test_a_linux_program_releases_its_run_paths(void);
 extern void test_a_linux_program_releases_the_newest_glibc_it_requires(void);
 extern void test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths(void);
+extern void test_the_linux_loaders_folders_end_with_the_systems_own(void);
 
 
 /*=======Mock Management=====*/
@@ -93,6 +94,7 @@ int main(void)
   run_test(test_a_linux_program_releases_its_run_paths, "test_a_linux_program_releases_its_run_paths", 275);
   run_test(test_a_linux_program_releases_the_newest_glibc_it_requires, "test_a_linux_program_releases_the_newest_glibc_it_requires", 282);
   run_test(test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths, "test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths", 290);
+  run_test(test_the_linux_loaders_folders_end_with_the_systems_own, "test_the_linux_loaders_folders_end_with_the_systems_own", 300);
 
   return UNITY_END();
 }

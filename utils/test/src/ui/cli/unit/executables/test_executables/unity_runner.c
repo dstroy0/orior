@@ -38,6 +38,7 @@ extern void test_cargo_is_vv_where_verbose_and_not_where_quiet(void);
 extern void test_cmake_configures_and_builds_verbose(void);
 extern void test_cmake_builds_quiet_where_requested(void);
 extern void test_go_is_v_x_where_verbose(void);
+extern void test_a_build_for_this_machine_crosses_to_no_other_compiler(void);
 
 
 /*=======Mock Management=====*/
@@ -128,6 +129,7 @@ int main(void)
   run_test(test_cmake_configures_and_builds_verbose, "test_cmake_configures_and_builds_verbose", 427);
   run_test(test_cmake_builds_quiet_where_requested, "test_cmake_builds_quiet_where_requested", 436);
   run_test(test_go_is_v_x_where_verbose, "test_go_is_v_x_where_verbose", 444);
+  run_test(test_a_build_for_this_machine_crosses_to_no_other_compiler, "test_a_build_for_this_machine_crosses_to_no_other_compiler", 463);
 
   return UNITY_END();
 }

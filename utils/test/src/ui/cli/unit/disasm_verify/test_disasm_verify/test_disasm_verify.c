@@ -273,3 +273,11 @@ void test_the_loop_over_a_module_finds_every_function_the_same(void)
     const char *const words[1] = {module};
     TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_disasm_verify_words_table.words, CliDisasmVerifyWordsCfg, .words = words, .count = 1u));
 }
+
+void test_a_path_is_made_of_its_parts_put_after_each_other(void)
+{
+    char path[CLI_PATH_MAX_LEN];
+    const char *const parts[4] = {"build", "/", "module.o", NULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_disasm_verify.disasm_path, CliDisasmVerifyCfg, .path = path, .parts = parts));
+    TEST_ASSERT_EQUAL_STRING("build/module.o", path);
+}

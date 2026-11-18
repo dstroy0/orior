@@ -735,3 +735,20 @@ void test_the_check_slices_a_file_a_viewports_height_at_a_time(void)
     TEST_ASSERT_EQUAL_UINT(128u, s_window_first[2]);
     TEST_ASSERT_EQUAL_UINT(191u, s_window_last[2]);
 }
+
+void test_with_no_server_and_no_panel_nothing_checks_nothing_is_due_and_the_tools_for_a_language_are_counted(void)
+{
+    static char s_tools[4][CLI_NAME_MAX_LEN];
+    const char *const languages[1] = {"c"};
+    TEST_ASSERT_FALSE(cli_servers_checking());
+    TEST_ASSERT_FALSE(cli_servers_problems_checking());
+    cli_servers_panels_hide();
+    TEST_ASSERT_EQUAL_UINT64(0ULL, cli_servers_panels_due_ms());
+    TEST_ASSERT_FALSE(cli_servers_panels_step());
+    const unsigned int count = EMBED_CALL(cli_servers_capacity.tools_for, CliServersCapacityCfg, .languages = languages, .count = 1u, .tools = s_tools, .capacity = 4u);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, count);
+    TEST_ASSERT_NOT_EQUAL(0, s_tools[0][0]);
+    cli_servers_forget_tokens();
+    cli_servers_stop_all();
+    TEST_ASSERT_FALSE(cli_servers_checking());
+}

@@ -38,6 +38,7 @@ extern void test_a_report_of_an_attribute_names_it_and_its_class(void);
 extern void test_another_report_names_no_attribute(void);
 extern void test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes(void);
 extern void test_the_check_slices_a_file_a_viewports_height_at_a_time(void);
+extern void test_with_no_server_and_no_panel_nothing_checks_nothing_is_due_and_the_tools_for_a_language_are_counted(void);
 
 
 /*=======Mock Management=====*/
@@ -129,6 +130,7 @@ int main(void)
   run_test(test_another_report_names_no_attribute, "test_another_report_names_no_attribute", 597);
   run_test(test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes, "test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes", 659);
   run_test(test_the_check_slices_a_file_a_viewports_height_at_a_time, "test_the_check_slices_a_file_a_viewports_height_at_a_time", 706);
+  run_test(test_with_no_server_and_no_panel_nothing_checks_nothing_is_due_and_the_tools_for_a_language_are_counted, "test_with_no_server_and_no_panel_nothing_checks_nothing_is_due_and_the_tools_for_a_language_are_counted", 739);
 
   return UNITY_END();
 }

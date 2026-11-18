@@ -112,3 +112,13 @@ void test_shellchecks_findings_are_read(void)
                                        "\"code\":2086,\"message\":\"Double quote to prevent globbing and word splitting.\"}]}";
     TEST_ASSERT_EQUAL_STRING("run.sh 2:5 s2 SC2086 Double quote to prevent globbing and word splitting.", findings_written("shellcheck", s_shellcheck, CHECKERS_ROOT, CHECKERS_ROOT "/run.sh"));
 }
+
+void test_a_checker_reads_its_input_or_a_tree_as_its_spec_says(void)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_checkers.reads_input, CliCheckersCfg, .id = "ruff"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_checkers.reads_tree, CliCheckersCfg, .id = "ruff"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_checkers.reads_input, CliCheckersCfg, .id = "mypy"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_checkers.reads_tree, CliCheckersCfg, .id = "mypy"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_checkers.reads_input, CliCheckersCfg, .id = "no-such-checker"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_checkers.reads_tree, CliCheckersCfg, .id = "no-such-checker"));
+}

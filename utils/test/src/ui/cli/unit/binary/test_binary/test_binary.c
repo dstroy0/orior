@@ -296,3 +296,17 @@ void test_a_programs_libraries_are_read_each_once_with_the_builders_run_paths(vo
     TEST_ASSERT_EQUAL_UINT(1u, s_report.build_paths);
     TEST_ASSERT_EQUAL_STRING("/home/me/build/lib", s_report.build_path[0]);
 }
+
+void test_the_linux_loaders_folders_end_with_the_systems_own(void)
+{
+    static char s_folders[CLI_BINARY_LINUX_FOLDERS][CLI_PATH_MAX_LEN];
+    const unsigned int count = EMBED_CALL(cli_binary.linux_folders, CliBinaryCfg, .folders = s_folders);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, count);
+    TEST_ASSERT_LESS_OR_EQUAL_UINT(CLI_BINARY_LINUX_FOLDERS, count);
+    int usr_lib = 0;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        usr_lib |= cellul.eq(&(CatenaFinitaCfg){.src = s_folders[at], .other = "/usr/lib", .cap = CLI_PATH_MAX_LEN});
+    }
+    TEST_ASSERT_TRUE(usr_lib);
+}
