@@ -23,7 +23,7 @@ endif()
 # owner queue has room for every owner orior registers, the same room in MMgr's objects and orior's
 set(MMGR_BUILD_TESTS OFF)
 set(MMGR_LTO OFF)
-add_compile_definitions(MMGR_CARCER_OWNERS=1024u)
+add_compile_definitions(MMGR_CARCER_OWNERS=1024u MMGR_CARCER_REGIONS=2u MMGR_CARCER_REGION_BYTES=117440512u)
 set(FETCHCONTENT_SOURCE_DIR_EMBEDDED_TYPES "${ORIOR_ROOT}/includes/embedded_types")
 add_subdirectory("${ORIOR_ROOT}/includes/mmgr" includes/mmgr)
 get_property(ORIOR_MMGR_MODULES GLOBAL PROPERTY MMGR_TARGETS_host)

@@ -71,6 +71,22 @@ embed_u64 mmgr_carcer_hw_clock_ns(void)
     return embed_clock_ns();
 }
 
+// the places given to threads so far: the next thread that calls takes the count as its place
+static embed_atomic_u32 s_pool_places_given = EMBED_ATOMIC_INIT(0u);
+// the place of this thread plus one, and 0 before its first call
+static _Thread_local embed_u32 t_pool_place_plus_one;
+
+embed_u32 embed_thread_place(void)
+{
+    // the place of the thread that calls: a count from 0 that the thread takes once, on its first call. MMgr
+    // selects the region of the temporary tier a take goes to by it
+    if (t_pool_place_plus_one == 0u)
+    {
+        t_pool_place_plus_one = embed_atomic_u32_fetch_add(&s_pool_places_given, 1u) + 1u;
+    }
+    return t_pool_place_plus_one - 1u;
+}
+
 void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, size_t bytes)
 {
     char text[200];
