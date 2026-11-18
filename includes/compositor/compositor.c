@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compositor.c: the compositor's block, its surfaces and layers, the commands they record, the tiles they mark, and
 // the compose that makes the dirty tiles bottom layer to top. The blend puts a pixel multiplied by its alpha over
-// another: four pixels in a vector of bytes where the target has one, else one at a time, the same pixels both ways
-#include "compositor.h"
+// another: four pixels in a vector of bytes where the target has one, else one at a time, the same pixels both ways.
+// A glyph run draws each glyph's coverage out of the atlas, lifted through the contrast band its ground gives
+#include "atlas_internal.h"
 
 #include "embed_compiler_directives.h"
 
@@ -51,7 +52,8 @@ EMBED_INLINE embed_u32 compositor_cells_max(const CompositorCtx *args)
     return columns * rows;
 }
 
-// the bytes of one surface's part of the block: its bits, its ring, its pool indices and its commands, each part aligned
+// the bytes of one surface's part of the block: its bits, its ring, its pool indices, its commands and its runs'
+// glyphs, each part aligned
 EMBED_INLINE embed_u64 compositor_surface_bytes(const CompositorCtx *args)
 {
     const embed_u64 cells = EMBED_CALL(compositor_cells_max, CompositorCtx, .limits = args->limits);
@@ -60,18 +62,21 @@ EMBED_INLINE embed_u64 compositor_surface_bytes(const CompositorCtx *args)
            COMPOSITOR_ALIGNED((embed_u64)args->limits->ring_max * sizeof(GuiCompositorRect)) +
            COMPOSITOR_ALIGNED(cells * GUI_COMPOSITOR_LAYERS * sizeof(embed_u16)) +
            COMPOSITOR_ALIGNED((embed_u64)args->limits->commands_max * GUI_COMPOSITOR_LAYERS * 2ULL *
-                              sizeof(GuiCompositorCommand));
+                              sizeof(GuiCompositorCommand)) +
+           COMPOSITOR_ALIGNED((embed_u64)args->limits->items_max * GUI_COMPOSITOR_LAYERS * 2ULL *
+                              sizeof(GuiCompositorGlyph));
 }
 
 embed_u64 gui_compositor_bytes(const GuiCompositorLimitsCfg *args)
 {
+    const embed_u64 atlas = gui_compositor_atlas_bytes(args);
     if ((args->width_max == 0u) || (args->height_max == 0u) || (args->commands_max == 0u) || (args->ring_max == 0u) ||
-        (args->tiles_max == 0u) || (args->tiles_max >= GUI_COMPOSITOR_NONE))
+        (args->tiles_max == 0u) || (args->tiles_max >= GUI_COMPOSITOR_NONE) || (atlas == 0ULL))
     {
         return 0ULL;
     }
     return COMPOSITOR_ALIGN + COMPOSITOR_ALIGNED((embed_u64)args->tiles_max * COMPOSITOR_TILE_PIXELS * sizeof(embed_u32)) +
-           COMPOSITOR_ALIGNED((embed_u64)args->tiles_max * sizeof(embed_u16)) +
+           COMPOSITOR_ALIGNED((embed_u64)args->tiles_max * sizeof(embed_u16)) + atlas +
            (GUI_COMPOSITOR_SURFACES * EMBED_CALL(compositor_surface_bytes, CompositorCtx, .limits = args));
 }
 
@@ -99,6 +104,7 @@ int gui_compositor_init(const GuiCompositorInitCfg *args)
         compositor->free_tiles[at] = (embed_u16)(limits->tiles_max - 1u - at);
     }
     compositor->free_count = limits->tiles_max;
+    place = gui_compositor_atlas_place(compositor, place);
     const embed_u32 cells = EMBED_CALL(compositor_cells_max, CompositorCtx, .limits = limits);
     const embed_u32 words = (cells + 63u) >> 6u;
     for (embed_u32 at = 0u; at < GUI_COMPOSITOR_SURFACES; at += 1u)
@@ -114,12 +120,17 @@ int gui_compositor_init(const GuiCompositorInitCfg *args)
         GuiCompositorCommand *const commands = (GuiCompositorCommand *)(void *)place;
         place += COMPOSITOR_ALIGNED((embed_u64)limits->commands_max * GUI_COMPOSITOR_LAYERS * 2ULL *
                                     sizeof(GuiCompositorCommand));
+        GuiCompositorGlyph *const glyphs = (GuiCompositorGlyph *)(void *)place;
+        place += COMPOSITOR_ALIGNED((embed_u64)limits->items_max * GUI_COMPOSITOR_LAYERS * 2ULL *
+                                    sizeof(GuiCompositorGlyph));
         for (embed_u32 layer = 0u; layer < GUI_COMPOSITOR_LAYERS; layer += 1u)
         {
             surface->layer[layer].dirty = bits + ((embed_u64)words * (layer + 1u));
             surface->layer[layer].slots = slots + ((embed_u64)cells * layer);
             surface->layer[layer].shown = commands + ((embed_u64)limits->commands_max * layer * 2u);
             surface->layer[layer].recorded = surface->layer[layer].shown + limits->commands_max;
+            surface->layer[layer].glyphs_shown = glyphs + ((embed_u64)limits->items_max * layer * 2u);
+            surface->layer[layer].glyphs_recorded = surface->layer[layer].glyphs_shown + limits->items_max;
         }
     }
     return 1;
@@ -259,6 +270,8 @@ int gui_compositor_surface_open(const GuiCompositorSurfaceCfg *args)
         GuiCompositorLayer *const layer = &surface->layer[at];
         layer->shown_count = 0u;
         layer->recorded_count = 0u;
+        layer->glyphs_shown_count = 0u;
+        layer->glyphs_recorded_count = 0u;
         layer->recording = 0;
         __builtin_memset(layer->dirty, 0, (embed_u64)surface->words * sizeof(embed_u64));
         for (embed_u32 cell = 0u; cell < cells; cell += 1u)
@@ -298,6 +311,7 @@ void gui_compositor_record_begin(const GuiCompositorLayerCfg *args)
     {
         layer->recording = 1;
         layer->recorded_count = 0u;
+        layer->glyphs_recorded_count = 0u;
     }
 }
 
@@ -308,7 +322,8 @@ EMBED_INLINE int compositor_same(const CompositorCtx *args)
     const GuiCompositorCommand *const other = args->other;
     return (one->kind == other->kind) && (one->color == other->color) && (one->x == other->x) &&
            (one->y == other->y) && (one->width == other->width) && (one->height == other->height) &&
-           (one->image == other->image) && (one->tile_left == other->tile_left) &&
+           (one->image == other->image) && (one->count == other->count) && (one->digest == other->digest) &&
+           (one->tile_left == other->tile_left) &&
            (one->tile_top == other->tile_top) && (one->tile_right == other->tile_right) &&
            (one->tile_bottom == other->tile_bottom);
 }
@@ -360,6 +375,11 @@ embed_u32 gui_compositor_record_end(const GuiCompositorLayerCfg *args)
     layer->recorded = swapped;
     layer->shown_count = layer->recorded_count;
     layer->recorded_count = 0u;
+    GuiCompositorGlyph *const glyphs_swapped = layer->glyphs_shown;
+    layer->glyphs_shown = layer->glyphs_recorded;
+    layer->glyphs_recorded = glyphs_swapped;
+    layer->glyphs_shown_count = layer->glyphs_recorded_count;
+    layer->glyphs_recorded_count = 0u;
     layer->recording = 0;
     return compositor_bits_count(layer->dirty, surface->words) - before;
 }
@@ -367,7 +387,7 @@ embed_u32 gui_compositor_record_end(const GuiCompositorLayerCfg *args)
 int gui_compositor_fill(const GuiCompositorFillCfg *args)
 {
     const GuiCompositorCommand command = {GUI_COMPOSITOR_FILL, args->color, args->x, args->y, args->width,
-                                          args->height, 0u, 0u, 0u, 0u, 0u};
+                                          args->height, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
     return compositor_record(args->compositor, args->surface, args->layer, &command);
 }
 
@@ -388,15 +408,113 @@ int gui_compositor_put(const GuiCompositorPutCfg *args)
                                           0u,
                                           0u,
                                           0u,
+                                          0u,
+                                          0u,
                                           0u};
     return compositor_record(args->compositor, args->surface, args->layer, &command);
 }
 
-int gui_compositor_replay(const GuiCompositorReplayCfg *args)
+// the 32-bit FNV-1a digest of `count` glyphs, their pens and entries
+static embed_u32 compositor_glyphs_digest(const GuiCompositorGlyph *glyphs, embed_u32 count)
 {
+    embed_u32 digest = 2166136261u;
+    for (embed_u32 at = 0u; at < count; at += 1u)
+    {
+        // a pen's place is taken as its bits, its sign with them
+        const embed_u32 words[3] = {(embed_u32)glyphs[at].x, (embed_u32)glyphs[at].y, glyphs[at].entry};
+        for (embed_u32 word = 0u; word < 3u; word += 1u)
+        {
+            for (embed_u32 shift = 0u; shift < 32u; shift += 8u)
+            {
+                digest = (digest ^ ((words[word] >> shift) & 0xffu)) * 16777619u;
+            }
+        }
+    }
+    return digest;
+}
+
+int gui_compositor_glyphs(const GuiCompositorGlyphsCfg *args)
+{
+    GuiCompositor *const compositor = args->compositor;
+    GuiCompositorLayer *const layer = compositor_layer(compositor, args->surface, args->layer);
+    if ((layer == NULL) || !layer->recording ||
+        ((layer->glyphs_recorded_count + args->count) > compositor->limits.items_max))
+    {
+        return 0;
+    }
+    embed_i32 left = 0x7fffffff;
+    embed_i32 top = 0x7fffffff;
+    embed_i32 right = -0x7fffffff;
+    embed_i32 bottom = -0x7fffffff;
     for (embed_u32 at = 0u; at < args->count; at += 1u)
     {
-        if (!compositor_record(args->compositor, args->surface, args->layer, &args->commands[at]))
+        const GuiCompositorGlyph *const glyph = &args->glyphs[at];
+        if ((glyph->entry >= compositor->limits.glyphs_max) || !compositor->entry[glyph->entry].baked)
+        {
+            return 0;
+        }
+        const GuiCompositorGlyphEntry *const entry = &compositor->entry[glyph->entry];
+        if ((entry->width == 0u) || (entry->height == 0u))
+        {
+            continue;
+        }
+        const embed_i32 x = GUI_COMPOSITOR_PIXEL(glyph->x) + entry->left;
+        const embed_i32 y = GUI_COMPOSITOR_PIXEL(glyph->y) - entry->top;
+        left = (x < left) ? x : left;
+        top = (y < top) ? y : top;
+        right = ((x + (embed_i32)entry->width) > right) ? (x + (embed_i32)entry->width) : right;
+        bottom = ((y + (embed_i32)entry->height) > bottom) ? (y + (embed_i32)entry->height) : bottom;
+    }
+    if (right <= left)
+    {
+        return 1;
+    }
+    const embed_u32 first = layer->glyphs_recorded_count;
+    __builtin_memcpy(layer->glyphs_recorded + first, args->glyphs, (embed_u64)args->count * sizeof(GuiCompositorGlyph));
+    layer->glyphs_recorded_count += args->count;
+    const GuiCompositorCommand command = {GUI_COMPOSITOR_GLYPH_RUN,
+                                          args->color,
+                                          GUI_COMPOSITOR_FIXED(left),
+                                          GUI_COMPOSITOR_FIXED(top),
+                                          GUI_COMPOSITOR_FIXED(right - left),
+                                          GUI_COMPOSITOR_FIXED(bottom - top),
+                                          first,
+                                          args->count,
+                                          compositor_glyphs_digest(args->glyphs, args->count),
+                                          0u,
+                                          0u,
+                                          0u,
+                                          0u};
+    if (!compositor_record(compositor, args->surface, args->layer, &command))
+    {
+        layer->glyphs_recorded_count = first;
+        return 0;
+    }
+    return 1;
+}
+
+int gui_compositor_replay(const GuiCompositorReplayCfg *args)
+{
+    GuiCompositor *const compositor = args->compositor;
+    GuiCompositorLayer *const layer = compositor_layer(compositor, args->surface, args->layer);
+    if ((layer == NULL) || !layer->recording ||
+        ((layer->glyphs_recorded_count + args->glyph_count) > compositor->limits.items_max))
+    {
+        return 0;
+    }
+    // the runs' glyphs go after those the layer holds, and each run's first glyph moves on by as many
+    const embed_u32 base = layer->glyphs_recorded_count;
+    if (args->glyph_count != 0u)
+    {
+        __builtin_memcpy(layer->glyphs_recorded + base, args->glyphs,
+                         (embed_u64)args->glyph_count * sizeof(GuiCompositorGlyph));
+        layer->glyphs_recorded_count += args->glyph_count;
+    }
+    for (embed_u32 at = 0u; at < args->count; at += 1u)
+    {
+        GuiCompositorCommand command = args->commands[at];
+        command.image += (command.kind == GUI_COMPOSITOR_GLYPH_RUN) ? base : 0u;
+        if (!compositor_record(compositor, args->surface, args->layer, &command))
         {
             return 0;
         }
@@ -411,7 +529,7 @@ EMBED_INLINE void compositor_ring_fold(const CompositorCtx *args)
     for (embed_u32 at = 0u; at < surface->ring_count; at += 1u)
     {
         const GuiCompositorRect rect = surface->ring[at];
-        GuiCompositorCommand range = {0u, 0u, 0, 0, 0, 0, 0u, 0u, 0u, 0u, 0u};
+        GuiCompositorCommand range = {0u, 0u, 0, 0, 0, 0, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
         if (EMBED_CALL(compositor_range, CompositorCtx, .surface_read = surface, .range = &range,
                        .left = rect.x, .top = rect.y, .right = rect.x + rect.width - 1,
                        .bottom = rect.y + rect.height - 1))
@@ -636,6 +754,77 @@ EMBED_INLINE void compositor_image_draw(const CompositorCtx *args)
     }
 }
 
+// The brightness of a color, 0 to 255: its red, green and blue weighted as the eye weighs them, a sum of 256 parts
+EMBED_INLINE embed_u32 compositor_brightness(embed_u32 color)
+{
+    return ((((color >> 16u) & 0xffu) * 54u) + (((color >> 8u) & 0xffu) * 183u) + ((color & 0xffu) * 19u)) >> 8u;
+}
+
+// The run `command` drawn into the target as compositor_fill_draw draws a fill, its part `left` to `right` and `top`
+// to `bottom`. The ground's brightness under that part is read first, a pixel in four each way. The nearer it is to
+// the text's, the more the band lifts the coverage. Each glyph's coverage out of its page then takes the text's color
+// through the band, and each page drawn from is marked with the compose's stamp
+EMBED_INLINE void compositor_run_draw(const CompositorCtx *args)
+{
+    GuiCompositor *const compositor = args->compositor;
+    const GuiCompositorCommand *const command = args->command;
+    embed_u32 ground = 0u;
+    embed_u32 samples = 0u;
+    for (embed_i32 row = args->top; row <= args->bottom; row += 4)
+    {
+        // the rows and columns read lie inside the target: no place here is negative
+        const embed_u32 *const line = args->target + ((embed_u64)(embed_u32)(row - args->rect.y) * args->stride);
+        for (embed_i32 column = args->left; column <= args->right; column += 4)
+        {
+            ground += compositor_brightness(line[column - args->rect.x]);
+            samples += 1u;
+        }
+    }
+    const embed_u32 text = compositor_brightness(command->color);
+    const embed_u32 under = (samples != 0u) ? (ground / samples) : 0u;
+    const embed_u32 apart = (text > under) ? (text - under) : (under - text);
+    const embed_u32 band = (apart >= 192u) ? 0u : (apart >= 128u) ? 1u : (apart >= 64u) ? 2u : 3u;
+    const unsigned char *const lift = compositor->contrast[band];
+    const embed_u32 side = compositor->limits.atlas_side;
+    const GuiCompositorLayer *const layer = args->layer;
+    for (embed_u32 at = 0u; at < command->count; at += 1u)
+    {
+        const GuiCompositorGlyph *const glyph = &layer->glyphs_shown[command->image + at];
+        const GuiCompositorGlyphEntry *const entry = &compositor->entry[glyph->entry];
+        if (!entry->baked || (entry->width == 0u) || (entry->height == 0u))
+        {
+            continue;
+        }
+        compositor->page[entry->page].stamp = compositor->stamp;
+        const embed_i32 x = GUI_COMPOSITOR_PIXEL(glyph->x) + entry->left;
+        const embed_i32 y = GUI_COMPOSITOR_PIXEL(glyph->y) - entry->top;
+        const embed_i32 from_x = (x > args->left) ? x : args->left;
+        const embed_i32 from_y = (y > args->top) ? y : args->top;
+        const embed_i32 to_x = ((x + (embed_i32)entry->width - 1) < args->right) ? (x + (embed_i32)entry->width - 1)
+                                                                                  : args->right;
+        const embed_i32 to_y = ((y + (embed_i32)entry->height - 1) < args->bottom)
+                                   ? (y + (embed_i32)entry->height - 1)
+                                   : args->bottom;
+        const unsigned char *const page = compositor->coverage + ((embed_u64)entry->page * side * side);
+        for (embed_i32 row = from_y; row <= to_y; row += 1)
+        {
+            // the rows and columns drawn lie inside both the glyph's box and the target: no place here is negative
+            embed_u32 *const line = args->target + ((embed_u64)(embed_u32)(row - args->rect.y) * args->stride);
+            const unsigned char *const cover =
+                page + ((embed_u64)(entry->y + (embed_u32)(row - y)) * side) + entry->x + (embed_u32)(from_x - x);
+            for (embed_i32 column = from_x; column <= to_x; column += 1)
+            {
+                const embed_u32 lifted = lift[cover[column - from_x]];
+                if (lifted != 0u)
+                {
+                    embed_u32 *const pixel = &line[column - args->rect.x];
+                    *pixel = compositor_over_one(*pixel, compositor_covered(command->color, lifted + (lifted >> 7u)));
+                }
+            }
+        }
+    }
+}
+
 // The layer's commands that cover the tile `rect` drawn into the target in their order, each cut to the tile. The
 // target's top left is the tile's, `stride` pixels a row
 EMBED_INLINE void compositor_layer_draw(const CompositorCtx *args)
@@ -677,6 +866,12 @@ EMBED_INLINE void compositor_layer_draw(const CompositorCtx *args)
             EMBED_CALL(compositor_image_draw, CompositorCtx, .compositor = args->compositor, .command = command,
                        .target = args->target, .stride = args->stride, .rect = args->rect, .left = left, .top = top,
                        .right = right, .bottom = bottom);
+        }
+        else if (command->kind == GUI_COMPOSITOR_GLYPH_RUN)
+        {
+            EMBED_CALL(compositor_run_draw, CompositorCtx, .compositor = args->compositor, .layer = layer,
+                       .command = command, .target = args->target, .stride = args->stride, .rect = args->rect,
+                       .left = left, .top = top, .right = right, .bottom = bottom);
         }
     }
 }
@@ -733,6 +928,7 @@ embed_u32 gui_compositor_compose(const GuiCompositorComposeCfg *args)
         return 0u;
     }
     EMBED_CALL(compositor_ring_fold, CompositorCtx, .surface = surface);
+    compositor->stamp += 1u;
     embed_u32 made = 0u;
     for (embed_u32 word = 0u; word < surface->words; word += 1u)
     {

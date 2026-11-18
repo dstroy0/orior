@@ -4,7 +4,9 @@
 // a compose that makes the dirty tiles alone, the same commands recorded again that change nothing, a fill's edge
 // covered by its 16.16 share, the layers in their order, the clip ring and its fold, a list recorded on one surface
 // replayed on another to the same pixels, an image put, the retained tiles given back, and the vector blend the same
-// as the scalar blend
+// as the scalar blend. Then the atlas: a reserved range found by its place, a glyph past it by the hash, a run drawn at
+// its pens, a run recorded again that changes nothing, the contrast bands, and a full atlas that lets its oldest page
+// go and keeps the page a range holds
 #include "../../../../../includes/compositor/compositor.h"
 #include "../cli/cli_check.h"
 
@@ -24,6 +26,9 @@ static embed_u32 s_second[TEST_WIDTH * TEST_HEIGHT];
 static embed_u32 s_target[TEST_BLEND_PIXELS];
 static embed_u32 s_scalar[TEST_BLEND_PIXELS];
 static embed_u32 s_source[TEST_BLEND_PIXELS];
+static unsigned char s_letter[4u * 5u];
+static unsigned char s_half[1];
+static unsigned char s_large[60u * 60u];
 static const embed_u32 s_image[6] = {GUI_RGB(1u, 2u, 3u), GUI_RGB(4u, 5u, 6u), GUI_RGB(7u, 8u, 9u),
                                      GUI_RGB(10u, 11u, 12u), GUI_RGB(13u, 14u, 15u), GUI_RGB(16u, 17u, 18u)};
 
@@ -96,16 +101,120 @@ static int blends_same(void)
     return same;
 }
 
+// `color` with each channel scaled by `cover` of 256, as the compositor scales a covered pixel
+static embed_u32 covered(embed_u32 color, embed_u32 cover)
+{
+    const embed_u32 red_blue = (((color & 0x00ff00ffu) * cover) >> 8u) & 0x00ff00ffu;
+    const embed_u32 alpha_green = ((((color >> 8u) & 0x00ff00ffu) * cover) >> 8u) & 0x00ff00ffu;
+    return (cover >= 256u) ? color : (red_blue | (alpha_green << 8u));
+}
+
+// the glyph layer of surface 0 recorded with the run `glyphs` in `color`, and ended: the tiles it marked
+static embed_u32 ran(const GuiCompositorGlyph *glyphs, embed_u32 count, embed_u32 color)
+{
+    EMBED_CALL(gui_compositor_record.begin, GuiCompositorLayerCfg, .compositor = &s_compositor, .surface = 0u,
+               .layer = GUI_COMPOSITOR_GLYPHS);
+    (void)EMBED_CALL(gui_compositor_record.glyphs, GuiCompositorGlyphsCfg, .compositor = &s_compositor, .surface = 0u,
+                     .layer = GUI_COMPOSITOR_GLYPHS, .color = color, .glyphs = glyphs, .count = count);
+    return EMBED_CALL(gui_compositor_record.end, GuiCompositorLayerCfg, .compositor = &s_compositor, .surface = 0u,
+                      .layer = GUI_COMPOSITOR_GLYPHS);
+}
+
+// the glyph `glyph` of face 0 at size 12 baked at `phase` from `coverage`: its entry
+static embed_u32 baked(embed_u32 face, embed_u32 glyph, embed_u32 phase, const unsigned char *coverage,
+                       embed_u32 width, embed_u32 height)
+{
+    return EMBED_CALL(gui_compositor_atlas.bake, GuiCompositorGlyphBakeCfg, .compositor = &s_compositor, .face = face,
+                      .size = 12u, .glyph = glyph, .phase = phase, .coverage = coverage, .width = width,
+                      .height = height, .left = 1, .top = 5, .advance = GUI_COMPOSITOR_FIXED(6));
+}
+
+// the atlas's range, hash, runs and contrast bands, on surface 0 over its backdrop
+static void glyphs_checked(void)
+{
+    for (embed_u32 at = 0u; at < sizeof(s_letter); at += 1u)
+    {
+        s_letter[at] = 255u;
+    }
+    s_half[0] = 128u;
+    const GuiCompositorGlyphFindCfg first = {&s_compositor, 0u, 12u, 'A', 0u};
+    cli_check(EMBED_CALL(gui_compositor_atlas.range, GuiCompositorGlyphRangeCfg, .compositor = &s_compositor,
+                         .face = 0u, .size = 12u, .first = 'A', .count = 4u) &&
+                  (gui_compositor_atlas.find(&first) == GUI_COMPOSITOR_NO_GLYPH),
+              "a range is reserved, and a glyph of it not yet baked is found as none");
+    const embed_u32 letter = baked(0u, 'A', 0u, s_letter, 4u, 5u);
+    const embed_u32 second = baked(0u, 'B', 2u, s_letter, 4u, 5u);
+    const GuiCompositorGlyphFindCfg second_find = {&s_compositor, 0u, 12u, 'B', 2u};
+    cli_check((letter == 0u) && (second == ((1u * GUI_COMPOSITOR_PHASES) + 2u)) &&
+                  (gui_compositor_atlas.find(&first) == letter) && (gui_compositor_atlas.find(&second_find) == second),
+              "a range's glyph takes the entry at its place in the range, four places a glyph");
+    const embed_u32 hashed = baked(1u, 1000u, 0u, s_half, 1u, 1u);
+    const GuiCompositorGlyphFindCfg hashed_find = {&s_compositor, 1u, 12u, 1000u, 0u};
+    cli_check((hashed >= (4u * GUI_COMPOSITOR_PHASES)) && (gui_compositor_atlas.find(&hashed_find) == hashed),
+              "a glyph past the ranges takes an entry after them and is found by the hash");
+
+    const GuiCompositorGlyph run[2] = {{GUI_COMPOSITOR_FIXED(10), GUI_COMPOSITOR_FIXED(40), letter},
+                                       {GUI_COMPOSITOR_FIXED(16), GUI_COMPOSITOR_FIXED(40), second}};
+    cli_check((ran(run, 2u, TEST_CURSOR) == 1u) && (composed(0u, s_first) == 1u) &&
+                  (pixel(s_first, 11u, 35u) == TEST_CURSOR) && (pixel(s_first, 14u, 39u) == TEST_CURSOR) &&
+                  (pixel(s_first, 17u, 35u) == TEST_CURSOR) && (pixel(s_first, 10u, 35u) == TEST_BACKDROP) &&
+                  (pixel(s_first, 11u, 40u) == TEST_BACKDROP),
+              "a run draws each glyph's box from its pen: left of it by its left, up from the baseline by its top");
+    const GuiCompositorGlyph other[2] = {{GUI_COMPOSITOR_FIXED(10), GUI_COMPOSITOR_FIXED(40), letter},
+                                         {GUI_COMPOSITOR_FIXED(16), GUI_COMPOSITOR_FIXED(40), letter}};
+    cli_check((ran(run, 2u, TEST_CURSOR) == 0u) && (ran(other, 2u, TEST_CURSOR) == 1u),
+              "a run recorded again marks nothing, and a run with another glyph in it marks its tile");
+
+    const GuiCompositorGlyph half_run[1] = {{GUI_COMPOSITOR_FIXED(30), GUI_COMPOSITOR_FIXED(40), hashed}};
+    const embed_u32 white = GUI_RGB(0xffu, 0xffu, 0xffu);
+    (void)ran(half_run, 1u, white);
+    (void)composed(0u, s_first);
+    const embed_u32 far = pixel(s_first, 31u, 35u);
+    const embed_u32 near_color = GUI_RGB(0x28u, 0x48u, 0x68u);
+    (void)ran(half_run, 1u, near_color);
+    (void)composed(0u, s_first);
+    const embed_u32 near = pixel(s_first, 31u, 35u);
+    const embed_u32 lift_far = s_compositor.contrast[0][128];
+    const embed_u32 lift_near = s_compositor.contrast[3][128];
+    cli_check((lift_far == 128u) && (lift_near > 160u) &&
+                  (far == over(TEST_BACKDROP, covered(white, lift_far + (lift_far >> 7u)))) &&
+                  (near == over(TEST_BACKDROP, covered(near_color, lift_near + (lift_near >> 7u)))),
+              "text far from its ground's brightness takes its coverage as it is, and text near it is lifted more");
+    (void)ran(run, 2u, TEST_CURSOR);
+    (void)composed(0u, s_first);
+}
+
+// a full atlas: a glyph that fits no page lets the page drawn from least recently go, and never the page a range holds
+static void evictions_checked(void)
+{
+    for (embed_u32 at = 0u; at < sizeof(s_large); at += 1u)
+    {
+        s_large[at] = 200u;
+    }
+    const embed_u32 one = baked(2u, 1u, 0u, s_large, 60u, 60u);
+    const embed_u32 two = baked(2u, 2u, 0u, s_large, 60u, 60u);
+    const GuiCompositorGlyphFindCfg one_find = {&s_compositor, 2u, 12u, 1u, 0u};
+    const GuiCompositorGlyphFindCfg two_find = {&s_compositor, 2u, 12u, 2u, 0u};
+    const GuiCompositorGlyphFindCfg letter_find = {&s_compositor, 0u, 12u, 'A', 0u};
+    cli_check((one != GUI_COMPOSITOR_NO_GLYPH) && (two != GUI_COMPOSITOR_NO_GLYPH) &&
+                  (gui_compositor_atlas.find(&one_find) == GUI_COMPOSITOR_NO_GLYPH) &&
+                  (gui_compositor_atlas.find(&two_find) == two) && (gui_compositor_atlas.find(&letter_find) == 0u) &&
+                  s_compositor.page[0].pinned,
+              "a glyph too large for the room left lets the other page go, its glyphs with it, and the range's page stays");
+}
+
 int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
-    const GuiCompositorLimitsCfg limits = {256u, 192u, 64u, 4u, 32u};
-    const embed_u64 bytes = EMBED_CALL(gui_compositor.bytes, GuiCompositorLimitsCfg, .width_max = 256u,
-                                       .height_max = 192u, .commands_max = 64u, .ring_max = 4u, .tiles_max = 32u);
-    cli_check((bytes != 0ULL) && (bytes <= sizeof(s_block)) &&
-                  (EMBED_CALL(gui_compositor.bytes, GuiCompositorLimitsCfg, .width_max = 256u, .height_max = 192u,
-                              .commands_max = 64u, .ring_max = 4u, .tiles_max = 0u) == 0ULL),
-              "a block is sized for its limits, and a limit of 0 sizes none");
+    const GuiCompositorLimitsCfg limits = {256u, 192u, 64u, 4u, 32u, 64u, 2u, 64u, 64u};
+    const embed_u64 bytes = gui_compositor.bytes(&limits);
+    GuiCompositorLimitsCfg none = limits;
+    none.tiles_max = 0u;
+    GuiCompositorLimitsCfg uneven = limits;
+    uneven.atlas_side = 100u;
+    cli_check((bytes != 0ULL) && (bytes <= sizeof(s_block)) && (gui_compositor.bytes(&none) == 0ULL) &&
+                  (gui_compositor.bytes(&uneven) == 0ULL),
+              "a block is sized for its limits, and a limit of 0 or a page side not a power of 2 sizes none");
     cli_check(!EMBED_CALL(gui_compositor.init, GuiCompositorInitCfg, .compositor = &s_compositor, .limits = limits,
                           .block = s_block, .bytes = bytes - 1ULL) &&
                   EMBED_CALL(gui_compositor.init, GuiCompositorInitCfg, .compositor = &s_compositor, .limits = limits,
@@ -189,6 +298,7 @@ int main(void)
                   (pixel(s_first, 102u, 101u) == s_image[5]) && (pixel(s_first, 103u, 101u) == TEST_BACKDROP),
               "an image is put with its top left at the place's pixel, the fraction dropped");
 
+    glyphs_checked();
     (void)EMBED_CALL(gui_compositor_surface.open, GuiCompositorSurfaceCfg, .compositor = &s_compositor,
                      .surface = 1u, .width = TEST_WIDTH, .height = TEST_HEIGHT, .clear = TEST_CLEAR,
                      .retained = retained);
@@ -198,7 +308,8 @@ int main(void)
         EMBED_CALL(gui_compositor_record.begin, GuiCompositorLayerCfg, .compositor = &s_compositor, .surface = 1u,
                    .layer = layer);
         (void)EMBED_CALL(gui_compositor_record.replay, GuiCompositorReplayCfg, .compositor = &s_compositor,
-                         .surface = 1u, .layer = layer, .commands = shown->shown, .count = shown->shown_count);
+                         .surface = 1u, .layer = layer, .commands = shown->shown, .count = shown->shown_count,
+                         .glyphs = shown->glyphs_shown, .glyph_count = shown->glyphs_shown_count);
         (void)EMBED_CALL(gui_compositor_record.end, GuiCompositorLayerCfg, .compositor = &s_compositor, .surface = 1u,
                          .layer = layer);
     }
@@ -215,5 +326,6 @@ int main(void)
     cli_check(s_compositor.free_count == 32u, "the surfaces shut give every retained tile back to the pool");
 
     cli_check(blends_same(), "the vector blend gives the same pixels as the scalar blend over every alpha");
+    evictions_checked();
     return cli_on_check();
 }
