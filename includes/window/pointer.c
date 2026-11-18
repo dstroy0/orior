@@ -15,6 +15,21 @@
     POINTER_FIGURE(0.7, 10u, {1.0, 5.5}, {6.2, 1.0}, {6.2, 4.0}, {15.8, 4.0}, {15.8, 1.0}, {21.0, 5.5}, {15.8, 10.0},  \
                    {15.8, 7.0}, {6.2, 7.0}, {6.2, 10.0})
 
+// The compass of the glide: an orb at its middle, then an arrow each way round it, north first and on round to the
+// east. The arrows' figures follow the orb in the order of the glide's shapes
+#define POINTER_COMPASS_FIGURES                                                                                        \
+    {POINTER_FIGURE(3.4, 1u, {12.0, 12.0}),                                                                            \
+     POINTER_FIGURE(0.5, 3u, {12.0, 1.2}, {14.4, 5.6}, {9.6, 5.6}),                                                    \
+     POINTER_FIGURE(0.5, 3u, {19.637, 4.363}, {18.222, 9.172}, {14.828, 5.778}),                                       \
+     POINTER_FIGURE(0.5, 3u, {22.8, 12.0}, {18.4, 14.4}, {18.4, 9.6}),                                                 \
+     POINTER_FIGURE(0.5, 3u, {19.637, 19.637}, {14.828, 18.222}, {18.222, 14.828}),                                    \
+     POINTER_FIGURE(0.5, 3u, {12.0, 22.8}, {9.6, 18.4}, {14.4, 18.4}),                                                 \
+     POINTER_FIGURE(0.5, 3u, {4.363, 19.637}, {5.778, 14.828}, {9.172, 18.222}),                                       \
+     POINTER_FIGURE(0.5, 3u, {1.2, 12.0}, {5.6, 9.6}, {5.6, 14.4}),                                                    \
+     POINTER_FIGURE(0.5, 3u, {4.363, 4.363}, {9.172, 5.778}, {5.778, 9.172})}
+// the compass with the figure `lit_` lit, 0 for none
+#define POINTER_COMPASS(lit_) {24.0, 24.0, 12.0, 12.0, 0u, 12.0, 12.0, 9u, POINTER_COMPASS_FIGURES, (lit_)}
+
 // each shape's sprite, in the order of the shapes' numbers: its size and hot point, the eighths of a turn its figures
 // are turned by, the place in the figures that its center shows, and its figures
 static const GuiPointerSprite s_sprites[GUI_POINTER_SHAPES] = {
@@ -48,18 +63,7 @@ static const GuiPointerSprite s_sprites[GUI_POINTER_SHAPES] = {
     {22.0, 11.0, 11.0, 5.5, 0u, 11.0, 5.5, 1u, {POINTER_BOTH_WAYS_FIGURE}},
     {19.0, 19.0, 9.5, 9.5, 1u, 11.0, 5.5, 1u, {POINTER_BOTH_WAYS_FIGURE}},
     {19.0, 19.0, 9.5, 9.5, 3u, 11.0, 5.5, 1u, {POINTER_BOTH_WAYS_FIGURE}},
-    {22.0,
-     22.0,
-     11.0,
-     11.0,
-     0u,
-     11.0,
-     11.0,
-     2u,
-     {POINTER_FIGURE(0.7, 10u, {1.0, 11.0}, {6.2, 6.5}, {6.2, 9.5}, {15.8, 9.5}, {15.8, 6.5}, {21.0, 11.0},
-                     {15.8, 15.5}, {15.8, 12.5}, {6.2, 12.5}, {6.2, 15.5}),
-      POINTER_FIGURE(0.7, 10u, {11.0, 1.0}, {15.5, 6.2}, {12.5, 6.2}, {12.5, 15.8}, {15.5, 15.8}, {11.0, 21.0},
-                     {6.5, 15.8}, {9.5, 15.8}, {9.5, 6.2}, {6.5, 6.2})}},
+    POINTER_COMPASS(0u),
     {24.0,
      24.0,
      1.5,
@@ -70,6 +74,14 @@ static const GuiPointerSprite s_sprites[GUI_POINTER_SHAPES] = {
      2u,
      {POINTER_ARROW_FIGURE,
       POINTER_FIGURE(0.6, 6u, {15.0, 13.5}, {22.0, 13.5}, {19.2, 18.5}, {22.0, 23.0}, {15.0, 23.0}, {17.8, 18.5})}},
+    POINTER_COMPASS(1u),
+    POINTER_COMPASS(2u),
+    POINTER_COMPASS(3u),
+    POINTER_COMPASS(4u),
+    POINTER_COMPASS(5u),
+    POINTER_COMPASS(6u),
+    POINTER_COMPASS(7u),
+    POINTER_COMPASS(8u),
 };
 
 // The glass, in pixels at the scale of 100: the rim's width; the glint's place inside the edge and its half width; the
@@ -99,6 +111,7 @@ typedef struct
     const GuiPalette *palette;
     GuiColor *picture;
     GuiRect rect;
+    unsigned int *nearest;
     int restoring;
     int scale;
     double x;
@@ -240,11 +253,17 @@ EMBED_INLINE void pointer_under_copy(const PointerCtx *args)
 #define POINTER_SHARE(value_, share_) ((((value_) * (share_)) + 127u) / 255u)
 
 // The distance in design units from x, y to the edge of `figure`, its corners rounded: below 0 inside the figure.
-// The distance to the nearest side is found first, and a ray to the right that crosses the sides an odd number of
-// times puts the place inside
+// For a disc it is the distance to its center less its radius. Else the distance to the nearest side is found first,
+// and a ray to the right that crosses the sides an odd number of times puts the place inside
 EMBED_INLINE double pointer_figure_distance(const PointerCtx *args)
 {
     const GuiPointerFigure *const figure = args->figure;
+    if (figure->points == 1u)
+    {
+        const double across = args->x - figure->point[0][0];
+        const double down = args->y - figure->point[0][1];
+        return __builtin_sqrt((across * across) + (down * down)) - figure->corner;
+    }
     double nearest = 1.0e9;
     int inside = 0;
     for (unsigned int at = 0u, before = figure->points - 1u; at < figure->points; before = at, at += 1u)
@@ -274,7 +293,8 @@ EMBED_INLINE double pointer_figure_distance(const PointerCtx *args)
 }
 
 // The distance in design units from x, y of the sprite to the edge of its figures: the least of the figures'
-// distances. The place is turned back by the sprite's turn round its center into the figures' units first
+// distances, the figure it is the distance to into `nearest` where one is given. The place is turned back by the
+// sprite's turn round its center into the figures' units first
 EMBED_INLINE double pointer_sprite_distance(const PointerCtx *args)
 {
     const GuiPointerSprite *const sprite = args->sprite;
@@ -289,7 +309,14 @@ EMBED_INLINE double pointer_sprite_distance(const PointerCtx *args)
     {
         const double distance = EMBED_CALL(pointer_figure_distance, PointerCtx, .figure = &sprite->figure[at],
                                            .x = figure_x, .y = figure_y);
-        least = (distance < least) ? distance : least;
+        if (distance < least)
+        {
+            least = distance;
+            if (args->nearest != NULL)
+            {
+                *args->nearest = at;
+            }
+        }
     }
     return least;
 }
@@ -329,7 +356,8 @@ static GuiColor pointer_byte(double share)
 // The sprite baked into `picture` at `scale` in the palette's pointer colors. Each pixel is sampled at its center. Its
 // distance to the figures' edge gives how much of it the glass covers, the rim, the glint and the shadow. The rim's
 // color goes from the border's to the border's end across the sprite from its top left to its bottom right. The
-// glint lies on the edges that face the top left
+// glint lies on the edges that face the top left. A lit figure's body is the rim's color whole, and the glint washes
+// over it, most at the top left
 EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
 {
     const GuiPointerSprite *const sprite = args->sprite;
@@ -350,8 +378,11 @@ EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
         {
             const double x = (((double)column + 0.5) - (double)GUI_POINTER_MARGIN) / scale;
             const double y = (((double)row + 0.5) - (double)GUI_POINTER_MARGIN) / scale;
+            unsigned int nearest = 0u;
             const double edge =
-                EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x, .y = y) * scale;
+                EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x, .y = y, .nearest = &nearest) *
+                scale;
+            const int lit = (sprite->lit != 0u) && (nearest == sprite->lit);
             const double cover = (edge > 0.5) ? 0.0 : ((edge < -0.5) ? 1.0 : (0.5 - edge));
             const double shadowed =
                 EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x - POINTER_SHADOW_X,
@@ -370,9 +401,11 @@ EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
                                                  line.green + ((line_end.green - line.green) * across),
                                                  line.blue + ((line_end.blue - line.blue) * across),
                                                  line.alpha + ((line_end.alpha - line.alpha) * across)};
-                const PointerShares body = {fill.red + ((rim_color.red - fill.red) * POINTER_BODY_TINT),
-                                            fill.green + ((rim_color.green - fill.green) * POINTER_BODY_TINT),
-                                            fill.blue + ((rim_color.blue - fill.blue) * POINTER_BODY_TINT), fill.alpha};
+                const double tint = lit ? 1.0 : POINTER_BODY_TINT;
+                const PointerShares body = {fill.red + ((rim_color.red - fill.red) * tint),
+                                            fill.green + ((rim_color.green - fill.green) * tint),
+                                            fill.blue + ((rim_color.blue - fill.blue) * tint),
+                                            lit ? rim_color.alpha : fill.alpha};
                 made = pointer_over(made, body, body.alpha * cover);
                 const double depth = -edge;
                 const double rim_share =
@@ -389,7 +422,8 @@ EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
                 facing = (facing < 0.0) ? 0.0 : facing;
                 double band = 1.0 - (__builtin_fabs(depth - (POINTER_GLINT_AT * scale)) / (POINTER_GLINT_HALF * scale));
                 band = (band < 0.0) ? 0.0 : band;
-                made = pointer_over(made, glint, glint.alpha * cover * band * facing * facing);
+                const double glinted = lit ? (0.35 * (1.0 - across)) : (band * facing * facing);
+                made = pointer_over(made, glint, glint.alpha * cover * glinted);
             }
             args->picture[(row * width) + column] = (pointer_byte(made.alpha) << 24u) |
                                                     (pointer_byte(made.red) << 16u) |

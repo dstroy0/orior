@@ -1036,16 +1036,35 @@ static void autoscroll_checked(void)
     pressed_with(x, y, GUI_BUTTON_MIDDLE);
     cli_check(s_window.autoscroll, "a middle press in the text starts the autoscroll");
     stepped_for(200ULL);
-    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == start,
-              "the pointer still at the press point scrolls nothing");
+    cli_check((cli_view_top(&(CliViewAtCfg){.key = key}) == start) && (s_window.pointer.shape == GUI_POINTER_MOVE),
+              "the pointer still at the press point scrolls nothing, and the compass lights no arrow");
     moved(x, y + 100);
     stepped_for(300ULL);
     const unsigned long long down = cli_view_top(&(CliViewAtCfg){.key = key});
-    cli_check(down > start, "the pointer held below the press point scrolls the view down");
+    cli_check((down > start) && (s_window.pointer.shape == GUI_POINTER_GLIDE_S),
+              "the pointer held below the press point scrolls the view down, the compass's south lit");
     moved(x, y - 100);
     stepped_for(300ULL);
-    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) < down,
-              "the pointer held above the press point scrolls it back up");
+    cli_check((cli_view_top(&(CliViewAtCfg){.key = key}) < down) && (s_window.pointer.shape == GUI_POINTER_GLIDE_N),
+              "the pointer held above the press point scrolls it back up, the compass's north lit");
+    unsigned int ways = 0u;
+    moved(x + 100, y + 100);
+    ways += (s_window.pointer.shape == GUI_POINTER_GLIDE_SE) ? 1u : 0u;
+    moved(x - 100, y - 100);
+    ways += (s_window.pointer.shape == GUI_POINTER_GLIDE_NW) ? 1u : 0u;
+    moved(x + 100, y - 100);
+    ways += (s_window.pointer.shape == GUI_POINTER_GLIDE_NE) ? 1u : 0u;
+    moved(x - 100, y + 100);
+    ways += (s_window.pointer.shape == GUI_POINTER_GLIDE_SW) ? 1u : 0u;
+    moved(x + 100, y + 30);
+    ways += (s_window.pointer.shape == GUI_POINTER_GLIDE_E) ? 1u : 0u;
+    moved(x - 100, y - 30);
+    ways += (s_window.pointer.shape == GUI_POINTER_GLIDE_W) ? 1u : 0u;
+    moved(x + 30, y - 100);
+    ways += (s_window.pointer.shape == GUI_POINTER_GLIDE_N) ? 1u : 0u;
+    cli_check((ways == 7u) && (s_window.autoscroll_pointer_x == (x + 30)),
+              "each of the eight ways lights its own arrow, a way within an eighth of a half turn of north its north");
+    moved(x, y - 100);
     moved(x, y + 100);
     pressed_with(x, y + 100, GUI_BUTTON_LEFT);
     cli_check(!s_window.autoscroll, "the next press ends the autoscroll");

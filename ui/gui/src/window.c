@@ -834,10 +834,21 @@ EMBED_INLINE int window_scroll_toward(const GuiWindowCtx *args)
     return 1;
 }
 
-// One step of the autoscroll at a frame. The pointer's distance from the press point, past GUI_AUTOSCROLL_REST_PIXELS,
-// sets the speed: GUI_AUTOSCROLL_PIXELS_A_SECOND for each pixel. Below the press point the scroll goes down, above it
-// up, by the time since the last step. The scroll's own step eases it there and sends the rows crossed. An autoscroll
-// with no editor ends
+// The pixels of the autoscroll's distance `distance` past GUI_AUTOSCROLL_REST_PIXELS, its sign kept: 0 inside them
+EMBED_INLINE int window_autoscroll_past(const GuiWindowCtx *args)
+{
+    const int distance = args->x;
+    if (distance > GUI_AUTOSCROLL_REST_PIXELS)
+    {
+        return distance - GUI_AUTOSCROLL_REST_PIXELS;
+    }
+    return (distance < -GUI_AUTOSCROLL_REST_PIXELS) ? (distance + GUI_AUTOSCROLL_REST_PIXELS) : 0;
+}
+
+// One step of the autoscroll at a frame. The pointer's distance from the press point, down and across apart, past
+// GUI_AUTOSCROLL_REST_PIXELS, sets the speed each way: GUI_AUTOSCROLL_PIXELS_A_SECOND for each pixel. Below the press
+// point the scroll goes down, above it up, right of it right and left of it left, by the time since the last step. The
+// scroll's own step eases it there and sends the rows crossed. An autoscroll with no editor ends
 EMBED_INLINE void window_autoscroll_step(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -853,18 +864,19 @@ EMBED_INLINE void window_autoscroll_step(const GuiWindowCtx *args)
     const unsigned long long now_ms = cli_clock_milliseconds();
     const unsigned long long since_ms = now_ms - window->autoscroll_stepped_ms;
     window->autoscroll_stepped_ms = now_ms;
-    const int distance = window->autoscroll_pointer_y - window->autoscroll_y;
-    const int past = (distance > GUI_AUTOSCROLL_REST_PIXELS)    ? (distance - GUI_AUTOSCROLL_REST_PIXELS)
-                     : (distance < -GUI_AUTOSCROLL_REST_PIXELS) ? (distance + GUI_AUTOSCROLL_REST_PIXELS)
-                                                                : 0;
-    if (past == 0)
+    const int past_down =
+        EMBED_CALL(window_autoscroll_past, GuiWindowCtx, .x = window->autoscroll_pointer_y - window->autoscroll_y);
+    const int past_across =
+        EMBED_CALL(window_autoscroll_past, GuiWindowCtx, .x = window->autoscroll_pointer_x - window->autoscroll_x);
+    if ((past_down == 0) && (past_across == 0))
     {
         return;
     }
-    const double moved = (double)past * GUI_AUTOSCROLL_PIXELS_A_SECOND * ((double)since_ms / 1000.0);
-    const double down = window->scroll_down_to + moved;
+    const double seconds = (double)since_ms / 1000.0;
+    const double down = window->scroll_down_to + ((double)past_down * GUI_AUTOSCROLL_PIXELS_A_SECOND * seconds);
+    const double across = window->scroll_across_to + ((double)past_across * GUI_AUTOSCROLL_PIXELS_A_SECOND * seconds);
     EMBED_CALL(window_scroll_to, GuiWindowCtx, .window = window, .on = 1, .down = (down < 0.0) ? 0.0 : down,
-               .across = window->scroll_across_to);
+               .across = across);
 }
 
 // One step of the scroll at a frame. A thumb's drag puts the view at its line and cell column first. Then each way
@@ -6753,7 +6765,38 @@ EMBED_INLINE unsigned int window_pointer_border_shape(const GuiWindowCtx *args)
     return (args->at <= GUI_HIT_CLOSE) ? s_shapes[args->at] : GUI_POINTER_SHAPES;
 }
 
-// The pointer's shape on the main window at x, y. The four-way arrow while the autoscroll runs, and the shape of the
+// The compass of the autoscroll for the pointer at x, y: at rest inside the rest pixels each way, else the compass
+// with the arrow lit the way the pointer lies from the press point. A way is one of eight: a distance across less
+// than 0.414 of the distance down, the tangent of an eighth of a half turn, is north or south, and the turn of that
+// the other way is east or west. Any other way is a diagonal
+EMBED_INLINE unsigned int window_autoscroll_compass(const GuiWindowCtx *args)
+{
+    const GuiWindow *const window = args->window_read;
+    const int across = EMBED_CALL(window_autoscroll_past, GuiWindowCtx, .x = args->x - window->autoscroll_x);
+    const int down = EMBED_CALL(window_autoscroll_past, GuiWindowCtx, .x = args->y - window->autoscroll_y);
+    if ((across == 0) && (down == 0))
+    {
+        return GUI_POINTER_MOVE;
+    }
+    // a pointer's distance from the press point is a few thousand pixels at the most, far inside an int
+    const long long wide = (across < 0) ? -(long long)across : (long long)across;
+    const long long tall = (down < 0) ? -(long long)down : (long long)down;
+    if ((wide * 1000LL) <= (tall * 414LL))
+    {
+        return (down < 0) ? GUI_POINTER_GLIDE_N : GUI_POINTER_GLIDE_S;
+    }
+    if ((tall * 1000LL) <= (wide * 414LL))
+    {
+        return (across < 0) ? GUI_POINTER_GLIDE_W : GUI_POINTER_GLIDE_E;
+    }
+    if (down < 0)
+    {
+        return (across < 0) ? GUI_POINTER_GLIDE_NW : GUI_POINTER_GLIDE_NE;
+    }
+    return (across < 0) ? GUI_POINTER_GLIDE_SW : GUI_POINTER_GLIDE_SE;
+}
+
+// The pointer's shape on the main window at x, y. The compass while the autoscroll runs, and the shape of the
 // border, a corner or a control where the pixel is on one. Then a drag's own shape: the arrow left and right while a
 // table's column line is dragged, the beam while the editor's choice is. Else the text beam where a press puts the
 // caret, the arrow up and down on the terminal's top edge, and the hand on a part a press acts on. Elsewhere it is the
@@ -6763,7 +6806,7 @@ EMBED_INLINE unsigned int window_pointer_shape(const GuiWindowCtx *args)
     const GuiWindow *const window = args->window_read;
     if (window->autoscroll)
     {
-        return GUI_POINTER_MOVE;
+        return EMBED_CALL(window_autoscroll_compass, GuiWindowCtx, .window_read = window, .x = args->x, .y = args->y);
     }
     const GuiInput at = {.type = GUI_INPUT_MOVED, .x = args->x, .y = args->y};
     const unsigned int border = EMBED_CALL(
@@ -7276,7 +7319,9 @@ EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
     if ((pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER))
     {
         args->window->autoscroll = 1;
+        args->window->autoscroll_x = args->x;
         args->window->autoscroll_y = args->y;
+        args->window->autoscroll_pointer_x = args->x;
         args->window->autoscroll_pointer_y = args->y;
         args->window->autoscroll_dragged = 0;
         args->window->autoscroll_stepped_ms = cli_clock_milliseconds();
@@ -7833,13 +7878,14 @@ EMBED_INLINE int window_tip_point(const GuiWindowCtx *args)
 static void window_move(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
-    // the autoscroll reads the pointer's y at each move, and the next frame scrolls by its distance; a move past the
-    // rest pixels makes the hold a drag, which its button's release ends
+    // the autoscroll reads the pointer's place at each move, and the next frame scrolls by its distance; a move past
+    // the rest pixels either way makes the hold a drag, which its button's release ends
     if (window->autoscroll)
     {
+        window->autoscroll_pointer_x = args->input->x;
         window->autoscroll_pointer_y = args->input->y;
-        const int distance = args->input->y - window->autoscroll_y;
-        if ((distance > GUI_AUTOSCROLL_REST_PIXELS) || (distance < -GUI_AUTOSCROLL_REST_PIXELS))
+        if ((EMBED_CALL(window_autoscroll_past, GuiWindowCtx, .x = args->input->y - window->autoscroll_y) != 0) ||
+            (EMBED_CALL(window_autoscroll_past, GuiWindowCtx, .x = args->input->x - window->autoscroll_x) != 0))
         {
             window->autoscroll_dragged = 1;
         }

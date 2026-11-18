@@ -71,8 +71,8 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #define GUI_SCROLL_EASE_MS 70.0
 #define GUI_SCROLL_STEP_MAX_MS 40ULL
 #define GUI_SCROLL_STILL 0.25
-// The autoscroll a middle press in the text starts. The pixels either side of the press point scroll nothing. Past
-// them, each pixel of the pointer's distance moves the scroll this many pixels a second
+// The autoscroll a middle press in the text starts. The pixels either side of the press point scroll nothing, down
+// and across apart. Past them, each pixel of the pointer's distance moves the scroll this many pixels a second
 #define GUI_AUTOSCROLL_REST_PIXELS 8
 #define GUI_AUTOSCROLL_PIXELS_A_SECOND 8.0
 
@@ -179,12 +179,14 @@ typedef struct GuiWindow
     unsigned long long scroll_stepped_ms;
     int scroll_moving;
     unsigned long long scroll_drag_top;
-    // The autoscroll: whether it runs, the press point's y, the pointer's y as it last moved, whether the pointer
+    // The autoscroll: whether it runs, the press point, the pointer's place as it last moved, whether the pointer
     // moved past the rest pixels while it ran, and the clock of its last step in milliseconds. It runs from a middle
     // press in the text to the next press, or to the middle button let go after such a move: a drag ends with its
-    // button, a click leaves the scroll to run
+    // button, a click leaves the scroll to run. It glides down and across each by the pointer's distance that way
     int autoscroll;
+    int autoscroll_x;
     int autoscroll_y;
+    int autoscroll_pointer_x;
     int autoscroll_pointer_y;
     int autoscroll_dragged;
     unsigned long long autoscroll_stepped_ms;

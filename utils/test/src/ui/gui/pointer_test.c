@@ -51,7 +51,7 @@ static unsigned int channel(GuiColor color, unsigned int shift)
 }
 
 // whether each sprite lies inside the largest side with its hot point inside it, and has one to the most figures,
-// each of three to the most points inside the largest side with a corner above 0
+// each a disc of one point or three to the most points, inside the largest side, with a corner above 0
 static int sprites_whole(void)
 {
     int whole = 1;
@@ -65,7 +65,8 @@ static int sprites_whole(void)
         for (unsigned int at = 0u; at < sprite->figures; at += 1u)
         {
             const GuiPointerFigure *const figure = &sprite->figure[at];
-            whole &= (figure->points >= 3u) && (figure->points <= GUI_POINTER_POINTS) && (figure->corner > 0.0);
+            whole &= ((figure->points == 1u) || (figure->points >= 3u)) && (figure->points <= GUI_POINTER_POINTS) &&
+                     (figure->corner > 0.0);
             for (unsigned int point = 0u; point < figure->points; point += 1u)
             {
                 whole &= (figure->point[point][0] >= 0.0) && (figure->point[point][1] >= 0.0) &&
@@ -175,6 +176,23 @@ int main(void)
         }
     }
     cli_check(1, "every shape draws at twice the scale and its pixels are put back");
+    // the compass at rest and with its north lit: the north arrow's middle differs, the orb's middle does not
+    (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 40, .y = 40,
+                     .shape = GUI_POINTER_MOVE, .shown = 1);
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
+                     .palette = palette, .scale = 100);
+    const GuiColor rest_arrow = pixel(&first, 40, 32);
+    const GuiColor rest_orb = pixel(&first, 40, 40);
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 40, .y = 40,
+                     .shape = GUI_POINTER_GLIDE_N, .shown = 1);
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
+                     .palette = palette, .scale = 100);
+    const GuiColor lit_arrow = pixel(&first, 40, 32);
+    const GuiColor lit_orb = pixel(&first, 40, 40);
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    cli_check((rest_arrow != POINTER_GROUND) && (lit_arrow != rest_arrow) && (lit_orb == rest_orb),
+              "the compass's lit arrow is drawn brighter than at rest, and its orb is the same");
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 30, .y = 30,
                      .shape = GUI_POINTER_SHAPES + 4u, .shown = 0);
     cli_check((s_pointer.shape == GUI_POINTER_ARROW) && !s_pointer.shown,

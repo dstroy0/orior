@@ -20,9 +20,10 @@ typedef struct GuiPointerReadCfg GuiPointerReadCfg;
 typedef struct GuiPointerRasterCfg GuiPointerRasterCfg;
 typedef struct GuiPointerShapeCfg GuiPointerShapeCfg;
 
-// the shapes: the arrow; the text beam; the hand on a part a press acts on; the four resize arrows, up and down, left
-// and right, and the two diagonals; the four-way arrow of the autoscroll; and the arrow with an hourglass while the
-// window works
+// The shapes: the arrow; the text beam; the hand on a part a press acts on; the four resize arrows, up and down, left
+// and right, and the two diagonals; the compass of the glide at rest; and the arrow with an hourglass while the window
+// works. Then the compass with one of its eight arrows lit, the way the glide goes: north, north east, east, south
+// east, south, south west, west and north west
 #define GUI_POINTER_ARROW 0u
 #define GUI_POINTER_TEXT 1u
 #define GUI_POINTER_HAND 2u
@@ -32,7 +33,15 @@ typedef struct GuiPointerShapeCfg GuiPointerShapeCfg;
 #define GUI_POINTER_RESIZE_NESW 6u
 #define GUI_POINTER_MOVE 7u
 #define GUI_POINTER_BUSY 8u
-#define GUI_POINTER_SHAPES 9u
+#define GUI_POINTER_GLIDE_N 9u
+#define GUI_POINTER_GLIDE_NE 10u
+#define GUI_POINTER_GLIDE_E 11u
+#define GUI_POINTER_GLIDE_SE 12u
+#define GUI_POINTER_GLIDE_S 13u
+#define GUI_POINTER_GLIDE_SW 14u
+#define GUI_POINTER_GLIDE_W 15u
+#define GUI_POINTER_GLIDE_NW 16u
+#define GUI_POINTER_SHAPES 17u
 
 // A sprite's largest side in design units. The least and the most scale a sprite is baked at, in the window's percent.
 // The pixels of margin round a sprite for its smoothed edge and its shadow. The largest side of a baked sprite in
@@ -45,12 +54,12 @@ typedef struct GuiPointerShapeCfg GuiPointerShapeCfg;
 #define GUI_POINTER_PIXELS_MAX ((GUI_POINTER_SIDE_MAX * 3u) + (2u * GUI_POINTER_MARGIN))
 #define GUI_POINTER_UNDER_MAX (GUI_POINTER_PIXELS_MAX * GUI_POINTER_PIXELS_MAX)
 #define GUI_POINTER_POINTS 12u
-#define GUI_POINTER_FIGURES 6u
+#define GUI_POINTER_FIGURES 9u
 #define GUI_POINTER_RASTERS 2u
 _Static_assert((GUI_POINTER_SCALE_MOST / GUI_SCALE_ONE) == 3, "GUI_POINTER_PIXELS_MAX holds a sprite at the most scale");
 
 // A figure of a sprite: its points in design units, in order round its edge, and the radius in design units its
-// corners are rounded by. The rounding grows the figure by the radius
+// corners are rounded by. The rounding grows the figure by the radius. A figure of one point is a disc of that radius
 typedef struct
 {
     unsigned int points;
@@ -59,7 +68,8 @@ typedef struct
 } GuiPointerFigure;
 
 // A sprite: its size in design units and its hot point in them; the eighths of a turn its figures are turned by, round
-// the center of the sprite; the place in the figures' units that the center of the sprite shows; and its figures
+// the center of the sprite; the place in the figures' units that the center of the sprite shows; its figures; and the
+// figure that is lit, its body the rim's color, 0 for none
 typedef struct
 {
     double width;
@@ -71,6 +81,7 @@ typedef struct
     double center_y;
     unsigned int figures;
     GuiPointerFigure figure[GUI_POINTER_FIGURES];
+    unsigned int lit;
 } GuiPointerSprite;
 
 // The pixels saved under a sprite on one raster: the raster's pixels they came from, the rectangle, whether any are
