@@ -40,6 +40,29 @@ static int own_row(unsigned int at, CliItem *item, char *text)
 #define OWN_ROW_TEXT (2u * CLI_LABEL_MAX_LEN + CLI_PATH_MAX_LEN)
 
 // the file `relative` of the tree at `root` written with `text`, its folder put in place first
+// every pixel of `raster` cleared to 0
+static void raster_cleared(GuiRaster *raster)
+{
+    memor.set(&(MemoriaCfg){.dst = raster->pixels,
+                            .val = 0,
+                            .bytes = (unsigned long long)raster->width * raster->height * sizeof(*raster->pixels)});
+}
+
+// how many pixels of `rect` in `raster` are not 0
+static unsigned int lit_count(const GuiRaster *raster, GuiRect rect)
+{
+    unsigned int lit = 0u;
+    for (int y = rect.y; y < rect.y + rect.height; y += 1)
+    {
+        for (int x = rect.x; x < rect.x + rect.width; x += 1)
+        {
+            // the rect lies inside the raster
+            lit += (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != 0u) ? 1u : 0u;
+        }
+    }
+    return lit;
+}
+
 static void file_written(const char *root, const char *relative, const char *text)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -214,6 +237,46 @@ int main(void)
                           .x = frame.side.x + 20, .y = frame.side.y + frame.side.height - 10, .row_pointer = &hit_row),
               "no problem is, so no row is pressed");
 
+    // a field's rectangle in its row, inside the row's padding; a field drawn with the keys has its caret and a border of
+    // its own; a button drawn colors its rectangle; and a choice the pointer is on is drawn apart from one it is not
+    const GuiRect side = frame.side;
+    const GuiPaneCfg drawing = {.frame = &frame, .raster = &raster, .glyphs = &glyphs, .palette = palette,
+                                .rect = side, .clip = side};
+    const GuiRect field = EMBED_CALL(gui_pane_field.field_rect, GuiPaneFieldCfg, .pane = &drawing, .y = side.y + 40);
+    cli_check((field.x > side.x) && ((field.x + field.width) < (side.x + side.width)) && (field.y >= side.y + 40) &&
+                  (field.height > 0),
+              "a field's rectangle lies in its row inside the row's padding");
+    raster_cleared(&raster);
+    EMBED_CALL(gui_pane_field.field_draw, GuiPaneFieldCfg, .pane = &drawing, .rect = field,
+               .right = field.x + field.width, .text = "", .length = 0ULL, .placeholder = "Search", .keys = 0);
+    const unsigned int quiet = lit_count(&raster, field);
+    raster_cleared(&raster);
+    EMBED_CALL(gui_pane_field.field_draw, GuiPaneFieldCfg, .pane = &drawing, .rect = field,
+               .right = field.x + field.width, .text = "", .length = 0ULL, .placeholder = "Search", .keys = 1);
+    const GuiColor keyed_edge = raster.pixels[((unsigned int)field.y * raster.width) + (unsigned int)field.x + 8u];
+    cli_check((quiet != 0u) && (lit_count(&raster, field) != 0u), "a field is drawn with and without the keys");
+    raster_cleared(&raster);
+    EMBED_CALL(gui_pane_field.field_draw, GuiPaneFieldCfg, .pane = &drawing, .rect = field,
+               .right = field.x + field.width, .text = "", .length = 0ULL, .placeholder = "Search", .keys = 0);
+    cli_check(raster.pixels[((unsigned int)field.y * raster.width) + (unsigned int)field.x + 8u] != keyed_edge,
+              "a field with the keys has a border of its own");
+    raster_cleared(&raster);
+    const GuiRect button = {side.x + 20, side.y + 100, 80, 24};
+    EMBED_CALL(gui_pane_field.button_draw, GuiPaneFieldCfg, .pane = &drawing, .rect = button, .radius = 4,
+               .color = palette->line);
+    cli_check(lit_count(&raster, button) != 0u, "a button drawn colors its rectangle");
+    const GuiRect choice = {side.x, side.y + 140, side.width, 26};
+    raster_cleared(&raster);
+    EMBED_CALL(gui_pane_field.choice_draw, GuiPaneFieldCfg, .pane = &drawing, .rect = choice, .text = "one",
+               .length = 3ULL, .pointed = 0);
+    const GuiColor plain_edge = raster.pixels[((unsigned int)(choice.y + 1) * raster.width) + (unsigned int)side.x +
+                                              (unsigned int)(choice.width / 2)];
+    raster_cleared(&raster);
+    EMBED_CALL(gui_pane_field.choice_draw, GuiPaneFieldCfg, .pane = &drawing, .rect = choice, .text = "one",
+               .length = 3ULL, .pointed = 1);
+    cli_check(raster.pixels[((unsigned int)(choice.y + 1) * raster.width) + (unsigned int)side.x +
+                            (unsigned int)(choice.width / 2)] != plain_edge,
+              "a choice the pointer is on is drawn apart from one it is not");
     // a row's guides: none at depth 0, and each level further moves the x past them on by a guide's width
     const GuiRect guided = {0, 0, 400, 22};
     const int bare = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .frame = &frame, .raster = &raster, .palette = palette,
