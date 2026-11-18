@@ -38,6 +38,34 @@ static void check_owners_reported(void)
     check_line(&owners);
 }
 
+// the pool's high-water marks as the last check left them, and the rise, in bytes, that names a check as one that
+// raised them
+static unsigned long long s_persistent_hw;
+static unsigned long long s_temporary_hw;
+#define CHECK_RISE_BYTES (4ull * 1024ull * 1024ull)
+
+// the pool's high-water marks written after a check that raised either by CHECK_RISE_BYTES or more, which names the
+// check a run near the pool's ceiling is to look at
+static void check_rise_reported(void)
+{
+    unsigned long long pool = 0ull;
+    unsigned long long persistent = 0ull;
+    unsigned long long temporary = 0ull;
+    cli_pool_report(&pool, &persistent, &temporary);
+    if ((persistent < s_persistent_hw + CHECK_RISE_BYTES) && (temporary < s_temporary_hw + CHECK_RISE_BYTES))
+    {
+        return;
+    }
+    s_persistent_hw = persistent;
+    s_temporary_hw = temporary;
+    char text[128];
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_put(&line, "  cells rose to ");
+    cli_pool_usage_write(&line);
+    mmgr_line_put(&line, " by this check\n");
+    check_line(&line);
+}
+
 void cli_check(int passed, const char *what)
 {
     char text[4096];
@@ -46,6 +74,7 @@ void cli_check(int passed, const char *what)
     mmgr_line_put(&line, what);
     mmgr_line_ch(&line, '\n');
     check_line(&line);
+    check_rise_reported();
     // the table at the first failure, where a pool that has filled is still as it filled
     if (!passed && (s_failed == 0ull))
     {
