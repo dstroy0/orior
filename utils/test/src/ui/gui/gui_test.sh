@@ -16,7 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../.." && pwd)"
 CLI_CHECKS="$TOP/utils/test/src/ui/cli"
 WINDOW="$TOP/ui/gui/src"
-VIEW=("$TOP/includes/arith" "$TOP/includes/utf8" "$TOP/includes/coverage" "$TOP/includes/font" "$TOP/includes/raster" "$TOP/includes/frame_buffer" "$TOP/includes/glass" "$TOP/includes/window")
+VIEW=("$TOP/includes/arith" "$TOP/includes/utf8" "$TOP/includes/coverage" "$TOP/includes/font" "$TOP/includes/raster" "$TOP/includes/frame_buffer" "$TOP/includes/glass" "$TOP/includes/window" "$TOP/includes/compositor")
 CC="${CC:-clang}"
 
 # the system's body for this machine joins the modules, with the libraries it links: the body is checked too

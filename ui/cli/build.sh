@@ -131,7 +131,7 @@ while IFS= read -r source; do
         *) SOURCES+=("$source") ;;
     esac
 done < <(find "$TOP/ui/cli/src" "$TOP/ui/query/src" "$TOP/includes/arith" "$TOP/includes/utf8" "$TOP/includes/coverage" "$TOP/includes/font" "$TOP/includes/raster" "$TOP/includes/frame_buffer" \
-              "$TOP/includes/glass" "$TOP/includes/window" -name '*.c' -not -path '*/bundle/*' | sort)
+              "$TOP/includes/glass" "$TOP/includes/window" "$TOP/includes/compositor" -name '*.c' -not -path '*/bundle/*' | sort)
 # the one input's dispatch, which the window and the view's thread share
 SOURCES+=("$TOP/ui/gui/src/input_event.c")
 for folder in includes/file_defs/qry/writer includes/file_defs/qry/writer/platform; do
