@@ -23,6 +23,7 @@
 #include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/gui/src/explorer.h"
 #include "../../../../../ui/gui/src/window.h"
+#include "../../../../../ui/query/src/query_internal.h"
 #include "../cli/cli_check.h"
 #include "test_clock.h"
 
@@ -1815,6 +1816,73 @@ static unsigned int tool_at(const char *name)
     return g_gui_tools_count;
 }
 
+// The view thread's map of a surface: a pixel on a border, a corner, a control, a client rectangle, the caption or
+// none of them; and the window's place for a tree, stored in orior's home and read back fitted to a monitor. Orior's
+// home is a folder of the run while the place is stored, and as it was after
+static void view_thread_checked(void)
+{
+    GuiRect client = {100, 0, 200, 30};
+    const CliViewHits hits = {.width = 800u,
+                              .height = 600u,
+                              .border = 6,
+                              .minimize = {650, 0, 40, 30},
+                              .maximize = {700, 0, 40, 30},
+                              .close = {745, 0, 40, 30},
+                              .client = &client,
+                              .clients = 1u,
+                              .caption = {0, 0, 800, 30}};
+    const CliViewHits whole = {0};
+    cli_check(cli_view_hit_of(&(CliViewThreadCfg){.hits = &whole, .x = 2, .y = 2}) == GUI_HIT_CLIENT,
+              "a surface of no width is the client everywhere");
+    cli_check((cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 2, .y = 2}) == GUI_HIT_TOP_LEFT) &&
+                  (cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 797, .y = 597}) == GUI_HIT_BOTTOM_RIGHT) &&
+                  (cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 797, .y = 300}) == GUI_HIT_RIGHT) &&
+                  (cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 400, .y = 598}) == GUI_HIT_BOTTOM),
+              "a pixel within the border's width is the border or the corner it is on");
+    cli_check((cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 660, .y = 15}) == GUI_HIT_MINIMIZE) &&
+                  (cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 710, .y = 15}) == GUI_HIT_MAXIMIZE) &&
+                  (cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 760, .y = 15}) == GUI_HIT_CLOSE),
+              "a pixel on a control is that control");
+    cli_check((cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 150, .y = 15}) == GUI_HIT_CLIENT) &&
+                  (cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 400, .y = 15}) == GUI_HIT_CAPTION) &&
+                  (cli_view_hit_of(&(CliViewThreadCfg){.hits = &hits, .x = 400, .y = 300}) == GUI_HIT_CLIENT),
+              "the caption gives way to a client rectangle over it, and a pixel on neither is the client");
+
+    char home_before[CLI_PATH_MAX_LEN] = {0};
+    (void)EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_HOME",
+                     .value_out = home_before, .capacity = sizeof(home_before));
+    char home[CLI_PATH_MAX_LEN];
+    cli_check_folder("window_home", home);
+    (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
+    const CliWindowArea monitor = {0, 0, 1920u, 1080u};
+    CliWindowPosition place = {0};
+    cli_check(!cli_view_place_saved(
+                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}),
+              "a tree with no place saved has none");
+    CliWindowPosition stored = {120, 80, 1200u, 800u, 0};
+    cli_view_place_store(&(CliViewThreadCfg){.root = s_root, .place = &stored});
+    CliWindowPosition other = {0, 0, 1000u, 700u, 1};
+    cli_view_place_store(&(CliViewThreadCfg){.root = "elsewhere", .place = &other});
+    cli_check(cli_view_place_saved(
+                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}) &&
+                  (place.x == 120) && (place.y == 80) && (place.width == 1200u) && (place.height == 800u) &&
+                  !place.maximized,
+              "a place stored for a tree is read back for it beside another tree's");
+    CliWindowPosition off = {5000, 5000, 1000u, 700u, 0};
+    cli_view_place_store(&(CliViewThreadCfg){.root = s_root, .place = &off});
+    cli_check(cli_view_place_saved(
+                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}) &&
+                  (place.x >= 0) && ((place.x + (int)place.width) <= 1920) && (place.y >= 0) &&
+                  ((place.y + (int)place.height) <= 1080),
+              "a place on no monitor there is goes onto the first");
+    CliWindowPosition small = {0, 0, 100u, 100u, 0};
+    cli_view_place_store(&(CliViewThreadCfg){.root = s_root, .place = &small});
+    cli_check(!cli_view_place_saved(
+                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}),
+              "a place below the least size is not put back");
+    (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home_before);
+}
+
 // Go to Definition opens the declaration's file at its line; Find Usages lists the references by file in the
 // References pane; Rename Symbol opens its box over the name, and Enter renames the name in every file
 static void symbols_checked(void)
@@ -1885,7 +1953,7 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[28] = {{"saves", saves_checked},
+static const WindowCheck s_checks[29] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
@@ -1912,6 +1980,7 @@ static const WindowCheck s_checks[28] = {{"saves", saves_checked},
                                          {"edit", edit_checked},
                                          {"clipboard", clipboard_checked},
                                          {"symbols", symbols_checked},
+                                         {"view_thread", view_thread_checked},
                                          {"file", file_checked}};
 
 int main(void)
