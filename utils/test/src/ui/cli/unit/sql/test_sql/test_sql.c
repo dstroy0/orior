@@ -291,3 +291,14 @@ void test_a_read_changes_no_schema(void)
 {
     TEST_ASSERT_FALSE(EMBED_CALL(cli_sql_length.shape, CliSqlLengthCfg, .statement = "select 1", .length = 8ull, .dialect = CLI_SQL_POSTGRES, .shaped = &s_shaped));
 }
+
+void test_a_statements_tokens_are_read_into_a_cell_of_their_count_and_the_cell_given_back(void)
+{
+    CliSqlTokens tokens = {NULL, 0u};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_sql_text_length_dialect.tokens, CliSqlTextLengthDialectCfg, .text = "select 1 from t", .length = 15ull, .dialect = CLI_SQL_POSTGRES, .tokens = &tokens));
+    TEST_ASSERT_NOT_NULL(tokens.at);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, tokens.count);
+    TEST_ASSERT_EQUAL_UINT64(0ull, tokens.at[0].start);
+    EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &tokens);
+    TEST_ASSERT_NULL(tokens.at);
+}

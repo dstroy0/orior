@@ -4,6 +4,7 @@
 // reads its schema, a slow SQLite statement is stopped, a password is wiped from every cell it passes through, and every connection closed is released to
 // the cellblock. The cases on a SQLite database are ignored on a machine with no Python
 #include "ui/cli/src/databases/db_internal.h"
+#include "ui/cli/src/databases/db_pane.h"
 #include "ui/cli/src/tests/test_runs.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -503,4 +504,19 @@ void test_every_connection_closed_is_released(void)
     }
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_db_owner));
     TEST_ASSERT_TRUE((mmgr_owner_hw(g_cli_db_owner) != 0ull) || !EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python));
+}
+
+void test_a_failure_of_a_message_alone_is_written_with_its_empty_code_detail_and_hint_and_the_pane_head_has_two_rows(void)
+{
+    char text[512];
+    VerbaLinea out = {text, sizeof(text), 0ull};
+    EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = &s_failure, .message = "the table is not there");
+    TEST_ASSERT_EQUAL_STRING("the table is not there", s_failure.message);
+    TEST_ASSERT_EQUAL_STRING("", s_failure.code);
+    TEST_ASSERT_EQUAL_STRING("", s_failure.detail);
+    TEST_ASSERT_EQUAL_STRING("", s_failure.hint);
+    EMBED_CALL(cli_db_wire_out.db_failure_write, CliDbWireOutCfg, .failure_read = &s_failure, .out = &out);
+    (void)mmgr_line_finish(&out);
+    CLI_TEST_ASSERT_CONTAINS("the table is not there", text);
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_db_pane_head.head_rows, CliDbPaneHeadCfg, .which = 0u));
 }

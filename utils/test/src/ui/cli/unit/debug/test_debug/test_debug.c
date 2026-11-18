@@ -5,6 +5,7 @@
 // their conditions, counts and messages, memory comes as base64, stepping sets debugpy's rules and lldb's patterns, and
 // C, Rust and Python each have a debugger
 #include "ui/cli/src/debug/debug_internal.h"
+#include "ui/cli/src/debug/profile.h"
 #include "ui/cli/src/debug/debug_start.h"
 #include "ui/cli/src/runs/runner.h"
 #include "ui/cli/src/toolchains/toolchains.h"
@@ -495,4 +496,13 @@ void test_c_and_rust_have_a_build_and_python_does_not(void)
     TEST_ASSERT_TRUE(c_build);
     TEST_ASSERT_TRUE(rust_build);
     TEST_ASSERT_FALSE(python_build);
+}
+
+void test_with_no_session_nothing_runs_and_a_stop_of_every_session_and_of_the_profile_changes_nothing(void)
+{
+    cli_debug_stop_all();
+    TEST_ASSERT_FALSE(cli_debug_running());
+    cli_debug_stop_all();
+    cli_profile_stop();
+    TEST_ASSERT_FALSE(cli_debug_running());
 }

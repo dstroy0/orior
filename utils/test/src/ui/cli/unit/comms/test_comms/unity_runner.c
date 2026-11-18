@@ -3,6 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/comms/comms.h"
+#include "ui/cli/src/comms/transfer.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/comms/comms_internal.h"
 
@@ -20,6 +21,7 @@ extern void test_a_part_may_not_grant_a_channel_it_does_not_have(void);
 extern void test_a_part_may_not_grant_every_channel(void);
 extern void test_a_part_that_leaves_receives_nothing_more(void);
 extern void test_a_key_of_a_part_that_left_opens_nothing(void);
+extern void test_a_part_registered_for_no_process_is_not_persistent_and_an_empty_pending_set_holds_no_descriptor(void);
 
 
 /*=======Mock Management=====*/
@@ -81,17 +83,18 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\comms\\test_comms\\test_comms.c");
-  run_test(test_a_grant_names_its_channel_and_every_channel_under_it, "test_a_grant_names_its_channel_and_every_channel_under_it", 190);
-  run_test(test_a_grant_names_no_other_channel, "test_a_grant_names_no_other_channel", 198);
-  run_test(test_a_grant_is_within_one_that_names_every_channel_it_names, "test_a_grant_is_within_one_that_names_every_channel_it_names", 205);
-  run_test(test_a_grant_is_not_within_a_narrower_one, "test_a_grant_is_not_within_a_narrower_one", 212);
-  run_test(test_a_key_is_64_hex_digits_and_no_two_are_alike, "test_a_key_is_64_hex_digits_and_no_two_are_alike", 218);
-  run_test(test_a_key_names_its_part, "test_a_key_names_its_part", 225);
-  run_test(test_a_part_starts_another_with_channels_of_its_own, "test_a_part_starts_another_with_channels_of_its_own", 233);
-  run_test(test_a_part_may_not_grant_a_channel_it_does_not_have, "test_a_part_may_not_grant_a_channel_it_does_not_have", 240);
-  run_test(test_a_part_may_not_grant_every_channel, "test_a_part_may_not_grant_every_channel", 247);
-  run_test(test_a_part_that_leaves_receives_nothing_more, "test_a_part_that_leaves_receives_nothing_more", 253);
-  run_test(test_a_key_of_a_part_that_left_opens_nothing, "test_a_key_of_a_part_that_left_opens_nothing", 260);
+  run_test(test_a_grant_names_its_channel_and_every_channel_under_it, "test_a_grant_names_its_channel_and_every_channel_under_it", 191);
+  run_test(test_a_grant_names_no_other_channel, "test_a_grant_names_no_other_channel", 199);
+  run_test(test_a_grant_is_within_one_that_names_every_channel_it_names, "test_a_grant_is_within_one_that_names_every_channel_it_names", 206);
+  run_test(test_a_grant_is_not_within_a_narrower_one, "test_a_grant_is_not_within_a_narrower_one", 213);
+  run_test(test_a_key_is_64_hex_digits_and_no_two_are_alike, "test_a_key_is_64_hex_digits_and_no_two_are_alike", 219);
+  run_test(test_a_key_names_its_part, "test_a_key_names_its_part", 226);
+  run_test(test_a_part_starts_another_with_channels_of_its_own, "test_a_part_starts_another_with_channels_of_its_own", 234);
+  run_test(test_a_part_may_not_grant_a_channel_it_does_not_have, "test_a_part_may_not_grant_a_channel_it_does_not_have", 241);
+  run_test(test_a_part_may_not_grant_every_channel, "test_a_part_may_not_grant_every_channel", 248);
+  run_test(test_a_part_that_leaves_receives_nothing_more, "test_a_part_that_leaves_receives_nothing_more", 254);
+  run_test(test_a_key_of_a_part_that_left_opens_nothing, "test_a_key_of_a_part_that_left_opens_nothing", 261);
+  run_test(test_a_part_registered_for_no_process_is_not_persistent_and_an_empty_pending_set_holds_no_descriptor, "test_a_part_registered_for_no_process_is_not_persistent_and_an_empty_pending_set_holds_no_descriptor", 267);
 
   return UNITY_END();
 }

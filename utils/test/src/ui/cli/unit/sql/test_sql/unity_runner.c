@@ -43,6 +43,7 @@ extern void test_a_created_view_is_named(void);
 extern void test_a_dropped_table_is_named(void);
 extern void test_a_truncated_table_is_named(void);
 extern void test_a_read_changes_no_schema(void);
+extern void test_a_statements_tokens_are_read_into_a_cell_of_their_count_and_the_cell_given_back(void);
 
 
 /*=======Mock Management=====*/
@@ -140,6 +141,7 @@ int main(void)
   run_test(test_a_dropped_table_is_named, "test_a_dropped_table_is_named", 277);
   run_test(test_a_truncated_table_is_named, "test_a_truncated_table_is_named", 284);
   run_test(test_a_read_changes_no_schema, "test_a_read_changes_no_schema", 290);
+  run_test(test_a_statements_tokens_are_read_into_a_cell_of_their_count_and_the_cell_given_back, "test_a_statements_tokens_are_read_into_a_cell_of_their_count_and_the_cell_given_back", 295);
 
   return UNITY_END();
 }

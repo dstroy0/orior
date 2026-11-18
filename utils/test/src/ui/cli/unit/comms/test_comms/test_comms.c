@@ -5,6 +5,7 @@
 // each channel's traffic, a listener by call receives in the speaker's thread in the order sent, and a part that leaves receives nothing more. The
 // cases share the one container a process maintains, each group with parts and channels of its own, run once for the process
 #include "ui/cli/src/comms/comms.h"
+#include "ui/cli/src/comms/transfer.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/comms/comms_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -261,4 +262,18 @@ void test_a_key_of_a_part_that_left_opens_nothing(void)
 {
     leave_run_result();
     TEST_ASSERT_FALSE(s_left_listens);
+}
+
+void test_a_part_registered_for_no_process_is_not_persistent_and_an_empty_pending_set_holds_no_descriptor(void)
+{
+    keys_run_result();
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_comms_process.is_persistent, CliCommsProcessCfg, .key = s_key_one, .process = 0u));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_comms_process.is_persistent, CliCommsProcessCfg, .key = "no such key", .process = 0u));
+#if !defined(_WIN32)
+    // descriptors go with bytes on a socket off Windows alone
+    CliDescriptors pending = {{0}, 0u, 0u};
+    TEST_ASSERT_EQUAL_INT(-1, cli_descriptor_alloc(&(CliTransferSocketCfg){.pending = &pending}));
+    cli_descriptors_close(&(CliTransferSocketCfg){.pending = &pending});
+    TEST_ASSERT_EQUAL_UINT(0u, pending.count);
+#endif
 }
