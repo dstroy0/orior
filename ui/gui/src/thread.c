@@ -543,8 +543,13 @@ static void view_events_take(void)
 {
     char bytes[CLI_VIEW_EVENT_TEXT];
     embed_word at = 0u;
-    while (anularis.seg_front(&(AnularisCfg){.ring = &s_view.event_ring, .out_index = &at}))
+    // A pass takes only the events in the ring as it starts. The events that come during the pass wait for the next
+    // pass, so a frame is drawn between the two passes. A mouse that sends moves faster than the view takes them
+    // cannot stop the frames
+    embed_word left = (embed_word)anularis.seg_inflight(&(AnularisCfg){.ring = &s_view.event_ring});
+    while ((left != 0u) && anularis.seg_front(&(AnularisCfg){.ring = &s_view.event_ring, .out_index = &at}))
     {
+        left -= 1u;
         CliViewEvent event = *(const CliViewEvent *)(const void *)anularis.seg_at(
             &(AnularisCfg){.ring = &s_view.event_ring, .index = at});
         anularis.seg_release(&(AnularisCfg){.ring = &s_view.event_ring});
@@ -554,6 +559,19 @@ static void view_events_take(void)
         bytes[(length < (CLI_VIEW_EVENT_TEXT - 1u)) ? length : (CLI_VIEW_EVENT_TEXT - 1u)] = '\0';
         event.input.name = bytes;
         event.input.text = bytes;
+        // A move with a move on the same surface after it in the pass goes to the later move. The view takes the last
+        // place of a run of moves only. A press or a release ends the run
+        const int moved = (event.type == CLI_VIEW_EVENT_INPUT) && (event.input.type == GUI_INPUT_MOVED);
+        if (moved && (left != 0u) && anularis.seg_front(&(AnularisCfg){.ring = &s_view.event_ring, .out_index = &at}))
+        {
+            const CliViewEvent *const next = (const CliViewEvent *)(const void *)anularis.seg_at(
+                &(AnularisCfg){.ring = &s_view.event_ring, .index = at});
+            if ((next->type == CLI_VIEW_EVENT_INPUT) && (next->input.type == GUI_INPUT_MOVED) &&
+                (next->surface == event.surface))
+            {
+                continue;
+            }
+        }
         EMBED_CALL(view_event, ViewThreadCtx, .event = &event);
     }
 }
