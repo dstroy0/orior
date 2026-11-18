@@ -11,6 +11,7 @@
 #include "../../../../../includes/window/controls.h"
 #include "../../../../../includes/window/top_menu.h"
 #include "../../../../../ui/cli/src/code/references.h"
+#include "../../../../../ui/cli/src/code/symbols_tree.h"
 #include "../../../../../ui/cli/src/command_line/command_line.h"
 #include "../../../../../ui/cli/src/editor/document.h"
 #include "../../../../../ui/cli/src/editor/view.h"
@@ -384,6 +385,38 @@ static unsigned long long cells_settled(unsigned long long *owners)
     }
 }
 
+// the bytes of each branch of the tree's symbols into `bytes`, 0 for a place no branch uses
+static void branches_read(unsigned int *bytes)
+{
+    for (unsigned int file = 0u; file < CLI_BRANCHES_MAX; file += 1u)
+    {
+        CliTreeBranch branch;
+        cli_branch_read(&(CliSymbolsTreeAtCfg){.file = file, .branch_out = &branch});
+        bytes[file] = branch.used ? branch.bytes : 0u;
+    }
+}
+
+// each branch that is new after the second round or holds other bytes than then, its path and its bytes after each,
+// written beside the check that reads it
+static void branches_grown(const unsigned int *second, const unsigned int *sixth)
+{
+    for (unsigned int file = 0u; file < CLI_BRANCHES_MAX; file += 1u)
+    {
+        if (second[file] == sixth[file])
+        {
+            continue;
+        }
+        CliTreeBranch branch;
+        cli_branch_read(&(CliSymbolsTreeAtCfg){.file = file, .branch_out = &branch});
+        char path[CLI_PATH_MAX_LEN] = "";
+        if (branch.used)
+        {
+            cli_branch_path_read(&(CliSymbolsTreeBranchPathCfg){.branch = &branch, .path_out = path});
+        }
+        (void)fprintf(stderr, "    branch %u %s: %u then %u\n", file, path, second[file], sixth[file]);
+    }
+}
+
 // a document of many lines opened, changed and closed over six rounds: the cells in use after the last round are no
 // more than after the second, which holds that a closed document gives its cells back. The first round fills the
 // tables sized to live data, the tree's records of the file among them, which the second round reads as they stand
@@ -400,6 +433,8 @@ static void cells_rounds_checked(void)
     (void)mmgr_line_finish(&lines);
     tabs_closed("rounds.txt", s_lines, NULL, NULL);
     static unsigned long long s_round_owners[6][MMGR_CARCER_OWNERS];
+    static unsigned int s_second_branches[CLI_BRANCHES_MAX];
+    static unsigned int s_sixth_branches[CLI_BRANCHES_MAX];
     unsigned long long after_first = 0ULL;
     unsigned long long after_last = 0ULL;
     int every_round_opened = 1;
@@ -415,8 +450,10 @@ static void cells_rounds_checked(void)
         if (round == 1u)
         {
             after_first = after_last;
+            branches_read(s_second_branches);
         }
     }
+    branches_read(s_sixth_branches);
     cli_check(every_round_opened && (cli_view_count() == 0u), "the rounds' document opens and closes each round");
     if (after_last > after_first)
     {
@@ -436,6 +473,7 @@ static void cells_rounds_checked(void)
                 (void)fprintf(stderr, "\n");
             }
         }
+        branches_grown(s_second_branches, s_sixth_branches);
     }
     cli_check(after_last <= after_first, "a closed document gives its cells back over six rounds");
 }
