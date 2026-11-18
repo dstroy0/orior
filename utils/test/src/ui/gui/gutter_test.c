@@ -9,6 +9,7 @@
 #include "../../../../../ui/cli/src/editor/document_changes.h"
 #include "../../../../../ui/gui/src/editor.h"
 #include "../../../../../ui/gui/src/gutter.h"
+#include "../../../../../ui/gui/src/problems.h"
 #include "../cli/cli_check.h"
 
 static const char s_key[] = "gutter_check";
@@ -116,6 +117,18 @@ int main(void)
     cli_check((drawn_caret.width > 0) && (again.x == drawn_caret.x) && (again.y == drawn_caret.y) &&
                   (again.width == drawn_caret.width) && (again.height == drawn_caret.height),
               "a caret drawn is drawn again at its own rectangle");
+    // a file no problem is located in has no span underlined
+    memor.set(&(MemoriaCfg){.dst = raster.pixels,
+                            .val = 0,
+                            .bytes = (unsigned long long)raster.width * raster.height * sizeof(*raster.pixels)});
+    EMBED_CALL(gui_problems_path_raster.underlined, GuiProblemsPathRasterCfg, .raster = &raster, .palette = palette,
+               .editor = &editor, .place = place, .cell = cell, .scale = 100);
+    int underlined = 0;
+    for (unsigned long long at = 0ULL; at < (unsigned long long)raster.width * raster.height; at += 1ULL)
+    {
+        underlined |= raster.pixels[at] != 0u;
+    }
+    cli_check(!underlined, "a file no problem is located in has no span underlined");
     // the token colors retained for the names and palette, a name past them the text's color
     EMBED_CALL(gui_editor_palette.colors_retain, GuiEditorPaletteCfg, .editor = &editor, .palette = palette);
     EMBED_CALL(gui_editor_palette.colors_retain, GuiEditorPaletteCfg, .editor = &editor, .palette = palette);
