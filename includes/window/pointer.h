@@ -69,7 +69,7 @@ typedef struct
 
 // A sprite: its size in design units and its hot point in them; the eighths of a turn its figures are turned by, round
 // the center of the sprite; the place in the figures' units that the center of the sprite shows; its figures; and the
-// figure that is lit, its body the rim's color, 0 for none
+// figure that is lit, its body the rim's color, 0 for none; and the figures not drawn, a bit for each
 typedef struct
 {
     double width;
@@ -82,6 +82,7 @@ typedef struct
     unsigned int figures;
     GuiPointerFigure figure[GUI_POINTER_FIGURES];
     unsigned int lit;
+    unsigned int hidden;
 } GuiPointerSprite;
 
 // The pixels saved under a sprite on one raster: the raster's pixels they came from, the rectangle, whether any are

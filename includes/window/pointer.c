@@ -27,8 +27,9 @@
      POINTER_FIGURE(0.5, 3u, {4.363, 19.637}, {5.778, 14.828}, {9.172, 18.222}),                                       \
      POINTER_FIGURE(0.5, 3u, {1.2, 12.0}, {5.6, 9.6}, {5.6, 14.4}),                                                    \
      POINTER_FIGURE(0.5, 3u, {4.363, 4.363}, {9.172, 5.778}, {5.778, 9.172})}
-// the compass with the figure `lit_` lit, 0 for none
-#define POINTER_COMPASS(lit_) {24.0, 24.0, 12.0, 12.0, 0u, 12.0, 12.0, 9u, POINTER_COMPASS_FIGURES, (lit_)}
+// the compass with the figure `lit_` lit, 0 for none: the orb and the lit arrow drawn, every other arrow not
+#define POINTER_COMPASS(lit_)                                                                                          \
+    {24.0, 24.0, 12.0, 12.0, 0u, 12.0, 12.0, 9u, POINTER_COMPASS_FIGURES, (lit_), 0x1feu & ~(1u << (lit_))}
 
 // each shape's sprite, in the order of the shapes' numbers: its size and hot point, the eighths of a turn its figures
 // are turned by, the place in the figures that its center shows, and its figures
@@ -307,6 +308,10 @@ EMBED_INLINE double pointer_sprite_distance(const PointerCtx *args)
     double least = 1.0e9;
     for (unsigned int at = 0u; at < sprite->figures; at += 1u)
     {
+        if ((sprite->hidden >> at) & 1u)
+        {
+            continue;
+        }
         const double distance = EMBED_CALL(pointer_figure_distance, PointerCtx, .figure = &sprite->figure[at],
                                            .x = figure_x, .y = figure_y);
         if (distance < least)

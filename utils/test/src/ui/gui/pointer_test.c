@@ -176,7 +176,7 @@ int main(void)
         }
     }
     cli_check(1, "every shape draws at twice the scale and its pixels are put back");
-    // the compass at rest and with its north lit: the north arrow's middle differs, the orb's middle does not
+    // the compass at rest and with its north lit: the north arrow shows only when lit, the orb both times
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 40, .y = 40,
                      .shape = GUI_POINTER_MOVE, .shown = 1);
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
@@ -191,8 +191,9 @@ int main(void)
     const GuiColor lit_arrow = pixel(&first, 40, 32);
     const GuiColor lit_orb = pixel(&first, 40, 40);
     (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check((rest_arrow != POINTER_GROUND) && (lit_arrow != rest_arrow) && (lit_orb == rest_orb),
-              "the compass's lit arrow is drawn brighter than at rest, and its orb is the same");
+    cli_check((rest_arrow == POINTER_GROUND) && (lit_arrow != POINTER_GROUND) && (rest_orb != POINTER_GROUND) &&
+                  (lit_orb == rest_orb),
+              "the compass at rest draws its orb alone, and gliding north draws the orb and the north arrow alone");
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 30, .y = 30,
                      .shape = GUI_POINTER_SHAPES + 4u, .shown = 0);
     cli_check((s_pointer.shape == GUI_POINTER_ARROW) && !s_pointer.shown,
