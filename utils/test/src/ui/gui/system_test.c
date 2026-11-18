@@ -284,6 +284,20 @@ int main(void)
         CliWindowPosition positioned;
         EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = owner, .position_out = &positioned);
         cli_check((positioned.x == 60) && (positioned.y == 60) && (positioned.width == 200u) && (positioned.height == 120u), "it is where it was opened");
+        EMBED_CALL(gui_system_raster.present_part, GuiSystemRasterCfg, .system = owner, .raster = &small_raster,
+                   .part = (GuiRect){0, 0, 2, 1});
+        EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+        cli_check(IsWindow(owner_window), "a part of its raster displayed again leaves it open");
+        EMBED_CALL(gui_system_table.act, GuiSystemCfg, .system = owner, .act = GUI_ACT_MAXIMIZE);
+        cli_check(IsZoomed(owner_window), "the maximize act maximizes it");
+        EMBED_CALL(gui_system_table.act, GuiSystemCfg, .system = owner, .act = GUI_ACT_MAXIMIZE);
+        cli_check(!IsZoomed(owner_window), "the maximize act on a maximized window restores it");
+        EMBED_CALL(gui_system_table.act, GuiSystemCfg, .system = owner, .act = GUI_ACT_MINIMIZE);
+        cli_check(IsIconic(owner_window), "the minimize act minimizes it");
+        const unsigned int owner_closings = owner_transferred.closings;
+        EMBED_CALL(gui_system_table.act, GuiSystemCfg, .system = owner, .act = 2u);
+        EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+        cli_check(owner_transferred.closings == owner_closings + 1u, "any other act asks it to close");
         EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = owner);
         EMBED_CALL(gui_system_table.free, GuiSystemCfg, .system = owner);
         EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);

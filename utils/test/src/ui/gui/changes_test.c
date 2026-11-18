@@ -223,6 +223,21 @@ int main(void)
               "a row pressed opens its file where the path's own place puts it");
     cli_check(!EMBED_CALL(gui_pane.wheel, GuiPaneCfg, .table = table, .pane = &pane, .frame = &frame, .rows = 2),
               "two rows do not scroll");
+    // a state's color: changed, added or untracked, and gone each the mark's, any other the quieter text's
+    const GuiPaneCfg drawing = {.palette = palette, .raster = &raster, .glyphs = &glyphs, .frame = &frame};
+    cli_check(EMBED_CALL(gui_changes_file.state_color, GuiChangesFileCfg, .pane = &drawing, .state = 'M') == palette->mark[2],
+              "a changed file takes the third mark's color");
+    cli_check((EMBED_CALL(gui_changes_file.state_color, GuiChangesFileCfg, .pane = &drawing, .state = 'A') == palette->mark[1]) &&
+                  (EMBED_CALL(gui_changes_file.state_color, GuiChangesFileCfg, .pane = &drawing, .state = 'U') == palette->mark[1]),
+              "an added or untracked file takes the second mark's color");
+    cli_check(EMBED_CALL(gui_changes_file.state_color, GuiChangesFileCfg, .pane = &drawing, .state = 'D') == palette->mark[0],
+              "a file gone takes the first mark's color");
+    cli_check(EMBED_CALL(gui_changes_file.state_color, GuiChangesFileCfg, .pane = &drawing, .state = 'R') == palette->text_2,
+              "any other state takes the quieter text's color");
+    const float after = EMBED_CALL(gui_changes_file.file_draw, GuiChangesFileCfg, .pane = &drawing, .x = first.x,
+                                   .path = "src/a.c", .name = "a.c", .name_length = 3ull, .folder_length = 3ull,
+                                   .state = 'M', .color = palette->text, .clip = first);
+    cli_check(after > (float)first.x, "a changed file drawn in a row runs past where it starts");
     CliItem own_first;
     CliItem own_second;
     CliItem own_third;

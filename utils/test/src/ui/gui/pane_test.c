@@ -214,6 +214,46 @@ int main(void)
                           .x = frame.side.x + 20, .y = frame.side.y + frame.side.height - 10, .row_pointer = &hit_row),
               "no problem is, so no row is pressed");
 
+    // a row's guides: none at depth 0, and each level further moves the x past them on by a guide's width
+    const GuiRect guided = {0, 0, 400, 22};
+    const int bare = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .frame = &frame, .raster = &raster, .palette = palette,
+                                .rect = guided, .clip = guided, .depth = 0u);
+    const int one_deep = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .frame = &frame, .raster = &raster,
+                                    .palette = palette, .rect = guided, .clip = guided, .depth = 1u);
+    const int two_deep = EMBED_CALL(gui_pane.guides, GuiPaneCfg, .frame = &frame, .raster = &raster,
+                                    .palette = palette, .rect = guided, .clip = guided, .depth = 2u);
+    cli_check((one_deep > bare) && ((two_deep - one_deep) == (one_deep - bare)),
+              "each level of a row's guides moves the x past them on by one guide");
+    // an arrow drawn whole inside its clip, and none where the clip cuts it
+    memor.set(&(MemoriaCfg){.dst = raster.pixels,
+                            .val = 0,
+                            .bytes = (unsigned long long)raster.width * raster.height * sizeof(*raster.pixels)});
+    EMBED_CALL(gui_pane.arrow_draw, GuiPaneCfg, .raster = &raster, .x = 100, .y = 100, .side = 10, .open = 1,
+               .color = palette->text, .clip = (GuiRect){0, 0, 1440, 920});
+    int lit = 0;
+    for (unsigned int y = 100u; y < 110u; y += 1u)
+    {
+        for (unsigned int x = 100u; x < 110u; x += 1u)
+        {
+            lit |= raster.pixels[(y * raster.width) + x] != 0u;
+        }
+    }
+    cli_check(lit, "an arrow inside its clip is drawn");
+    memor.set(&(MemoriaCfg){.dst = raster.pixels,
+                            .val = 0,
+                            .bytes = (unsigned long long)raster.width * raster.height * sizeof(*raster.pixels)});
+    EMBED_CALL(gui_pane.arrow_draw, GuiPaneCfg, .raster = &raster, .x = 100, .y = 100, .side = 10, .open = 0,
+               .color = palette->text, .clip = (GuiRect){0, 0, 105, 920});
+    lit = 0;
+    for (unsigned int y = 100u; y < 110u; y += 1u)
+    {
+        for (unsigned int x = 100u; x < 110u; x += 1u)
+        {
+            lit |= raster.pixels[(y * raster.width) + x] != 0u;
+        }
+    }
+    cli_check(!lit, "an arrow its clip cuts is not drawn at all");
+
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;

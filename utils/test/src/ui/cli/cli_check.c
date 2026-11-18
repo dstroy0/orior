@@ -32,6 +32,14 @@ static void check_owners_reported(void)
     mmgr_line_put(&owners, "cells pool ");
     cli_pool_usage_write(&owners);
     mmgr_line_ch(&owners, '\n');
+    // where the persistent tier ends and where the temporary tier's top is now: the gap between them is what a take
+    // from either tier can still be given
+    const SeriesCellularum *const record = cli_pool_series_cellularum();
+    mmgr_line_put(&owners, "cells ends ");
+    mmgr_line_decimal(&owners, (unsigned long long)mmgr_series_cellularum_persistent_end(record), 1u);
+    mmgr_line_ch(&owners, ' ');
+    mmgr_line_decimal(&owners, (unsigned long long)mmgr_series_cellularum_temporary_top(record), 1u);
+    mmgr_line_ch(&owners, '\n');
     mmgr_line_put(&owners, "cells owners ");
     cli_pool_owners_write(&owners);
     mmgr_line_ch(&owners, '\n');

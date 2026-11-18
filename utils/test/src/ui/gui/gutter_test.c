@@ -117,6 +117,19 @@ int main(void)
     cli_check(pixel_at(&raster, column, (1 * GUI_CODE_LINE) + (GUI_CODE_LINE / 2)) == plain,
               "a text the same as its last commit's carries no mark");
 
+    // a mark drawn on its own row: the mark none draws nothing, and a changed line's mark colors the marks' column
+    const GuiRect row = {0, 0, 800, GUI_CODE_LINE};
+    memor.set(&(MemoriaCfg){.dst = raster.pixels,
+                            .val = 0,
+                            .bytes = (unsigned long long)raster.width * raster.height * sizeof(*raster.pixels)});
+    EMBED_CALL(gui_gutter.mark_draw, GuiGutterCfg, .raster = &raster, .palette = palette, .mark = CLI_CHANGE_MARK_NONE,
+               .rect = row, .text_x = text_x, .scale = 100, .clip = place);
+    cli_check(pixel_at(&raster, column, GUI_CODE_LINE / 2) == 0u, "the mark none draws nothing");
+    EMBED_CALL(gui_gutter.mark_draw, GuiGutterCfg, .raster = &raster, .palette = palette,
+               .mark = CLI_CHANGE_MARK_CHANGED, .rect = row, .text_x = text_x, .scale = 100, .clip = place);
+    cli_check(pixel_at(&raster, column, GUI_CODE_LINE / 2) != 0u, "a changed line's mark colors the marks' column");
+    cli_check(pixel_at(&raster, text_x + 4, GUI_CODE_LINE / 2) == 0u, "and leaves the text's own column");
+
     cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)editor.frame});
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
