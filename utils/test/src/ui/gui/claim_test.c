@@ -252,5 +252,15 @@ int main(void)
     EMBED_CALL(gui_autohide_pointer.show_now, GuiAutohidePointerCfg, .claim = &claim, .x = 500, .y = 10, .zone = GUI_AUTOHIDE_TOP, .over_parts = 0, .now_ms = cli_clock_milliseconds());
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = &claim, .time_ms = 30000ull, .numbers = &numbers);
     cli_check((claim.displayed == GUI_AUTOHIDE_TOP) && adjacent(numbers.reveal_top, GUI_FIXED_ONE), "a press in the bar's band shows the bar at once, its reveal whole with no slide");
+    // a curve's table runs from 0 to one, a straight curve read half way is half, and a claim at rest ends no slide
+    int table[GUI_EASE_STEPS + 1u];
+    EMBED_CALL(gui_autohide_table.ease_table_init, GuiAutohideTableCfg, .table = table, .x1 = 0.0, .y1 = 0.0, .x2 = 1.0, .y2 = 1.0);
+    cli_check((table[0] == 0) && (table[GUI_EASE_STEPS] == GUI_FIXED_ONE), "a curve's table runs from 0 to one");
+    cli_check(EMBED_CALL(gui_autohide_share.ease_table_read, GuiAutohideShareCfg, .table_read = table, .share = 0) == 0, "a table read at the start is 0");
+    cli_check(EMBED_CALL(gui_autohide_share.ease_table_read, GuiAutohideShareCfg, .table_read = table, .share = GUI_FIXED_ONE) == GUI_FIXED_ONE, "a table read at the end is one");
+    cli_check(adjacent(EMBED_CALL(gui_autohide_share.ease_table_read, GuiAutohideShareCfg, .table_read = table, .share = GUI_FIXED_ONE / 2), GUI_FIXED_ONE / 2), "a straight curve read half way is half");
+    GuiAutohide rested;
+    EMBED_CALL(gui_autohide_still_table.init, GuiAutohideStillCfg, .claim = &rested, .now_ms = 40000ull);
+    cli_check(EMBED_CALL(gui_autohide.animation_end_ms, GuiAutohideCfg, .autohide_read = &rested, .time_ms = 40100ull) == 40100ull, "a claim at rest ends no slide: the time asked is given back");
     return cli_on_check();
 }
