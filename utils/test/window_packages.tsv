@@ -14,3 +14,4 @@ gdb	gdb	gdb	gdb	gdb	gdb
 lldb-dap	lldb	lldb	lldb	lldb	lldb
 X11/Xlib.h	libx11-dev	libX11-devel	libx11	libx11-dev	libX11-devel
 X11/extensions/shape.h	libxext-dev	libXext-devel	libxext	libxext-dev	libXext-devel
+X11/extensions/XInput2.h	libxi-dev	libXi-devel	libxi	libxi-dev	libXi-devel

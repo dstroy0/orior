@@ -236,7 +236,8 @@ def answered(read, is_image):
             if not path and program not in missing:
                 missing.append(program)
                 stops.append("%s: %s is not on the host's PATH, for %s" % (tool["name"], program, tool.get("for", "")))
-    for header, what in (("X11/Xlib.h", "the X11 headers"), ("X11/extensions/shape.h", "the X11 shape extension's headers")):
+    for header, what in (("X11/Xlib.h", "the X11 headers"), ("X11/extensions/shape.h", "the X11 shape extension's headers"),
+                         ("X11/extensions/XInput2.h", "the X input extension's headers")):
         if not read["headers"].get(header, True):
             missing.append(header)
             stops.append("%s: %s are not installed, which the window's system body is built against"

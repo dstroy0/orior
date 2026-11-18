@@ -185,6 +185,11 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->pointer);
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->preferences_pointer);
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->dialog_pointer);
+    args->window->raw_wanted = 0;
+    args->window->lock_wanted = 0;
+    args->window->relative_x = 0LL;
+    args->window->relative_y = 0LL;
+    args->window->relative_read_held = 0;
     args->window->driven_count = 0u;
     EMBED_CALL(gui_hover.init, GuiHoverCfg, .hover = &args->window->hover);
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
@@ -5486,6 +5491,28 @@ static int window_command_named(const char *command, const char *const *words, u
         }
         return EMBED_CALL(window_pointer_drive, GuiWindowCtx, .window = window, .words = words, .count = count);
     }
+    // The mouse's raw input: `on` reads the mouse's own motion as relative input, `off` reads it no longer, `lock`
+    // holds the pointer in the window's middle and takes it off the screen, `free` lets it go, and `read` answers the
+    // relative motion added up since the last read, across then down, and starts the counts again
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "raw"))
+    {
+        if (count == 0u)
+        {
+            return 0;
+        }
+        if (EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "read"))
+        {
+            window->relative_read_held = 1;
+            return CLI_REACH_HOLD;
+        }
+        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "on");
+        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "off");
+        const int lock = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "lock");
+        const int free_word = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "free");
+        window->raw_wanted = on ? 1 : (off ? 0 : window->raw_wanted);
+        window->lock_wanted = lock ? 1 : (free_word ? 0 : window->lock_wanted);
+        return on || off || lock || free_word;
+    }
     // The window's telemetry lines to the error stream, `on` or `off`: the cells' log on the memory tick, the frames'
     // line, the walk's line a step and a frame take's line; off until asked, so a window in use writes nothing
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "telemetry"))
@@ -5836,6 +5863,21 @@ void gui_window_step(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     window->pending = cli_reach_take(&(CliReachCfg){.run = window_command_named}) || window->pending;
+    // The door's read of the relative motion, held as it came, answered with the counts added up since the last read
+    // and the counts started again. A count of a mouse moved for years is far inside 20 digits
+    if (window->relative_read_held)
+    {
+        char counts[48];
+        VerbaLinea line = {counts, sizeof(counts), 0ULL};
+        mmgr_line_decimal_signed(&line, window->relative_x);
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_decimal_signed(&line, window->relative_y);
+        (void)mmgr_line_finish(&line);
+        window->relative_x = 0LL;
+        window->relative_y = 0LL;
+        window->relative_read_held = 0;
+        cli_reach_held_answer(&(CliReachCfg){.done = 1, .text = counts});
+    }
     if (cli_servers_problems_step())
     {
         window->side_menu.problems_marked = cli_servers_problems_counts().errors != 0u;
@@ -8283,8 +8325,17 @@ static void window_text(const GuiInputHandlerCfg *args)
     EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
 }
 
+// the mouse's own motion, while the window reads raw input, added up for the door's read; the window's parts take no
+// relative motion, and a game's surface reads it
+static void window_relative(const GuiInputHandlerCfg *args)
+{
+    args->window->relative_x += args->input->x;
+    args->window->relative_y += args->input->y;
+}
+
 // what answers each table of input, in the main window and in Preferences' window
-static const GuiInputHandlers s_window_handlers = {{[GUI_INPUT_MOVED] = window_move,
+static const GuiInputHandlers s_window_handlers = {{[GUI_INPUT_RELATIVE] = window_relative,
+                                                    [GUI_INPUT_MOVED] = window_move,
                                                     [GUI_INPUT_DOWN] = window_press,
                                                     [GUI_INPUT_UP] = window_release,
                                                     [GUI_INPUT_LEFT] = window_leave,

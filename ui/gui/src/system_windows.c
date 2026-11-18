@@ -69,6 +69,9 @@ struct GuiSystem
     int wheel_rest;
     // whether the system moves or sizes the window, its own cursor shown for it
     int sizing;
+    // whether the window reads the mouse's raw input, and whether the pointer is locked in the window's middle
+    int raw;
+    int locked;
 };
 // the message another thread posts to wake the window's thread
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
@@ -120,6 +123,7 @@ typedef struct
     void *context_bytess;
     VerbaLinea *err_msg;
     MSG *message;
+    HRAWINPUT raw;
 } SystemWindowsCtx;
 // the device's buffers and the swapchain's let go, the heap with them, after the queue has done every copy
 EMBED_INLINE void system_surfaces_release(const SystemWindowsCtx *args)
@@ -648,6 +652,39 @@ EMBED_INLINE void system_border_color(const SystemWindowsCtx *args)
     DwmSetWindowAttribute(args->window, DWMWA_BORDER_COLOR, &color, sizeof(color));
 }
 
+// The cursor clipped to the one pixel in the middle of the window's client, on the screen: the pointer stays there and
+// the mouse's motion comes as raw input alone
+EMBED_INLINE void system_lock_clip(const SystemWindowsCtx *args)
+{
+    RECT client;
+    GetClientRect(args->system_read->window, &client);
+    POINT middle = {(client.right - client.left) / 2, (client.bottom - client.top) / 2};
+    ClientToScreen(args->system_read->window, &middle);
+    const RECT pixel = {middle.x, middle.y, middle.x + 1, middle.y + 1};
+    ClipCursor(&pixel);
+}
+
+// One raw input of the mouse read while the window reads raw input: its motion passed on as a relative input in the
+// mouse's own counts. A motion the device gives as a place on the screen, as a pen or a remote session gives it, is
+// no relative motion and is passed on as nothing
+EMBED_INLINE void system_raw_read(const SystemWindowsCtx *args)
+{
+    RAWINPUT input;
+    UINT bytes = sizeof(input);
+    if (!args->system_read->raw ||
+        (GetRawInputData(args->raw, RID_INPUT, &input, &bytes, sizeof(RAWINPUTHEADER)) == (UINT)-1) ||
+        (input.header.dwType != RIM_TYPEMOUSE) || ((input.data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) != 0u) ||
+        ((input.data.mouse.lLastX == 0) && (input.data.mouse.lLastY == 0)))
+    {
+        return;
+    }
+    // a report's counts are a few hundred at most, far inside an int
+    EMBED_CALL(args->system_read->events->input, GuiEachInputCfg, .context = args->system_read->context,
+               .input = &(GuiInput){.type = GUI_INPUT_RELATIVE,
+                                    .x = (int)input.data.mouse.lLastX,
+                                    .y = (int)input.data.mouse.lLastY});
+}
+
 static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_width, LPARAM low)
 {
     GuiSystem *const system = (GuiSystem *)GetWindowLongPtrW(window, GWLP_USERDATA);
@@ -879,6 +916,11 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return 0;
     case WM_SETFOCUS:
         system->mods = system_mods_of_keyboard();
+        // the system frees a clipped cursor as the window loses the focus: a locked pointer is clipped again
+        if (system->locked)
+        {
+            EMBED_CALL(system_lock_clip, SystemWindowsCtx, .system_read = system);
+        }
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_FOCUS});
         return 0;
@@ -887,6 +929,9 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_BLUR});
         return 0;
+    case WM_INPUT:
+        EMBED_CALL(system_raw_read, SystemWindowsCtx, .system_read = system, .raw = (HRAWINPUT)low);
+        return DefWindowProcW(window, message, pixel_width, low);
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
         // Alt+F4 is the system's, as a browser leaves it to the system: it closes the window as it closes any, and no
@@ -1286,6 +1331,23 @@ void gui_system_act(const GuiSystemCfg *args)
     else if (args->act == GUI_ACT_MAXIMIZE)
     {
         ShowWindow(args->system->window, IsZoomed(args->system->window) ? SW_RESTORE : SW_MAXIMIZE);
+    }
+    else if ((args->act == GUI_ACT_RAW_ON) || (args->act == GUI_ACT_RAW_OFF))
+    {
+        // the mouse's raw input to this window while it has the focus, or to no window
+        const int on = args->act == GUI_ACT_RAW_ON;
+        RAWINPUTDEVICE device = {0x01u, 0x02u, on ? 0u : RIDEV_REMOVE, on ? args->system->window : NULL};
+        args->system->raw = on && RegisterRawInputDevices(&device, 1u, sizeof(device));
+    }
+    else if (args->act == GUI_ACT_LOCK_ON)
+    {
+        args->system->locked = 1;
+        EMBED_CALL(system_lock_clip, SystemWindowsCtx, .system_read = args->system);
+    }
+    else if (args->act == GUI_ACT_LOCK_OFF)
+    {
+        args->system->locked = 0;
+        ClipCursor(NULL);
     }
     else
     {

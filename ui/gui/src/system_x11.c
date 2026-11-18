@@ -18,6 +18,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/XInput2.h>
 #include <X11/extensions/shape.h>
 #include <X11/keysym.h>
 #include <poll.h>
@@ -50,6 +51,12 @@ struct GuiSystem
     // mapped or moved, and kept from each pointer event's root and client places, with no request to the server
     int root_x;
     int root_y;
+    // whether the window reads the mouse's raw input, the X input extension's number for its events, whether the
+    // window has the focus, and whether the pointer is locked in the window's middle
+    int raw;
+    int input_opcode;
+    int focused;
+    int locked;
 };
 // the rows one notch of the wheel scrolls; the Motif hints that take the decorations off, their flags word and the
 // decorations word; and the window manager's move and resize directions, as the specification numbers them, and its
@@ -329,9 +336,50 @@ EMBED_INLINE void system_root_read(const SystemX11Ctx *args)
                                 &args->system->root_y, &child);
 }
 
+// One raw motion of the mouse read from the X input extension, while the window reads raw input and has the focus: its
+// motion passed on as a relative input in the mouse's own counts. The first two of the event's values are the motion
+// across and down, each where its bit is set in the event's mask
+EMBED_INLINE void system_raw_read(const SystemX11Ctx *args)
+{
+    XGenericEventCookie *const cookie = &args->event_x_event_pointer->xcookie;
+    if (!args->system->raw || (cookie->extension != args->system->input_opcode) ||
+        !XGetEventData(args->system->display, cookie))
+    {
+        return;
+    }
+    if ((cookie->evtype == XI_RawMotion) && args->system->focused)
+    {
+        const XIRawEvent *const motion = (const XIRawEvent *)cookie->data;
+        const double *value = motion->raw_values;
+        double moved[2] = {0.0, 0.0};
+        for (int at = 0; (at < 2) && (at < (motion->valuators.mask_len * 8)); at += 1)
+        {
+            if (XIMaskIsSet(motion->valuators.mask, at))
+            {
+                moved[at] = *value;
+                value += 1;
+            }
+        }
+        // a report's counts are a few hundred at most, far inside an int
+        if ((moved[0] != 0.0) || (moved[1] != 0.0))
+        {
+            EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                       .input = &(GuiInput){.type = GUI_INPUT_RELATIVE, .x = (int)moved[0], .y = (int)moved[1]});
+        }
+    }
+    XFreeEventData(args->system->display, cookie);
+}
+
 // one event of the display's taken
 static void system_event(const SystemX11Ctx *args)
 {
+    // the X input extension's events name no window: they are the mouse's raw motion
+    if (args->event_x_event_pointer->type == GenericEvent)
+    {
+        EMBED_CALL(system_raw_read, SystemX11Ctx, .system = args->system,
+                   .event_x_event_pointer = args->event_x_event_pointer);
+        return;
+    }
     // a window owned shares this one's connection and its events come through its loop
     if ((args->system->owned != NULL) && (args->event_x_event_pointer->xany.window == args->system->owned->window))
     {
@@ -390,6 +438,20 @@ static void system_event(const SystemX11Ctx *args)
     case MotionNotify:
         args->system->root_x = args->event_x_event_pointer->xmotion.x_root - args->event_x_event_pointer->xmotion.x;
         args->system->root_y = args->event_x_event_pointer->xmotion.y_root - args->event_x_event_pointer->xmotion.y;
+        // A locked pointer is put back in the window's middle at each move. The move is no input: the mouse's motion
+        // comes as raw input alone
+        if (args->system->locked)
+        {
+            // a window's sides are far inside an int
+            const int middle_x = (int)(args->system->width / 2u);
+            const int middle_y = (int)(args->system->height / 2u);
+            if ((args->event_x_event_pointer->xmotion.x != middle_x) ||
+                (args->event_x_event_pointer->xmotion.y != middle_y))
+            {
+                XWarpPointer(args->system->display, None, args->system->window, 0, 0, 0u, 0u, middle_x, middle_y);
+            }
+            break;
+        }
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_MOVED,
                                         .x = args->event_x_event_pointer->xmotion.x,
@@ -409,10 +471,12 @@ static void system_event(const SystemX11Ctx *args)
         EMBED_CALL(system_key_press, SystemX11Ctx, .system = args->system, .event = &args->event_x_event_pointer->xkey);
         break;
     case FocusOut:
+        args->system->focused = 0;
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_BLUR});
         break;
     case FocusIn:
+        args->system->focused = 1;
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_FOCUS});
         break;
@@ -816,6 +880,49 @@ void gui_system_act(const GuiSystemCfg *args)
         event.xclient.data.l[3] = 1L;
         XSendEvent(args->system->display, RootWindow(args->system->display, args->system->screen), False,
                    SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    }
+    else if ((args->act == GUI_ACT_RAW_ON) || (args->act == GUI_ACT_RAW_OFF))
+    {
+        // The X input extension's raw motion selected on the root, or the selection taken off. A server with no
+        // extension of version 2 leaves the window with no raw input
+        const int on = args->act == GUI_ACT_RAW_ON;
+        int event_base = 0;
+        int error_base = 0;
+        int major = 2;
+        int minor = 0;
+        const int ready = XQueryExtension(args->system->display, "XInputExtension", &args->system->input_opcode,
+                                          &event_base, &error_base) &&
+                          (XIQueryVersion(args->system->display, &major, &minor) == Success);
+        unsigned char bits[XIMaskLen(XI_LASTEVENT)];
+        memor.set(&(MemoriaCfg){.dst = bits, .val = 0, .bytes = sizeof(bits)});
+        if (on)
+        {
+            XISetMask(bits, XI_RawMotion);
+        }
+        XIEventMask mask = {XIAllMasterDevices, (int)sizeof(bits), bits};
+        if (ready)
+        {
+            XISelectEvents(args->system->display, RootWindow(args->system->display, args->system->screen), &mask, 1);
+        }
+        args->system->raw = on && ready;
+    }
+    else if (args->act == GUI_ACT_LOCK_ON)
+    {
+        // the pointer grabbed to the window and put in its middle; the window's own cursor of no pixels stays on it
+        args->system->locked = XGrabPointer(args->system->display, args->system->window, True,
+                                            ButtonPressMask | ButtonReleaseMask | PointerMotionMask, GrabModeAsync,
+                                            GrabModeAsync, args->system->window, None, CurrentTime) == GrabSuccess;
+        if (args->system->locked)
+        {
+            // a window's sides are far inside an int
+            XWarpPointer(args->system->display, None, args->system->window, 0, 0, 0u, 0u,
+                         (int)(args->system->width / 2u), (int)(args->system->height / 2u));
+        }
+    }
+    else if (args->act == GUI_ACT_LOCK_OFF)
+    {
+        args->system->locked = 0;
+        XUngrabPointer(args->system->display, CurrentTime);
     }
     else
     {

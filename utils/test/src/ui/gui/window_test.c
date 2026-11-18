@@ -1262,6 +1262,25 @@ static void driven_taken(void)
     stepped();
 }
 
+// The mouse's own motion while the window reads raw input: each relative input adds its counts to the window's sums,
+// across and down apart, and no relative input moves the window's pointer
+static void raw_checked(void)
+{
+    const int x = s_window.pointer.x;
+    const int y = s_window.pointer.y;
+    s_window.relative_x = 0LL;
+    s_window.relative_y = 0LL;
+    for (unsigned int at = 0u; at < 10u; at += 1u)
+    {
+        EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+                   .input = &(GuiInput){.type = GUI_INPUT_RELATIVE, .x = 5, .y = -3});
+    }
+    stepped();
+    cli_check((s_window.relative_x == 50LL) && (s_window.relative_y == -30LL) && (s_window.pointer.x == x) &&
+                  (s_window.pointer.y == y),
+              "ten relative inputs of 5 across and 3 up add up to 50 and -30, and the pointer stays where it is");
+}
+
 // The pointer the window draws: its shape over the text, over a tool of the bar and on the border; the sprite in the
 // frame drawn; the pointer off the window on a leave; and the inputs the interface's pointer command drives
 static void pointer_checked(void)
@@ -2148,7 +2167,7 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[32] = {{"saves", saves_checked},
+static const WindowCheck s_checks[] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
@@ -2171,6 +2190,7 @@ static const WindowCheck s_checks[32] = {{"saves", saves_checked},
                                          {"preferences_window", preferences_window_checked},
                                          {"redraws", redraws_checked},
                                          {"pointer", pointer_checked},
+                                         {"raw", raw_checked},
                                          {"map_collapses", map_collapses_checked},
                                          {"themes", themes_checked},
                                          {"sticky_notch", sticky_notch_checked},

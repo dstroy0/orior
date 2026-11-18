@@ -493,6 +493,36 @@ def pointer_said(words):
     return 0 if ran else 1
 
 
+def cmd_raw(a):
+    """The window's raw input through the interface's raw command: `on` reads the mouse's own motion, `off` reads it no
+    longer, `lock` holds the pointer in the window's middle, `free` lets it go, and `read` prints the motion added up
+    since the last read, across then down. `nudge dx dy [count]` moves the system's mouse by dx, dy of its counts,
+    count times, as the device sends them, on Windows."""
+    import time
+
+    found = window_of(a.id)
+    if not found:
+        return 1
+    process_id = found[0]
+    words = a.words
+    if words[0] == "nudge":
+        if not windows_only():
+            return 1
+        import harness_win32 as win
+
+        dx, dy = int(words[1]), int(words[2])
+        count = int(words[3]) if len(words) > 3 else 1
+        for _ in range(count):
+            win.mouse_nudged(dx, dy)
+            time.sleep(0.01)
+        print("window %d raw nudge %d %d, %d times" % (process_id, dx, dy, count))
+        return 0
+    window_joined(process_id)
+    ran, text = _JOINED[0].command("help", "raw", words)
+    print("window %d raw %s: %s" % (process_id, " ".join(words), (text or "done") if ran else "refused"))
+    return 0 if ran else 1
+
+
 def human_path(start, end, rng):
     """The places and the pauses of a person's move from `start` to `end`, each (x, y, seconds before it). The time
     the move takes rises with the log of its length, as Fitts' law gives it, and varies from move to move. The path
@@ -1922,6 +1952,10 @@ def register(sub):
                    "with its shake and overshoot, and a click held as a hand holds it")
     p.add_argument("--seed", type=int, default=None, help="the seed of the --human path, the same path for the same seed")
     p.set_defaults(fn=cmd_pointer)
+    p = window.add_parser("raw", help="the window's raw input: on, off, lock, free, read, or nudge dx dy [count]")
+    p.add_argument("words", nargs="+", help="on|off|lock|free|read, or nudge dx dy [count]")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.set_defaults(fn=cmd_raw)
     p = window.add_parser("check", help="the window's C checked without a display, every check where none is named")
     p.add_argument("names", nargs="*", help="checks by name, raster or glyphs, each a *_test.c under utils/test/src/ui/gui")
     p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")

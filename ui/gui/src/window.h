@@ -142,6 +142,13 @@ typedef struct GuiWindow
     GuiBusy busy;
     int busy_alone;
     GuiPointer pointer;
+    // The mouse's raw input and the pointer's lock as the door last asked for them, each ordered of the system by the
+    // view's thread. Then the mouse's relative motion added up since the last read, and a read of it the door holds
+    int raw_wanted;
+    int lock_wanted;
+    long long relative_x;
+    long long relative_y;
+    int relative_read_held;
     GuiPointer preferences_pointer;
     GuiPointer dialog_pointer;
     GuiPreferences preferences;

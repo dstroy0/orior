@@ -54,7 +54,7 @@ jobs:
       - name: Linux libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libssl-dev libx11-dev libxext-dev build-essential clang lld llvm cmake ninja-build ruby
+          sudo apt-get install -y libssl-dev libx11-dev libxext-dev libxi-dev build-essential clang lld llvm cmake ninja-build ruby
 
       - name: Install gcovr
         run: pip install --upgrade gcovr

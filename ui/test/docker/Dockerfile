@@ -23,7 +23,7 @@ RUN printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https:
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl build-essential pkg-config git python3 rsync openssh-client \
       libwebkit2gtk-4.1-dev webkit2gtk-driver libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
-      libx11-dev libxext-dev \
+      libx11-dev libxext-dev libxi-dev \
       xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core x11vnc novnc websockify \
       cmake ninja-build clangd clang clang-tidy lld libclang-rt-${LLVM}-dev llvm-${LLVM} cppcheck lldb gdb python-is-python3 python3-debugpy python3-pytest \
       ruby \

@@ -108,10 +108,16 @@ typedef struct
 #define GUI_HIT_MAXIMIZE 11u
 #define GUI_HIT_CLOSE 12u
 
-// what the window does to itself through the system: minimized, maximized or restored, and closed
+// What the window does to itself through the system: minimized, maximized or restored, and closed. Then the mouse's raw
+// input read and not read: each motion of the mouse comes as a relative input as well as a move. Then the pointer
+// locked and freed: a locked pointer stays in the window's middle, and the system's moves of it come to nothing
 #define GUI_ACT_MINIMIZE 0u
 #define GUI_ACT_MAXIMIZE 1u
 #define GUI_ACT_CLOSE 2u
+#define GUI_ACT_RAW_ON 3u
+#define GUI_ACT_RAW_OFF 4u
+#define GUI_ACT_LOCK_ON 5u
+#define GUI_ACT_LOCK_OFF 6u
 
 // the icon's sides in pixels, the small one the title's and the large one the taskbar's and the switcher's
 #define GUI_ICON_SMALL 32u

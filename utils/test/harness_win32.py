@@ -306,6 +306,15 @@ MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
 
 
+MOUSEEVENTF_MOVE = 0x0001
+
+
+def mouse_nudged(dx, dy):
+    """The system's mouse moved by dx, dy of its own counts, as the device sends a motion: the raw input carries the
+    counts as they are, and the cursor moves by them through the system's speed curve."""
+    user32.mouse_event(MOUSEEVENTF_MOVE, int(dx), int(dy), 0, 0)
+
+
 def cursor_click(x, y):
     """The system's own cursor moved to the screen point x, y and its left button pressed and let go there, as the
     mouse does, the input going to whatever window lies under it."""

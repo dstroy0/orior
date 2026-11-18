@@ -10,8 +10,8 @@ typedef struct GuiInputEventCfg GuiInputEventCfg;
 
 // the types of input: the pointer moved, a button pressed, a button let go, the pointer gone off the window, the wheel
 // turned, a key pressed, text typed, the system's gesture for a menu at the pointer, the right button let go on
-// Windows and pressed on X11 as a browser on each opens one, and the keys gone to another window; and the modifier keys
-// down, as bits
+// Windows and pressed on X11 as a browser on each opens one, the keys gone to another window and come back, and the
+// mouse's own motion while the window reads raw input; and the modifier keys down, as bits
 #define GUI_INPUT_MOVED 0u
 #define GUI_INPUT_DOWN 1u
 #define GUI_INPUT_UP 2u
@@ -22,7 +22,8 @@ typedef struct GuiInputEventCfg GuiInputEventCfg;
 #define GUI_INPUT_MENU 7u
 #define GUI_INPUT_BLUR 8u
 #define GUI_INPUT_FOCUS 9u
-#define GUI_INPUT_TYPES 10u
+#define GUI_INPUT_RELATIVE 10u
+#define GUI_INPUT_TYPES 11u
 #define GUI_MOD_SHIFT 1u
 #define GUI_MOD_CONTROL 2u
 #define GUI_MOD_ALT 4u
@@ -35,7 +36,8 @@ typedef struct GuiInputEventCfg GuiInputEventCfg;
 // wheel's rows, down where positive; the key's name as the editor names a key, `Mod+Shift+Left`, Mod the control key,
 // Alt and Shift before the key's own name; and `size` bytes of text typed as UTF-8. Last, the wheel's turn as the
 // system gave it, in GUI_WHEEL_UNITS a notch, down and to the right where positive. A touchpad and a free wheel turn by
-// parts of a notch, and `rows` counts only the whole notches the parts add up to
+// parts of a notch, and `rows` counts only the whole notches the parts add up to. A relative input's x and y are the
+// mouse's own counts, with no speed curve of the system's, right and down where positive
 typedef struct
 {
     unsigned int type;

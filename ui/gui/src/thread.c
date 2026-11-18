@@ -77,6 +77,9 @@ typedef struct
     unsigned int pointer_bakes;
     int pointer_shown;
     int pointer_taking;
+    // the mouse's raw input and the pointer's lock as last ordered of the system
+    int raw_ordered;
+    int lock_ordered;
 } CliView;
 
 static CliView s_view;
@@ -561,6 +564,9 @@ static void view_events_take(void)
     // pass, so a frame is drawn between the two passes. A mouse that sends moves faster than the view takes them
     // cannot stop the frames
     embed_word left = (embed_word)anularis.seg_inflight(&(AnularisCfg){.ring = &s_view.event_ring});
+    // the relative motion of a run of relative inputs, added up and passed on with the run's last input
+    int carried_x = 0;
+    int carried_y = 0;
     while ((left != 0u) && anularis.seg_front(&(AnularisCfg){.ring = &s_view.event_ring, .out_index = &at}))
     {
         left -= 1u;
@@ -575,16 +581,28 @@ static void view_events_take(void)
         event.input.text = bytes;
         // A move with a move on the same surface after it in the pass goes to the later move. The view takes the last
         // place of a run of moves only. A press or a release ends the run
-        const int moved = (event.type == CLI_VIEW_EVENT_INPUT) && (event.input.type == GUI_INPUT_MOVED);
-        if (moved && (left != 0u) && anularis.seg_front(&(AnularisCfg){.ring = &s_view.event_ring, .out_index = &at}))
+        // A relative input with a relative input on the same surface after it gives its motion to the later one. The
+        // view takes one relative input for the run, its motion the run's whole motion
+        const unsigned int type = (event.type == CLI_VIEW_EVENT_INPUT) ? event.input.type : GUI_INPUT_TYPES;
+        if (((type == GUI_INPUT_MOVED) || (type == GUI_INPUT_RELATIVE)) && (left != 0u) &&
+            anularis.seg_front(&(AnularisCfg){.ring = &s_view.event_ring, .out_index = &at}))
         {
             const CliViewEvent *const next = (const CliViewEvent *)(const void *)anularis.seg_at(
                 &(AnularisCfg){.ring = &s_view.event_ring, .index = at});
-            if ((next->type == CLI_VIEW_EVENT_INPUT) && (next->input.type == GUI_INPUT_MOVED) &&
+            if ((next->type == CLI_VIEW_EVENT_INPUT) && (next->input.type == type) &&
                 (next->surface == event.surface))
             {
+                carried_x += (type == GUI_INPUT_RELATIVE) ? event.input.x : 0;
+                carried_y += (type == GUI_INPUT_RELATIVE) ? event.input.y : 0;
                 continue;
             }
+        }
+        if (type == GUI_INPUT_RELATIVE)
+        {
+            event.input.x += carried_x;
+            event.input.y += carried_y;
+            carried_x = 0;
+            carried_y = 0;
         }
         EMBED_CALL(view_event, ViewThreadCtx, .event = &event);
     }
@@ -805,7 +823,8 @@ static void view_pointer_follow(void)
         scale = window->preferences.scale;
     }
     const GuiRect part = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = record, .scale = scale);
-    const int shown = record->shown && (part.width > 0) && (part.height > 0);
+    // a locked pointer stays in the window's middle and shows nothing
+    const int shown = record->shown && !window->lock_wanted && (part.width > 0) && (part.height > 0);
     const int pictured = !shown || ((s_view.pointer_record == record) && (s_view.pointer_shape == record->shape) &&
                                     (s_view.pointer_bakes == record->sheet.bakes) && record->sheet.made &&
                                     (record->sheet.scale ==
@@ -845,6 +864,31 @@ static void view_pointer_follow(void)
     }
 }
 
+// The mouse's raw input and the pointer's lock ordered of the main window's system where the window's wish for them
+// changed. A full ring leaves the order to the next pass
+static void view_raw_follow(void)
+{
+    GuiWindow *const window = &s_view.window;
+    if (window->raw_wanted != s_view.raw_ordered)
+    {
+        const CliViewOrder order = {.type = CLI_VIEW_ORDER_ACT,
+                                    .act = window->raw_wanted ? GUI_ACT_RAW_ON : GUI_ACT_RAW_OFF};
+        if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
+        {
+            s_view.raw_ordered = window->raw_wanted;
+        }
+    }
+    if (window->lock_wanted != s_view.lock_ordered)
+    {
+        const CliViewOrder order = {.type = CLI_VIEW_ORDER_ACT,
+                                    .act = window->lock_wanted ? GUI_ACT_LOCK_ON : GUI_ACT_LOCK_OFF};
+        if (EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
+        {
+            s_view.lock_ordered = window->lock_wanted;
+        }
+    }
+}
+
 // what the view's thread runs: every event in turn, the window's modules stepped, the tick where its time came and what
 // is owed drawn, until the view ends; the window's own moving things come to it by the clock, each no sooner than the
 // monitor's next refresh after the last frame displayed
@@ -876,6 +920,7 @@ static void view_run(void *context)
         }
         // the pointer's surface moved before the frame is drawn, so a move waits on no frame
         view_pointer_follow();
+        view_raw_follow();
         view_preferences_follow();
         view_dialog_follow();
         // a command asked the window to close

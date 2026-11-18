@@ -6,7 +6,7 @@
 #   system <tab> uname -s <tab> uname -m
 #   manager <tab> apt|dnf|pacman|apk|zypper|none
 #   program <tab> name <tab> path or - <tab> the first line of its version, or -
-#   header <tab> X11/Xlib.h or X11/extensions/shape.h <tab> yes|no
+#   header <tab> X11/Xlib.h, X11/extensions/shape.h or X11/extensions/XInput2.h <tab> yes|no
 #   home <tab> the home folder
 # The programs read are the words after the script's name.
 set -u
@@ -38,7 +38,7 @@ for asked in "$@"; do
     fi
     echo "program	$asked	${path:--}	$version"
 done
-for header in X11/Xlib.h X11/extensions/shape.h; do
+for header in X11/Xlib.h X11/extensions/shape.h X11/extensions/XInput2.h; do
     if [ -f "/usr/include/$header" ]; then
         echo "header	$header	yes"
     else
