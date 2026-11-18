@@ -626,3 +626,71 @@ void test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_
     (void)EMBED_CALL(cli_toolchains_count.tree_tools, CliToolchainsCountCfg, .folders = s_folders, .capacity = 256u);
     EMBED_CALL(cli_toolchains_environment_table.set_environment, CliToolchainsEnvironmentCfg, .environment = NULL);
 }
+
+// how many times `line` stands in the reader's ~/.profile under HOME `home`, the file read into s_out
+static unsigned int profile_lines(const char *home, const char *line)
+{
+    char path[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = ".profile", .joined = path);
+    unsigned long long size = qry_member_file_read(path, (unsigned char *)s_out, sizeof(s_out));
+    size = (size == QRY_MEMBER_UNREAD) ? 0ULL : size;
+    const unsigned long long length = CLI_UNITY_LENGTH(line);
+    unsigned int found = 0u;
+    for (unsigned long long at = 0ULL; (at + length) <= size; at += 1ULL)
+    {
+        found += (memor.cmp(&(MemoriaCfg){.src = s_out + at, .other = line, .bytes = length}) == 0) ? 1u : 0u;
+    }
+    return found;
+}
+
+// HOME set to a folder of the run, and the HOME before it into `before`, sized for CLI_PATH_MAX_LEN
+static void profile_home_set(const char *name, char *home, char *before)
+{
+    before[0] = '\0';
+    (void)EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = before, .capacity = CLI_PATH_MAX_LEN);
+    cli_unity_folder(name, home);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "HOME", .value = home));
+}
+
+void test_a_line_put_in_the_readers_profile_stands_there_once_and_is_taken_out_again(void)
+{
+    char home[CLI_PATH_MAX_LEN];
+    char before[CLI_PATH_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    profile_home_set("toolchains_profile", home, before);
+    static const char s_line[] = "export ORIOR_PROFILE_CHECK=1";
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_toolchains_err_msg_folder.profile_line_add, CliToolchainsErrMsgFolderCfg, .err_msg = &err_msg, .what = s_line));
+    TEST_ASSERT_EQUAL_UINT(1u, profile_lines(home, s_line));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_toolchains_err_msg_folder.profile_line_add, CliToolchainsErrMsgFolderCfg, .err_msg = &err_msg, .what = s_line));
+    TEST_ASSERT_EQUAL_UINT(1u, profile_lines(home, s_line));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_toolchains_err_msg_folder.profile_line_remove, CliToolchainsErrMsgFolderCfg, .err_msg = &err_msg, .what = s_line));
+    TEST_ASSERT_EQUAL_UINT(0u, profile_lines(home, s_line));
+    (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "HOME", .value = before);
+}
+
+void test_posix_a_folder_put_on_the_readers_path_is_in_the_profile_and_taken_off_again(void)
+{
+#if defined(_WIN32)
+    TEST_IGNORE_MESSAGE("the reader's PATH on Windows is the registry's");
+#else
+    char home[CLI_PATH_MAX_LEN];
+    char before[CLI_PATH_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    profile_home_set("toolchains_path", home, before);
+    char folder[CLI_PATH_MAX_LEN];
+    cli_unity_folder("toolchains_path_folder", folder);
+    char line[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea made = {line, sizeof(line), 0ULL};
+    mmgr_line_put(&made, "export PATH=\"$PATH:");
+    mmgr_line_put(&made, folder);
+    mmgr_line_ch(&made, '"');
+    (void)mmgr_line_finish(&made);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_toolchains_err_msg_folder.path_folder_add, CliToolchainsErrMsgFolderCfg, .err_msg = &err_msg, .folder = folder));
+    TEST_ASSERT_EQUAL_UINT(1u, profile_lines(home, line));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_toolchains_err_msg_folder.path_folder_remove, CliToolchainsErrMsgFolderCfg, .err_msg = &err_msg, .folder = folder));
+    TEST_ASSERT_EQUAL_UINT(0u, profile_lines(home, line));
+    (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "HOME", .value = before);
+#endif
+}
