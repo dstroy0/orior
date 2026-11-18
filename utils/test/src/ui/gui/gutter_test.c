@@ -102,6 +102,25 @@ int main(void)
 
     cli_check(EMBED_CALL(gui_gutter.mark_hit, GuiGutterCfg, .x = column, .text_x = text_x, .scale = 100),
               "a press on the marks' column lands on it");
+    // a unit's pixels: one cell wide and a row tall at its place, none for a line past the rows drawn
+    GuiRect unit = {0, 0, 0, 0};
+    cli_check(EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = &editor,
+                         .place = place, .cell = cell, .scale = 100, .line = 1ULL, .col = 2ULL, .rect = &unit) &&
+                  (unit.y >= GUI_CODE_LINE) && (unit.y < (2 * GUI_CODE_LINE)) && (unit.x > text_x) && (unit.width > 0) &&
+                  (unit.height > 0),
+              "a unit's pixels lie in its row past the text's left edge");
+    cli_check(!EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = &editor,
+                          .place = place, .cell = cell, .scale = 100, .line = 900ULL, .col = 0ULL, .rect = &unit),
+              "a line past the rows drawn has no pixels");
+    unsigned long long sticky_row = 0ULL;
+    cli_check(!EMBED_CALL(gui_editor_position_cell_scale.sticky_at, GuiEditorPositionCellScaleCfg,
+                          .editor_read = &editor, .place = place, .cell = cell, .scale = 100, .x = text_x + 4,
+                          .y = GUI_CODE_LINE / 2, .row = &sticky_row),
+              "a text with no scope pinned has no sticky row under the pointer");
+    cli_check(EMBED_CALL(gui_editor_position_cell_scale.column_edge, GuiEditorPositionCellScaleCfg,
+                         .editor_read = &editor, .place = place, .cell = cell, .scale = 100, .x = text_x + 4,
+                         .y = GUI_CODE_LINE / 2) == 0u,
+              "a text that is no table has no column line under the pointer");
     cli_check(!EMBED_CALL(gui_gutter.mark_hit, GuiGutterCfg, .x = place.x + 2, .text_x = text_x, .scale = 100),
               "a press on the numbers does not");
 
