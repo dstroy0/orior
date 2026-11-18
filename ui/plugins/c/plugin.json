@@ -140,7 +140,10 @@
         ["=","operator.assign"]
       ],
       "head": [
-        ["[A-Za-z_]\\w*(?=\\s*\\()","identifier.declaration.function","@params"],
+        ["[A-Za-z_]\\w*(?=\\s*\\(\\s*\\*)",{"cases":{"@types":"type","@words":"keyword","@default":"type"}}],
+        ["(\\()(\\s*\\*+\\s*)([A-Za-z_]\\w*)(?=\\s*\\()",["delimiter.bracket.depth.open","operator.memory","identifier.declaration.function"],"@params"],
+        ["(\\()(\\s*\\*+\\s*)([A-Za-z_]\\w*)(?=\\s*\\))",["delimiter.bracket.depth.open","operator.memory","identifier"]],
+        ["[A-Za-z_]\\w*(?=\\s*\\()",{"cases":{"@types":"type","@words":"keyword","@default":"identifier.declaration.function"}},"@params"],
         ["$","","@pop"],
         {"include":"@root"}
       ],

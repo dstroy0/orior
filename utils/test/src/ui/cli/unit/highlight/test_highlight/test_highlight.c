@@ -468,6 +468,24 @@ void test_cs_prototype_names_its_parameters_and_their_types(void)
                        "identifier.parameter|51 delimiter.bracket.parameter.depth.close|52 delimiter.statement");
 }
 
+void test_a_c_pointer_to_a_function_names_no_function_and_its_type_is_a_type(void)
+{
+    assert_plugin_line("c", "static int (*s_aside_work)(void);",
+                       "0 keyword|6 |7 type|10 |11 delimiter.bracket.depth.open|12 operator.memory|13 identifier|25 "
+                       "delimiter.bracket.depth.close|26 delimiter.bracket.depth.open|27 type|31 "
+                       "delimiter.bracket.depth.close|32 delimiter.statement");
+}
+
+void test_a_c_function_that_returns_a_pointer_is_named_inside_its_brackets(void)
+{
+    assert_plugin_line("c", "const unsigned int (*khw_frame_cases(unsigned int *count))[2]",
+                       "0 keyword|5 |6 type|14 |15 type|18 |19 delimiter.bracket.depth.open|20 operator.memory|21 "
+                       "identifier.declaration.function|36 delimiter.bracket.parameter.depth.open|37 type.number|45 |46 "
+                       "type.number|49 |50 operator.memory|51 identifier.parameter|56 "
+                       "delimiter.bracket.parameter.depth.close|57 delimiter.bracket.depth.close|58 "
+                       "delimiter.bracket.depth.open|59 number|60 delimiter.bracket.depth.close");
+}
+
 void test_a_c_local_and_its_type_are_named(void)
 {
     assert_plugin_line("c", "    unsigned int total = 0u;",
