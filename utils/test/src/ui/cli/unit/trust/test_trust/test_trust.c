@@ -122,3 +122,19 @@ void test_git_in_an_untrusted_tree_runs_no_hook(void)
     TEST_ASSERT_EQUAL_STRING("-c", words[0]);
     TEST_ASSERT_EQUAL_STRING("core.fsmonitor=false", words[1]);
 }
+
+void test_a_trees_own_code_is_read_from_the_cache_and_prettier_is_blocked_where_its_configuration_is_code(void)
+{
+    char plain[CLI_PATH_MAX_LEN];
+    tree_file("Cargo.toml", "[package]\nname = \"crate\"\n");
+    tree_file("build.rs", "fn main() {}\n");
+    tree_file("prettier.config.js", "module.exports = {};\n");
+    CliTrustCode code = {NULL, 0ull, 0u};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = s_tree, .code = &code));
+    TEST_ASSERT_EQUAL_UINT(2u, code.count);
+    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_tree_words.prettier_block, CliTrustTreeWordsCfg, .tree = s_tree));
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_trees, .relative = "plain", .joined = plain);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = plain));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_trust_tree_words.prettier_block, CliTrustTreeWordsCfg, .tree = plain));
+}

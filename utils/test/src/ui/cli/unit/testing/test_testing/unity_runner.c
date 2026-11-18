@@ -20,6 +20,9 @@ extern void test_a_prefix_glob_matches(void);
 extern void test_a_suffix_glob_matches(void);
 extern void test_a_glob_does_not_match_another_name(void);
 extern void test_a_trees_tests_are_found_and_its_environment_is_skipped(void);
+extern void test_a_name_matches_a_rules_values_and_the_trees_rules_come_from_its_files(void);
+extern void test_a_test_is_written_as_the_window_reads_one_and_the_python_tests_come_file_by_file(void);
+extern void test_a_runs_spread_over_the_cores_is_set_and_saved(void);
 extern void test_only_the_folders_a_trees_rules_name_are_searched(void);
 
 
@@ -94,7 +97,10 @@ int main(void)
   run_test(test_a_suffix_glob_matches, "test_a_suffix_glob_matches", 146);
   run_test(test_a_glob_does_not_match_another_name, "test_a_glob_does_not_match_another_name", 151);
   run_test(test_a_trees_tests_are_found_and_its_environment_is_skipped, "test_a_trees_tests_are_found_and_its_environment_is_skipped", 156);
-  run_test(test_only_the_folders_a_trees_rules_name_are_searched, "test_only_the_folders_a_trees_rules_name_are_searched", 164);
+  run_test(test_a_name_matches_a_rules_values_and_the_trees_rules_come_from_its_files, "test_a_name_matches_a_rules_values_and_the_trees_rules_come_from_its_files", 164);
+  run_test(test_a_test_is_written_as_the_window_reads_one_and_the_python_tests_come_file_by_file, "test_a_test_is_written_as_the_window_reads_one_and_the_python_tests_come_file_by_file", 176);
+  run_test(test_a_runs_spread_over_the_cores_is_set_and_saved, "test_a_runs_spread_over_the_cores_is_set_and_saved", 189);
+  run_test(test_only_the_folders_a_trees_rules_name_are_searched, "test_only_the_folders_a_trees_rules_name_are_searched", 200);
 
   return UNITY_END();
 }

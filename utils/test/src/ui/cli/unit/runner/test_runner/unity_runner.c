@@ -17,6 +17,9 @@ extern void test_words_split_on_quotes_and_escapes(void);
 extern void test_an_empty_text_has_no_words(void);
 extern void test_an_empty_quote_is_one_empty_word(void);
 extern void test_a_quote_left_open_does_not_split(void);
+extern void test_a_command_is_begun_with_its_program_and_takes_words_settings_and_a_folder(void);
+extern void test_run_lines_are_put_after_each_other_counted_measured_read_and_cleared(void);
+extern void test_a_variables_program_and_words_are_read_as_a_shell_splits_them(void);
 
 
 /*=======Mock Management=====*/
@@ -87,6 +90,9 @@ int main(void)
   run_test(test_an_empty_text_has_no_words, "test_an_empty_text_has_no_words", 183);
   run_test(test_an_empty_quote_is_one_empty_word, "test_an_empty_quote_is_one_empty_word", 188);
   run_test(test_a_quote_left_open_does_not_split, "test_a_quote_left_open_does_not_split", 194);
+  run_test(test_a_command_is_begun_with_its_program_and_takes_words_settings_and_a_folder, "test_a_command_is_begun_with_its_program_and_takes_words_settings_and_a_folder", 199);
+  run_test(test_run_lines_are_put_after_each_other_counted_measured_read_and_cleared, "test_run_lines_are_put_after_each_other_counted_measured_read_and_cleared", 219);
+  run_test(test_a_variables_program_and_words_are_read_as_a_shell_splits_them, "test_a_variables_program_and_words_are_read_as_a_shell_splits_them", 238);
 
   return UNITY_END();
 }

@@ -80,3 +80,11 @@ void test_remote_addresses_are_not_paths(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_net_address.path, CliNetAddressCfg, .address = "git@github.com:dstroy0/orior.git"));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_net_address.path, CliNetAddressCfg, .address = "https://github.com/dstroy0/orior"));
 }
+
+void test_impero_is_blocked_from_the_network_as_the_window_sets_it_and_let_on_again(void)
+{
+    EMBED_CALL(cli_net.disable, CliNetCfg, .off = 1);
+    TEST_ASSERT_TRUE(cli_net_is_disable());
+    EMBED_CALL(cli_net.disable, CliNetCfg, .off = 0);
+    TEST_ASSERT_FALSE(cli_net_is_disable());
+}

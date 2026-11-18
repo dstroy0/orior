@@ -69,3 +69,13 @@ void test_writing_wrappers_skips_the_sandbox_tools_and_bad_names(void)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "flatpak-spawn", .joined = path);
     TEST_ASSERT_FALSE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));
 }
+
+void test_outside_a_sandbox_no_stand_ins_are_made(void)
+{
+    char into[CLI_PATH_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_FALSE(cli_sandbox());
+    cli_unity_folder("host_into", into);
+    TEST_ASSERT_EQUAL_INT64(-2ll, EMBED_CALL(cli_host_into.prepare, CliHostIntoCfg, .into = into, .names = NULL, .err_msg = &err_msg));
+}

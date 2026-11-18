@@ -393,3 +393,9 @@ void test_coverage_reports_a_files_lines_run_result_and_missed(void)
     TEST_ASSERT_TRUE(numbers_contain(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = shapes, .name = "ran"), '1'));
     TEST_ASSERT_TRUE(numbers_contain(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = shapes, .name = "missed"), '5'));
 }
+
+void test_a_stop_with_no_run_going_changes_nothing(void)
+{
+    cli_test_runs_stop();
+    cli_test_runs_stop();
+}

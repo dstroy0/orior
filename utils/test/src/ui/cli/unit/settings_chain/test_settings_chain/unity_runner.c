@@ -12,6 +12,7 @@ extern void test_a_file_taken_twice_is_read_once_and_a_problem(void);
 extern void test_a_file_taken_that_is_not_there_is_a_problem(void);
 extern void test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems(void);
 extern void test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem(void);
+extern void test_a_settings_files_own_keys_are_no_settings(void);
 
 
 /*=======Mock Management=====*/
@@ -78,6 +79,7 @@ int main(void)
   run_test(test_a_file_taken_that_is_not_there_is_a_problem, "test_a_file_taken_that_is_not_there_is_a_problem", 59);
   run_test(test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems, "test_a_file_that_is_no_object_and_a_takes_that_is_no_path_are_problems", 68);
   run_test(test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem, "test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem", 89);
+  run_test(test_a_settings_files_own_keys_are_no_settings, "test_a_settings_files_own_keys_are_no_settings", 96);
 
   return UNITY_END();
 }

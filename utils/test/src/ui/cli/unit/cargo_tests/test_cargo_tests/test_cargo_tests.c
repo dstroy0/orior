@@ -3,6 +3,7 @@
 // test_cargo_tests.c: a tree's Rust tests: tests are found past strings, comments and lifetimes, a package's targets and modules name each
 // test, and the harness's report places each result and failure
 #include "ui/cli/src/tests/cargo_report.h"
+#include "ui/cli/src/text/text.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/tests/cargo_tests_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -355,4 +356,35 @@ void test_a_builds_first_error_and_its_location_are_read(void)
     CLI_TEST_ASSERT_TEXT("error[E0308]: mismatched types", error, length);
     TEST_ASSERT_EQUAL_STRING("src/lib.rs", path);
     TEST_ASSERT_EQUAL_INT64(3ll, line);
+}
+
+void test_a_place_is_read_from_path_line_column_and_the_last_line_that_is_not_blank_is_trimmed(void)
+{
+    static const char s_place[] = "src\\a.rs:3:5";
+    static const char s_lines[] = "first\n  last one  \n\n";
+    char path[CLI_PATH_MAX_LEN];
+    char out[64];
+    long long line = 0ll;
+    unsigned long long length = 0ull;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_cargo_report_size_text_path.cargo_position_get, CliCargoReportSizeTextPathCfg, .text = s_place, .size = sizeof(s_place) - 1u, .path = path, .line = &line));
+    TEST_ASSERT_EQUAL_STRING("src/a.rs", path);
+    TEST_ASSERT_EQUAL_INT64(3ll, line);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_cargo_report_size_text_path.cargo_position_get, CliCargoReportSizeTextPathCfg, .text = "nothing", .size = 7ull, .path = path, .line = &line));
+    EMBED_CALL(cli_cargo_report_size_text.cargo_last_line, CliCargoReportSizeTextCfg, .text = s_lines, .size = sizeof(s_lines) - 1u, .out_out = out, .capacity = sizeof(out), .length = &length, .none = "none");
+    CLI_TEST_ASSERT_TEXT("last one", out, length);
+    EMBED_CALL(cli_cargo_report_size_text.cargo_last_line, CliCargoReportSizeTextCfg, .text = "\n  \n", .size = 4ull, .out_out = out, .capacity = sizeof(out), .length = &length, .none = "none");
+    CLI_TEST_ASSERT_TEXT("none", out, length);
+}
+
+void test_a_package_outside_a_workspace_writes_its_paths_from_its_own_folder(void)
+{
+    char dir[CLI_PATH_MAX_LEN];
+    char crate[CLI_PATH_MAX_LEN];
+    char workspace[CLI_PATH_MAX_LEN];
+    cli_unity_folder("cargo_workspace", dir);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "crate", .joined = crate);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = crate));
+    cli_unity_file(dir, "crate/Cargo.toml", "[package]\nname = \"alone\"\n");
+    EMBED_CALL(cli_cargo_report.cargo_workspace_get, CliCargoReportCfg, .root = dir, .package = "crate", .workspace = workspace);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = workspace, .size = CLI_UNITY_LENGTH(workspace), .suffix = "crate"));
 }

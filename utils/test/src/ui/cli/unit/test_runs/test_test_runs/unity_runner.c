@@ -28,6 +28,7 @@ extern void test_a_runs_end_has_its_counts(void);
 extern void test_a_real_failure_has_its_message_and_line(void);
 extern void test_a_real_skipped_test_is_reported_skipped(void);
 extern void test_coverage_reports_a_files_lines_run_result_and_missed(void);
+extern void test_a_stop_with_no_run_going_changes_nothing(void);
 
 
 /*=======Mock Management=====*/
@@ -108,6 +109,7 @@ int main(void)
   run_test(test_a_real_failure_has_its_message_and_line, "test_a_real_failure_has_its_message_and_line", 350);
   run_test(test_a_real_skipped_test_is_reported_skipped, "test_a_real_skipped_test_is_reported_skipped", 372);
   run_test(test_coverage_reports_a_files_lines_run_result_and_missed, "test_coverage_reports_a_files_lines_run_result_and_missed", 380);
+  run_test(test_a_stop_with_no_run_going_changes_nothing, "test_a_stop_with_no_run_going_changes_nothing", 397);
 
   return UNITY_END();
 }

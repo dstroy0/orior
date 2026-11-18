@@ -12,6 +12,7 @@ extern void tearDown(void);
 extern void test_a_runs_names_come_in_the_order_of_their_first_records(void);
 extern void test_a_names_records_are_joined(void);
 extern void test_another_names_records_are_joined(void);
+extern void test_a_members_joined_size_is_its_blobs_and_a_run_that_is_not_there_is_not_live(void);
 
 
 /*=======Mock Management=====*/
@@ -76,6 +77,7 @@ int main(void)
   run_test(test_a_runs_names_come_in_the_order_of_their_first_records, "test_a_runs_names_come_in_the_order_of_their_first_records", 69);
   run_test(test_a_names_records_are_joined, "test_a_names_records_are_joined", 78);
   run_test(test_another_names_records_are_joined, "test_another_names_records_are_joined", 86);
+  run_test(test_a_members_joined_size_is_its_blobs_and_a_run_that_is_not_there_is_not_live, "test_a_members_joined_size_is_its_blobs_and_a_run_that_is_not_there_is_not_live", 94);
 
   return UNITY_END();
 }

@@ -161,6 +161,42 @@ void test_a_trees_tests_are_found_and_its_environment_is_skipped(void)
     CLI_TEST_ASSERT_TEXT("pkg/b_test.py::test_b|tests/test_a.py::test_a", s_ids, s_found.at);
 }
 
+void test_a_name_matches_a_rules_values_and_the_trees_rules_come_from_its_files(void)
+{
+    char dir[CLI_PATH_MAX_LEN];
+    tree_written(dir);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = &s_rules, .rule = &s_rules.functions, .name = "test_alpha", .size = 10ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = &s_rules, .rule = &s_rules.functions, .name = "check_alpha", .size = 11ull));
+    tree_file(dir, "pytest.ini", "[pytest]\npython_functions = check_*\n");
+    EMBED_CALL(cli_testing_rules.test_rules_get, CliTestingRulesCfg, .rules = &s_rules, .root = dir);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = &s_rules, .rule = &s_rules.functions, .name = "check_alpha", .size = 11ull));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_testing_rules_rule_size.test_by_name, CliTestingRulesRuleSizeCfg, .rules_read = &s_rules, .rule = &s_rules.functions, .name = "test_alpha", .size = 10ull));
+}
+
+void test_a_test_is_written_as_the_window_reads_one_and_the_python_tests_come_file_by_file(void)
+{
+    char dir[CLI_PATH_MAX_LEN];
+    char text[256];
+    VerbaLinea out = {text, sizeof(text), 0ull};
+    const CliTest test = {"tests/test_a.py::test_a", "tests/test_a.py", "", "test_a", 1u};
+    EMBED_CALL(cli_testing.test_write, CliTestingCfg, .test = &test, .out = &out);
+    CLI_TEST_ASSERT_TEXT("{\"id\":\"tests/test_a.py::test_a\",\"file\":\"tests/test_a.py\",\"class\":\"\",\"name\":\"test_a\",\"line\":1}", text, out.at);
+    tree_written(dir);
+    EMBED_CALL(cli_testing_root.tests_python_find, CliTestingRootCfg, .root = dir, .each = found_recorded, .context = NULL);
+    CLI_TEST_ASSERT_TEXT("pkg/b_test.py::test_b|tests/test_a.py::test_a", s_ids, s_found.at);
+}
+
+void test_a_runs_spread_over_the_cores_is_set_and_saved(void)
+{
+    char home[CLI_PATH_MAX_LEN];
+    cli_unity_folder("testing_home", home);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
+    EMBED_CALL(cli_tests_pane.parallel_set, CliTestsPaneCfg, .on = 1);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_tests_pane.parallel, CliTestsPaneCfg, .on = 0));
+    EMBED_CALL(cli_tests_pane.parallel_set, CliTestsPaneCfg, .on = 0);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_tests_pane.parallel, CliTestsPaneCfg, .on = 0));
+}
+
 void test_only_the_folders_a_trees_rules_name_are_searched(void)
 {
     char dir[CLI_PATH_MAX_LEN];

@@ -96,3 +96,20 @@ void test_a_page_stays_within_its_limit_and_names_its_template_and_category(void
     CLI_TEST_ASSERT_CONTAINS("template=bug_report.yml", s_page);
     CLI_TEST_ASSERT_CONTAINS("category=ui", s_page);
 }
+
+void test_a_category_is_one_the_template_names_and_the_reporters_answer_is_stored(void)
+{
+    char home[CLI_PATH_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_unity_folder("report_home", home);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_report_category_text.category_know, CliReportCategoryTextCfg, .category = "cli"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_report_category_text.category_know, CliReportCategoryTextCfg, .category = "library"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_report_category_text.category_know, CliReportCategoryTextCfg, .category = "unknown"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_report_category_text.category_know, CliReportCategoryTextCfg, .category = "gui"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_report_on.set_auto, CliReportOnCfg, .on = 1, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(cli_report_auto());
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_report_on.set_auto, CliReportOnCfg, .on = 0, .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(cli_report_auto());
+}

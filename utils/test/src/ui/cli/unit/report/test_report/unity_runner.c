@@ -16,6 +16,7 @@ extern void test_a_panic_in_the_command_line_is_categorized_cli(void);
 extern void test_a_panic_in_the_window_is_categorized_ui(void);
 extern void test_a_panic_outside_orior_is_categorized_unknown(void);
 extern void test_a_page_stays_within_its_limit_and_names_its_template_and_category(void);
+extern void test_a_category_is_one_the_template_names_and_the_reporters_answer_is_stored(void);
 
 
 /*=======Mock Management=====*/
@@ -86,6 +87,7 @@ int main(void)
   run_test(test_a_panic_in_the_window_is_categorized_ui, "test_a_panic_in_the_window_is_categorized_ui", 78);
   run_test(test_a_panic_outside_orior_is_categorized_unknown, "test_a_panic_outside_orior_is_categorized_unknown", 83);
   run_test(test_a_page_stays_within_its_limit_and_names_its_template_and_category, "test_a_page_stays_within_its_limit_and_names_its_template_and_category", 88);
+  run_test(test_a_category_is_one_the_template_names_and_the_reporters_answer_is_stored, "test_a_category_is_one_the_template_names_and_the_reporters_answer_is_stored", 100);
 
   return UNITY_END();
 }

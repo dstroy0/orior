@@ -17,6 +17,7 @@ extern void test_loopback_names_are_local(void);
 extern void test_other_hosts_are_not_local(void);
 extern void test_folders_and_files_on_this_machine_are_paths(void);
 extern void test_remote_addresses_are_not_paths(void);
+extern void test_impero_is_blocked_from_the_network_as_the_window_sets_it_and_let_on_again(void);
 
 
 /*=======Mock Management=====*/
@@ -88,6 +89,7 @@ int main(void)
   run_test(test_other_hosts_are_not_local, "test_other_hosts_are_not_local", 63);
   run_test(test_folders_and_files_on_this_machine_are_paths, "test_folders_and_files_on_this_machine_are_paths", 69);
   run_test(test_remote_addresses_are_not_paths, "test_remote_addresses_are_not_paths", 78);
+  run_test(test_impero_is_blocked_from_the_network_as_the_window_sets_it_and_let_on_again, "test_impero_is_blocked_from_the_network_as_the_window_sets_it_and_let_on_again", 84);
 
   return UNITY_END();
 }

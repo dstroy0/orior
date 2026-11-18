@@ -16,6 +16,7 @@ extern void test_the_code_a_tree_runs_is_found_and_released(void);
 extern void test_a_tree_with_no_answer_has_none(void);
 extern void test_an_answer_set_is_read_back_and_the_last_answer_is(void);
 extern void test_git_in_an_untrusted_tree_runs_no_hook(void);
+extern void test_a_trees_own_code_is_read_from_the_cache_and_prettier_is_blocked_where_its_configuration_is_code(void);
 
 
 /*=======Mock Management=====*/
@@ -86,6 +87,7 @@ int main(void)
   run_test(test_a_tree_with_no_answer_has_none, "test_a_tree_with_no_answer_has_none", 87);
   run_test(test_an_answer_set_is_read_back_and_the_last_answer_is, "test_an_answer_set_is_read_back_and_the_last_answer_is", 92);
   run_test(test_git_in_an_untrusted_tree_runs_no_hook, "test_git_in_an_untrusted_tree_runs_no_hook", 108);
+  run_test(test_a_trees_own_code_is_read_from_the_cache_and_prettier_is_blocked_where_its_configuration_is_code, "test_a_trees_own_code_is_read_from_the_cache_and_prettier_is_blocked_where_its_configuration_is_code", 126);
 
   return UNITY_END();
 }

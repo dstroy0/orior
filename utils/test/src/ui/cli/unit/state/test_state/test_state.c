@@ -170,3 +170,47 @@ void test_a_refused_save_leaves_the_stored_file_unchanged(void)
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text) - 1u);
     CLI_TEST_ASSERT_TEXT("not an object of entries", s_text, size);
 }
+
+void test_an_entry_is_read_by_its_place_and_its_size_by_its_key(void)
+{
+    entries_saved();
+    CliStateEntries entries = cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = s_folder, .owner = g_cli_text_owner});
+    TEST_ASSERT_NOT_NULL(entries.cell);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(STATE_ENTRIES, entries.count);
+    int zoom_read = 0;
+    for (unsigned int at = 0u; at < entries.count; at += 1u)
+    {
+        char key_text[CLI_NAME_MAX_LEN];
+        char value_text[256];
+        const char *const key = cli_state_entry_key(&(CliStateEntryCfg){.entries = &entries, .at = at, .out = key_text, .capacity = sizeof(key_text)});
+        const char *const text = cli_state_entry_text(&(CliStateEntryCfg){.entries = &entries, .at = at, .out = value_text, .capacity = sizeof(value_text)});
+        TEST_ASSERT_NOT_NULL(key);
+        TEST_ASSERT_NOT_NULL(text);
+        if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "zoom", .cap = CLI_NAME_MAX_LEN}))
+        {
+            TEST_ASSERT_EQUAL_STRING("1.1", text);
+            zoom_read = 1;
+        }
+    }
+    TEST_ASSERT_TRUE(zoom_read);
+    TEST_ASSERT_EQUAL_UINT64(3ull, cli_state_entry_size(&(CliStateEntryCfg){.entries = &entries, .key = "zoom"}));
+    TEST_ASSERT_EQUAL_UINT64(CLI_STATE_NONE, cli_state_entry_size(&(CliStateEntryCfg){.entries = &entries, .key = "none"}));
+    cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries, .owner = g_cli_text_owner});
+}
+
+void test_the_synced_entries_are_the_settings_and_the_themes_and_a_value_is_read_back_as_the_page_stores_it(void)
+{
+    static const char s_values[] = "{\"a\":\"text\",\"b\":[1,2]}";
+    char text[64];
+    VerbaLinea out = {text, sizeof(text), 0ull};
+    unsigned int root = CLI_JSON_NONE;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_state_table.is_synced, CliStateCfg, .key = "themes"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_state_table.is_synced, CliStateCfg, .key = "backup.D:/tree\nsrc/a.rs"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_state_table.is_synced, CliStateCfg, .key = "session.D:/tree"));
+    const CliJson *const json = cli_unity_parsed(s_values, sizeof(s_values) - 1u, &root);
+    EMBED_CALL(cli_state_json.read_back, CliStateJsonCfg, .json = json, .value = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "a"), .out = &out);
+    CLI_TEST_ASSERT_TEXT("text", text, out.at);
+    out.at = 0ull;
+    EMBED_CALL(cli_state_json.read_back, CliStateJsonCfg, .json = json, .value = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "b"), .out = &out);
+    CLI_TEST_ASSERT_TEXT("[1,2]", text, out.at);
+}

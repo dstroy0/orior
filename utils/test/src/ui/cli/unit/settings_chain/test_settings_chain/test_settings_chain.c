@@ -92,3 +92,12 @@ void test_a_tree_with_no_settings_has_an_empty_chain_and_no_problem(void)
     TEST_ASSERT_EQUAL_UINT(0u, s_chain.files);
     TEST_ASSERT_EQUAL_UINT(0u, s_chain.problems);
 }
+
+void test_a_settings_files_own_keys_are_no_settings(void)
+{
+    TEST_ASSERT_NOT_NULL(cli_settings_system());
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = "takes"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = "machine"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = cli_settings_system()));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = "editor.fontSize"));
+}

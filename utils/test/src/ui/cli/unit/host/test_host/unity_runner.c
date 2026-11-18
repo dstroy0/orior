@@ -13,6 +13,7 @@ extern void test_a_wrapper_runs_on_the_host_in_the_working_directory_with_the_te
 extern void test_a_wrapper_ends_with_the_arguments(void);
 extern void test_a_quote_in_a_program_name_is_escaped(void);
 extern void test_writing_wrappers_skips_the_sandbox_tools_and_bad_names(void);
+extern void test_outside_a_sandbox_no_stand_ins_are_made(void);
 
 
 /*=======Mock Management=====*/
@@ -80,6 +81,7 @@ int main(void)
   run_test(test_a_wrapper_ends_with_the_arguments, "test_a_wrapper_ends_with_the_arguments", 45);
   run_test(test_a_quote_in_a_program_name_is_escaped, "test_a_quote_in_a_program_name_is_escaped", 52);
   run_test(test_writing_wrappers_skips_the_sandbox_tools_and_bad_names, "test_writing_wrappers_skips_the_sandbox_tools_and_bad_names", 58);
+  run_test(test_outside_a_sandbox_no_stand_ins_are_made, "test_outside_a_sandbox_no_stand_ins_are_made", 73);
 
   return UNITY_END();
 }

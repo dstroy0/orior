@@ -91,3 +91,19 @@ void test_another_names_records_are_joined(void)
     CLI_TEST_ASSERT_TEXT("2", s_out, out.at);
 }
 
+void test_a_members_joined_size_is_its_blobs_and_a_run_that_is_not_there_is_not_live(void)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    char none[CLI_PATH_MAX_LEN];
+    unsigned long long panicked = 0ull;
+    const unsigned long long size = two_names_written();
+    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = s_run, .size = size, .name = "b.txt"));
+    TEST_ASSERT_EQUAL_UINT64(1ull, EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = s_run, .size = size, .name = "a.txt"));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = s_run, .size = size, .name = "c.txt"));
+    cli_unity_folder("qry_runs", folder);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "none", .joined = none);
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_qry_path_panicked.existing, CliQryPathPanickedCfg, .path = none, .panicked = &panicked));
+    EMBED_CALL(cli_qry_path_panicked.join_window, CliQryPathPanickedCfg, .path = NULL);
+    EMBED_CALL(cli_qry_out_root.runs_lose, CliQryOutRootCfg, .root = folder);
+}
+

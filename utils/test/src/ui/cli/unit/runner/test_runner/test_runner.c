@@ -195,3 +195,58 @@ void test_a_quote_left_open_does_not_split(void)
 {
     TEST_ASSERT_EQUAL_INT(0, words_split("'open"));
 }
+
+void test_a_command_is_begun_with_its_program_and_takes_words_settings_and_a_folder(void)
+{
+    EMBED_CALL(cli_runner.command_begin, CliRunnerCfg, .command = &s_command, .program = "python");
+    EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &s_command, .word_text = "-m");
+    EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &s_command, .word_text = "pytest");
+    TEST_ASSERT_EQUAL_UINT(3u, s_command.words.count);
+    TEST_ASSERT_EQUAL_STRING("python", s_command.words.word_text[0]);
+    TEST_ASSERT_EQUAL_STRING("pytest", s_command.words.word_text[2]);
+    EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = &s_command, .name = "PYTHONPATH", .value = "src");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_runner_name_command.command_sets, CliRunnerNameCommandCfg, .name = "PYTHONPATH", .command_read = &s_command));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_runner_name_command.command_sets, CliRunnerNameCommandCfg, .name = "HOME", .command_read = &s_command));
+    TEST_ASSERT_FALSE(s_command.has_folder);
+    EMBED_CALL(cli_runner_command_folder.command_folder, CliRunnerCommandFolderCfg, .command = &s_command, .folder = "tests");
+    TEST_ASSERT_TRUE(s_command.has_folder);
+    TEST_ASSERT_EQUAL_STRING("tests", s_command.folder);
+}
+
+static embed_u8 s_line_text[CLI_LINES_TEXT];
+static CliRunnerLine s_line_records[CLI_LINES_MAX];
+
+void test_run_lines_are_put_after_each_other_counted_measured_read_and_cleared(void)
+{
+    static CliRunLines s_lines;
+    char out[16];
+    s_lines.text_bytes = s_line_text;
+    s_lines.line_bytes = s_line_records;
+    s_lines.positioned = 0;
+    EMBED_CALL(cli_runner_lines.lines_append, CliRunnerLinesCfg, .lines = &s_lines, .text = "alpha", .length = 5ull);
+    EMBED_CALL(cli_runner_lines.lines_append, CliRunnerLinesCfg, .lines = &s_lines, .text = "be", .length = 2ull);
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_runner_lines_index.lines_count, CliRunnerLinesIndexCfg, .lines_read = &s_lines));
+    TEST_ASSERT_EQUAL_UINT64(5ull, EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = &s_lines));
+    TEST_ASSERT_EQUAL_UINT64(5ull, EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = &s_lines, .index = 0u, .out = out, .capacity = sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("alpha", out);
+    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = &s_lines, .index = 1u, .out = out, .capacity = sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("be", out);
+    cli_lines_clear(&(CliRunLinesCfg){.lines = &s_lines});
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_runner_lines_index.lines_count, CliRunnerLinesIndexCfg, .lines_read = &s_lines));
+}
+
+void test_a_variables_program_and_words_are_read_as_a_shell_splits_them(void)
+{
+    static CliWords s_words;
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_RUNNER_WORDS", .value = "python -u -m x"));
+    s_words.count = 0u;
+    s_words.used = 0u;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_runner_variable.program_words, CliRunnerVariableCfg, .variable = "ORIOR_RUNNER_WORDS", .words = &s_words));
+    TEST_ASSERT_EQUAL_UINT(4u, s_words.count);
+    TEST_ASSERT_EQUAL_STRING("python", s_words.word_text[0]);
+    TEST_ASSERT_EQUAL_STRING("x", s_words.word_text[3]);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_RUNNER_WORDS", .value = ""));
+    s_words.count = 0u;
+    s_words.used = 0u;
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_runner_variable.program_words, CliRunnerVariableCfg, .variable = "ORIOR_RUNNER_WORDS", .words = &s_words));
+}

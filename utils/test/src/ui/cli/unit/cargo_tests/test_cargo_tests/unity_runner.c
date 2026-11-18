@@ -3,6 +3,7 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/tests/cargo_report.h"
+#include "ui/cli/src/text/text.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/tests/cargo_tests_internal.h"
 
@@ -28,6 +29,8 @@ extern void test_an_ignored_result_line(void);
 extern void test_the_summary_is_no_result(void);
 extern void test_each_failures_message_and_panic_location_are_read(void);
 extern void test_a_builds_first_error_and_its_location_are_read(void);
+extern void test_a_place_is_read_from_path_line_column_and_the_last_line_that_is_not_blank_is_trimmed(void);
+extern void test_a_package_outside_a_workspace_writes_its_paths_from_its_own_folder(void);
 
 
 /*=======Mock Management=====*/
@@ -89,25 +92,27 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\cargo_tests\\test_cargo_tests\\test_cargo_tests.c");
-  run_test(test_tests_are_found_end_strings_comments_and_lifetimes, "test_tests_are_found_end_strings_comments_and_lifetimes", 171);
-  run_test(test_the_modules_a_file_names_are_found, "test_the_modules_a_file_names_are_found", 180);
-  run_test(test_the_tokens_cell_is_the_size_of_their_count, "test_the_tokens_cell_is_the_size_of_their_count", 189);
-  run_test(test_every_cell_of_the_scan_is_released, "test_every_cell_of_the_scan_is_released", 201);
-  run_test(test_a_packages_targets_and_modules_name_each_test, "test_a_packages_targets_and_modules_name_each_test", 210);
-  run_test(test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets, "test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets", 221);
-  run_test(test_a_found_test_reports_its_line, "test_a_found_test_reports_its_line", 235);
-  run_test(test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece, "test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece", 252);
-  run_test(test_the_searchs_cells_are_released_as_it_ends, "test_the_searchs_cells_are_released_as_it_ends", 269);
-  run_test(test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back, "test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back", 285);
-  run_test(test_a_rust_test_is_rust, "test_a_rust_test_is_rust", 301);
-  run_test(test_a_rust_file_is_rust, "test_a_rust_file_is_rust", 306);
-  run_test(test_a_python_test_is_not_rust, "test_a_python_test_is_not_rust", 311);
-  run_test(test_a_passing_result_line, "test_a_passing_result_line", 316);
-  run_test(test_a_failing_result_line, "test_a_failing_result_line", 321);
-  run_test(test_an_ignored_result_line, "test_an_ignored_result_line", 326);
-  run_test(test_the_summary_is_no_result, "test_the_summary_is_no_result", 331);
-  run_test(test_each_failures_message_and_panic_location_are_read, "test_each_failures_message_and_panic_location_are_read", 336);
-  run_test(test_a_builds_first_error_and_its_location_are_read, "test_a_builds_first_error_and_its_location_are_read", 347);
+  run_test(test_tests_are_found_end_strings_comments_and_lifetimes, "test_tests_are_found_end_strings_comments_and_lifetimes", 172);
+  run_test(test_the_modules_a_file_names_are_found, "test_the_modules_a_file_names_are_found", 181);
+  run_test(test_the_tokens_cell_is_the_size_of_their_count, "test_the_tokens_cell_is_the_size_of_their_count", 190);
+  run_test(test_every_cell_of_the_scan_is_released, "test_every_cell_of_the_scan_is_released", 202);
+  run_test(test_a_packages_targets_and_modules_name_each_test, "test_a_packages_targets_and_modules_name_each_test", 211);
+  run_test(test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets, "test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets", 222);
+  run_test(test_a_found_test_reports_its_line, "test_a_found_test_reports_its_line", 236);
+  run_test(test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece, "test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece", 253);
+  run_test(test_the_searchs_cells_are_released_as_it_ends, "test_the_searchs_cells_are_released_as_it_ends", 270);
+  run_test(test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back, "test_the_targets_the_tests_given_reach_are_counted_and_the_runs_take_given_back", 286);
+  run_test(test_a_rust_test_is_rust, "test_a_rust_test_is_rust", 302);
+  run_test(test_a_rust_file_is_rust, "test_a_rust_file_is_rust", 307);
+  run_test(test_a_python_test_is_not_rust, "test_a_python_test_is_not_rust", 312);
+  run_test(test_a_passing_result_line, "test_a_passing_result_line", 317);
+  run_test(test_a_failing_result_line, "test_a_failing_result_line", 322);
+  run_test(test_an_ignored_result_line, "test_an_ignored_result_line", 327);
+  run_test(test_the_summary_is_no_result, "test_the_summary_is_no_result", 332);
+  run_test(test_each_failures_message_and_panic_location_are_read, "test_each_failures_message_and_panic_location_are_read", 337);
+  run_test(test_a_builds_first_error_and_its_location_are_read, "test_a_builds_first_error_and_its_location_are_read", 348);
+  run_test(test_a_place_is_read_from_path_line_column_and_the_last_line_that_is_not_blank_is_trimmed, "test_a_place_is_read_from_path_line_column_and_the_last_line_that_is_not_blank_is_trimmed", 361);
+  run_test(test_a_package_outside_a_workspace_writes_its_paths_from_its_own_folder, "test_a_package_outside_a_workspace_writes_its_paths_from_its_own_folder", 379);
 
   return UNITY_END();
 }

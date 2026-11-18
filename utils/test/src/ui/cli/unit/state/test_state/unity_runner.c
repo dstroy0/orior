@@ -17,6 +17,8 @@ extern void test_a_null_entry_removes_it(void);
 extern void test_a_removed_theme_loses_its_file(void);
 extern void test_a_save_over_a_file_that_is_not_an_object_is_refused_with_a_reason(void);
 extern void test_a_refused_save_leaves_the_stored_file_unchanged(void);
+extern void test_an_entry_is_read_by_its_place_and_its_size_by_its_key(void);
+extern void test_the_synced_entries_are_the_settings_and_the_themes_and_a_value_is_read_back_as_the_page_stores_it(void);
 
 
 /*=======Mock Management=====*/
@@ -88,6 +90,8 @@ int main(void)
   run_test(test_a_removed_theme_loses_its_file, "test_a_removed_theme_loses_its_file", 145);
   run_test(test_a_save_over_a_file_that_is_not_an_object_is_refused_with_a_reason, "test_a_save_over_a_file_that_is_not_an_object_is_refused_with_a_reason", 153);
   run_test(test_a_refused_save_leaves_the_stored_file_unchanged, "test_a_refused_save_leaves_the_stored_file_unchanged", 162);
+  run_test(test_an_entry_is_read_by_its_place_and_its_size_by_its_key, "test_an_entry_is_read_by_its_place_and_its_size_by_its_key", 174);
+  run_test(test_the_synced_entries_are_the_settings_and_the_themes_and_a_value_is_read_back_as_the_page_stores_it, "test_the_synced_entries_are_the_settings_and_the_themes_and_a_value_is_read_back_as_the_page_stores_it", 201);
 
   return UNITY_END();
 }
