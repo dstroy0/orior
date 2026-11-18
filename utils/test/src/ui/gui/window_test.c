@@ -1219,6 +1219,46 @@ static void preferences_window_checked(void)
     cli_check(!s_window.preferences.displayed, "Preferences closed again");
 }
 
+// The window's redraws and waits: the deadline that set a wait named, the changes drawn again on the raster displayed
+// and paid, the busy circle's step paid, and the frame positioned at a stage while the claim slides and at rest after
+static void redraws_checked(void)
+{
+    const unsigned long long wait_ms = EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg,
+                                                  .window_read = &s_window, .input = NULL);
+    const unsigned int source = gui_window_timeout_source();
+    cli_check((wait_ms == 0ULL) ? (source == GUI_WINDOW_WAKES)
+                                : ((source < GUI_WINDOW_WAKES) && (g_gui_window_wake_names[source] != NULL)),
+              "the deadline that set the wait is named, and none where the window waits on nothing");
+    EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
+    s_window.damage = (GuiRect){10, 10, 50, 40};
+    const GuiRect redrawn = EMBED_CALL(gui_window_table.damage_draw, GuiWindowCfg, .window = &s_window);
+    cli_check((redrawn.x == 10) && (redrawn.y == 10) && (redrawn.width == 50) && (redrawn.height == 40) &&
+                  EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = s_window.damage),
+              "the changes are drawn again where they are, and paid");
+    const GuiRect none = EMBED_CALL(gui_window_table.damage_draw, GuiWindowCfg, .window = &s_window);
+    cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = none),
+              "with no changes nothing is drawn again");
+    s_window.busy_alone = 1;
+    (void)EMBED_CALL(gui_window_table.busy_draw, GuiWindowCfg, .window = &s_window);
+    cli_check(!s_window.busy_alone, "the busy circle's step is paid as it is drawn again");
+
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long sent_ms = now_ms - 20000ULL;
+    EMBED_CALL(gui_autohide_on.set, GuiAutohideOnCfg, .claim = &s_window.claim, .on = !s_window.claim.autohidden,
+               .now_ms = sent_ms);
+    EMBED_CALL(gui_window_autohide.autohide_layout, GuiWindowAutohideCfg, .window = &s_window,
+               .time_ms = sent_ms + GUI_STAGE_MS);
+    cli_check((s_window.stage != NULL) && (s_window.stages.count != 0u) &&
+                  (s_window.frame.claim.claim == s_window.stage->frame.claim.claim),
+              "while the claim slides the frame is the stage located at the moment");
+    EMBED_CALL(gui_autohide_on.set, GuiAutohideOnCfg, .claim = &s_window.claim, .on = !s_window.claim.autohidden,
+               .now_ms = sent_ms + 10000ULL);
+    EMBED_CALL(gui_window_autohide.autohide_layout, GuiWindowAutohideCfg, .window = &s_window, .time_ms = now_ms);
+    cli_check((s_window.stage == NULL) && (s_window.stages.count == 0u) && s_window.pending,
+              "at rest no stage is located and a frame is owed");
+    stepped();
+}
+
 static void terminal_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -1999,7 +2039,7 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[30] = {{"saves", saves_checked},
+static const WindowCheck s_checks[31] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
@@ -2020,6 +2060,7 @@ static const WindowCheck s_checks[30] = {{"saves", saves_checked},
                                          {"tips", tips_checked},
                                          {"bar_tools", bar_tools_checked},
                                          {"preferences_window", preferences_window_checked},
+                                         {"redraws", redraws_checked},
                                          {"map_collapses", map_collapses_checked},
                                          {"themes", themes_checked},
                                          {"sticky_notch", sticky_notch_checked},
