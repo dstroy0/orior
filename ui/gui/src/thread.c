@@ -66,6 +66,17 @@ typedef struct
     int icons_ordered;
     GuiRaster icon_small;
     GuiRaster icon_large;
+    // The hand's pointer as last ordered onto its surface: the record its picture came from, the surface its place is
+    // in, the place and the picture's size, its shape, the bake of the picture, whether it shows, and whether a
+    // picture is on its way to the system's thread. A picture on its way is not baked again until the system has
+    // copied it
+    const GuiPointer *pointer_record;
+    unsigned int pointer_surface;
+    GuiRect pointer_part;
+    unsigned int pointer_shape;
+    unsigned int pointer_bakes;
+    int pointer_shown;
+    int pointer_taking;
 } CliView;
 
 static CliView s_view;
@@ -533,6 +544,9 @@ static void view_event(const ViewThreadCtx *args)
         window->preferences.displayed = 0;
         s_view.preferences_opened = 0;
         break;
+    case CLI_VIEW_EVENT_POINTER_TAKEN:
+        s_view.pointer_taking = 0;
+        break;
     default:
         break;
     }
@@ -761,16 +775,73 @@ static void view_frame(void)
         EMBED_CALL(view_part_order, ViewThreadCtx,
                    .part = EMBED_CALL(gui_window_table.caret_draw, GuiWindowCfg, .window = window));
     }
-    // the pointer moved alone over the frame displayed, once no whole frame is on its way to be displayed
-    if (window->pointer_alone && !s_view.presenting_main)
-    {
-        EMBED_CALL(view_part_order, ViewThreadCtx,
-                   .part = EMBED_CALL(gui_window_table.pointer_draw, GuiWindowCfg, .window = window));
-    }
     if (window->busy_alone && !s_view.presenting_main)
     {
         EMBED_CALL(view_part_order, ViewThreadCtx,
                    .part = EMBED_CALL(gui_window_table.busy_draw, GuiWindowCfg, .window = window));
+    }
+}
+
+// The hand's pointer ordered onto its own surface where it changed. The pointer is the dialog's while the dialog shows
+// it, else Preferences' while Preferences' window shows it, else the main window's, each at its own surface's scale.
+// A new shape or a new bake sends the picture, a move sends the place alone, and a picture still on its way to the
+// system's thread lets only the place go. A full ring leaves the order to the next pass
+static void view_pointer_follow(void)
+{
+    GuiWindow *const window = &s_view.window;
+    GuiPointer *record = &window->pointer;
+    unsigned int surface = CLI_VIEW_MAIN;
+    int scale = window->frame.scale;
+    if (window->dialog_pointer.shown)
+    {
+        record = &window->dialog_pointer;
+        surface = CLI_VIEW_DIALOG;
+        scale = window->dialog.scale;
+    }
+    else if (window->preferences_pointer.shown)
+    {
+        record = &window->preferences_pointer;
+        surface = CLI_VIEW_PREFERENCES;
+        scale = window->preferences.scale;
+    }
+    const GuiRect part = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = record, .scale = scale);
+    const int shown = record->shown && (part.width > 0) && (part.height > 0);
+    const int pictured = !shown || ((s_view.pointer_record == record) && (s_view.pointer_shape == record->shape) &&
+                                    (s_view.pointer_bakes == record->sheet.bakes) && record->sheet.made &&
+                                    (record->sheet.scale ==
+                                     EMBED_CALL(gui_pointer_read.scale, GuiPointerReadCfg, .scale = scale)));
+    const int placed = (s_view.pointer_shown == shown) && (s_view.pointer_surface == surface) &&
+                       (!shown || ((s_view.pointer_part.x == part.x) && (s_view.pointer_part.y == part.y)));
+    if (pictured && placed)
+    {
+        return;
+    }
+    CliViewOrder order = {
+        .type = CLI_VIEW_ORDER_POINTER, .surface = surface, .pointer = 0u, .part = part, .shown = shown};
+    const int picture_sent = !pictured && !s_view.pointer_taking;
+    if (picture_sent)
+    {
+        order.raster.pixels = (GuiColor *)EMBED_CALL(gui_pointer_raster.picture, GuiPointerRasterCfg,
+                                                     .pointer = record, .palette = window->palette, .scale = scale);
+    }
+    else if (placed)
+    {
+        // the picture waits on the one on its way, and the place is where it was ordered
+        return;
+    }
+    if (!EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
+    {
+        return;
+    }
+    s_view.pointer_surface = surface;
+    s_view.pointer_part = part;
+    s_view.pointer_shown = shown;
+    if (picture_sent)
+    {
+        s_view.pointer_record = record;
+        s_view.pointer_shape = record->shape;
+        s_view.pointer_bakes = record->sheet.bakes;
+        s_view.pointer_taking = 1;
     }
 }
 
@@ -803,6 +874,8 @@ static void view_run(void *context)
             s_view.tick_at_ms = 0ULL;
             EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = window);
         }
+        // the pointer's surface moved before the frame is drawn, so a move waits on no frame
+        view_pointer_follow();
         view_preferences_follow();
         view_dialog_follow();
         // a command asked the window to close

@@ -7,6 +7,7 @@
 // system_x11.c)
 #ifndef GUI_SYSTEM_H
 #define GUI_SYSTEM_H
+#include "../../../includes/window/pointer.h"
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "embed_dispatch_layout.h"
 #include "input_event.h"
@@ -19,6 +20,7 @@ typedef struct GuiSystemCfg GuiSystemCfg;
 typedef struct GuiSystemAreasCfg GuiSystemAreasCfg;
 typedef struct GuiSystemWidthCfg GuiSystemWidthCfg;
 typedef struct GuiSystemPositionCfg GuiSystemPositionCfg;
+typedef struct GuiSystemPointerCfg GuiSystemPointerCfg;
 
 // A system window, as its body defines it
 typedef struct GuiSystem GuiSystem;
@@ -88,6 +90,15 @@ void gui_system_on_position(const GuiSystemPositionCfg *args);
 int gui_system_scale(const GuiSystemPositionCfg *args);
 // whether the system asks for less motion: 1 where it does; a change of it comes as the `motion` event
 int gui_system_motion_reduce(const GuiSystemPositionCfg *args);
+// The pointers' own surfaces, GUI_SYSTEM_POINTERS of them for the program, one for each pointer the window shows at
+// once: the hand's is 0. Each is a window of the system's over every window, which takes no input and shows its
+// pointer's picture with its own alpha. A put moves the surface `at`: the picture's top left goes to x, y of the client
+// of `system_read`. A `picture` that is not NULL is copied first: `width` by `height` pixels, each its color
+// multiplied by its alpha. A `shown` of 0 takes the surface off the screen. The first put of a surface opens it, and a
+// surface the system refuses shows nothing. The close lets every part of every surface go
+#define GUI_SYSTEM_POINTERS 16u
+void gui_system_pointer_put(const GuiSystemPointerCfg *args);
+void gui_system_pointer_close(const GuiSystemPointerCfg *args);
 struct GuiSystemPositionTitleCfg
 {
     const CliWindowPosition *place;
@@ -137,6 +148,29 @@ struct GuiSystemPositionCfg
 {
     const GuiSystem *system_read;
     CliWindowPosition *position_out;
+};
+
+struct GuiSystemPointerCfg
+{
+    unsigned int at;
+    const GuiSystem *system_read;
+    const GuiColor *picture;
+    unsigned int width;
+    unsigned int height;
+    int x;
+    int y;
+    int shown;
+};
+
+typedef struct
+{
+    void (*put)(const GuiSystemPointerCfg *args);
+    void (*close)(const GuiSystemPointerCfg *args);
+} GuiSystemPointerNs;
+EMBED_TABLE_LAYOUT(GuiSystemPointerNs, put, close);
+EMBED_TABLE_STORAGE GuiSystemPointerNs gui_system_pointer EMBED_UNUSED = {
+    .put = gui_system_pointer_put,
+    .close = gui_system_pointer_close,
 };
 
 typedef struct

@@ -185,7 +185,6 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->pointer);
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->preferences_pointer);
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->dialog_pointer);
-    args->window->pointer_alone = 0;
     args->window->driven_count = 0u;
     EMBED_CALL(gui_hover.init, GuiHoverCfg, .hover = &args->window->hover);
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
@@ -773,14 +772,6 @@ EMBED_INLINE void window_damage_add(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     window->damage = EMBED_CALL(window_rect_join, GuiWindowCtx, .caret = args->caret, .other = window->damage);
-}
-
-// whether the rectangles `caret` and `other` share a pixel
-EMBED_INLINE int window_rects_meet(const GuiWindowCtx *args)
-{
-    return !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg,
-                       .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->caret,
-                                          .other = args->other));
 }
 
 // The part of the frame a scroll changes: the editor's text and gutter, its two scrollbars and the map's column
@@ -1554,67 +1545,23 @@ void gui_window_flip(const GuiWindowCfg *args)
         EMBED_CALL(gui_framebuffer_rings.flip, GuiFramebufferRingsCfg, .framebuffer = &args->window->framebuffer);
 }
 
-// The pointer lifted off the raster displayed where the pixels saved under it meet `caret`, those pixels put back, so
-// a part drawn again alone under the pointer draws on the frame: 1 where it was lifted
-EMBED_INLINE int window_pointer_lift(const GuiWindowCtx *args)
-{
-    GuiWindow *const window = args->window;
-    GuiRaster *const displayed = (window->displayed != NULL) ? window->displayed : window->raster;
-    const GuiRect saved =
-        EMBED_CALL(gui_pointer_raster.saved, GuiPointerRasterCfg, .pointer = &window->pointer, .raster = displayed);
-    if (!EMBED_CALL(window_rects_meet, GuiWindowCtx, .caret = args->caret, .other = saved))
-    {
-        return 0;
-    }
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &window->pointer, .raster = displayed);
-    return 1;
-}
-
-// The pointer put down again on the raster displayed after a lift, over the part drawn again: the rectangle drawn
-// joined to `caret`
-EMBED_INLINE GuiRect window_pointer_drop(const GuiWindowCtx *args)
-{
-    GuiWindow *const window = args->window;
-    GuiRaster *const displayed = (window->displayed != NULL) ? window->displayed : window->raster;
-    const GuiRect drawn =
-        EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &window->pointer, .raster = displayed,
-                   .palette = window->palette, .scale = window->frame.scale);
-    return EMBED_CALL(window_rect_join, GuiWindowCtx, .caret = args->caret, .other = drawn);
-}
-
 GuiRect gui_window_caret_draw(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     window->caret_alone = 0;
     window->caret_color = EMBED_CALL(window_caret_color, GuiWindowCtx, .window_read = window);
     window->editor.caret_color = window->caret_color;
-    // the caret lies in the editor: a pointer over the editor is lifted for the caret's redraw
-    const int lifted = EMBED_CALL(window_pointer_lift, GuiWindowCtx, .window = window, .caret = window->frame.editor);
-    const GuiRect caret = EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &window->editor,
-                                     .raster = (window->displayed != NULL) ? window->displayed : window->raster,
-                                     .palette = window->palette);
-    return lifted ? EMBED_CALL(window_pointer_drop, GuiWindowCtx, .window = window, .caret = caret) : caret;
+    return EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &window->editor,
+                      .raster = (window->displayed != NULL) ? window->displayed : window->raster,
+                      .palette = window->palette);
 }
 
 GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     window->busy_alone = 0;
-    const int lifted =
-        EMBED_CALL(window_pointer_lift, GuiWindowCtx, .window = window, .caret = window->busy.under_rect);
-    const GuiRect busy =
-        EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(), .busy = &window->busy,
-                   .raster = (window->displayed != NULL) ? window->displayed : window->raster);
-    return lifted ? EMBED_CALL(window_pointer_drop, GuiWindowCtx, .window = window, .caret = busy) : busy;
-}
-
-GuiRect gui_window_pointer_draw(const GuiWindowCfg *args)
-{
-    GuiWindow *const window = args->window;
-    window->pointer_alone = 0;
-    return EMBED_CALL(gui_pointer_raster.redrawn, GuiPointerRasterCfg, .pointer = &window->pointer,
-                      .raster = (window->displayed != NULL) ? window->displayed : window->raster,
-                      .palette = window->palette, .scale = window->frame.scale);
+    return EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(),
+                      .busy = &window->busy, .raster = (window->displayed != NULL) ? window->displayed : window->raster);
 }
 
 // the deadline that set the last wait, its place among gui_window_timeout_ms's deadlines, GUI_WINDOW_WAKES for none
@@ -4296,10 +4243,6 @@ void gui_window_preferences_draw(const GuiWindowCfg *args)
                .palette = EMBED_CALL(window_preferences_palette, GuiWindowCtx, .window = args->window),
                .values = &args->window->preference_values, .ground = positioned ? ground : NULL,
                .buttons = &args->window->preferences.buttons, .time_ms = cli_clock_milliseconds());
-    // the pointer over the whole frame, which is drawn whole each time
-    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &args->window->preferences_pointer,
-                     .raster = &args->window->preferences_raster, .palette = args->window->palette,
-                     .scale = args->window->preferences.scale);
 }
 
 void gui_window_preferences_close(const GuiWindowCfg *args)
@@ -6477,23 +6420,6 @@ void gui_window_draw(const GuiWindowCfg *args)
         EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(),
                    .busy = &args->window->busy, .raster = raster, .palette = palette, .frame = frame);
     }
-    // The pointer last, over every part, the pixels under it saved for its moves. A frame of changes draws it where
-    // the clip holds both its place and the place its pixels were saved at; the changes reach over the pointer
-    // wherever they meet it
-    const GuiRect pointer = EMBED_CALL(
-        window_rect_join, GuiWindowCtx,
-        .caret = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = &args->window->pointer,
-                            .scale = frame->scale),
-        .other = EMBED_CALL(gui_pointer_raster.saved, GuiPointerRasterCfg, .pointer = &args->window->pointer,
-                            .raster = raster));
-    const GuiRect pointer_in = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = pointer, .other = clip);
-    if (!clipped || EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = pointer) ||
-        ((pointer_in.width == pointer.width) && (pointer_in.height == pointer.height)))
-    {
-        (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &args->window->pointer,
-                         .raster = raster, .palette = palette, .scale = frame->scale);
-        args->window->pointer_alone = 0;
-    }
 }
 
 GuiRect gui_window_damage_draw(const GuiWindowCfg *args)
@@ -6501,18 +6427,6 @@ GuiRect gui_window_damage_draw(const GuiWindowCfg *args)
     GuiWindow *const window = args->window;
     GuiRaster *const back = window->raster;
     GuiRaster *const displayed = (window->displayed != NULL) ? window->displayed : back;
-    // changes that meet the pointer, at its place or where its pixels were saved, reach over all of it: the pointer
-    // is then drawn whole over the frame drawn again
-    const GuiRect pointer = EMBED_CALL(
-        window_rect_join, GuiWindowCtx,
-        .caret = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = &window->pointer,
-                            .scale = window->frame.scale),
-        .other = EMBED_CALL(gui_pointer_raster.saved, GuiPointerRasterCfg, .pointer = &window->pointer,
-                            .raster = displayed));
-    if (EMBED_CALL(window_rects_meet, GuiWindowCtx, .caret = window->damage, .other = pointer))
-    {
-        EMBED_CALL(window_damage_add, GuiWindowCtx, .window = window, .caret = pointer);
-    }
     const GuiRect damage = window->damage;
     window->damage = (GuiRect){0, 0, 0, 0};
     if (displayed->pixels == NULL)
@@ -6874,11 +6788,9 @@ EMBED_INLINE void window_pointer_track(const GuiWindowCtx *args)
     const unsigned int shape = args->on ? EMBED_CALL(window_pointer_shape, GuiWindowCtx, .window_read = window, .x = x,
                                                      .y = y)
                                         : window->pointer.shape;
-    if (EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &window->pointer, .x = x, .y = y,
-                   .shape = shape, .shown = args->on))
-    {
-        window->pointer_alone = 1;
-    }
+    // the view's thread moves the pointer's own surface to the place: the frame draws nothing for it
+    (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &window->pointer, .x = x, .y = y,
+                     .shape = shape, .shown = args->on);
 }
 
 int gui_window_pointer_surface(const GuiWindowPointerCfg *args)
@@ -8416,11 +8328,9 @@ void gui_window_preferences_input(const GuiWindowInputTypeCfg *args)
     const GuiInput *input = args->input;
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &s_preferences_handlers, .window = window,
                .input = input);
-    if (EMBED_CALL(gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &window->preferences_pointer,
-                   .input = input,
-                   .hit = EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = window,
-                                     .input = input)))
-    {
-        window->preferences_pending = 1;
-    }
+    // the pointer is on a surface of its own: its move draws nothing on Preferences' frame
+    (void)EMBED_CALL(gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &window->preferences_pointer,
+                     .input = input,
+                     .hit = EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = window,
+                                       .input = input));
 }

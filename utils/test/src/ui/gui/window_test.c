@@ -1274,25 +1274,21 @@ static void pointer_checked(void)
     moved(text_x, text_y);
     cli_check(s_window.pointer.shown && (s_window.pointer.shape == GUI_POINTER_TEXT) && (s_window.pointer.x == text_x),
               "over the text the pointer is the beam at the pointer's place");
+    // The pointer is on a surface of its own: a frame draws none of it. The frame's pixel at the beam's hot point is
+    // the text's, the same with the beam there as with a beam drawn over a copy of the frame differing from it
     EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
-    // the beam's hot point is its middle, inside its glass: the frame's pixel there is the glass over the text, and the
-    // pixel put back under it is the text alone
     const unsigned int hot = ((unsigned int)text_y * s_window.raster->width) + (unsigned int)text_x;
-    const GuiColor glassed = s_window.raster->pixels[hot];
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_window.pointer,
-                     .raster = s_window.raster);
-    const GuiColor under = s_window.raster->pixels[hot];
+    const GuiColor framed = s_window.raster->pixels[hot];
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_window.pointer,
                      .raster = s_window.raster, .palette = s_window.palette, .scale = s_window.frame.scale);
-    cli_check(!s_window.pointer_alone && (glassed != under) && (s_window.raster->pixels[hot] == glassed),
-              "a frame draws the pointer last, its glass over the text at its hot point");
+    const GuiColor glassed = s_window.raster->pixels[hot];
+    EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
+    cli_check((glassed != framed) && (s_window.raster->pixels[hot] == framed),
+              "a frame draws no pointer: its pixel at the beam's hot point is the text's alone");
     const GuiRect tool = EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = &s_window.frame,
                                     .which = GUI_TOP_MENU_TOOL_PREFERENCES);
     moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));
-    cli_check((s_window.pointer.shape == GUI_POINTER_HAND) && s_window.pointer_alone,
-              "over a tool of the bar the pointer is the hand, and its move is owed alone");
-    (void)EMBED_CALL(gui_window_table.pointer_draw, GuiWindowCfg, .window = &s_window);
-    cli_check(!s_window.pointer_alone, "the pointer drawn again alone pays its move");
+    cli_check(s_window.pointer.shape == GUI_POINTER_HAND, "over a tool of the bar the pointer is the hand");
     moved(1, editor.y + (editor.height / 2));
     cli_check(s_window.pointer.shape == GUI_POINTER_RESIZE_EW, "on the left border the pointer is the arrow both ways");
     EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window, .input = GUI_LEFT_INPUT());

@@ -1,10 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pointer.c: the pointer's sprites, each a set of figures with rounded corners, and the glass they are baked in. The
-// shapes are baked once into a sheet, and a draw puts the baked picture over the pixels saved from under it
+// shapes are baked once into a sheet; the picture goes to the pointer's own surface, or a draw puts it over a raster
 #include "pointer.h"
-
-#include "memoria_operor/memoria_operor.h"
 
 // a figure of `count_` points with corners rounded by `corner_`, the points after
 #define POINTER_FIGURE(corner_, count_, ...) {(count_), (corner_), {__VA_ARGS__}}
@@ -105,7 +103,6 @@ typedef struct
 {
     const GuiPointer *pointer_read;
     GuiPointer *pointer;
-    GuiPointerMark *mark;
     const GuiPointerSprite *sprite;
     const GuiPointerFigure *figure;
     GuiRaster *raster;
@@ -113,7 +110,6 @@ typedef struct
     GuiColor *picture;
     GuiRect rect;
     unsigned int *nearest;
-    int restoring;
     int scale;
     double x;
     double y;
@@ -137,13 +133,8 @@ void gui_pointer_init(const GuiPointerCfg *args)
     args->pointer->y = 0;
     args->pointer->shape = GUI_POINTER_ARROW;
     args->pointer->shown = 0;
-    for (unsigned int at = 0u; at < GUI_POINTER_RASTERS; at += 1u)
-    {
-        args->pointer->mark[at].pixels = NULL;
-        args->pointer->mark[at].rect = (GuiRect){0, 0, 0, 0};
-        args->pointer->mark[at].saved = 0;
-    }
     args->pointer->sheet.made = 0;
+    args->pointer->sheet.bakes = 0u;
 }
 
 int gui_pointer_place(const GuiPointerPlaceCfg *args)
@@ -205,47 +196,12 @@ GuiRect gui_pointer_rect(const GuiPointerReadCfg *args)
                      EMBED_CALL(pointer_pixels, PointerCtx, .value = sprite->height, .scale = scale)};
 }
 
-// the mark of the raster `raster`'s pixels: the one that came from them, else one that holds nothing, else the first
-EMBED_INLINE GuiPointerMark *pointer_mark(const PointerCtx *args)
-{
-    GuiPointerMark *free_mark = NULL;
-    for (unsigned int at = 0u; at < GUI_POINTER_RASTERS; at += 1u)
-    {
-        GuiPointerMark *const mark = &args->pointer->mark[at];
-        if (mark->pixels == args->raster->pixels)
-        {
-            return mark;
-        }
-        if ((free_mark == NULL) && !mark->saved)
-        {
-            free_mark = mark;
-        }
-    }
-    return (free_mark != NULL) ? free_mark : &args->pointer->mark[0];
-}
-
 // `rect` cut to the raster's pixels
 EMBED_INLINE GuiRect pointer_on_raster(const PointerCtx *args)
 {
     // a raster's sides are far inside what an int represents
     return EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
                       .other = (GuiRect){0, 0, (int)args->raster->width, (int)args->raster->height});
-}
-
-// the pixels of `mark`'s rectangle on the raster saved into it, or put back from it where `restoring`
-EMBED_INLINE void pointer_under_copy(const PointerCtx *args)
-{
-    const GuiRect rect = args->mark->rect;
-    for (int row = 0; row < rect.height; row += 1)
-    {
-        // a rect cut to the raster lies on its pixels: its rows and columns are not negative
-        GuiColor *const pixel = args->raster->pixels +
-                                ((unsigned long long)(rect.y + row) * args->raster->width) + (unsigned long long)rect.x;
-        GuiColor *const saved = args->mark->under + ((unsigned long long)row * (unsigned long long)rect.width);
-        memor.cpy(&(MemoriaCfg){.dst = args->restoring ? (void *)pixel : (void *)saved,
-                                .src = args->restoring ? (const void *)saved : (const void *)pixel,
-                                .bytes = (unsigned long long)rect.width * sizeof(GuiColor)});
-    }
 }
 
 // the byte at `shift` of the word `word`
@@ -455,6 +411,7 @@ EMBED_INLINE void pointer_sheet_bake(const PointerCtx *args)
                    .picture = sheet->pixels[shape], .scale = args->scale);
     }
     sheet->made = 1;
+    sheet->bakes += 1u;
     sheet->scale = args->scale;
     sheet->shadow = palette->pointer_shadow;
     sheet->line = palette->pointer_line;
@@ -505,80 +462,23 @@ EMBED_INLINE void pointer_sheet_blit(const PointerCtx *args)
     }
 }
 
+const GuiColor *gui_pointer_picture(const GuiPointerRasterCfg *args)
+{
+    GuiPointer *const pointer = args->pointer;
+    EMBED_CALL(pointer_sheet_bake, PointerCtx, .pointer = pointer, .palette = args->palette,
+               .scale = gui_pointer_scale(&(GuiPointerReadCfg){.pointer_read = pointer, .scale = args->scale}));
+    return pointer->sheet.pixels[pointer->shape];
+}
+
 GuiRect gui_pointer_draw(const GuiPointerRasterCfg *args)
 {
     GuiPointer *const pointer = args->pointer;
-    if (args->raster->pixels == NULL)
+    if ((args->raster->pixels == NULL) || !pointer->shown)
     {
-        return (GuiRect){0, 0, 0, 0};
-    }
-    GuiPointerMark *const mark = EMBED_CALL(pointer_mark, PointerCtx, .pointer = pointer, .raster = args->raster);
-    if (!pointer->shown)
-    {
-        // the caller drew the frame over the place the pixels were saved at: they are the frame's again
-        if (mark->pixels == args->raster->pixels)
-        {
-            mark->saved = 0;
-        }
         return (GuiRect){0, 0, 0, 0};
     }
     const GuiRect rect = gui_pointer_rect(&(GuiPointerReadCfg){.pointer_read = pointer, .scale = args->scale});
-    mark->pixels = args->raster->pixels;
-    mark->rect = EMBED_CALL(pointer_on_raster, PointerCtx, .raster = args->raster, .rect = rect);
-    mark->saved = (mark->rect.width > 0) && (mark->rect.height > 0);
-    if (mark->saved)
-    {
-        EMBED_CALL(pointer_under_copy, PointerCtx, .raster = args->raster, .mark = mark, .restoring = 0);
-    }
-    EMBED_CALL(pointer_sheet_bake, PointerCtx, .pointer = pointer, .palette = args->palette,
-               .scale = gui_pointer_scale(&(GuiPointerReadCfg){.pointer_read = pointer, .scale = args->scale}));
+    (void)gui_pointer_picture(args);
     EMBED_CALL(pointer_sheet_blit, PointerCtx, .pointer_read = pointer, .raster = args->raster, .rect = rect);
-    return mark->rect;
-}
-
-GuiRect gui_pointer_restore(const GuiPointerRasterCfg *args)
-{
-    GuiPointerMark *const mark =
-        EMBED_CALL(pointer_mark, PointerCtx, .pointer = args->pointer, .raster = args->raster);
-    if ((args->raster->pixels == NULL) || (mark->pixels != args->raster->pixels) || !mark->saved)
-    {
-        return (GuiRect){0, 0, 0, 0};
-    }
-    EMBED_CALL(pointer_under_copy, PointerCtx, .raster = args->raster, .mark = mark, .restoring = 1);
-    mark->saved = 0;
-    return mark->rect;
-}
-
-GuiRect gui_pointer_saved(const GuiPointerRasterCfg *args)
-{
-    for (unsigned int at = 0u; at < GUI_POINTER_RASTERS; at += 1u)
-    {
-        const GuiPointerMark *const mark = &args->pointer->mark[at];
-        if ((args->raster->pixels != NULL) && (mark->pixels == args->raster->pixels) && mark->saved)
-        {
-            return mark->rect;
-        }
-    }
-    return (GuiRect){0, 0, 0, 0};
-}
-
-GuiRect gui_pointer_redrawn(const GuiPointerRasterCfg *args)
-{
-    const GuiRect restored = gui_pointer_restore(args);
-    const GuiRect drawn = gui_pointer_draw(args);
-    if ((restored.width <= 0) || (restored.height <= 0))
-    {
-        return drawn;
-    }
-    if ((drawn.width <= 0) || (drawn.height <= 0))
-    {
-        return restored;
-    }
-    const int left = (restored.x < drawn.x) ? restored.x : drawn.x;
-    const int top = (restored.y < drawn.y) ? restored.y : drawn.y;
-    const int right = ((restored.x + restored.width) > (drawn.x + drawn.width)) ? (restored.x + restored.width)
-                                                                                : (drawn.x + drawn.width);
-    const int foot = ((restored.y + restored.height) > (drawn.y + drawn.height)) ? (restored.y + restored.height)
-                                                                                 : (drawn.y + drawn.height);
-    return (GuiRect){left, top, right - left, foot - top};
+    return EMBED_CALL(pointer_on_raster, PointerCtx, .raster = args->raster, .rect = rect);
 }

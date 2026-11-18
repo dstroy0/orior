@@ -101,7 +101,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential clang lld llvm cmake ninja-build libx11-dev libssl-dev xvfb fonts-dejavu-core
+          sudo apt-get install -y --no-install-recommends build-essential clang lld llvm cmake ninja-build libx11-dev libxext-dev libssl-dev xvfb fonts-dejavu-core
 
       - name: The window's checks
         if: runner.os == 'Linux'

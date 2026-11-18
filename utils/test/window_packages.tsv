@@ -13,3 +13,4 @@ pdftocairo	poppler-utils	poppler-utils	poppler	poppler-utils	poppler-tools
 gdb	gdb	gdb	gdb	gdb	gdb
 lldb-dap	lldb	lldb	lldb	lldb	lldb
 X11/Xlib.h	libx11-dev	libX11-devel	libx11	libx11-dev	libX11-devel
+X11/extensions/shape.h	libxext-dev	libXext-devel	libxext	libxext-dev	libXext-devel

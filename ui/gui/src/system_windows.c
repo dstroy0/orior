@@ -1318,3 +1318,164 @@ int gui_system_scale(const GuiSystemPositionCfg *args)
 {
     return EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = args->system_read->window);
 }
+
+// A pointer's own surface: a layered window over every window that takes no input. The memory context holds its
+// picture's bitmap, a top-down 32-bit bitmap of the largest picture, with the bitmap the context held first. Also
+// recorded: the picture's bits and size, whether the surface shows, and whether it failed to open
+typedef struct
+{
+    HWND window;
+    HDC context;
+    HBITMAP picture;
+    HGDIOBJ first;
+    void *bits;
+    SIZE size;
+    int shown;
+    int refused;
+} SystemPointer;
+static SystemPointer s_pointers[GUI_SYSTEM_POINTERS];
+static const wchar_t s_pointer_class[] = L"orior_pointer";
+
+// a pointer's window answers each hit test as clear, so a press goes to the window under it
+static LRESULT CALLBACK system_pointer_message(HWND window, UINT message, WPARAM word, LPARAM low)
+{
+    if (message == WM_NCHITTEST)
+    {
+        return HTTRANSPARENT;
+    }
+    return DefWindowProcW(window, message, word, low);
+}
+
+// Every part of the surface `pointer` let go, and the record left empty with its refusal kept
+static void system_pointer_release(SystemPointer *pointer)
+{
+    if ((pointer->context != NULL) && (pointer->first != NULL))
+    {
+        SelectObject(pointer->context, pointer->first);
+    }
+    if (pointer->picture != NULL)
+    {
+        DeleteObject(pointer->picture);
+    }
+    if (pointer->context != NULL)
+    {
+        DeleteDC(pointer->context);
+    }
+    if (pointer->window != NULL)
+    {
+        DestroyWindow(pointer->window);
+    }
+    const int refused = pointer->refused;
+    memor.set(&(MemoriaCfg){.dst = pointer, .val = 0, .bytes = sizeof(*pointer)});
+    pointer->refused = refused;
+}
+
+// The surface `pointer` opened: the class the surfaces share, its window, its bitmap and the context that holds the
+// bitmap. A part the system refuses lets every part go, and the surface is not opened again
+static void system_pointer_open(SystemPointer *pointer)
+{
+    WNDCLASSEXW class_of;
+    memor.set(&(MemoriaCfg){.dst = &class_of, .val = 0, .bytes = sizeof(class_of)});
+    class_of.cbSize = sizeof(class_of);
+    class_of.lpfnWndProc = system_pointer_message;
+    class_of.hInstance = GetModuleHandleW(NULL);
+    class_of.lpszClassName = s_pointer_class;
+    if ((RegisterClassExW(&class_of) == 0) && (GetLastError() != ERROR_CLASS_ALREADY_EXISTS))
+    {
+        pointer->refused = 1;
+        return;
+    }
+    pointer->window = CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE |
+                                          WS_EX_TOOLWINDOW,
+                                      s_pointer_class, L"", WS_POPUP, 0, 0, 1, 1, NULL, NULL, class_of.hInstance, NULL);
+    BITMAPINFO header;
+    memor.set(&(MemoriaCfg){.dst = &header, .val = 0, .bytes = sizeof(header)});
+    header.bmiHeader.biSize = sizeof(header.bmiHeader);
+    header.bmiHeader.biWidth = (LONG)GUI_POINTER_PIXELS_MAX;
+    // a negative height puts the rows top down
+    header.bmiHeader.biHeight = -(LONG)GUI_POINTER_PIXELS_MAX;
+    header.bmiHeader.biPlanes = 1;
+    header.bmiHeader.biBitCount = 32;
+    header.bmiHeader.biCompression = BI_RGB;
+    pointer->context = CreateCompatibleDC(NULL);
+    pointer->picture = CreateDIBSection(NULL, &header, DIB_RGB_COLORS, &pointer->bits, NULL, 0u);
+    if ((pointer->window == NULL) || (pointer->context == NULL) || (pointer->picture == NULL) ||
+        (pointer->bits == NULL))
+    {
+        system_pointer_release(pointer);
+        pointer->refused = 1;
+        return;
+    }
+    pointer->first = SelectObject(pointer->context, pointer->picture);
+}
+
+void gui_system_pointer_put(const GuiSystemPointerCfg *args)
+{
+    if (args->at >= GUI_SYSTEM_POINTERS)
+    {
+        return;
+    }
+    SystemPointer *const pointer = &s_pointers[args->at];
+    if ((pointer->window == NULL) && !pointer->refused)
+    {
+        system_pointer_open(pointer);
+    }
+    if (pointer->window == NULL)
+    {
+        return;
+    }
+    if (!args->shown)
+    {
+        if (pointer->shown)
+        {
+            ShowWindow(pointer->window, SW_HIDE);
+            pointer->shown = 0;
+        }
+        return;
+    }
+    const int pictured = (args->picture != NULL) && (args->width <= GUI_POINTER_PIXELS_MAX) &&
+                         (args->height <= GUI_POINTER_PIXELS_MAX);
+    if (pictured)
+    {
+        for (unsigned int row = 0u; row < args->height; row += 1u)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = (GuiColor *)pointer->bits + ((unsigned long long)row * GUI_POINTER_PIXELS_MAX),
+                                    .src = args->picture + ((unsigned long long)row * args->width),
+                                    .bytes = (unsigned long long)args->width * sizeof(GuiColor)});
+        }
+        // a picture's sides are a few dozen pixels, far inside a LONG
+        pointer->size = (SIZE){(LONG)args->width, (LONG)args->height};
+    }
+    POINT at = {args->x, args->y};
+    if (args->system_read != NULL)
+    {
+        ClientToScreen(args->system_read->window, &at);
+    }
+    // A new picture goes with its place. A move alone moves the window, and the bits the compositor holds stay
+    if (pictured)
+    {
+        POINT origin = {0, 0};
+        BLENDFUNCTION blend = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
+        UpdateLayeredWindow(pointer->window, NULL, &at, &pointer->size, pointer->context, &origin, 0u, &blend,
+                            ULW_ALPHA);
+    }
+    else
+    {
+        UpdateLayeredWindow(pointer->window, NULL, &at, NULL, NULL, NULL, 0u, NULL, 0u);
+    }
+    if (!pointer->shown)
+    {
+        SetWindowPos(pointer->window, HWND_TOPMOST, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        pointer->shown = 1;
+    }
+}
+
+void gui_system_pointer_close(const GuiSystemPointerCfg *args)
+{
+    (void)args;
+    for (unsigned int at = 0u; at < GUI_SYSTEM_POINTERS; at += 1u)
+    {
+        system_pointer_release(&s_pointers[at]);
+    }
+}

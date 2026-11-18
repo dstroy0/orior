@@ -306,7 +306,7 @@ if [[ "$WINDOW" = 1 ]]; then
     case "$TARGET" in
         *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
         *darwin*) echo "  build failed: the window has no body for $TARGET"; exit 1 ;;
-        *) BODY="system_x11.c"; GUI_LIBRARIES=(-lX11) ;;
+        *) BODY="system_x11.c"; GUI_LIBRARIES=(-lX11 -lXext) ;;
     esac
     GUI_SOURCES=()
     while IFS= read -r source; do

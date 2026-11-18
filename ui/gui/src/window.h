@@ -142,7 +142,6 @@ typedef struct GuiWindow
     GuiBusy busy;
     int busy_alone;
     GuiPointer pointer;
-    int pointer_alone;
     GuiPointer preferences_pointer;
     GuiPointer dialog_pointer;
     GuiPreferences preferences;
@@ -341,9 +340,6 @@ void gui_window_flip(const GuiWindowCfg *args);
 // way
 GuiRect gui_window_caret_draw(const GuiWindowCfg *args);
 GuiRect gui_window_busy_draw(const GuiWindowCfg *args);
-// the pointer drawn again on the raster displayed at its place and in its shape, the pixels under its last place put
-// back first and its redraw paid: the rectangle of both places, empty where the pointer is on neither
-GuiRect gui_window_pointer_draw(const GuiWindowCfg *args);
 // The parts of the frame that changed drawn again on the raster displayed, each part as the frame draws it, every write
 // cut to the union of the changes: that union, the rows of which are to be displayed again, empty where nothing changed
 GuiRect gui_window_damage_draw(const GuiWindowCfg *args);
@@ -469,7 +465,6 @@ typedef struct
     void (*flip)(const GuiWindowCfg *args);
     GuiRect (*caret_draw)(const GuiWindowCfg *args);
     GuiRect (*busy_draw)(const GuiWindowCfg *args);
-    GuiRect (*pointer_draw)(const GuiWindowCfg *args);
     GuiRect (*damage_draw)(const GuiWindowCfg *args);
     void (*preferences_close)(const GuiWindowCfg *args);
     void (*step)(const GuiWindowCfg *args);
@@ -477,7 +472,7 @@ typedef struct
     void (*hits)(const GuiWindowHitsCfg *args);
     void (*preferences_hits)(const GuiWindowHitsCfg *args);
 } GuiWindowNs;
-EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, pointer_draw, damage_draw,
+EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, damage_draw,
                    preferences_close, step, tick, hits, preferences_hits);
 EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .end = gui_window_end,
@@ -487,7 +482,6 @@ EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .flip = gui_window_flip,
     .caret_draw = gui_window_caret_draw,
     .busy_draw = gui_window_busy_draw,
-    .pointer_draw = gui_window_pointer_draw,
     .damage_draw = gui_window_damage_draw,
     .preferences_close = gui_window_preferences_close,
     .step = gui_window_step,

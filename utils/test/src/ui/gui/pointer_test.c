@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pointer_test.c: the pointer's check: every sprite's figures whole, the scale a sprite is baked at, the rectangle at
 // the hot point, the glass drawn over the ground with the ground seen through its body, its shadow below it, the
-// pixels under it put back, a move drawn again, the two rasters kept apart, a clip that stops the writes outside it,
-// and the sheet baked once and baked again only for a new scale or color
+// picture the pointer's surface is given, a clip that stops the writes outside it, and the sheet baked once and baked
+// again only for a new scale or color, each bake counted
 #include "../../../../../includes/window/palette.h"
 #include "../../../../../includes/window/pointer.h"
 #include "../cli/cli_check.h"
@@ -122,35 +122,18 @@ int main(void)
                   (channel(shadow, 8u) <= channel(POINTER_GROUND, 8u)) &&
                   (channel(shadow, 0u) <= channel(POINTER_GROUND, 0u)) && (pixel(&first, 40, 40) == POINTER_GROUND),
               "the shadow below the arrow's foot darkens the ground, and past the sprite is the ground");
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check(drawn_count(&first) == 0u, "the pixels under the sprite are put back");
-    cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg,
-                         .rect = EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer,
-                                            .raster = &first)),
-              "with nothing saved nothing is put back");
+    ground_fill(&first, POINTER_GROUND);
+    const GuiColor *const picture = EMBED_CALL(gui_pointer_raster.picture, GuiPointerRasterCfg, .pointer = &s_pointer,
+                                               .palette = palette, .scale = 100);
+    // the picture's tip, 5 rows and 5 columns into the arrow's rectangle, and its last pixel, a corner past the shadow
+    cli_check((picture != NULL) && (picture == s_pointer.sheet.pixels[GUI_POINTER_ARROW]) &&
+                  (channel(picture[(5u * 26u) + 5u], 24u) != 0u) && (picture[(26u * 28u) - 1u] == 0u),
+              "the picture is the sheet's arrow: its tip covers, and its far corner is clear");
     ground_fill(&second, POINTER_OTHER_GROUND);
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second,
                      .palette = palette, .scale = 100);
     cli_check(pixel(&second, 14, 15) != body, "the ground shows through the glass's body: on another ground it differs");
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second);
     ground_fill(&second, POINTER_GROUND);
-
-    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
-                     .palette = palette, .scale = 100);
-    (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 60, .y = 50,
-                     .shape = GUI_POINTER_TEXT, .shown = 1);
-    const GuiRect moved = EMBED_CALL(gui_pointer_raster.redrawn, GuiPointerRasterCfg, .pointer = &s_pointer,
-                                     .raster = &first, .palette = palette, .scale = 100);
-    cli_check((pixel(&first, 10, 10) == POINTER_GROUND) && (pixel(&first, 60, 50) != POINTER_GROUND) &&
-                  (moved.x <= 5) && ((moved.y + moved.height) >= 51),
-              "a move puts back the old place, draws the beam at its middle, and gives the rectangle of both");
-
-    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second,
-                     .palette = palette, .scale = 100);
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check((drawn_count(&first) == 0u) && (pixel(&second, 60, 50) != POINTER_GROUND),
-              "each raster keeps its own pixels saved, and putting back one leaves the other drawn");
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second);
 
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 40, .y = 40,
                      .shape = GUI_POINTER_MOVE, .shown = 1);
@@ -160,7 +143,7 @@ int main(void)
     first.clip = (GuiRect){0, 0, 0, 0};
     cli_check((pixel(&first, 33, 40) == POINTER_GROUND) && (pixel(&first, 44, 40) != POINTER_GROUND),
               "a clip stops the writes outside it");
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    ground_fill(&first, POINTER_GROUND);
 
     for (unsigned int shape = 0u; shape < GUI_POINTER_SHAPES; shape += 1u)
     {
@@ -169,13 +152,13 @@ int main(void)
         (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                          .palette = palette, .scale = 200);
         const unsigned int count = drawn_count(&first);
-        (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-        if ((count == 0u) || (drawn_count(&first) != 0u) || (pixel(&first, 30, 30) != POINTER_GROUND))
+        ground_fill(&first, POINTER_GROUND);
+        if (count == 0u)
         {
-            cli_check(0, "a shape draws at twice the scale and its pixels are put back");
+            cli_check(0, "a shape draws at twice the scale");
         }
     }
-    cli_check(1, "every shape draws at twice the scale and its pixels are put back");
+    cli_check(1, "every shape draws at twice the scale");
     // the compass at rest and with its north lit: the north arrow shows only when lit, the orb both times
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 40, .y = 40,
                      .shape = GUI_POINTER_MOVE, .shown = 1);
@@ -183,14 +166,14 @@ int main(void)
                      .palette = palette, .scale = 100);
     const GuiColor rest_arrow = pixel(&first, 40, 32);
     const GuiColor rest_orb = pixel(&first, 40, 40);
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    ground_fill(&first, POINTER_GROUND);
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 40, .y = 40,
                      .shape = GUI_POINTER_GLIDE_N, .shown = 1);
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = palette, .scale = 100);
     const GuiColor lit_arrow = pixel(&first, 40, 32);
     const GuiColor lit_orb = pixel(&first, 40, 40);
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    ground_fill(&first, POINTER_GROUND);
     cli_check((rest_arrow == POINTER_GROUND) && (lit_arrow != POINTER_GROUND) && (rest_orb != POINTER_GROUND) &&
                   (lit_orb == rest_orb),
               "the compass at rest draws its orb alone, and gliding north draws the orb and the north arrow alone");
@@ -207,26 +190,28 @@ int main(void)
                      .shape = GUI_POINTER_ARROW, .shown = 1);
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = palette, .scale = 100);
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    ground_fill(&first, POINTER_GROUND);
+    const unsigned int bakes = s_pointer.sheet.bakes;
     s_pointer.sheet.pixels[GUI_POINTER_ARROW][hot] = mark;
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = palette, .scale = 100);
     const GuiColor kept = pixel(&first, 10, 10);
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check(kept == mark, "a draw at the same scale in the same colors bakes nothing, the sheet's picture put down");
+    ground_fill(&first, POINTER_GROUND);
+    cli_check((kept == mark) && (s_pointer.sheet.bakes == bakes),
+              "a draw at the same scale in the same colors bakes nothing, the sheet's picture put down");
     s_changed = *palette;
     s_changed.pointer_line = GUI_RGB(0xc0u, 0x10u, 0x20u);
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = &s_changed, .scale = 100);
     const GuiColor baked = pixel(&first, 10, 10);
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check((baked != mark) && (channel(baked, 16u) > channel(baked, 0u)),
-              "a pointer color changed bakes the sheet again in the new color");
+    ground_fill(&first, POINTER_GROUND);
+    cli_check((baked != mark) && (channel(baked, 16u) > channel(baked, 0u)) && (s_pointer.sheet.bakes == bakes + 1u),
+              "a pointer color changed bakes the sheet again in the new color, and the bakes count it");
     s_pointer.sheet.pixels[GUI_POINTER_ARROW][hot] = mark;
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = &s_changed, .scale = 200);
     const GuiColor scaled = pixel(&first, 10, 10);
-    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
+    ground_fill(&first, POINTER_GROUND);
     cli_check((scaled != mark) && (s_pointer.sheet.scale == 200), "a scale changed bakes the sheet again at the new scale");
     return cli_on_check();
 }

@@ -18,6 +18,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/shape.h>
 #include <X11/keysym.h>
 #include <poll.h>
 #include <unistd.h>
@@ -45,6 +46,10 @@ struct GuiSystem
     Atom settings;
     GuiSystem *owner;
     GuiSystem *owned;
+    // where the client's top left is on the root, for the pointers' surfaces: read from the server as the window is
+    // mapped or moved, and kept from each pointer event's root and client places, with no request to the server
+    int root_x;
+    int root_y;
 };
 // the rows one notch of the wheel scrolls; the Motif hints that take the decorations off, their flags word and the
 // decorations word; and the window manager's move and resize directions, as the specification numbers them, and its
@@ -315,6 +320,15 @@ EMBED_INLINE void system_settings_watch(const SystemX11Ctx *args)
     }
 }
 
+// where the client's top left is on the root, asked of the server: one request, made as the window is mapped or moved
+EMBED_INLINE void system_root_read(const SystemX11Ctx *args)
+{
+    Window child = 0;
+    (void)XTranslateCoordinates(args->system->display, args->system->window,
+                                RootWindow(args->system->display, args->system->screen), 0, 0, &args->system->root_x,
+                                &args->system->root_y, &child);
+}
+
 // one event of the display's taken
 static void system_event(const SystemX11Ctx *args)
 {
@@ -350,6 +364,7 @@ static void system_event(const SystemX11Ctx *args)
         }
         break;
     case ConfigureNotify:
+        EMBED_CALL(system_root_read, SystemX11Ctx, .system = args->system);
         // a window's sides are not negative
         if (((unsigned int)args->event_x_event_pointer->xconfigure.width != args->system->width) ||
             ((unsigned int)args->event_x_event_pointer->xconfigure.height != args->system->height))
@@ -364,6 +379,7 @@ static void system_event(const SystemX11Ctx *args)
         }
         break;
     case MapNotify:
+        EMBED_CALL(system_root_read, SystemX11Ctx, .system = args->system);
         EMBED_CALL(args->system->events->displayed, GuiEachDisplayedCfg, .context = args->system->context,
                    .displayed = 1);
         break;
@@ -372,6 +388,8 @@ static void system_event(const SystemX11Ctx *args)
                    .displayed = 0);
         break;
     case MotionNotify:
+        args->system->root_x = args->event_x_event_pointer->xmotion.x_root - args->event_x_event_pointer->xmotion.x;
+        args->system->root_y = args->event_x_event_pointer->xmotion.y_root - args->event_x_event_pointer->xmotion.y;
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_MOVED,
                                         .x = args->event_x_event_pointer->xmotion.x,
@@ -847,4 +865,186 @@ int gui_system_scale(const GuiSystemPositionCfg *args)
 {
     return EMBED_CALL(system_scale_get, SystemX11Ctx, .display = args->system_read->display,
                       .screen = args->system_read->screen);
+}
+
+// A pointer's own surface on X11: an override-redirect window of 32-bit color with alpha over every window, its input
+// shape empty so a press goes to the window under it. Its picture is the window's background, a pixmap the server
+// keeps and repaints the window from, so a picture crosses the connection only when it changes and a move is one
+// request. The surfaces share one connection of their own. Recorded: the window, its colormap, the pixmap, the context
+// that writes the pixmap, the picture's size, whether it shows, and whether it failed to open
+typedef struct
+{
+    Window window;
+    Colormap colormap;
+    Pixmap picture;
+    GC context;
+    unsigned int width;
+    unsigned int height;
+    int shown;
+    int refused;
+} SystemPointer;
+static SystemPointer s_pointers[GUI_SYSTEM_POINTERS];
+// the surfaces' connection, the visual of 32-bit color with alpha they are made in, and whether the connection or the
+// visual was refused
+static Display *s_pointer_display;
+static XVisualInfo s_pointer_visual;
+static int s_pointer_refused;
+// a picture's rows on their way to the server, the width of the largest picture each
+static GuiColor s_pointer_rows[GUI_POINTER_PICTURE_MAX];
+
+// Every part of the surface `pointer` let go, and the record left empty with its refusal kept
+static void system_pointer_release(SystemPointer *pointer)
+{
+    if (s_pointer_display != NULL)
+    {
+        if (pointer->context != NULL)
+        {
+            XFreeGC(s_pointer_display, pointer->context);
+        }
+        if (pointer->picture != 0)
+        {
+            XFreePixmap(s_pointer_display, pointer->picture);
+        }
+        if (pointer->window != 0)
+        {
+            XDestroyWindow(s_pointer_display, pointer->window);
+        }
+        if (pointer->colormap != 0)
+        {
+            XFreeColormap(s_pointer_display, pointer->colormap);
+        }
+    }
+    const int refused = pointer->refused;
+    memor.set(&(MemoriaCfg){.dst = pointer, .val = 0, .bytes = sizeof(*pointer)});
+    pointer->refused = refused;
+}
+
+// The surface `pointer` opened on the surfaces' connection, the connection opened first where it is not: its window,
+// with no input shape, its pixmap and the context that writes it. A part the server refuses lets every part go, and
+// the surface is not opened again
+static void system_pointer_open(SystemPointer *pointer)
+{
+    if ((s_pointer_display == NULL) && !s_pointer_refused)
+    {
+        s_pointer_display = XOpenDisplay(NULL);
+        int event_base = 0;
+        int error_base = 0;
+        s_pointer_refused =
+            (s_pointer_display == NULL) || !XShapeQueryExtension(s_pointer_display, &event_base, &error_base) ||
+            !XMatchVisualInfo(s_pointer_display, DefaultScreen(s_pointer_display), 32, TrueColor, &s_pointer_visual);
+    }
+    if (s_pointer_refused)
+    {
+        pointer->refused = 1;
+        return;
+    }
+    const Window root = RootWindow(s_pointer_display, s_pointer_visual.screen);
+    pointer->colormap = XCreateColormap(s_pointer_display, root, s_pointer_visual.visual, AllocNone);
+    XSetWindowAttributes attributes;
+    memor.set(&(MemoriaCfg){.dst = &attributes, .val = 0, .bytes = sizeof(attributes)});
+    attributes.override_redirect = True;
+    attributes.colormap = pointer->colormap;
+    attributes.border_pixel = 0UL;
+    attributes.background_pixel = 0UL;
+    pointer->window = XCreateWindow(s_pointer_display, root, 0, 0, GUI_POINTER_PIXELS_MAX, GUI_POINTER_PIXELS_MAX, 0,
+                                    32, InputOutput, s_pointer_visual.visual,
+                                    CWOverrideRedirect | CWColormap | CWBorderPixel | CWBackPixel, &attributes);
+    pointer->picture =
+        XCreatePixmap(s_pointer_display, pointer->window, GUI_POINTER_PIXELS_MAX, GUI_POINTER_PIXELS_MAX, 32);
+    pointer->context = XCreateGC(s_pointer_display, pointer->picture, 0UL, NULL);
+    if ((pointer->window == 0) || (pointer->picture == 0) || (pointer->context == NULL))
+    {
+        system_pointer_release(pointer);
+        pointer->refused = 1;
+        return;
+    }
+    // no rectangle of input: every press and move goes through to the window under the surface
+    XShapeCombineRectangles(s_pointer_display, pointer->window, ShapeInput, 0, 0, NULL, 0, ShapeSet, Unsorted);
+}
+
+void gui_system_pointer_put(const GuiSystemPointerCfg *args)
+{
+    if (args->at >= GUI_SYSTEM_POINTERS)
+    {
+        return;
+    }
+    SystemPointer *const pointer = &s_pointers[args->at];
+    if ((pointer->window == 0) && !pointer->refused)
+    {
+        system_pointer_open(pointer);
+    }
+    if (pointer->window == 0)
+    {
+        return;
+    }
+    if (!args->shown)
+    {
+        if (pointer->shown)
+        {
+            XUnmapWindow(s_pointer_display, pointer->window);
+            XFlush(s_pointer_display);
+            pointer->shown = 0;
+        }
+        return;
+    }
+    const int pictured = (args->picture != NULL) && (args->width > 0u) && (args->height > 0u) &&
+                         (args->width <= GUI_POINTER_PIXELS_MAX) && (args->height <= GUI_POINTER_PIXELS_MAX);
+    // the client's top left on the root is the window's own record, kept with no request to the server
+    const int x = args->x + ((args->system_read != NULL) ? args->system_read->root_x : 0);
+    const int y = args->y + ((args->system_read != NULL) ? args->system_read->root_y : 0);
+    if (pictured)
+    {
+        // the picture's rows put in a buffer the image reads, its pixels the visual's own words of color and alpha
+        memor.cpy(&(MemoriaCfg){.dst = s_pointer_rows,
+                                .src = args->picture,
+                                .bytes = (unsigned long long)args->width * args->height * sizeof(GuiColor)});
+        XImage image;
+        memor.set(&(MemoriaCfg){.dst = &image, .val = 0, .bytes = sizeof(image)});
+        image.width = (int)args->width;
+        image.height = (int)args->height;
+        image.format = ZPixmap;
+        image.data = (char *)s_pointer_rows;
+        image.byte_order = LSBFirst;
+        image.bitmap_unit = 32;
+        image.bitmap_bit_order = LSBFirst;
+        image.bitmap_pad = 32;
+        image.depth = 32;
+        image.bytes_per_line = (int)(args->width * sizeof(GuiColor));
+        image.bits_per_pixel = 32;
+        image.red_mask = 0x00ff0000UL;
+        image.green_mask = 0x0000ff00UL;
+        image.blue_mask = 0x000000ffUL;
+        (void)XInitImage(&image);
+        XPutImage(s_pointer_display, pointer->picture, pointer->context, &image, 0, 0, 0, 0, args->width,
+                  args->height);
+        XSetWindowBackgroundPixmap(s_pointer_display, pointer->window, pointer->picture);
+        pointer->width = args->width;
+        pointer->height = args->height;
+        XMoveResizeWindow(s_pointer_display, pointer->window, x, y, pointer->width, pointer->height);
+        XClearWindow(s_pointer_display, pointer->window);
+    }
+    else
+    {
+        XMoveWindow(s_pointer_display, pointer->window, x, y);
+    }
+    if (!pointer->shown)
+    {
+        XMapRaised(s_pointer_display, pointer->window);
+        pointer->shown = 1;
+    }
+    XFlush(s_pointer_display);
+}
+
+void gui_system_pointer_close(const GuiSystemPointerCfg *args)
+{
+    (void)args;
+    for (unsigned int at = 0u; at < GUI_SYSTEM_POINTERS; at += 1u)
+    {
+        system_pointer_release(&s_pointers[at]);
+    }
+    if (s_pointer_display != NULL)
+    {
+        XCloseDisplay(s_pointer_display);
+        s_pointer_display = NULL;
+    }
 }

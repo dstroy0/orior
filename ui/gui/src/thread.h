@@ -120,7 +120,7 @@ typedef struct
 // what the system's thread passes the view: a surface's client sized, with the scale the system draws it at and the
 // milliseconds of one refresh of its monitor; an input; Preferences' window asked closed by the system; the window gone
 // off the screen or back on it, `flag` 1 on; the system's wish for less motion, `flag` 1 for less; a raster the view
-// ordered displayed; and Preferences' window refused by the system
+// ordered displayed; Preferences' window refused by the system; and a pointer's picture the view ordered, copied
 #define CLI_VIEW_EVENT_SIZED 0u
 #define CLI_VIEW_EVENT_INPUT 1u
 #define CLI_VIEW_EVENT_CLOSING 2u
@@ -128,6 +128,7 @@ typedef struct
 #define CLI_VIEW_EVENT_MOTION 4u
 #define CLI_VIEW_EVENT_PRESENTED 5u
 #define CLI_VIEW_EVENT_REFUSED 6u
+#define CLI_VIEW_EVENT_POINTER_TAKEN 7u
 
 typedef struct
 {
@@ -144,7 +145,9 @@ typedef struct
 // what the view orders of the system's thread: a raster displayed on a surface, whole or the rows of `part`; the window
 // minimized, maximized or closed; Preferences' window opened at `width` by `height` over the main one, or closed; the
 // two icons given to the system, which copies them; the dialog's window opened at `width` by `height`, modal over
-// the surface `owner`, or closed
+// the surface `owner`, or closed. Last, the pointer surface `pointer` moved: the picture's top left at x, y of `part`
+// in the client of `surface`, the picture `part`'s width by its height. A raster's pixels that are not NULL are a new
+// picture, which the system copies and tells as taken. A `shown` of 0 takes the surface off the screen
 #define CLI_VIEW_ORDER_PRESENT 0u
 #define CLI_VIEW_ORDER_PRESENT_PART 1u
 #define CLI_VIEW_ORDER_ACT 2u
@@ -153,6 +156,7 @@ typedef struct
 #define CLI_VIEW_ORDER_ICON 5u
 #define CLI_VIEW_ORDER_DIALOG_OPEN 6u
 #define CLI_VIEW_ORDER_DIALOG_CLOSE 7u
+#define CLI_VIEW_ORDER_POINTER 8u
 
 typedef struct
 {
@@ -165,6 +169,8 @@ typedef struct
     GuiRect part;
     GuiRaster raster;
     GuiRaster raster_large;
+    unsigned int pointer;
+    int shown;
 } CliViewOrder;
 
 // What a pixel of a surface is on, as the view last positioned it: the client's size and the resize border's width; the

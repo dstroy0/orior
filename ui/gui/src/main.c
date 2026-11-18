@@ -93,6 +93,7 @@ static void main_closing(void *context)
     CliWindowPosition place;
     EMBED_CALL(gui_system_position.place, GuiSystemPositionCfg, .system_read = s_system, .position_out = &place);
     cli_view_place_store(&(CliViewThreadCfg){.root = cli_command_line_root(), .place = &place});
+    EMBED_CALL(gui_system_pointer.close, GuiSystemPointerCfg, .shown = 0);
     EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = s_system);
     s_system = NULL;
 }
@@ -243,6 +244,25 @@ static void main_present(const MainCtx *args)
     cli_view_event(&(CliViewThreadCfg){.event = &displayed});
 }
 
+// A pointer's surface moved to the place the order gives in the client of its surface, its picture copied first where
+// the order brings one, and the view told the picture is taken. A surface no longer located takes its pointer off the
+// screen
+static void main_pointer_put(const MainCtx *args)
+{
+    const CliViewOrder *const order = args->order;
+    GuiSystem *const system = EMBED_CALL(main_system_of, MainCtx, .surface = order->surface);
+    // a picture's sides are a few dozen pixels, not negative
+    EMBED_CALL(gui_system_pointer.put, GuiSystemPointerCfg, .at = order->pointer, .system_read = system,
+               .picture = order->raster.pixels, .width = (unsigned int)order->part.width,
+               .height = (unsigned int)order->part.height, .x = order->part.x, .y = order->part.y,
+               .shown = order->shown && (system != NULL));
+    if (order->raster.pixels != NULL)
+    {
+        const CliViewEvent taken = {.type = CLI_VIEW_EVENT_POINTER_TAKEN, .surface = order->surface};
+        cli_view_event(&(CliViewThreadCfg){.event = &taken});
+    }
+}
+
 // every order waiting done, until the window closes under one
 static void main_woken(void *context)
 {
@@ -270,6 +290,9 @@ static void main_woken(void *context)
             break;
         case CLI_VIEW_ORDER_DIALOG_CLOSE:
             main_dialog_close();
+            break;
+        case CLI_VIEW_ORDER_POINTER:
+            EMBED_CALL(main_pointer_put, MainCtx, .order = &order);
             break;
         case CLI_VIEW_ORDER_ICON:
             EMBED_CALL(gui_system_title_icon.icon, GuiSystemTitleIconCfg, .system = s_system,
