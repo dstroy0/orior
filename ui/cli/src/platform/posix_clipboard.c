@@ -25,6 +25,22 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+// The pages that units_take takes from the system, NULL where none are out: the UTF-16 units read into them, how many
+// they hold and how many are written; after the units, the same text as UTF-8, the form the system's clipboard takes,
+// NULL until units_put makes it, and its bytes. The pages that units_open takes for a text the clipboard holds: the
+// text as UTF-8 and after it as UTF-16 units. One thread at a time uses each
+static unsigned char *s_units_pages;
+static unsigned long long s_units_pages_size;
+static unsigned short *s_units;
+static unsigned long long s_units_capacity;
+static unsigned long long s_units_at;
+static char *s_units_text;
+static unsigned long long s_units_text_size;
+static unsigned char *s_held_pages;
+static unsigned long long s_held_pages_size;
+// the max bytes of a text the clipboard holds that a paste reads; the system commits only the pages the text fills
+#define CLI_CLIPBOARD_PASTE_BYTES (64ULL * 1024ULL * 1024ULL)
+
 #if (!defined(_WIN32)) && !((defined(__APPLE__)))
 #define CLI_X11_NAMED 8u
 #endif
@@ -1035,12 +1051,20 @@ static void owner_contents_release(void)
         s_owner.content[place] = NULL;
         s_owner.size[place] = 0ULL;
     }
+    s_units_text = NULL;
 }
 
 // the contents by place: the text, the URIs and the copied files
 #define CLI_X11_OWNER_TEXT 0u
 #define CLI_X11_OWNER_URIS 1u
 #define CLI_X11_OWNER_COPIED 2u
+
+// whether the clipboard holds a content at `place`: its own cell, or for the text the pages units_put made
+static int owner_content_held(unsigned int place)
+{
+    return (place < 3u) &&
+           ((s_owner.content[place] != NULL) || ((place == CLI_X11_OWNER_TEXT) && (s_units_text != NULL)));
+}
 
 static CliWake s_started = CLI_WAKE_INIT;
 
@@ -1067,7 +1091,7 @@ EMBED_INLINE unsigned int owner_content_get(const PosixClipboardCtx *args)
     {
         place = 3u;
     }
-    return ((place < 3u) && (s_owner.content[place] != NULL)) ? place : 3u;
+    return owner_content_held(place) ? place : 3u;
 }
 
 // the program that asked told what it was given: the property it was put in, or none where it was refused
@@ -1131,6 +1155,14 @@ EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
     const unsigned int type = (target == x11->atom[CLI_X11_TEXT]) ? x11->atom[CLI_X11_UTF8] : target;
     const unsigned long long max = (x11->request_max > 64ULL) ? x11->request_max - 64ULL : 0ULL;
     const unsigned long long whole = (max < CLI_X11_SENT_MAX) ? max : CLI_X11_SENT_MAX;
+    if ((s_owner.size[place] <= whole) && (s_owner.content[place] == NULL))
+    {
+        // the text that units_put made lies in the system's pages, and goes from there whole
+        (void)EMBED_CALL(x11_property_append, PosixClipboardCtx, .x11 = x11, .window = requestor, .property = property,
+                         .property_type = type, .format = 8u, .bytes = s_units_text, .size = s_owner.size[place]);
+        EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
+        return;
+    }
     if (s_owner.size[place] <= whole)
     {
         // the content read out of its cell into a cell of this call and sent whole
@@ -1182,10 +1214,22 @@ EMBED_INLINE void owner_piece_send(const PosixClipboardCtx *args)
     {
         return;
     }
-    // the next piece read out of the content's cell into a cell of this call and sent
+    // the next piece read out of the content's cell into a cell of this call and sent; the text that units_put made goes
+    // from the system's pages where it lies
     const CarcerMovableEntry *const content = s_owner.content[s_owner.piece_of];
-    const unsigned long long left = (content != NULL) ? s_owner.size[s_owner.piece_of] - s_owner.sent : 0ULL;
+    const int paged = (content == NULL) && owner_content_held(s_owner.piece_of);
+    const unsigned long long left =
+        ((content != NULL) || paged) ? s_owner.size[s_owner.piece_of] - s_owner.sent : 0ULL;
     const unsigned long long piece = (left < CLI_X11_SENT_MAX) ? left : CLI_X11_SENT_MAX;
+    if (paged)
+    {
+        (void)EMBED_CALL(x11_property_append, PosixClipboardCtx, .x11 = &s_owner.x11, .window = s_owner.requestor,
+                         .property = s_owner.property, .property_type = s_owner.type, .format = 8u,
+                         .bytes = s_units_text + s_owner.sent, .size = piece);
+        s_owner.sent += piece;
+        s_owner.sending = piece > 0ULL;
+        return;
+    }
     char *const sent = g_cli_guard->temporary_buf_alloc(piece + 1ULL, g_cli_platform_owner);
     if ((sent != NULL) && (piece > 0ULL))
     {
@@ -1283,8 +1327,13 @@ static int owner_own(void)
 
 int cli_clipboard_text_read(const CliCtx *args)
 {
-    const int own = s_owner.owning && (s_owner.content[CLI_X11_OWNER_TEXT] != NULL);
-    if (own)
+    const int own = s_owner.owning && owner_content_held(CLI_X11_OWNER_TEXT);
+    if (own && (s_owner.content[CLI_X11_OWNER_TEXT] == NULL))
+    {
+        // the text that units_put made lies in the system's pages, and is put on the line from there
+        mmgr_line_put_n(args->text_verba_linea_pointer, s_units_text, s_owner.size[CLI_X11_OWNER_TEXT]);
+    }
+    else if (own)
     {
         // the text read out of its cell into a cell of this call, then put on the line
         const unsigned long long size = s_owner.size[CLI_X11_OWNER_TEXT];
@@ -1443,4 +1492,174 @@ void cli_clipboard_clear(void)
     }
 }
 #endif
+
+// the pages units_take took given back to the system; on X11 the clipboard lets go of the text it served from them
+static void units_pages_free(void)
+{
+#if !defined(__APPLE__)
+    if ((s_units_text != NULL) && (s_owner.content[CLI_X11_OWNER_TEXT] == NULL))
+    {
+        s_owner.sending = 0;
+        s_owner.size[CLI_X11_OWNER_TEXT] = 0ULL;
+    }
+#endif
+    cli_pages_free(&(CliSizeBytesCtx){.size = s_units_pages_size, .bytes_out = s_units_pages});
+    s_units_pages = NULL;
+    s_units_pages_size = 0ULL;
+    s_units = NULL;
+    s_units_capacity = 0ULL;
+    s_units_at = 0ULL;
+    s_units_text = NULL;
+    s_units_text_size = 0ULL;
+}
+
+int cli_clipboard_units_take(const CliClipboardUnitsCtx *args)
+{
+    units_pages_free();
+    s_units_capacity = args->count + args->breaks;
+    // a UTF-16 unit makes at most 3 bytes of UTF-8, and the UTF-8 text follows the units in the same pages
+    s_units_pages_size = (s_units_capacity * sizeof(*s_units)) + (3ULL * s_units_capacity) + 1ULL;
+    s_units_pages = cli_pages_alloc(&(CliSizeBytesCtx){.size = s_units_pages_size});
+    // the system's pages start on a page's boundary, which holds a unit
+    s_units = (unsigned short *)(void *)s_units_pages;
+    if (s_units_pages == NULL)
+    {
+        s_units_pages_size = 0ULL;
+        s_units_capacity = 0ULL;
+    }
+    return s_units_pages != NULL;
+}
+
+int cli_clipboard_units_append(const CarcerMovableCfg *args)
+{
+    const unsigned long long count = args->bytes / sizeof(*s_units);
+    if ((s_units == NULL) || (count > (s_units_capacity - s_units_at)))
+    {
+        return 0;
+    }
+    const int read = g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = args->cell, .offset = args->offset, .dst = s_units + s_units_at, .bytes = count * sizeof(*s_units)});
+    s_units_at += read ? count : 0ULL;
+    return read;
+}
+
+int cli_clipboard_units_break(const CliClipboardUnitsCtx *args)
+{
+    (void)args;
+    if ((s_units == NULL) || (s_units_at >= s_units_capacity))
+    {
+        return 0;
+    }
+    s_units[s_units_at] = (unsigned short)'\n';
+    s_units_at += 1ULL;
+    return 1;
+}
+
+// the units written made UTF-8 after them in the same pages, a pair of units one character: 1, or 0 where none are
+// written
+static int units_text_made(void)
+{
+    if (s_units == NULL)
+    {
+        return 0;
+    }
+    // the UTF-8 text starts past the units the pages hold
+    s_units_text = (char *)(void *)(s_units + s_units_capacity);
+    VerbaLinea text = {s_units_text, (3ULL * s_units_capacity) + 1ULL, 0ULL};
+    unsigned long long at = 0ULL;
+    while (at < s_units_at)
+    {
+        unsigned int character = s_units[at];
+        at += 1ULL;
+        const int paired = (character >= 0xd800u) && (character <= 0xdbffu) && (at < s_units_at) &&
+                           (s_units[at] >= 0xdc00u) && (s_units[at] <= 0xdfffu);
+        if (paired)
+        {
+            character = 0x10000u + ((character - 0xd800u) << 10u) + ((unsigned int)s_units[at] - 0xdc00u);
+            at += 1ULL;
+        }
+        cli_utf8_append(&(CliLineLetterCtx){.line = &text, .character = character});
+    }
+    s_units_text_size = text.at;
+    return mmgr_line_ok(&text);
+}
+
+#if !defined(__APPLE__)
+int cli_clipboard_units_put(const CliClipboardUnitsCtx *args)
+{
+    (void)args;
+    owner_contents_release();
+    s_owner.sending = 0;
+    if (!units_text_made())
+    {
+        units_pages_free();
+        return 0;
+    }
+    s_owner.size[CLI_X11_OWNER_TEXT] = s_units_text_size;
+    return owner_own();
+}
+#else
+int cli_clipboard_units_put(const CliClipboardUnitsCtx *args)
+{
+    (void)args;
+    // pbcopy takes the UTF-8 text from the pages through its input
+    static const char *const s_words[2] = {"pbcopy", NULL};
+    const int put = units_text_made() && EMBED_CALL(clipboard_run, PosixClipboardCtx, .words = s_words,
+                                                    .input = s_units_text, .size = s_units_text_size, .out = NULL);
+    units_pages_free();
+    return put;
+}
+#endif
+
+const unsigned short *cli_clipboard_units_open(const CliClipboardUnitsCtx *args)
+{
+    *args->count_out = 0ULL;
+    cli_clipboard_units_close(args);
+    // the text as UTF-8 at the pages' start, and after it as UTF-16 units, no more units than it has bytes
+    s_held_pages_size = (CLI_CLIPBOARD_PASTE_BYTES * (1ULL + sizeof(unsigned short))) + sizeof(unsigned short);
+    s_held_pages = cli_pages_alloc(&(CliSizeBytesCtx){.size = s_held_pages_size});
+    if (s_held_pages == NULL)
+    {
+        s_held_pages_size = 0ULL;
+        return NULL;
+    }
+    VerbaLinea text = {(char *)s_held_pages, CLI_CLIPBOARD_PASTE_BYTES, 0ULL};
+    if (!cli_clipboard_text_read(&(CliCtx){.text_verba_linea_pointer = &text}) || !mmgr_line_ok(&text))
+    {
+        cli_clipboard_units_close(args);
+        return NULL;
+    }
+    // the units start past the text's bytes, at a boundary of a unit
+    unsigned short *const units = (unsigned short *)(void *)(s_held_pages + CLI_CLIPBOARD_PASTE_BYTES +
+                                                              sizeof(unsigned short));
+    unsigned long long count = 0ULL;
+    for (unsigned long long at = 0ULL; at < text.at;)
+    {
+        unsigned long long length = 0ULL;
+        const unsigned int character = cli_text_character(
+            &(CliTextAtCfg){.text = (const char *)s_held_pages, .at = at, .size = text.at, .length = &length});
+        at += (length != 0ULL) ? length : 1ULL;
+        if (character >= 0x10000u)
+        {
+            units[count] = (unsigned short)(0xd800u + ((character - 0x10000u) >> 10u));
+            units[count + 1ULL] = (unsigned short)(0xdc00u + ((character - 0x10000u) & 0x3ffu));
+            count += 2ULL;
+        }
+        else
+        {
+            units[count] = (unsigned short)character;
+            count += 1ULL;
+        }
+    }
+    *args->count_out = count;
+    return units;
+}
+
+void cli_clipboard_units_close(const CliClipboardUnitsCtx *args)
+{
+    (void)args;
+    cli_pages_free(&(CliSizeBytesCtx){.size = s_held_pages_size, .bytes_out = s_held_pages});
+    s_held_pages = NULL;
+    s_held_pages_size = 0ULL;
+}
 #endif

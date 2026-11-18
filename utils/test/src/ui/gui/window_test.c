@@ -1682,6 +1682,57 @@ static void edit_checked(void)
     cli_check(asked("operator-next-line", NULL) && !s_window.operator_next_line, "and without a word turns off");
 }
 
+// the line end the system's clipboard holds between lines
+#if defined(_WIN32)
+#define CLIPBOARD_BREAK "\r\n"
+#else
+#define CLIPBOARD_BREAK "\n"
+#endif
+
+static void cursor_put(unsigned long long line, unsigned long long col);
+
+// whether the system's clipboard holds the text `expected`
+static int clipboard_holds(const char *expected)
+{
+    static char s_held[256];
+    VerbaLinea held = {s_held, sizeof(s_held), 0ULL};
+    (void)cli_clipboard_text_read(&(CliCtx){.text_verba_linea_pointer = &held});
+    (void)mmgr_line_finish(&held);
+    return same(s_held, expected);
+}
+
+// Copy, Cut and Paste in the editor, checked against the system's clipboard: a selection copied with the system's line end
+// between its lines, the cursor's line and its line end copied where nothing is chosen, the clipboard's text pasted in
+// place of a selection and at the cursor, and a cut that puts its text on the clipboard and takes it out
+static void clipboard_checked(void)
+{
+    tabs_closed("copy.txt", "one\ntwo\nthree\n", NULL, NULL);
+    cli_check(tab_opened("copy.txt"), "a file of three lines opens for the clipboard");
+    cursor_put(0ULL, 0ULL);
+    key_pressed("Shift+Down");
+    key_pressed("Shift+End");
+    key_pressed("Mod+C");
+    cli_check(clipboard_holds("one" CLIPBOARD_BREAK "two"), "Copy puts the selection on the clipboard");
+    cursor_put(1ULL, 1ULL);
+    key_pressed("Mod+C");
+    cli_check(clipboard_holds("two" CLIPBOARD_BREAK), "Copy with nothing chosen puts the cursor's line");
+    (void)cli_clipboard_text_write(&(CliSizeTextCtx){.size = 6ULL, .text = "pasted"});
+    cursor_put(2ULL, 0ULL);
+    key_pressed("Shift+End");
+    key_pressed("Mod+V");
+    cli_check(asked("save", NULL) && file_reads("copy.txt", "one\ntwo\npasted\n"),
+              "Paste puts the clipboard's text in place of the selection");
+    cursor_put(1ULL, 3ULL);
+    key_pressed("Mod+V");
+    cli_check(asked("save", NULL) && file_reads("copy.txt", "one\ntwopasted\npasted\n"),
+              "Paste puts the clipboard's text at the cursor");
+    cursor_put(0ULL, 0ULL);
+    key_pressed("Shift+End");
+    key_pressed("Mod+X");
+    cli_check(clipboard_holds("one") && asked("save", NULL) && file_reads("copy.txt", "\ntwopasted\npasted\n"),
+              "Cut puts the selection on the clipboard and takes it out");
+}
+
 // the cursor of the view displayed put at the line `line` and the unit `col`
 static void cursor_put(unsigned long long line, unsigned long long col)
 {
@@ -1796,7 +1847,7 @@ typedef struct
     void (*run)(void);
 } WindowCheck;
 
-static const WindowCheck s_checks[27] = {{"saves", saves_checked},
+static const WindowCheck s_checks[28] = {{"saves", saves_checked},
                                          {"closes", closes_checked},
                                          {"save_rows", save_rows_checked},
                                          {"failed_save", failed_save_checked},
@@ -1821,6 +1872,7 @@ static const WindowCheck s_checks[27] = {{"saves", saves_checked},
                                          {"sticky_notch", sticky_notch_checked},
                                          {"view", view_checked},
                                          {"edit", edit_checked},
+                                         {"clipboard", clipboard_checked},
                                          {"symbols", symbols_checked},
                                          {"file", file_checked}};
 

@@ -7,6 +7,7 @@
 // their stops
 #include "view.h"
 #include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
 
 #include "../code/symbols.h"
 #include "../command_line/pool.h"
@@ -196,10 +197,13 @@ typedef struct
 // the columns a frame cuts its rows at while nothing has told the view its size
 #define CLI_VIEW_UNSIZED_COLUMNS 256ULL
 #define CLI_VIEW_STEP_EDITS 256u
-// the max of each list a view retains; each list's movable cell is taken once at its max
+// the max of each list a view retains; each list's movable cell is taken once at its max, but for the steps' cell, which
+// grows with its steps
 #define CLI_VIEW_FOLDS 65536u
 #define CLI_VIEW_TABLE_COLUMNS 256u
 #define CLI_VIEW_STEPS 4096u
+// the steps the steps' cell holds when a view's first edit takes it; it doubles from there up to CLI_VIEW_STEPS
+#define CLI_VIEW_STEPS_FIRST 16u
 #define CLI_VIEW_UNITS_MIN 256ULL
 #define CLI_VIEW_FIND_UNITS 65536ULL
 #define CLI_VIEW_PAIR_LINES 3000ULL
@@ -2598,16 +2602,40 @@ EMBED_INLINE const CarcerMovableEntry *view_edit_published(const ViewCtx *args)
     return cell;
 }
 
-// the steps' cell, taken once at CLI_VIEW_STEPS, given room for one more step: 1, or 0 where it could not be taken; at
-// the max, the oldest step goes and those after it come down, a save point at the text as it opened lost with it
+// This function makes room in the steps' cell for one more step. It gives 1, or 0 where it cannot take a cell. The cell
+// starts at CLI_VIEW_STEPS_FIRST steps and doubles when it is full, up to CLI_VIEW_STEPS. A step on the stack carries
+// each step to the new cell, and then the old cell goes back. At CLI_VIEW_STEPS, the oldest step goes and the steps
+// after it move down. A save point at the text as it opened goes with the oldest step.
 EMBED_INLINE int view_steps_room(const ViewCtx *args)
 {
     CliView *const view = args->view;
-    if (!view_cell_taken(&view->step, (unsigned long long)CLI_VIEW_STEPS * sizeof(CliViewStep)))
+    if ((view->steps == view->steps_capacity) && (view->steps_capacity < CLI_VIEW_STEPS))
     {
-        return 0;
+        const unsigned int doubled =
+            (view->steps_capacity == 0u) ? CLI_VIEW_STEPS_FIRST : (view->steps_capacity * 2u);
+        const unsigned int capacity = (doubled < CLI_VIEW_STEPS) ? doubled : CLI_VIEW_STEPS;
+        const CarcerMovableEntry *const grown =
+            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliViewStep), g_cli_views_owner);
+        if (grown == NULL)
+        {
+            return 0;
+        }
+        for (unsigned int at = 0u; at < view->steps; at += 1u)
+        {
+            CliViewStep carried = {0};
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = view->step,
+                                                                    .offset = (unsigned long long)at * sizeof(carried),
+                                                                    .dst = &carried,
+                                                                    .bytes = sizeof(carried)});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = grown,
+                                                                     .offset = (unsigned long long)at * sizeof(carried),
+                                                                     .src = &carried,
+                                                                     .bytes = sizeof(carried)});
+        }
+        (void)g_cli_guard->movable_buf_release(view->step, g_cli_views_owner);
+        view->step = grown;
+        view->steps_capacity = capacity;
     }
-    view->steps_capacity = CLI_VIEW_STEPS;
     if (view->steps < CLI_VIEW_STEPS)
     {
         return 1;
@@ -5136,6 +5164,108 @@ EMBED_INLINE int view_move_key(const ViewCtx *args)
     return 1;
 }
 
+// This function reads the start and the length of `line` of the stored text `one` into `start` and `length`
+EMBED_INLINE void view_line_place(const CliStoredText *one, unsigned long long line, unsigned long long *start,
+                                  unsigned long long *length)
+{
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = one->lines.starts, .offset = line * sizeof(*start), .dst = start, .bytes = sizeof(*start)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = one->lines.lengths, .offset = line * sizeof(*length), .dst = length, .bytes = sizeof(*length)});
+}
+
+// This function puts the selection on the system's clipboard. Where nothing is chosen, it puts the cursor's line and its
+// line end. The clipboard reads each line's span from the text's cell, and puts its own line end between lines. It
+// writes the span it put into `from_pointer` and `to_pointer`. It gives 1, or 0 where the clipboard took nothing.
+EMBED_INLINE int view_copied(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = view->key);
+    if ((one == NULL) || view->paged || (one->lines.lines == 0u))
+    {
+        return 0;
+    }
+    CliPosition from;
+    CliPosition to;
+    EMBED_CALL(view_selection, ViewCtx, .view_read = view, .from_pointer = &from, .to_pointer = &to);
+    if (!EMBED_CALL(view_select, ViewCtx, .view_read = view))
+    {
+        unsigned long long start = 0ULL;
+        unsigned long long length = 0ULL;
+        view_line_place(one, view->cursor.line, &start, &length);
+        from = (CliPosition){view->cursor.line, 0ULL};
+        to = ((view->cursor.line + 1ULL) < one->lines.lines) ? (CliPosition){view->cursor.line + 1ULL, 0ULL}
+                                                             : (CliPosition){view->cursor.line, length};
+    }
+    unsigned long long count = 0ULL;
+    for (unsigned long long line = from.line; line <= to.line; line += 1ULL)
+    {
+        unsigned long long start = 0ULL;
+        unsigned long long length = 0ULL;
+        view_line_place(one, line, &start, &length);
+        const unsigned long long first = (line == from.line) ? from.col : 0ULL;
+        const unsigned long long end = (line == to.line) ? to.col : length;
+        count += (end > first) ? (end - first) : 0ULL;
+    }
+    if (!cli_clipboard_units_take(&(CliClipboardUnitsCtx){.count = count, .breaks = to.line - from.line}))
+    {
+        return 0;
+    }
+    for (unsigned long long line = from.line; line <= to.line; line += 1ULL)
+    {
+        unsigned long long start = 0ULL;
+        unsigned long long length = 0ULL;
+        view_line_place(one, line, &start, &length);
+        const unsigned long long first = (line == from.line) ? from.col : 0ULL;
+        const unsigned long long end = (line == to.line) ? to.col : length;
+        (void)cli_clipboard_units_append(&(CarcerMovableCfg){
+            .cell = one->lines.units,
+            .offset = (start + first) * sizeof(unsigned short),
+            .bytes = ((end > first) ? (end - first) : 0ULL) * sizeof(unsigned short)});
+        if (line < to.line)
+        {
+            (void)cli_clipboard_units_break(&(CliClipboardUnitsCtx){.count = 0ULL});
+        }
+    }
+    *args->from_pointer = from;
+    *args->to_pointer = to;
+    return cli_clipboard_units_put(&(CliClipboardUnitsCtx){.count = 0ULL});
+}
+
+// This function puts the clipboard's text in place of the selection, or at the cursor where nothing is chosen. The
+// edit's cell takes the text as UTF-8 straight from the clipboard's own memory. It gives 1, or 0 with why given where
+// the edit fails.
+EMBED_INLINE int view_pasted(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    unsigned long long count = 0ULL;
+    const unsigned short *const units = cli_clipboard_units_open(&(CliClipboardUnitsCtx){.count_out = &count});
+    if ((units == NULL) || (count == 0ULL))
+    {
+        cli_clipboard_units_close(&(CliClipboardUnitsCtx){.count = 0ULL});
+        return 1;
+    }
+    CliPosition from;
+    CliPosition to;
+    EMBED_CALL(view_selection, ViewCtx, .view_read = view, .from_pointer = &from, .to_pointer = &to);
+    // a UTF-16 unit makes at most 3 bytes of UTF-8, and a pair of them at most 4
+    const unsigned long long bytes = 3ULL * count;
+    CliViewEdit *const made = EMBED_CALL(view_edit_cell, ViewCtx, .view = view, .from = from, .to = to,
+                                         .append_bytes = bytes, .append_spans = 0ULL, .err_msg = args->err_msg);
+    if (made == NULL)
+    {
+        cli_clipboard_units_close(&(CliClipboardUnitsCtx){.count = 0ULL});
+        return 0;
+    }
+    VerbaLinea put = {made->put, bytes + 1ULL, 0ULL};
+    EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &put, .units = units,
+               .count = count);
+    cli_clipboard_units_close(&(CliClipboardUnitsCtx){.count = 0ULL});
+    made->append_length = mmgr_line_finish(&put);
+    return EMBED_CALL(view_edit_cell_write, ViewCtx, .view = view, .made = made, .type = CLI_VIEW_TYPE_NONE,
+                      .err_msg = args->err_msg);
+}
+
 // a key taken: 1, or 0 with why given where an edit it makes fails; a key the view has no use for is taken and does
 // nothing
 EMBED_INLINE int view_on_key(const ViewCtx *args)
@@ -5227,6 +5357,26 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
     else if (mod && EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Y"))
     {
         return view_redone(args);
+    }
+    else if (mod && !shift && EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "C"))
+    {
+        CliPosition from;
+        CliPosition to;
+        (void)EMBED_CALL(view_copied, ViewCtx, .view = args->view, .from_pointer = &from, .to_pointer = &to);
+    }
+    else if (mod && !shift && EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "X"))
+    {
+        CliPosition from;
+        CliPosition to;
+        if (EMBED_CALL(view_copied, ViewCtx, .view = args->view, .from_pointer = &from, .to_pointer = &to))
+        {
+            return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = "",
+                              .length = 0ULL, .type = CLI_VIEW_TYPE_DELETE, .err_msg = args->err_msg);
+        }
+    }
+    else if (mod && !shift && EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "V"))
+    {
+        return EMBED_CALL(view_pasted, ViewCtx, .view = args->view, .err_msg = args->err_msg);
     }
     return 1;
 }

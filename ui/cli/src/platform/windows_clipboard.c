@@ -8,6 +8,7 @@
 // opens it here, from its open to its close
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -153,6 +154,117 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
     GlobalUnlock(memory);
     return EMBED_CALL(clipboard_append, WindowsClipboardCtx, .format = CF_UNICODETEXT, .memory = memory,
                       .more_format = 0u, .more = NULL);
+}
+
+// A line end on the system's clipboard: a carriage return and a newline
+#define CLI_CLIPBOARD_BREAK_UNITS 2u
+
+// The memory that units_take takes and units_put hands to the system, NULL where none is out: its units locked, how
+// many it holds, and how many are written. The data that units_open locks, NULL where none is locked. One thread at a
+// time uses each
+static HGLOBAL s_units_memory;
+static wchar_t *s_units;
+static unsigned long long s_units_capacity;
+static unsigned long long s_units_at;
+static HANDLE s_units_held;
+
+int cli_clipboard_units_take(const CliClipboardUnitsCtx *args)
+{
+    if (s_units_memory != NULL)
+    {
+        GlobalUnlock(s_units_memory);
+        GlobalFree(s_units_memory);
+    }
+    s_units_capacity = args->count + (args->breaks * CLI_CLIPBOARD_BREAK_UNITS);
+    s_units_at = 0ULL;
+    s_units_memory = GlobalAlloc(GMEM_MOVEABLE, ((SIZE_T)s_units_capacity + 1u) * sizeof(wchar_t));
+    s_units = (s_units_memory != NULL) ? (wchar_t *)GlobalLock(s_units_memory) : NULL;
+    if (s_units == NULL)
+    {
+        GlobalFree(s_units_memory);
+        s_units_memory = NULL;
+        return 0;
+    }
+    return 1;
+}
+
+int cli_clipboard_units_append(const CarcerMovableCfg *args)
+{
+    const unsigned long long count = args->bytes / sizeof(*s_units);
+    if ((s_units == NULL) || (count > (s_units_capacity - s_units_at)))
+    {
+        return 0;
+    }
+    const int read = g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = args->cell, .offset = args->offset, .dst = s_units + s_units_at, .bytes = count * sizeof(*s_units)});
+    s_units_at += read ? count : 0ULL;
+    return read;
+}
+
+int cli_clipboard_units_break(const CliClipboardUnitsCtx *args)
+{
+    (void)args;
+    if ((s_units == NULL) || ((s_units_capacity - s_units_at) < CLI_CLIPBOARD_BREAK_UNITS))
+    {
+        return 0;
+    }
+    s_units[s_units_at] = L'\r';
+    s_units[s_units_at + 1ULL] = L'\n';
+    s_units_at += CLI_CLIPBOARD_BREAK_UNITS;
+    return 1;
+}
+
+int cli_clipboard_units_put(const CliClipboardUnitsCtx *args)
+{
+    (void)args;
+    const HGLOBAL memory = s_units_memory;
+    if (s_units == NULL)
+    {
+        return 0;
+    }
+    s_units[s_units_at] = L'\0';
+    GlobalUnlock(memory);
+    s_units_memory = NULL;
+    s_units = NULL;
+    return EMBED_CALL(clipboard_append, WindowsClipboardCtx, .format = CF_UNICODETEXT, .memory = memory,
+                      .more_format = 0u, .more = NULL);
+}
+
+const unsigned short *cli_clipboard_units_open(const CliClipboardUnitsCtx *args)
+{
+    *args->count_out = 0ULL;
+    if (!clipboard_open())
+    {
+        return NULL;
+    }
+    s_units_held = GetClipboardData(CF_UNICODETEXT);
+    const wchar_t *const units = (s_units_held != NULL) ? (const wchar_t *)GlobalLock(s_units_held) : NULL;
+    if (units == NULL)
+    {
+        s_units_held = NULL;
+        clipboard_close();
+        return NULL;
+    }
+    const SIZE_T units_max = GlobalSize(s_units_held) / sizeof(wchar_t);
+    SIZE_T count = 0u;
+    while ((count < units_max) && (units[count] != L'\0'))
+    {
+        count += 1u;
+    }
+    *args->count_out = (unsigned long long)count;
+    // the system's text units are UTF-16 units, as the editor's are
+    return (const unsigned short *)units;
+}
+
+void cli_clipboard_units_close(const CliClipboardUnitsCtx *args)
+{
+    (void)args;
+    if (s_units_held != NULL)
+    {
+        GlobalUnlock(s_units_held);
+        s_units_held = NULL;
+        clipboard_close();
+    }
 }
 
 int cli_clipboard_files_append(const CliCountCtx *args)

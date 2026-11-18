@@ -52,6 +52,7 @@ typedef struct CliPathErrMsgFullCtx CliPathErrMsgFullCtx;
 typedef struct CliWakeCtx CliWakeCtx;
 typedef struct CliRootContextCtx CliRootContextCtx;
 typedef struct CliSizeTextCtx CliSizeTextCtx;
+typedef struct CliClipboardUnitsCtx CliClipboardUnitsCtx;
 typedef struct CliIdsCtx CliIdsCtx;
 typedef struct CliPathFileCtx CliPathFileCtx;
 typedef struct CliFileCtx CliFileCtx;
@@ -475,6 +476,19 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args);
 int cli_clipboard_files_append(const CliCountCtx *args);
 unsigned int cli_clipboard_files_read(const CliEachCtx *args);
 void cli_clipboard_clear(void);
+// The system's clipboard text as UTF-16 units in the system's own memory. units_take takes memory for `count` units and
+// `breaks` line ends. units_append reads `bytes` of a movable cell's units at `offset` into that memory after what it
+// holds. units_break appends the system's own line end. units_put puts what the memory holds on the clipboard. Each
+// gives 1, or 0 where the system or the cell refuses. units_open gives the units the clipboard holds and their count
+// into `count_out`, or NULL where it holds none; they stay readable until units_close. Only Windows has these calls;
+// the window does not use the system's clipboard as units on X11 or macOS, and there each call refuses
+// (platform/windows_clipboard.c, platform/posix_clipboard.c)
+int cli_clipboard_units_take(const CliClipboardUnitsCtx *args);
+int cli_clipboard_units_append(const CarcerMovableCfg *args);
+int cli_clipboard_units_break(const CliClipboardUnitsCtx *args);
+int cli_clipboard_units_put(const CliClipboardUnitsCtx *args);
+const unsigned short *cli_clipboard_units_open(const CliClipboardUnitsCtx *args);
+void cli_clipboard_units_close(const CliClipboardUnitsCtx *args);
 // a piece of a started process's output or errors read, 0 at its end; the process waited on, its exit code, or -1
 // where a signal ended it; its job ended; its job and pipes let go; and the process group `leader` leads ended,
 // requested first, or on Windows the process `id` and every process under it
@@ -1001,6 +1015,13 @@ struct CliSizeTextCtx
 {
     unsigned long long size;
     const char *text;
+};
+
+struct CliClipboardUnitsCtx
+{
+    unsigned long long count;
+    unsigned long long breaks;
+    unsigned long long *count_out;
 };
 
 struct CliIdsCtx
