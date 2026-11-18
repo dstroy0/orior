@@ -1,93 +1,121 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pointer.c: the pointer's sprites, their cell tables and the shapes made of them. The shapes are baked once into a
-// sheet, and a draw puts the baked picture over the pixels saved from under it
+// pointer.c: the pointer's sprites, each a set of figures with rounded corners, and the glass they are baked in. The
+// shapes are baked once into a sheet, and a draw puts the baked picture over the pixels saved from under it
 #include "pointer.h"
 
 #include "memoria_operor/memoria_operor.h"
 
-// the arrow, its hot point the tip at the top left
-static const char s_arrow[19][12] = {
-    "#          ", "##         ", "#o#        ", "#oo#       ", "#ooo#      ", "#oooo#     ", "#ooooo#    ",
-    "#oooooo#   ", "#ooooooo#  ", "#oooooooo# ", "#ooooo#####", "#oo#oo#    ", "#o# #oo#   ", "##  #oo#   ",
-    "#    #oo#  ", "     #oo#  ", "      #oo# ", "      #oo# ", "       ##  ",
-};
+// a figure of `count_` points with corners rounded by `corner_`, the points after
+#define POINTER_FIGURE(corner_, count_, ...) {(count_), (corner_), {__VA_ARGS__}}
 
-// the text beam, its hot point at its middle
-static const char s_beam[16][8] = {
-    "### ###", "#oo#oo#", "###o###", "  #o#  ", "  #o#  ", "  #o#  ", "  #o#  ", "  #o#  ",
-    "  #o#  ", "  #o#  ", "  #o#  ", "  #o#  ", "  #o#  ", "###o###", "#oo#oo#", "### ###",
-};
+// the arrow, its tip at the top left; the double arrow from left to right; the arrow's figure is the busy arrow's too
+#define POINTER_ARROW_FIGURE POINTER_FIGURE(1.0, 4u, {1.5, 1.5}, {19.0, 11.0}, {10.0, 12.6}, {7.4, 20.8})
+#define POINTER_BOTH_WAYS_FIGURE                                                                                       \
+    POINTER_FIGURE(0.7, 10u, {1.0, 5.5}, {6.2, 1.0}, {6.2, 4.0}, {15.8, 4.0}, {15.8, 1.0}, {21.0, 5.5}, {15.8, 10.0},  \
+                   {15.8, 7.0}, {6.2, 7.0}, {6.2, 10.0})
 
-// the hand, its hot point the finger's tip
-static const char s_hand[19][17] = {
-    "     ##         ", "    #oo#        ", "    #oo#        ", "    #oo#        ", "    #oo#        ",
-    "    #oo###      ", "    #oo#oo###   ", "    #oo#oo#oo## ", " ## #oo#oo#oo#o#", "#oo##oooooooo#o#",
-    "#ooo#oooooooooo#", " #oo#oooooooooo#", "  #oooooooooooo#", "  #ooooooooooo# ", "   #oooooooooo# ",
-    "   #ooooooooo#  ", "    #oooooooo#  ", "    #oooooooo#  ", "    ##########  ",
-};
-
-// the arrow both ways, left and right; turned on its diagonal, up and down
-static const char s_both_ways[7][18] = {
-    "   #         #   ", "  #o#########o#  ", " #ooooooooooooo# ", "#ooooooooooooooo#",
-    " #ooooooooooooo# ", "  #o#########o#  ", "   #         #   ",
-};
-
-// the arrow both ways from the top left to the bottom right; mirrored, from the top right to the bottom left
-static const char s_diagonal[15][16] = {
-    "######         ", "#oooo#         ", "#ooo#          ", "#oooo#         ", "#o#ooo#        ",
-    "## #ooo#       ", "    #ooo#      ", "     #ooo#     ", "      #ooo#    ", "       #ooo# ##",
-    "        #ooo#o#", "         #oooo#", "          #ooo#", "         #oooo#", "         ######",
-};
-
-// the hourglass beside the arrow while the window works
-static const char s_glass[8][8] = {
-    "#######", "#ooooo#", " #ooo# ", "  #o#  ", "  #o#  ", " #ooo# ", "#ooooo#", "#######",
-};
-
-// a layer of the table `table_`: its rows' width is a row's bytes less the end of its text, and its height its rows
-#define POINTER_TABLE(table_, turned_, mirrored_, x_, y_)                                                              \
-    {&(table_)[0][0], (unsigned int)sizeof((table_)[0]) - 1u, (unsigned int)(sizeof(table_) / sizeof((table_)[0])),    \
-     (turned_), (mirrored_), (x_), (y_)}
-
-// each shape's sprite: its size in cells, its hot point and its layers, in the order of the shapes' numbers
+// each shape's sprite, in the order of the shapes' numbers: its size and hot point, the eighths of a turn its figures
+// are turned by, the place in the figures that its center shows, and its figures
 static const GuiPointerSprite s_sprites[GUI_POINTER_SHAPES] = {
-    {11u, 19u, 0u, 0u, 1u, {POINTER_TABLE(s_arrow, 0, 0, 0u, 0u)}},
-    {7u, 16u, 3u, 8u, 1u, {POINTER_TABLE(s_beam, 0, 0, 0u, 0u)}},
-    {16u, 19u, 5u, 0u, 1u, {POINTER_TABLE(s_hand, 0, 0, 0u, 0u)}},
-    {7u, 17u, 3u, 8u, 1u, {POINTER_TABLE(s_both_ways, 1, 0, 0u, 0u)}},
-    {17u, 7u, 8u, 3u, 1u, {POINTER_TABLE(s_both_ways, 0, 0, 0u, 0u)}},
-    {15u, 15u, 7u, 7u, 1u, {POINTER_TABLE(s_diagonal, 0, 0, 0u, 0u)}},
-    {15u, 15u, 7u, 7u, 1u, {POINTER_TABLE(s_diagonal, 0, 1, 0u, 0u)}},
-    {17u, 17u, 8u, 8u, 2u, {POINTER_TABLE(s_both_ways, 0, 0, 0u, 5u), POINTER_TABLE(s_both_ways, 1, 0, 5u, 0u)}},
-    {18u, 19u, 0u, 0u, 2u, {POINTER_TABLE(s_arrow, 0, 0, 0u, 0u), POINTER_TABLE(s_glass, 0, 0, 11u, 11u)}},
+    {20.0, 22.0, 1.5, 1.5, 0u, 10.0, 11.0, 1u, {POINTER_ARROW_FIGURE}},
+    {9.0,
+     20.0,
+     4.5,
+     10.0,
+     0u,
+     4.5,
+     10.0,
+     3u,
+     {POINTER_FIGURE(0.5, 4u, {3.7, 2.2}, {5.3, 2.2}, {5.3, 17.8}, {3.7, 17.8}),
+      POINTER_FIGURE(0.5, 4u, {1.3, 1.0}, {7.7, 1.0}, {7.7, 2.4}, {1.3, 2.4}),
+      POINTER_FIGURE(0.5, 4u, {1.3, 17.6}, {7.7, 17.6}, {7.7, 19.0}, {1.3, 19.0})}},
+    {18.0,
+     22.0,
+     6.5,
+     1.0,
+     0u,
+     9.0,
+     11.0,
+     6u,
+     {POINTER_FIGURE(1.3, 4u, {5.2, 1.8}, {7.8, 1.8}, {7.8, 11.5}, {5.2, 11.5}),
+      POINTER_FIGURE(1.2, 4u, {8.8, 7.4}, {11.2, 7.4}, {11.2, 11.5}, {8.8, 11.5}),
+      POINTER_FIGURE(1.1, 4u, {12.2, 8.4}, {14.4, 8.4}, {14.4, 11.5}, {12.2, 11.5}),
+      POINTER_FIGURE(1.0, 4u, {15.2, 10.0}, {16.6, 10.0}, {16.6, 12.5}, {15.2, 12.5}),
+      POINTER_FIGURE(2.0, 4u, {4.6, 10.2}, {16.6, 10.2}, {15.8, 19.4}, {6.0, 19.4}),
+      POINTER_FIGURE(1.2, 4u, {1.6, 11.6}, {3.2, 10.8}, {6.6, 14.2}, {5.4, 16.4})}},
+    {11.0, 22.0, 5.5, 11.0, 2u, 11.0, 5.5, 1u, {POINTER_BOTH_WAYS_FIGURE}},
+    {22.0, 11.0, 11.0, 5.5, 0u, 11.0, 5.5, 1u, {POINTER_BOTH_WAYS_FIGURE}},
+    {19.0, 19.0, 9.5, 9.5, 1u, 11.0, 5.5, 1u, {POINTER_BOTH_WAYS_FIGURE}},
+    {19.0, 19.0, 9.5, 9.5, 3u, 11.0, 5.5, 1u, {POINTER_BOTH_WAYS_FIGURE}},
+    {22.0,
+     22.0,
+     11.0,
+     11.0,
+     0u,
+     11.0,
+     11.0,
+     2u,
+     {POINTER_FIGURE(0.7, 10u, {1.0, 11.0}, {6.2, 6.5}, {6.2, 9.5}, {15.8, 9.5}, {15.8, 6.5}, {21.0, 11.0},
+                     {15.8, 15.5}, {15.8, 12.5}, {6.2, 12.5}, {6.2, 15.5}),
+      POINTER_FIGURE(0.7, 10u, {11.0, 1.0}, {15.5, 6.2}, {12.5, 6.2}, {12.5, 15.8}, {15.5, 15.8}, {11.0, 21.0},
+                     {6.5, 15.8}, {9.5, 15.8}, {9.5, 6.2}, {6.5, 6.2})}},
+    {24.0,
+     24.0,
+     1.5,
+     1.5,
+     0u,
+     12.0,
+     12.0,
+     2u,
+     {POINTER_ARROW_FIGURE,
+      POINTER_FIGURE(0.6, 6u, {15.0, 13.5}, {22.0, 13.5}, {19.2, 18.5}, {22.0, 23.0}, {15.0, 23.0}, {17.8, 18.5})}},
 };
 
-// the passes a sprite draws in: its shadow, its line and its fill
-#define POINTER_PASS_SHADOW 0u
-#define POINTER_PASS_LINE 1u
-#define POINTER_PASS_FILL 2u
+// The glass, in pixels at the scale of 100: the rim's width; the glint's place inside the edge and its half width; the
+// shadow's offset down and right, its softness, and the share of the rim's color the body takes
+#define POINTER_RIM 1.4
+#define POINTER_GLINT_AT 0.7
+#define POINTER_GLINT_HALF 0.6
+#define POINTER_SHADOW_X 1.0
+#define POINTER_SHADOW_Y 1.6
+#define POINTER_SHADOW_SOFT 2.4
+#define POINTER_BODY_TINT 0.3
+
+// the cosine and sine of each eighth of a turn
+static const double s_turns[8][2] = {
+    {1.0, 0.0}, {0.70710678118654752, 0.70710678118654752}, {0.0, 1.0}, {-0.70710678118654752, 0.70710678118654752},
+    {-1.0, 0.0}, {-0.70710678118654752, -0.70710678118654752}, {0.0, -1.0}, {0.70710678118654752, -0.70710678118654752},
+};
 
 typedef struct
 {
     const GuiPointer *pointer_read;
     GuiPointer *pointer;
-    GuiColor *picture;
-    unsigned int stride;
     GuiPointerMark *mark;
-    const GuiPointerLayer *layer;
+    const GuiPointerSprite *sprite;
+    const GuiPointerFigure *figure;
     GuiRaster *raster;
     const GuiPalette *palette;
+    GuiColor *picture;
     GuiRect rect;
-    GuiColor color;
-    unsigned int pass;
     int restoring;
-    unsigned int cell;
-    unsigned int column;
-    unsigned int line;
-    int left;
-    int top;
+    int scale;
+    double x;
+    double y;
+    double low;
+    double high;
+    double value;
 } PointerCtx;
+
+// One color of the glass as four shares of one: its red, green, blue and alpha
+typedef struct
+{
+    double red;
+    double green;
+    double blue;
+    double alpha;
+} PointerShares;
 
 void gui_pointer_init(const GuiPointerCfg *args)
 {
@@ -123,15 +151,29 @@ const GuiPointerSprite *gui_pointer_sprite(const GuiPointerShapeCfg *args)
     return &s_sprites[(args->shape < GUI_POINTER_SHAPES) ? args->shape : GUI_POINTER_ARROW];
 }
 
-unsigned int gui_pointer_cell(const GuiPointerReadCfg *args)
+int gui_pointer_scale(const GuiPointerReadCfg *args)
 {
-    const int rounded = (args->scale + (GUI_SCALE_ONE / 2)) / GUI_SCALE_ONE;
-    if (rounded < 1)
+    if (args->scale < GUI_POINTER_SCALE_LEAST)
     {
-        return 1u;
+        return GUI_POINTER_SCALE_LEAST;
     }
-    // a rounded scale below the most is a small positive count
-    return ((unsigned int)rounded > GUI_POINTER_SCALE_MAX) ? GUI_POINTER_SCALE_MAX : (unsigned int)rounded;
+    return (args->scale > GUI_POINTER_SCALE_MOST) ? GUI_POINTER_SCALE_MOST : args->scale;
+}
+
+// a side of a sprite in design units in the pixels of the baked picture at `scale`, its margin on both sides with it
+EMBED_INLINE int pointer_pixels(const PointerCtx *args)
+{
+    // a sprite's side at the most scale is a few dozen pixels, far inside an int
+    return (int)__builtin_ceil((args->value * (double)args->scale) / (double)GUI_SCALE_ONE) +
+           (2 * (int)GUI_POINTER_MARGIN);
+}
+
+// a place of a sprite's hot point in design units in the pixels of the baked picture at `scale`, its margin with it
+EMBED_INLINE int pointer_hot_pixel(const PointerCtx *args)
+{
+    // a hot point at the most scale is a few dozen pixels, far inside an int
+    return (int)__builtin_floor(((args->value * (double)args->scale) / (double)GUI_SCALE_ONE) + 0.5) +
+           (int)GUI_POINTER_MARGIN;
 }
 
 GuiRect gui_pointer_rect(const GuiPointerReadCfg *args)
@@ -142,10 +184,11 @@ GuiRect gui_pointer_rect(const GuiPointerReadCfg *args)
         return (GuiRect){0, 0, 0, 0};
     }
     const GuiPointerSprite *const sprite = &s_sprites[pointer->shape];
-    // a sprite's cells and the pixels of one are a few dozen at the most, far inside an int
-    const int cell = (int)gui_pointer_cell(args);
-    return (GuiRect){pointer->x - ((int)sprite->hot_x * cell), pointer->y - ((int)sprite->hot_y * cell),
-                     ((int)sprite->width + 1) * cell, ((int)sprite->height + 1) * cell};
+    const int scale = gui_pointer_scale(args);
+    return (GuiRect){pointer->x - EMBED_CALL(pointer_hot_pixel, PointerCtx, .value = sprite->hot_x, .scale = scale),
+                     pointer->y - EMBED_CALL(pointer_hot_pixel, PointerCtx, .value = sprite->hot_y, .scale = scale),
+                     EMBED_CALL(pointer_pixels, PointerCtx, .value = sprite->width, .scale = scale),
+                     EMBED_CALL(pointer_pixels, PointerCtx, .value = sprite->height, .scale = scale)};
 }
 
 // the mark of the raster `raster`'s pixels: the one that came from them, else one that holds nothing, else the first
@@ -196,103 +239,189 @@ EMBED_INLINE void pointer_under_copy(const PointerCtx *args)
 // `value` times `share` of 255, rounded
 #define POINTER_SHARE(value_, share_) ((((value_) * (share_)) + 127u) / 255u)
 
-// `color` put over the baked pixel at `left`, `top` of `picture`, a square of `cell` pixels. A baked pixel keeps its
-// color multiplied by its alpha. Each pass over it keeps what the pass's alpha leaves of it and adds the pass's color
-// times that alpha. The alpha is the share of the ground the passes cover
-EMBED_INLINE void pointer_square_bake(const PointerCtx *args)
+// The distance in design units from x, y to the edge of `figure`, its corners rounded: below 0 inside the figure.
+// The distance to the nearest side is found first, and a ray to the right that crosses the sides an odd number of
+// times puts the place inside
+EMBED_INLINE double pointer_figure_distance(const PointerCtx *args)
 {
-    const unsigned int alpha = GUI_ALPHA_OF(args->color);
-    const unsigned int keep = 255u - alpha;
-    // a sprite's cells and the pixels of one are a few dozen at the most: a place in the picture is not negative
-    for (unsigned int row = 0u; row < args->cell; row += 1u)
+    const GuiPointerFigure *const figure = args->figure;
+    double nearest = 1.0e9;
+    int inside = 0;
+    for (unsigned int at = 0u, before = figure->points - 1u; at < figure->points; before = at, at += 1u)
     {
-        GuiColor *const line = args->picture + ((((unsigned int)args->top + row) * args->stride) + (unsigned int)args->left);
-        for (unsigned int column = 0u; column < args->cell; column += 1u)
+        const double from_x = figure->point[at][0];
+        const double from_y = figure->point[at][1];
+        const double side_x = figure->point[before][0] - from_x;
+        const double side_y = figure->point[before][1] - from_y;
+        const double to_x = args->x - from_x;
+        const double to_y = args->y - from_y;
+        double along = ((to_x * side_x) + (to_y * side_y)) / ((side_x * side_x) + (side_y * side_y));
+        along = (along < 0.0) ? 0.0 : ((along > 1.0) ? 1.0 : along);
+        const double off_x = to_x - (side_x * along);
+        const double off_y = to_y - (side_y * along);
+        const double squared = (off_x * off_x) + (off_y * off_y);
+        nearest = (squared < nearest) ? squared : nearest;
+        const int above = args->y >= from_y;
+        const int below = args->y < figure->point[before][1];
+        const int left = (side_x * to_y) > (side_y * to_x);
+        if ((above && below && left) || (!above && !below && !left))
         {
-            const GuiColor baked = line[column];
-            GuiColor made = (255u - POINTER_SHARE(255u - POINTER_BYTE(baked, 24u), keep)) << 24u;
-            for (unsigned int shift = 0u; shift < 24u; shift += 8u)
+            inside = !inside;
+        }
+    }
+    const double distance = __builtin_sqrt(nearest);
+    return (inside ? -distance : distance) - figure->corner;
+}
+
+// The distance in design units from x, y of the sprite to the edge of its figures: the least of the figures'
+// distances. The place is turned back by the sprite's turn round its center into the figures' units first
+EMBED_INLINE double pointer_sprite_distance(const PointerCtx *args)
+{
+    const GuiPointerSprite *const sprite = args->sprite;
+    const double cosine = s_turns[sprite->eighths & 7u][0];
+    const double sine = s_turns[sprite->eighths & 7u][1];
+    const double across = args->x - (sprite->width * 0.5);
+    const double down = args->y - (sprite->height * 0.5);
+    const double figure_x = (across * cosine) + (down * sine) + sprite->center_x;
+    const double figure_y = (down * cosine) - (across * sine) + sprite->center_y;
+    double least = 1.0e9;
+    for (unsigned int at = 0u; at < sprite->figures; at += 1u)
+    {
+        const double distance = EMBED_CALL(pointer_figure_distance, PointerCtx, .figure = &sprite->figure[at],
+                                           .x = figure_x, .y = figure_y);
+        least = (distance < least) ? distance : least;
+    }
+    return least;
+}
+
+// 0 at `low` and below, 1 at `high` and above, and a smooth step between
+EMBED_INLINE double pointer_step(const PointerCtx *args)
+{
+    double share = (args->value - args->low) / (args->high - args->low);
+    share = (share < 0.0) ? 0.0 : ((share > 1.0) ? 1.0 : share);
+    return share * share * (3.0 - (2.0 * share));
+}
+
+// the color `color` as four shares of one
+static PointerShares pointer_shares(GuiColor color)
+{
+    return (PointerShares){(double)POINTER_BYTE(color, 16u) / 255.0, (double)POINTER_BYTE(color, 8u) / 255.0,
+                           (double)POINTER_BYTE(color, 0u) / 255.0, (double)POINTER_BYTE(color, 24u) / 255.0};
+}
+
+// `layer` put over `under`, both multiplied by their alphas, `layer` at `alpha`: what is under keeps the share the
+// alpha leaves, and the layer's color times the alpha is added
+static PointerShares pointer_over(PointerShares under, PointerShares layer, double alpha)
+{
+    const double keep = 1.0 - alpha;
+    return (PointerShares){(under.red * keep) + (layer.red * alpha), (under.green * keep) + (layer.green * alpha),
+                           (under.blue * keep) + (layer.blue * alpha), (under.alpha * keep) + alpha};
+}
+
+// a share of one as a byte, rounded and clamped to 0 to 255
+static GuiColor pointer_byte(double share)
+{
+    const double clamped = (share < 0.0) ? 0.0 : ((share > 1.0) ? 1.0 : share);
+    // a share clamped to 0 to 1 is a byte once scaled
+    return (GuiColor)((clamped * 255.0) + 0.5);
+}
+
+// The sprite baked into `picture` at `scale` in the palette's pointer colors. Each pixel is sampled at its center. Its
+// distance to the figures' edge gives how much of it the glass covers, the rim, the glint and the shadow. The rim's
+// color goes from the border's to the border's end across the sprite from its top left to its bottom right. The
+// glint lies on the edges that face the top left
+EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
+{
+    const GuiPointerSprite *const sprite = args->sprite;
+    const GuiPalette *const palette = args->palette;
+    const double scale = (double)args->scale / (double)GUI_SCALE_ONE;
+    const int width = EMBED_CALL(pointer_pixels, PointerCtx, .value = sprite->width, .scale = args->scale);
+    const int height = EMBED_CALL(pointer_pixels, PointerCtx, .value = sprite->height, .scale = args->scale);
+    const PointerShares fill = pointer_shares(palette->pointer_fill);
+    const PointerShares line = pointer_shares(palette->pointer_line);
+    const PointerShares line_end = pointer_shares(palette->pointer_line_end);
+    const PointerShares glint = pointer_shares(palette->pointer_glint);
+    const PointerShares shadow = pointer_shares(palette->pointer_shadow);
+    const double rim = POINTER_RIM * scale;
+    const double half = 0.5 / scale;
+    for (int row = 0; row < height; row += 1)
+    {
+        for (int column = 0; column < width; column += 1)
+        {
+            const double x = (((double)column + 0.5) - (double)GUI_POINTER_MARGIN) / scale;
+            const double y = (((double)row + 0.5) - (double)GUI_POINTER_MARGIN) / scale;
+            const double edge =
+                EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x, .y = y) * scale;
+            const double cover = (edge > 0.5) ? 0.0 : ((edge < -0.5) ? 1.0 : (0.5 - edge));
+            const double shadowed =
+                EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x - POINTER_SHADOW_X,
+                           .y = y - POINTER_SHADOW_Y) *
+                scale;
+            PointerShares made = {0.0, 0.0, 0.0, 0.0};
+            made = pointer_over(made, shadow,
+                                shadow.alpha * (1.0 - cover) *
+                                    (1.0 - EMBED_CALL(pointer_step, PointerCtx, .low = -1.0,
+                                                      .high = POINTER_SHADOW_SOFT * scale, .value = shadowed)));
+            if (cover > 0.0)
             {
-                const unsigned int channel = POINTER_SHARE(POINTER_BYTE(baked, shift), keep) +
-                                             POINTER_SHARE(POINTER_BYTE(args->color, shift), alpha);
-                made |= ((channel > 255u) ? 255u : channel) << shift;
+                double across = ((x / sprite->width) + (y / sprite->height)) * 0.5;
+                across = (across < 0.0) ? 0.0 : ((across > 1.0) ? 1.0 : across);
+                const PointerShares rim_color = {line.red + ((line_end.red - line.red) * across),
+                                                 line.green + ((line_end.green - line.green) * across),
+                                                 line.blue + ((line_end.blue - line.blue) * across),
+                                                 line.alpha + ((line_end.alpha - line.alpha) * across)};
+                const PointerShares body = {fill.red + ((rim_color.red - fill.red) * POINTER_BODY_TINT),
+                                            fill.green + ((rim_color.green - fill.green) * POINTER_BODY_TINT),
+                                            fill.blue + ((rim_color.blue - fill.blue) * POINTER_BODY_TINT), fill.alpha};
+                made = pointer_over(made, body, body.alpha * cover);
+                const double depth = -edge;
+                const double rim_share =
+                    1.0 - EMBED_CALL(pointer_step, PointerCtx, .low = rim - 0.6, .high = rim + 0.6, .value = depth);
+                made = pointer_over(made, rim_color, rim_color.alpha * cover * rim_share);
+                const double toward_x =
+                    EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x + half, .y = y) -
+                    EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x - half, .y = y);
+                const double toward_y =
+                    EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x, .y = y + half) -
+                    EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x, .y = y - half);
+                const double length = __builtin_sqrt((toward_x * toward_x) + (toward_y * toward_y));
+                double facing = (length > 0.0) ? (-(toward_x + toward_y) * 0.70710678118654752 / length) : 0.0;
+                facing = (facing < 0.0) ? 0.0 : facing;
+                double band = 1.0 - (__builtin_fabs(depth - (POINTER_GLINT_AT * scale)) / (POINTER_GLINT_HALF * scale));
+                band = (band < 0.0) ? 0.0 : band;
+                made = pointer_over(made, glint, glint.alpha * cover * band * facing * facing);
             }
-            line[column] = made;
+            args->picture[(row * width) + column] = (pointer_byte(made.alpha) << 24u) |
+                                                    (pointer_byte(made.red) << 16u) |
+                                                    (pointer_byte(made.green) << 8u) | pointer_byte(made.blue);
         }
     }
 }
 
-// the cell at `column`, `line` of the layer as it is turned and mirrored: ' ', '#' or 'o'
-EMBED_INLINE char pointer_layer_cell(const PointerCtx *args)
-{
-    const GuiPointerLayer *const layer = args->layer;
-    const unsigned int across = layer->turned ? layer->height : layer->width;
-    const unsigned int column = layer->mirrored ? (across - 1u - args->column) : args->column;
-    // a row is its cells and the end of its text after them
-    const unsigned int row = layer->turned ? column : args->line;
-    const unsigned int place = layer->turned ? args->line : column;
-    return layer->cells[(row * (layer->width + 1u)) + place];
-}
-
-// one pass of the layer baked into `picture`: each of its cells that the pass draws, a square of `cell` pixels
-EMBED_INLINE void pointer_layer_pass(const PointerCtx *args)
-{
-    const GuiPointerLayer *const layer = args->layer;
-    const unsigned int across = layer->turned ? layer->height : layer->width;
-    const unsigned int down = layer->turned ? layer->width : layer->height;
-    // the shadow lies a cell down and right of the sprite
-    const int shift = (args->pass == POINTER_PASS_SHADOW) ? (int)args->cell : 0;
-    for (unsigned int line = 0u; line < down; line += 1u)
-    {
-        for (unsigned int column = 0u; column < across; column += 1u)
-        {
-            const char symbol = EMBED_CALL(pointer_layer_cell, PointerCtx, .layer = layer, .column = column, .line = line);
-            const int drawn = (args->pass == POINTER_PASS_SHADOW)
-                                  ? ((symbol == '#') || (symbol == 'o'))
-                                  : (symbol == ((args->pass == POINTER_PASS_LINE) ? '#' : 'o'));
-            if (drawn)
-            {
-                // a sprite's cells are a few dozen at the most, far inside an int
-                EMBED_CALL(pointer_square_bake, PointerCtx, .picture = args->picture, .stride = args->stride,
-                           .color = args->color, .cell = args->cell,
-                           .left = ((int)(layer->x + column) * (int)args->cell) + shift,
-                           .top = ((int)(layer->y + line) * (int)args->cell) + shift);
-            }
-        }
-    }
-}
-
-// The sheet baked at `cell` in the palette's pointer colors: every shape's picture made again where the cell or a
+// The sheet baked at `scale` in the palette's pointer colors: every shape's picture made again where the scale or a
 // color is not the sheet's, else nothing done
 EMBED_INLINE void pointer_sheet_bake(const PointerCtx *args)
 {
     GuiPointerSheet *const sheet = &args->pointer->sheet;
-    const GuiColor colors[3] = {args->palette->pointer_shadow, args->palette->pointer_line,
-                                args->palette->pointer_fill};
-    if (sheet->made && (sheet->cell == args->cell) && (sheet->shadow == colors[POINTER_PASS_SHADOW]) &&
-        (sheet->line == colors[POINTER_PASS_LINE]) && (sheet->fill == colors[POINTER_PASS_FILL]))
+    const GuiPalette *const palette = args->palette;
+    if (sheet->made && (sheet->scale == args->scale) && (sheet->shadow == palette->pointer_shadow) &&
+        (sheet->line == palette->pointer_line) && (sheet->line_end == palette->pointer_line_end) &&
+        (sheet->glint == palette->pointer_glint) && (sheet->fill == palette->pointer_fill))
     {
         return;
     }
-    memor.set(&(MemoriaCfg){.dst = sheet->pixels, .val = 0, .bytes = sizeof(sheet->pixels)});
     for (unsigned int shape = 0u; shape < GUI_POINTER_SHAPES; shape += 1u)
     {
-        const GuiPointerSprite *const sprite = &s_sprites[shape];
-        for (unsigned int pass = POINTER_PASS_SHADOW; pass <= POINTER_PASS_FILL; pass += 1u)
-        {
-            for (unsigned int at = 0u; at < sprite->layers; at += 1u)
-            {
-                EMBED_CALL(pointer_layer_pass, PointerCtx, .layer = &sprite->layer[at], .picture = sheet->pixels[shape],
-                           .stride = (sprite->width + 1u) * args->cell, .color = colors[pass], .pass = pass,
-                           .cell = args->cell);
-            }
-        }
+        EMBED_CALL(pointer_sprite_bake, PointerCtx, .sprite = &s_sprites[shape], .palette = palette,
+                   .picture = sheet->pixels[shape], .scale = args->scale);
     }
     sheet->made = 1;
-    sheet->cell = args->cell;
-    sheet->shadow = colors[POINTER_PASS_SHADOW];
-    sheet->line = colors[POINTER_PASS_LINE];
-    sheet->fill = colors[POINTER_PASS_FILL];
+    sheet->scale = args->scale;
+    sheet->shadow = palette->pointer_shadow;
+    sheet->line = palette->pointer_line;
+    sheet->line_end = palette->pointer_line_end;
+    sheet->glint = palette->pointer_glint;
+    sheet->fill = palette->pointer_fill;
 }
 
 // The shape's baked picture put over the raster at `rect`, the sprite's whole rectangle, cut to the raster and to its
@@ -362,8 +491,8 @@ GuiRect gui_pointer_draw(const GuiPointerRasterCfg *args)
     {
         EMBED_CALL(pointer_under_copy, PointerCtx, .raster = args->raster, .mark = mark, .restoring = 0);
     }
-    const unsigned int cell = gui_pointer_cell(&(GuiPointerReadCfg){.pointer_read = pointer, .scale = args->scale});
-    EMBED_CALL(pointer_sheet_bake, PointerCtx, .pointer = pointer, .palette = args->palette, .cell = cell);
+    EMBED_CALL(pointer_sheet_bake, PointerCtx, .pointer = pointer, .palette = args->palette,
+               .scale = gui_pointer_scale(&(GuiPointerReadCfg){.pointer_read = pointer, .scale = args->scale}));
     EMBED_CALL(pointer_sheet_blit, PointerCtx, .pointer_read = pointer, .raster = args->raster, .rect = rect);
     return mark->rect;
 }

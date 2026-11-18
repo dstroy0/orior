@@ -49,8 +49,8 @@ typedef struct
 // shade under a raised thing and the color of TABVLA's cuts; a fuse's ash, burn, fire and the white of its hottest
 // core; the work's line down its right and along its foot, the thin line down its left, the status bar's quiet text
 // and the grain positioned over the glass, its alpha the grain's strength; a button's glass and line, and the bead's
-// glint, caustic, rim and shadow; the pointer's fill, line and shadow; the lattice's three colors, a point in place the
-// first and a moved one passing through the second to the third;
+// glint, caustic, rim and shadow; the pointer's glass, the two ends of its rim, its glint and its shadow; the
+// lattice's three colors, a point in place the first and a moved one passing through the second to the third;
 // the eight colors a file's mark takes; the terminal's sixteen, --t0 to --t15; and the tokens of the displayed file's
 // language, `token_count` of them, the colors its grammar plugin's palette gives its token names, none in the scheme
 typedef struct
@@ -121,6 +121,8 @@ typedef struct
     GuiColor bead_shadow;
     GuiColor pointer_fill;
     GuiColor pointer_line;
+    GuiColor pointer_line_end;
+    GuiColor pointer_glint;
     GuiColor pointer_shadow;
     GuiColor lattice[3];
     GuiColor mark[GUI_MARKS];

@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pointer.h: the pointer the window draws itself, a sprite of cells in place of the system's cursor. Each shape is one
-// or two layers of a cell table, a layer turned on its diagonal or mirrored where the shape is another's turned. The
-// sprites are baked once into a sheet: three passes, the shadow, the line and the fill, each cell a square of pixels at
-// the window's scale. They are baked again only when the scale or a pointer color changes. A draw puts the baked
+// pointer.h: the pointer the window draws itself, a sprite of glass in place of the system's cursor. Each shape is a
+// set of figures, each a polygon with rounded corners, in design units of one pixel at the scale of 100. A shape can
+// be another's figures turned in eighths of a turn. The sprites are baked once into a sheet at the window's scale in
+// the palette's pointer colors. A baked sprite is a body of tinted glass, a rim that goes from one color to the other
+// across the shape, a glint inside the upper left of the rim, and a soft shadow below. Each edge is smoothed against
+// the pixels under it. The sheet is baked again only when the scale or a pointer color changes. A draw puts the baked
 // picture over the raster. The pixels under a sprite are saved for each of the two rasters the window flips between.
 // A move restores them and draws the sprite at its new place (pointer.c)
 #ifndef GUI_WINDOW_POINTER_H
@@ -32,38 +34,43 @@ typedef struct GuiPointerShapeCfg GuiPointerShapeCfg;
 #define GUI_POINTER_BUSY 8u
 #define GUI_POINTER_SHAPES 9u
 
-// a sprite's largest side in cells, its shadow's cell with it; the most pixels a cell is on a side; the pixels saved
-// under a sprite at that size; the layers a shape has at most; and the rasters a window flips between
-#define GUI_POINTER_SIDE_MAX 20u
-#define GUI_POINTER_SCALE_MAX 3u
-#define GUI_POINTER_UNDER_MAX                                                                                          \
-    ((GUI_POINTER_SIDE_MAX * GUI_POINTER_SCALE_MAX) * (GUI_POINTER_SIDE_MAX * GUI_POINTER_SCALE_MAX))
-#define GUI_POINTER_LAYERS 2u
+// A sprite's largest side in design units. The least and the most scale a sprite is baked at, in the window's percent.
+// The pixels of margin round a sprite for its smoothed edge and its shadow. The largest side of a baked sprite in
+// pixels, and the pixels saved under it. The points a figure has at most and the figures a shape has at most. The
+// rasters a window flips between
+#define GUI_POINTER_SIDE_MAX 24u
+#define GUI_POINTER_SCALE_LEAST 100
+#define GUI_POINTER_SCALE_MOST 300
+#define GUI_POINTER_MARGIN 3u
+#define GUI_POINTER_PIXELS_MAX ((GUI_POINTER_SIDE_MAX * 3u) + (2u * GUI_POINTER_MARGIN))
+#define GUI_POINTER_UNDER_MAX (GUI_POINTER_PIXELS_MAX * GUI_POINTER_PIXELS_MAX)
+#define GUI_POINTER_POINTS 12u
+#define GUI_POINTER_FIGURES 6u
 #define GUI_POINTER_RASTERS 2u
+_Static_assert((GUI_POINTER_SCALE_MOST / GUI_SCALE_ONE) == 3, "GUI_POINTER_PIXELS_MAX holds a sprite at the most scale");
 
-// A layer of a sprite: its cell table, `height` rows of `width` cells each with the end of its text after it, where
-// ' ' is no cell, '#' the line and 'o' the fill; whether it is turned on its diagonal and whether it is then mirrored
-// left for right; and its place in the sprite in cells
+// A figure of a sprite: its points in design units, in order round its edge, and the radius in design units its
+// corners are rounded by. The rounding grows the figure by the radius
 typedef struct
 {
-    const char *cells;
-    unsigned int width;
-    unsigned int height;
-    int turned;
-    int mirrored;
-    unsigned int x;
-    unsigned int y;
-} GuiPointerLayer;
+    unsigned int points;
+    double corner;
+    double point[GUI_POINTER_POINTS][2];
+} GuiPointerFigure;
 
-// A sprite: its size in cells, the cell its hot point is on, and its layers
+// A sprite: its size in design units and its hot point in them; the eighths of a turn its figures are turned by, round
+// the center of the sprite; the place in the figures' units that the center of the sprite shows; and its figures
 typedef struct
 {
-    unsigned int width;
-    unsigned int height;
-    unsigned int hot_x;
-    unsigned int hot_y;
-    unsigned int layers;
-    GuiPointerLayer layer[GUI_POINTER_LAYERS];
+    double width;
+    double height;
+    double hot_x;
+    double hot_y;
+    unsigned int eighths;
+    double center_x;
+    double center_y;
+    unsigned int figures;
+    GuiPointerFigure figure[GUI_POINTER_FIGURES];
 } GuiPointerSprite;
 
 // The pixels saved under a sprite on one raster: the raster's pixels they came from, the rectangle, whether any are
@@ -76,16 +83,18 @@ typedef struct
     GuiColor under[GUI_POINTER_UNDER_MAX];
 } GuiPointerMark;
 
-// The sprites baked at one cell size in the palette's three pointer colors. Each shape is a picture of its rectangle,
-// its shadow with it, row after row of the rectangle's width. A pixel holds its color multiplied by its alpha, and the
-// alpha it covers what is under it with. A draw puts this picture over the raster and walks no cell table. `made` is 0
-// until the first bake
+// The sprites baked at one scale in the palette's pointer colors. Each shape is a picture of its rectangle, its margin
+// with it, row after row of the rectangle's width. A pixel holds its color multiplied by its alpha, and the alpha it
+// covers what is under it with. A draw puts this picture over the raster and computes no figure. `made` is 0 until the
+// first bake
 typedef struct
 {
     int made;
-    unsigned int cell;
+    int scale;
     GuiColor shadow;
     GuiColor line;
+    GuiColor line_end;
+    GuiColor glint;
     GuiColor fill;
     GuiColor pixels[GUI_POINTER_SHAPES][GUI_POINTER_UNDER_MAX];
 } GuiPointerSheet;
@@ -108,9 +117,9 @@ void gui_pointer_init(const GuiPointerCfg *args);
 int gui_pointer_place(const GuiPointerPlaceCfg *args);
 // the sprite of `shape`, the arrow's for a shape not known
 const GuiPointerSprite *gui_pointer_sprite(const GuiPointerShapeCfg *args);
-// the pixels a cell is on a side at `scale`, the window's percent: the scale rounded to whole cells, 1 to
-// GUI_POINTER_SCALE_MAX
-unsigned int gui_pointer_cell(const GuiPointerReadCfg *args);
+// the scale a sprite is baked at for `scale`, the window's percent: the scale clamped to GUI_POINTER_SCALE_LEAST to
+// GUI_POINTER_SCALE_MOST
+int gui_pointer_scale(const GuiPointerReadCfg *args);
 // the rectangle the sprite covers at its place at `scale`, its shadow with it: empty where the pointer is off the
 // window
 GuiRect gui_pointer_rect(const GuiPointerReadCfg *args);
@@ -190,12 +199,12 @@ EMBED_TABLE_STORAGE GuiPointerShapeNs gui_pointer_shape EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*cell)(const GuiPointerReadCfg *args);
+    int (*scale)(const GuiPointerReadCfg *args);
     GuiRect (*rect)(const GuiPointerReadCfg *args);
 } GuiPointerReadNs;
-EMBED_TABLE_LAYOUT(GuiPointerReadNs, cell, rect);
+EMBED_TABLE_LAYOUT(GuiPointerReadNs, scale, rect);
 EMBED_TABLE_STORAGE GuiPointerReadNs gui_pointer_read EMBED_UNUSED = {
-    .cell = gui_pointer_cell,
+    .scale = gui_pointer_scale,
     .rect = gui_pointer_rect,
 };
 

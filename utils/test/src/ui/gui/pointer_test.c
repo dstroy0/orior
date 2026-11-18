@@ -1,27 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pointer_test.c: the pointer's check: every sprite's tables whole, the cell's pixels at each scale, the rectangle at
-// the hot point, the line, fill and shadow drawn in the palette's colors, the pixels under it put back, a move drawn
-// again, the two rasters kept apart, a clip that stops the writes outside it, and the sheet baked once and baked again
-// only for a new scale or color
+// pointer_test.c: the pointer's check: every sprite's figures whole, the scale a sprite is baked at, the rectangle at
+// the hot point, the glass drawn over the ground with the ground seen through its body, its shadow below it, the
+// pixels under it put back, a move drawn again, the two rasters kept apart, a clip that stops the writes outside it,
+// and the sheet baked once and baked again only for a new scale or color
 #include "../../../../../includes/window/palette.h"
 #include "../../../../../includes/window/pointer.h"
 #include "../cli/cli_check.h"
 
 #define POINTER_SIDE 96u
 #define POINTER_GROUND GUI_RGB(0x20u, 0x40u, 0x60u)
+#define POINTER_OTHER_GROUND GUI_RGB(0xe0u, 0xd0u, 0x30u)
 
 static GuiColor s_first[POINTER_SIDE * POINTER_SIDE];
 static GuiColor s_second[POINTER_SIDE * POINTER_SIDE];
 static GuiPointer s_pointer;
 static GuiPalette s_changed;
 
-// every pixel of `raster` the ground
-static void ground_fill(GuiRaster *raster)
+// every pixel of `raster` the color `color`
+static void ground_fill(GuiRaster *raster, GuiColor color)
 {
     for (unsigned int at = 0u; at < (raster->width * raster->height); at += 1u)
     {
-        raster->pixels[at] = POINTER_GROUND;
+        raster->pixels[at] = color;
     }
 }
 
@@ -43,8 +44,14 @@ static unsigned int drawn_count(const GuiRaster *raster)
     return count;
 }
 
-// whether each layer of each sprite is a table of whole rows of ' ', '#' and 'o', the end of its text after each row,
-// that lies inside the sprite as it is turned, and the hot point inside the sprite
+// the byte at `shift` of `color`
+static unsigned int channel(GuiColor color, unsigned int shift)
+{
+    return (color >> shift) & 0xffu;
+}
+
+// whether each sprite lies inside the largest side with its hot point inside it, and has one to the most figures,
+// each of three to the most points inside the largest side with a corner above 0
 static int sprites_whole(void)
 {
     int whole = 1;
@@ -52,23 +59,18 @@ static int sprites_whole(void)
     {
         const GuiPointerSprite *const sprite =
             EMBED_CALL(gui_pointer_shape.sprite, GuiPointerShapeCfg, .shape = shape);
-        whole &= (sprite->layers >= 1u) && (sprite->layers <= GUI_POINTER_LAYERS) &&
-                 (sprite->hot_x < sprite->width) && (sprite->hot_y < sprite->height) &&
-                 ((sprite->width + 1u) <= GUI_POINTER_SIDE_MAX) && ((sprite->height + 1u) <= GUI_POINTER_SIDE_MAX);
-        for (unsigned int at = 0u; at < sprite->layers; at += 1u)
+        whole &= (sprite->figures >= 1u) && (sprite->figures <= GUI_POINTER_FIGURES) && (sprite->hot_x >= 0.0) &&
+                 (sprite->hot_y >= 0.0) && (sprite->hot_x < sprite->width) && (sprite->hot_y < sprite->height) &&
+                 (sprite->width <= (double)GUI_POINTER_SIDE_MAX) && (sprite->height <= (double)GUI_POINTER_SIDE_MAX);
+        for (unsigned int at = 0u; at < sprite->figures; at += 1u)
         {
-            const GuiPointerLayer *const layer = &sprite->layer[at];
-            const unsigned int across = layer->turned ? layer->height : layer->width;
-            const unsigned int down = layer->turned ? layer->width : layer->height;
-            whole &= ((layer->x + across) <= sprite->width) && ((layer->y + down) <= sprite->height);
-            for (unsigned int row = 0u; row < layer->height; row += 1u)
+            const GuiPointerFigure *const figure = &sprite->figure[at];
+            whole &= (figure->points >= 3u) && (figure->points <= GUI_POINTER_POINTS) && (figure->corner > 0.0);
+            for (unsigned int point = 0u; point < figure->points; point += 1u)
             {
-                const char *const text = layer->cells + (row * (layer->width + 1u));
-                whole &= text[layer->width] == '\0';
-                for (unsigned int column = 0u; column < layer->width; column += 1u)
-                {
-                    whole &= (text[column] == ' ') || (text[column] == '#') || (text[column] == 'o');
-                }
+                whole &= (figure->point[point][0] >= 0.0) && (figure->point[point][1] >= 0.0) &&
+                         (figure->point[point][0] <= (double)GUI_POINTER_SIDE_MAX) &&
+                         (figure->point[point][1] <= (double)GUI_POINTER_SIDE_MAX);
             }
         }
     }
@@ -81,16 +83,15 @@ int main(void)
     const GuiPalette *const palette = EMBED_CALL(gui_palette_scheme.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
     GuiRaster first = {POINTER_SIDE, POINTER_SIDE, s_first, NULL, 0ULL, 0ULL, {0, 0, 0, 0}};
     GuiRaster second = {POINTER_SIDE, POINTER_SIDE, s_second, NULL, 0ULL, 0ULL, {0, 0, 0, 0}};
-    ground_fill(&first);
-    ground_fill(&second);
+    ground_fill(&first, POINTER_GROUND);
+    ground_fill(&second, POINTER_GROUND);
 
-    cli_check(sprites_whole(), "every sprite's tables are whole rows of no cell, line and fill, inside the sprite");
-    cli_check((EMBED_CALL(gui_pointer_read.cell, GuiPointerReadCfg, .scale = 100) == 1u) &&
-                  (EMBED_CALL(gui_pointer_read.cell, GuiPointerReadCfg, .scale = 50) == 1u) &&
-                  (EMBED_CALL(gui_pointer_read.cell, GuiPointerReadCfg, .scale = 150) == 2u) &&
-                  (EMBED_CALL(gui_pointer_read.cell, GuiPointerReadCfg, .scale = 300) == 3u) &&
-                  (EMBED_CALL(gui_pointer_read.cell, GuiPointerReadCfg, .scale = 500) == GUI_POINTER_SCALE_MAX),
-              "a cell is the scale rounded to whole pixels, one to the most");
+    cli_check(sprites_whole(), "every sprite's figures are whole and lie inside the largest side");
+    cli_check((EMBED_CALL(gui_pointer_read.scale, GuiPointerReadCfg, .scale = 100) == 100) &&
+                  (EMBED_CALL(gui_pointer_read.scale, GuiPointerReadCfg, .scale = 50) == GUI_POINTER_SCALE_LEAST) &&
+                  (EMBED_CALL(gui_pointer_read.scale, GuiPointerReadCfg, .scale = 150) == 150) &&
+                  (EMBED_CALL(gui_pointer_read.scale, GuiPointerReadCfg, .scale = 500) == GUI_POINTER_SCALE_MOST),
+              "a sprite is baked at the window's scale, clamped to the least and the most");
 
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &s_pointer);
     const GuiRect off = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = &s_pointer, .scale = 100);
@@ -106,22 +107,32 @@ int main(void)
                               .y = 10, .shape = GUI_POINTER_ARROW, .shown = 1),
               "a pointer put somewhere new changes, and put there again does not");
     const GuiRect arrow = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = &s_pointer, .scale = 100);
-    cli_check((arrow.x == 10) && (arrow.y == 10) && (arrow.width == 12) && (arrow.height == 20),
-              "the arrow's rectangle starts at its tip and holds its shadow");
+    cli_check((arrow.x == 5) && (arrow.y == 5) && (arrow.width == 26) && (arrow.height == 28),
+              "the arrow's rectangle puts its tip on the hot point and holds its margin");
     const GuiRect drawn = EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer,
                                      .raster = &first, .palette = palette, .scale = 100);
-    cli_check((drawn.x == arrow.x) && (drawn.width == arrow.width) && (pixel(&first, 10, 10) == palette->pointer_line) &&
-                  (pixel(&first, 11, 12) == palette->pointer_fill),
-              "the arrow's tip is its line and its inside its fill");
-    const GuiColor shadow = pixel(&first, 18, 29);
-    cli_check((shadow != POINTER_GROUND) && (shadow != palette->pointer_line) && (pixel(&first, 30, 30) == POINTER_GROUND),
-              "the shadow under the arrow's foot is blended over the ground, and past the sprite is the ground");
+    const GuiColor tip = pixel(&first, 10, 10);
+    const GuiColor body = pixel(&first, 14, 15);
+    const GuiColor shadow = pixel(&first, 16, 30);
+    cli_check((drawn.x == arrow.x) && (drawn.width == arrow.width) && (tip != POINTER_GROUND) &&
+                  (body != POINTER_GROUND) && (channel(body, 0u) > channel(POINTER_GROUND, 0u)),
+              "the arrow's tip is drawn and its body is tinted toward the glass's violet");
+    cli_check((shadow != POINTER_GROUND) && (channel(shadow, 16u) <= channel(POINTER_GROUND, 16u)) &&
+                  (channel(shadow, 8u) <= channel(POINTER_GROUND, 8u)) &&
+                  (channel(shadow, 0u) <= channel(POINTER_GROUND, 0u)) && (pixel(&first, 40, 40) == POINTER_GROUND),
+              "the shadow below the arrow's foot darkens the ground, and past the sprite is the ground");
     (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
     cli_check(drawn_count(&first) == 0u, "the pixels under the sprite are put back");
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg,
                          .rect = EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer,
                                             .raster = &first)),
               "with nothing saved nothing is put back");
+    ground_fill(&second, POINTER_OTHER_GROUND);
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second,
+                     .palette = palette, .scale = 100);
+    cli_check(pixel(&second, 14, 15) != body, "the ground shows through the glass's body: on another ground it differs");
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second);
+    ground_fill(&second, POINTER_GROUND);
 
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = palette, .scale = 100);
@@ -129,15 +140,14 @@ int main(void)
                      .shape = GUI_POINTER_TEXT, .shown = 1);
     const GuiRect moved = EMBED_CALL(gui_pointer_raster.redrawn, GuiPointerRasterCfg, .pointer = &s_pointer,
                                      .raster = &first, .palette = palette, .scale = 100);
-    cli_check((pixel(&first, 10, 10) == POINTER_GROUND) && (pixel(&first, 60, 50) == palette->pointer_fill) &&
-                  (moved.x == 10) && (moved.y == 10) && ((moved.x + moved.width) >= 61) &&
-                  ((moved.y + moved.height) >= 51),
+    cli_check((pixel(&first, 10, 10) == POINTER_GROUND) && (pixel(&first, 60, 50) != POINTER_GROUND) &&
+                  (moved.x <= 5) && ((moved.y + moved.height) >= 51),
               "a move puts back the old place, draws the beam at its middle, and gives the rectangle of both");
 
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second,
                      .palette = palette, .scale = 100);
     (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check((drawn_count(&first) == 0u) && (pixel(&second, 60, 50) == palette->pointer_fill),
+    cli_check((drawn_count(&first) == 0u) && (pixel(&second, 60, 50) != POINTER_GROUND),
               "each raster keeps its own pixels saved, and putting back one leaves the other drawn");
     (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &second);
 
@@ -159,7 +169,7 @@ int main(void)
                          .palette = palette, .scale = 200);
         const unsigned int count = drawn_count(&first);
         (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-        if ((count == 0u) || (drawn_count(&first) != 0u))
+        if ((count == 0u) || (drawn_count(&first) != 0u) || (pixel(&first, 30, 30) != POINTER_GROUND))
         {
             cli_check(0, "a shape draws at twice the scale and its pixels are put back");
         }
@@ -170,15 +180,16 @@ int main(void)
     cli_check((s_pointer.shape == GUI_POINTER_ARROW) && !s_pointer.shown,
               "a shape not known is the arrow, and a pointer put off the window is off it");
 
-    // the arrow's tip in the sheet marked: a draw that bakes again writes the line there, a draw that does not shows
-    // the mark
+    // the arrow's hot pixel in the sheet marked: a draw that bakes again writes the glass there, a draw that does not
+    // shows the mark
     const GuiColor mark = GUI_RGB(0x12u, 0x34u, 0x56u);
+    const unsigned int hot = (5u * 26u) + 5u;
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &s_pointer, .x = 10, .y = 10,
                      .shape = GUI_POINTER_ARROW, .shown = 1);
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = palette, .scale = 100);
     (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    s_pointer.sheet.pixels[GUI_POINTER_ARROW][0] = mark;
+    s_pointer.sheet.pixels[GUI_POINTER_ARROW][hot] = mark;
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = palette, .scale = 100);
     const GuiColor kept = pixel(&first, 10, 10);
@@ -190,12 +201,13 @@ int main(void)
                      .palette = &s_changed, .scale = 100);
     const GuiColor baked = pixel(&first, 10, 10);
     (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check(baked == s_changed.pointer_line, "a pointer color changed bakes the sheet again in the new color");
-    s_pointer.sheet.pixels[GUI_POINTER_ARROW][0] = mark;
+    cli_check((baked != mark) && (channel(baked, 16u) > channel(baked, 0u)),
+              "a pointer color changed bakes the sheet again in the new color");
+    s_pointer.sheet.pixels[GUI_POINTER_ARROW][hot] = mark;
     (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first,
                      .palette = &s_changed, .scale = 200);
     const GuiColor scaled = pixel(&first, 10, 10);
     (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_pointer, .raster = &first);
-    cli_check(scaled == s_changed.pointer_line, "a scale changed bakes the sheet again at the new cell size");
+    cli_check((scaled != mark) && (s_pointer.sheet.scale == 200), "a scale changed bakes the sheet again at the new scale");
     return cli_on_check();
 }

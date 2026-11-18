@@ -1244,11 +1244,17 @@ static void pointer_checked(void)
     cli_check(s_window.pointer.shown && (s_window.pointer.shape == GUI_POINTER_TEXT) && (s_window.pointer.x == text_x),
               "over the text the pointer is the beam at the pointer's place");
     EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
-    // the beam's hot point is its middle, a cell of its fill
-    cli_check(!s_window.pointer_alone &&
-                  (s_window.raster->pixels[((unsigned int)text_y * s_window.raster->width) + (unsigned int)text_x] ==
-                   s_window.palette->pointer_fill),
-              "a frame draws the pointer last, its hot point in the beam's fill");
+    // the beam's hot point is its middle, inside its glass: the frame's pixel there is the glass over the text, and the
+    // pixel put back under it is the text alone
+    const unsigned int hot = ((unsigned int)text_y * s_window.raster->width) + (unsigned int)text_x;
+    const GuiColor glassed = s_window.raster->pixels[hot];
+    (void)EMBED_CALL(gui_pointer_raster.restore, GuiPointerRasterCfg, .pointer = &s_window.pointer,
+                     .raster = s_window.raster);
+    const GuiColor under = s_window.raster->pixels[hot];
+    (void)EMBED_CALL(gui_pointer_raster.draw, GuiPointerRasterCfg, .pointer = &s_window.pointer,
+                     .raster = s_window.raster, .palette = s_window.palette, .scale = s_window.frame.scale);
+    cli_check(!s_window.pointer_alone && (glassed != under) && (s_window.raster->pixels[hot] == glassed),
+              "a frame draws the pointer last, its glass over the text at its hot point");
     const GuiRect tool = EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = &s_window.frame,
                                     .which = GUI_TOP_MENU_TOOL_PREFERENCES);
     moved(tool.x + (tool.width / 2), tool.y + (tool.height / 2));

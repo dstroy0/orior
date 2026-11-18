@@ -19,8 +19,9 @@
 // 1.15, --fuse-ash, --fuse-burn, --fuse-fire, the white the page's plasma lights its core with, --link at 65% of each
 // channel for the work's right and foot lines, --signal at 35% for its left line, --status-fg at 60% for Silence,
 // white for the grain, --text at 10% for a button's glass and at 30% for its line, the bead's glint, white at 90%,
-// its caustic, a warm white at 70%, its rim, black at 85%, and its shadow, black at 45%, the pointer's fill, the bar's
-// bright text, its line, --deep, and its shadow, black at 35%, --lattice-1 to --lattice-3,
+// its caustic, a warm white at 70%, its rim, black at 85%, and its shadow, black at 45%, the pointer's glass, the
+// selection's violet at 35%, its rim from --link to --fuse-fire, its glint, white at 70%, and its shadow, black at 35%,
+// --lattice-1 to --lattice-3,
 // --t1 to --t8, --t0 to --t15
 static const GuiPalette s_dark = {
     GUI_RGB(0x13u, 0x13u, 0x31u),
@@ -87,8 +88,10 @@ static const GuiPalette s_dark = {
     GUI_RGBA(0xffu, 0xecu, 0xc8u, 0xb3u),
     GUI_RGBA(0x00u, 0x00u, 0x00u, 0xd9u),
     GUI_RGBA(0x00u, 0x00u, 0x00u, 0x73u),
-    GUI_RGB(0xf3u, 0xf2u, 0xfbu),
-    GUI_RGB(0x0fu, 0x0du, 0x2eu),
+    GUI_RGBA(0xa4u, 0x8cu, 0xffu, 0x59u),
+    GUI_RGBA(0x8au, 0xb8u, 0xffu, 0xf2u),
+    GUI_RGBA(0x94u, 0x5eu, 0xe8u, 0xf2u),
+    GUI_RGBA(0xffu, 0xffu, 0xffu, 0xb3u),
     GUI_RGBA(0x00u, 0x00u, 0x00u, 0x59u),
     {GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0x8au, 0xb8u, 0xffu), GUI_RGB(0xb4u, 0x9cu, 0xffu)},
     {GUI_RGB(0xffu, 0x8fu, 0xa3u), GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0xf2u, 0xd4u, 0x8au),
@@ -231,6 +234,8 @@ static const PaletteNamed s_named[] = {
     PALETTE_NAMED("bead.shadow", bead_shadow),
     PALETTE_NAMED("pointer.foreground", pointer_fill),
     PALETTE_NAMED("pointer.border", pointer_line),
+    PALETTE_NAMED("pointer.borderEnd", pointer_line_end),
+    PALETTE_NAMED("pointer.glint", pointer_glint),
     PALETTE_NAMED("pointer.shadow", pointer_shadow),
     PALETTE_NAMED("side_menu.activeBackground", side_menu_on),
     PALETTE_NAMED("sideBar.background", side_background),
