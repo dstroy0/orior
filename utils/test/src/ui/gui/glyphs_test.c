@@ -136,6 +136,15 @@ int main(void)
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 64, 24}, .color = black);
     EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = &raster, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = 13u, .x_f32 = 2.0f, .y = 18, .text = "Hi", .length = 2ull, .color = white, .clip = (GuiRect){0, 0, 1, 1});
     cli_check(!painted(&raster, (GuiRect){1, 1, 63, 23}, black), "a text is drawn inside the clip alone");
+    // a glyph's cell positioned with the pen on the baseline paints its box, and nothing outside its clip
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 64, 24}, .color = black);
+    EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = &raster, .cell = cell, .x = 2, .y = 18,
+               .clip = (GuiRect){0, 0, 64, 24});
+    cli_check(painted(&raster, (GuiRect){2, 2, (int)advance + 2, 17}, black), "a glyph's cell positioned paints its box");
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 64, 24}, .color = black);
+    EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = &raster, .cell = cell, .x = 2, .y = 18,
+               .clip = (GuiRect){40, 0, 24, 24});
+    cli_check(!painted(&raster, (GuiRect){0, 0, 64, 24}, black), "and nothing outside its clip");
     EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = &raster, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = 13u, .x_f32 = 2.0f, .y = 18, .text = "\xc3\xa9", .length = 2ull, .color = white, .clip = (GuiRect){0, 0, 64, 24});
     cli_check(painted(&raster, (GuiRect){2, 2, (int)advance, 16}, black), "a character of two bytes draws one glyph");
 
