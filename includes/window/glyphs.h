@@ -6,6 +6,7 @@
 // and the code face's cell, its glyphs' advance (glyphs.c)
 #ifndef GUI_GLYPHS_H
 #define GUI_GLYPHS_H
+#include "../compositor/compositor.h"
 #include "../font/font.h"
 #include "embed_dispatch_layout.h"
 #include "../raster/raster.h"
@@ -16,6 +17,7 @@ typedef struct GuiGlyphsFaceLetterCfg GuiGlyphsFaceLetterCfg;
 typedef struct GuiGlyphsRasterCfg GuiGlyphsRasterCfg;
 typedef struct GuiGlyphsFaceCfg GuiGlyphsFaceCfg;
 typedef struct GuiGlyphsCfg GuiGlyphsCfg;
+typedef struct GuiGlyphsBakeCfg GuiGlyphsBakeCfg;
 
 // the faces: the code face regular, bold, italic and bold italic, the interface face, the reading face, the interface
 // face bold, the large name's, and the symbol face a character is drawn from where its own face has none of it
@@ -159,6 +161,12 @@ float gui_glyphs_cell(const GuiGlyphsFaceLetterCfg *args);
 // `length` bytes of the UTF-8 `text` drawn in `face` at `size` from `x` on the baseline `y` in `color`, no further than
 // `clip`: the x after it; and the width the text takes
 float gui_text_draw(const GuiGlyphsFaceSizeCfg *args);
+// The glyph of `character` in `face` at `size` pixels an em baked into the compositor's atlas at the place `phase`
+// across a pixel: its outline moved right by a quarter of a pixel for each place, drawn as `gui_glyph` draws it, and
+// its coverage handed to the atlas unlifted. The atlas keys it by the face asked for and the character, which keeps
+// the printable ASCII one range. The result is the entry, found where it is baked already, or GUI_COMPOSITOR_NO_GLYPH
+// where it could not be drawn or the atlas has no room
+embed_u32 gui_glyph_bake(const GuiGlyphsBakeCfg *args);
 float gui_text_width(const GuiGlyphsFaceSizeCfg *args);
 struct GuiGlyphsFaceSizeCfg
 {
@@ -182,6 +190,16 @@ struct GuiGlyphsFaceLetterCfg
     unsigned int size;
     float *advance;
     GuiColor color;
+};
+
+struct GuiGlyphsBakeCfg
+{
+    GuiGlyphs *glyphs;
+    GuiCompositor *compositor;
+    unsigned int face;
+    unsigned int character;
+    unsigned int size;
+    unsigned int phase;
 };
 
 struct GuiGlyphsRasterCfg
@@ -270,6 +288,15 @@ EMBED_TABLE_LAYOUT(GuiGlyphsFaceSizeNs, text_draw, text_width);
 EMBED_TABLE_STORAGE GuiGlyphsFaceSizeNs gui_glyphs_face_size EMBED_UNUSED = {
     .text_draw = gui_text_draw,
     .text_width = gui_text_width,
+};
+
+typedef struct
+{
+    embed_u32 (*bake)(const GuiGlyphsBakeCfg *args);
+} GuiGlyphsBakeNs;
+EMBED_TABLE_LAYOUT(GuiGlyphsBakeNs, bake);
+EMBED_TABLE_STORAGE GuiGlyphsBakeNs gui_glyphs_atlas EMBED_UNUSED = {
+    .bake = gui_glyph_bake,
 };
 
 #endif

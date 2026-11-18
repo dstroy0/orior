@@ -2,10 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // glyphs_test.c: the glyphs' check: the system's code font is read, a character's glyph is drawn once and saved, a space
 // has an advance and no pixels, the code face's cell is its glyphs' advance, and a text drawn lands its pixels where
-// its characters are and ends where its width says
+// its characters are and ends where its width says. Then a glyph baked into the compositor's atlas at each place across
+// a pixel: at the first place its coverage is the glyph's own mask byte for byte, and at the others it moves right
 #include "../../../../../includes/window/block.h"
 #include "../../../../../includes/window/glyphs.h"
 #include "../cli/cli_check.h"
+
+static unsigned char s_atlas_block[1u << 21u];
+static GuiCompositor s_atlas;
+
+// the sum of an atlas glyph's coverage weighted by its column: its weight's center across, by 256
+static unsigned long long atlas_center(const GuiCompositor *compositor, embed_u32 entry)
+{
+    const GuiCompositorGlyphEntry *const glyph = &compositor->entry[entry];
+    const embed_u32 side = compositor->limits.atlas_side;
+    const unsigned char *const page = compositor->coverage + ((unsigned long long)glyph->page * side * side);
+    unsigned long long weighted = 0ULL;
+    unsigned long long total = 0ULL;
+    for (embed_u32 row = 0u; row < glyph->height; row += 1u)
+    {
+        for (embed_u32 column = 0u; column < glyph->width; column += 1u)
+        {
+            const unsigned long long cover = page[((unsigned long long)(glyph->y + row) * side) + glyph->x + column];
+            // a column's place on the page is its place in the glyph moved by the glyph's left
+            weighted += cover * (unsigned long long)((embed_i32)column + glyph->left + 64) * 256ULL;
+            total += cover;
+        }
+    }
+    return (total != 0ULL) ? (weighted / total) : 0ULL;
+}
 
 // whether any pixel of `rect` on the raster is not `background_fill`
 static int painted(const GuiRaster *raster, GuiRect rect, GuiColor background_fill)
@@ -147,6 +172,52 @@ int main(void)
     cli_check(!painted(&raster, (GuiRect){0, 0, 64, 24}, black), "and nothing outside its clip");
     EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = &raster, .glyphs = &glyphs, .face = GUI_FACE_CODE, .size = 13u, .x_f32 = 2.0f, .y = 18, .text = "\xc3\xa9", .length = 2ull, .color = white, .clip = (GuiRect){0, 0, 64, 24});
     cli_check(painted(&raster, (GuiRect){2, 2, (int)advance, 16}, black), "a character of two bytes draws one glyph");
+
+    const GuiCompositorLimitsCfg limits = {256u, 256u, 16u, 4u, 4u, 256u, 2u, 1024u, 16u};
+    cli_check(EMBED_CALL(gui_compositor.init, GuiCompositorInitCfg, .compositor = &s_atlas, .limits = limits,
+                         .block = s_atlas_block, .bytes = sizeof(s_atlas_block)) &&
+                  EMBED_CALL(gui_compositor_atlas.range, GuiCompositorGlyphRangeCfg, .compositor = &s_atlas,
+                             .face = GUI_FACE_CODE, .size = 13u, .first = GUI_ASCII_FIRST, .count = GUI_ASCII_COUNT),
+              "an atlas is placed and the printable ASCII of the code face reserved in it");
+    embed_u32 placed[GUI_COMPOSITOR_PHASES];
+    for (embed_u32 phase = 0u; phase < GUI_COMPOSITOR_PHASES; phase += 1u)
+    {
+        placed[phase] = EMBED_CALL(gui_glyphs_atlas.bake, GuiGlyphsBakeCfg, .glyphs = &glyphs, .compositor = &s_atlas,
+                                   .face = GUI_FACE_CODE, .character = 'M', .size = 13u, .phase = phase);
+    }
+    const embed_u32 m_place = ('M' - GUI_ASCII_FIRST) * GUI_COMPOSITOR_PHASES;
+    cli_check((placed[0] == m_place) && (placed[3] == (m_place + 3u)) &&
+                  (EMBED_CALL(gui_glyphs_atlas.bake, GuiGlyphsBakeCfg, .glyphs = &glyphs, .compositor = &s_atlas,
+                              .face = GUI_FACE_CODE, .character = 'M', .size = 13u, .phase = 0u) == placed[0]),
+              "an ASCII glyph is baked at its place in the range, one entry for each place, and found again");
+    float m_advance = 0.0f;
+    const GuiMask *const m_mask = EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs,
+                                             .face = GUI_FACE_CODE, .character = 'M', .size = 13u, .advance = &m_advance);
+    const GuiCompositorGlyphEntry *const first = &s_atlas.entry[placed[0]];
+    int same = (m_mask != NULL) && (first->width == m_mask->width) && (first->height == m_mask->height) &&
+               (first->left == m_mask->left) && (first->top == m_mask->top);
+    const unsigned char *const page = s_atlas.coverage + ((unsigned long long)first->page * 256u * 256u);
+    for (embed_u32 row = 0u; same && (row < first->height); row += 1u)
+    {
+        for (embed_u32 column = 0u; column < first->width; column += 1u)
+        {
+            same &= page[((unsigned long long)(first->y + row) * 256u) + first->x + column] ==
+                    m_mask->cover[(row * m_mask->width) + column];
+        }
+    }
+    cli_check(same && (first->advance == (embed_i32)((m_advance * 65536.0f) + 0.5f)),
+              "at the first place the atlas holds the glyph's own mask byte for byte, and its advance in 16.16");
+    const unsigned long long centers[4] = {atlas_center(&s_atlas, placed[0]), atlas_center(&s_atlas, placed[1]),
+                                           atlas_center(&s_atlas, placed[2]), atlas_center(&s_atlas, placed[3])};
+    cli_check((centers[1] > centers[0]) && (centers[2] > centers[1]) && (centers[3] > centers[2]) &&
+                  ((centers[3] - centers[0]) > 160ULL) && ((centers[3] - centers[0]) < 224ULL),
+              "each later place moves the glyph's ink right, three quarters of a pixel across the four");
+    const embed_u32 baked_space = EMBED_CALL(gui_glyphs_atlas.bake, GuiGlyphsBakeCfg, .glyphs = &glyphs,
+                                       .compositor = &s_atlas, .face = GUI_FACE_CODE, .character = ' ', .size = 13u,
+                                       .phase = 0u);
+    cli_check((baked_space == 0u) && (s_atlas.entry[baked_space].width == 0u) &&
+                  (s_atlas.entry[baked_space].advance == first->advance),
+              "a space is baked with no pixels and the code cell's advance");
 
     raster.pixels = NULL;
     raster.width = 0u;

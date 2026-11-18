@@ -377,28 +377,37 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     return 1;
 }
 
-const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
+// The glyph of `character` in the face `face` is drawn with, into `glyph_out`, and that face into `face_out`. A
+// character its face has none of is drawn from the symbol face where that face has it, as the system's text does
+static void glyphs_found(GuiGlyphs *glyphs, unsigned int face, unsigned int character, unsigned int *face_out,
+                         unsigned int *glyph_out)
 {
-    unsigned int face = args->face;
-    unsigned int size = args->size;
-    float *advance = args->advance;
-    unsigned int had =
-        EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs, .face = face);
-    const Font *font = &args->glyphs->face[had];
-    unsigned int glyph = EMBED_CALL(font_character.glyph, FontCfg, .font = font, .character = args->character);
-    // a character its face has none of is drawn from the symbol face where that face has it, as the system's text does
-    if ((glyph == 0u) && (args->character > 0x20u) && (had != GUI_FACE_SYMBOL) &&
-        EMBED_CALL(glyphs_symbol_read, GlyphsCtx, .glyphs = args->glyphs))
+    unsigned int had = EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face);
+    unsigned int glyph =
+        EMBED_CALL(font_character.glyph, FontCfg, .font = &glyphs->face[had], .character = character);
+    if ((glyph == 0u) && (character > 0x20u) && (had != GUI_FACE_SYMBOL) &&
+        EMBED_CALL(glyphs_symbol_read, GlyphsCtx, .glyphs = glyphs))
     {
-        const unsigned int symbol = EMBED_CALL(font_character.glyph, FontCfg, .font = &args->glyphs->face[GUI_FACE_SYMBOL],
-                                               .character = args->character);
+        const unsigned int symbol =
+            EMBED_CALL(font_character.glyph, FontCfg, .font = &glyphs->face[GUI_FACE_SYMBOL], .character = character);
         if (symbol != 0u)
         {
             had = GUI_FACE_SYMBOL;
-            font = &args->glyphs->face[had];
             glyph = symbol;
         }
     }
+    *face_out = had;
+    *glyph_out = glyph;
+}
+
+const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
+{
+    unsigned int size = args->size;
+    float *advance = args->advance;
+    unsigned int had = 0u;
+    unsigned int glyph = 0u;
+    glyphs_found(args->glyphs, args->face, args->character, &had, &glyph);
+    const Font *const font = &args->glyphs->face[had];
     const float scale = (float)size / font->units;
     *advance = EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = font, .glyph = glyph) * scale;
     GuiCachedGlyph *const entry =
@@ -426,6 +435,68 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
     entry->advance = *advance;
     args->glyphs->cached += 1u;
     return &entry->mask_bits;
+}
+
+embed_u32 gui_glyph_bake(const GuiGlyphsBakeCfg *args)
+{
+    GuiGlyphs *const glyphs = args->glyphs;
+    const unsigned int phase = args->phase & 3u;
+    const embed_u32 found = EMBED_CALL(gui_compositor_atlas.find, GuiCompositorGlyphFindCfg,
+                                       .compositor_read = args->compositor, .face = args->face, .size = args->size,
+                                       .glyph = args->character, .phase = phase);
+    if (found != GUI_COMPOSITOR_NO_GLYPH)
+    {
+        return found;
+    }
+    unsigned int had = 0u;
+    unsigned int glyph = 0u;
+    glyphs_found(glyphs, args->face, args->character, &had, &glyph);
+    const Font *const font = &glyphs->face[had];
+    const float scale = (float)args->size / font->units;
+    const float advance = EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = font, .glyph = glyph) * scale;
+    glyphs->contours->points = 0u;
+    glyphs->contours->contours = 0u;
+    // the outline moves right a quarter of a pixel for each place
+    const float matrix[6] = {scale, 0.0f, 0.0f, scale, (float)phase * 0.25f, 0.0f};
+    EMBED_CALL(font_glyph_matrix.outline, FontGlyphMatrixCfg, .font = font, .glyph = glyph, .matrix = matrix,
+               .depth = 0u, .out = glyphs->contours);
+    EMBED_CALL(glyphs_darken, GlyphsCtx, .contours = glyphs->contours,
+               .reach = EMBED_CALL(glyphs_darkening, GlyphsCtx, .size = args->size));
+    FontMask measured;
+    EMBED_CALL(font_contours.rasterize, FontContoursCfg, .contours = glyphs->contours, .mask_bits = &measured,
+               .cover = NULL, .capacity = 0ULL);
+    // an advance in pixels is a few hundred at the most, far inside 16.16
+    const embed_i32 fixed_advance = (embed_i32)((advance * 65536.0f) + 0.5f);
+    if (measured.width == 0ULL)
+    {
+        return EMBED_CALL(gui_compositor_atlas.bake, GuiCompositorGlyphBakeCfg, .compositor = args->compositor,
+                          .face = args->face, .size = args->size, .glyph = args->character, .phase = phase,
+                          .coverage = NULL, .width = 0u, .height = 0u, .left = 0, .top = 0, .advance = fixed_advance);
+    }
+    const unsigned long long pixels = measured.width * measured.height;
+    const unsigned long long capacity = pixels + 4ULL;
+    const unsigned long long scratch_bytes = EMBED_CALL(font_contours.bytes, FontContoursCfg, .contours = glyphs->contours);
+    // the coverage floats, the edges' scratch and the coverage bytes lie in the glyphs' work part, one glyph's at a time
+    float *const floats = (float *)(void *)EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_GLYPH_WORK,
+                                                     .bytes = (capacity * sizeof(*floats)) + scratch_bytes + pixels);
+    if (floats == NULL)
+    {
+        return GUI_COMPOSITOR_NO_GLYPH;
+    }
+    FontMask drawn;
+    EMBED_CALL(font_contours.rasterize, FontContoursCfg, .contours = glyphs->contours, .mask_bits = &drawn,
+               .cover = floats, .capacity = capacity, .scratch = floats + capacity, .scratch_bytes = scratch_bytes);
+    unsigned char *const bytes = (unsigned char *)(void *)(floats + capacity) + scratch_bytes;
+    for (unsigned long long at = 0ULL; at < (drawn.width * drawn.height); at += 1ULL)
+    {
+        // a coverage from 0 to 1 by 255, rounded, is a byte
+        bytes[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
+    }
+    // a glyph's sides are far inside 32 bits
+    return EMBED_CALL(gui_compositor_atlas.bake, GuiCompositorGlyphBakeCfg, .compositor = args->compositor,
+                      .face = args->face, .size = args->size, .glyph = args->character, .phase = phase,
+                      .coverage = bytes, .width = (embed_u32)drawn.width, .height = (embed_u32)drawn.height,
+                      .left = drawn.left, .top = drawn.top, .advance = fixed_advance);
 }
 
 float gui_glyphs_ascent(const GuiGlyphsFaceCfg *args)

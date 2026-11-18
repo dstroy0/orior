@@ -176,10 +176,10 @@ static void glyphs_checked(void)
     const embed_u32 near = pixel(s_first, 31u, 35u);
     const embed_u32 lift_far = s_compositor.contrast[0][128];
     const embed_u32 lift_near = s_compositor.contrast[3][128];
-    cli_check((lift_far == 128u) && (lift_near > 160u) &&
+    cli_check((lift_far > 128u) && (lift_near > lift_far) &&
                   (far == over(TEST_BACKDROP, covered(white, lift_far + (lift_far >> 7u)))) &&
                   (near == over(TEST_BACKDROP, covered(near_color, lift_near + (lift_near >> 7u)))),
-              "text far from its ground's brightness takes its coverage as it is, and text near it is lifted more");
+              "text far from its ground's brightness is lifted as the window's text is, and text near it more");
     (void)ran(run, 2u, TEST_CURSOR);
     (void)composed(0u, s_first);
 }

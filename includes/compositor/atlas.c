@@ -14,8 +14,9 @@
 #define ATLAS_ALIGNED(bytes_) ((((embed_u64)(bytes_)) + ATLAS_ALIGN - 1ULL) & ~(ATLAS_ALIGN - 1ULL))
 #define ATLAS_GUTTER 1u
 
-// the gamma each contrast band lifts coverage through: the band of the most contrast first
-static const float s_band_gamma[GUI_COMPOSITOR_BANDS] = {1.0f, 1.2f, 1.4f, 1.6f};
+// the gamma each contrast band lifts coverage through, the band of the most contrast first: that band lifts text as
+// the window's text gamma lifts it, and each band of less contrast lifts it more
+static const float s_band_gamma[GUI_COMPOSITOR_BANDS] = {1.4f, 1.6f, 1.8f, 2.0f};
 
 typedef struct
 {
