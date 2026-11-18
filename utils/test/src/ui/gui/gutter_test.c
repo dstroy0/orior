@@ -102,6 +102,26 @@ int main(void)
 
     cli_check(EMBED_CALL(gui_gutter.mark_hit, GuiGutterCfg, .x = column, .text_x = text_x, .scale = 100),
               "a press on the marks' column lands on it");
+    // the caret drawn again with nothing saved under it answers an empty rectangle, and once drawn, its own
+    editor.caret_saved = 0;
+    const GuiRect not_saved =
+        EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &editor, .raster = &raster,
+                   .palette = palette);
+    cli_check((not_saved.width == 0) || (not_saved.height == 0), "a caret never drawn is not drawn again");
+    const GuiRect caret_at = {text_x, 0, 2, GUI_CODE_LINE};
+    const GuiRect drawn_caret = EMBED_CALL(gui_editor_raster.caret_draw, GuiEditorRasterCfg, .editor = &editor,
+                                           .raster = &raster, .palette = palette, .caret = caret_at);
+    const GuiRect again = EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &editor,
+                                     .raster = &raster, .palette = palette);
+    cli_check((drawn_caret.width > 0) && (again.x == drawn_caret.x) && (again.y == drawn_caret.y) &&
+                  (again.width == drawn_caret.width) && (again.height == drawn_caret.height),
+              "a caret drawn is drawn again at its own rectangle");
+    // the token colors retained for the names and palette, a name past them the text's color
+    EMBED_CALL(gui_editor_palette.colors_retain, GuiEditorPaletteCfg, .editor = &editor, .palette = palette);
+    EMBED_CALL(gui_editor_palette.colors_retain, GuiEditorPaletteCfg, .editor = &editor, .palette = palette);
+    cli_check(EMBED_CALL(gui_editor_palette.color, GuiEditorPaletteCfg, .editor_read = &editor, .palette = palette,
+                         .name = 1000000u) == palette->text,
+              "a token name past the names retained is in the text's color");
     // a unit's pixels: one cell wide and a row tall at its place, none for a line past the rows drawn
     GuiRect unit = {0, 0, 0, 0};
     cli_check(EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = &editor,
