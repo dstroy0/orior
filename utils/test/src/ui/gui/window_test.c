@@ -1095,6 +1095,18 @@ static void autoscroll_checked(void)
     const unsigned long long dragged = cli_view_top(&(CliViewAtCfg){.key = key});
     stepped_for(200ULL);
     cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == dragged, "the view is once the drag ends");
+    // a middle press on the minimap starts the autoscroll as a middle press in the text does
+    const GuiRect map = s_window.frame.map;
+    const int map_x = map.x + (map.width / 2);
+    const int map_y = map.y + (map.height / 2);
+    pressed_with(map_x, map_y, GUI_BUTTON_MIDDLE);
+    cli_check((map.width > 0) && s_window.autoscroll, "a middle press on the minimap starts the autoscroll");
+    moved(map_x, map_y + 100);
+    stepped_for(300ULL);
+    cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) > dragged,
+              "the pointer held below the minimap's press point scrolls the view down");
+    pressed_with(map_x, map_y + 100, GUI_BUTTON_LEFT);
+    cli_check(!s_window.autoscroll, "the next press ends the minimap's autoscroll");
 }
 
 static int same(const char *text, const char *required)

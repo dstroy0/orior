@@ -6361,10 +6361,18 @@ void gui_window_draw(const GuiWindowCfg *args)
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
                .background_fill = table, .rect = frame->status_pane, .radius = frame->pane_radius, .inner = pane,
                .corners_only = 1);
-    // the work's outline: the lines it is in, as the page draws them, the signal along its head, a thin line of
-    // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
-    // holes the parts displayed over the work make in it while the claim holds; while Preferences' window holds the
-    // focus, the signal is on its sheet's outline and the work's head and left take the right's line
+    // the work's inside: the tabs row, the editor with the map beside it, and the side where one is displayed, each on
+    // the ground the base positioned it
+    if (view_displayed)
+    {
+        EMBED_CALL(window_view_draw, GuiWindowCtx, .window = args->window);
+    }
+    // The work's outline is a layer over the work's inside. First the holes that the parts make in the work take the
+    // base again, so a pane that comes down is over the rows under it. Then the outline goes over the rows and the
+    // holes: the lines it is in, as the page draws them, the signal along its head, a thin line of it down its left,
+    // the link darkened down its right and along its foot, bent round its corners and round the holes. While
+    // Preferences' window holds the focus, the signal is on its sheet's outline and the work's head and left take the
+    // right's line
     const GuiColor right_line = palette->work_line;
     const int work_focused = !(args->window->preferences.displayed && args->window->preferences.focused);
     const GuiOutline lines = {
@@ -6381,16 +6389,25 @@ void gui_window_draw(const GuiWindowCfg *args)
     const unsigned int count = (stage != NULL) ? stage->hole_count
                                                : EMBED_CALL(gui_frame_holes_table.holes, GuiFrameHolesCfg,
                                                             .frame_read = frame, .holes = holes_positioned);
-    EMBED_CALL(gui_raster_radius_work.outline, GuiRasterRadiusWorkCfg, .raster = raster, .work = frame->work,
-               .inside = frame->inside, .radius = frame->radius, .lines = &lines,
-               .holes = (stage != NULL) ? stage->holes : holes_positioned, .count = count, .table = table,
-               .clear = clear);
-    // the work's inside: the tabs row, the editor with the map beside it, and the side where one is displayed, each on
-    // the ground the base positioned it
-    if (view_displayed)
+    const GuiRect *const holes = (stage != NULL) ? stage->holes : holes_positioned;
+    const int base_fits = args->window->base_retained_whole && (retained->pixels != NULL) &&
+                          (retained->width == raster->width) && (retained->height == raster->height);
+    // a raster's sides are far inside what an int represents
+    const GuiRect whole = clipped ? clip : (GuiRect){0, 0, (int)raster->width, (int)raster->height};
+    for (unsigned int hole = 0u; base_fits && view_displayed && (hole < count); hole += 1u)
     {
-        EMBED_CALL(window_view_draw, GuiWindowCtx, .window = args->window);
+        const GuiRect part = EMBED_CALL(
+            gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = holes[hole],
+            .other = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = whole,
+                                .other = (GuiRect){0, 0, (int)raster->width, (int)raster->height}));
+        if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = part))
+        {
+            EMBED_CALL(window_base_copy, GuiWindowCtx, .window = args->window, .caret = part);
+        }
     }
+    EMBED_CALL(gui_raster_radius_work.outline, GuiRasterRadiusWorkCfg, .raster = raster, .work = frame->work,
+               .inside = frame->inside, .radius = frame->radius, .lines = &lines, .holes = holes, .count = count,
+               .table = table, .clear = clear);
     // the parts about the work, each on its pane: the side_menu, the bar with the menu bar's titles and the controls,
     // and the status bar
     EMBED_CALL(gui_side_menu_frame_raster.draw, GuiSideMenuFrameRasterCfg, .raster = raster,
@@ -7316,7 +7333,12 @@ EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
 {
     GuiWindowHit pressed = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window, .x = args->x, .y = args->y, .hit = &pressed);
-    if ((pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER))
+    // the minimap is the text's too: a middle press on the part of it that shows starts the autoscroll
+    const GuiRect map = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->window->frame.map_whole,
+                                   .other = args->window->frame.map);
+    const int on_map = (pressed.hit == CLI_HIT_NONE) &&
+                       EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = map, .x = args->x, .y = args->y);
+    if ((pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER) || on_map)
     {
         args->window->autoscroll = 1;
         args->window->autoscroll_x = args->x;
