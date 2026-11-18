@@ -75,6 +75,17 @@ int main(void)
     EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     const int editor_x = frame.editor.x + (frame.editor.width / 2);
     const int editor_y = frame.editor.y + (frame.editor.height / 2);
+    // a map made of the base's own bands and runs draws the pixels the base draws through its own
+    const GuiColor own_editor = pixel(&raster, editor_x, editor_y);
+    const GuiColor own_tabs = pixel(&raster, frame.tabs.x + 10, frame.tabs.y + 10);
+    const GuiBaseMap own_map = {base.bands, base.band_from, base.run_first, base.run};
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 800, 600},
+               .color = 0u);
+    EMBED_CALL(gui_base_raster.map_draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL,
+               .color = palette->background_fill, .map = &own_map);
+    cli_check((pixel(&raster, editor_x, editor_y) == own_editor) &&
+                  (pixel(&raster, frame.tabs.x + 10, frame.tabs.y + 10) == own_tabs),
+              "a map of the base's own bands and runs draws the pixels the base draws");
     cli_check(pixel(&raster, editor_x, editor_y) == EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = palette->background_fill, .color = palette->editor_background),
               "a pixel of the editor is its ground over the lattice, the fill's own blend");
     cli_check(pixel(&raster, frame.tabs.x + 10, frame.tabs.y + 10) == palette->surface, "a pixel of the tabs row is the row's surface");
