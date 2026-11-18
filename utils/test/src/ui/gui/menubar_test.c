@@ -149,6 +149,40 @@ int main(void)
               "the menu's corners are short of its line's color at the top and the foot alike");
     cli_check(head_corner == foot_corner, "the foot's corner is rounded as the top's is");
 
+    // the catalog's titles positioned across the bar, each wide and in a row, and drawn on it; and titles given as a
+    // stage of the claim positioned them, taken as they are
+    char catalog_text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea catalog_err_msg = {catalog_text, sizeof(catalog_text), 0ULL};
+    cli_check(EMBED_CALL(cli_commands.read, CliCommandsCfg, .err_msg = &catalog_err_msg), "the catalog is read");
+    EMBED_CALL(gui_menubar_bar.titles_layout, GuiMenubarBarCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame);
+    int titles_in_row = menubar.titles != 0u;
+    for (unsigned int at = 1u; at < menubar.titles; at += 1u)
+    {
+        titles_in_row = titles_in_row && (menubar.title[at].rect.width > 0) &&
+                        (menubar.title[at].rect.x >= menubar.title[at - 1u].rect.x + menubar.title[at - 1u].rect.width);
+    }
+    cli_check(titles_in_row, "the titles are positioned one after another across the bar");
+    const GuiRect first_title = menubar.title[0].rect;
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1440, 920},
+               .color = own.colors.deep);
+    EMBED_CALL(gui_menubar_glyphs_frame.titles_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &menubar,
+               .raster = &raster, .glyphs = &glyphs, .palette = &own.colors, .frame = &frame);
+    int title_drawn = 0;
+    for (int y = first_title.y; y < first_title.y + first_title.height; y += 1)
+    {
+        for (int x = first_title.x; x < first_title.x + first_title.width; x += 1)
+        {
+            // the title's rect lies inside the raster
+            title_drawn |= raster.pixels[((unsigned int)y * raster.width) + (unsigned int)x] != own.colors.deep;
+        }
+    }
+    cli_check(title_drawn, "the first title is drawn on the bar");
+    const GuiTitle staged[1] = {{0u, 0, (GuiRect){100, 2, 40, 20}}};
+    EMBED_CALL(gui_menubar_frame.titles_alloc, GuiMenubarFrameCfg, .menubar = &menubar, .glyphs = &glyphs,
+               .frame = &frame, .title = staged, .count = 1u, .folded_from = 1u);
+    cli_check((menubar.titles == 1u) && (menubar.title[0].rect.x == 100) && (menubar.folded_from == 1u),
+              "titles a stage positioned are taken as they are");
+
     // a part's own rows built as its menu is asked for: a row with its words, a line and the catalog's item
     char read_text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {read_text, sizeof(read_text), 0ULL};
