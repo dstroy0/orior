@@ -3,6 +3,7 @@
 // test_compile_db.c: the compilation database: a CMake reply gives each source the build's compiler, includes and defines, a tree's own
 // database is read for its compilers, and a command line's quoted words stay whole
 #include "ui/cli/src/builds/compile_db_internal.h"
+#include "ui/cli/src/text/text.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -350,4 +351,26 @@ void test_a_command_lines_quoted_words_stay_complete(void)
     VerbaLinea words = {s_text, sizeof(s_text), 0ull};
     EMBED_CALL(cli_compile_db_text_internal.compile_words_each, CliCompileDbTextCtx, .text = s_line, .length = sizeof(s_line) - 1u, .each = word_recorded, .context = &words);
     CLI_TEST_ASSERT_TEXT("C:/Program Files/LLVM/bin/clang.exe|-I|a b|-c|x.c", s_text, words.at);
+}
+
+// Visual Studio's environment read once: off Windows there is none, and on Windows where one is found it names
+// INCLUDE, the same environment each read
+void test_visual_studios_environment_is_read_once_and_names_its_include_folders(void)
+{
+    const CliVsEnvironment *const environment = cli_compile_db_vs_environment();
+#if defined(_WIN32)
+    if (environment == NULL)
+    {
+        TEST_IGNORE_MESSAGE("no Visual Studio with its C++ tools is found");
+    }
+    int include = 0;
+    for (unsigned int at = 0u; at < environment->count; at += 1u)
+    {
+        include |= EMBED_CALL(cli_text_size_one.same_folded, CliTextSizeOneCfg, .one = environment->name[at], .size = CLI_UNITY_LENGTH(environment->name[at]), .other_pointer = "INCLUDE");
+    }
+    TEST_ASSERT_TRUE(include);
+    TEST_ASSERT_EQUAL_PTR(environment, cli_compile_db_vs_environment());
+#else
+    TEST_ASSERT_NULL(environment);
+#endif
 }

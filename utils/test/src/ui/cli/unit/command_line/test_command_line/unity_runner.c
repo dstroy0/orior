@@ -32,6 +32,7 @@ extern void test_the_words_after_a_double_dash_come_back_complete(void);
 extern void test_a_key_the_job_does_not_accept_is_refused(void);
 extern void test_a_word_that_is_no_key_and_value_is_refused(void);
 extern void test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_rooted(void);
+extern void test_the_catalogs_cell_is_taken_once_and_the_catalog_reads_into_it(void);
 
 
 /*=======Mock Management=====*/
@@ -111,6 +112,7 @@ int main(void)
   run_test(test_a_key_the_job_does_not_accept_is_refused, "test_a_key_the_job_does_not_accept_is_refused", 315);
   run_test(test_a_word_that_is_no_key_and_value_is_refused, "test_a_word_that_is_no_key_and_value_is_refused", 322);
   run_test(test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_rooted, "test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_rooted", 329);
+  run_test(test_the_catalogs_cell_is_taken_once_and_the_catalog_reads_into_it, "test_the_catalogs_cell_is_taken_once_and_the_catalog_reads_into_it", 358);
 
   return UNITY_END();
 }

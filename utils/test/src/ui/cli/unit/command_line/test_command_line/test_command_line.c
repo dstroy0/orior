@@ -353,3 +353,17 @@ void test_a_launchs_words_are_read_back_and_no_tree_is_named_where_none_is_roote
     TEST_ASSERT_NOT_NULL(cli_command_line_launched());
     TEST_ASSERT_NOT_EQUAL(0u, cli_line_list());
 }
+
+// the catalog's cell taken once: a second take leaves the first, which the command line's catalog reads into
+void test_the_catalogs_cell_is_taken_once_and_the_catalog_reads_into_it(void)
+{
+    cli_command_line_catalog_alloc();
+    char root[CLI_PATH_MAX_LEN];
+    cli_unity_folder("catalog_tree", root);
+    CliCatalog *const catalog = EMBED_CALL(cli_command_line_word_internal.catalog, CliCommandLineWordCtx, .root = root);
+    TEST_ASSERT_NOT_NULL(catalog);
+    TEST_ASSERT_NOT_NULL(catalog->job);
+    const void *const job = catalog->job;
+    cli_command_line_catalog_alloc();
+    TEST_ASSERT_EQUAL_PTR(job, EMBED_CALL(cli_command_line_word_internal.catalog, CliCommandLineWordCtx, .root = root)->job);
+}
