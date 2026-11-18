@@ -367,6 +367,9 @@ int main(void)
     cli_check((EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = 7u, .across = 0u, .down = 0u) == 255u) && (EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = 7u, .across = 7u, .down = 7u) == 0u), "a pixel by the center is whole inside and one past the arc is out");
     cli_check(EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = 90u, .across = 0u, .down = 0u) == 255u, "a reach past the tables is worked out");
     cli_check(EMBED_CALL(gui_block_size.raster_bytes, GuiBlockSizeCfg) != 0ull, "a raster's bytes are a segment's capacity once the block has pages");
+    mmgr_ring *const positioned = EMBED_CALL(gui_block_part.ring, GuiBlockPartCfg, .part = GUI_BLOCK_BACKGROUND, .bytes = 4096ull);
+    cli_check((positioned != NULL) && (EMBED_CALL(gui_block_part.ring_read, GuiBlockPartCfg, .part = GUI_BLOCK_BACKGROUND) == positioned),
+              "a part's ring read as it is is the ring positioned over the part");
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
     return cli_on_check();
 }
