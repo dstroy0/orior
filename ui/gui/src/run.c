@@ -244,8 +244,8 @@ EMBED_INLINE void run_box_draw(const RunCtx *args)
                .inside = lit ? palette->signal : palette->editor_background);
 }
 
-// the row drawn as its type, from its texts and flags: the chosen job and the run displayed on the idle selection's
-// ground
+// Draw the row as its type, from its texts and flags. The chosen job and the shown run sit on the idle selection's
+// ground.
 static void run_row_draw(const GuiPaneCfg *args)
 {
     CliJobRunRow row;
@@ -393,7 +393,7 @@ void gui_run_follow(const GuiPaneCfg *args)
                                     .capacity = (unsigned int)capacity);
 }
 
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *run_row_text(const GuiPaneCfg *args)
 {
     static CliJobRunRow s_named;
@@ -406,7 +406,7 @@ static const char *run_row_text(const GuiPaneCfg *args)
     return s_named.text;
 }
 
-// the head's action named `name`: the filter's field, Start or Stop
+// Return the head action with the label `name`: the filter field, Start or Stop. Return 0 if there is none.
 static unsigned int run_action_named(const GuiPaneCfg *args)
 {
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "field", .cap = 16ULL}))

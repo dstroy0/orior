@@ -454,7 +454,7 @@ static int explorer_menu(const GuiPaneCfg *args)
     return cli_files_explorer_menu(&(CliFilesExplorerCfg){.at = args->row});
 }
 
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *explorer_row_text(const GuiPaneCfg *args)
 {
     static CliExplorerRow s_named;

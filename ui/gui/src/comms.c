@@ -259,7 +259,7 @@ static void comms_read(const GuiPaneCfg *args)
     }
 }
 
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *comms_row_text(const GuiPaneCfg *args)
 {
     static CliCommsRow s_named;
@@ -272,7 +272,7 @@ static const char *comms_row_text(const GuiPaneCfg *args)
     return s_named.name;
 }
 
-// the head's action named `name`: the view whose label it is
+// Return the view whose label is `name`. Return 0 if no view has that label.
 static unsigned int comms_action_named(const GuiPaneCfg *args)
 {
     for (unsigned int at = 0u; at < CLI_COMMS_VIEWS; at += 1u)

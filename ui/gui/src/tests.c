@@ -531,7 +531,7 @@ static void tests_read(const GuiPaneCfg *args)
     }
 }
 
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *tests_row_text(const GuiPaneCfg *args)
 {
     static CliTestsRow s_named;

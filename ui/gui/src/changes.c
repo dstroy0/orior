@@ -655,7 +655,7 @@ static int changes_menu(const GuiPaneCfg *args)
     return EMBED_CALL(cli_changes.menu, CliGitChangesCfg, .at = args->row);
 }
 
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *changes_row_text(const GuiPaneCfg *args)
 {
     static CliChangedRow s_named;
@@ -668,7 +668,8 @@ static const char *changes_row_text(const GuiPaneCfg *args)
     return s_named.name;
 }
 
-// the head's action named `name`: the message's field, Commit, or Commit and Push
+// Return the head action with the label `name`: the message field, Commit, or Commit and Push. Return 0 if there is
+// none.
 static unsigned int changes_action_named(const GuiPaneCfg *args)
 {
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "field", .cap = 32ULL}))

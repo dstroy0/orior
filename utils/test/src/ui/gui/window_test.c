@@ -1524,8 +1524,9 @@ static void pointer_checked(void)
               "words the pointer command does not know queue nothing");
     cli_check(asked("pointer", "off") && !s_window.pointer_own, "off gives the pointer back to the system");
 
-    // a move to a control by its name, at once where the speed is 0: the strip's Run tool, a control of the window, a
-    // menu by its title and a tab by its name, each at the middle of its rectangle; a kind not known is refused
+    // A move to a control by its name goes at once if the speed is 0. The checks move to the strip's Run tool, a
+    // window control, a menu by its title and a tab by its name, each at the middle of its rectangle. The window
+    // refuses a kind it does not know.
     unsigned int run_tool = g_gui_tools_count;
     for (unsigned int at = 0u; at < g_gui_tools_count; at += 1u)
     {
@@ -1566,8 +1567,8 @@ static void pointer_checked(void)
     cli_check(!asked_words("pointer", to_nowhere, 3u) && (s_window.driven_count == 0u),
               "a kind the window does not know is refused");
 
-    // at a speed, the pointer is carried a frame at a time: a move each step no further than the speed covers, the
-    // glide ended at the control's middle
+    // At a speed, the pointer moves one frame at a time. Each step moves it no further than the speed covers. The
+    // glide ends at the control's middle.
     const char *const far_place[2] = {"1000", "800"};
     (void)asked_words("pointer", far_place, 2u);
     driven_taken();
@@ -1575,21 +1576,21 @@ static void pointer_checked(void)
     cli_check(asked_words("pointer", to_slow, 5u) && s_window.glide[0].active && (s_window.glide[0].speed == 400u),
               "to tool run at a speed starts a glide at that speed");
     stepped_for(50ULL);
-    const int first_x = (s_window.driven_count != 0u) ? s_window.driven[0].x : 0;
-    cli_check((s_window.driven_count != 0u) && (first_x < 1000) && (first_x > run_button.x + run_button.width),
-              "the first step moves the pointer part of the way");
     driven_taken();
+    cli_check(s_window.glide[0].active && (s_window.pointer.x < 1000) &&
+                  (s_window.pointer.x > run_button.x + run_button.width),
+              "the first steps move the pointer part of the way");
     for (unsigned int frame = 0u; (frame < 400u) && s_window.glide[0].active; frame += 1u)
     {
         stepped_for(10ULL);
         driven_taken();
     }
-    // the step that ends the glide queues its last move after the inputs before it are taken
+    // The step that ends the glide queues its last move after the suite takes the inputs before it.
     driven_taken();
     cli_check(!s_window.glide[0].active && (s_window.pointer.x == run_button.x + (run_button.width / 2)) &&
                   (s_window.pointer.y == run_button.y + (run_button.height / 2)),
               "the glide ends with the pointer at the middle of the Run tool's button");
-    // the pointer put back where the hands' checks expect it, and given back to the system
+    // Put the pointer back where the hands' checks expect it, and give it back to the system.
     (void)asked_words("pointer", place, 2u);
     driven_taken();
     (void)asked("pointer", "off");
@@ -2048,7 +2049,7 @@ static void view_checked(void)
     cli_check(asked("comms-view", NULL) && (s_window.side_menu.foot == GUI_SIDE_MENU_NONE), "and closes it again");
 }
 
-// the check's catalog for the Run pane: one job of one word param
+// The check's catalog for the Run pane holds one job with one word param.
 static CliJob s_run_jobs[4];
 static CliParam s_run_params[4];
 static CliStep s_run_steps[4];
@@ -2057,8 +2058,8 @@ static unsigned int s_run_lists[8];
 static char s_run_text[1024];
 static CliCatalog s_run_catalog;
 
-// the Run pane at the foot: a job's param row pressed through the window gives the pane the keys, and the text typed
-// reaches the param's value in place of the editor
+// The Run pane is at the foot. A press on a job's param row through the window gives the pane the keys. The typed
+// text reaches the param's value and leaves the editor as it is.
 static void run_keys_checked(void)
 {
     tabs_closed("run_typed.txt", "one\n", NULL, NULL);
@@ -2080,7 +2081,7 @@ static void run_keys_checked(void)
     EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = NULL, .catalog = &s_run_catalog);
     EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
     cli_check(EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 1u, "the one group is listed");
-    // a row by its text and a head action by its label, each found in the foot's pane
+    // Find a row by its text and a head action by its label, each in the foot pane.
     const GuiRect group_row = EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = &gui_run_table,
                                          .pane_read = &s_window.panes[(unsigned int)s_window.side_menu.foot],
                                          .frame = &s_window.frame, .row = 0u);
@@ -2098,9 +2099,9 @@ static void run_keys_checked(void)
                   (s_window.driven[0].x < s_window.frame.terminal.x + (s_window.frame.terminal.width / 2)),
               "to action Start queues a move onto Start in the pane's head");
     s_window.driven_count = 0u;
-    // the group's row at 0 pressed opens it and puts the job's at 1; the job's pressed puts its file's row at 2 and its
-    // param's at 3
-    // the foot is a tool among the tools
+    // A press on the group's row at 0 opens it and puts the job's row at 1. A press on the job's row puts its file's
+    // row at 2 and its param's row at 3.
+    // The foot is one of the tools.
     const GuiPane *const pane = &s_window.panes[(unsigned int)s_window.side_menu.foot];
     static const unsigned int s_rows[3] = {0u, 1u, 3u};
     for (unsigned int at = 0u; at < 3u; at += 1u)

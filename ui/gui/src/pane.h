@@ -125,9 +125,9 @@ GuiRect gui_pane_row_rect(const GuiPaneCfg *args);
 int gui_pane_hit(const GuiPaneCfg *args);
 // the head's action at x, y, 0 for none
 unsigned int gui_pane_head_hit(const GuiPaneCfg *args);
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the table names no rows; the head's action
-// named `name`, 0 where the table has none of that name; and the rectangle the action `which` takes in the head, empty
-// where the head has no pixel of it
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if the table names no rows.
+// Return the head action with the label `name`, or 0 if the table has none. Return the rectangle of the action
+// `which` in the head. The rectangle is empty if the head has no pixel of it.
 const char *gui_pane_row_text(const GuiPaneCfg *args);
 unsigned int gui_pane_action_named(const GuiPaneCfg *args);
 GuiRect gui_pane_action_rect(const GuiPaneCfg *args);

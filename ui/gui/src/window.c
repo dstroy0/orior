@@ -5438,8 +5438,8 @@ EMBED_INLINE void window_hand_track(const GuiWindowCtx *args)
     window->pending = 1;
 }
 
-// the row of the table `table_read` in the pane `at` whose text is `name`: 1 with its rectangle into `rect_out`, the
-// pane scrolled to put the row in view where it was not; 0 where no row has that text
+// Find the row of `table_read` in the pane `at` whose text is `name`. Put its rectangle into `rect_out` and return 1.
+// If the row is out of view, scroll the pane to it first. Return 0 if no row has that text.
 EMBED_INLINE int window_pane_row_named(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -5479,10 +5479,11 @@ EMBED_INLINE int window_pane_row_named(const GuiWindowCtx *args)
     return 0;
 }
 
-// the rectangle of the control of the kind `key` named `name`, as the pointer command's `to` names one: 1 with it into
-// `rect_out`, 0 where the window has no such control. A strip tool by its name; a bar tool by its name; a menu by its
-// title; a tab by its name; a control of the window, minimize, maximize or close; the foot panel's grip, its top line;
-// a row of the side's or the foot's pane by its text; or an action of a pane's head by its label
+// Find the control of the kind `key` with the name `name`, as the pointer command's `to` names one. Put its
+// rectangle into `rect_out` and return 1. Return 0 if the window has no such control. The kinds are: a strip tool
+// by its name, a bar tool by its name, a menu by its title, a tab by its name, a window control (minimize, maximize
+// or close), the foot panel's grip (its top line), a row of the side pane or the foot pane by its text, and an
+// action of a pane head by its label.
 EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -5568,7 +5569,7 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
     {
         return 0;
     }
-    // the side's pane first, then the foot's
+    // Try the side pane first, then the foot pane.
     for (unsigned int foot = 0u; foot < 2u; foot += 1u)
     {
         const GuiPaneTable *const table = foot ? EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = window)
@@ -5578,7 +5579,7 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
         {
             continue;
         }
-        // the tool shown is among the tools
+        // The tool shown is one of the tools.
         const unsigned int at = (unsigned int)index;
         if (row)
         {
@@ -5606,8 +5607,8 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
     return 0;
 }
 
-// each glide under way stepped: its pointer carried toward its control by what its speed covers since the last step,
-// a move queued at the place reached, and the glide ended on arrival
+// Step each glide that is under way. Move its pointer toward its control by the distance its speed covers since the
+// last step. Queue a move at the place it reaches. End the glide when it arrives.
 EMBED_INLINE void window_glide_step(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
@@ -5620,7 +5621,7 @@ EMBED_INLINE void window_glide_step(const GuiWindowCtx *args)
             continue;
         }
         const unsigned long long since_ms = (now_ms > glide->last_ms) ? (now_ms - glide->last_ms) : 0ULL;
-        // a frame's milliseconds and a speed in pixels a second are both small whole numbers
+        // A frame's milliseconds and a speed in pixels a second are small whole numbers.
         const float covered =
             ((float)glide->speed * (float)((since_ms < GUI_GLIDE_STALL_MS) ? since_ms : GUI_GLIDE_STALL_MS)) / 1000.0f;
         glide->last_ms = now_ms;
@@ -5643,7 +5644,7 @@ EMBED_INLINE void window_glide_step(const GuiWindowCtx *args)
             glide->x += (across * covered) / left;
             glide->y += (down * covered) / left;
         }
-        // the place reached rounded to the client's pixel
+        // Round the place to the client's pixel.
         (void)EMBED_CALL(
             window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
             .input = &(GuiInput){.type = GUI_INPUT_MOVED, .x = (int)(glide->x + 0.5f), .y = (int)(glide->y + 0.5f)});
@@ -5660,11 +5661,12 @@ EMBED_INLINE void window_glide_step(const GuiWindowCtx *args)
 // - drag and places, x y each: the left button pressed where the pointer is, a move to each place, and the button let
 //   go at the last place.
 // - wheel, down or up, and a count: the wheel turned that many notches where the pointer is, one where no count is.
-// - to, a kind and a name, then --speed and pixels a second where the glide's own speed is not wanted: a move to the
-//   middle of the control the name finds, the pointer carried there a frame at a time, at once where the speed is 0.
-//   The kinds: a strip `tool` by its name, a `bar` tool by its name, a `menu` by its title, a `tab` by its name, a
-//   `control` of the window (minimize, maximize or close), the foot panel's `grip`, a `row` of the side's or the
-//   foot's pane by its text, scrolled into view, or an `action` of a pane's head by its label (Start, Stop, field).
+// - to, a kind and a name, then --speed and pixels a second if you do not want the glide's own speed: a move to the
+//   middle of the control that the name finds. The pointer goes there one frame at a time, or at once if the speed
+//   is 0. The kinds are: a strip `tool` by its name, a `bar` tool by its name, a `menu` by its title, a `tab` by its
+//   name, a `control` of the window (minimize, maximize or close), the foot panel's `grip`, a `row` of the side pane
+//   or the foot pane by its text (the pane scrolls the row into view), and an `action` of a pane head by its label
+//   (Start, Stop, field).
 // - off: a hand taken away, its surface off the screen and its name free.
 // The result is 1, or 0 where the words are none of these, no hand is free for a new name, or the queue cannot take
 // all of the inputs
@@ -5715,7 +5717,7 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
         {
             return 0;
         }
-        // the name's words up to --speed joined by spaces, and the speed after it
+        // Join the name's words before --speed with spaces. Read the speed after it.
         char name[CLI_PATH_MAX_LEN];
         VerbaLinea line = {name, sizeof(name), 0ULL};
         unsigned int speed = GUI_GLIDE_SPEED;
@@ -5723,7 +5725,7 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
         {
             if (EMBED_CALL(window_is, GuiWindowCtx, .name = words[at], .key = "--speed"))
             {
-                // a speed is a small whole number of pixels a second
+                // A speed is a small whole number of pixels a second.
                 speed = (at + 1u < count)
                             ? (unsigned int)EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[at + 1u])
                             : speed;
@@ -7305,8 +7307,8 @@ EMBED_INLINE unsigned int window_autoscroll_compass(const GuiWindowCtx *args)
     return (across < 0) ? GUI_POINTER_GLIDE_SW : GUI_POINTER_GLIDE_SE;
 }
 
-// whether the pixel at x, y is on the terminal's top edge, which drags its height: the panel's top line and the
-// grip's reach either side of it
+// Return 1 if the pixel at x, y is on the terminal's top edge, which drags its height. The edge is the panel's top
+// line and the grip's reach on each side of it.
 EMBED_INLINE int window_terminal_grip(const GuiWindowCtx *args)
 {
     const GuiFrame *const frame = &args->window_read->frame;

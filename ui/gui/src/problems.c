@@ -247,7 +247,7 @@ static int problems_press(const GuiPaneCfg *args)
     return 1;
 }
 
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *problems_row_text(const GuiPaneCfg *args)
 {
     static CliProblemRow s_named;
@@ -301,7 +301,7 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
             const unsigned long long to = (line == one->to_line) ? one->to_col : ~0ULL;
             GuiRect start;
             GuiRect end;
-            // the span's ends kept at the text's edges where the view has slid past them
+            // Keep the span's ends at the text's edges if the view has slid past them.
             if (!EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = editor,
                             .place = place, .cell = cell, .scale = scale, .line = line, .col = from, .rect = &start,
                             .clamped = 1) ||

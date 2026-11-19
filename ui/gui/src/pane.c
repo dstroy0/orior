@@ -201,8 +201,8 @@ unsigned int gui_pane_action_named(const GuiPaneCfg *args)
     return ((args->table != NULL) && (args->table->action_named != NULL)) ? args->table->action_named(args) : 0u;
 }
 
-// the head's pixels asked every GUI_PANE_ACTION_STEP across and down which action they are on: the bounds of those on
-// `which`
+// Ask the head which action each pixel is on, one pixel in GUI_PANE_ACTION_STEP across and down. Return the bounds of
+// the pixels on `which`.
 #define GUI_PANE_ACTION_STEP 2
 GuiRect gui_pane_action_rect(const GuiPaneCfg *args)
 {

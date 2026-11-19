@@ -151,7 +151,7 @@ static int references_press(const GuiPaneCfg *args)
     return 1;
 }
 
-// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+// Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *references_row_text(const GuiPaneCfg *args)
 {
     static CliReferenceRow s_named;
