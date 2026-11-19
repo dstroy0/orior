@@ -16,7 +16,7 @@
 //               cause, and blocks nothing else; the lessons passed to the run are read back whole
 //   teacher     a question the carrier refuses calls a conference containing the teacher's account and the carrier's;
 //               one whose carrier outlasts its time calls one containing the teacher's
-//   airlock     a round reaches the carrier only once the cross has read it and passed a gated list after it: a round
+//   airlock     a round reaches the carrier only once the cross read it and passed a gated list after it: a round
 //               the cross did not read, or one with no gated list after it, is carried by nothing, as is every round of
 //               a channel with no airlock whose carrier is passed no gated list. Given the real carrier and cross, a
 //               code the vendor reads clean passes with nothing gated, and an instruction it calls illegal is gated by
@@ -417,7 +417,7 @@ int main(int count, char **words)
         run_channel_close();
     }
 
-    // airlock: a live channel with none, and a carrier passed no gated list, carries nothing; an airlock whose carrier
+    // airlock: a live channel with none, and a carrier passed no gated list, carries nothing. An airlock whose carrier
     // reads no gated list does not open
     const char *const open_air[] = {words[1], "refuse", NULL};
     check_that(run_channel_open(open_air, 10000000ull) == 1, "airlock: a channel with none opens");

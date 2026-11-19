@@ -157,7 +157,7 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     // the voxels each thread takes in turn
     const unsigned long long rounds = (blocks != 0u) ? ((needed + blocks - 1ull) / blocks) : 0ull;
     // every count is at max the sample's voxel-frames; a block's shared counts are at max its threads' voxel-frames,
-    // which an unsigned int represents; every coordinate fits an unsigned int
+    // which an unsigned int represents. Every coordinate fits an unsigned int
     const int bounded = (frames >= 1ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         (depth <= 0xFFFFFFFFull) && (height <= 0xFFFFFFFFull) && (width <= 0xFFFFFFFFull) &&
                         (rounds <= ((0xFFFFFFFFull / NOISE_DETECTOR_THREADS) / frames));

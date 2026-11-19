@@ -84,7 +84,7 @@ class CodeGenerator : public Target
     // the banks are positioned end to end from the counts the lane declares, in place of each being numbered from 0. A
     // language whose registers are virtual gives each bank a namespace of its own and answers 0. A lane whose banks
     // run past what the file contains is written by nobody: program() refuses it, in place of writing a register the
-    // language has pinned to something else
+    // language pinned to something else
     virtual unsigned int register_file_size(void) const;
 
     // Whether the language writes the program resident itself. Max do: the resident is a form of the ruleset like

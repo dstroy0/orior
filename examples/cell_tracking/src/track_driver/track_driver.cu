@@ -130,7 +130,7 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
 {
     // the largest sample's holdings; the daemon measures the rest and tracks the peak under the signum. A part that
     // drifts (`drift`) also allocates what shift_agreement retains for a sample's frame, its extents in the order the
-    // drift passes them; those bytes step with the padded lengths and not the voxels. The max over the samples is
+    // drift passes them. Those bytes step with the padded lengths and not the voxels. The max over the samples is
     // taken. A part that gates (`gate`) allocates the gate's pool for the max points a frame over the samples' .points
     unsigned long long max = 0ull;
     unsigned long long retained = 0ull;
@@ -1687,7 +1687,7 @@ int main(int argc, char **argv)
         printf("  run %s\n", RUN_PART_NAMES[part]);
         RunJob job;
         memset(&job, 0, sizeof(job));
-        // iapx-prove lowers every lattice to prove it and allocates none of its own on the device; schedule reads only
+        // iapx-prove lowers every lattice to prove it and allocates none of its own on the device. Schedule reads only
         // the heads, and fingerprint only flattened.iapx. Neither lowers one; the sort reads only .points and .drift,
         // and allocates no lattice and lowers none
         const int lattice = (part != RUN_IAPX_PROVE) && (part != RUN_SORT);

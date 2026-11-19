@@ -91,7 +91,7 @@ __device__ static inline void cycle_record_negate(unsigned int *value, unsigned 
 }
 
 // limb `at` of a register's two's complement: the magnitude's limb, or its complement where the sign is negative,
-// with `carry` running the negation's one up the limbs; it starts at 1 and the limbs are taken from the lowest up
+// with `carry` running the negation's one up the limbs. It starts at 1 and the limbs are taken from the lowest up
 __device__ static inline unsigned int cycle_record_complement(const unsigned int *value, unsigned int limbs,
                                                               unsigned int at, int sign, unsigned long long *carry)
 {

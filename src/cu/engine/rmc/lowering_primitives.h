@@ -295,7 +295,7 @@ CODEGEN_CORE void codegen_compare(MachineFunction *lane, const IrStep *at)
 
 // the sum or the difference of two signed registers, branch-free: the magnitudes' sum, their difference with its
 // borrow, and that difference negated are all taken, and the signs choose among them as cycle_record_operate does.
-// Signs that agree, or either one zero, add, and take the left's sign where it has one; signs that differ subtract the
+// Signs that agree, or either one zero, add, and take the left's sign where it has one. Signs that differ subtract the
 // lesser magnitude from the greater, the borrow indicating which is greater, and take the greater's sign
 CODEGEN_CORE void codegen_sum(MachineFunction *lane, const IrStep *at)
 {

@@ -58,7 +58,7 @@ def closed_after_bracket():
     """One line with the space an extraction left after an opening square bracket taken out.
 
     A bracket is how a paper says whether a string is a cluster or a segment. Mellesmoen and Kye
-    cites a cluster as [ k̓ʷd] and a segment as [ ə]; left open, the bracket is one token and the
+    cites a cluster as [ k̓ʷd] and a segment as [ ə]. Left open, the bracket is one token and the
     thing it encloses is another, and the cluster then matches nothing.
     """
     def closed(line):

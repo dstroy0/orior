@@ -5,7 +5,7 @@
 
 // key_schedule's record layout as one source the host and the device both compile (engine_table.md item 11(a), the
 // compiler on the device): each step arranged for the device from its term, its register placed in the file, and each
-// output placed in the record. The host's key_schedule_record_layout runs it and builds the layout; the device runs it
+// output placed in the record. The host's key_schedule_record_layout runs it and builds the layout. The device runs it
 // in one thread, since each place is taken from what the steps before it freed. The lists it works in are the caller's,
 // each as long as the program has steps
 

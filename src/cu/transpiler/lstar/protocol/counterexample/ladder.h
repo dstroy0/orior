@@ -7,7 +7,7 @@
 //
 // A relation is a tuple of words and the word that goes with them. 1,1 -> 2 is a relation. It is not an addition,
 // because addition is a writing and this file contains none. Every system that computes at all agrees about 1,1 -> 2.
-// Nothing else can be assumed about a system nobody has met. Arithmetic is the shared ground; the
+// Nothing else can be assumed about a system nobody met. Arithmetic is the shared ground; the
 // writing that reaches it is the part that differs, and finding that writing is the compiler's work.
 //
 // The names below are coherence anchors. That is all they are: they let the compiler report which relations it has

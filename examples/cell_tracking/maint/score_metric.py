@@ -40,7 +40,7 @@ import truth_io
 #                where nothing is. A pair reading -1 in the sparse weights is dropped. A pair the dense run takes where
 #                the sparse weights hold nothing reads 0 there, not -1, and is retained, as the published code retains it
 #   edges        as _evaluate_matched_graph. A CSV edge is matched when its ends are matched to the ends of a key edge.
-#                The copies of one source and target are one edge; the copies agree on matched, and the lowest id is
+#                The copies of one source and target are one edge. The copies agree on matched, and the lowest id is
 #                retained, where polars' unique after an unstable sort names none. Only edges one frame forward are retained.
 #                Of the edges with both ends matched, the lowest id for each matched pair is retained; under a one-to-one
 #                matching no two share one. Each source retains its two lowest ids. An edge is counted when its source is
@@ -307,7 +307,7 @@ def match(graph, key, key_nodes=None, scale=None, max_distance=MAX_DISTANCE):
 
 
 def edge_counts(graph, key, matched, record=None):
-    # _evaluate_matched_graph and the counts evaluate takes from it; record, when given, takes each retained edge's source,
+    # _evaluate_matched_graph and the counts evaluate takes from it. Record, when given, takes each retained edge's source,
     # target, whether it is matched and whether it is counted
     to_graph = {truth: node for node, truth in matched.items()}
     wanted = set()

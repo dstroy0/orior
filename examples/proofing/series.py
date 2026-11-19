@@ -259,8 +259,8 @@ def split(product, first, last):
     sum already scaled by that denominator. The merge is one line and it is the whole method.
 
     NOTHING IS DIVIDED HERE. That absence is the method. The linear sum divides at every term at
-    full working precision and the squaring is where it loses; this defers the single division to
-    the very end, and every intermediate stays an exact integer that no rounding has touched.
+    full working precision and the squaring is where it loses. This defers the single division to
+    the very end, and every intermediate stays an exact integer that no rounding touched.
 
     Recursion depth is the log of the term count, and a billion digits is a depth of some twenty six
     and there is no stack concern at any size a desktop can reach.

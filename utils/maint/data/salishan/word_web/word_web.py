@@ -281,7 +281,7 @@ def concept_profile(edges):
     """The web as a distribution, which the sift can be passed in place of byte pairs.
 
     Keyed on the concept and shape edges only. The context edges are a fact about one paper's
-    sections and do not transfer to a page nobody has read. They are in the web for reading and
+    sections and do not transfer to a page nobody read. They are in the web for reading and
     out of the profile for matching.
     """
     counts = collections.Counter()

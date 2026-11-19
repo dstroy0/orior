@@ -104,7 +104,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
                const unsigned long long *bodies, const unsigned int *index, unsigned long long lanes, unsigned int *out,
                unsigned long long *microseconds);
 
-// the match's buffers on the device, each grown to the max a chunk has requested: the envelopes, a query's peaks, a
+// the match's buffers on the device, each grown to the max a chunk requested: the envelopes, a query's peaks, a
 // chunk's reference peaks and its spectra's first lanes, first peaks and peak counts, and its lanes' index, records,
 // order and retained records
 typedef struct

@@ -3,7 +3,7 @@
 //
 // The unit sweep's planes (engine/analysis/unit_sweep): the residual of readings of any width, passed in as limb planes
 // with their width declared. A reading built from 16-bit parts at chosen shifts has, the residual being linear, the
-// residual of its parts shifted and added; each part's residual is the 16-bit volume path's, proved against the key.
+// residual of its parts shifted and added. Each part's residual is the 16-bit volume path's, proved against the key.
 // So every lane of the planes path is checked against those sums, at 16, 34, 64 and 116 bits of input, on extents that
 // include a single voxel and a frame one voxel high, and on the tracker's own orders. Sixteen-bit planes give the
 // volume path's lanes exactly, a constant added to every reading changes no lane, a bit past the declared width errors

@@ -138,7 +138,7 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
                 return 0;
             }
             // the none mark, with its type's character after it where the run is no register's, or the place with its
-            // character after it; the character's place among the four is its type, and no character is a register's
+            // character after it. The character's place among the four is its type, and no character is a register's
             char *end = NULL;
             const int none = (strncmp(place, KHW_PLACE_NONE_TEXT, strlen(KHW_PLACE_NONE_TEXT)) == 0);
             answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);

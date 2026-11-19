@@ -75,7 +75,7 @@ struct FixedQuery
     int dry;
 };
 
-// 1 where the part answers `variant` alike with `reference` on every case; the query is a line of fixed.txt named by
+// 1 where the part answers `variant` alike with `reference` on every case. The query is a line of fixed.txt named by
 // `what`, and a dry run is noted from the carrier's refusal
 static int fixed_alike(FixedQuery *query, const std::vector<unsigned char> &variant,
                        const std::vector<std::string> &reference, const char *what)

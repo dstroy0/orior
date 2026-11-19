@@ -14,7 +14,7 @@
 // The second form gives every form the machine file contains its fields again by the probe's reading, prints each form
 // whose fields that changes, and writes the file.
 //
-// The listing is what cuobjdump -sass or nvdisasm prints; the architecture is named as the disassembler names it,
+// The listing is what cuobjdump -sass or nvdisasm prints. The architecture is named as the disassembler names it,
 // SM86; the folder contains the encodings the disassembler is given.
 #include "interface_sass_probe.h"
 

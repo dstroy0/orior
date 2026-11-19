@@ -27,7 +27,7 @@ typedef struct GuiAutohideStillCfg GuiAutohideStillCfg;
 typedef struct GuiAutohideShareCfg GuiAutohideShareCfg;
 typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 
-// the edges whose parts a rest brings back, and none; the tabs row is a claim of its own inside the work, brought
+// the edges whose parts a rest brings back, and none. The tabs row is a claim of its own inside the work, brought
 // back by a rest in the band under the head's
 #define GUI_AUTOHIDE_NONE 0u
 #define GUI_AUTOHIDE_TOP 1u
@@ -67,7 +67,7 @@ typedef struct
     unsigned int curve;
 } GuiSlide;
 
-// The curves a slide runs on: the page's ease, cubic-bezier(0.25, 0.1, 0.25, 1); its ease-out,
+// The curves a slide runs on: the page's ease, cubic-bezier(0.25, 0.1, 0.25, 1). Its ease-out,
 // cubic-bezier(0, 0, 0.58, 1); and the bead, a damped spring that a bead of water on glass moves as. The bead starts
 // from rest, goes past its end by about 5 percent, and settles at its end as the slide ends. A bead's number can
 // pass GUI_FIXED_ONE, so a slide that sets an opacity does not take it

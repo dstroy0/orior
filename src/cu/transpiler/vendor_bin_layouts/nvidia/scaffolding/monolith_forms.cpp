@@ -1463,7 +1463,7 @@ struct Read
     std::string why;
 };
 
-// the in and out bases the listing has set up so far, a register each and its pair
+// the in and out bases the listing set up so far, a register each and its pair
 struct Bases
 {
     int in_low;
@@ -1548,7 +1548,7 @@ static std::string numbers_named(const std::string &text, const Question &questi
 // was more than one time. 0 where it is nowhere in the answer, the system having folded it into a form of its own
 static int number_carried(const std::string &text, const Role &role)
 {
-    // the bare name is the low word; the name followed by .hi is the high half alone, which does not carry the low word
+    // the bare name is the low word. The name followed by .hi is the high half alone, which does not carry the low word
     // a fold left behind
     const std::string named = "{" + role.name + "}";
     size_t low = text.find(named);
@@ -2605,7 +2605,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             verdict.text.clear();
         }
     };
-    // A question submitted in ptx.krs's text is read for sass.krs off the listing; one submitted in c.krs's for ptx.krs
+    // A question submitted in ptx.krs's text is read for sass.krs off the listing. One submitted in c.krs's for ptx.krs
     // off the PTX. The questions that load their numbers settle a form of their own with the questions that contain
     // none, and it is where the questions that write their numbers in do not settle one
     std::map<std::string, Verdict> loaded_verdicts;

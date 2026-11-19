@@ -26,7 +26,7 @@ static int log_record_joined(const QryRecord *record, unsigned long long *size)
     return 1;
 }
 
-// the log joined into s_log: from the run while its writer runs, from the .qry at `qry` once it has stopped. Its
+// the log joined into s_log: from the run while its writer runs, from the .qry at `qry` once it stopped. Its
 // bytes, or QRY_MEMBER_UNREAD where it could not be read whole
 static unsigned long long log_joined(const char *qry)
 {

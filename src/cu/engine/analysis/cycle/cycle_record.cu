@@ -111,8 +111,8 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
                                            cudaMemcpyHostToDevice),
                                 record->device_tables, error);
     }
-    // the block lies in device memory, where the program's thread blocks check in without leaving the device; the host
-    // retains its own copy, read back once each launch has ended
+    // the block lies in device memory, where the program's thread blocks check in without leaving the device. The host
+    // retains its own copy, read back once each launch ended
     record->block = (EngineProgramBlock *)calloc(1u, sizeof(EngineProgramBlock));
     ok = ok && CYCLE_CHECK(record->block != NULL, &record->block, error, ENGINE_ERROR_RESOURCE) &&
          CYCLE_STATUS_CHECK(cudaMalloc((void **)&record->device_block, sizeof(EngineProgramBlock)),

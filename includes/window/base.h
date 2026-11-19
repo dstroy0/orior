@@ -69,7 +69,7 @@ typedef struct
     unsigned int layer;
 } GuiBaseRun;
 
-// A map read for drawing: how many bands; the row each starts at, the last's end after them; where each band's runs
+// A map read for drawing: how many bands; the row each starts at, the last's end after them. Where each band's runs
 // start among the runs, the last's end after them; and the runs
 typedef struct
 {
@@ -123,7 +123,7 @@ unsigned int gui_base_layer_at(const GuiBaseCfg *args);
 // the entries made for `palette`'s colors, where they are not already; a map read over them saves its runs
 void gui_base_paint(const GuiBaseFrameCfg *args);
 // every pixel of `raster` written once from `background_fill`'s pixel, or `color` where the ground is not the raster's
-// size, through the runs of its row's band; and the same through `map`, a map made for a stage, which the base's own
+// size, through the runs of its row's band. And the same through `map`, a map made for a stage, which the base's own
 // entries color
 void gui_base_draw(const GuiBaseRasterCfg *args);
 void gui_base_map_draw(const GuiBaseRasterCfg *args);

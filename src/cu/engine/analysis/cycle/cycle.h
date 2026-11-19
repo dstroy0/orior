@@ -83,7 +83,7 @@ extern "C"
 #define CYCLE_LATCH_NONE 0xFFFFFFFFFFFFFFFFull
 
     // The latch: the first of `count` records whose output at bit `offset`, `bits` wide, is not zero, the least such
-    // lane, or CYCLE_LATCH_NONE where no lane's is; the output is a program's condition, and it is true where it is not
+    // lane, or CYCLE_LATCH_NONE where no lane's is. The output is a program's condition, and it is true where it is not
     // zero. The minimum is associative, commutative and idempotent. Any grouping returns the lane a serial scan from
     // lane 0 does. cycle_record_latch reads records in device memory by a tree over each warp and one atomic minimum
     // over the device, and only the lane comes back to the host; cycle_record_latch_host reads records in host memory
@@ -132,7 +132,7 @@ extern "C"
 
     long cycle_record_sum_host(const CycleRecordSumRequest *request);
 
-    // cycle_record_sum retains its device scratch between calls, grown to the max a sum has requested; this gives it
+    // cycle_record_sum retains its device scratch between calls, grown to the max a sum requested; this gives it
     // back
     void cycle_record_sum_release(void);
 

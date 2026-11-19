@@ -137,7 +137,7 @@ int main(void)
     check_that((ldc->offset_bits == 17u) && (mov->offset_bits == 0u),
                "constant: the offset operand's width is read off the FORMAT, SImm(17), and a class with none reads 0");
     // the bytes a read takes: the size operand's choices as the FORMAT lists them, U8 S8 U16 S16 32 64, the field's
-    // value choosing one; four where the FORMAT names no size
+    // value choosing one. Four where the FORMAT names no size
     unsigned long long sized_low = 0ull;
     unsigned long long sized_high = 0ull;
     tables_field_write(tables_field_named(ldc, "sz"), &sized_low, &sized_high, 5ull);

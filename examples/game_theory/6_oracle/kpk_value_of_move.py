@@ -98,7 +98,7 @@ def promoted_value_to_mover(state):
 
 
 def classify_child(child):
-    """Classify a child once: ('c', value_to_child_mover) for a child that has left the class and is
+    """Classify a child once: ('c', value_to_child_mover) for a child that left the class and is
     already resolved, or ('r', key) for an in-class child looked up during relaxation."""
     board = child[0]
     if is_insufficient(board):

@@ -124,7 +124,7 @@ def font_characters(font):
     if "cmap" not in program:
         return None
     # A glyph the program maps to the private use area alone retains that code, for PRIVATE_USE to
-    # write as the character it draws; one it also maps to a real character takes the character.
+    # write as the character it draws. One it also maps to a real character takes the character.
     characters, private = {}, {}
     for point, name in (program.getBestCmap() or {}).items():
         target = private if 0xE000 <= point <= 0xF8FF else characters
@@ -164,7 +164,7 @@ def tounicode_stream(entries):
 # own glyph, and OUTLINE_FACES names the face to look in for each font; a glyph of a face the system
 # lacks is named in outline_characters.tsv, each outline read by eye off outline_sheet.py's drawing and
 # checked in the decoded text. Adobe's Times-Roman, which Windows lacks, is looked for in TeX Gyre
-# Termes, the clone of its shapes MiKTeX installs; its outlines are no copy, and outline_match.py
+# Termes, the clone of its shapes MiKTeX installs. Its outlines are no copy, and outline_match.py
 # names those glyphs by raster.
 TERMES = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "MiKTeX", "fonts", "opentype", "public",
                       "tex-gyre", "texgyretermes-")
@@ -1566,7 +1566,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             drawn = symbol == " " and ciphers and drawn_space(textpage, index) and \
                 deciphered(symbol, textpage, index, ciphers) != " "
             # pdfium sets a space of no width after a mark the stream carries late, x a s ̣ í l̓ for
-            # x̣asíl̓ in Mellesmoen's (3d); the gap alone decides whether a word space is there.
+            # x̣asíl̓ in Mellesmoen's (3d). The gap alone decides whether a word space is there.
             # A space pdfium made up is marked "made", one the stream carries True. A space the
             # stream carries with its width after a mark set on its character is: the x̌ and
             # all-spice of Lyon's 2008 (7).
@@ -1661,7 +1661,7 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             # second print 0.024 em right of the first: a character over the same character less than 0.05
             # em away is the second print and is passed over. Two characters set side by side are
             # an advance apart, 0.2 em or more. The characters of a ligature share its box and follow
-            # each other in the stream, the ff of suffixes in Jantzen's introduction; the glyph just
+            # each other in the stream, the ff of suffixes in Jantzen's introduction. The glyph just
             # before is never the first print. While a second print is being passed over, the glyph
             # last retained is not the one before in the stream.
             if box[2] > box[0] and any(one[0] == symbol and abs(one[1][0] - box[0]) < 0.05 * size and
@@ -2428,7 +2428,7 @@ def main():
         mapping = PRIVATE_USE.get(stem, {})
         by_page = [[lettered_glyphs(one, mapping) for one in page_lines] for page_lines in by_page]
         # A page set a quarter turn round, a wide table printed sideways, has its glyph rows run
-        # across the table's columns; the text layer reads it in order, and that page retains the
+        # across the table's columns. The text layer reads it in order, and that page retains the
         # layer's lines.
         layer_pages = re.split(r"^===== page \d+ =====$", layer_text(stem), flags=re.M)[1:]
         turned = []

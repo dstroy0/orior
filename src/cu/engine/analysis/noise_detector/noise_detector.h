@@ -16,7 +16,7 @@ extern "C"
 // the structure function's lags, frames apart: 1, 2, 4 and on to 64 (noise_vector_integration_table.md, row 7)
 #define NOISE_FLICKER_LAGS 7u
 
-// a pair's level bin is the sum of its two values shifted down 4, its mean in bins of 8 lane units; the last bin
+// a pair's level bin is the sum of its two values shifted down 4, its mean in bins of 8 lane units. The last bin
 // contains every mean from 1024 up
 #define NOISE_LEVEL_BIN_SHIFT 4u
 
@@ -213,7 +213,7 @@ extern "C"
                              const OriorExactInteger *total, EngineError *error);
 
     // errors where the places do not span two levels (D would be 0), a scale is 0, or a product passes the exact
-    // integer's width; on an error the line is unchanged
+    // integer's width. On an error the line is unchanged
     long noise_line_fit(const NoiseLineSums *sums, unsigned long long level_scale, unsigned long long measurement_scale,
                         NoiseLine *line, EngineError *error);
 
@@ -406,7 +406,7 @@ extern "C"
     void noise_root_extent(unsigned int term, const unsigned long long box[4], unsigned long long pattern[4]);
 
     // The box's values back from a term's residual and pattern, each residual plus its pattern value. For the residual
-    // and pattern noise_root_box leaves, the sum is the box's value exactly; any other pair must bound every sum within
+    // and pattern noise_root_box leaves, the sum is the box's value exactly. Any other pair must bound every sum within
     // an int, which is not checked.
     typedef struct
     {

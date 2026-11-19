@@ -20,7 +20,7 @@ Every negative here is a boundary instead of a failure: it says the words do not
 sub-patterns at this length, which maps where the structure is not. The reading is the component
 structure, the count of non-singleton components and the largest one, against a null of random units
 with the same leading zeros and nonce weight. Real words that link more than random do it because they
-share sub-patterns beyond chance; matching the null is the boundary that says they do not.
+share sub-patterns beyond chance. Matching the null is the boundary that says they do not.
 
 WHY RARE
 

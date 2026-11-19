@@ -141,7 +141,7 @@ static unsigned long long gate_split_queries(const unsigned char *checks, unsign
 }
 
 // How many queries a target takes for every arrangement against every case placed, by what one answer carries. One
-// check a query; one bit a check, as many as the channel's answer words contain; and one bit over a set, 1 where every
+// check a query; one bit a check, as many as the channel's answer words contain. And one bit over a set, 1 where every
 // check in it passes, halved on a 0. The last is also counted with the checks in an order drawn from a seed, because
 // how the failing checks sit together changes what halving costs
 static void gate_queries_put(unsigned int anchor, unsigned int alignments, const size_t *chosen, unsigned int placed)

@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/proteins/1_represent/protein_bonds.py
 #
-# Two representations have failed here and both failed by discarding something. Laying every atom into a
+# Two representations failed here and both failed by discarding something. Laying every atom into a
 # grid discarded the order, leaving a scatter of points in a box that is mostly empty. Taking the step
 # from one alpha carbon to the next retained the order and discarded the bonds, since an alpha carbon is
 # already a summary of a residue and the step between two of them is not a bond at all.

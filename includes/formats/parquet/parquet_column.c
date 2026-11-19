@@ -154,7 +154,7 @@ static int parquet_hybrid_decode(const ParquetHybridRead *read)
             const unsigned long long packed_values = groups * 8ull;
             for (unsigned long long step = 0ull; (step < packed_values) && (written < read->value_count); step += 1ull)
             {
-                // a value of at max 32 bits starts within its first byte's low 7 bits; the eight bytes from that
+                // a value of at max 32 bits starts within its first byte's low 7 bits. The eight bytes from that
                 // byte contain it whole; the window is cut short only at the run's end
                 const unsigned long long first_bit = step * read->bit_width;
                 const unsigned long long first_byte = cursor.position + (first_bit >> 3u);

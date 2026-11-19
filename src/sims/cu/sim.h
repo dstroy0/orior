@@ -37,7 +37,7 @@ typedef struct
 } SimResults;
 
 // a sim that uses the device is one job on the device's tessera daemon, submitted before its first device
-// allocation and released by sim_close; the signum is the host BLAKE3 of the sim's name and arguments
+// allocation and released by sim_close. The signum is the host BLAKE3 of the sim's name and arguments
 int sim_job_submit(SimResults *results, const char *name, int count, char *const *arguments,
                    unsigned long long declared);
 

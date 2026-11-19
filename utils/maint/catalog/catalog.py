@@ -123,7 +123,7 @@ DOMAIN = {
 # file reports as NO DOMAIN and not numbered, and the hand-written header sits there looking issued.
 # Two sessions did that independently and neither was told by anything until --check was run.
 # That is the argument for running it instead of copying the shape of a number that is already there.
-# CHM joined the same way, after three chemistry examples had landed with no number and --check
+# CHM joined the same way, after three chemistry examples landed with no number and --check
 # failed on main naming them.
 #
 # EXP is the VIZ case again and not a ninth subject. 0_experimental holds work that reads no

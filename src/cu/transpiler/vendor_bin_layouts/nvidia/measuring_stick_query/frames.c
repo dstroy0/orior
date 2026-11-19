@@ -15,7 +15,7 @@ static void msq_failed(MsqPool *pool, const char *why)
 }
 
 // One piece set aside, read alone. A probe encoding the vendor stopped at in the accumulated run is illegal by that
-// stop and is read no more; one set aside unread is read alone, its reading the line at its start, or illegal where
+// stop and is read no more. One set aside unread is read alone, its reading the line at its start, or illegal where
 // the vendor reports so. A frame is read whole (msq_frame_read). A tail's registers that address memory are read off
 // what the vendor prints of it alone. 1, or 0 where the vendor could not be run or the system gave no memory
 static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piece)

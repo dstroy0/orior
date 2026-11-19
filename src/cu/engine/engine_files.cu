@@ -136,7 +136,7 @@ static unsigned long long entry_each_workers(unsigned long long items)
     return (workers < items) ? workers : items;
 }
 
-// every item on the workers, each taking the next item from one counter until none is left or one has failed
+// every item on the workers, each taking the next item from one counter until none is left or one failed
 static int entry_each(unsigned long long items, EngineEachWork work, void *context)
 {
     std::atomic<unsigned long long> next(0ull);

@@ -40,7 +40,7 @@ its committed files, uncommitted changes and untracked files, or by its commit w
 
 Each suite's output goes to build/harness/<env>.log. A suite passes when
 its job exits 0, every "test exit N" line it printed is 0, and no check failed ("N checks, M
-failed"). A suite that prints "not run:" and no check line is NOT RUN; one that prints no check
+failed"). A suite that prints "not run:" and no check line is NOT RUN. One that prints no check
 line and no exit line is NO CHECKS, which is reported, never read as a pass by silence.
 
 An env holds:
@@ -54,7 +54,7 @@ An env holds:
               volume where one is mounted (harness.py wsl)
 
 Every change to the matrix goes through `harness.py env`, which splices the one env it changes
-into the file as text: a change is a minimal diff; nothing else in the file moves. A script
+into the file as text: a change is a minimal diff. Nothing else in the file moves. A script
 that must touch the table imports this module and calls splice_after, splice_replace or
 splice_remove, then write_verified.
 """

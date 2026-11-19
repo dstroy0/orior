@@ -43,7 +43,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
                                  unsigned char *code, unsigned long long room);
 
 // The read back, the assembler run the other way through the same forms and fields. An encoding is matched by the
-// form whose bits, outside its operands' fields, its guard and the scheduler's bits, are its own; of several, the
+// form whose bits, outside its operands' fields, its guard and the scheduler's bits, are its own. Of several, the
 // one with the fewest bits left to its operands. Its text is the guard, the operation and each operand read from the
 // field the assembler writes it to, a label as the address it lands on: `address` is where the encoding lies. 1, or 0
 // where no form matches it. Nothing here changes an encoding: an emitted instruction is read back, never rewritten and

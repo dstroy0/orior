@@ -251,7 +251,7 @@ def main():
 
         # The type column says what the row is, and the who column says whose it is. A reconstruction is a
         # cited affix like any other here, because several of them are cited from Kuipers, Kinkade
-        # or Pincott by name; what retains it out of a language corpus is that PCS and PS are not
+        # or Pincott by name. What retains it out of a language corpus is that PCS and PS are not
         # languages anybody speaks, which the who column already says. Resting the purity filter on
         # that column instead of on the type is what this paper is for.
         type = "predicted" if (where in PREDICTED_TABLES) else "cited affix"

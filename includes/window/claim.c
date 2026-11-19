@@ -282,7 +282,7 @@ int gui_slide_at(const GuiAutohideSlideCfg *args)
         return claim_bead_at(args->slide, ((args->time_ms - start) * (unsigned long long)GUI_FIXED_ONE) / lasts_ms,
                              NULL);
     }
-    // the way along the slide, a share of its length, below GUI_FIXED_ONE; the slide's span by the curve's number is
+    // the way along the slide, a share of its length, below GUI_FIXED_ONE. The slide's span by the curve's number is
     // within a long long and comes back to a number of GUI_FIXED_ONE
     const int share = (int)(((args->time_ms - start) * (unsigned long long)GUI_FIXED_ONE) / lasts_ms);
     const int eased = (args->curve == GUI_CURVE_EASE_OUT)

@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/4_measure/language_convergence.py
 #
-# Four languages under the tightest numbering landed between 4.76 and 7.84 where they had spanned 15.61 to
+# Four languages under the tightest numbering landed between 4.76 and 7.84 where they spanned 15.61 to
 # 31.44 as the files carried them, and Greek with 141 symbols sat on the same value as German with 73.
 # Four is not enough to say anything and all four write in the same alphabet. A single writing system
 # measured four times would look exactly like that.

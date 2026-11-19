@@ -128,7 +128,7 @@ INSIDE_FLOOR = 6
 
 # The score a restoration has to clear. A negative score means the runs the restoration makes sit
 # below where a flat distribution would put them, the reading that this paper does not write
-# words shaped like that. Garcia's w ɬ scores -1.4 and is a real word boundary; the same paper's
+# words shaped like that. Garcia's w ɬ scores -1.4 and is a real word boundary. The same paper's
 # Kʷ əɬtəzétkʷu scores 478.0 and is the speaker's own name broken in half.
 SCORE_FLOOR = 0.0
 

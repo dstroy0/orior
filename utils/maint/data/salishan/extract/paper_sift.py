@@ -236,7 +236,7 @@ def main():
                   ("/", "phonemic", "phonemic, in / /"))
 
     def emit_cells(example, body, page, verdict):
-        """One line of a comparative table as a row per cell. False where the table has ended.
+        """One line of a comparative table as a row per cell. False where the table ended.
 
         example[4] holds the column heads, each a language name or None, and example[5] the first
         half of a row whose ⟨ or { closes on the next line.
@@ -862,7 +862,7 @@ def main():
         # A lettered sub-example opens its own cycle: (3) a., then b., under one number. The next
         # character after the last sub-example reopens it, where a page break or a comment closed it.
         # Comments set as a paragraph between two sub-examples, Comments on versions of (6): in
-        # Hill and Matthewson, close the example; the next character reopens it when its segmentation
+        # Hill and Matthewson, close the example. The next character reopens it when its segmentation
         # and its glosses are the two lines below it.
         if example is None and last_example is not None:
             sub = SUB.match(body)
@@ -1377,7 +1377,7 @@ def main():
                     "segmentation" if (previous == "transcription" or wrapped_pair
                                        or re.search(r"[=~<>]|\S-\S", body)) else "transcription")
                 # A segmentation of labels and affixes, n- CVC- zuʔ -tn -s under nzuʔzuʔtəns in
-                # wlwlmelst and Janzen's (13), reads as a gloss line; its own gloss is the next line.
+                # wlwlmelst and Janzen's (13), reads as a gloss line. Its own gloss is the next line.
                 if type == "gloss" and previous == "transcription" and \
                         re.search(r"(?:^|\s)\S+-(?:\s|$)|(?:^|\s)-\S", body) and \
                         at_line + 1 < len(lines):

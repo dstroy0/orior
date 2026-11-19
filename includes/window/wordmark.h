@@ -20,7 +20,7 @@ typedef struct GuiWordmarkGlyphsCfg GuiWordmarkGlyphsCfg;
 typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 
 // the durations in milliseconds: the pane's minimum visible time; the flight; TABVLA's slide up, the delay before it
-// fades out and the fade out; the delay before it fades in as the name appears and that fade in; and the frame time
+// fades out and the fade out. The delay before it fades in as the name appears and that fade in; and the frame time
 // while any of it moves
 #define GUI_WORDMARK_MIN_VISIBLE_MS 6000ULL
 #define GUI_WORDMARK_FLIGHT_MS 900ULL
@@ -32,7 +32,7 @@ typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 #define GUI_WORDMARK_FRAME_MS 16ULL
 // the repository a press on the name opens, and the entry orior's folder saves the session last started in under
 
-// Where the large name is in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box; and how
+// Where the large name is in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box. And how
 // far TABVLA rises, in pixels, to be at the eye's middle, negative for up
 typedef struct
 {
@@ -98,7 +98,7 @@ void gui_wordmark_init(const GuiWordmarkStillCfg *args);
 // less motion asked for or no longer: asked for, TABVLA is whole with the name, the pane leaves with no flight, and
 // a flight under way ends with the eye home and nothing of the name saved
 void gui_wordmark_still(const GuiWordmarkStillCfg *args);
-// the pane displayed, the name located on it from `now`; the eye home at once, every start after the first; and the tree
+// the pane displayed, the name located on it from `now`; the eye home at once, every start after the first. And the tree
 // read, the pane leaving once it has was its least
 void gui_wordmark_are(const GuiWordmarkFrameCfg *args);
 void gui_wordmark_land(const GuiWordmarkStillCfg *args);

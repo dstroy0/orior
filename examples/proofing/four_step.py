@@ -88,7 +88,7 @@ def fold(values, prime, generator, length, inverse=False):
     """The transform of `values` by the four-step fold, into P and Q point passes.
 
     P and Q are chosen as balanced powers of two. Each pass is about root N. The sub-passes use
-    the direct transform here, because the point of this file is to prove the FOLD; on the card the
+    the direct transform here, because the point of this file is to prove the FOLD. On the card the
     sub-passes are the shared-memory butterflies, and they are graded against this.
     """
     if length & (length - 1):

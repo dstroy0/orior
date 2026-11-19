@@ -39,7 +39,7 @@ _Static_assert((QRY_WRITER_PIECE_BYTES != 0ULL) && (QRY_WRITER_PIECE_BYTES <= (1
 #define QRY_WRITER_WRAP 0xffffffffffffffffULL
 
 // A member's ring: the process that owns it, 0 where none does; the bytes the writer has taken from it and the bytes
-// its member has added, each counted from the run's start, a place in the ring the count's remainder; and the bytes.
+// its member added, each counted from the run's start, a place in the ring the count's remainder; and the bytes.
 // Only the member moves `tail` and only the writer moves `head`
 struct QryRing
 {
@@ -132,12 +132,12 @@ int qry_writer_file_removed(const char *path);
 // the file at `beside` put in the place of the file at `placed`, whole: 1, or 0 where it was not
 int qry_writer_file_placed(const char *beside, const char *placed);
 
-// the writer's pause between turns over the rings; and the writer put above the work it writes for, where the system
+// the writer's pause between turns over the rings. And the writer put above the work it writes for, where the system
 // lets a process raise itself
 void qry_writer_paused(void);
 void qry_writer_raised(void);
 
-// 1 where the process `process` (qry_member_process) has ended, and 0 where it runs or the system does not tell
+// 1 where the process `process` (qry_member_process) ended, and 0 where it runs or the system does not tell
 int qry_writer_process_ended(unsigned long long process);
 
 // the standard input read whole into `bytes`, which has room for `room`: its size, or QRY_MEMBER_UNREAD's value,

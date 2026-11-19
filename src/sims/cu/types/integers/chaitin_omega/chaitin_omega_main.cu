@@ -150,7 +150,7 @@ int main(int argc, char **argv)
               "(x x x)(x x x) is proven to grow forever: it returns at its own head");
 
     // a run on the device is one tessera job. The kernel's run declares the count table it copies there, and the
-    // engine's run its first round's pool; the daemon measures the buffers each grows to and records that peak under
+    // engine's run its first round's pool. The daemon measures the buffers each grows to and records that peak under
     // the run's arguments
     const unsigned long long declared = (on_engine != 0) ? omega_engine_declared(&counts) : sizeof(counts.count);
     if (((on_engine != 0) || (on_device != 0)) && !sim_job_submit(&results, "chaitin_omega", argc, argv, declared))

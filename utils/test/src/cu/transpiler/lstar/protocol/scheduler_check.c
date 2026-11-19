@@ -16,7 +16,7 @@
 //
 //     scheduler_check <folder> [<overseer_carrier>]
 //
-// The dry channel appends every question to the run (qry_member.h); the check runs in a run of its own, QRY naming
+// The dry channel appends every question to the run (qry_member.h). The check runs in a run of its own, QRY naming
 // it, and reads the round back from it. The halted round is checked where the check's carrier is given
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
@@ -182,7 +182,7 @@ int main(int count, char **words)
     check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens again");
     check_that(!run_channel_panic_ruled(), "the run is not stopped before a panic");
     // a clean refusal: the carrier ended clean, and every account the conference receives reads the cause as the
-    // question's own instruction; the line closes and the run goes on
+    // question's own instruction. The line closes and the run goes on
     qry_member_append("panic.txt", (const unsigned char *)"refused", 7ull, QRY_PANIC);
     check_that(qry_member_panicked() != 0ull, "a refusal's panic opens the line");
     KqrIdentity numbered;

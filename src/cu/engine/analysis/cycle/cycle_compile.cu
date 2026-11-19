@@ -5,7 +5,7 @@
 // CYCLE_RECORD_HOST_C=1 builds each lane written as C source (code_generator("c.krs")) with the host's C++ compiler in
 // place of NVRTC: the lane and its resident (program_unit) under a host prelude that reads the CUDA names they use
 // with each host thread a thread block of one thread. The text is compiled to a shared library in the cache folder,
-// cached there by its text, and loaded; its resident, cycle_program, runs the lanes on the host's threads, as many as
+// cached there by its text, and loaded. Its resident, cycle_program, runs the lanes on the host's threads, as many as
 // $CYCLE_HOST_THREADS names, else the host's hardware threads. The run copies the lane's
 // inputs from the device and its records and errors back: the check (CYCLE_RECORD_CHECK=1) checks it against the
 // interpreter as it checks the device's. On Windows the compiler is nvcc handing the source to the host compiler
@@ -245,7 +245,7 @@ static void cycle_host_library_close(void *library)
 
 // The host text of a C lane found in this process, else in the cache folder, else compiled there and cached, then
 // loaded. The cache contains the text beside its library, and a library is used only where the text beside it is this
-// text byte for byte; each is written beside its name and renamed to it, and no reader finds half a file. 0 where
+// text byte for byte. Each is written beside its name and renamed to it, and no reader finds half a file. 0 where
 // there is no cache folder, or the compile or the load failed
 int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const std::string &source,
                             unsigned int places, unsigned long long written, int report)

@@ -205,7 +205,7 @@ static int flatten_header(const char *set, const char *name, unsigned int header
     return ok;
 }
 
-// each sample's orders, its own where the request gives them and the shared ones where it does not; an odd background
+// each sample's orders, its own where the request gives them and the shared ones where it does not. An odd background
 // order errors here, before any sample is read
 static int flatten_orders(const FlattenSetRequest *request, FlattenOrders *orders, EngineError *error)
 {

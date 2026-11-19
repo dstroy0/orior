@@ -123,7 +123,7 @@ int ruleset_text(const RulesetSchema *schema, const std::string &path, std::stri
         {
             text->push_back('\n');
         }
-        // a part's .krs opens with krs 1 as every ruleset does, and the ruleset's own file has given that line; of a
+        // a part's .krs opens with krs 1 as every ruleset does, and the ruleset's own file has given that line. Of a
         // .kdm and a .ksc only the ruleset lines are read
         const size_t opening = read.find('\n');
         const int krs = paths[at].compare(paths[at].size() - 4u, 4u, ".krs") == 0;

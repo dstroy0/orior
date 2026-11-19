@@ -34,7 +34,7 @@ struct TermKeyOrder
 OriorExactInteger term_form_unit(void);
 
 // A form contains exact integers, entry i the numerator of the term at the program's index i, over one positive
-// denominator. An index is a key, a power of e and the terms' powers, numbered as the program first meets it; every
+// denominator. An index is a key, a power of e and the terms' powers, numbered as the program first meets it. Every
 // form in a run shares the numbering. The denominator and the entries share no factor, and the last entry is not 0.
 struct TermForm
 {

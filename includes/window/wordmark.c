@@ -19,7 +19,7 @@
 #define WORDMARK_EM_MAX 88
 #define WORDMARK_EM_SHARE 7
 
-// in ems: the word's character spacing; its line; the gap between the column's rows; the eye's box; TABVLA's height; how
+// in ems: the word's character spacing; its line; the gap between the column's rows; the eye's box; TABVLA's height. How
 // far TABVLA's middle is below the eye's; the column's height, orior, the eye and TABVLA with their gaps
 #define WORDMARK_SPACING (-0.04f)
 #define WORDMARK_WORD_TALL 1.0f
@@ -59,7 +59,7 @@
 #define WORDMARK_REACH 4
 #define WORDMARK_LIP_ALPHA 0x5cu
 
-// wordmark.js: the height a row saves at the tip and the share of a side that runs straight; and in the frame's words,
+// wordmark.js: the height a row saves at the tip and the share of a side that runs straight. And in the frame's words,
 // the share of the flight the funnel forms over and the share past which the name starts up, .8 of that
 #define WORDMARK_TIP_ROW 0.25f
 #define WORDMARK_STRAIGHT 0.35f
@@ -620,7 +620,7 @@ EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
 }
 
 // the name's and TABVLA's pictures made where the frame wants another em, the bold face read for that alone, and their
-// places taken where the frame has moved: nothing is done for a frame like the last: 1, or 0 where they could not be
+// places taken where the frame moved: nothing is done for a frame like the last: 1, or 0 where they could not be
 // made
 static int wordmark_pictures_init(const WordmarkCtx *args)
 {

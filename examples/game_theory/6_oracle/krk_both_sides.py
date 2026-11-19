@@ -23,7 +23,7 @@
 # database of human games. Comparing the predictor against human play would need such a corpus.
 #
 # HOW IT STAYS EXACT AND INTEGER ONLY. Value is win, draw or loss as the integers 2, 1, 0; distance to
-# mate is an integer count of plies; the eight board symmetries fold the position graph to its classes
+# mate is an integer count of plies. The eight board symmetries fold the position graph to its classes
 # without a pawn to break them. No fractions, no math library, no outside library: retrograde over the
 # coalesced graph, and the tournament rules give a draw where neither side can force progress.
 

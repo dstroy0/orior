@@ -11,7 +11,7 @@
 #   Usage:  python examples/proteins/build_protein_view.py 1UBQ
 #           python examples/proteins/build_protein_view.py 1UBQ --out build/1ubq_view.html
 #
-# The engine reads the deposit and walks the rebuild; this writes the numbers into a template as one
+# The engine reads the deposit and walks the rebuild. This writes the numbers into a template as one
 # JSON literal and emits a single self-contained page, the same way the blob viewers do. It uses the
 # engine. It is an example of the pattern and not a standard-library toolkit viewer.
 #
@@ -79,7 +79,7 @@ def kabsch(mobile, target):
 def compressed_rebuild(run):
     """The backbone the walk rebuilds from the magnitude table and the two-degree Ramachandran cell.
 
-    Bond lengths, bond angles and the peptide torsion are retained from the deposit; phi and psi, the two
+    Bond lengths, bond angles and the peptide torsion are retained from the deposit. Phi and psi, the two
     torsions the fold lives in, are quantized to the reference grid. In walk order the dihedral that
     places atom i is psi at i%3==0, omega at i%3==1 and phi at i%3==2. Only the omega positions
     retain their measured direction and every other torsion is told to the walk as a grid cell.

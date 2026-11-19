@@ -147,18 +147,18 @@ const GuiPalette *gui_palette(const GuiPaletteCfg *args);
 // `own` made the palette of `scheme`, with no tokens; and the ink's tint and the editor's ground positioned at the bar's and
 // the editor's opacity
 void gui_palette_own_init(const GuiPaletteCfg *args);
-// the tokens of `own` cleared, for the next language's; and the token `name` added with `color`, a name at max
+// the tokens of `own` cleared, for the next language's. And the token `name` added with `color`, a name at max
 // or longer than a token's name holds left out
 void gui_palette_tokens_clear(const GuiPaletteOwnCfg *args);
 void gui_palette_token_add(const GuiPaletteOwnNameCfg *args);
 void gui_palette_opacity_layout(const GuiPaletteOwnBarPercentCfg *args);
-// the palette's colors by name, its tokens after them: how many; the name of the one `at`, into `size` bytes;
+// the palette's colors by name, its tokens after them: how many. The name of the one `at`, into `size` bytes;
 // its color; and it set in `own`, with what depends on it
 unsigned int gui_palette_color_count(const GuiPaletteLengthCfg *args);
 void gui_palette_color_name(const GuiPaletteAtCfg *args);
 GuiColor gui_palette_color_get(const GuiPaletteAtCfg *args);
 void gui_palette_color_set(const GuiPaletteOwnCfg *args);
-// a color's value in hex, `#rrggbb`, or `#rrggbbaa` where it is not opaque, into `size` bytes; and such a value read,
+// a color's value in hex, `#rrggbb`, or `#rrggbbaa` where it is not opaque, into `size` bytes. And such a value read,
 // with or without its `#`, six digits taking the alpha of `current`: 1, or 0 where it is no color
 void gui_palette_value_text(const GuiPaletteSizeColorCfg *args);
 int gui_palette_value_read(const GuiPaletteTextCfg *args);

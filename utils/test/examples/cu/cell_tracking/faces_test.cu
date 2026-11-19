@@ -4,7 +4,7 @@
 // S9's faces (cell_tracking/src/faces), faces_find_set on synthetic sets written as .points, .drift, .shape and .links,
 // every .faces word checked against a hand's. walk is 4 frames in a 4 x 5 x 6 view. Frame 0 contains a (0, 0, 0) and b
 // (3, 4, 5); frame 1, drifted (1, 1, 1) onto, t (0, 0, 0), p (0, 2, 2), s (1, 1, 1), q (2, 0, 2) and r (2, 2, 0); frame
-// 2, drifted (-1, -1, -1) onto, c (1, 1, 0), w (2, 2, 5), x (2, 3, 4), v (2, 4, 2) and u (3, 2, 2); frame 3, drifted
+// 2, drifted (-1, -1, -1) onto, c (1, 1, 0), w (2, 2, 5), x (2, 3, 4), v (2, 4, 2) and u (3, 2, 2). Frame 3, drifted
 // (0, 0, 1) onto, e (0, 0, 0) and c' (1, 1, 3). a links to t and c to c'; p to u is in the gate and not chosen. So p,
 // q and r start predicted back to -1 on z, y and x and enter, s to 0 on each and does not, and t, predicted back past
 // three low faces, has its link in and is no start; u, v and w start predicted back to the extent on z, y and x and

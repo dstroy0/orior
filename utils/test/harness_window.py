@@ -39,7 +39,7 @@
 
 The window's program is build/cli/<target>/<gui>.exe as ui/cli/build.sh window writes it, gui as bin_names.tsv
 names it. Every start ends the windows
-running from that program first; one window therefore runs at a time, and its process id is retained in build/harness/window.pid
+running from that program first. One window therefore runs at a time, and its process id is retained in build/harness/window.pid
 for the commands that read it back."""
 
 import os
@@ -376,7 +376,7 @@ POINTER_PLACE = os.path.join(ROOT, "build", "harness", "pointer_place.txt")
 
 
 def pointer_place_read():
-    """Where the harness last put the window's own pointer, as x, y; None where it has put it nowhere yet."""
+    """Where the harness last put the window's own pointer, as x, y; None where it put it nowhere yet."""
     try:
         with open(POINTER_PLACE, encoding="utf-8") as kept:
             x, y = kept.read().split()
@@ -572,7 +572,7 @@ def human_click(words, rng):
 
 def cmd_pointer(a):
     """The window's own pointer driven through the interface's pointer command: the window draws the pointer and
-    takes each input as the system's own, the system's cursor left where it is. The words go as they are given; with
+    takes each input as the system's own, the system's cursor left where it is. The words go as they are given. With
     --human a move and a drag go along a person's path and a click holds as a hand does."""
     import random
 
@@ -711,7 +711,7 @@ def cmd_watch(a):
 
 
 def window_of(process_id, title=""):
-    """(id, handle, rect) of the window of a process, the one window.pid names where none is given; the process's
+    """(id, handle, rect) of the window of a process, the one window.pid names where none is given. The process's
     window of that title where a title is given, as Preferences."""
     import harness_win32 as win
 

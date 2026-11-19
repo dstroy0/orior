@@ -31,7 +31,7 @@ MARKED = "ʔʕɬłƛəχ"
 
 # A run of two or more capitals is a gloss label or an acronym in the papers that use this:
 # APPL, INCEPT, 1SG.POSS, D/C, NMLZ. Finding one in a line that should hold a word is how a reader
-# tells that it has lost its place in a block.
+# tells that it lost its place in a block.
 #
 # USE IT INSIDE A READER THAT KNOWS ITS OWN PAPER, NEVER CORPUS WIDE. Some of these
 # orthographies do write a word that way. Nater writes his roots and his

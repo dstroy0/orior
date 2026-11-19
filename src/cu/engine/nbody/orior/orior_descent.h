@@ -69,7 +69,7 @@ extern "C"
                                  *   survivors the last descent left. Each child reads only what its
                                  *   parent left located. Zero, the default, resets the buffer and is what
                                  *   every existing caller gets. The engine does not check the incoming set
-                                 *   is a valid superset; that is the caller's, and a lone survivor is
+                                 *   is a valid superset. That is the caller's, and a lone survivor is
                                  *   verified against the conditions not yet tested before it is found. */
     } OriorSteerDescent;
 
@@ -165,7 +165,7 @@ extern "C"
      *
      * That is the same steering the rest of this file applies, moved from the order to the placement.
      * The spread rule above answers "where, knowing nothing" and this answers "where, given the corpus
-     * and given what the coarms already placed have ruled out".
+     * and given what the coarms already placed ruled out".
      *
      * THIS DESCENT IS GREEDY COVERAGE MAXIMIZATION AND CARRIES ITS GUARANTEE. Each probe rejects a
      * definite set of alignments, and the alignments a probe SET rejects is the union of those sets.

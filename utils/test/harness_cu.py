@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness_unity  # noqa: E402
 
 ROOT = findroot.root()
-# each tree of .cu sources beside the folder its wrappers and suites are in, both from the top of the tree; the first
+# each tree of .cu sources beside the folder its wrappers and suites are in, both from the top of the tree. The first
 # folder holds the CMake lists that build every wrapper and suite
 TREES = (("src/cu", "utils/test/src/cu/unit"), ("includes", "utils/test/includes/unit"))
 SUITES = tuple(suites for _, suites in TREES)
@@ -51,7 +51,7 @@ def sources():
 
 
 def wrapper_text(relative):
-    """The wrapper of the source at `relative`, its `main` renamed where it has one; the include names the source from the top of
+    """The wrapper of the source at `relative`, its `main` renamed where it has one. The include names the source from the top of
     the tree, which every wrapper's build has on its include path."""
     name = os.path.basename(relative)[: -len(".cu")]
     with open(os.path.join(ROOT, relative), encoding="utf-8", errors="replace") as source:

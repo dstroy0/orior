@@ -11,7 +11,7 @@
 # charge, the baryon number and the lepton number of the products equal the parent's. Each of the
 # three is an exact integer, charge and baryon carried in thirds. The check is a sum and an equality,
 # a decay balances or it does not, with no tolerance and no mass. Whether a balanced decay is fast or
-# slow, or happens at all, is dynamics this does not read; conservation is only the gate every decay
+# slow, or happens at all, is dynamics this does not read. Conservation is only the gate every decay
 # has to pass.
 #
 # The fundamental particles' numbers come from the ledger. The antiparticles negate theirs, and the few

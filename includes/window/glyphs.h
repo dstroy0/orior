@@ -52,7 +52,7 @@ typedef struct
     GuiMask mask_bits;
 } GuiCachedGlyph;
 
-// the glyph cells saved at once, a glyph in one color each; past three quarters of them every one is let go and made
+// the glyph cells saved at once, a glyph in one color each. Past three quarters of them every one is let go and made
 // again as it is asked for
 #define GUI_CELL_CACHE_ENTRIES 4096u
 
@@ -97,7 +97,7 @@ typedef struct
 } GuiAsciiTable;
 
 // The faces as the caller's system holds them: face `face`'s file measured, 1 with its bytes into `size`, or 0 where
-// the system has no such face; and that file's `size` bytes read whole into `at`, 1 or 0
+// the system has no such face. And that file's `size` bytes read whole into `at`, 1 or 0
 typedef struct
 {
     int (*size)(unsigned int face, unsigned long long *size);
@@ -130,7 +130,7 @@ typedef struct
 } GuiGlyphs;
 
 // the faces read through `faces`, the code face first: 1, or 0 with why given, the code face being the one the
-// window cannot do without; and every cell of theirs given back
+// window cannot do without. And every cell of theirs given back
 int gui_glyphs_init(const GuiGlyphsCfg *args);
 void gui_glyphs_free(const GuiGlyphsCfg *args);
 // the face `face` is drawn with: itself where it was read, the interface face in place of its bold where that was

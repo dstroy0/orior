@@ -89,7 +89,7 @@ static const GuiPointerSprite s_sprites[GUI_POINTER_SHAPES] = {
     POINTER_COMPASS(8u),
 };
 
-// The glass, in pixels at the scale of 100: the rim's width; the glint's place inside the edge and its half width; the
+// The glass, in pixels at the scale of 100: the rim's width; the glint's place inside the edge and its half width. The
 // shadow's offset down and right, its softness, and the share of the rim's color the body takes
 #define POINTER_RIM 1.4
 #define POINTER_GLINT_AT 0.7

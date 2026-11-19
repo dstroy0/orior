@@ -237,7 +237,7 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
         mmgr_line_decimal(&results->line, near_corners[at], 1u);
         mmgr_line_put(&results->line, (at + 1u < near_corners.size()) ? ", " : "\n");
     }
-    // pi is irrational. No corner and no zero L can occur on the real walk; what these two checks measure is that
+    // pi is irrational. No corner and no zero L can occur on the real walk. What these two checks measure is that
     // the integer turn's carries decide every floor (uncertain is 0). The walk read is the real one
     sim_check(results, (corners == 0ull) && (uncertain == 0ull),
               "no wall hit on the walk is a corner, and every floor on it is the real floor: one wall always wins");

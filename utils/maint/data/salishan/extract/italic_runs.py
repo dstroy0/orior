@@ -50,7 +50,7 @@ def italic_runs(stem, first=1, last=None):
                     raised.add(index)
                 at += len(mapping.get(symbol, symbol))
         # The stream breaks the line either side of a raised character, set on a baseline of its own,
-        # k̓ ʷ zús; the page sets it inside its word. The break after it is for the word space as
+        # k̓ ʷ zús. The page sets it inside its word. The break after it is for the word space as
         # well, n̓á:n̓atxʷ ʔác̓x̌-n-əm, and is retained where the next glyph is more than 0.8 em past
         # the character the raised one sits on: 10.3 points at a word space in van Eijk, 6.1 at max inside
         # a word.

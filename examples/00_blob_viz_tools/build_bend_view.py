@@ -528,7 +528,7 @@ def measure(samples, top, draws, word=None, chain=None):
 
     `chain` is None for random blocks, or a dict holding the two header sets from `chain_halves` as
     "first" and "second", each already cut to `samples` headers, and the two seeds that pick which
-    nonce bit each header has flipped as "seeds". The halves share no header. The cross seed and
+    nonce bit each header flipped as "seeds". The halves share no header. The cross seed and
     repeat curves compare two independent sets of real blocks the way they compare two seeds.
     """
     directions = build_sha_sphere_view.place("spiral")
@@ -595,7 +595,7 @@ def entry_round(rows):
     Rounds before the flipped word enters are not measurements. Every bit reads exactly -0.5, the
     fields of those rounds are identical, and the angle between identical fields is zero, which the
     carry would count as a perfect match. For word 3 that reported the shape "carrying through round
-    2" and set the break before the word had entered at all.
+    2" and set the break before the word entered at all.
     """
     for index, row in enumerate(rows):
         if any(value != -0.5 for value in row):

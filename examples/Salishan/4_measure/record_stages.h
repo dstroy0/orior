@@ -557,7 +557,7 @@ static std::string stage_displayed(const std::string &text, size_t width, int pa
     return displayed;
 }
 
-// how many bits of a 32-bit word are set, by the halving sums of adjacent fields; where `masked`, the word is
+// how many bits of a 32-bit word are set, by the halving sums of adjacent fields. Where `masked`, the word is
 // ANDed with a second 32-bit field first
 static void stage_count_program(int masked, StageProgram *program)
 {

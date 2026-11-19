@@ -94,7 +94,7 @@
 # again on the whole lattice four times finer.
 #
 # Positive control: the device's Z at two points of the first cell against the house's main sum and remainder,
-# exact_zeta_riemann_siegel's rs_cut_at; by Euler-Maclaurin, against its em_at, and at cell `last` against
+# exact_zeta_riemann_siegel's rs_cut_at. By Euler-Maclaurin, against its em_at, and at cell `last` against
 # Riemann-Siegel's Z within the two bounds.
 
 import array

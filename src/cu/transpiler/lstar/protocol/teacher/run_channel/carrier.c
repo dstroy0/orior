@@ -136,7 +136,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     if (!qry_member_blob(answers_name, &bytes, &size, &sequence) || (sequence < after) || (size == 0ull))
     {
         // a question the carrier ended the round before, after a launch that faulted the part or hung: carried by no
-        // one, stored nowhere, and put again once the conference has ruled
+        // one, stored nowhere, and put again once the conference ruled
         question->outcome = RUN_NO_CHANNEL;
         VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
         mmgr_line_put(&refused, "the carrier wrote no answer: it ended the round before it");

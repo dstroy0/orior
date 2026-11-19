@@ -79,7 +79,7 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
 // the funnels. A funnel's mouth is a run of two equal bits or more on rings 1 to PLANE_FUNNEL_MOUTH_LAST; each bar
 // below it is the widest run of the same bit among the cells whose parent lies under the bar above, and the funnel ends
 // on the ring where no such cell contains the bit. Its depth is how many bars it has below the mouth, the dense rings,
-// two bits or more to a pixel, included; three bars w0, w1, w2, each in turns, fit one ratio as w1^2 comes near w0 w2.
+// two bits or more to a pixel, included. Three bars w0, w1, w2, each in turns, fit one ratio as w1^2 comes near w0 w2.
 #define PLANE_FUNNEL_MOUTH_LAST 8u
 
 #define PLANE_FUNNEL_FRESH_MAX 16u

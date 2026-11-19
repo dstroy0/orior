@@ -205,7 +205,7 @@ def harmonics_upto(dims, top):
     Packing was being counted by dropping points and looking, and in nineteen dimensions the number
     to be counted is larger than any pool that can be dropped. Counting it instead of measuring it
     removes the pool from the question. Arbitrary precision is not the thing that helps here, since
-    nothing was being rounded; what helps is that the quantity was always an integer with a formula.
+    nothing was being rounded. What helps is that the quantity was always an integer with a formula.
     """
     return comb(top + dims - 1, dims - 1) + comb(top + dims - 2, dims - 1)
 

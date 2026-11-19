@@ -30,7 +30,7 @@ void PairWork::chose(const char *name, const std::string &link) const
     chosen(names, 1u, link);
 }
 
-// The conference a refused put calls, convened on the pair's thread once the teacher has called it (overseer.h). The
+// The conference a refused put calls, convened on the pair's thread once the teacher called it (overseer.h). The
 // learner passes its statement: what it put, the carrier, what the stand-in does and the stand-in as written. The
 // coherence sets hand what the pair was being queried as: the sets the bridge reads it into and what its texts show
 // of it. The counterexample passes the first case apart the pair contains, this run's or the bridge's. The ruling is
@@ -198,7 +198,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     }
     // The scheduler: the record's gray entries are the queue. A pair closed on the record's path, whose reads are as
     // they were, is settled: its verdict is the record's, and it is put no more, since a put runs again only where what
-    // it reads has changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
+    // it reads changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
     // the gray pairs alone
     std::map<std::string, KqrPath> recorded_paths;
     static KqrPath s_recorded;

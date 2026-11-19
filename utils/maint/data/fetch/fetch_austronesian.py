@@ -12,7 +12,7 @@
 # by geography instead of by history.
 #
 # It is Austronesian, spoken in Madagascar, and its nearest relatives are in Borneo across the Indian
-# Ocean. Everything it has borrowed from since is African and French. So descent points one way, several
+# Ocean. Everything it borrowed from since is African and French. So descent points one way, several
 # thousand kilometers east, and contact points the other, at the coast it sits off. Nothing about the two
 # is confounded here in the way that everything in Europe is confounded.
 #

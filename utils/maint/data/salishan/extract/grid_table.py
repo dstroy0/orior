@@ -6,7 +6,7 @@ The heads are the words of the line opening on the first head. Below it, the pri
 the bottom baseline, or to the first line wider than the table where none is given. Lines located
 within CLUSTER points of each other are one visual line: a superscript hyphen and the word it
 belongs to, or a label set lower than its cells. A visual line with a word left of the first head
-opens a row; one without joins the row above as a second line of its cells. Each word goes under
+opens a row. One without joins the row above as a second line of its cells. Each word goes under
 the head whose middle is nearest. rows() gives (label, [cell text for each head]).
 """
 import sys

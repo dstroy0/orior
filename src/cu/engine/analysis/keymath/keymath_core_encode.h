@@ -142,7 +142,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         {
             // both operands lie in the signed range of one bit over the wider, and so does any bitwise result there,
             // down to -2^wider, whose magnitude takes that bit. An and with a register never negative lies between 0
-            // and that register, and the xor of two never negative lies below 2^wider; neither takes the extra bit.
+            // and that register, and the xor of two never negative lies below 2^wider. Neither takes the extra bit.
             const unsigned int left_bits = terms[doing->left].bits;
             const unsigned int right_bits = terms[doing->right].bits;
             const unsigned int wider = (left_bits > right_bits) ? left_bits : right_bits;
@@ -192,7 +192,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         }
         else if (doing->operation == ENGINE_RECORD_LANE)
         {
-            // the lane's number is known only at the sweep, and its register represents any lane a sweep can count; it
+            // the lane's number is known only at the sweep, and its register represents any lane a sweep can count. It
             // reads nothing, and the step's left and right name nothing
             term->bits = ENGINE_RECORD_LANE_BITS;
             term->left = 0u;
@@ -205,7 +205,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         const int wrap_passes = (doing->operation == ENGINE_RECORD_WRAP) && (terms[doing->left].bits < doing->right);
         // the register's form: a sum or difference adds its operands', a product by a constant scales the other's, a
         // constant is its value, and a wrap that passes its register through preserves that register's form. The form's
-        // bound narrows the width the operation's own rule gave where it is tighter; where a form would outgrow its
+        // bound narrows the width the operation's own rule gave where it is tighter. Where a form would outgrow its
         // words, or for any other register, the register is an atom. A form found no room for leaves the arena full
         KeymathCoreAffine *const form = &encoding->forms[step];
         KeymathCoreArena *const arena = &encoding->arena;

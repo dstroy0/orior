@@ -34,7 +34,7 @@ A directory with no membership rule collects whatever nobody had a better place 
 
 **`tree/`.** `write_survey.py` reads every script for the files it opens and reports where each one lands. The list of what this tree writes is checked instead of remembered.
 
-**`claims/`.** `claim_check.py` reads the numbers a reader meets first, in `README.md`, every page under `docs/` and the abstract of each research paper, and asks the theory whether it still holds each one or has taken it back. A claim the theory took back ends the run with 1, and `.githooks/pre-commit` runs it whenever one of those pages or the theory is in the index. `claims_read.tsv` holds what a person has read and found sound, one row each, and a row stops matching once the answer changes.
+**`claims/`.** `claim_check.py` reads the numbers a reader meets first, in `README.md`, every page under `docs/` and the abstract of each research paper, and asks the theory whether it still holds each one or has taken it back. A claim the theory took back ends the run with 1, and `.githooks/pre-commit` runs it whenever one of those pages or the theory is in the index. `claims_read.tsv` holds what a person read and found sound, one row each, and a row stops matching once the answer changes.
 
 ## Paths are walked to, never counted
 
@@ -46,6 +46,6 @@ while (ROOT != os.path.dirname(ROOT)) and not os.path.isdir(os.path.join(ROOT, "
     ROOT = os.path.dirname(ROOT)
 ```
 
-Thirty nine scripts counted parent directories instead, and counting fixes a script's distance from the root. Sorting `utils/maint/` into these categories moved every one of them and would have broken all thirty nine at once. `docs_check` had the same defect twice over: it counted its own depth, and it listed prose roots that had moved, which made it read 188 files instead of 317 and still exit 0. A root that no longer exists now raises instead of reading as zero findings.
+Thirty nine scripts counted parent directories instead, and counting fixes a script's distance from the root. Sorting `utils/maint/` into these categories moved every one of them and would have broken all thirty nine at once. `docs_check` had the same defect twice over: it counted its own depth, and it listed prose roots that moved, which made it read 188 files instead of 317 and still exit 0. A root that no longer exists now raises instead of reading as zero findings.
 
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

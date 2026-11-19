@@ -9,7 +9,7 @@
 #   Usage:  python examples/game_theory/4_measure/grundy_period.py [largest move] [max moves]
 #
 # This exists to close a hole the workbook names in its own words. Every reach claim in this work is
-# empirical, quantified over a set nobody has enumerated, and the workbook states that getting from
+# empirical, quantified over a set nobody enumerated, and the workbook states that getting from
 # a list of instances to a statement about a domain takes a controlled series inside that domain
 # with an outside answer attached, which it then says is years of work because obtaining the rows
 # costs money and a database.

@@ -32,14 +32,14 @@
 #                     conditional on BSD, and that is the floor, stated and not crossed.
 #   the group law     C_n(Q) is a finitely generated abelian group under the chord-tangent law, which is
 #                     exact rational arithmetic. A rational point whose coordinates are not integers is
-#                     not torsion, by Nagell-Lutz; it then has infinite order, C_n(Q) is infinite, and n
+#                     not torsion, by Nagell-Lutz. It then has infinite order, C_n(Q) is infinite, and n
 #                     is congruent, and this direction needs no BSD. For n = 5 the point (-4, 6) is
 #                     integral and on the curve, and its double is not integral, which proves it has
 #                     infinite order and certifies n = 5 unconditionally.
 #
 # Positive control: Fermat's n = 1 recovered as not congruent by the exact count, and the point (-4, 6)
 # verified on C_5 with the triangle (3/2, 20/3, 41/6) an exact area-5 right triangle. Two routes: n = 5
-# certified congruent both by the infinite-order point and by the Tunnell equality; and each theta count
+# certified congruent both by the infinite-order point and by the Tunnell equality. And each theta count
 # taken twice over two different bounding boxes, agreeing. Drawn null: n = 1 and n = 3, where the count
 # is unequal and the criterion correctly errors congruence, and a torsion point (on y^2 = x^3 + 1) that
 # is integral and of finite order, the contrast to the infinite-order witness. Floor: the converse of
@@ -52,7 +52,7 @@
 # on the chord-tangent construction of Diophantus and Fermat. Nagell and Lutz gave the integrality of
 # torsion. Tunnell's criterion is J. Tunnell, "A classical Diophantine problem and modular forms of
 # weight 3/2", Invent. Math. 72 (1983). The statement and its sets are Wiles's Clay description, read in
-# full. Cited from that document and from memory of the literature; this file verifies only the exact
+# full. Cited from that document and from memory of the literature. This file verifies only the exact
 # integer and rational quantities and rests on no unread result. It adds no new mathematics.
 
 import io

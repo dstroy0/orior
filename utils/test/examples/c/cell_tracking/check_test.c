@@ -20,7 +20,7 @@
 //
 // The .divide cases (src/divide/divide.h) add fork, 2 frames in second's view: P (0) and Q (5), then R (5), S (0) and
 // T (3); P links to S and Q to R, and T starts. As worked, chain's .divide has A divide, taking D, which started, and
-// second's has P divide, taking R from Q, which ends; fork has no .divide. Each .divide's head carries the CRC-64 of
+// second's has P divide, taking R from Q, which ends. Fork has no .divide. Each .divide's head carries the CRC-64 of
 // the .links beside it, taken here a bit at a time, apart from output_check's table.
 //
 // The .faces cases (src/faces/faces.h) give chain and second a .drift, a .shape and a .faces, worked by hand. chain's
@@ -1098,7 +1098,7 @@ static int check_test_divide_case(const char *root, DivideCase which)
         ok = ok && check_test_divide(set, "fork", pair_view, 0ull, (which == DIVIDE_CASE_NONE) ? none : fork_counts,
                                      fork_divisions, 0u, 6u, 0u);
     }
-    // the files: the divided rows, but the sort's with no divisions and in the case whose files are the sort's; fork's
+    // the files: the divided rows, but the sort's with no divisions and in the case whose files are the sort's. Fork's
     // rows after, its ids counting on from the others'
     const int divided = (which != DIVIDE_CASE_NONE) && (which != DIVIDE_CASE_ROWS);
     const unsigned int first = divided ? 15u : 14u;

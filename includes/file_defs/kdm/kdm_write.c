@@ -108,7 +108,7 @@ static void kdm_costs_read(const char *path)
     }
 }
 
-// the row `text` was in the last time, or NULL where nothing has timed it
+// the row `text` was in the last time, or NULL where nothing timed it
 static const KdmCostRow *kdm_cost(const char *text)
 {
     for (unsigned int at = 0u; at < s_cost_row_count; at += 1u)

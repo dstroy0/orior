@@ -168,7 +168,7 @@ static void cubin_run_faulted_stored(unsigned long long low, unsigned long long 
 }
 
 // The account `call` contains written in the answer `answers` too, and passed as a panic of the call where `panicked`
-// and the run's writer runs; let go either way
+// and the run's writer runs. Let go either way
 static void cubin_run_account_given(VerbaLinea *answers, VerbaLinea *call, int panicked)
 {
     // an account is a line, far below what an int counts

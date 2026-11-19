@@ -6,7 +6,7 @@
 // the positions of one plane word whose value lies in [low, high], from the top bit down by ands and ors alone: a
 // value stays equal to a bound while its bits agree, and leaves above the low bound or below the high one at the
 // first bit where it differs the right way. Only the wanted positions are read for: the word stops once every one
-// of them has left the range or left both bounds, and the others' bits are left for the caller's mask to clear.
+// of them left the range or left both bounds, and the others' bits are left for the caller's mask to clear.
 static __device__ unsigned int track_range(const unsigned int *planes, unsigned long long word, unsigned int low,
                                            unsigned int high, unsigned int wanted, unsigned int *taken)
 {

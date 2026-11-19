@@ -84,7 +84,7 @@ extern "C"
     int kqr_find(const KqrRecord *record, const KqrIdentity *identity, KqrQuery *out);
 
     // `query` stored by `who` after every record before the pairs, where the record contains no query of its identity,
-    // the marks pending written before it; and in place of the one it contains where that one timed out or was
+    // the marks pending written before it. And in place of the one it contains where that one timed out or was
     // censored, the part never having seen it
     void kqr_store_by(KqrRecord *record, const KqrQuery *query, Who who);
 

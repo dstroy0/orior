@@ -8,7 +8,7 @@
 #
 # Nine papers have a reader written against their layout, and what those readers produce is named
 # for the speaker, the language and the year, because the paper states all three. The other 143
-# state those things too, in prose nobody has read.
+# state those things too, in prose nobody read.
 #
 # So what comes out of here is a different type of thing and is retained apart from the nine. It goes
 # to build/corpora/sifted/, one file per paper, and it carries no speaker and no language name.

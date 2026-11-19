@@ -130,7 +130,7 @@ struct Ruleset
 // in the ruleset's own line for the form. A line naming a form or parameter the ruleset does not give is passed over
 void ruleset_folds_read(Ruleset *rules);
 
-// the names of form `form`'s parameters in the order the ruleset's own line for it gives them; none where it gives no
+// the names of form `form`'s parameters in the order the ruleset's own line for it gives them. None where it gives no
 // line for the form
 std::vector<std::string> ruleset_parameters(const Ruleset *rules, const std::string &form);
 

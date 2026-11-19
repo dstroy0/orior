@@ -175,7 +175,7 @@ static long long classify_noise(unsigned long long key, unsigned long long at, u
     return (long long)sim_binomial_half(key, at, 4ull * variance) - (2ll * (long long)variance);
 }
 
-// present where the live reading clears the top of 8 shuffles' band; each case is one keyed draw, and a null reading
+// present where the live reading clears the top of 8 shuffles' band. Each case is one keyed draw, and a null reading
 // clears the top of 8 with chance 1/9 at max
 static void classify_detect(SimResults *results, ClassifyWork *work, const char *name, int *present, int *ok)
 {

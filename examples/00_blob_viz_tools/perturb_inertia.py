@@ -26,7 +26,7 @@ moved. Treating that response as a mass at that qubit's position gives the ordin
     I = sum_i r_i ( |p_i|^2 delta - p_i p_i^T )
 
 whose eigenvalues are the principal moments and whose eigenvectors are the principal axes. A qubit
-far from an axis and easy to disturb contributes heavily to the moment about that axis; one sitting
+far from an axis and easy to disturb contributes heavily to the moment about that axis. One sitting
 on the axis contributes nothing to it however easy it is to disturb. The word rotational means that
 and only that here, and it is the standard definition and not an analogy.
 

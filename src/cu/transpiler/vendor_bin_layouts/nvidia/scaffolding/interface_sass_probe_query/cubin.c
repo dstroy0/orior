@@ -185,7 +185,7 @@ static double sass_prefer_time(SassProbe *probe, const SassMachine *machine, con
 }
 
 // Which of two codings of one thing the part prefers, queried of the part in its own clock. Both are
-// run and both must answer what the question specifies, or they are not two codings of one thing; then both are timed,
+// run and both must answer what the question specifies, or they are not two codings of one thing. Then both are timed,
 // and the part's preference is the difference. How many were queried, and how many gave a reading
 unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, unsigned int *queried)
 {
@@ -194,7 +194,7 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
         // integer pipe carries more (sass.ksc's pipe lines); neither is free. R0 contains the case's first word
         {"a move", "MOV R7, R0", "IMAD.MOV.U32 R7, RZ, RZ, R0", 0x0000000bu},
         // A long operation, which is where this is going: the high word of a 64-bit add. sass.krs writes
-        // wide_add as IADD3 then IADD3.X; the other coding takes the carry with IMAD.X and adds the high word after,
+        // wide_add as IADD3 then IADD3.X. The other coding takes the carry with IMAD.X and adds the high word after,
         // three
         // instructions against two. Both read R0, which the loop never writes. A turn leaves the next one what
         // it found: a body that carries its own answer forward measures a chain 400000 long and not the coding

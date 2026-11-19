@@ -109,7 +109,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, descriptor);
             sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, (parts.operand[place][0] == 'd') ? 1ull : 0ull);
         }
-        // a constant's bank must be the one the form carries, since the bank's own bits were not found by probing; and
+        // a constant's bank must be the one the form carries, since the bank's own bits were not found by probing. And
         // its offset a whole word the field holds, refused and not cut where it is part of a word or past the bank
         if (parts.type[place] == SASS_OPERAND_CONSTANT)
         {

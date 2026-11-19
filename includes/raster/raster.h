@@ -174,7 +174,7 @@ unsigned int gui_raster_arc_cover(const GuiRasterReachCfg *args);
 // the raster made `mask`'s picture in `color`: each pixel the color with the mask's cover as its alpha, straight
 // over nothing, the raster's size the mask's, for an icon the system takes with its own alpha
 void gui_raster_stencil(const GuiRasterXYColorCfg *args);
-// `mask` in `color` positioned at x, y over a picture that saves its own alpha, straight, no further than the picture; and
+// `mask` in `color` positioned at x, y over a picture that saves its own alpha, straight, no further than the picture. And
 // such a picture positioned on `raster` at x, y, no further than the raster, each pixel blended by its alpha and `opacity`
 // of 255
 void gui_raster_stenciled_over(const GuiRasterXYCfg *args);

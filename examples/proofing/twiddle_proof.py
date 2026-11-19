@@ -2,7 +2,7 @@
 
     python examples/proofing/twiddle_proof.py --check          grade against known answers
     python examples/proofing/twiddle_proof.py --show 2113929217   prove one modulus and its root
-    python examples/proofing/twiddle_proof.py --find 62 --order 32   find moduli nobody has tabled
+    python examples/proofing/twiddle_proof.py --find 62 --order 32   find moduli nobody tabled
 
 WHAT WAS MISSING
 

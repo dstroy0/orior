@@ -21,7 +21,7 @@
 # anything, and printing the shuffle beside the live number makes it readable.
 #
 # The background is solved for, never searched for, and the null is drawn, never derived. reference
-# builds the background and reference.shuffles draws the null; the same one null the whole tree uses.
+# builds the background and reference.shuffles draws the null. The same one null the whole tree uses.
 
 import io
 import os

@@ -21,7 +21,7 @@
 # That is the negative result the rest of the pipeline exists for. Arrangement tells a
 # molecule from a random packing of its atoms, and the sift stage reads arrangement through the octet.
 # Telling one isomer from another is a finer reading still, and no histogram and no octet reaches it,
-# because both isomers close every atom; it is a geometry question, answered by the bond lengths that
+# because both isomers close every atom. It is a geometry question, answered by the bond lengths that
 # are an oracle. So this stage is the measure that a molecule's composition is not its structure, run
 # on the engine's own collision entropy and reported as a departure of exactly zero.
 

@@ -104,7 +104,7 @@ std::string case_text(unsigned int at);
 thread_local unsigned int s_apart_at = 0xffffffffu;
 
 // The round: each pair put in a thread of its own runs while it is its turn, one at a time in the order of the bridge,
-// until it queries or is put. Every query a pair passes over waits for the round, and once every pair left has queried,
+// until it queries or is put. Every query a pair passes over waits for the round, and once every pair left queried,
 // the round's queries are carried together: the mundane in one process, each dangerous one in a process of its own. No
 // query waits on another query of the same round, since a pair queries its next only once its last is answered.
 // `s_turn` is the pair that runs, and -1 the thread that carries the queries

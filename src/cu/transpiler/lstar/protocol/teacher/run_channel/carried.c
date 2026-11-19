@@ -264,7 +264,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             }
             airlocked = 1;
         }
-        // a dry channel: the round has passed the airlock as a live round does, and nothing carries it
+        // a dry channel: the round passed the airlock as a live round does, and nothing carries it
         if (s_channel.dry)
         {
             for (unsigned int at = first; at < count; at += 1u)

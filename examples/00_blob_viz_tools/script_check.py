@@ -9,7 +9,7 @@ A builder checks one thing about the script: that the template did not leave a s
 page whose tags balance and whose JavaScript does not parse builds without complaint, writes its
 file, prints its summary and reports its digest, and then renders a blank canvas, because the whole
 script dies on the first token that does not fit. Without this check the only reader who catches
-that is a person opening the page, and nobody looks once the builder has said it succeeded.
+that is a person opening the page, and nobody looks once the builder said it succeeded.
 
 WHAT IT DOES
 
@@ -316,7 +316,7 @@ def check(path):
 
 
 # The faults this tool exists for, written out. The tool is asked to find each before it is trusted
-# on anything else. A checker that has never caught its own defect is a checker nobody has tested.
+# on anything else. A checker that has never caught its own defect is a checker nobody tested.
 KNOWN_CLASH = "\n".join((
     "var side = 1;",
     "function elsewhere() { return 2; }",

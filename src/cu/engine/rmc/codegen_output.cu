@@ -85,7 +85,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
         return 0;
     }
     // the assembly printer arranged by the device and checked against the host's word for word, then run by the record
-    // machine, a lane a byte; its output's offset read before the layout, which the record stores its own of, is given
+    // machine, a lane a byte. Its output's offset read before the layout, which the record stores its own of, is given
     // back
     EngineRecordLayout text_layout{};
     if (asm_printer_program_placed(text_rules, &text_layout, error_message) == 0)
@@ -236,7 +236,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         (request->tables != NULL) ? codegen_device_copy(memory, tables.data(), request->table_count) : NULL;
     LayoutEnd *const device_ended = codegen_device_take<LayoutEnd>(memory, 1ull);
     LayoutEnd ended{};
-    // keymath's encoding: each step's term, never-negative mark and form; an arena that filled stays taken until the
+    // keymath's encoding: each step's term, never-negative mark and form. An arena that filled stays taken until the
     // memory is freed, and the arenas taken are under twice the last
     EngineRecordTerm *const terms = codegen_device_take<EngineRecordTerm>(memory, count);
     unsigned char *const never_negative = codegen_device_take<unsigned char>(memory, count);

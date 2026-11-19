@@ -8,7 +8,7 @@
 #
 #   Usage:  python examples/language/4_measure/onomatopoeia_overlap.py
 #
-# Hungarian is Uralic and Polish is Slavic and they are not related. They have shared the Carpathian basin
+# Hungarian is Uralic and Polish is Slavic and they are not related. They shared the Carpathian basin
 # since the Magyars arrived into Slavic speaking country around 895, and Hungarian took several hundred
 # Slavic loanwords, concentrated in farming, livestock, tools and religion. Words for sounds sit outside
 # the core vocabulary that resists borrowing and attach to exactly that shared work. They are where

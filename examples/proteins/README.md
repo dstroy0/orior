@@ -60,7 +60,7 @@ favored and allowed cutoffs are MolProbity's own numbers, named in `ramachandran
 and printed by every stage that applies them.
 
 The sign of the torsion is fixed by measurement instead of assertion. With the IUPAC sign the corpus
-reproduces each deposit's published outlier rate; with it negated every structure reads as its own
+reproduces each deposit's published outlier rate. With it negated every structure reads as its own
 mirror image and almost nothing agrees. Stage six is what settled it.
 
 ## What the stages found
@@ -108,7 +108,7 @@ direction:
 At the resolution where the backbone is placed to a fraction of an angstrom, the reading reproduces
 the published rate almost every time. Where the coordinates are uncertain, the two counts diverge.
 And the divergence has a direction: of the 316 misses, 299 count more outliers than wwPDB and
-not fewer. The reading is not finding structure that is absent; it is scoring residues the pipeline's
+not fewer. The reading is not finding structure that is absent. It is scoring residues the pipeline's
 own count leaves out, and it does so more often exactly where the model is least certain. Nothing
 was tuned to reach this: the contours and cutoffs are MolProbity's, the corpus is a seeded random
 draw from every X-ray protein entry, and the sweep ran once through.

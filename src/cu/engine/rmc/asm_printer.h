@@ -5,7 +5,7 @@
 
 // The code generator's text as a record program, the code generator's work where the programs run (engine_table.md item
 // 11(a), the code generator on the device). The core decides the forms of the language's ruleset a lane is written
-// in (codegen_core.h, MachineInstr); the assembly printer writes their text from the ruleset's own written forms positioned
+// in (codegen_core.h, MachineInstr). The assembly printer writes their text from the ruleset's own written forms positioned
 // out as tables, a lane a byte. Each lane reads one form, by the index, finds which of the form's pieces contains its
 // byte, and writes that byte: a character of a piece of the form's text, of a bank's written form around a register's
 // number, of a word the ruleset contains whole, or a decimal digit of a number. A lane past its form's end writes 0,

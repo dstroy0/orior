@@ -139,7 +139,7 @@ static unsigned int scaled_constant(ScaledProgram *program, unsigned long long v
                        (unsigned int)(value >> 32u), 0u);
 }
 
-// a field of the shared record, `bits` wide and signed, positioned at the record's next bit; the step that reads it is
+// a field of the shared record, `bits` wide and signed, positioned at the record's next bit. The step that reads it is
 // written where it is read, and the register is live only from there to its reader
 static unsigned int scaled_field(ScaledProgram *program, unsigned int bits)
 {
@@ -2871,7 +2871,7 @@ static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned in
 
 // THE RANGE
 //
-// Every stage of a cell, from the inputs the constants' programs give, then Turing's count; and over a range of cells,
+// Every stage of a cell, from the inputs the constants' programs give, then Turing's count. And over a range of cells,
 // each at the lattice its rate requires, the seams.
 
 // the job's declaration: the device stores one stage's records and members at a time

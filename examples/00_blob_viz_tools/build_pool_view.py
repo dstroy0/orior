@@ -174,7 +174,7 @@ def read_pool():
     disagree by a factor of eleven when the historical shares were won under an easier target. A
     page that shows only the inferred figure quietly reports a share rate that is no longer current.
 
-    Both are retained. The stated one is the target mined against now; the inferred one is what was
+    Both are retained. The stated one is the target mined against now. The inferred one is what was
     actually achieved, and their disagreement is the finding and not an error to hide.
     """
     out = {"difficulty": None, "workers": None, "worker": None}
@@ -329,7 +329,7 @@ def render(telemetry, totals, rates, chain, pool=None, liveness=None):
             cell("leading zero bits", "%d" % chain["zeros"], "required by the target"),
             cell("nonces per block", "%.3e" % chain["expected"]),
         ]
-        # The wait for a block belongs in the Win rate section below and is not repeated here; the
+        # The wait for a block belongs in the Win rate section below and is not repeated here. The
         # bits route to it is checked against the difficulty route in --check.
     else:
         chain_cells = [absent("chain context", "the block corpus was not found")]

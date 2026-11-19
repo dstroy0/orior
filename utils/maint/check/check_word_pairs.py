@@ -66,7 +66,7 @@ def main():
         print()
 
     # The two chains, compared at the same delay. a and e are both new every round; b and f are
-    # both one behind; and so on. A difference between the pair at equal delay is the asymmetry
+    # both one behind. And so on. A difference between the pair at equal delay is the asymmetry
     # of the two halves and nothing to do with the cone.
     print("\nThe two chains at equal delay, offset +1:\n")
     print("  %10s %14s %14s %10s" % ("delay", "a-chain", "e-chain", "ratio"))

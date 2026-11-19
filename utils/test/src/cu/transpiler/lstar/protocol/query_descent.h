@@ -10,7 +10,7 @@
 // read on its whole record at every pass and is never closed early: the reads carry noise, and a count that leans at a
 // few passes can stop leaning at more. The run size is the candidate the descent is steered over. Every size is read,
 // and the one that leaves the fewest pairs located, then spends the fewest puts, is chosen, a tie going to the
-// shorter. A size stops once it has spent the puts the best so far needed with a pair still located, since past that
+// shorter. A size stops once it spent the puts the best so far needed with a pair still located, since past that
 // it cannot do better.
 #ifndef QUERY_DESCENT_H
 #define QUERY_DESCENT_H

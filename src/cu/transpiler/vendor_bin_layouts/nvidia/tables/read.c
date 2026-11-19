@@ -447,7 +447,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         }
         if (part == CONDITIONS)
         {
-            // a condition is a line ending in a colon, under a type on the registers; the line after it, in quotes, is
+            // a condition is a line ending in a colon, under a type on the registers. The line after it, in quotes, is
             // its message, and a condition longer than its room is not stored
             const char *const text_at = tables_past_spaces(line);
             size_t copied = strlen(text_at);

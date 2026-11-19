@@ -142,7 +142,7 @@ LAYER = {
     "gloss": DERIVED,
     "orthography chart": DERIVED,
     "glossing term": DERIVED,
-    # Retained and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone classified it.
     UNCLASSIFIED: DERIVED,
 }
 

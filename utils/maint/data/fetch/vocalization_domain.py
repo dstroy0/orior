@@ -9,7 +9,7 @@
 #
 # The null permutation separates every human corpus measured here from every memoryless one, and a
 # structured domain under no selection, the gaps between primes, departs from it by 0.07 where human text
-# departs by 0.22 to 0.68. That leaves a gap in the middle that nothing has occupied.
+# departs by 0.22 to 0.68. That leaves a gap in the middle that nothing occupied.
 #
 # A vocalization sits in it. Bird song and whale song are produced under selection, carry structure, and
 # were not made by a person. If the measure is reading communication under selection they should fall

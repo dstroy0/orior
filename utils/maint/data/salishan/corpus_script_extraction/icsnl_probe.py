@@ -9,7 +9,7 @@
 #
 # Every measurement here so far needed a corpus with the grammar of each word written beside it, and no
 # such thing exists for any Salishan language. What does exist is description. The International
-# Conference on Salish and Neighboring Languages has met since 1966 and its papers are posted openly by
+# Conference on Salish and Neighboring Languages met since 1966 and its papers are posted openly by
 # the University of British Columbia, and those papers carry affix inventories, ordering templates and
 # glossed examples written down by people who did the field work.
 #

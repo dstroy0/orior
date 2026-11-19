@@ -36,11 +36,11 @@
 #define RUN_RUNNING_MICROSECONDS 2000000ull
 #define RUN_SWEEP_MICROSECONDS 1000000ull
 #define RUN_IDLE_MICROSECONDS 30000000ull
-// until a parent and its child have greeted each other, each reads the other's record this often
+// until a parent and its child greeted each other, each reads the other's record this often
 #define RUN_GREETING_MICROSECONDS 20000ull
 // a keepalive unchanged this long sends the child looking for its parent ($TESSERA_RUN_SILENT_MS)
 #define RUN_SILENT_MICROSECONDS 10000000ull
-// a parent that still locks its record and has sent no keepalive this long is not responding
+// a parent that still locks its record and sent no keepalive this long is not responding
 // ($TESSERA_RUN_UNRESPONSIVE_MS)
 #define RUN_UNRESPONSIVE_MICROSECONDS 60000000ull
 // a command requested to end is given this long before what is left of it is ended by force

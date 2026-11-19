@@ -21,7 +21,7 @@
 
 #define KHW_FORMS 16384u
 
-// how far a form has been queried, for a pass to query only what a cross-check has read before it: a discovered form
+// how far a form has been queried, for a pass to query only what a cross-check read before it: a discovered form
 // has only its relation, a turned form the runs its turns found but not which carry a register, a classified form the
 // operand runs its register-runs retained. A widening carries only a classified form, a turns pass only a discovered
 // one, a register pass only a turned one
@@ -42,7 +42,7 @@
 #define KHW_PLACE_NONE_TEXT "-"
 
 // what a run's operand is, stored beside its place: a register, a pair of registers an address is read through, a
-// number, or a predicate; and the character each is written as after the place in the answers and the working set
+// number, or a predicate. And the character each is written as after the place in the answers and the working set
 #define KHW_KIND_REGISTER 0u
 
 #define KHW_KIND_ADDRESS 1u
@@ -58,7 +58,7 @@
 // the name a form's relation is written under in the answers file, for the vendor's writer to name it from
 #define KHW_READS_LADDER "ladder."
 
-// the blob of the run the vendor's writer appends what it printed each time it ran in; the kernel it reads
+// the blob of the run the vendor's writer appends what it printed each time it ran in. The kernel it reads
 // out of the container is KERNEL_BLOB_NAME (kernel_blob.h)
 #define KHW_MACHINE_NAME "machine.txt"
 

@@ -33,7 +33,7 @@ void cycle_format(std::string &text, const char *format, ...)
     va_start(arguments, format);
     const int written = vsnprintf(line, sizeof(line), format, arguments);
     va_end(arguments);
-    // a line the capacity does not fit is cut, and the source then fails to compile and never runs wrong; written is
+    // a line the capacity does not fit is cut, and the source then fails to compile and never runs wrong. Written is
     // read as a size only once it is known positive
     text.append(line, ((written > 0) && ((size_t)written < sizeof(line))) ? (size_t)written : sizeof(line) - 1u);
 }

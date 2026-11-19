@@ -21,7 +21,7 @@ typedef struct
 
 static DriftResident s_drift_resident;
 
-// one thread a voxel; each warp's ballot is 32 bits of the set, which on a little-endian device are the low or high
+// one thread a voxel. Each warp's ballot is 32 bits of the set, which on a little-endian device are the low or high
 // half of its 64-bit word. Every thread of the warp votes, a thread past the frame voting no
 __global__ static void drift_pack_kernel(const unsigned int *residual, unsigned int voxels, unsigned int limbs,
                                          unsigned int *halves, unsigned long long *positives)

@@ -7,7 +7,7 @@
 
 #include <string.h>
 
-// the numbers this process has appended, an open table twice the texts a run of it numbers
+// the numbers this process appended, an open table twice the texts a run of it numbers
 #define TABLE_TEXT_SLOTS (1u << 16u)
 
 static unsigned long long s_table_text_numbers[TABLE_TEXT_SLOTS];

@@ -7,7 +7,7 @@
 //
 //     the k-file head (krep_head.h), type KSA_KIND
 //     the count of approvals, one word, low byte first
-//     each approval in turn: the scheme's tag, 4 bytes; the bytes of its public key and of its signature, one word
+//     each approval in turn: the scheme's tag, 4 bytes. The bytes of its public key and of its signature, one word
 //     each, low byte first; the public key; the signature
 //
 // A scheme is a row of the table in ksa.c: its tag, its name, its sizes and its three calls. A scheme added is a row

@@ -889,7 +889,7 @@
 
     // Shapes whose extent grows with the count, and not only their detail, are capped. A prism
     // at 4096 sides is still a prism the same size; a helicoid at 4096 turns is 23,591 units tall and
-    // has left the camera behind. Measured: the sweep that found it is in the scratch
+    // left the camera behind. Measured: the sweep that found it is in the scratch
     // harness that checks every shape at orders 3 through 4096.
     function winding() {
       return Math.max(1, Math.min(48, orderAt / 6));

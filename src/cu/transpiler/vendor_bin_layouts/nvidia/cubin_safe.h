@@ -47,7 +47,7 @@
 //      process. No launch waits queued behind another, and a launch that does not return is read as the driver's
 //      timeout and not left for the system's watchdog;
 //   8. the part's own fault telemetry is read after each launch: the Xid critical errors the driver's management layer
-//      (NVML) stamps against the device. A launch that makes the part stamp one has faulted it, its result wrong and
+//      (NVML) stamps against the device. A launch that makes the part stamp one faulted it, its result wrong and
 //      its context corrupt, every launch after it in the process invalid; it breaks this rule. A fault the driver names
 //      itself on the launch's stop event, an illegal address or instruction, a hardware stack error, a misaligned
 //      address, an address space it may not reach, a program counter out of range, or a launch it failed outright, is
@@ -145,7 +145,7 @@ unsigned int cubin_safe_launch(int status, unsigned long long waited);
 unsigned int cubin_safe_fault(int part_faulted, int status);
 
 // The vendor's safety verdict, the gate's and shared by every path that reaches the part: the airlock. The cross
-// writes a gated file, a line `<low> <high>` in hex, the exact encodings the vendor's reader called illegal; this reads
+// writes a gated file, a line `<low> <high>` in hex, the exact encodings the vendor's reader called illegal. This reads
 // it, the scheduler's bits masked off each since whatever reaches the part sets them. Every part-touching path loads
 // the verdict before it may launch, and blocks from the part any encoding the verdict lists. The verdict only ever
 // vetoes; nothing the vendor reported enters the learning, the protocol's own order of questions, which is valid for

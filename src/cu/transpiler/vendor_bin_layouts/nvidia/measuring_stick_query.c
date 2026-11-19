@@ -17,7 +17,7 @@
 // Every name but the disassembler's is a blob of the run, the .qry QRY names (qry_member.h): the list, a line
 // a question, `<code> <registers> <cases> <answers> <probe> [<launches>]` (run_channel.h), each question's code, and
 // the container the carrier popped for it as <answers stem>.cubin. Every container is the kernel the system accepted
-// with the question's code in it; the code of each, as the part would be passed it, is read out of the container's code
+// with the question's code in it. The code of each, as the part would be passed it, is read out of the container's code
 // section.
 //
 // The vendor reads a raw run of encodings (nvdisasm --binary <architecture>) only from a file's path: each run is
@@ -84,7 +84,7 @@ int main(int count, char **words)
         fprintf(stderr, "orior_measuring_stick_query: the run's buffer contains no %s\n", list_name);
         return 2;
     }
-    // a question with a probe is read by its probe instruction, among every other's; one with none, the kernel's own,
+    // a question with a probe is read by its probe instruction, among every other's. One with none, the kernel's own,
     // is read whole, once a code
     size_t lines = 0u;
     for (unsigned long long at = 0ull; at < list_size; at += 1ull)

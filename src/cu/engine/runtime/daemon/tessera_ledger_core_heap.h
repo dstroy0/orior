@@ -204,7 +204,7 @@ TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, 
     return ((previous != NULL) && (previous->peak > total)) ? previous->peak : total;
 }
 
-// the bytes a waiting job has yet to find on the device: what it wants less what its process already has allocated
+// the bytes a waiting job has yet to find on the device: what it wants less what its process already allocated
 // there, which the device's measured use counts
 TESSERA_CORE unsigned long long tessera_core_needs(const TesseraLedger *ledger, const TesseraJob *job)
 {

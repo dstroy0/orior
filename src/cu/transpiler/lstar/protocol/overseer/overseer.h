@@ -40,7 +40,7 @@
 //
 //   the stand-in   the learner puts the pair the other way round, the stand-in retained as the carrier's own form,
 //   which
-//                  the part has run; where that way is put too, the relation waits for a later pass
+//                  the part has run. Where that way is put too, the relation waits for a later pass
 //   the context    the learner puts the stand-in at its next link
 //
 // and records a lesson: the stand-in as written is blocked from the part from then on, at every carrier where its
@@ -149,7 +149,7 @@ extern "C"
 
     // The conference of the question `identity` convened: every account passed to it read, with the panic call's where
     // a panic is on the line, and the ruling by consensus into `ruling`, passed to the conference as the overseer's
-    // account. `other_way_put` is 1 where the learner has put the pair the other way round already. 1 where any account
+    // account. `other_way_put` is 1 where the learner put the pair the other way round already. 1 where any account
     // was received, 0 where none was
     int overseer_convened(QryShared *run, const char *identity, int other_way_put, OverseerRuling *ruling);
 

@@ -39,7 +39,7 @@ void gui_panel_box_draw(const GuiPanelCfg *args);
 // the text between single backticks in the code face in the type's color
 int gui_panel_markdown(const GuiPanelRasterCfg *args);
 // a box `pixel_width` by `pixel_height` placed for the cell `anchor`: below the cell's row, off by GUI_PANEL_OFF, where
-// `bounds` has the capacity, else above it; its left at the anchor's less `back`, saved inside the bounds; `above` 1
+// `bounds` has the capacity, else above it. Its left at the anchor's less `back`, saved inside the bounds; `above` 1
 // prefers above
 GuiRect gui_panel_position(const GuiPanelWidthCfg *args);
 struct GuiPanelRasterCfg

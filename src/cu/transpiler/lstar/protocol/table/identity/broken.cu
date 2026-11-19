@@ -4,7 +4,7 @@
 // that wrote it
 #include "identity_internal.h"
 
-// The answer and ours, question by question. nvcc's chain for a question of the stick is the answer; ours is the
+// The answer and ours, question by question. nvcc's chain for a question of the stick is the answer. Ours is the
 // disassembly of what the transpiler wrote for it, derived from the rulesets alone, and the rulesets are what the L*
 // query gave. A question is one product, and the only reason to fold is to make the same product in fewer steps: two
 // chains of as many steps are two arrangements of it and neither is broken, whatever order or pipe each takes. Where

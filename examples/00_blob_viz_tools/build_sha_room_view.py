@@ -25,7 +25,7 @@ Every cell of the field becomes a body hanging in the room:
   direction   from the index within the cut, spread over the sphere by the golden angle, and it is
               the placement build_sha_sphere_view.py uses, and a bit sits the same way on both pages.
   radius      from the round. Round one sits near the middle and round sixty-four out at the shell,
-              because a round is how far the input has traveled and radius is how far out it got.
+              because a round is how far the input traveled and radius is how far out it got.
   stopping    from the size of the deviation, on a log scale, since the field spans eight decades
               between a pinned cell and a noise cell and a linear scale shows one of them.
 

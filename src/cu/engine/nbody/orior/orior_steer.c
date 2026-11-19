@@ -294,7 +294,7 @@ size_t steer_truthy_total(const uint8_t *alive, size_t alignments, size_t stride
  * @brief Turns falsy every alignment that disagrees at `offset`, over the whole population.
  *
  * @note Applied at stride one even where the ranking was sampled. The ranking is allowed to be
- *       approximate because it only picks between nulls; the survivor set is not, because the next
+ *       approximate because it only picks between nulls. The survivor set is not, because the next
  *       level ranks against it and an approximate survivor set would compound.
  */
 void steer_make_falsy(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,

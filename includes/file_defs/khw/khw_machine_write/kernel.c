@@ -122,7 +122,7 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
                 return 0;
             }
             // the none mark, with its type's character after it where the run is no register's, or the place with its
-            // character after it; the character's place among the four is its type, and no character is a register's
+            // character after it. The character's place among the four is its type, and no character is a register's
             char *end = NULL;
             const int none = (strncmp(place, SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) == 0);
             answered_form->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)strtoul(place, &end, 10);

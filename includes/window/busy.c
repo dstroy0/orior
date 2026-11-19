@@ -10,7 +10,7 @@
 #include "block.h"
 
 
-// What a pixel of a picture has gathered: its channels by what they have of it, and what of 255 it leaves the ground
+// What a pixel of a picture gathered: its channels by what they have of it, and what of 255 it leaves the ground
 typedef struct
 {
     unsigned int red;
@@ -230,7 +230,7 @@ EMBED_INLINE GuiColor busy_between(const BusyCtx *args)
                    ((GUI_BLUE_OF(args->from) * left) + (GUI_BLUE_OF(args->to) * args->share) + 127u) / 255u);
 }
 
-// `color` positioned over what the pixel has gathered by `share` of 255
+// `color` positioned over what the pixel gathered by `share` of 255
 EMBED_INLINE void busy_layout_over(const BusyCtx *args)
 {
     const unsigned int left = 255u - args->share;
@@ -320,7 +320,7 @@ EMBED_INLINE void busy_burn_layout(const BusyCtx *args)
     }
 }
 
-// the picture of `stage`, its pixels gathered from the ring, the trail's glow about it and the burn at its head; the
+// the picture of `stage`, its pixels gathered from the ring, the trail's glow about it and the burn at its head. The
 // ring's reaches and each pixel's stage of the turn read from what the cell holds for the picture's making
 EMBED_INLINE void busy_stage_init(const BusyCtx *args)
 {

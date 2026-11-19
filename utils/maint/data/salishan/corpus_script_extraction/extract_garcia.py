@@ -123,8 +123,8 @@ QUOTED = re.compile(r"^['‘“\"]")
 
 # A segmentation line writes each morpheme on its own and joins them with a hyphen or an equals
 # sign, the positive evidence that a line is one. Without this test the branch below filed
-# a line as segmentation because nothing else had matched it, and a line nothing matched is
-# a line nobody has looked at.
+# a line as segmentation because nothing else matched it, and a line nothing matched is
+# a line nobody looked at.
 SEGMENTED = re.compile(r"[-=]")
 
 # The category labels the paper defines in its footnote 1 and uses on its gloss line
@@ -171,7 +171,7 @@ LAYER = {
     "speaker comment": SPOKEN,
     "segmentation": DERIVED,
     "gloss": DERIVED,
-    # Retained and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone classified it.
     UNCLASSIFIED: DERIVED,
 }
 

@@ -108,7 +108,7 @@ extern "C"
     // gives back the gate's device pool
     void sort_release(void);
 
-    // the max points a frame over the samples' .points, read by their counts; returns 1, or 0 when a .points is
+    // the max points a frame over the samples' .points, read by their counts. Returns 1, or 0 when a .points is
     // missing or its head does not read
     int sort_points_max(const char *set, char *const *samples, unsigned int count, unsigned int *max);
 

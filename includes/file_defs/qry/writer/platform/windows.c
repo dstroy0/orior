@@ -188,7 +188,7 @@ unsigned long long qry_writer_input_read(unsigned char *bytes, unsigned long lon
         DWORD got = 0u;
         if (!ReadFile(input, bytes + size, piece, &got, NULL))
         {
-            // a pipe whose writer has closed it ends a read so
+            // a pipe whose writer closed it ends a read so
             return (GetLastError() == ERROR_BROKEN_PIPE) ? size : QRY_MEMBER_UNREAD;
         }
         if (got == 0u)
@@ -213,7 +213,7 @@ void qry_writer_raised(void)
     SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 }
 
-// A process the system names no longer, or whose handle is signaled, has ended; one the writer may not open runs as far
+// A process the system names no longer, or whose handle is signaled, ended. One the writer may not open runs as far
 // as the writer can tell
 int qry_writer_process_ended(unsigned long long process)
 {

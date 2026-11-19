@@ -74,7 +74,7 @@ int main(int count, char **word)
     // of what a discover left; [--registers] queries the register-runs the turns found; [--costs] times every form the
     // machine file names on the timer register (P6) and stores its cost and spread in the part's .ksc. A cross-check
     // reads each round's questions before it is carried (run_channel.h), and no form's turns or register-runs reach the
-    // part before the vendor has read them
+    // part before the vendor read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
@@ -194,7 +194,7 @@ int main(int count, char **word)
     // the split: a discover pass widens the working set a round and retains what it finds unqueried, a turns pass
     // queries the turns of what a discover left, a register pass queries the register-runs the turns found. A
     // cross-check reads each round's questions before it is carried, and neither a form's turns nor its register-runs
-    // reach the part before the vendor has read them. The working set is the run's blob KHW_WORK_NAME, which the passes
+    // reach the part before the vendor read them. The working set is the run's blob KHW_WORK_NAME, which the passes
     // hand each other; the position is found afresh each pass, off the kernel's code
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
@@ -226,7 +226,7 @@ int main(int count, char **word)
             if (s_names == 0u)
             {
                 // the working set empty: the kernel's own position form seeded as a discovered form, its relation
-                // queried but its fields left for the turns and register passes to query once a cross has read them, as
+                // queried but its fields left for the turns and register passes to query once a cross read them, as
                 // of any form. The relation is the real instruction the part already ran, safe to query without a cross
                 KhwAnswered form;
                 memset(&form, 0, sizeof(form));
@@ -323,7 +323,7 @@ int main(int count, char **word)
             return 0;
         }
         // every turned form's register-runs queried at once, in shared rounds, its operand runs recorded and its phase
-        // classified; what the part has answered for whole then arranged by the vendor
+        // classified; what the part answered for whole then arranged by the vendor
         static KhwAnswered *s_forms[KHW_FORMS];
         const unsigned int turned = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
         // a classified form two of whose runs carry one place is queried again, over a turning case that reads apart

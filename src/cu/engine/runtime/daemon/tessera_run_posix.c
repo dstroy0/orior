@@ -88,7 +88,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
 #else
     child->watch = -1;
 #endif
-    // an interrupt or a hangup from the terminal reaches the command, which ends; this process waits for it, then
+    // an interrupt or a hangup from the terminal reaches the command, which ends. This process waits for it, then
     // releases its job or writes its last record
     signal(SIGINT, SIG_IGN);
     signal(SIGQUIT, SIG_IGN);
@@ -96,7 +96,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     return 1;
 }
 
-// 1 once the command has ended; it is left unreaped, and its tree's last reading still counts its own ticks
+// 1 once the command ended; it is left unreaped, and its tree's last reading still counts its own ticks
 int run_ended(RunChild *child, unsigned long long microseconds)
 {
     if (child->watch >= 0)

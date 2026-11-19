@@ -35,7 +35,7 @@
 // <out>/NNNN.sass and its encodings <out>/NNNN.bin. Nothing goes to a device.
 //
 // Each kernel's trace is passed to the query run QRY names as the blob NNNN.trace, as every path's trace is unless
-// (qry_member.h); with no run's writer to take it, nothing is read.
+// (qry_member.h). With no run's writer to take it, nothing is read.
 extern "C"
 {
 #include "sass_assemble.h"
@@ -313,7 +313,7 @@ enum StickLeaf
     STICK_PARAMETER = 4
 };
 
-// an expression as read: what it is, its form, its text, its number, its count of forms and its width; the readings
+// an expression as read: what it is, its form, its text, its number, its count of forms and its width. The readings
 // of its parameters; where it is folded, the word it is as; and whether a flag is read as its complement
 struct StickReading
 {
@@ -328,7 +328,7 @@ struct StickReading
     int negated = 0;
 };
 
-// a register the kernel stores a value in, as sass.krs writes it, or the word a folded value is as; its width,
+// a register the kernel stores a value in, as sass.krs writes it, or the word a folded value is as. Its width,
 // whether its type is signed, and its type's place in s_types
 struct StickValue
 {
@@ -1704,7 +1704,7 @@ class StickKernel
     }
 
     // `left` and `right` under binary operator `token`, each converted as C converts it. The logical operators take
-    // two flags and give one. A shift takes each side promoted and gives the left's type; every other operator takes
+    // two flags and give one. A shift takes each side promoted and gives the left's type. Every other operator takes
     // both sides in their common type, and a comparison gives a flag. An ordering, a quotient, a remainder and a
     // right shift are of their operands' type, and a signed one is written with its type's cast before each operand,
     // which the signed forms read. Equality reads no sign and takes no cast
@@ -2884,7 +2884,7 @@ static void stick_round(const std::vector<StickSource> &sources,
     }
 }
 
-// sass.ksc written: what it contained that opens with each of `openings` dropped, and each of `found` taken; and the
+// sass.ksc written: what it contained that opens with each of `openings` dropped, and each of `found` taken. And the
 // pipes the part's .kdm records taken, for the rounds after to write by
 static void stick_folds_write(const Ruleset *sass, const std::set<std::string> &openings,
                               const std::set<std::string> &found)

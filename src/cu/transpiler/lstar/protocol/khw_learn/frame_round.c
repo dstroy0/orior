@@ -214,7 +214,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
         {
             continue;
         }
-        // a variant the working set contains already is read no further; the place's other variants are, each an
+        // a variant the working set contains already is read no further. The place's other variants are, each an
         // encoding of its own, and the first of them to answer a relation is the place's form
         if (khw_named_already(s_variants[at].low, s_variants[at].high))
         {

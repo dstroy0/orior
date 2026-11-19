@@ -60,7 +60,7 @@ void daemon_device_read(void)
     {
         return;
     }
-    // the host's processors are in use by the jobs running on them, as each reports; the desktop's own work runs on
+    // the host's processors are in use by the jobs running on them, as each reports. The desktop's own work runs on
     // the cores reserved from the jobs and is not counted
     for (unsigned long long at = 0ull; tessera_measure_host(g_daemon.measure) && (at < g_daemon.ledger.job_count);
          at += 1ull)
@@ -129,7 +129,7 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
         request.sweep_microseconds = frame->sweep_microseconds;
         request.idle_microseconds = frame->idle_microseconds;
         request.override_budget = frame->override_budget;
-        // the bytes the job's process already has allocated as it requests, its context and whatever it retained from
+        // the bytes the job's process already allocated as it requests, its context and whatever it retained from
         // an earlier job: read by its pid, or taken from its own report where no pid is read from outside
         request.located = 0ull;
         if (tessera_measure_reported(g_daemon.measure))

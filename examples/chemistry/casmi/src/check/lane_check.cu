@@ -944,7 +944,7 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     }
     const unsigned long long run_end = engine_clock_microseconds();
     // the host reference runs the leading `checked` records, and the device's sum over the same records is checked
-    // against the host's; the device also sums every record
+    // against the host's. The device also sums every record
     const unsigned long long checked = ((s_host_lanes != 0ull) && (s_host_lanes < values)) ? s_host_lanes : values;
     unsigned int device_sum[LANE_CHECK_SUM_LIMBS];
     unsigned int checked_sum[LANE_CHECK_SUM_LIMBS];
@@ -1650,7 +1650,7 @@ int main(int count, char **arguments)
             free(places_of[form]);
             free(k_of[form]);
         }
-        // the same lanes as planes: plane j contains lane j of every value, in value order; each significance lies
+        // the same lanes as planes: plane j contains lane j of every value, in value order. Each significance lies
         // beside its own type; positioned once as four rows and once as four lattices of their own
         unsigned short *const planes = (unsigned short *)malloc((size_t)(lanes * 2ull) + 2u);
         unsigned short *device_planes = NULL;

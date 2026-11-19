@@ -152,7 +152,7 @@ typedef char orior_exact_digits_fit_the_width[(((((unsigned long long)(ORIOR_EXA
  * @note Measured on an RTX 3070 host (x86-64, MSVC -O2): Karatsuba and the transform meet near 8192
  *       limbs, and the transform is 1.44x ahead at 16384, 1.55x at 32768 and 1.85x at 65536.
  * @note Those ratios are one reading. Repeated readings of the same code on the same host differ by up
- *       to about 1.3x, and 16384 has read 1.02x and 1.32x. The crossover at 8192 was confirmed on every run.
+ *       to about 1.3x, and 16384 read 1.02x and 1.32x. The crossover at 8192 was confirmed on every run.
  */
 #ifndef ORIOR_EXACT_TRANSFORM_LIMBS
 #define ORIOR_EXACT_TRANSFORM_LIMBS 8192u

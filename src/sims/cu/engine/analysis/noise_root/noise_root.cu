@@ -330,7 +330,7 @@ int main(void)
         {
             sim_check(&results, measurement.root == planted, "at the strongest, the root is the planted term");
         }
-        // the residual is the box less the pattern in ints: the sum is the box by construction; what this checks
+        // the residual is the box less the pattern in ints: the sum is the box by construction. What this checks
         // is that noise_root_return spreads the pattern over the places the yank took it from
         sim_check(&results, exact != 0, "the root's residual and pattern return the box exactly");
     }

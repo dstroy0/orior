@@ -30,7 +30,7 @@ THE NULL AND THE NUISANCE
 Local order rises with imbalance. The null must be drawn at the SAME bit weight the field carries,
 or it reports the weight and calls it structure. The null here draws random fields at each measured
 field's own popcount. A field whose local order sits above that weight-matched band is locally more
-ordered than chance at its own weight; inside the band it is not, and the disturbance was the weight.
+ordered than chance at its own weight. Inside the band it is not, and the disturbance was the weight.
 
 WHAT IS WITHHELD
 
@@ -215,7 +215,7 @@ def main(argv):
 
     if "--interior" in argv:
         # THE OPEN BOUNDARY. The digest is flat; the interior before round 7 is the only window the
-        # support measurement leaves, where the nonce has entered but not fully mixed. Read the local
+        # support measurement leaves, where the nonce entered but not fully mixed. Read the local
         # order of the interior state at each early round, against a null drawn at that state's own bit
         # weight. Structure over the null before round 7 is the partial mixing; whether it is gone by
         # round 7 is where the readable window closes.

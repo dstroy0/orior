@@ -49,7 +49,7 @@ void gui_background_pause(const GuiBackgroundCfg *args);
 int gui_background_layout(const GuiBackgroundRasterCfg *args);
 // Draws the deep color and every dot at the clock's time.
 void gui_background_draw(const GuiBackgroundRasterCfg *args);
-// Redraws when the clock has reached `next_draw_ms`. Returns 1 when it drew.
+// Redraws when the clock reached `next_draw_ms`. Returns 1 when it drew.
 int gui_background_tick(const GuiBackgroundRasterCfg *args);
 // The next draw's deadline, or 0 for none while paused or not positioned.
 unsigned long long gui_background_next_deadline_ms(const GuiBackgroundClockCfg *args);

@@ -236,7 +236,7 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
     // a number is in the field the .ksc names `immediate`, where a number operand lies: a place containing its
     // constant there is a number, and one containing the block size there is a number and names no dim. A bit run
     // anywhere else reads one set bit over eight clear ones as the block size, which nearly every encoding contains,
-    // and shows nothing; where the .ksc names no immediate field, a number is read as any bit run of the instruction. A
+    // and shows nothing. Where the .ksc names no immediate field, a number is read as any bit run of the instruction. A
     // constant of 0 is represented by nothing: every field of a form the number is not in contains 0, and the zero
     // register is the part's 0
     unsigned int immediate_first = 0u;
@@ -251,7 +251,7 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
     for (unsigned int candidate = 0u; candidate < KHW_FRAME_CANDIDATES; candidate += 1u)
     {
         int as_nothing = s_nothing_known;
-        // a number the instruction does not contain is a constant computed, and names no relation; the block size
+        // a number the instruction does not contain is a constant computed, and names no relation. The block size
         // represented in the immediate field is a number, and names no dim
         const int unmatched = ((s_relation[candidate] == FRAME_NUMBER) && !number_matches) ||
                               ((s_relation[candidate] == FRAME_DIM) && dim_in_immediate);

@@ -152,7 +152,7 @@ PAGE_NUMBER = re.compile(r"^\d{1,4}$")
 #
 # Without this the English of an example ran on into the essay under it. Example 2's translation is
 # a single line, ‘High class, high class was Raven.’, and it was recorded with the next eleven lines
-# of Hilbert's commentary welded onto it, as something Susie Sampson Peter had said. Coverage was
+# of Hilbert's commentary welded onto it, as something Susie Sampson Peter said. Coverage was
 # 100 percent throughout, because every token was in the file; it was in the wrong row.
 COLUMN = 46
 

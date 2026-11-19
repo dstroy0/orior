@@ -155,7 +155,7 @@ static void boundary_redundant(BoundaryResults *results)
         (unsigned int *)calloc((size_t)crystals * encoder_loaded.layout.out_limbs, sizeof(unsigned int));
     unsigned int *const words =
         (unsigned int *)calloc((size_t)decoder_lanes * BOUNDARY_TEST_CODE_MODULI, sizeof(unsigned int));
-    // which residues each decoder lane had corrupted, one bit a modulus
+    // which residues each decoder lane corrupted, one bit a modulus
     unsigned char *const hit = (unsigned char *)calloc(decoder_lanes, sizeof(unsigned char));
     unsigned int *const decoder_host =
         (unsigned int *)calloc((size_t)decoder_lanes * decoder_loaded.layout.out_limbs, sizeof(unsigned int));

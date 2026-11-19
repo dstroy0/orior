@@ -55,7 +55,7 @@ CODEGEN_CORE unsigned int ruleset_core_scratch_enter(RulesetCoreScratch *scratch
 
 // the scratch form `name` takes in one writing, arranged into its four words of the scratch once and marked counted, as
 // ruleset_scratch_of positions it out: each scratch register its lines name, once, and what each form its lines write takes,
-// which a construct given before it in the file has arranged, and the recursion ends. The host's recursion is bounded
+// which a construct given before it in the file arranged, and the recursion ends. The host's recursion is bounded
 // in the frames, a form each at max, each line's form arranged before the line's scratch is added, as the host adds it
 CODEGEN_CORE void ruleset_core_scratch_of(RulesetCoreScratch *scratch, unsigned int name)
 {

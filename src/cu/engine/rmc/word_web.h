@@ -19,7 +19,7 @@
 //  - A target with no instruction for a word is given the word's tree, each node a precept it does have, and the
 //    alphabet web writes out any precept it lacks as well. Nothing has to be hand written for a target twice.
 //  - A word the target does have an instruction for is weighed against its own tree in the part's clock. Where the
-//    instruction beats the tree it is a word of that target's language; where it does not, the target writes that
+//    instruction beats the tree it is a word of that target's language. Where it does not, the target writes that
 //    word out node by node, and the .kdm records which. That reading is the coherence, and the part gives it.
 //
 // A word's leaves are its operands by place, PRECEPT_ARG_AT(0) first, in the order the schema's form takes them
@@ -64,7 +64,7 @@ static const Word s_word_web[] = {
     {"word_nor", 2u, 1u, {{PRECEPT_NOR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     // a copy
     {"word_copy", 1u, 1u, {{PRECEPT_MOV, PRECEPT_ARG_AT(0u), PRECEPT_NONE}}},
-    // the shifts and the rotates, whose amount is an operand and needs no width; the signed shift carries the sign in,
+    // the shifts and the rotates, whose amount is an operand and needs no width. The signed shift carries the sign in,
     // and a rotate carries the bits that leave back in at the other end
     {"word_shl", 2u, 1u, {{PRECEPT_SHL, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},
     {"word_shr", 2u, 1u, {{PRECEPT_SHR, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},

@@ -151,7 +151,7 @@ LAYER = {
     "gloss": DERIVED,
     "stage direction": DERIVED,
     "cited example": DERIVED,
-    # Retained and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -293,7 +293,7 @@ def main():
             rows.append(("T", number, "4", "segmentation", "Lisa Matthewson", trimmed))
         else:
             # Nothing fired. The line is flagged and its speaker is left unset. Filling that
-            # column would put a name on a line nobody has read.
+            # column would put a name on a line nobody read.
             rows.append(
                 (
                     "T" if carries_language(trimmed) else "N",

@@ -19,7 +19,7 @@
 # reported as holes by the coverage check, which is a defect that manufactured its own evidence.
 #
 # There is no test on a token that separates the two. Paks, Pitx, Psiwst, Qip, Qant and Pums are
-# words of the language; Pierre, Peter, Press, Priest and Quilchena are not; and every one of them
+# words of the language; Pierre, Peter, Press, Priest and Quilchena are not. And every one of them
 # is a capital followed by lowercase ASCII. Measured against the attested-form oracle, a rule that
 # skipped that shape skipped ten real words to save eighteen English ones.
 #

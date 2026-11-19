@@ -5,7 +5,7 @@
 
 // The queue over the stick's questions (P13, the scheduler). Every question of the manifest is an entry of its
 // category, and R gives each what it reads: 1 where the part answers it as the host does on every case the host
-// computes it on, 0 where it answers one case otherwise or refuses it, and gray where nothing has settled it. A
+// computes it on, 0 where it answers one case otherwise or refuses it, and gray where nothing settled it. A
 // gray entry carries what retains it gray: the engine's note where the engine writes no chain for it, that the host
 // computes no answer to it, or that the gate blocks it from the part. A gray entry with a chain and a host answer is
 // put through the run channel, every case at once in a container declaring every register its file uses, and its

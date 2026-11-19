@@ -20,7 +20,7 @@ every time, the 81 being the degree-8 harmonic block's own rank. There is no mis
 and the reason is not empirical. At bandlimit L every function on the sphere lives in an (L+1)^2
 dimensional space, and EVERY reading of ANY type - a region integral, a line integral, a point
 evaluation, an integral against any measure whatever - is a linear functional on that space. The
-span of all conceivable integrals is therefore exactly (L+1)^2, and no integral nobody has thought
+span of all conceivable integrals is therefore exactly (L+1)^2, and no integral nobody thought
 of yet exceeds it. Beams added 175 dimensions at degree 8 not because a line integral escapes the
 space but because the region rows did not span it: 81 + 175 = 256.
 
@@ -111,7 +111,7 @@ def limits():
 
     BOTH ARE FORCED BY THE SOURCES. They sit on a shell of radius DEPTH, COUNT of them. The area
     per source is 4 pi DEPTH^2 / COUNT and the typical spacing is its root. Below that a beam reads
-    one source and is a point probe; above the shell's diameter it reads every source at nearly
+    one source and is a point probe. Above the shell's diameter it reads every source at nearly
     equal weight and is a monopole carrying one number.
 
     NEITHER END IS A USABILITY BOUND AND THE FIRST VERSION OF THIS FILE ASSUMED THE LOWER ONE WAS.

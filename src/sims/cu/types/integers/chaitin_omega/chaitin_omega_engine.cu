@@ -149,7 +149,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         }
         const OmegaProgram *const program = &programs[key];
         const unsigned int out_limbs = program->layout.out_limbs;
-        // the round's buffers; while the device cannot fit them, the stepping term with the largest reduct is parked
+        // the round's buffers. While the device cannot fit them, the stepping term with the largest reduct is parked
         // as outgrown and the reducts arranged again without it
         const OmegaBufferName round_buffers[19] = {OMEGA_BUFFER_PACKED,          OMEGA_BUFFER_PLANS,
                                                    OMEGA_BUFFER_INDEX,           OMEGA_BUFFER_OUT,

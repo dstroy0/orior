@@ -59,7 +59,7 @@ def rounds_of(message, read="state"):
     THE DIFFERENCE MATTERS AND IT IS NOT SMALL
 
     The digest reading adds the initial values back into every word before handing the frame over.
-    That feed-forward is a mixing step applied after the round has finished, and it is applied to
+    That feed-forward is a mixing step applied after the round finished, and it is applied to
     every frame. It hides the structure the round itself put there. Measuring the digest sequence
     and reporting it as a property of the round is measuring the wrong object.
 

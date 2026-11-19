@@ -26,7 +26,7 @@ The round computes two words and shifts the rest:
 So six of the eight words at round r are words from round r-1 in a new position. The state is a
 shift register with two live inputs. Six eighths of the object is therefore last round's object
 moved over, and a reading that sees the object as a placement is going to see that, because it is
-there. This is the standard description of the compression function and not a finding; what is
+there. This is the standard description of the compression function and not a finding. What is
 measured below is how many rounds it takes before the reading stops being able to tell.
 
 WHAT THE CONTROL IS

@@ -6,7 +6,7 @@
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/paper_structure.py <name> [name ...]
 #
-# Every paper read so far has defeated an assumption carried from the one before it, and each failure was
+# Every paper read so far defeated an assumption carried from the one before it, and each failure was
 # silent. Garcia numbered its third story differently from its first two and that story came back empty.
 # Matthewson's footnote markers matched a bare number heading and cut a section from thirty-four blocks to
 # two. Alexander's story sits entirely in subsections. Reading the bare numbers returned two appendices

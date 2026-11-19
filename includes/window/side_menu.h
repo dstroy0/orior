@@ -58,9 +58,9 @@ extern const GuiTool g_gui_tools[];
 extern const unsigned int g_gui_tools_count;
 
 // The side_menu: the tool the pointer is on, the tool whose side window shows and the footer tool whose pane is in
-// the panel at the work's foot, each GUI_SIDE_MENU_NONE for none; whether the side tool's pane has collapsed, its width
+// the panel at the work's foot, each GUI_SIDE_MENU_NONE for none; whether the side tool's pane collapsed, its width
 // back to the editor, the tool unlit while it is so; whether the Problems tool is marked, as it is while errors
-// are; how many query runs are live and how many of those have panicked, which mark the Runs tool; and whether the
+// are; how many query runs are live and how many of those panicked, which mark the Runs tool; and whether the
 // terminal's panel is open, which shows the Terminal tool, at `terminal_at` among the tools, as the tool whose window
 // shows is; and the tools' beads
 typedef struct
@@ -92,7 +92,7 @@ void gui_side_menu_press(const GuiSideMenuFrameXCfg *args);
 void gui_side_menu_release(const GuiSideMenuFrameXCfg *args);
 // the side_menu drawn at `time_ms`: each tool's icon, in signal where its window shows and bright under the pointer, the
 // Problems tool's mark in the error's color while it is marked, the Runs tool's in signal while a run is live and in
-// the error's color while a live run has panicked, and each tool's bead over its icon as its press is
+// the error's color while a live run panicked, and each tool's bead over its icon as its press is
 void gui_side_menu_draw(const GuiSideMenuFrameRasterCfg *args);
 struct GuiSideMenuFrameRasterCfg
 {

@@ -168,7 +168,7 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
     }
 
     const size_t cells = config->width * config->height * config->depth;
-    // which cells an alignment has reached; a cell nothing reaches writes ORIOR_RASTER_EMPTY
+    // which cells an alignment reached; a cell nothing reaches writes ORIOR_RASTER_EMPTY
     uint8_t *const filled = (uint8_t *)calloc(cells, 1u);
     if (filled == NULL)
     {

@@ -102,7 +102,7 @@ def gram_residual(top):
     """How far the basis is from orthonormal under exact quadrature, as a worst-cell deviation.
 
     Gauss-Legendre in the cosine of the colatitude and the trapezoid in the longitude, both at
-    orders that integrate a product of two degree-`top` harmonics exactly. A basis that has lost
+    orders that integrate a product of two degree-`top` harmonics exactly. A basis that lost
     digits reports it here, before any rank below is believed.
     """
     lat = 2 * (top + 1)

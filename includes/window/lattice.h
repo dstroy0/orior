@@ -16,7 +16,7 @@
 #define LATTICE_ORDERED 0.1
 #define LATTICE_RAMP 0.54
 #define LATTICE_PI 3.141592653589793
-// the lattices retained at once, the window's in the first and the checks' in the others; the levels of pen the dots are
+// the lattices retained at once, the window's in the first and the checks' in the others. The levels of pen the dots are
 // shaded from; and the share of a pen's radius a dot is drawn at
 #define LATTICE_SLOTS 8u
 #define LATTICE_LEVELS 24
@@ -121,7 +121,7 @@ embed_u32 lattice_dots_moved(LatticeSlot *lattice, double width, double height, 
 // 1 where the loop moved, from `then` to `now` in seconds, enough to be seen; 0 where no point moved that far
 embed_u32 lattice_shows(double then, double now);
 
-// the soonest moment from `from` on at which the loop has moved since `then` enough to be seen: the moment a window
+// the soonest moment from `from` on at which the loop moved since `then` enough to be seen: the moment a window
 // that drew the loop at `then` next draws it; `from` and a loop past it where none shows
 double lattice_displayed_after(double then, double from);
 

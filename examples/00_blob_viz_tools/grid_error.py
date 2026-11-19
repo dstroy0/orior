@@ -81,7 +81,7 @@ def synthesize_at(total, top, colatitudes, longitudes):
 
     Separable because the sum splits: a Legendre part depending only on the colatitude and a
     trigonometric part depending only on the longitude. Summing the basis at every point of a fine
-    grid costs the point count times 121; splitting it costs the row count times 121 plus the point
+    grid costs the point count times 121. Splitting it costs the row count times 121 plus the point
     count times 21, and returns the same numbers.
 
     sphere_field.synthesize does this on its own fixed grid of cell centers. This one takes the

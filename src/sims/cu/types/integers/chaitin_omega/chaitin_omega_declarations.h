@@ -23,7 +23,7 @@
 // is proven to grow forever: a part of it returns at its own head (omega_grows_forever).
 //
 // The runs go to the device, one term to a thread, with the host running the few that pass the device's small
-// budgets (omega_device); the host's own run of every term through 30 bits must give the same fates and busy
+// budgets (omega_device). The host's own run of every term through 30 bits must give the same fates and busy
 // beavers. Arguments: L, steps, tokens, and "cpu" to run every term on the host instead.
 //
 // The mass of the closed terms longer than L is bounded by counting instead of running: the mass a(n) of
@@ -118,7 +118,7 @@ unsigned long long omega_code_bits(const std::vector<int> &term);
 
 void omega_code_text(VerbaLinea *line, const std::vector<int> &term);
 
-// the spine position of the head redex, where the term is an application spine over a lambda; otherwise the
+// the spine position of the head redex, where the term is an application spine over a lambda. Otherwise the
 // step normal order takes is not a head step, and OMEGA_NOT_HEAD is returned
 #define OMEGA_NOT_HEAD 0xFFFFFFFFu
 

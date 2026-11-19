@@ -17,8 +17,8 @@
 #   1. A PRIORITY CLAIM WITH NOTHING BEHIND IT. A sentence saying something here is new, first,
 #      unprecedented, or absent from the literature is a claim about everybody else's work. This
 #      tree cannot check that type of claim on its own, because the evidence for it
-#      sits in journals nobody here has read. Either a reference is near it, or the sentence
-#      says plainly that nobody here has read it.
+#      sits in journals nobody here read. Either a reference is near it, or the sentence
+#      says plainly that nobody here read it.
 #
 #   2. A QUOTED PASSAGE WITH NO ATTRIBUTION. Somebody else's sentences, set in quotation marks,
 #      carried in a research paper that is about to be posted publicly under a license. Unattributed, it is
@@ -106,7 +106,7 @@ CHECKED = (".tex", ".md")
 SKIP_DIRS = (".git", "build", "site", "deps", "__pycache__", "fixtures")
 
 # How far from a claim a reference may sit and still count as supporting it. A citation in the
-# sentence before or after is supporting; one three paragraphs away is not, and counting it would
+# sentence before or after is supporting. One three paragraphs away is not, and counting it would
 # let a single reference clear a whole chapter.
 WINDOW = 2
 
@@ -144,7 +144,7 @@ CLAIMS = (
     ),
 )
 
-# What makes a priority claim honest without a reference: saying nobody here has read it.
+# What makes a priority claim honest without a reference: saying nobody here read it.
 # These are read off the crystallography chapter, the worked example.
 DISCLAIMERS = (
     r"\bhas not been done\b",

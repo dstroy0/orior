@@ -41,7 +41,7 @@ typedef struct
 } PeriodProgram;
 
 // the four programs and the pool, made once a process. The agreement reads a voxel, the voxel a lag on, and the shared
-// record; the key writes each voxel's place and key; the place reads a keyed record through the order and writes its
+// record; the key writes each voxel's place and key. The place reads a keyed record through the order and writes its
 // place; the gather reads a voxel through those places
 typedef struct
 {

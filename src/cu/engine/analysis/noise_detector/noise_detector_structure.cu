@@ -142,7 +142,7 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     const unsigned long long width = extent[3];
     int bounded =
         (frames >= 2ull) && (frames <= 65536ull) && (width >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels));
-    // every sum is at max the frame pairs times the widest q^2, (65535 T)^4, which must stay below 2^128; the
+    // every sum is at max the frame pairs times the widest q^2, (65535 T)^4, which must stay below 2^128. The
     // widest q y, (65535 T)^2 131070^2, is no wider for T of 2 or more
     OriorExactInteger bound;
     OriorExactInteger factor;

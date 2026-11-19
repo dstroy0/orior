@@ -33,7 +33,7 @@
 # is the discrete Fourier transform over a finite field, with the length condition n divides p-1 that
 # fixes the boundary named above: Pollard, "The fast Fourier transform in a finite field", Math. Comp.
 # 1971, and the survey arXiv:2211.13546. This example reproduces those results in exact integers and
-# does not rest on them; the citation records that the property is known, not that it is assumed here.
+# does not rest on them. The citation records that the property is known, not that it is assumed here.
 #
 # Positive control: NTT(NTT(x)) equals n times the reversed x, to the digit. Two routes: the double
 # transform against a direct reversal, displayed able to disagree. Drawn null: the claim without the

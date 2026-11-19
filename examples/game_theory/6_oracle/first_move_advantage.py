@@ -19,7 +19,7 @@
 # are separate state, one per player, from PLAYER_ONE's and PLAYER_TWO's own side.
 #
 # WHY THE MAGNITUDE ALONE CANNOT ANSWER IT. The sum of the two windicators is invariant under
-# swapping the players; the first-move advantage is ODD under that swap -- give the move to the other
+# swapping the players. The first-move advantage is ODD under that swap -- give the move to the other
 # side and the advantage flips sign. A quantity that is odd under a symmetry is invisible to any
 # quantity that is even under it. So the advantage lives in the SIGNED difference V(side to move)
 # minus V(if the other side moved), never in the magnitude. This is the same fact a reflection-

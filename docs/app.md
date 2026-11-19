@@ -112,7 +112,7 @@ lldb-dap from the LLVM release loads Python 3.11's library, and orior gives it t
 
 ![A C file with factor not declared: a red wave under it, and the hover saying what clangd found](https://github.com/dstroy0/orior/raw/main/ui/docs/img/clangd.png)
 
-clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes; run it once after a clone and again after a file is added or moved.
+clangd reads the flags each file is compiled with from `build/compile_commands.json`, which `python -I utils/maint/engine/clangd_database.py` writes. Run it once after a clone and again after a file is added or moved.
 
 ## Check a Lean proof
 

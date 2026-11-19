@@ -25,7 +25,7 @@ void noise_wide_add_square(NoiseWide *sum, unsigned long long magnitude)
 #define NOISE_STATIC_SHARE 4ull
 
 // One thread a line of one frame pair: its frame, its z plane, and its row (along x) or column (along y). The line's
-// frame differences are summed, their squares are summed, and so are its values, which place it in a level bin; its
+// frame differences are summed, their squares are summed, and so are its values, which place it in a level bin. Its
 // static members are counted, and their frame differences summed and squared and their values summed apart.
 __global__ static void noise_lines_kernel(const unsigned short *lanes, const unsigned char *mask,
                                           unsigned long long frame_pairs, unsigned long long depth,
@@ -244,7 +244,7 @@ static void noise_static_line_add(NoiseWide *line_squares, unsigned long long *p
 }
 
 // The sample's lines binned into cells, and every plane's sums written to the plane table under the sample's name and
-// pooled for the two-way layout; the static voxels' lines pooled apart.
+// pooled for the two-way layout. The static voxels' lines pooled apart.
 long noise_lines_sample(const unsigned short *volume, const unsigned long long extent[4],
                         NoiseLineCell cells[NOISE_LINE_CELLS], NoisePlanePool *pool, NoiseStaticPool *still,
                         FILE *plane_table, const char *name, EngineError *error)

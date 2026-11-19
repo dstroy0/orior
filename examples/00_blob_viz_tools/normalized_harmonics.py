@@ -300,7 +300,7 @@ def _agree(top=8, digits=40):
     """Differences the float implementation against this one, at the same directions.
 
     THIS IS THE CHECK THAT MATTERS, because the two are independent codings of one recurrence and
-    nothing in this tree had compared the Python to anything until the CUDA was graded. Agreement to
+    nothing in this tree compared the Python to anything until the CUDA was graded. Agreement to
     the float's own floor says the convention is shared. Disagreement above it says one of them is
     wrong and does not say which.
     """

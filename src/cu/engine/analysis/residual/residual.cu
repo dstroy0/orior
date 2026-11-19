@@ -20,7 +20,7 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     {
         return RESIDUAL_ERROR;
     }
-    // an odd smooth order moves both terms' centers half a voxel alike; an odd background order would move the wide
+    // an odd smooth order moves both terms' centers half a voxel alike. An odd background order would move the wide
     // term's alone, and the two would be subtracted half a voxel apart
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {

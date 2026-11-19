@@ -198,7 +198,7 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
         else if ((field_id == 4ll) && (type == PARQUET_THRIFT_I32))
         {
             const unsigned long long codec = parquet_nonnegative_read(cursor);
-            // a codec is 0 through 7, stored as i32; one past it is stored as the last unknown one, and an unknown
+            // a codec is 0 through 7, stored as i32. One past it is stored as the last unknown one, and an unknown
             // codec is refused where a page is decoded
             chunk->codec = (ParquetCodec)((codec <= (unsigned long long)PARQUET_LZ4_RAW) ? codec : 0xFFull);
         }

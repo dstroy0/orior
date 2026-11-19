@@ -287,7 +287,7 @@ coefficient at all.
 
 **Completeness of count and health of conditioning are separate properties.** Degree 15 is where
 `(L+1)^2` first reaches 256, and its least retained singular value collapses three decades below the
-values beside it; one degree of headroom buys a factor of 44 in conditioning.
+values beside it. One degree of headroom buys a factor of 44 in conditioning.
 
 `depth_rank` therefore reports **absent** and **present but badly conditioned** as different
 outcomes, since one is a wall and the other is a bill. `gram_residual` establishes that precision is
@@ -391,7 +391,7 @@ reassigned, and the character are all reported.
 | algebraic recombination        | no arm    | no arm            | 2.776e-17 |
 
 **A clearance pre-check decides the rotated case before it is run.** Min over placement points of the
-distance to the nearest arm face is `0.000e+00` at index 0, structurally, at every size from 64 to 4096. A crossing is therefore available and a clean result is not established by clearance; under the
+distance to the nearest arm face is `0.000e+00` at index 0, structurally, at every size from 64 to 4096. A crossing is therefore available and a clean result is not established by clearance. Under the
 carried rotation index 0 retained its arm by a dot product of `+3.123e-17`, three parts in `1e17` from
 going the other way. The claim the module makes is therefore the narrow one: independent of its
 drawing for 255 points by measurement and for one by convention, printed as that split.

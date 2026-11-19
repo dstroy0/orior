@@ -166,7 +166,7 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
     {
         unsigned long long latency = 0ull;
         // the timer register read before and after the launch where one is open: the launch's cost is its
-        // advance, in the clock's own count; otherwise the driver's event time
+        // advance, in the clock's own count. Otherwise the driver's event time
         unsigned int before = 0u;
         unsigned int after = 0u;
         const int clocked = cubin_run_clock_read(&before);
@@ -288,7 +288,7 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     {
         return status;
     }
-    // the question's module given back, so that a process carrying many loads one question's code at a time; the
+    // the question's module given back, so that a process carrying many loads one question's code at a time. The
     // memory its launch took is retained for the next question's
     const unsigned long long freed_began = cubin_run_host_now();
     if (module != NULL)
@@ -324,7 +324,7 @@ void cubin_run_container_out(const char *answers_path, const unsigned char *cont
 }
 
 // What a dry run would have passed the part, a record of each question: the question's shape, the gate's verdict, its
-// cases, and each place of its code. With the --query facet every place is written; without it, only the places that
+// cases, and each place of its code. With the --query facet every place is written. Without it, only the places that
 // are not as the run's first question contains them, read back as our reader reads them. The first question's code is
 // stored as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run, a blob
 // a question, and the base the blob dry_base.bin

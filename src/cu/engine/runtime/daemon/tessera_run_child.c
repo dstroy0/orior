@@ -30,7 +30,7 @@ static int run_folders_make(char *path)
     return run_folder_exists(path);
 }
 
-// the parent's record rewritten from its start: the pid launched, the child's pid once it has reported it, and the
+// the parent's record rewritten from its start: the pid launched, the child's pid once it reported it, and the
 // keepalive, one more at each write. A line never shortens, and none is left from the one before
 static void run_record_write(RunChannel *channel)
 {
@@ -62,7 +62,7 @@ void run_record_launched(RunChannel *channel, unsigned long long pid)
 }
 
 // the records' path: the host's tessera state, then children, then this process's pid and the job's signum, as a lost
-// ticket's record is named; the folders are made where they are not
+// ticket's record is named. The folders are made where they are not
 static int run_records_place(RunChannel *channel, const EngineSignum *signum)
 {
     unsigned char host[TESSERA_DEVICE_BYTES];
@@ -216,7 +216,7 @@ static void run_channel_refresh(RunChannel *channel)
     run_record_write(channel);
 }
 
-// a child that ended its command itself leaves nothing to relaunch or resume, and the records go; any other end retains
+// a child that ended its command itself leaves nothing to relaunch or resume, and the records go. Any other end retains
 // them where the child's log records why
 void run_channel_close(RunChannel *channel)
 {

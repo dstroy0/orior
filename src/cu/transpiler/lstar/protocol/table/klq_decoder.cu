@@ -18,7 +18,7 @@
 // answered alike at every put is a qualifier's. A pair is written a member of every set a test reads it into, and of
 // every meta, each a light of its own, and a pair the part answered apart in this log that no test reads into a set is
 // written unknown_coherence. A pair the log contains no answer of retains the set line the bridge recorded beneath it,
-// and one that contains none is written unknown_coherence: no answer has read it into a set, and it is a member of
+// and one that contains none is written unknown_coherence: no answer read it into a set, and it is a member of
 // every one. The texts the log read of a pair read it into its categories before any query, a comparison, an equality
 // or an order, an operation, a commutation, a verb, a range, a vector, a control or a switch, each written beside its
 // sets, and a text reads no pair out of unknown_coherence

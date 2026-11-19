@@ -300,7 +300,7 @@ def live_modes(spectrum, floor):
 def spot_radians(radius_fraction):
     """Angular radius of the spot one source prints, from its depth.
 
-    The spectrum falls as (r/R)^l. The degree where it has dropped by e is 1 / ln(R/r) and the
+    The spectrum falls as (r/R)^l. The degree where it dropped by e is 1 / ln(R/r) and the
     angular scale is its reciprocal. A source at the center returns pi, since its spot is the whole
     sphere, and there the claim that a spot is larger than its source becomes a number.
     """
@@ -342,7 +342,7 @@ def cap_radius(profile, level):
     """The angle at which a profile crosses `level`, in radians, by walking a monotone table.
 
     Returns zero where the peak never reaches the level, and pi where the profile stays above it
-    everywhere. The second case is a source deep enough that its circle has swallowed the sphere,
+    everywhere. The second case is a source deep enough that its circle swallowed the sphere,
     and reporting it as a circle of radius pi retains the caller from treating a swallowed sphere as
     a missing spot.
     """

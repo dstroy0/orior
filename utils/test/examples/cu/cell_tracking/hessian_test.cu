@@ -160,7 +160,7 @@ static unsigned int hessian_test_faces(const HessianTestField *field, unsigned i
     return faces;
 }
 
-// the host's difference at a voxel, through the exact integer library; returns 1 where it is defined, 0 where a face
+// the host's difference at a voxel, through the exact integer library. Returns 1 where it is defined, 0 where a face
 // makes it undefined, and -1 where the library could not represent it
 static int hessian_test_expected(const HessianTestField *field, unsigned int voxel, unsigned int entry,
                                  unsigned int faces, OriorExactInteger *sum)

@@ -29,7 +29,7 @@ extern "C"
     } TowerEdge;
 
     // The lattice lifted is `device_lanes`, 16-bit samples, or, where `device_values` is set, a lattice of ints read
-    // instead, such as a residual left below zero; its values past ENGINE_COEFFICIENT_LIMIT error on the lift as the
+    // instead, such as a residual left below zero. Its values past ENGINE_COEFFICIENT_LIMIT error on the lift as the
     // coefficients' do.
     typedef struct
     {
@@ -74,7 +74,7 @@ extern "C"
 // The wave transform's ruleset. A line of values splits into two bands, the lows (its even values) and the highs (its
 // odd), and a lifting step moves one band by a rounded sum over the other:
 //     target[a] += sign * floor((rounding + sum_k weight_k * other[a + offset_k]) / 2^shift),
-// an index past either end of `other` taken at that end. A ruleset is its lifting steps in order; the transform runs
+// an index past either end of `other` taken at that end. A ruleset is its lifting steps in order. The transform runs
 // them along every line of every level, and its inverse runs them last first with each sign turned. Every ruleset
 // is invertible exactly. The kernels' 5/3 is two steps: the highs less floor((x_2j + x_(2j+2)) / 2), then the lows
 // plus floor((d_(j-1) + d_j + 2) / 4).

@@ -40,7 +40,7 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 #define GUI_CONTROLS_END 8
 #define GUI_CONTROLS 3
 
-// the controls' tab's lip in the page's pixels, how far its glass reaches left of the controls; and how many gaps in
+// the controls' tab's lip in the page's pixels, how far its glass reaches left of the controls. And how many gaps in
 // from the work's edge a part's hole snaps to the edge
 #define GUI_CONTROLS_BEVEL 8
 #define GUI_HOLE_SNAP 2
@@ -76,7 +76,7 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 // the parts a fading part's share is at, sixteenths, which the base positions the part's ground at and its colors fade
 // by, so each stage of a fade positions the colors every fade before it positioned
 #define GUI_FRAME_PARTS 16
-// `color_` at `share_`, a number of GUI_FIXED_ONE from 0 to it, of its alpha, rounded: a fading part's color; the color
+// `color_` at `share_`, a number of GUI_FIXED_ONE from 0 to it, of its alpha, rounded: a fading part's color. The color
 // itself at a whole share, with no arithmetic
 #define GUI_FRAME_FADED(color_, share_)                                                                                \
     (((share_) >= GUI_FIXED_ONE)                                                                                       \
@@ -221,7 +221,7 @@ void gui_frame_layout(const GuiFrameScaleCfg *args);
 // none where `height` is 0
 void gui_frame_side(const GuiFrameDisplayedCfg *args);
 void gui_frame_terminal(const GuiFrameDisplayedCfg *args);
-// the work's inside positioned again with the preview's mode `displayed`: off, the editor whole; beside, the editor's right
+// the work's inside positioned again with the preview's mode `displayed`: off, the editor whole. Beside, the editor's right
 // half the preview's; alone, the editor's rectangle the preview's and the editor left none of its width
 void gui_frame_preview(const GuiFrameDisplayedCfg *args);
 // the parts positioned again for the claim's `numbers`: the work grown to the window less the gap on every side as the

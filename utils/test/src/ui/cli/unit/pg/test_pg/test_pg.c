@@ -12,7 +12,7 @@
 #define PG_VALUES 4u
 #define PG_VALUE 64u
 
-// What stops a statement, sent from its own thread once 400 milliseconds have passed, and whether it was sent
+// What stops a statement, sent from its own thread once 400 milliseconds passed, and whether it was sent
 typedef struct
 {
     CliPgCancel cancel;

@@ -167,7 +167,7 @@ LAYER = {
     "segmentation": DERIVED,
     "gloss": DERIVED,
     "word gloss": DERIVED,
-    # Retained and marked, excluded from the ingestion stream until someone has classified it.
+    # Retained and marked, excluded from the ingestion stream until someone classified it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -230,7 +230,7 @@ def four_line_words(block):
     of four, and block 44 opens with one. Nothing in the lines themselves marks it, and every word
     after it lands a position early. That is caught and not repaired. An uppercase category label belongs
     to a gloss and cannot are in a spoken word or its segmentation. Finding one in either of those
-    positions is proof the count has slipped, and the caller is told.
+    positions is proof the count slipped, and the caller is told.
 
     Returns the words, the free translation that closes the block, any line left over, and whether
     the cycle slipped.
@@ -417,7 +417,7 @@ def main():
             # The count slipped somewhere in this block. Every column after that point is one
             # line out and nothing in it can be named. The whole block is flagged. Emitting the
             # sentence anyway would put gloss text such as know+INCH -manage.to-DIR-3ERG into the
-            # ingestion stream as though someone had said it.
+            # ingestion stream as though someone said it.
             slipped_blocks += 1
             for one in block:
                 # Which column each line belongs to is the unknown here. The repair is chosen

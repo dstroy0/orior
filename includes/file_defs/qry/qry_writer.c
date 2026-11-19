@@ -101,7 +101,7 @@ static const unsigned char *qry_writer_ring_head(QryRing *ring, QryRecord *head)
     return ring->bytes + place;
 }
 
-// the nanoseconds between the writer's looks over the rings for a member whose process has ended
+// the nanoseconds between the writer's looks over the rings for a member whose process ended
 #define QRY_WRITER_RECLAIM_NANOSECONDS 1000000000ull
 
 // Every ring whose member's process has ended given back, once the writer has taken all it contains, for another

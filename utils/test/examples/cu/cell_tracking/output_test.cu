@@ -307,7 +307,7 @@ static int output_test_empty(const char *set)
            output_test_links(set, "empty", &words);
 }
 
-// how "second" is written: as worked by hand; with Q to R left unchosen, a link fewer, which changes its counts; or
+// how "second" is written: as worked by hand; with Q to R left unchosen, a link fewer, which changes its counts. Or
 // with its links crossed the other way, P to R and Q to S, which preserves every count
 typedef enum
 {
@@ -689,7 +689,7 @@ static int output_test_empty_faces(const char *set)
     return output_test_faces(set, "empty", view, 0ull, NULL, NULL, 0u, FACES_HEADER_WORDS, 0u);
 }
 
-// second's .faces, beside second as it is: P and Q, at frame 0, carry their places back; at frame 1, the last, R
+// second's .faces, beside second as it is: P and Q, at frame 0, carry their places back. At frame 1, the last, R
 // is carried back to (0, 1, 2), or with `moved` past the high x face, and S below the low x face. R and S have their
 // links in. Neither is a start and neither enters, and no count moves with R
 static int output_test_second_faces(const char *set, int moved)
@@ -949,7 +949,7 @@ static const char OUTPUT_TEST_FACED_NODES[] = OUTPUT_TEST_NODES_HEADER
     "second\t1\t0\t0\t1\t2\t0\t0\t1\t-1\t0\t0\t-1\t0\t0\t0\t0\t-1\t0\t1\t3\t0\t-1\t0\t-1\n"
     "second\t1\t1\t0\t0\t0\t0\t1\t1\t-1\t0\t0\t-1\t0\t0\t0\t0\t-1\t0\t0\t4\t0\t-1\t0\t-1\n";
 
-// the faced set's counts, worked by hand: the chain's ends B, C, A and D, of which B and D leave the view; its starts
+// the faced set's counts, worked by hand: the chain's ends B, C, A and D, of which B and D leave the view. Its starts
 // D, E and F, of which D and E enter it; 3 points in its first frame and 2 in its last. Neither empty nor second has an
 // end or a start, and second has 2 points in each of its frames
 static int output_test_faced_report(char *expected, size_t capacity)
@@ -1128,7 +1128,7 @@ static void output_test_divided(OutputTestResults *results, const char *set)
     }
 }
 
-// S9's faces: the set with a .faces beside each sample, every row and count checked against the hand's; its submission
+// S9's faces: the set with a .faces beside each sample, every row and count checked against the hand's. Its submission
 // is the undivided set's byte for byte, since the state is the nodes' alone. Then with chain's .divide and second's
 // beside them too, every row and count checked against the hand's again. The .faces and .divide files are taken away
 // after

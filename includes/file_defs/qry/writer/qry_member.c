@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the run this process is a member of, the path of its .qry, and how many runs it has joined
+// the run this process is a member of, the path of its .qry, and how many runs it joined
 static QryShared *s_run = NULL;
 static int s_found = 0;
 static char s_path[QRY_WRITER_TOP_MAX_LEN];
@@ -24,7 +24,7 @@ static _Thread_local unsigned long long s_ring_join = 0ULL;
 static _Atomic int s_exit_set = 0;
 
 // At this process's exit, the ring its exiting thread took given back once the writer has taken all it contains, or
-// at once where the writer has ended, and the run's memory let go: a ring outlives none of its members, which the run
+// at once where the writer ended, and the run's memory let go: a ring outlives none of its members, which the run
 // has a fixed count of rings for
 static void qry_member_exited(void)
 {
@@ -235,7 +235,7 @@ unsigned long long qry_member_rings_settled(void)
     return atomic_load(&run->scheduled);
 }
 
-// the places of `run`'s schedule its writer has filled, no more than the schedule holds: 0 where there is no run
+// the places of `run`'s schedule its writer filled, no more than the schedule holds: 0 where there is no run
 static unsigned long long qry_member_scheduled(const QryShared *run)
 {
     if (run == NULL)

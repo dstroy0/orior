@@ -414,7 +414,7 @@ void gui_raster_round(const GuiRasterRectColorCfg *args)
         gui_raster_rect_color.fill(args);
         return;
     }
-    // the rows between the corners' squares are filled whole through the fill's own loop; the rows through the
+    // the rows between the corners' squares are filled whole through the fill's own loop. The rows through the
     // squares pixel by pixel, each by its share inside the arcs
     const int side = (int)args->radius;
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
@@ -807,7 +807,7 @@ EMBED_INLINE void raster_line_append(const GuiRasterCtx *args)
 }
 
 // the color and the width of the line of the edge `notch` reaches, the head's before the foot's before the left's
-// before the right's; the right's where it reaches none
+// before the right's. The right's where it reaches none
 EMBED_INLINE GuiColor raster_notch_line(const GuiRasterCtx *args)
 {
     int *pixel_width = args->pixel_width;
@@ -1226,7 +1226,7 @@ void gui_raster_lanes_layout(const GuiRasterWidthXCfg *args)
     }
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
-        // the row and column inside the picture are not negative, the rectangle positioned lying inside it; the pixel lies
+        // the row and column inside the picture are not negative, the rectangle positioned lying inside it. The pixel lies
         // on the raster: its coordinates are not negative
         const unsigned int from = ((unsigned int)(row - args->y) * args->width) + (unsigned int)(on.x - args->x);
         const unsigned int *const text_color_red_blue = args->red_blue + from;
@@ -1463,7 +1463,7 @@ void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
     const int side = (int)args->radius;
     for (int y = on.y; y < on.y + on.height; y += 1)
     {
-        // the pixel lies on the raster: its coordinates are not negative; the tile's row and the column it starts
+        // the pixel lies on the raster: its coordinates are not negative. The tile's row and the column it starts
         // at are read once a row and the column counted on, wrapping at the tile's side
         const unsigned char *const tile_row = args->alpha + (((unsigned int)y % args->tile) * args->tile);
         unsigned int column = (unsigned int)on.x % args->tile;

@@ -4,7 +4,7 @@
 //
 // NVIDIA's listing of the tagged build is the answer key: the instructions between tag n and tag n + 1 are its writing
 // of precept n - 1, each with the 128 bits it encoded. For every one, our reader is queried for its text from those
-// bits, and our assembler for its bits from that text; the scheduler's bits, 105 to 127, are read apart, since no
+// bits, and our assembler for its bits from that text. The scheduler's bits, 105 to 127, are read apart, since no
 // listing prints them. Then the word our compiler writes the block's precept with (word_web.h) is written through
 // sass.krs with NVIDIA's own registers, assembled, and set beside NVIDIA's instruction. A precept no word implements is
 // reported with the tree the alphabet web writes it as (precepts.h). sass.krs, the machine file and the word web are

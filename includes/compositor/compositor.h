@@ -44,7 +44,7 @@ typedef struct GuiCompositorGlyphFindCfg GuiCompositorGlyphFindCfg;
 #define GUI_COMPOSITOR_CURSOR 5u
 #define GUI_COMPOSITOR_LAYERS 6u
 
-// The pixels on a side of a tile and the shift that divides by them; the surfaces and the images a compositor holds
+// The pixels on a side of a tile and the shift that divides by them. The surfaces and the images a compositor holds
 // at most; and the one fixed point: 16.16, the pixel the place shifted right 16
 #define GUI_COMPOSITOR_TILE 64u
 #define GUI_COMPOSITOR_TILE_SHIFT 6u
@@ -103,7 +103,7 @@ typedef struct
 } GuiCompositorGlyph;
 _Static_assert(sizeof(GuiCompositorGlyph) == 12u, "a run's glyph is 12 bytes on every target");
 
-// A glyph baked in the atlas: its key, the face, size, place and glyph packed; its page and its box on the page; where
+// A glyph baked in the atlas: its key, the face, size, place and glyph packed; its page and its box on the page. Where
 // its box's top left is from the pen, left of it and above the baseline; its advance in 16.16; and whether it is baked
 typedef struct
 {

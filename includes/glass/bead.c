@@ -23,7 +23,7 @@
 #define BEAD_CAUSTIC_CENTER 0.18
 #define BEAD_CAUSTIC_SHIFT 0.12
 #define BEAD_CAUSTIC_WIDTH 0.12
-// the shadow's spread as a share of the side and the share the press takes off it; the share of the dome's height
+// the shadow's spread as a share of the side and the share the press takes off it. The share of the dome's height
 // above the glass the shadow is cast from; and the share the press takes off the shadow's density
 #define BEAD_SHADOW_SPREAD 0.085
 #define BEAD_SHADOW_SPREAD_PRESSED 0.35
@@ -530,7 +530,7 @@ EMBED_INLINE int bead_sizes_refused(const GuiBeadBakeCfg *args)
            (args->tools == 0u) || (args->tools > GUI_BEAD_TOOLS_MAX);
 }
 
-// the rows the atlas's raster holds for the sizes: each button's frames, two planes a frame; the three patches with
+// the rows the atlas's raster holds for the sizes: each button's frames, two planes a frame. The three patches with
 // the reach as a margin; and the three planes of float work
 EMBED_INLINE unsigned int bead_rows(const GuiBeadBakeCfg *args)
 {
@@ -707,7 +707,7 @@ void gui_bead_blit(const GuiBeadBlitCfg *args)
     const int height = (int)raster->height;
     const int left = args->x - reach;
     const int top = args->y - reach;
-    // the columns of the patch that lie on the raster are one copy a row; the columns past its sides take its edge
+    // the columns of the patch that lie on the raster are one copy a row. The columns past its sides take its edge
     // pixel; the sides are far inside an int
     const int first = (left < 0) ? -left : 0;
     const int past = ((left + (int)stride) > width) ? width - left : (int)stride;
@@ -741,7 +741,7 @@ void gui_bead_blit(const GuiBeadBlitCfg *args)
                .lines = stride, .line_step = 1u);
     EMBED_CALL(bead_box_pass, BeadCtx, .from = ping, .to = frost, .lo = 1u, .hi = 2u, .step = stride, .count = patch_rows,
                .lines = stride, .line_step = 1u);
-    // each pixel of the cell on the raster: skipped where its mask is 0; else read through its offsets from the
+    // each pixel of the cell on the raster: skipped where its mask is 0. Else read through its offsets from the
     // sharp patch, mixed with the frosted patch by its share, and lit from plane B
     const unsigned int scale = args->opacity + (args->opacity >> 7u);
     const GuiColor *const plane_a = EMBED_CALL(

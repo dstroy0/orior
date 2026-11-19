@@ -110,7 +110,7 @@ QUOTED = re.compile(r"^['‘“]")
 
 # The paper's second gloss line segments each word into morphemes and joins them with a hyphen or an
 # equals sign, the positive evidence that a line is one. Without this test the branch below
-# called a line segmentation because nothing else had matched it, and page numbers, footnote prose
+# called a line segmentation because nothing else matched it, and page numbers, footnote prose
 # and the tails of wrapped sentences all went into the record under that name.
 SEGMENTED = re.compile(r"[-=]")
 

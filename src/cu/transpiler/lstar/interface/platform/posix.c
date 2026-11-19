@@ -196,7 +196,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         interface_launch_given();
         return 0L;
     }
-    // the group is set from both sides. A limit that runs out before the probe has set it still reaches it
+    // the group is set from both sides. A limit that runs out before the probe set it still reaches it
     setpgid(made, made);
     int failed = 0;
     ssize_t received = read(pipe_fds[0], &failed, sizeof(failed));
@@ -231,7 +231,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     answer->microseconds = interface_now() - began;
     // every process the probe started and left ends with it
     kill(-made, SIGKILL);
-    // the rest of the pipe read to its end, once every process of the group that owned its write end has ended; one a
+    // the rest of the pipe read to its end, once every process of the group that owned its write end ended. One a
     // process outside the group still owns is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far retained
     if (pipe_read >= 0)
     {
@@ -244,7 +244,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         close(pipe_read);
         interface_output_ended(answer, total);
     }
-    // the probe has ended, however it ended: its place in the queue is given back
+    // the probe ended, however it ended: its place in the queue is given back
     interface_launch_given();
     if (!INTERFACE_CHECK(reaped == made, probe->output_path, error, ENGINE_ERROR_RESOURCE))
     {

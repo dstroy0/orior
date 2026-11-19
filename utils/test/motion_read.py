@@ -6,7 +6,7 @@ frames retained still inside it retained as part of it; each motion checked on i
 match paired with each other.
 
 A motion's progress runs from 0 where it left its rest to 1 where it came to rest again. A smooth one leaves its rest
-without a jump, runs up to one top speed and down from it, and comes to rest without one; every frame inside it comes
+without a jump, runs up to one top speed and down from it, and comes to rest without one. Every frame inside it comes
 when the recording's frames come. What it is checked against on its own:
 
     late frame      a frame inside the motion FRAME_LATE of the recording's frames long or more
@@ -50,7 +50,7 @@ STEP = {"px": 0.02, "number": 1e-5, "area": 1.0}
 LEAST = {"px": 1.0, "number": 0.01, "area": 100.0}
 # The least speed a person sees, in each unit a millisecond: half a pixel a frame at sixty frames a second, and its
 # like for a number and an area. A frame retained still, a hitch or two phases count only where the motion about them
-# runs at this or faster; slower, the layout's sixty-fourths of a pixel hold a slow tail still between its steps.
+# runs at this or faster. Slower, the layout's sixty-fourths of a pixel hold a slow tail still between its steps.
 VISIBLE = {"px": 0.03, "number": 0.0003, "area": 3.0}
 # How far a motion has gone when it is done to the eye: a part that starts after it, within TOGETHER frames of this,
 # follows it.
@@ -365,7 +365,7 @@ def overlapped(motions, frame_ms):
 
 
 def collapsed(findings):
-    """One finding for each type, part and step, the worst, with every track it was found on; late frames once for
+    """One finding for each type, part and step, the worst, with every track it was found on. Late frames once for
     each step, as they are the frames' and not a part's."""
     retained = {}
     for one in findings:

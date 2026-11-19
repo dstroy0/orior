@@ -165,7 +165,7 @@ def _report():
     for dimensions, side in ((1, 512), (1, 64), (2, 16), (2, 24), (3, 8), (3, 10), (4, 5), (4, 6)):
         size = side ** dimensions
         if size > 1500:
-            # A dense SVD of the nested operator is what is being avoided in principle; retain the
+            # A dense SVD of the nested operator is what is being avoided in principle. Retain the
             # measured cases small and let the prediction carry the wide ones.
             continue
         laplacian = nested_laplacian(side, dimensions)

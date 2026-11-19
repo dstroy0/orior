@@ -21,7 +21,7 @@ Every caller picks one. A floor picked by a caller is a result picked by a calle
 
 THE RULE THIS APPLIES TO ITSELF
 
-A checker that has never caught its own defect is a checker nobody has tested. So before any floor
+A checker that has never caught its own defect is a checker nobody tested. So before any floor
 here is offered, the harness is passed a move that is not a null while being told it is one, and it
 has to catch it, and it is passed a genuine null and has to stay quiet. Both run first under
 `--check` and the floors error if either misbehaves.

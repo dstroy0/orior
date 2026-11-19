@@ -84,7 +84,7 @@ NONCES = 2048                    # more than nonce_read's 512: the limit scales 
 # WHERE THE NONCE ENTERS, WHICH THE ROUND LIST IS BUILT AROUND. header_words puts the nonce in
 # schedule word 15, and SHA-256 round r consumes schedule word r. So rounds 0 through 14 consume
 # words 0 through 14, every one of which is identical across the sweep, and states[0] through
-# states[15] are BIT-IDENTICAL for every nonce. states[16] is the first state the nonce has reached.
+# states[15] are BIT-IDENTICAL for every nonce. states[16] is the first state the nonce reached.
 #
 # Rounds 8 and 15 are therefore an EXACT NULL BY CONSTRUCTION and are in this list for that reason:
 # they cost nothing, they must read exactly 0.0000, and any variance there is a wiring bug and

@@ -34,7 +34,7 @@ static char s_folder[CLI_PATH_MAX_LEN];
 static char s_path[CLI_PATH_MAX_LEN];
 static int s_folder_created;
 static int s_stored;
-// the home the suite's tabs store their history and place under; the shell they start and the command that prints the
+// the home the suite's tabs store their history and place under. The shell they start and the command that prints the
 // folder a shell is in, each this system's
 static const char s_home[] = "build/harness/terminal_home";
 #if defined(_WIN32)

@@ -74,7 +74,7 @@ def main():
             out.write("  %-14s errored in the gate: %s\n" % (label, gate))
             continue
         if len(text) < SAME_LENGTH:
-            # The gate's note here read as though the gate had rejected a file it passed
+            # The gate's note here read as though the gate rejected a file it passed
             out.write("  %-14s passed the gate and holds %d characters, under the %d needed\n"
                       % (label, len(text), SAME_LENGTH))
             continue

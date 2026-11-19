@@ -13,7 +13,7 @@
 # as code.
 #
 # A paper carries some of these types and not others, and it declares which in paper_config.py. The
-# mechanism is written once here; the count behind each declaration stays with the paper, because it
+# mechanism is written once here. The count behind each declaration stays with the paper, because it
 # is a fact about that paper and not about the mechanism.
 #
 # WHAT IS HERE AND WHAT IS NOT

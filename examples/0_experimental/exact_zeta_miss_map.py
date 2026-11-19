@@ -1273,7 +1273,7 @@ def hermite_turns(z0, z1, d0, d1, h, samples=32):
 def pole_passes(source, clock, rate):
     """The stretch of t where a single pole at `source` = gamma + i delta passes the clock, or None. Its twist is
     delta / (u^2 + delta^2), u = t - gamma: below -theta' where delta < 0 and u^2 < |delta| / theta' - delta^2, the
-    clock running back; past (rate - 1) theta' where delta > 0 and u^2 < delta / ((rate - 1) theta') - delta^2, the
+    clock running back. Past (rate - 1) theta' where delta > 0 and u^2 < delta / ((rate - 1) theta') - delta^2, the
     clock spun a step's pi."""
     delta = source.imag
     if delta < 0.0:
@@ -1390,7 +1390,7 @@ def main_twist(binary, base, count, rate):
             drag, swell = ripple_at(fine, x2, dip)
             miss_courses.append(abs(math.degrees(math.atan2(swell, drag))))
             # the slip: how far past the level the ball goes, |Z| / (2 |F|) at the dip, where cos(phi) is, and
-            # the drag there; the zeros' distance apart in fine steps
+            # the drag there. The zeros' distance apart in fine steps
             slips.append((abs(fine[dip][2]) / (2 * abs(fine[dip][3])), fine[dip][3].real / abs(fine[dip][3]), drag,
                           second[0] - first[1], 2 * math.pi * x2[dip],
                           abs(fine[dip][2] - 2 * fine[dip][3].real) / (2 * abs(fine[dip][3]))))

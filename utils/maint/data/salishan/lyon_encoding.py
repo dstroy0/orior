@@ -43,7 +43,7 @@ import unicodedata
 MOVED = {"’": "̓", "´": "́"}
 
 # What the glyph codes are for, one for one, wherever they appear in a Salish token. ; was in this
-# table until níkmən; showed that it is not one for one: see lengthened().
+# table until níkmən. Showed that it is not one for one: see lengthened().
 CHARACTERS = (
     ("@", "ə"),
     ("ì", "ɬ"),

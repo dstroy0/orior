@@ -3,11 +3,11 @@
 //
 // tessera end to end: the client against the built daemon on this device. The client starts the daemon when no
 // daemon answers. Every job is reserved its declaration over the bytes its process already occupied as it requested,
-// which the daemon measures and reports on admission; the test retains its first job's memory: every later job's
+// which the daemon measures and reports on admission. The test retains its first job's memory: every later job's
 // process is on it. A job declaring less than it then occupies is admitted on its declaration and informed it grew;
 // its peak is recorded under its signum. The same signum declaring four times that peak is prompted, and admitted on
 // the override. Declaring within the peak it is admitted at once. Declaring over it again with no answer, it is
-// reserved past its grace time and lost, its ticket naming the lost and found place; the precalc saved there releases
+// reserved past its grace time and lost, its ticket naming the lost and found place. The precalc saved there releases
 // it. Its ticket is sealed with the precalc note in it. Once the daemon has gone, the history it sealed is damaged by
 // one byte, cut short, and stripped of its seal, and each time no daemon will start on it; restored, it starts and the
 // recorded peak is still there. The damage is done in $TESSERA_STATE, which run.sh points at a scratch directory.

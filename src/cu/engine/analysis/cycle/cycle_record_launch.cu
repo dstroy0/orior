@@ -165,7 +165,7 @@ static int cycle_record_launch(const CycleRecord *record, const CycleRecordLaunc
     return ok;
 }
 
-// CYCLE_RECORD_CHECK: the compiled program has run into the request's records; the interpreter runs the same lanes
+// CYCLE_RECORD_CHECK: the compiled program has run into the request's records. The interpreter runs the same lanes
 // into records of its own, and both runs' records and errors must be the same word for word. The compiled run's
 // errors are put back for the run to read
 static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launch, unsigned int blocks,

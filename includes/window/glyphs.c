@@ -208,7 +208,7 @@ unsigned int gui_face_had(const GuiGlyphsFaceCfg *args)
     return ((args->face < GUI_FACES) && args->glyphs_read->has[args->face]) ? args->face : GUI_FACE_CODE;
 }
 
-// the cache entry keyed by `face`, `glyph` and `size`, or an unused entry for it; the cache is emptied first when
+// the cache entry keyed by `face`, `glyph` and `size`, or an unused entry for it. The cache is emptied first when
 // three quarters of its entries are in use
 EMBED_INLINE GuiCachedGlyph *glyphs_entry(const GlyphsCtx *args)
 {
@@ -614,7 +614,7 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         cell->green = cell->red_blue + pixels;
         cell->rest = cell->green + pixels;
         // each pixel's share of the color is its cover by the color's alpha, two shares of 255 multiplied being a share
-        // of 255 once divided by 255; the lanes are the color's channels by the share with half of 255 in, as the
+        // of 255 once divided by 255. The lanes are the color's channels by the share with half of 255 in, as the
         // raster's blend positions them
         const unsigned int alpha = GUI_ALPHA_OF(color);
         for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)

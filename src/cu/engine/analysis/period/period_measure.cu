@@ -261,7 +261,7 @@ extern "C" unsigned long long period_agreement_entries(unsigned int rank, const 
 }
 
 // the pool's slices for `voxels` and `entries`, in the order they are arranged and taken: the histogram, the agreement
-// and the shuffled lanes; the plan is arranged from them, and a pool reserved from it takes them
+// and the shuffled lanes. The plan is arranged from them, and a pool reserved from it takes them
 static DevicePoolPlan period_plan(unsigned long long voxels, unsigned long long entries, EngineError *error,
                                   DevicePoolTakeRequest takes[PERIOD_SLICES])
 {

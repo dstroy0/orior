@@ -337,7 +337,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     {
         CloseHandle(job);
     }
-    // the pipe's reader ends at the pipe's end, once every process that owned its write end has ended; one a process
+    // the pipe's reader ends at the pipe's end, once every process that owned its write end ended. One a process
     // outside the job still owns is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far retained
     if (reader != NULL)
     {

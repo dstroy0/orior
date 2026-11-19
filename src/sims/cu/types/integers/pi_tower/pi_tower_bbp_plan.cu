@@ -248,7 +248,7 @@ int pi_tower_bbp_counted(SimResults *results, unsigned int *out, unsigned long l
     return sim_status_check(results, cudaGetLastError(), "engine: the lanes' integers");
 }
 
-// the sums of count lanes in buffers[0], reduced to one by rounds of the pair program, the buffers taking turns; the
+// the sums of count lanes in buffers[0], reduced to one by rounds of the pair program, the buffers taking turns. The
 // buffer the one sum lands in, or NULL
 unsigned int *pi_tower_bbp_reduce(SimResults *results, const PiTowerBbp *bbp, unsigned int *const *buffers,
                                   const unsigned int *index, unsigned long long count, EngineError *error)

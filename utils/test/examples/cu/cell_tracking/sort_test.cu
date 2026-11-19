@@ -5,7 +5,7 @@
 // by pair, flag by flag and cost by cost: frames of no points and of one, lattice ties, predictions outside the view, a
 // pile of equal places whose ties pass 2 takes in batches, drawn small frames, and 6031 points against 6031 in a
 // 64 x 256 x 256 view, under the weights 16, 1, 1 and 1, 1, 1. The host numbers the support components by a breadth
-// first walk in gate order and finds them the device's; each gate pair's weight is K - cost, K one more than its
+// first walk in gate order and finds them the device's. Each gate pair's weight is K - cost, K one more than its
 // component's summed costs, and at least 1. The chosen links are gate pairs, one to one, as many as the max any
 // matching of the gate admits (augmenting paths on the host); on every component of at max 25 gate pairs an
 // enumeration of every matching finds the chosen links' count and cost the max links, then the least cost. The

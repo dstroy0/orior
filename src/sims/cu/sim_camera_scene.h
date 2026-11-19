@@ -45,14 +45,14 @@
 #define SIM_OFFSET_PATTERN_PURPOSE 0x44534E55ull
 
 // the camera's shot laws, 0 for none: sim_poisson_four_cumulants, the camera's own, whose first four cumulants are
-// each S, a Poisson count's; and Binomial(4S, 1/2) - S, of mean and variance S but symmetric (third cumulant 0,
+// each S, a Poisson count's. And Binomial(4S, 1/2) - S, of mean and variance S but symmetric (third cumulant 0,
 // fourth -S/2), stored for a sim to read beside it
 #define SIM_SHOT_POISSON 1ull
 
 #define SIM_SHOT_SYMMETRIC 2ull
 
 // two more counts for a sim to thin (rows 13 and 14): Binomial(2S, 1/2), of mean S and variance S / 2, Fano factor
-// 1/2, a sub-Poisson source; and twice the camera's Poisson count of S / 2 pairs, S even, of mean S and variance 2 S,
+// 1/2, a sub-Poisson source. And twice the camera's Poisson count of S / 2 pairs, S even, of mean S and variance 2 S,
 // Fano factor 2, a bunched source
 #define SIM_SHOT_HALF 3ull
 

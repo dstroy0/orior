@@ -525,7 +525,7 @@ Run against portable, agreeing on every lag at every size:
 
 Widening the comparison is worth ten to forty percent. It cannot reach three times, because the comparison is not the majority of the work: the hash probe and the memory it touches are.
 
-**These are host clock timings and the host is not quiet.** `clock()` on this platform measures wall time. Anything else running on the machine moves the numbers. Other processor work ran in bursts through the afternoon. Every CUDA figure above is a median of five runs taken on an idle card; the spread across those five is 0.29 to 0.45 at a thousand positions and 7.82 to 9.13 at sixty five thousand. A lone run is worth about ten percent either way. The gcc-14 row is a median of five for the same reason, taken after one run read 0.89x, an outright loss.
+**These are host clock timings and the host is not quiet.** `clock()` on this platform measures wall time. Anything else running on the machine moves the numbers. Other processor work ran in bursts through the afternoon. Every CUDA figure above is a median of five runs taken on an idle card. The spread across those five is 0.29 to 0.45 at a thousand positions and 7.82 to 9.13 at sixty five thousand. A lone run is worth about ten percent either way. The gcc-14 row is a median of five for the same reason, taken after one run read 0.89x, an outright loss.
 
 Device side timing through CUDA events would be immune to this and the host arms would still not be. Both arms of a ratio run back to back in one process. Load moves them together and mostly cancels. The medians landed within ten percent of the single runs they replaced for that reason.
 

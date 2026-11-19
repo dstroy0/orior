@@ -6,7 +6,7 @@
 #
 #   Usage:  python maint/data/fetch/fetch_onomatopoeia.py
 #
-# Hungarian and Polish belong to unrelated families and have farmed the same basin since the Magyars
+# Hungarian and Polish belong to unrelated families and farmed the same basin since the Magyars
 # arrived into Slavic speaking country around 895. Hungarian took several hundred Slavic loanwords,
 # concentrated in agriculture, livestock, tools and religion, which is where two populations sharing a
 # livelihood borrow.

@@ -699,7 +699,7 @@ static int output_divide_read(const char *sample, const char *set, const char *l
 
 // the counts O20 and H4 require, frame pair by frame pair, and H4 on each: N(t + 1) - N(t) = D(t) - E(t) + S(t + 1),
 // with D(t) the points of t with two links out, the parents of the pair's divisions. With a .faces, the ends whose
-// prediction crosses a face leave the view, and the starts whose back-prediction crosses one enter it; the links are
+// prediction crosses a face leave the view, and the starts whose back-prediction crosses one enter it. The links are
 // the output's, the .divide's made. The results come in as output_sample_read zeroed them, with the .faces' and the
 // .divide's counts
 static int output_graph_results(const char *sample, const OutputGraph *graph, OutputResults *results)

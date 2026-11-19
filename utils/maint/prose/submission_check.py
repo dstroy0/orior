@@ -55,7 +55,7 @@
 #
 # The rates are a floor and only a floor. A contributor who knows the list can write around it, and
 # the phrases were suppressed in this tree's own prose while the human corpus was being counted.
-# A submission scoring near the human rate has told you nothing except that it scored near the
+# A submission scoring near the human rate told you nothing except that it scored near the
 # human rate.
 
 import os

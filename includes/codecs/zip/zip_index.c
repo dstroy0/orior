@@ -270,7 +270,7 @@ int zip_span_read(const EngineIngestTools *tools, const char *path, const ZipArc
     {
         return 0;
     }
-    // the span runs from the first member's local header to the end of the last member's data; the last member's
+    // the span runs from the first member's local header to the end of the last member's data. The last member's
     // local header gives where its data starts, since a local header's extra field need not be the directory's
     unsigned long long first = 0ull;
     for (unsigned long long at = 1ull; at < count; at += 1ull)

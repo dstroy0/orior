@@ -177,7 +177,7 @@ CODEGEN_CORE void codegen_wrap(MachineFunction *lane, const IrStep *at)
 // a division by a divisor of one limb, cycle_record_divide's one-limb long division unrolled from the numerator's top
 // limb down: each limb's quotient word by div, and the carried remainder the limb less the quotient word times the
 // divisor, which is exact in 32 bits since it is below the divisor. The numerator's zero limbs above its used ones
-// divide to zero and carry nothing, as the interpreter's skipping them does. A zero divisor errors on the lane; an
+// divide to zero and carry nothing, as the interpreter's skipping them does. A zero divisor errors on the lane. An
 // exact quotient errors on a remainder and a quotient that outgrows its register, as the inverse's multiply back does.
 // The quotient's words are the step's own limbs where the step retains them, below `top_bits`, and its own temporaries
 // above
@@ -271,7 +271,7 @@ CODEGEN_CORE void codegen_copy_out(MachineFunction *lane, const MachineOperandRa
 // hardware does it: the numerator's limbs, which become the quotient, and a rest one limb wider than the divisor are
 // shifted up a bit together; the divisor is taken from the rest where it does not borrow, and the quotient's new low
 // bit is 1 where it was. After 32 passes a numerator limb, the quotient and the rest are cycle_record_divide's. A zero
-// divisor errors on the lane; an exact quotient errors on a rest and a quotient that outgrows its register, as the
+// divisor errors on the lane. An exact quotient errors on a rest and a quotient that outgrows its register, as the
 // inverse's multiply back does
 CODEGEN_CORE void codegen_long_division(MachineFunction *lane, const IrStep *at)
 {

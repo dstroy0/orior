@@ -7,7 +7,7 @@
 #include "../../../../../includes/window/docks.h"
 #include "../cli/cli_check.h"
 
-// the share of its way the panel has left at `time_ms`, and when its arrival ends
+// the share of its way the panel left at `time_ms`, and when its arrival ends
 static int away(const GuiDocks *docks, unsigned long long time_ms)
 {
     return EMBED_CALL(gui_docks.away, GuiDocksCfg, .docks_read = docks, .time_ms = time_ms);

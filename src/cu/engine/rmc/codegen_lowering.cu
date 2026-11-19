@@ -246,7 +246,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     const MachineInstr *const body = &decided[parts.at[CODEGEN_OPENED]];
     const unsigned long long body_count =
         parts.count[CODEGEN_OPENED] + parts.count[CODEGEN_STEPPED] + parts.count[CODEGEN_CLOSED];
-    // phase two: the body split into states, counted, then written; an error's label for the opening and one for each
+    // phase two: the body split into states, counted, then written. An error's label for the opening and one for each
     // step at max, and each loop the steps wrote
     MachineInstr *scheduled_instrs = NULL;
     unsigned long long scheduled_count = 0ull;

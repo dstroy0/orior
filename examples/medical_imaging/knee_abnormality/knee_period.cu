@@ -424,7 +424,7 @@ static int knee_header(KneeText *text, unsigned long long series, const KneeGrou
     return good;
 }
 
-// a written file is retained only when its header is this run's, line for line; otherwise its lines were made under
+// a written file is retained only when its header is this run's, line for line. Otherwise its lines were made under
 // other groups, and the run refuses and mixes none of them. Each body line is passed to `take`.
 typedef int (*KneeLineTake)(const char *line, void *context);
 
@@ -494,7 +494,7 @@ static int knee_parse_margin(const char *text, PeriodMargin *margin, const char 
     return end != denominator;
 }
 
-// the tops retain the strongest height per axis; one group's heights on an axis share their denominator, the pairs at
+// the tops retain the strongest height per axis. One group's heights on an axis share their denominator, the pairs at
 // every lag, and the numerators compare exactly
 static int knee_fold(KneeGroup *group, const PeriodMargin heights[KNEE_RANK])
 {
@@ -1490,7 +1490,7 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
 }
 
 // a rung's orders: on each axis its order n_a, positioned as spaced pairs, the smooth's from 0 to n_a and the background's
-// from n_a to 2 n_a; and the comb P
+// from n_a to 2 n_a. And the comb P
 typedef struct
 {
     unsigned int order[KNEE_RANK];

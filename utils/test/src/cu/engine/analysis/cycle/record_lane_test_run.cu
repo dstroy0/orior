@@ -96,7 +96,7 @@ void lane_search_build(LaneProgram *program, int write_all, LaneSearch *search)
     search->hit = lane_output(program, hit);
 }
 
-// the program encoded, arranged with reuse and loaded over one member of three limbs: base, then T; on the interpreter
+// the program encoded, arranged with reuse and loaded over one member of three limbs: base, then T. On the interpreter
 // where `interpret`, else compiled where NVRTC and nvJitLink are found
 int lane_load(const LaneProgram *program, int interpret, LaneLoaded *loaded)
 {

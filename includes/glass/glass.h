@@ -12,7 +12,7 @@ typedef struct GuiGlassRasterCfg GuiGlassRasterCfg;
 typedef struct GuiGlassCfg GuiGlassCfg;
 typedef struct GuiGlassButtonCfg GuiGlassButtonCfg;
 
-// the grain's tile, its side in pixels, as the page's SVG tile is; the noise's base frequency in cells a pixel and
+// the grain's tile, its side in pixels, as the page's SVG tile is. The noise's base frequency in cells a pixel and
 // its octaves; the seed of the noise; and the max of the grain's alpha, 0.07 of white
 #define GUI_GRAIN_TILE 180u
 #define GUI_GRAIN_FREQUENCY 0.85

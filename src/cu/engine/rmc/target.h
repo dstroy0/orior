@@ -101,7 +101,7 @@ class Target
   protected:
     explicit Target(const RulesetSchema *schema);
 
-    // the ruleset once ruleset() has read it, else NULL
+    // the ruleset once ruleset() read it, else NULL
     const Ruleset *ready(void) const;
 
   private:

@@ -11,7 +11,7 @@
 // the host.
 //
 // The list contains one cubin a line, as `<path> <kernel>`. Each from line `first` on is read on the host first and
-// checked by cubin_safe against the machine file; one that breaks a rule is never passed to the driver and adds
+// checked by cubin_safe against the machine file. One that breaks a rule is never passed to the driver and adds
 // `<number> skipped cubin_safe_<verdict>`. Every other is loaded, its kernel run over the probe's case, and a line
 // `<number> answered <w0> <w1> <w2> <w3>` added to the answers file. Given a cases file, one case a line as up to eight
 // words in hex, the kernel is run once over every case, a thread a case, and the line contains the first word of each

@@ -74,7 +74,7 @@ Everything in `examples/` sits at `<subject>/<stage>/`, and a file only earns th
 
 ## What belongs here
 
-A script that answers a question nobody has assigned to a subject. A first attempt at a stage that does not exist for any subject yet. A reading whose corpus has not been fetched.
+A script that answers a question nobody assigned to a subject. A first attempt at a stage that does not exist for any subject yet. A reading whose corpus has not been fetched.
 
 ## What does not
 

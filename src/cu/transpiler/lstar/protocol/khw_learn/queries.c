@@ -34,14 +34,14 @@ const char *s_fields;
 char s_ksc_path[1024];
 const char *s_machine_writer;
 
-// one question, how many the run has put, and the launches the question is timed over, 0 where it is untimed
+// one question, how many the run put, and the launches the question is timed over, 0 where it is untimed
 RunQuestion s_question;
 
 unsigned long long s_query_count;
 unsigned int s_launches;
 
 // One round's questions, SCHEDULER_ROUND_MAX at max, each with the code it carries, how many it settles and its
-// place in the round; how many the round contains
+// place in the round. How many the round contains
 RunQuestion *s_pool;
 
 static unsigned char s_pool_code[SCHEDULER_ROUND_MAX][KHW_PLACES * KHW_INSTRUCTION];
@@ -207,7 +207,7 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
     question->code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     question->registers = s_registers;
     question->cases = count;
-    // the kernel put whole names the probe point the kernel listing gives, as every question does; only a kernel whose
+    // the kernel put whole names the probe point the kernel listing gives, as every question does. Only a kernel whose
     // listing names none, before its probe point is found, names none
     question->place = (place < s_kernel_places)                  ? place
                       : (s_kernel_probe_place < s_kernel_places) ? s_kernel_probe_place

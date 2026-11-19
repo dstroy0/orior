@@ -9,7 +9,7 @@
 
 #include <stddef.h>
 
-// the bytes of a member's ring, a power of two: a record takes at max half of it; and the members a run allocates a
+// the bytes of a member's ring, a power of two: a record takes at max half of it. And the members a run allocates a
 // ring for at max, its region positioned with fewer where its request is smaller
 #define QRY_WRITER_RING_BYTES (64ull << 20u)
 #define QRY_WRITER_MEMBERS QRY_WRITER_MEMBERS_MAX
@@ -117,7 +117,7 @@ extern "C"
     // NULL where there is no run or the path is outside the top
     const char *qry_member_file_name(const char *path);
 
-    // the blob of the file at `path` as the run stores it (qry_member_file), where it is, and its bytes; with no
+    // the blob of the file at `path` as the run stores it (qry_member_file), where it is, and its bytes. With no
     // run, the disk's file mapped where it lies: 1, or 0 where the file is neither the run's nor the disk's
     int qry_member_file_blob(const char *path, const unsigned char **blob, unsigned long long *size);
 

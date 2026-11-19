@@ -290,7 +290,7 @@ __global__ void codegen_schedule(IrProgram program, unsigned int *summary, Machi
     }
 }
 
-// the records each item takes, a thread an item; an item given other arguments than its form takes breaks the lane, as
+// the records each item takes, a thread an item. An item given other arguments than its form takes breaks the lane, as
 // the host's writing it does
 __global__ void codegen_device_record_counts(AsmPrinterLists forms, const MachineInstr *items,
                                              unsigned long long item_count, unsigned long long *record_counts,

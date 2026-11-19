@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 # The engine is orior's src/cu/engine, found from this file's own place. A build in orior and a project
-# that takes orior as a submodule and sources this file read the same engine; without it the build fails here,
+# that takes orior as a submodule and sources this file read the same engine. Without it the build fails here,
 # before anything compiles
 ENGINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/src/cu/engine"
 if [ ! -f "$ENGINE/engine_config.h" ]; then

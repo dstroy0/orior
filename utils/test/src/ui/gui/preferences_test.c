@@ -382,7 +382,7 @@ int main(void)
     (void)EMBED_CALL(gui_preferences_palette_change.release, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = colors_name.x + 3, .y = colors_name.y + 3, .change = &change, .time_ms = 7100ULL);
     cli_check((preferences.buttons.pressed == GUI_BEAD_TOOLS_MAX) && (preferences.buttons.press[GUI_PREFERENCES_COLORS].to == GUI_FIXED_ONE), "the press let go springs the bead back");
 
-    // the palettes' list at the grid's left: Window and each language plugin named, a row a palette; the one chosen
+    // the palettes' list at the grid's left: Window and each language plugin named, a row a palette. The one chosen
     // gives the grid its colors, a plugin's tokens alone from the first the window passes in
     static GuiPaletteOwn plugin;
     EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &plugin, .scheme = GUI_SCHEME_DARK);

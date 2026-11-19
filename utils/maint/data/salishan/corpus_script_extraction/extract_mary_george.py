@@ -132,7 +132,7 @@ LAYER = {
     "phonetic": SPOKEN,
     "translation": SPOKEN,
     "note": DERIVED,
-    # Retained, marked, and excluded from the ingestion stream until someone has looked at it. A line
+    # Retained, marked, and excluded from the ingestion stream until someone looked at it. A line
     # nobody has classified is not a line to feed to anything, and it is not a line to throw away.
     UNCLASSIFIED: DERIVED,
 }

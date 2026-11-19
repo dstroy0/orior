@@ -79,7 +79,7 @@ unsigned long long parquet_varint_read(ParquetCursor *cursor)
 static long long parquet_zigzag_read(ParquetCursor *cursor)
 {
     const unsigned long long stored = parquet_varint_read(cursor);
-    // the bits past the sign bit are below 2^63 and convert exactly; the low bit alone decides the sign, and set,
+    // the bits past the sign bit are below 2^63 and convert exactly. The low bit alone decides the sign, and set,
     // the value is -value_bits - 1, which reaches -2^63 at max
     const long long value_bits = (long long)(stored >> 1u);
     return ((stored & 1ull) != 0ull) ? (-value_bits - 1ll) : value_bits;
@@ -133,7 +133,7 @@ unsigned int parquet_field_read(ParquetCursor *cursor, long long *field_id)
         return PARQUET_THRIFT_STOP;
     }
     const unsigned int delta = header >> 4u;
-    // a delta is at max 15 and widens exactly; every caller starts *field_id at zero and only this function writes
+    // a delta is at max 15 and widens exactly. Every caller starts *field_id at zero and only this function writes
     // it; the last id is an i16 and the sum does not overflow
     const long long next_id = (delta == 0u) ? parquet_zigzag_read(cursor) : (*field_id + (long long)delta);
     if ((next_id < PARQUET_FIELD_ID_LEAST) || (next_id > PARQUET_FIELD_ID_MAX))
@@ -223,7 +223,7 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
             }
             depth += 1u;
         }
-        // the next value to skip is the innermost open container's next one; each container that has none left
+        // the next value to skip is the innermost open container's next one. Each container that has none left
         // closes, and when none is open the whole value is skipped
         next_type = PARQUET_THRIFT_STOP;
         while ((depth != 0u) && (next_type == PARQUET_THRIFT_STOP) && (cursor->broken == 0u))

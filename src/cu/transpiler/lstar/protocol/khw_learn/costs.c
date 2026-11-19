@@ -263,7 +263,7 @@ static void khw_enumerate_runs(const KhwAnswered *form, const unsigned int word[
 // blob of the run containing forms a prior run learned, every form it contains is read and each one's bits turned one
 // at a time (its fields and, with them, every bit a widening would turn) and its runs set to the two registers; where
 // it names none, the kernel's own position form alone, its bits turned. The position and the forms are the protocol's
-// own, read from a part before; the vendor names none of the questions and no byte of its knowledge enters a form. It
+// own, read from a part before. The vendor names none of the questions and no byte of its knowledge enters a form. It
 // is how the process is tuned against questions the part has not yet answered, off the part
 void khw_enumerate(unsigned int place, const char *forms)
 {

@@ -8,7 +8,7 @@
 #
 # Writes build/papers/<stem>.page.txt, line for line with the extraction, and a page of one is a page
 # of the other. Every rule it applies is in lyon_encoding.py, and the file it writes is a draft: it
-# is not the paper until a person has read the rendered page beside it.
+# is not the paper until a person read the rendered page beside it.
 #
 # closed_spaces is not applied here, although these papers do break words. Its rule is that a space
 # after a stacked mark is inserted, and in these two the space lands in front of the mark instead:

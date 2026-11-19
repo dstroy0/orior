@@ -28,7 +28,7 @@ static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRIT
 // the program's own widths. The code generator writes no text of its own: every line is a form of the language's
 // ruleset, and every register a written form of its banks and fixed registers. The code generator decides what a step
 // does and the ruleset how the language writes it. What each step does, and the lane's opening, close and split into
-// states, is decided in codegen_core.h, which the device compiles as well; here the forms it decides are written in the
+// states, is decided in codegen_core.h, which the device compiles as well. Here the forms it decides are written in the
 // ruleset and arranged into the text in its order. The steps that loop on their values are loops of the same forms,
 // each body over registers of fixed widths so no limb is named by a value the lane computes: the gcd, the golden
 // ladder, a division by more than one limb, and a product too wide to unroll. A loop is a label and a branch back to it
@@ -499,7 +499,7 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
     return 1;
 }
 
-// the lane as decide() decides it, written in the ruleset under `header` for `target`, which the note names; empty
+// the lane as decide() decides it, written in the ruleset under `header` for `target`, which the note names. Empty
 // where it is not decided, its banks run past the language's register file, or a form was written with other
 // arguments than it takes
 std::string CodeGenerator::lane(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,

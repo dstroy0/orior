@@ -21,7 +21,7 @@
 # saying these definitions do.
 #
 # Pages are asked for fifty at a time, since asking one at a time would be twelve hundred requests, and
-# the pace is retained slow because this interface has errored on this work several times tonight for asking too
+# the pace is retained slow because this interface errored on this work several times tonight for asking too
 # quickly.
 
 import io

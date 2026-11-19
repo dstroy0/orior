@@ -2082,7 +2082,7 @@
   // Long conic curves sweep the wall, cut by hard axis-aligned steps. Turning `internals cast shadows`
   // off removes the steps AND the curves together. They are one object. The curves are the shadow
   // boundary, a cone
-  // from a point source meeting a sphere, a conic section; the steps are that boundary quantized
+  // from a point source meeting a sphere, a conic section. The steps are that boundary quantized
   // by the shadow map's texels.
   //
   // A point light shadows through a cube map, six faces each spanning ninety degrees, a texel
@@ -2132,7 +2132,7 @@
   var CONE_UP = new THREE.Vector3(0, 1, 0);
 
   // The spray, as tiny neon streaks flowing from the source outward. Each particle is a short segment
-  // along the cone axis instead of a dot. It reads as something in motion and not a speck; and the
+  // along the cone axis instead of a dot. It reads as something in motion and not a speck. And the
   // whole field flows from the apex toward the mouth, the neutrinos coming through the point
   // and out. One shared geometry serves every source, aimed per source; a particle is fixed by its
   // angle and its radial fraction and carried by a phase that all sources share, animating it is
@@ -2141,7 +2141,7 @@
   var SPRAY_TRACE = 0.07; // length of a streak, as a fraction of the axis
   var SPRAY_FLOW = 0.5; // axis fractions traveled per second
   var SPRAY_WIDE = 0.46; // half angle of the widest sideband, in axis fractions
-  var SPRAY_CURL = 0.42; // radians a fully scattered streak has drifted by the mouth
+  var SPRAY_CURL = 0.42; // radians a fully scattered streak drifted by the mouth
   var LOG_FOUR = Math.log(4);
   var sprayAng = new Float32Array(SPRAY_N);
   var sprayRad = new Float32Array(SPRAY_N);
@@ -2997,7 +2997,7 @@
 
   // Raised whenever the picture the shadow map holds has gone stale, and lowered once it has been
   // redrawn. Movement of the bodies, movement of a source and a change of which bodies cast at all
-  // are the three things that make it stale; nothing else does.
+  // are the three things that make it stale. Nothing else does.
   var shadowStale = true;
 
   function placeSource(one) {
@@ -3334,7 +3334,7 @@
   //
   // The coefficients arrive depth-free because every bit sits at the same radius at a given
   // operation. The page multiplies in the kernel at
-  // whatever radius the clock has reached. Moving the clock or the degree ceiling re-reads the
+  // whatever radius the clock reached. Moving the clock or the degree ceiling re-reads the
   // same expansion instead of needing a new one.
   //
   // Degree is a ceiling. Cutting it does not smooth the surface after the fact, it
@@ -3692,7 +3692,7 @@
       : new Float64Array(want);
   }
 
-  // The kernel and the sum, at whatever radius the clock has reached and whatever ceiling is set.
+  // The kernel and the sum, at whatever radius the clock reached and whatever ceiling is set.
   // The reading is a pure function of these, and of nothing else.
   //
   // Four full harmonic passes run in here -- one for the surface and one per lit boundary -- and each
@@ -3781,7 +3781,7 @@
     var carried = (ceiling + 1) * (ceiling + 1);
     var coefficients = CLOCK.harmonics[CLOCK.index[whole]];
 
-    // The beam summed into the same field, when the reader has asked for any of it. The two sets of
+    // The beam summed into the same field, when the reader asked for any of it. The two sets of
     // coefficients add because the fields add: a boundary carries one field and has no way of saying
     // which source put a given part of it there. Fixed at zero, the field is the object alone, and that
     // control makes the rest of the coupling readable.
@@ -3989,7 +3989,7 @@
         one.tone[v * 3 + 1] = MID_SPOT.g + (toward.g - MID_SPOT.g) * pull;
         one.tone[v * 3 + 2] = MID_SPOT.b + (toward.b - MID_SPOT.b) * pull;
       }
-      // The color moves every frame with the memory; the positions only when the field moved, except
+      // The color moves every frame with the memory. The positions only when the field moved, except
       // the inverse boundary whose deformation settles with the retention and so moves every frame too.
       if (fresh || one.inverse) {
         one.mesh.geometry.attributes.position.needsUpdate = true;
@@ -4289,7 +4289,7 @@
     var whole = Math.max(0, Math.min(CLOCK.ticks - 1, Math.floor(state.tick)));
     var step = CLOCK.steps[opAt(whole)];
     // Short enough for the value column. Defined as "round 8, op 5" it broke across two lines and
-    // left the operation number sitting alone under its own label; the counts panel carries the long
+    // left the operation number sitting alone under its own label. The counts panel carries the long
     // form, where there is width for it.
     document.getElementById("clockOut").textContent =
       roundAt(whole) + "·" + (opAt(whole) + 1);
@@ -5200,7 +5200,7 @@
   // budget further. The cost of asking arrives in the picture at the moment of asking.
   //
   // Every source is re-placed whenever the count changes. Dropping a new one into a gap would leave
-  // the others where a different count had put them, and the arrangement would carry the history of
+  // the others where a different count put them, and the arrangement would carry the history of
   // how the reader got here instead of the count they are on.
   function spreadSources() {
     for (var q = 0; q < sources.length; q++) {
@@ -6272,13 +6272,13 @@
     flowSpray(gap);
 
     // The transport is retraced on its own clock. Every fate depends on where the sources are and
-    // where the state has moved to. It has to be redone as those change, and a bundle of this size
-    // is too much arithmetic to repeat sixty times a second when nothing has moved that far.
+    // where the state moved to. It has to be redone as those change, and a bundle of this size
+    // is too much arithmetic to repeat sixty times a second when nothing moved that far.
     sincePierce += gap;
     if (sincePierce > 0.1) {
       sincePierce = 0;
       tracePierce();
-      // Once the beam is in the field, a retrace has changed the field. The surface has to be
+      // Once the beam is in the field, a retrace changed the field. The surface has to be
       // painted again. Skipped when the beam's share is nothing, since then the deposits change
       // nothing that is being drawn.
       if (CLOCK && state.beamField > 0) {

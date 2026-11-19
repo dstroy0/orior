@@ -35,7 +35,7 @@ unsigned int qasm_self_step(QasmSelfSteps *list, EngineRecordOperation operation
     if ((list->spent == 0) && (list->count == list->capacity))
     {
         const unsigned int wanted = (list->capacity == 0u) ? 1024u : (list->capacity * 2u);
-        // a doubling that wraps requests less than it has, and errors as a list that cannot grow; the count is
+        // a doubling that wraps requests less than it has, and errors as a list that cannot grow. The count is
         // widened to size_t, which represents any unsigned int
         EngineRecordStep *const grown =
             (wanted > list->capacity)

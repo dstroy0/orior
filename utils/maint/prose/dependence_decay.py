@@ -564,7 +564,7 @@ def main():
         #
         # So the human pole is cut to the machine pole's exact token count and the comparison is
         # made there. The full-length human curve above is retained only to show what the instrument can
-        # see when it is not starved; it is not what the verdict rests on.
+        # see when it is not starved. It is not what the verdict rests on.
         matched = human[:session.size]
         matched_rows = curve(matched, size)
         show("HUMAN POLE, cut to the machine pole's length", matched_rows, matched.size)

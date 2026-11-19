@@ -89,7 +89,7 @@ PAUSE = 0.5
 TRIES = 3
 
 # Proteins to grade. The archive holds two hundred thousand that match. This is a target to reach,
-# not a slice off the top: the sweep draws from the shuffled pool until this many have graded.
+# not a slice off the top: the sweep draws from the shuffled pool until this many graded.
 TARGET = 1000
 
 # Fixed. The random draw repeats. The corpus belongs to the seed and not to the run.

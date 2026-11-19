@@ -247,7 +247,7 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
     if (ok != 0)
     {
         /* An empty cell is the identity for whichever reduction runs. The fill differs by rule.
-         * The host marks which cells an arrival has reached; here the staging buffer starts
+         * The host marks which cells an arrival reached. Here the staging buffer starts
          * at the identity and the narrowing pass below turns any untouched cell back into zero. */
         const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
         unsigned int *seed = (unsigned int *)malloc(cells * sizeof(unsigned int));

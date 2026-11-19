@@ -105,7 +105,7 @@ __device__ static int cycle_record_exact_quotient(const unsigned int *top, unsig
         }
         precise_limbs = range;
     }
-    // the whole quotient lands in grown; the inverse and its step product then lie together, room for the whole
+    // the whole quotient lands in grown. The inverse and its step product then lie together, room for the whole
     // product of the quotient and the divisor
     unsigned int *const estimate = grown;
     cycle_record_product(numerator, work, inverse, work, estimate, work);

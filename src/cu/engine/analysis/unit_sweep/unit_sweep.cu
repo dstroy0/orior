@@ -200,7 +200,7 @@ __device__ static unsigned int unit_sweep_reflect(long long position, long long 
 }
 
 // the comb's centered part along the axis: `taps` ones, `spacing` voxels apart, centered on the voxel, each reading the
-// line reflected at its edges. An odd comb of n is n ones a voxel apart; an even comb of n is n / 2 ones two voxels
+// line reflected at its edges. An odd comb of n is n ones a voxel apart. An even comb of n is n / 2 ones two voxels
 // apart, and the one unit step [1, 1] it leaves runs with the halves. `growth` is the bits the sum adds.
 __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExtent extent, unsigned int axis,
                                               unsigned int limbs, unsigned int taps, unsigned int spacing,

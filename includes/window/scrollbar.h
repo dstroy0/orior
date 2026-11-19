@@ -16,7 +16,7 @@
 
 typedef struct GuiScrollbarCfg GuiScrollbarCfg;
 
-// the scrollbar's thickness, an arrow's length and the thumb's least length, in unscaled pixels; and the max pixels a
+// the scrollbar's thickness, an arrow's length and the thumb's least length, in unscaled pixels. And the max pixels a
 // thickness takes at any scale, which bounds the masks' cells
 #define GUI_SCROLLBAR_WIDTH 10
 // the pixels the editor's scrollbar is in from the work's line, past the editor's own padding

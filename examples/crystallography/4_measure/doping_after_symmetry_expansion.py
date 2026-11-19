@@ -24,7 +24,7 @@
 #             ordinary solid solution that the asymmetric unit simply does not show.
 #
 #   1509166   O at (0, 1/2, 0) at full occupancy and Ag at (1/2, 0, 1/2) at half, in I 4/m m m. The
-#             I centring carries the first exactly onto the second. The deposit has put an anion
+#             I centring carries the first exactly onto the second. The deposit put an anion
 #             and a cation in one orbit summing to one and a half atoms on a site that holds one.
 #             That is not chemistry, it is a defect in a published deposit, and nothing short of
 #             expansion surfaces it.

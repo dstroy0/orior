@@ -280,7 +280,7 @@ static void pi_tower_segment_print(SimResults *results, const PiWide &position, 
 }
 
 // 15 on the engine: the segment the request names, the job declared at its last window's bytes, and the segment printed
-// 64 digits a line; where it starts at one of Bailey's positions, its head against his
+// 64 digits a line. Where it starts at one of Bailey's positions, its head against his
 void pi_tower_segment_request(SimResults *results, int count, char **arguments, const PiWide &position,
                               unsigned int digits)
 {

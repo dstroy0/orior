@@ -20,7 +20,7 @@
 # papers      154 research papers under build/papers, 7.3 MB, human, same register
 # repository  every comment, docstring and page in this tree
 #
-# An earlier arrangement split the repository by whether this session had opened a file, and called
+# An earlier arrangement split the repository by whether this session opened a file, and called
 # the untouched half a person's prose. That split is void: the text of this repository is almost all
 # machine-written, across many sessions. Both halves had the same author. It explains the null
 # prose_distance.py returned, where the gap between those halves was the same sign at four symbol

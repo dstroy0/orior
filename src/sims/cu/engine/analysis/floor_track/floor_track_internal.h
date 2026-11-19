@@ -12,7 +12,7 @@
 // once it is empty. The expected answer is each body's own path. A control moves every body exactly one floor-2 cell a
 // frame with no noise and no ramp. Floor 2 translates exactly and a tolerance of 0 must find every body. The camera law
 // then moves bodies a voxel a frame under shot and read noise. From frame t to t + 1 that is a quarter of a floor-2
-// cell, and the decimated floor is not shift-invariant under it; from t to t + 4, floor 2's own time step, it is a
+// cell, and the decimated floor is not shift-invariant under it. From t to t + 4, floor 2's own time step, it is a
 // whole cell again. The 27 cells read the samples within 10 of the body's cell. A body another body reaches there does
 // not translate alone: the camera law's bodies are run again with no noise, and three of them are set apart along z,
 // with the noise and without it, where every step is clear and a tolerance of 0 must find every one. The hits, the

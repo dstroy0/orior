@@ -20,7 +20,7 @@ difference is the multiply it is on.
 WHAT IT IS NOT
 
 It is not a record attempt. The record Proth primes are millions of digits and take a native GPU
-exponentiation days to weeks; this engine still marshals each product through the host between
+exponentiation days to weeks. This engine still marshals each product through the host between
 device calls. It reaches far less. That gap is the honest state of the tool, and the number this
 prints is where it actually is today.
 """

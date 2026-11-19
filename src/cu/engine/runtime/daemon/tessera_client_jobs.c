@@ -204,7 +204,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     frame.grace_microseconds = submit->grace_microseconds;
     frame.sweep_microseconds = submit->sweep_microseconds;
     frame.idle_microseconds = submit->idle_microseconds;
-    // where no pid is measured from outside, the process reports the bytes it already has allocated as it requests; a
+    // where no pid is measured from outside, the process reports the bytes it already allocated as it requests; a
     // host job is on nothing, since the processors it uses are counted only once it runs
     unsigned long long located = 0ull;
     if (!tessera_device_names_host(submit->device) && tessera_self_paravirtual() &&

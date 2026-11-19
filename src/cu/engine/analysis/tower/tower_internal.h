@@ -61,7 +61,7 @@ unsigned int tower_blocks(unsigned long long count);
 std::vector<TowerStep> tower_floors(const unsigned long long *extent);
 
 // the coefficients, the scratch, the flag and the mismatch count are slices of one pool, sized for the max lanes
-// requested so far; the edge table grows apart, only when an edge is arranged
+// requested so far. The edge table grows apart, only when an edge is arranged
 struct TowerResident
 {
     DevicePool pool;

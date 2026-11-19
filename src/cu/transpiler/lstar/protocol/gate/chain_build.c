@@ -134,7 +134,7 @@ static int chain_answers(const ChainWork *work)
 }
 
 // Whether the chain answers the relation on words the cases do not carry. A ladder's cases are its climbing order
-// and are few and small; an arrangement right about those words and wrong about the rest passes them and comes back
+// and are few and small. An arrangement right about those words and wrong about the rest passes them and comes back
 // looking like a finding. The relation is true for every word there is and is queried for words the arrangement was
 // never fitted to
 static int chain_swept(const ChainWork *work)

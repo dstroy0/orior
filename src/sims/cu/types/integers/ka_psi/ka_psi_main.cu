@@ -26,7 +26,7 @@ static void psi_series_upper(PsiValue *value, const PsiCase *psi_case, unsigned 
     psi_value_add_term(value, sim_rational(2ll, 1ll), factor * psi_case->weight[first + 2u]);
 }
 
-// The corrected chain at every scale. (3.11) gives |mu_k| >= gamma^-n beta(k) with the alphas cut at r <= k; the cut
+// The corrected chain at every scale. (3.11) gives |mu_k| >= gamma^-n beta(k) with the alphas cut at r <= k. The cut
 // tails move mu by at max sum_(p>=2) eps_(k,p), psi lying in [0, 1]. The images T_k have width (gamma - 2) b_k and
 // the ramps take rho = gamma^-(beta(k+1)+2) on each side. The supports U_k are disjoint when
 // gamma^-n beta(k) - sum_(p>=2) eps_(k,p) - (gamma - 2) eps_(k,2) sum_p alpha_p - 2 rho > 0, every sum an upper bound

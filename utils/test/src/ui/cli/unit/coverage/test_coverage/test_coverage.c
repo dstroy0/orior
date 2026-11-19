@@ -138,7 +138,7 @@ void test_a_cleared_scene_draws_nothing(void)
 
 void test_a_ring_leaves_its_hole_unfilled(void)
 {
-    // two contours wound the same way, nested, under nonzero: the hole has winding 2 and fills; wound against each
+    // two contours wound the same way, nested, under nonzero: the hole has winding 2 and fills. Wound against each
     // other the hole has winding 0 and stays clear
     const CoveragePoint corner[8] = {{0, 0}, {12 * TEST_ONE, 0}, {12 * TEST_ONE, 8 * TEST_ONE}, {0, 8 * TEST_ONE},
                                         {4 * TEST_ONE, 2 * TEST_ONE}, {4 * TEST_ONE, 6 * TEST_ONE},

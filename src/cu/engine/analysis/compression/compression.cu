@@ -214,7 +214,7 @@ static unsigned int compression_blocks(unsigned long long count)
 }
 
 // each chunk's bits, each chunk's offset and the scan's scratch are slices of one pool, sized for the max chunks
-// requested so far; the stream is sized by the values themselves, known only once they are measured, and is a pool of
+// requested so far. The stream is sized by the values themselves, known only once they are measured, and is a pool of
 // its own
 struct CompressionResident
 {

@@ -88,7 +88,7 @@
 // another's, a construct writing another form under its own parameters, two names a word and their modifiers apart,
 // and a form opening another's literal operands. A target writes two operations one modifier apart, and a language
 // writes one text for two names. Such a relation is recorded and written, the bridge's pairs are read from it
-// (klq_write.cu), and it is no verdict; every other relation that is not open is one
+// (klq_write.cu), and it is no verdict. Every other relation that is not open is one
 #define RULESET_CORE_RELATION_VERDICT(type_)                                                                           \
     (!RULESET_CORE_RELATION_OPEN(type_) && ((type_) != RULESET_CORE_RELATION_SAME_TEXT) &&                             \
      ((type_) != RULESET_CORE_RELATION_RENAMED) && ((type_) != RULESET_CORE_RELATION_MODIFIERS) &&                     \
@@ -173,7 +173,7 @@ CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_part(const unsigned char *tex
     return none;
 }
 
-// how many parts the span `within` has cut at `character`, as ruleset_core_relation_part counts them
+// how many parts the span `within` cut at `character`, as ruleset_core_relation_part counts them
 CODEGEN_CORE unsigned int ruleset_core_relation_parts(const unsigned char *text, RulesetCoreSpan within,
                                                       unsigned char character)
 {

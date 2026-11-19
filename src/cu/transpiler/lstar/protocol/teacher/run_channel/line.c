@@ -65,7 +65,7 @@ void run_channel_counted(char *text, size_t room, unsigned long long count)
     mmgr_line_finish(&counted);
 }
 
-// the panic the teacher has passed its account of: it reports once for each
+// the panic the teacher passed its account of: it reports once for each
 static unsigned long long s_panic_answered = 0ull;
 
 // the sequence of the panic whose ruling stopped the run, 0 while no panic has been ruled on

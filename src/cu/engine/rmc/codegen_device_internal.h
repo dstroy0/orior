@@ -149,7 +149,7 @@ __global__ void codegen_device_encode(KeymathCoreEncode encoding, LayoutEnd *end
 
 __global__ void codegen_layout(KeyScheduleCoreLayout layout, LayoutEnd *ended);
 
-// the device memory a lane's writing takes, freed together, and 0 once a call the device errored has left it unusable
+// the device memory a lane's writing takes, freed together, and 0 once a call the device errored left it unusable
 struct DeviceArena
 {
     std::vector<void *> allocations;

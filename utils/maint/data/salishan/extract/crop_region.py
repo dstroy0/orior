@@ -2,7 +2,7 @@
 
 usage: python crop_region.py <stem> <page> <top> <bottom> <out.png> [dpi]
 
-top and bottom are PDF points from the foot of the page, the baselines table_cells.py prints; the
+top and bottom are PDF points from the foot of the page, the baselines table_cells.py prints. The
 region runs the whole width of the page.
 """
 import os

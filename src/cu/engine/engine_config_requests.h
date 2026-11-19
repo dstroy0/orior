@@ -118,7 +118,7 @@ extern "C"
 
     // A program resident on the device maintains a block: what it is, what the scheduler sends it, where it is and
     // how it left. The program runs on its own, checks in to its block as it goes, and yields before its time to live
-    // runs out, leaving in the block all a launch needs to resume it. The scheduler writes only the command; the
+    // runs out, leaving in the block all a launch needs to resume it. The scheduler writes only the command. The
     // program writes the rest while a launch references the block, and the checksum seals the block whenever none does.
     // Every word is 64 bits, a device address among them. The host and the device read one layout.
     typedef enum

@@ -444,7 +444,7 @@ static void scene_sort_wides(const unsigned long long *keys, unsigned long long 
 }
 
 // The command that positions `tiles` tiles from tile column `column` of tile row `row`. Where `share` is SCENE_ROWS each
-// pixel row of each tile takes its share from `rows`, a byte a row from the lowest; else each tile takes its shares
+// pixel row of each tile takes its share from `rows`, a byte a row from the lowest. Else each tile takes its shares
 // from `share` on. The run splits at each wide tile's side: 1, or 0 where no command has room
 static int scene_command(CoverageScene *scene, unsigned int row, unsigned int column, unsigned int tiles,
                          unsigned int share, unsigned int rows, unsigned int color)

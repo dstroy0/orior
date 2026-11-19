@@ -56,7 +56,7 @@ int ruleset_same(const Ruleset *left, const Ruleset *right)
 
 #if (defined(__CUDACC__))
 
-// the read in one thread (ruleset_core_read), since each line is read against every line before it; the read stored in
+// the read in one thread (ruleset_core_read), since each line is read against every line before it. The read stored in
 // device memory and left there as it ended
 __global__ void codegen_reader_read(RulesetCoreRead *read)
 {
