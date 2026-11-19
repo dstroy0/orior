@@ -87,7 +87,8 @@ int cli_print_faces(const CliPrintJsonCfg *args)
         mmgr_line_put(args->err_msg, "the faces drawn with could not be taken");
         return 0;
     }
-    s_typefaces->cover = g_cli_guard->temporary_buf_alloc(CLI_COVER_CACHE * sizeof(float), g_cli_print_owner);
+    // the cover cache lives for the program: a persistent cell, not a stack's
+    s_typefaces->cover = g_cli_guard->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), g_cli_print_owner);
     s_typefaces->cover_capacity = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ULL;
     s_typefaces->cover_used = 0ULL;
     char paths[4][CLI_PATH_MAX_LEN];

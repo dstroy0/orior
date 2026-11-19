@@ -15,6 +15,7 @@
 #include <unistd.h>
 #endif
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 
 #if !defined(_WIN32)
 #include <pthread.h>
@@ -157,6 +158,7 @@ static void *cli_thread_entry(void *supplied)
     const CliThread *const thread = (const CliThread *)supplied;
     EMBED_CALL(cli_words_err_msg_internal.priority_own, CliWordsErrMsgCtx, .priority = thread->priority);
     thread->run(thread->context);
+    cli_thread_place_released();
     return NULL;
 }
 

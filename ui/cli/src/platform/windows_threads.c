@@ -3,6 +3,7 @@
 // windows_threads.c: the command line's wakes, address waits and threads on Windows: a thread asleep on a word's
 // address with WaitOnAddress until the word moves, woken with WakeByAddressAll, and a thread of its own
 #include "../command_line/cli_internal.h"
+#include "../command_line/pool.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -80,6 +81,7 @@ static DWORD WINAPI cli_thread_entry(LPVOID supplied)
     const CliThread *const thread = (const CliThread *)supplied;
     EMBED_CALL(cli_words_err_msg_internal.priority_own, CliWordsErrMsgCtx, .priority = thread->priority);
     thread->run(thread->context);
+    cli_thread_place_released();
     return 0u;
 }
 

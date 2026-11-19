@@ -37,9 +37,13 @@ extern "C"
     // this as the pool is made; a module that stores movable cells may call it again before its first take, to no
     // effect past the first
     void cli_pool_movable_ready(void);
+    // the place MMgr knows this thread by, given back for the next thread: called by a thread's entry as its work
+    // returns, so the places in use stay within the live threads
+    void cli_thread_place_released(void);
 
-    // A line written into one cell of the temporary tier taken once at `max` bytes: its text is whole in `cell`,
-    // and past `max` the line fills as a line with no flush fills. `line.out` is where the next
+    // A line written into one cell of the temporary tier, begun at 64 KiB and doubled toward `max` bytes as the writes
+    // come: its text is whole in `cell`, and past `max` the line fills as a line with no flush fills. `line.out` is
+    // where the next
     // write goes, inside `cell`; the text is read at `cell` for cli_grown_size bytes, terminated. Written through the
     // line's own entries, as any line; begun before its first write and ended after its last read
     typedef struct

@@ -71,20 +71,68 @@ embed_u64 mmgr_carcer_hw_clock_ns(void)
     return embed_clock_ns();
 }
 
-// the places given to threads so far: the next thread that calls takes the count as its place
+// the places threads hold: a thread takes one on its first call and gives it back as it ends. The places in use stay
+// within the live threads, and a region of the temporary tier is one thread's
+#define POOL_PLACES_MAX 256u
+// the places given so far: a thread with no free place to take gets the count as its place
 static embed_atomic_u32 s_pool_places_given = EMBED_ATOMIC_INIT(0u);
-// the place of this thread plus one, and 0 before its first call
+// the free places as a stack of indices: each entry the next free place plus one, 0 at the bottom. The head holds
+// the top place plus one in its low half and a count of pushes in its high half, so a place taken and put back
+// between a read and a swap does not pass as unchanged
+static embed_atomic_u32 s_pool_place_next[POOL_PLACES_MAX];
+static embed_atomic_u64 s_pool_place_free = EMBED_ATOMIC_INIT(0u);
+// the place of this thread plus one, and 0 before its first call or after its release
 static _Thread_local embed_u32 t_pool_place_plus_one;
+
+// a free place taken off the stack: its place plus one, or 0 where the stack is empty
+static embed_u32 pool_place_popped(void)
+{
+    embed_u64 head = embed_atomic_u64_load(&s_pool_place_free);
+    while ((head & 0xffffffffull) != 0ull)
+    {
+        const embed_u32 top = (embed_u32)(head & 0xffffffffull);
+        const embed_u32 next = embed_atomic_u32_load(&s_pool_place_next[top - 1u]);
+        const embed_u64 after = (((head >> 32u) + 1ull) << 32u) | (embed_u64)next;
+        if (embed_atomic_u64_swap_if(&s_pool_place_free, &head, after))
+        {
+            return top;
+        }
+    }
+    return 0u;
+}
 
 embed_u32 embed_thread_place(void)
 {
-    // the place of the thread that calls: a count from 0 that the thread takes once, on its first call. MMgr
-    // selects the region of the temporary tier a take goes to by it
+    // the place of the thread that calls: a free place where one waits, else a new count. MMgr selects the region of
+    // the temporary tier a take goes to by it
     if (t_pool_place_plus_one == 0u)
     {
-        t_pool_place_plus_one = embed_atomic_u32_fetch_add(&s_pool_places_given, 1u) + 1u;
+        const embed_u32 popped = pool_place_popped();
+        t_pool_place_plus_one =
+            (popped != 0u) ? popped : (embed_atomic_u32_fetch_add(&s_pool_places_given, 1u) + 1u);
     }
     return t_pool_place_plus_one - 1u;
+}
+
+void cli_thread_place_released(void)
+{
+    const embed_u32 plus_one = t_pool_place_plus_one;
+    // a thread with no place, or one past the stack's room, leaves nothing
+    if ((plus_one == 0u) || (plus_one > POOL_PLACES_MAX))
+    {
+        return;
+    }
+    t_pool_place_plus_one = 0u;
+    embed_u64 head = embed_atomic_u64_load(&s_pool_place_free);
+    for (;;)
+    {
+        embed_atomic_u32_store(&s_pool_place_next[plus_one - 1u], (embed_u32)(head & 0xffffffffull));
+        const embed_u64 after = (((head >> 32u) + 1ull) << 32u) | (embed_u64)plus_one;
+        if (embed_atomic_u64_swap_if(&s_pool_place_free, &head, after))
+        {
+            return;
+        }
+    }
 }
 
 void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, size_t bytes)
@@ -318,10 +366,14 @@ static int grown_flush(void *context, const char *bytes, size_t size)
     return 1;
 }
 
+// the bytes a grown line begins with: a cell of this size stays on its thread's stack, and the flush doubles it toward
+// its max as the text asks
+#define POOL_GROWN_FIRST (64ull << 10u)
+
 void cli_grown_begin(CliGrownLine *grown, unsigned long long max, const CellOwner *owner)
 {
-    // the line's cell is taken once at its max
-    const unsigned long long first = max;
+    // the line's cell begins small and grows to its max as the writes come
+    const unsigned long long first = (max < POOL_GROWN_FIRST) ? max : POOL_GROWN_FIRST;
     grown->cell = g_cli_guard->temporary_buf_alloc(first, owner);
     grown->capacity = (grown->cell != NULL) ? first : 0ULL;
     grown->max = max;
