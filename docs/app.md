@@ -21,11 +21,12 @@
 
 3. **Run a job.** The Run view, from the chart icon at the foot of the tool strip, lists every job. Choose one, set its values and press F5.
 
-In a clone, it also runs with no install. Every cargo build runs from the top of the tree and lands in `build/cargo/`:
+In a clone, it also runs with no install. The harness builds the two programs under `build/cli/<target>/`:
 
 ```sh
-cargo run --release --manifest-path ui/gui/src-tauri/Cargo.toml                  # build it and open the window
-cargo run --release --manifest-path ui/gui/src-tauri/Cargo.toml -- run list      # the same program given words
+python utils/test/harness.py build gui          # build impero and tabvla
+build/cli/x86_64-pc-windows-msvc/tab.exe        # open the window
+build/cli/x86_64-pc-windows-msvc/imp.exe run list   # the command line given words
 ```
 
 The window works on the tree it starts in, or the one `ORIOR_ROOT` names. Started anywhere else, it offers Open and Clone Repository, and File, Open, Folder and File, Clone Repository move it to another tree at any time. Each tree retains its own open tabs.

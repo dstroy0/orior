@@ -12,6 +12,5 @@ paths:
   - ui
 
 paths-ignore:
-  - ui/**/target
   - ui/test/runs
   - ui/test/fixtures

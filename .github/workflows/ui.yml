@@ -63,14 +63,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev build-essential clang lld llvm cmake ninja-build ruby
-
-      - name: Rust, where the runner has none
-        run: |
-          if ! command -v cargo > /dev/null; then
-            curl -sSf --retry 3 https://sh.rustup.rs | sh -s -- -y --profile minimal
-            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          fi
+          sudo apt-get install -y libssl-dev build-essential clang lld llvm cmake ninja-build ruby
 
       - name: The command line's checks
         run: python utils/test/harness.py cli test

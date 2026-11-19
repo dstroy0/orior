@@ -4,8 +4,6 @@
 the recording slid through a frame at a time.
 
     harness.py window record                           the window window.pid names, for --for milliseconds
-    harness.py window record --port P --trigger JS     the expression run on the page once the recording runs
-    harness.py window record --port P --drag 60        the editor's scrollbar dragged by its thumb once the recording runs
     harness.py window record --start --for 4000        the suite's build started on the fixture tree and recorded
                                                        from before its first frame
     harness.py window slide                            the last recording, every frame, each against the one before
@@ -242,24 +240,6 @@ def cmd_window_record(a):
             if found:
                 left, top, right, bottom = displayed_bounds(found[1])
                 retained["window"] = [left - output[2][0], top - output[2][1], right - left, bottom - top]
-        if a.port and a.trigger:
-            import harness_cdp
-
-            conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
-            conn.call("Runtime.enable", timeout=10)
-            conn.evaluate(a.trigger, timeout=10)
-        if a.port and a.drag:
-            import harness_cdp
-            import harness_input
-
-            conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
-            conn.call("Runtime.enable", timeout=10)
-            where = hw.thumb_of(conn)
-            if where:
-                x, y = where["x"], where["y"]
-                for to in (where["bottom"], where["top"], where["y"]):
-                    harness_input.perform(conn, {"op": "drag", "x": x, "y": y, "toX": x, "toY": to, "steps": a.drag}, None)
-                    y = to
         process.wait(timeout=a.seconds_for / 1000.0 + 30)
     finally:
         if process.poll() is None:
@@ -553,10 +533,6 @@ def register(window):
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.add_argument("--for", dest="seconds_for", type=int, default=3000, help="milliseconds")
     p.add_argument("--rate", type=int, default=60, help="frames a second")
-    p.add_argument("--port", type=int, default=0, help="the window's debugging port, for --trigger")
-    p.add_argument("--trigger", default="", help="an expression run on the page once the recording runs")
-    p.add_argument("--drag", type=int, default=0, help="the editor's scrollbar dragged by its thumb to the bottom, the top and back once the recording "
-                                                       "runs, this many moves each way, through --port")
     p.add_argument("--start", action="store_true", help="the suite's build started on the fixture tree and recorded from before its first frame")
     p.add_argument("--display", default="", help="a display recorded whole, by its number or its device name, with no window of its own")
     p.add_argument("--no-pointer", action="store_true", help="the pointer left out of the frames")

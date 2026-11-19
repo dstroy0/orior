@@ -21,7 +21,6 @@ typedef struct
 // from at least, how far past the fastest a smaller slice is still taken in parts a thousand, and the bytes timed over
 #define QUERY_SWEEPS "build/qry_sweep/qry"
 #define QUERY_SWEEP_HOST_HEADER "includes/file_defs/qry/writer/qry_host.h"
-#define QUERY_SWEEP_WINDOW_MODULE "ui/gui/src-js/files_host.js"
 #define QUERY_SWEEP_ROUNDS 3u
 #define QUERY_SWEEP_MIN 3u
 #define QUERY_SWEEP_SLICE_ADJACENT 50ULL
@@ -279,17 +278,6 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
     mmgr_line_decimal(&header, write, 0u);
     mmgr_line_put(&header, "ull\n\n#endif\n");
     EMBED_CALL(sweep_on_write, SweepCtx, .context = context, .relative = QUERY_SWEEP_HOST_HEADER, .text = &header);
-    VerbaLinea module = {text, sizeof(text), 0ULL};
-    mmgr_line_put(&module, "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR "
-                           "LicenseRef-Educational\n\n// The file window's sizes on this host, the slice the fastest "
-                           "of each size's median over the\n// host's sweeps, or within a twentieth of it and smaller, "
-                           "written by `imp protocol sweep`:\n// a window HALF bytes either side of a line, read "
-                           "outward a SLICE at a time.\nexport const HALF = ");
-    mmgr_line_decimal(&module, slice / 2ULL, 0u);
-    mmgr_line_put(&module, ";\nexport const SLICE = ");
-    mmgr_line_decimal(&module, slice, 0u);
-    mmgr_line_put(&module, ";\n");
-    EMBED_CALL(sweep_on_write, SweepCtx, .context = context, .relative = QUERY_SWEEP_WINDOW_MODULE, .text = &module);
     return 0;
 }
 

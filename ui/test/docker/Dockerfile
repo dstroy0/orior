@@ -1,13 +1,12 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# The window's own system for its tests, on any machine Docker runs on: Ubuntu with the libraries
-# orior's window is built with, WebKitGTK's WebDriver, a display of X's that draws in memory and a
-# session bus, Rust as rustup installs it, rsync, which brings the tree in, ssh for the tunnels'
-# tests, the tools the window's tests drive, clangd, clang and lld, which builds the page's lattice to wasm, lldb's and gdb's debuggers, debugpy and
-# pytest, Ruby, which Unity's runner generator runs on, TeX and Poppler, which make a LaTeX file's pages and draw them,
-# and VNC and noVNC, which show the display to a browser. harness.py window test --docker runs the
-# harness here, which builds the window and drives it through WebDriver.
+# The window's own system for its checks, on any machine Docker runs on: Ubuntu with the libraries
+# orior's window is built with, a display of X's that draws in memory and a session bus, rsync, which
+# brings the tree in, ssh for the tunnels' tests, the tools the checks drive, clangd, clang and lld, lldb's and gdb's
+# debuggers, debugpy and pytest, Ruby, which Unity's runner generator runs on, TeX and Poppler, which make a LaTeX
+# file's pages and draw them, and VNC and noVNC, which show the display to a browser. harness.py window check --docker
+# runs the harness here, which builds the window and drives it through its door.
 #
 # BASE is the system and LLVM the version of its own clang, whose runtime and archiver are named by it: Ubuntu 24.04
 # with 18, or Debian bookworm, Raspberry Pi OS's own, with 14. Each builds for x86-64 and for arm64, as
@@ -22,7 +21,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80orior
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl build-essential pkg-config git python3 rsync openssh-client \
-      libwebkit2gtk-4.1-dev webkit2gtk-driver libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
+      libssl-dev \
       libx11-dev libxext-dev libxi-dev \
       xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core x11vnc novnc websockify \
       cmake ninja-build clangd clang clang-tidy lld libclang-rt-${LLVM}-dev llvm-${LLVM} cppcheck lldb gdb python-is-python3 python3-debugpy python3-pytest \
@@ -30,7 +29,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 # lldb's debugger for editors goes by its version's name, and before LLVM 18 by lldb-vscode; orior looks for lldb-dap.
 RUN found="$(ls /usr/bin/lldb-dap* /usr/lib/llvm-*/bin/lldb-dap /usr/bin/lldb-vscode* /usr/lib/llvm-*/bin/lldb-vscode 2>/dev/null | head -1)" && test -n "$found" && ln -sf "$found" /usr/local/bin/lldb-dap
-RUN curl -sSf --retry 3 --connect-timeout 30 https://sh.rustup.rs | sh -s -- -y --profile minimal
 # The name git gives the commits a test makes in the run's tree.
 RUN git config --global user.name "orior harness" && git config --global user.email harness@localhost
 # SonarQube for IDE, as the SonarQube plugin's toolchain finds it: the extension unpacked where VS Code retains its
@@ -53,13 +51,8 @@ RUN if [ "$TARGETARCH" = amd64 ]; then java=""; else java=openjdk-17-jre-headles
       && ln -s "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" "/root/.vscode/extensions/sonarsource.sonarlint-vscode-${SONARLINT}/jre/system"; \
     fi \
  && rm -rf /tmp/sonarlint /tmp/sonarlint.vsix
-# A container gives the web view no namespaces of its own to sandbox in, and no GPU: it draws in
-# software, through X.
-ENV PATH=/root/.cargo/bin:$PATH \
-    WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 \
-    LIBGL_ALWAYS_SOFTWARE=1 \
-    WEBKIT_DISABLE_COMPOSITING_MODE=1 \
-    GDK_BACKEND=x11
+# A container has no GPU: the window draws in software, through X.
+ENV LIBGL_ALWAYS_SOFTWARE=1
 # TeX's pdflatex, which makes a LaTeX file into pages with its SyncTeX, and Poppler's pdftocairo, which draws them.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends texlive-latex-base poppler-utils \

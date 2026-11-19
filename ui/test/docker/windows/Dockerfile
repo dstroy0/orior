@@ -1,21 +1,15 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# The window's own system on Windows, in a Windows container: Windows Server with the desktop's libraries, the
-# WebView2 runtime the window draws with, Git for Windows, whose bash runs ui/cli/build.sh, SonarQube for IDE where
-# the SonarQube plugin's toolchain finds it, and what builds the window: the MSVC build tools and Windows SDK cargo
-# links with, LLVM's clang and lld, which build the C side and the page's lattice to wasm, CMake and Ninja, which build
-# MMgr, Python, which runs the harness, and Rust as rustup installs it. The window's suite takes the window built on
-# the machine that runs the container, passed in at C:\host; harness.py container builds it in the container's own
-# copy of the tree, at C:\top.
+# The window's own system on Windows, in a Windows container: Windows Server with the desktop's libraries, Git for
+# Windows, whose bash runs ui/cli/build.sh, SonarQube for IDE where the SonarQube plugin's toolchain finds it, and
+# what builds the window: the MSVC build tools and Windows SDK the C builds link with, LLVM's clang and lld, CMake
+# and Ninja, which build MMgr, and Python, which runs the harness. The window's checks take the window built on the
+# machine that runs the container, passed in at C:\host; harness.py container builds it in the container's own copy
+# of the tree, at C:\top.
 
 FROM mcr.microsoft.com/windows/server:ltsc2022
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
-# The WebView2 runtime, installed for every account of the container.
-RUN Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile C:\webview2.exe; \
-    Start-Process -FilePath C:\webview2.exe -ArgumentList '/silent', '/install' -Wait; \
-    Remove-Item C:\webview2.exe
 
 # Git for Windows whole, with the bash and the tools ui/cli/build.sh runs under, on the PATH.
 ARG GIT=2.47.1
@@ -36,7 +30,7 @@ RUN Invoke-WebRequest -Uri ('https://open-vsx.org/api/SonarSource/sonarlint-vsco
     Move-Item -Path C:\sonarlint\extension -Destination ('{0}\.vscode\extensions\sonarsource.sonarlint-vscode-{1}-win32-x64' -f $env:USERPROFILE, $env:SONARLINT); \
     Remove-Item -Recurse -Force C:\sonarlint, C:\sonarlint.zip
 
-# The MSVC build tools and the Windows SDK, which cargo's msvc target links with. 3010 is the installer's success
+# The MSVC build tools and the Windows SDK, which the C builds link with. 3010 is the installer's success
 # that asks for a restart, which a container never needs.
 RUN Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vs_buildtools.exe' -OutFile C:\vs_buildtools.exe; \
     $installed = Start-Process -FilePath C:\vs_buildtools.exe -ArgumentList '--quiet', '--wait', '--norestart', '--nocache', '--installPath', 'C:\BuildTools', '--add', 'Microsoft.VisualStudio.Workload.VCTools', '--includeRecommended' -Wait -PassThru; \
@@ -66,11 +60,6 @@ RUN Invoke-WebRequest -Uri ('https://www.python.org/ftp/python/{0}/python-{0}-am
     Start-Process -FilePath C:\python.exe -ArgumentList '/quiet', 'InstallAllUsers=1', 'Include_test=0', 'TargetDir=C:\Python' -Wait; \
     Remove-Item C:\python.exe
 
-# Rust, as rustup installs it, for the msvc target.
-RUN Invoke-WebRequest -Uri 'https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe' -OutFile C:\rustup-init.exe; \
-    Start-Process -FilePath C:\rustup-init.exe -ArgumentList '-y', '--profile', 'minimal', '--default-toolchain', 'stable' -Wait; \
-    Remove-Item C:\rustup-init.exe
-
-RUN [Environment]::SetEnvironmentVariable('PATH', $env:PATH + (';C:\LLVM\bin;C:\cmake\bin;C:\ninja;C:\Python;C:\Python\Scripts;{0}\.cargo\bin' -f $env:USERPROFILE), 'Machine')
+RUN [Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';C:\LLVM\bin;C:\cmake\bin;C:\ninja;C:\Python;C:\Python\Scripts', 'Machine')
 
 WORKDIR C:\host

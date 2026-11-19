@@ -42,9 +42,9 @@ Checks: the app's harness holding that the line's nodes are reached from a recor
 ## How a feature is made
 
 1. The feature is built.
-2. Its test goes in `test/`, which mirrors `gui/src-js/` file for file: `gui/src-js/x.js` is tested by `test/src/x.test.js`. A Rust module retains its unit tests in its own `tests` module, as Rust's convention has it, and a test that spans modules goes in its crate's `tests/` folder.
-3. A feature of the window is tested through the window's debugging port, every way it can be used: each press, key, menu item, drag, hover and scroll, each state it can be in, and each error it can give, checked for what it shows and what it does.
-4. `python utils/test/harness.py window test` runs the window's tests and names each module of the window with no test of its own. The walker of the menus, `test/walk.py`, and the memory watcher, `test/memory.py`, run over every command.
+2. Its check goes in `utils/test/src/ui/gui/window_test.c`, the window's checks, and a command line module's Unity suite under `utils/test/src/ui/cli/unit/`.
+3. A feature of the window is checked every way it can be used: each press, key, menu item, drag, hover and wheel sent to the window through its door, each state it can be in, and each error it can give, checked for what it shows and what it does.
+4. `python utils/test/harness.py window check` runs the window's checks, and `python utils/test/harness.py window test` sweeps every command and option of the command line over a window of its own.
 5. The feature is committed and pushed once all of it passes.
 
 Every program the tree builds is named orior_<thing>, and `bin_names.tsv` at the top of the tree is the one place the names are retained: a row an id, its name, what it is, where its sources are and where it is built to. A build script, the harness and the window's scripts read a name from there by its id and write none of their own.
@@ -52,77 +52,42 @@ Every program the tree builds is named orior_<thing>, and `bin_names.tsv` at the
 ## Testing it
 
 ```
-python utils/test/harness.py window test [--only TEXT] [--monitor N] [--docker]
+python utils/test/harness.py window check [NAME...] [--on HOST | --docker]
+python utils/test/harness.py window test [--only TEXT] [--monitor N]
+python utils/test/harness.py cli test [MODULE]
 ```
 
-The harness starts the servers the run's tests reach, read from the tests' text, each a Docker
-container of its own on this machine's loopback: PostgreSQL, MySQL, MariaDB, CUPS with three
-printers, and an ssh server for tunnels. A server no test of the run reaches is not started, and
-the ones started are taken away as the run ends. Without Docker the tests that reach them do not
-run, and the report names them. Before the tests the system is read: each program they drive found on
-PATH with its version, the run's folder writable, the display set. The window's tests run in orior
-built for the run with a home and a tree of its own: a run leaves the reader's orior as it was. The
-window's comms are proven before the first file, and every job a file started is stopped after it.
-The window goes on the harness's display, or the one `--monitor` or `ORIOR_TEST_MONITOR` numbers;
-`--monitors` lists them. The run fails while any test fails or any module of the window has no test,
-and its report is in `build/ui_test/runs/<time>/report.md` at the top of the tree.
-
-On Windows the window is driven through its debugging port. On Linux its web view is WebKitGTK,
-and the window is driven through WebKitWebDriver: every press, key, drag and wheel goes as
-WebDriver's actions. `--docker` runs the window's tests in the harness's own Docker image, from
-`test/docker/`, on any machine Docker runs on. The tree is brought into a volume of the
-container's own, the window is built there and drawn on a display in memory, and the report comes
-back to `build/ui_test/runs/`. Every item of every menu and every option of Preferences is pressed there as
-a person presses it. While a run goes, a browser on this machine shows its window at
-`http://localhost:6080/vnc.html`, to be watched and not driven. `.github/workflows/ui.yml` runs the same on each pull request that changes the
-app, beside CodeQL and SonarQube Cloud.
+The window's checks build the window's C into one program with the checks and run them without a
+display, here, on a Linux host over ssh, or in the harness's own Docker image from `test/docker/`.
+The sweep starts the released window on a tree and a home of its own, on the harness's display or
+the one `--monitor` or `ORIOR_TEST_MONITOR` numbers, and sends it every command and option of the
+command line, each that acts in the window pictured; its report is in
+`build/ui_test/cli_sweep/<time>/cli_sweep.md`. The command line's Unity suites run under `cli test`.
+`.github/workflows/ui.yml` runs the checks and the suites on each pull request, beside CodeQL and
+SonarQube Cloud.
 
 ## Running it
 
-It needs Rust 1.77 or later to build. Every line of the page is in `gui/src-js/`, written for this tree,
-and the window loads those files as they are. None of the page comes from outside the tree.
-
-Every cargo build of the tree runs from the top of the tree and lands in `build/cargo`, the
-window's with it: nothing is built from inside `ui/gui/src-tauri`, and no `target` folder is made
-there.
+The window and the command line are C, built by `ui/cli/build.sh` through the harness:
 
 ```
-cargo run --release --manifest-path ui/gui/src-tauri/Cargo.toml
+python utils/test/harness.py build gui
 ```
 
-The program is `build/cargo/release/tab`. The installers come from the Tauri command, which cargo
-installs once and which finds `src-tauri` under the folder it is run in:
-
-```
-cargo install tauri-cli --version "^2" --locked
-cd ui/gui
-cargo tauri build
-```
-
-They land under `build/cargo/release/bundle/`, for the platform the build runs on. Each
-published release carries them for Windows, macOS and Linux, built by `.github/workflows/app.yml`.
-Without a clone, `cargo install --git https://github.com/dstroy0/orior tab --locked` builds and
-installs the program `tab`. A plain cargo build puts the page inside the program, as the installers
-do; `cargo tauri dev` serves it from `gui/src-js/` as it changes.
+The programs land under `build/cli/<target>/`: `imp`, the command line, and `tab`, the window, as
+`bin_names.tsv` at the top of the tree names them. `python utils/test/harness.py package` makes
+the install bundle of a target with the license texts, and `package --check` installs and removes it.
 
 orior files the errors it meets as issues on dstroy0/orior on its own, and asks once whether to,
-yes the answer given by default. The Windows installer asks as it installs (`gui/src-tauri/windows/hooks.nsh`);
-every other install asks on its first run, in the window or at the terminal. A build for testing,
-`cargo tauri dev`'s, answers yes on its own and asks nothing: every error a test meets is filed as an
-issue. Help, Automatic Error Reports turns it on or off later, and `ORIOR_NO_REPORTS` turns it off
-for a run.
+yes the answer given by default. The installer asks as it installs; every other install asks on its
+first run, in the window or at the terminal. Help, Automatic Error Reports turns it on or off later,
+and `ORIOR_NO_REPORTS` turns it off for a run.
 
 | platform | also needs |
 | --- | --- |
-| Windows | WebView2, which Windows 10 and 11 carry, and Git for Windows for the bash the scripts run in |
+| Windows | Git for Windows for the bash the scripts run in |
 | macOS | the Xcode command line tools |
-| Linux | `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2`, by their names in the distribution |
-
-On Windows the window retains direct composition, which draws the page on the GPU: a fast scroll
-through a long file holds the display's own rate, 142 frames a second on a display of 144. Without
-it the page is drawn by the processor, about 15 ms a frame for a window of 2560 by 1440, and the
-same scroll holds 48. The features `tauri.conf.json` turns off are the ones the window turns off
-when it is given no line of its own.
+| Linux | the X11 headers `libx11`, `libxext` and `libxi`, and `libssl`, by their names in the distribution |
 
 The app works on the tree it is started in, or the one `ORIOR_ROOT` names. `ORIOR_BASH` and
 `ORIOR_PYTHON` name the bash and the Python the jobs run with, where the ones on the path are not the
@@ -189,7 +154,7 @@ Colors, marks each color whose contrast with the color under it is under 4.5:1.
   "base": "dark",
   "colors": { "--t-string-escape": "#ffb86c" },
   "image": { "src": "data:image/png;base64,…", "opacity": 0.15 },
-  "icons": [{ "pattern": "*.test.js", "mark": "T", "color": "--t2" }]
+  "icons": [{ "pattern": "*_test.c", "mark": "T", "color": "--t2" }]
 }
 ```
 
@@ -249,28 +214,11 @@ certificate's thumbprint in the reader's store or the path of a `.pfx` file, its
 `signing.macos`, the identity `codesign` signs with; and `signing.notarize`, the keychain profile
 `notarytool` sends the program with.
 
-## Packages for Linux
-
-`packaging/linux/` builds orior as a Flatpak and as a snap. The Flatpak's manifest,
-`com.dstroy0.orior.yml`, builds the window and the command line offline against GNOME's runtime,
-the crates listed in `cargo-sources.json`, which `python -I packaging/linux/cargo_sources.py` writes
-again from the two Cargo.locks after a crate changes. `sh packaging/linux/check_flatpak.sh`, run
-from this folder, checks the manifest, the desktop file, the metadata and the crates' list in a
-container of 172 MB, and fetches no runtime: Flathub builds the Flatpak from the manifest. The snap's
-`snapcraft.yaml` builds them on core24 with classic confinement.
-
-Inside the Flatpak's sandbox none of the machine's compilers, SDKs and tools are there: orior gives
-each program on the machine's PATH a stand-in that runs it on the machine through `flatpak-spawn
---host`, in the folder it was started in, and puts their folder first on its PATH as it starts:
-the tree's jobs and tools, the language servers, git and the terminal's shell run on the machine
-itself. A variable a run sets reaches the machine's program where `ORIOR_HOST_ENV` names it.
-
 ## The command line
 
-The program is `orior`, and it is the command line as well as the window. Given no words it opens
-the window; given words it runs them in the terminal, over the same jobs and the same bridge. A
-menu's title and one of its commands are the words for it, read from `cli/commands.json`, the file
-the menus are drawn from as well. [The app](../../README.md#the-app) in the repository's own page
-is the guide to the window and the command line, and `orior help` lists every word.
+The programs are `imp`, the command line, and `tab`, the window, over the same jobs and the same
+door. A menu's title and one of its commands are the words for it, read from `cli/commands.json`,
+the file the menus are drawn from as well. [The app](../../README.md#the-app) in the repository's
+own page is the guide to the window and the command line, and `imp help` lists every word.
 
-From inside the tree, `cargo run -- run list` runs it without an install.
+From inside the tree, `build/cli/<target>/imp run list` runs it without an install.

@@ -17,7 +17,7 @@ The systems are the rows of utils/test/window_images.tsv with a platform: linux,
 the same on arm64; rpi, Debian bookworm on arm64, as Raspberry Pi OS is; windows, Windows Server 2022; and macos.
 
 A Linux container reads the tree at /host, read-only, and retains its copy on a volume at /top, its builds on a second
-at /top/build, and its crates on the volume the window's suite retains them on. The tree's parts the window's build reads
+at /top/build. The tree's parts the window's build reads
 are copied in with rsync, each file where its bytes differ: ui, utils, src/cu, includes, the license texts and bin_names.tsv. An arm64 container
 runs under Docker's emulation, at a fraction of the machine's speed. The Windows container is the same at C:\\host and
 C:\\top, copied with robocopy, and runs only while Docker's engine is Windows', which `engine` switches to and back.

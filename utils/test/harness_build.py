@@ -20,10 +20,6 @@ the compiler and the linker's tools.
     harness.py source format                  clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed
     harness.py source repeats [folder] [lines]  the runs of C lines located in two or more places under the folder,
                                               blank and comment lines dropped, the longest first
-    harness.py source page-names <file>...    the page's modules named, each parsed as a module and read for the
-                                              names they share: each import the module it names exports and the
-                                              importer uses, and each top-level name of one of them that another uses
-                                              imported there
     harness.py source cells [folder]          every persistent take under the folder, with the function it is in,
                                               what it is assigned to, where the function releases it and its escape
                                               class, as build/harness/out/cells.tsv, the classes counted
@@ -31,7 +27,6 @@ the compiler and the linker's tools.
 Logs and listings go under build/ and build/harness/out."""
 
 import concurrent.futures
-import functools
 import hashlib
 import os
 import re
@@ -387,131 +382,6 @@ def cmd_source_repeats(a):
     return 0
 
 
-PAGE = os.path.join(ROOT, "ui", "gui", "src-js")
-
-# the characters and words after which a / opens a regular expression
-REGEX_AFTER = set("(,=:[!&|?{};+-*%~^<>")
-REGEX_AFTER_WORDS = ("return", "typeof", "case", "of", "in", "delete", "void", "throw", "new", "else", "do")
-
-
-def page_code(text):
-    """A page module's text with its comments, its strings, its regular expressions and the literal parts of its
-    templates blanked, each to spaces, so that only its code's names are left where they was."""
-    out = list(text)
-    at = 0
-    braces = []
-    last = ""
-
-    def blank(start, end):
-        for place in range(start, end):
-            if out[place] != "\n":
-                out[place] = " "
-
-    def template(start):
-        place = start
-        while place < len(text):
-            character = text[place]
-            if character == "\\":
-                place += 2
-                continue
-            if character == "`":
-                blank(start, place)
-                return place + 1, None
-            if text.startswith("${", place):
-                blank(start, place)
-                return place + 2, "${"
-            place += 1
-        blank(start, len(text))
-        return len(text), None
-
-    while at < len(text):
-        character = text[at]
-        if text.startswith("//", at):
-            end = text.find("\n", at)
-            end = len(text) if end < 0 else end
-            blank(at, end)
-            at = end
-        elif text.startswith("/*", at):
-            end = text.find("*/", at + 2)
-            end = len(text) if end < 0 else end + 2
-            blank(at, end)
-            at = end
-        elif character in "'\"":
-            place = at + 1
-            while place < len(text) and text[place] != character and text[place] != "\n":
-                place += 2 if text[place] == "\\" else 1
-            blank(at, place + 1)
-            at = place + 1
-            last = "a"
-        elif character == "`":
-            at, opened = template(at + 1)
-            if opened:
-                braces.append("`")
-            last = "a"
-        elif character == "/" and (last in REGEX_AFTER or last == "" or last.endswith(REGEX_AFTER_WORDS)):
-            place = at + 1
-            within = False
-            while place < len(text) and text[place] != "\n":
-                if text[place] == "\\":
-                    place += 2
-                    continue
-                if text[place] == "[":
-                    within = True
-                elif text[place] == "]":
-                    within = False
-                elif text[place] == "/" and not within:
-                    break
-                place += 1
-            blank(at, place + 1)
-            at = place + 1
-            last = "a"
-        elif character == "{":
-            braces.append("{")
-            last = character
-            at += 1
-        elif character == "}":
-            opener = braces.pop() if braces else "{"
-            at += 1
-            if opener == "`":
-                at, opened = template(at)
-                if opened:
-                    braces.append("`")
-            last = "a"
-        else:
-            if not character.isspace():
-                word = re.match(r"[A-Za-z_$][\w$]*", text[at:])
-                if word:
-                    last = word.group(0)
-                    at += len(last)
-                    continue
-                last = character
-            at += 1
-    return "".join(out)
-
-
-def page_imports(text):
-    """Each import of a module of the page a module makes, read from its text as written: (the module's path as
-    given, the name it exports, the name it is bound to here)."""
-    found = []
-    for names, path in re.findall(r"^import\s*\{([^}]*)\}\s*from\s*[\"']([^\"']+)[\"']", text, re.M):
-        for one in names.split(","):
-            parts = one.split(" as ")
-            if parts[0].strip():
-                found.append((path, parts[0].strip(), parts[-1].strip()))
-    return found
-
-
-@functools.lru_cache(maxsize=None)
-def page_exports(path):
-    """The names a module of the page exports, its own and those it passes on from another."""
-    with open(path, encoding="utf-8") as retained:
-        code = page_code(retained.read())
-    names = set(re.findall(r"^export\s+(?:async\s+)?(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)", code, re.M))
-    for listed in re.findall(r"^export\s*\{([^}]*)\}", code, re.M):
-        names |= {one.split(" as ")[-1].strip() for one in listed.split(",") if one.strip()}
-    return names
-
-
 def bound_names(listed):
     """The names a parameter list or a destructuring binds: a default's value and a renamed key are read and not bound."""
     listed = re.sub(r"=[^,{}\[\]]*", "", listed)
@@ -648,84 +518,6 @@ def cmd_source_cells(a):
     return 0
 
 
-def cmd_source_page_names(a):
-    """The page's modules named, each parsed as a module, and read for the names they share. Each name a module
-    imports from another module of the page is exported there and used here; each top-level name of one of the
-    modules named that another uses is imported there or its own. The modules a split leaves are named together, so
-    that a name one part left behind in another is found."""
-    files = [os.path.normpath(os.path.join(PAGE, name)) for name in a.files]
-    # each module parsed as a module, nothing in it run: `node --check` passes a line no module may hold
-    parse = "const vm = require('vm'), fs = require('fs'); for (const f of process.argv.slice(1)) { try { new vm.SourceTextModule(fs.readFileSync(f, 'utf8'), { identifier: f }); } catch (e) { console.log(f + ': does not parse: ' + e.message); } }"
-    said = subprocess.run(["node", "--experimental-vm-modules", "--no-warnings", "-e", parse, *files], capture_output=True, text=True, errors="replace")
-    unparsed = [line.replace(PAGE + os.sep, "").replace(os.sep, "/") for line in said.stdout.splitlines() if line.strip()]
-    for line in unparsed:
-        print(line)
-    texts = {}
-    codes = {}
-    tops = {}
-    made = {}
-    for path in files:
-        with open(path, encoding="utf-8") as retained:
-            texts[path] = retained.read()
-        codes[path] = page_code(texts[path])
-        tops[path] = set(re.findall(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)", codes[path], re.M))
-        # a name a module declares anywhere, a local of its own or a parameter that shares another module's top-level
-        # name included
-        made[path] = set(re.findall(r"\b(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)", codes[path]))
-        for listed in re.findall(r"\bfunction\*?\s*[\w$]*\s*\(([^()]*)\)|\(([^()]*)\)\s*=>|\bcatch\s*\(([^()]*)\)", codes[path]):
-            made[path] |= bound_names(" ".join(listed))
-        made[path] |= set(re.findall(r"([A-Za-z_$][\w$]*)\s*=>", codes[path]))
-        for listed in re.findall(r"\b(?:const|let|var)\s*[{\[]([^}\]]*)[}\]]", codes[path]):
-            made[path] |= bound_names(listed)
-        # a class's or an object's method, `write(text) {` at the head of its line, and its parameters
-        # (an `if (...) {`, a `for (...) {` and their type have the same shape and are neither, nor what they test)
-        methods = [one for one in re.findall(r"^\s+(?:(?:async|static|get|set)\s+)*([A-Za-z_$][\w$]*)\s*\(([^()]*)\)\s*\{", codes[path], re.M) if one[0] not in {"if", "for", "while", "switch", "catch", "function", "return"}]
-        made[path] |= {name for name, _ in methods}
-        for _, listed in methods:
-            made[path] |= bound_names(listed)
-    faults = len(unparsed)
-    for path in files:
-        code = codes[path]
-        here = os.path.relpath(path, PAGE).replace(os.sep, "/")
-        imports = page_imports(texts[path])
-        bound = {name for _, _, name in imports}
-        # the import and export lists, whose module paths are blanked to spaces in the code
-        body = re.sub(r"^(?:import|export)\s*\{[^}]*\}\s*from\s*;?", "", code, flags=re.M)
-        # a spread's three dots are not a member's one, and an object's key names no binding
-        body = re.sub(r"(?<=[{,])(\s*)[A-Za-z_$][\w$]*(\s*):(?!:)", r"\1\2 ", body.replace("...", "   "))
-        words = re.findall(r"(?<![\w$.])[A-Za-z_$][\w$]*", body)
-        counted = {}
-        for word in words:
-            counted[word] = counted.get(word, 0) + 1
-        # a module imported as the code runs is there, its path read from where this module is
-        for module in re.findall(r"\bimport\(\s*[\"'](\.[^\"']+)[\"']\s*\)", texts[path]):
-            if not os.path.isfile(os.path.normpath(os.path.join(os.path.dirname(path), module))):
-                print("%s: imports %s as it runs, which is not there" % (here, module))
-                faults += 1
-        for module, name, local in imports:
-            if not module.startswith("."):
-                continue
-            target = os.path.normpath(os.path.join(os.path.dirname(path), module))
-            if not os.path.isfile(target):
-                print("%s: imports from %s, which is not there" % (here, module))
-                faults += 1
-            elif name not in page_exports(target):
-                print("%s: imports %s from %s, which does not export it" % (here, name, module))
-                faults += 1
-            if not counted.get(local):
-                print("%s: imports %s and does not use it" % (here, local))
-                faults += 1
-        for other in files:
-            if other == path or family_of(other, files) != family_of(path, files):
-                continue
-            for name in sorted(tops[other] - made[path] - bound):
-                if counted.get(name):
-                    print("%s: uses %s, top-level in %s, and neither imports nor makes it" % (here, name, os.path.relpath(other, PAGE).replace(os.sep, "/")))
-                    faults += 1
-    print("%d modules read, %d faults" % (len(files), faults))
-    return 1 if faults else 0
-
-
 def register(sub):
     """The build and source groups' commands added to harness.py's subparsers."""
     group = sub.add_parser("build", help="the window's program and MMgr's suites built")
@@ -761,9 +553,6 @@ def register(sub):
     p.add_argument("folder", nargs="?", default="includes/window", help="the folder read, from the top of the tree")
     p.add_argument("lines", nargs="?", type=int, default=6, help="the fewest folded lines a run has")
     p.set_defaults(fn=cmd_source_repeats)
-    p = source.add_parser("page-names", help="the page's modules named, each import exported where it comes from and used, each name another uses imported")
-    p.add_argument("files", nargs="+", help="relative to ui/gui/src-js")
-    p.set_defaults(fn=cmd_source_page_names)
     p = source.add_parser("cells", help="every persistent take under the folder with its function, target, releases and escape class, to build/harness/out/cells.tsv")
     p.add_argument("folder", nargs="?", default="ui/cli/src", help="the folder under the tree to read, ui/cli/src by default")
     p.set_defaults(fn=cmd_source_cells)
