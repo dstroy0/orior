@@ -30,6 +30,19 @@ static int s_flags_run_result;
 static char s_listed[1u << 12u];
 static VerbaLinea s_listing;
 
+// the bytes the temporary tier holds now: the depth of every region of the pool, summed. A take of the temporary tier
+// deepens the region of the thread that takes, and the one stack's top does not move
+static size_t regions_depth(void)
+{
+    const SeriesCellularum *const series = cli_pool_series_cellularum();
+    size_t depth = 0u;
+    for (size_t region = 0u; region < MMGR_CARCER_REGION_COUNT; region += 1u)
+    {
+        depth += mmgr_series_cellularum_region_depth(series, region);
+    }
+    return depth;
+}
+
 // a path with each `\` a `/` into `out`, CLI_PATH_MAX_LEN bytes
 static void forward_slashed(const char *path, char *out)
 {
@@ -137,9 +150,9 @@ static void own_gathered(void)
     cli_unity_file(out, "compile_commands.json",
                    "[{\"directory\": \"/t\", \"file\": \"/t/a.c\", \"command\": "
                    "\"\\\"/opt/cross/bin/arm-none-eabi-gcc\\\" -c a.c\"}]");
-    const size_t top_before = mmgr_series_cellularum_temporary_top(cli_pool_series_cellularum());
+    const size_t depth_before = regions_depth();
     EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs, CliCompileDbInputsCtx, .root = s_own_dir, .inputs = &s_inputs);
-    s_files_in_temporary_tier = mmgr_series_cellularum_temporary_top(cli_pool_series_cellularum()) < top_before;
+    s_files_in_temporary_tier = regions_depth() > depth_before;
     EMBED_CALL(cli_compile_db_root_internal.compile_gather, CliCompileDbRootCtx, .root = s_own_dir, .inputs_read = &s_inputs, .database = &s_own);
 }
 

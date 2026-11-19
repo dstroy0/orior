@@ -151,15 +151,10 @@ static void statement_stopped(void *context)
 // whether `marked` lies anywhere among the pool's bytes
 static int pool_contains(const char *marked)
 {
-    unsigned long long pool = 0ull;
-    unsigned long long persistent = 0ull;
-    unsigned long long temporary = 0ull;
-    cli_pool_report(&pool, &persistent, &temporary);
-    char *const probe = g_cli_guard->temporary_buf_alloc(64ull, g_checks_owner);
-    const unsigned long long top = (unsigned long long)mmgr_series_cellularum_temporary_top(cli_pool_series_cellularum());
-    // the probe is at the top of the temporary tier, its distance from the pool's start: a page short of each end
-    const unsigned char *const start = (const unsigned char *)probe - top + 4096ull;
-    const unsigned long long bytes = pool - 8192ull;
+    // the pool's bytes from its cellblock's record: a page short of each end
+    const SeriesCellularum *const series = cli_pool_series_cellularum();
+    const unsigned char *const start = series->base + 4096ull;
+    const unsigned long long bytes = (unsigned long long)series->size - 8192ull;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = marked, .cap = 64u});
     int holds = 0;
     for (unsigned long long at = 0ull; !holds && ((at + length) < bytes); at += 1ull)
@@ -167,7 +162,6 @@ static int pool_contains(const char *marked)
         // a character's bits, as a byte
         holds = (start[at] == (unsigned char)marked[0]) && (memor.cmp(&(MemoriaCfg){.src = start + at, .other = marked, .bytes = (size_t)length}) == 0);
     }
-    g_cli_guard->persistent_buf_release(probe, g_checks_owner);
     return holds;
 }
 

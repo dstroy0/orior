@@ -85,21 +85,21 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\compile_db\\test_compile_db\\test_compile_db.c");
-  run_test(test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more, "test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more", 212);
-  run_test(test_a_cmake_reply_releases_each_source_the_debug_configurations_command, "test_a_cmake_reply_releases_each_source_the_debug_configurations_command", 220);
-  run_test(test_clangd_is_input_the_written_folder, "test_clangd_is_input_the_written_folder", 245);
-  run_test(test_a_database_that_names_cl_is_msvcs, "test_a_database_that_names_cl_is_msvcs", 254);
-  run_test(test_cl_is_not_queried_for_its_headers, "test_cl_is_not_queried_for_its_headers", 260);
-  run_test(test_the_files_a_look_reads_are_in_the_temporary_tier, "test_the_files_a_look_reads_are_in_the_temporary_tier", 268);
-  run_test(test_the_database_a_trees_clangd_names_is_its_own, "test_the_database_a_trees_clangd_names_is_its_own", 274);
-  run_test(test_a_trees_own_database_is_read_for_its_compiler, "test_a_trees_own_database_is_read_for_its_compiler", 284);
-  run_test(test_clangd_may_query_a_trees_own_compiler, "test_clangd_may_query_a_trees_own_compiler", 293);
-  run_test(test_nothing_is_written_over_a_trees_own_database, "test_nothing_is_written_over_a_trees_own_database", 301);
-  run_test(test_a_compiler_named_cl_is_msvcs_and_another_is_not, "test_a_compiler_named_cl_is_msvcs_and_another_is_not", 309);
-  run_test(test_a_files_defines_come_from_its_entry_and_its_folders, "test_a_files_defines_come_from_its_entry_and_its_folders", 316);
-  run_test(test_a_files_includes_are_its_entrys_and_the_trees_are_every_entrys_once, "test_a_files_includes_are_its_entrys_and_the_trees_are_every_entrys_once", 331);
-  run_test(test_a_command_lines_quoted_words_stay_complete, "test_a_command_lines_quoted_words_stay_complete", 348);
-  run_test(test_visual_studios_environment_is_read_once_and_names_its_include_folders, "test_visual_studios_environment_is_read_once_and_names_its_include_folders", 358);
+  run_test(test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more, "test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more", 225);
+  run_test(test_a_cmake_reply_releases_each_source_the_debug_configurations_command, "test_a_cmake_reply_releases_each_source_the_debug_configurations_command", 233);
+  run_test(test_clangd_is_input_the_written_folder, "test_clangd_is_input_the_written_folder", 258);
+  run_test(test_a_database_that_names_cl_is_msvcs, "test_a_database_that_names_cl_is_msvcs", 267);
+  run_test(test_cl_is_not_queried_for_its_headers, "test_cl_is_not_queried_for_its_headers", 273);
+  run_test(test_the_files_a_look_reads_are_in_the_temporary_tier, "test_the_files_a_look_reads_are_in_the_temporary_tier", 281);
+  run_test(test_the_database_a_trees_clangd_names_is_its_own, "test_the_database_a_trees_clangd_names_is_its_own", 287);
+  run_test(test_a_trees_own_database_is_read_for_its_compiler, "test_a_trees_own_database_is_read_for_its_compiler", 297);
+  run_test(test_clangd_may_query_a_trees_own_compiler, "test_clangd_may_query_a_trees_own_compiler", 306);
+  run_test(test_nothing_is_written_over_a_trees_own_database, "test_nothing_is_written_over_a_trees_own_database", 314);
+  run_test(test_a_compiler_named_cl_is_msvcs_and_another_is_not, "test_a_compiler_named_cl_is_msvcs_and_another_is_not", 322);
+  run_test(test_a_files_defines_come_from_its_entry_and_its_folders, "test_a_files_defines_come_from_its_entry_and_its_folders", 329);
+  run_test(test_a_files_includes_are_its_entrys_and_the_trees_are_every_entrys_once, "test_a_files_includes_are_its_entrys_and_the_trees_are_every_entrys_once", 344);
+  run_test(test_a_command_lines_quoted_words_stay_complete, "test_a_command_lines_quoted_words_stay_complete", 361);
+  run_test(test_visual_studios_environment_is_read_once_and_names_its_include_folders, "test_visual_studios_environment_is_read_once_and_names_its_include_folders", 371);
 
   return UNITY_END();
 }

@@ -640,6 +640,29 @@ def cmd_pointer(a):
 GUI_CHECKS = os.path.join(ROOT, "utils", "test", "src", "ui", "gui", "gui_test.sh")
 
 
+def cmd_forwarded(a):
+    """The window over a forwarded display, on the Linux host --on names or in the Linux image with --docker: the
+    tree's parts copied in, then utils/test/src/ui/gui/forwarded.sh run there. The script is the host's own ssh
+    client and ssh server: the window starts through ssh -Y and shows on an X server of the script's own, where the
+    script looks for it by its title. The exit code is the script's."""
+    import harness_window_host
+
+    if a.docker:
+        host = harness_window_host.ImageHost()
+    else:
+        named = a.on if a.on not in (None, "") else harness_window_host.host_from_preference()
+        if not named:
+            print("no host: give --on user@host, or set checks.host in Preferences, or give --docker")
+            return 2
+        host = harness_window_host.SshHost(named)
+    code = host.copied()
+    if code != 0:
+        print("the copy ended %d" % code)
+        return code
+    lines = []
+    return harness_window_host.streamed_run(host, "bash %s/utils/test/src/ui/gui/forwarded.sh" % host.tree, lines)
+
+
 def cmd_check(a):
     """The window's C checked without a display: every *_test.c under utils/test/src/ui/gui, or those named."""
     import harness_cli
@@ -2023,6 +2046,10 @@ def register(sub):
     p.add_argument("--on", nargs="?", const="", default=None, metavar="HOST", help="the checks run on this Linux host over ssh, as user@host; alone, on the host the preference checks.host names (harness_window_host.py)")
     p.add_argument("--docker", action="store_true", help="the checks run in the harness's Linux image, the container orior-ui-linux (harness_window_host.py)")
     p.set_defaults(fn=cmd_check)
+    p = window.add_parser("forwarded", help="the window over a forwarded display: started through ssh -Y on a Linux host or in the Linux image, and found on the host's own X server (utils/test/src/ui/gui/forwarded.sh)")
+    p.add_argument("--on", nargs="?", const="", default=None, metavar="HOST", help="the Linux host, as user@host; alone, the host the preference checks.host names")
+    p.add_argument("--docker", action="store_true", help="the harness's Linux image, the container orior-ui-linux")
+    p.set_defaults(fn=cmd_forwarded)
     p = window.add_parser("icon", help="the program's icon file written from the eye: ui/gui/src/orior.ico, built into the window on Windows")
     p.set_defaults(fn=cmd_icon)
     p = window.add_parser("session", help="the tree's retained session in orior's state: written from the tabs given, or printed")
