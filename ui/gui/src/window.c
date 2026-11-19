@@ -7038,6 +7038,19 @@ EMBED_INLINE unsigned int window_autoscroll_compass(const GuiWindowCtx *args)
     return (across < 0) ? GUI_POINTER_GLIDE_SW : GUI_POINTER_GLIDE_SE;
 }
 
+// whether the pixel at x, y is on the terminal's top edge, which drags its height: the panel's top line and the
+// grip's reach either side of it
+EMBED_INLINE int window_terminal_grip(const GuiWindowCtx *args)
+{
+    const GuiFrame *const frame = &args->window_read->frame;
+    const int reach =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TERMINAL_GRIP, .scale = frame->scale);
+    return !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->terminal) &&
+           EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                      .rect = (GuiRect){frame->terminal.x, frame->terminal.y - reach, frame->terminal.width, 2 * reach},
+                      .x = args->x, .y = args->y);
+}
+
 // The pointer's shape on the main window at x, y. The compass while the autoscroll runs, and the shape of the
 // border, a corner or a control where the pixel is on one. Then a drag's own shape: the arrow left and right while a
 // table's column line is dragged, the beam while the editor's choice is. Else the text beam where a press puts the
@@ -7065,6 +7078,11 @@ EMBED_INLINE unsigned int window_pointer_shape(const GuiWindowCtx *args)
     if (window->dragging)
     {
         return GUI_POINTER_TEXT;
+    }
+    if (window->terminal_gripped ||
+        EMBED_CALL(window_terminal_grip, GuiWindowCtx, .window_read = window, .x = args->x, .y = args->y))
+    {
+        return GUI_POINTER_RESIZE_NS;
     }
     GuiWindowHit hit = {CLI_HIT_NONE, 0u, 0u, 0ULL, 0ULL};
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = args->x, .y = args->y, .hit = &hit);
@@ -7594,19 +7612,6 @@ EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
         pressed.hit = CLI_HIT_TERMINAL_TAB_CLOSE;
         EMBED_CALL(window_pressed, GuiWindowCtx, .window = args->window, .hit = &pressed, .on = 0);
     }
-}
-
-// whether the pixel at x, y is on the terminal's top edge, which drags its height: the panel's top line and the
-// grip's reach either side of it
-EMBED_INLINE int window_terminal_grip(const GuiWindowCtx *args)
-{
-    const GuiFrame *const frame = &args->window_read->frame;
-    const int reach =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TERMINAL_GRIP, .scale = frame->scale);
-    return !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->terminal) &&
-           EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
-                      .rect = (GuiRect){frame->terminal.x, frame->terminal.y - reach, frame->terminal.width, 2 * reach},
-                      .x = args->x, .y = args->y);
 }
 
 // the terminal's height for its top edge dragged to y, in the page's pixels, between its least and its max as the

@@ -1477,6 +1477,16 @@ static void pointer_checked(void)
     cli_check(s_window.pointer.shape == GUI_POINTER_HAND, "over a tool of the bar the pointer is the hand");
     moved(1, editor.y + (editor.height / 2));
     cli_check(s_window.pointer.shape == GUI_POINTER_RESIZE_EW, "on the left border the pointer is the arrow both ways");
+    cli_check(asked("run-view", NULL) && (s_window.side_menu.foot != GUI_SIDE_MENU_NONE),
+              "the Run tool opens its pane at the foot");
+    stepped();
+    const GuiRect foot = s_window.frame.terminal;
+    moved(foot.x + (foot.width / 2), foot.y);
+    cli_check((foot.height > 0) && (s_window.pointer.shape == GUI_POINTER_RESIZE_NS),
+              "on the foot pane's top line the pointer is the arrow up and down");
+    cli_check(asked("run-view", NULL) && (s_window.side_menu.foot == GUI_SIDE_MENU_NONE),
+              "and the Run tool closes its pane again");
+    stepped();
     EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window, .input = GUI_LEFT_INPUT());
     cli_check(!s_window.pointer.shown, "a leave takes the pointer off the window");
 
