@@ -1706,7 +1706,7 @@ utils/test/src/ui/gui/system_test.c	11
 utils/test/src/ui/gui/tabs_test.c	3
 utils/test/src/ui/gui/terminal_test.c	1
 utils/test/src/ui/gui/themes_test.c	2
-utils/test/src/ui/gui/window_test.c	89
+utils/test/src/ui/gui/window_test.c	2
 utils/test/src/ui/gui/work_test.c	3
 utils/test/src/ui/sanitized.sh	1
 utils/test/test_motion_read.py	5

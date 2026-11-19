@@ -35,8 +35,9 @@
 static GuiWindow s_window;
 static char s_root[CLI_PATH_MAX_LEN];
 
-// A command asked of the window through the interface on a thread of its own, as the command line asks it: the command,
-// its word, NULL for none, what the window answered, what the asking came to, and whether it has come
+// A command the check asks of the window through the interface, on a thread of its own, as the command line asks it.
+// The record holds the command, its word, NULL for none, what the window answered, what the ask came to, and whether
+// the answer came.
 typedef struct
 {
     const char *command;
@@ -53,7 +54,7 @@ static void window_woken(void)
 {
 }
 
-// on the asking thread: the command sent through the interface and its answer waited for
+// On the ask's thread: send the command through the interface and wait for its answer.
 static void window_ask_run(void *context)
 {
     WindowAsk *const ask = (WindowAsk *)context;
@@ -72,8 +73,8 @@ static void stepped(void)
     EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = &s_window);
 }
 
-// the command `command` with its `words`, `count` of them, asked of the window through the interface, the window
-// stepped until it answers or ten seconds pass: 1 where it ran
+// Ask the command `command` with its `words`, `count` of them, of the window through the interface. Step the window
+// until it answers or ten seconds pass. Return 1 if it ran.
 static int asked_words(const char *command, const char *const *words, unsigned int count)
 {
     s_ask = (WindowAsk){.command = command, .words = words, .count = count};
@@ -164,9 +165,9 @@ static int file_reads(const char *name, const char *required)
     return same;
 }
 
-// the tree's file `name` opened as the tab displayed: 1 where it is displayed
-// whether the file `name` of the tree, asked open through the interface by the command `command`, is the tab
-// displayed
+// Open the tree's file `name` as the tab displayed. Return 1 if the window displays it.
+// Return whether the tree's file `name` is the tab displayed, after the command `command` asks it open through the
+// interface.
 static int tab_opened_by(const char *command, const char *name)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -180,7 +181,7 @@ static int tab_opened_by(const char *command, const char *name)
                        .src = displayed_path, .cap = CLI_POOL_BYTES, .other = name, .other_cap = CLI_POOL_BYTES});
     if (!is)
     {
-        // a file the window refused is told through its notice
+        // The window's notice says why it refused a file.
         const char *const notice = cli_notice_displayed();
         (void)fprintf(stderr, "  open %s: displayed %d, notice %s\n", name, displayed,
                       (notice != NULL) ? notice : "none");
@@ -215,8 +216,8 @@ static void tabs_closed(const char *first, const char *first_text, const char *s
     }
 }
 
-// the row labeled `label` of the menu titled `title` on the bar, read into `item`, the menus closed again: whether it
-// can be chosen
+// Read the row labeled `label` of the menu titled `title` on the bar into `item`, and close the menus again. Return
+// whether a press can choose the row.
 static int row_chosen(const char *title, const char *label, CliItem *item)
 {
     unsigned int at = 0u;
@@ -335,7 +336,7 @@ static void failed_save_checked(void)
     tabs_closed("saved.txt", "one\n", NULL, NULL);
     (void)tab_opened("saved.txt");
     typed("x");
-    // a folder where the file was, which no file is put in place of
+    // A folder stands where the file was, and no file takes its place.
     char path[CLI_PATH_MAX_LEN];
     tree_path("saved.txt", path);
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path);
@@ -350,8 +351,9 @@ static void failed_save_checked(void)
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path);
 }
 
-// the bytes every owner of the cellblock has in use, summed, and each owner's own into `owners` where given: what a
-// closed document gives back comes off these. The comms owner is left out: its log records each ask the check makes
+// Return the bytes every owner of the cellblock has in use, summed. Put each owner's own bytes into `owners` if given.
+// What a closed document gives back comes off these. The sum leaves the comms owner out, because its log records each
+// ask the check makes.
 static unsigned long long cells_in_use(unsigned long long *owners)
 {
     unsigned long long in_use = 0ULL;
@@ -369,11 +371,27 @@ static unsigned long long cells_in_use(unsigned long long *owners)
     return in_use;
 }
 
-// the cells in use once they rest: read again each 50 ms until two readings agree, two seconds at the most, which lets
-// a walk or a release still in flight land before a round is measured
+// Step the window until no walker colors a text, or until `milliseconds` pass. Return 1 if no walker colors a text.
+// A walk takes the branch's cells as it colors. A measure of the cells waits for the walk's end.
+static int walk_rested(unsigned long long milliseconds)
+{
+    CliWake pause = CLI_WAKE_INIT;
+    const unsigned long long until = cli_clock_milliseconds() + milliseconds;
+    while ((cli_document_walkers() != 0u) && (cli_clock_milliseconds() < until))
+    {
+        stepped();
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 5ULL);
+    }
+    return (cli_document_walkers() == 0u) ? 1 : 0;
+}
+
+// Return the cells in use after they rest. First wait until no walker colors a text, five seconds at most. Then read
+// the cells again each 50 ms until two readings agree, two seconds at most. A release still in flight lands before a
+// round's measure.
 static unsigned long long cells_settled(unsigned long long *owners)
 {
     CliWake pause = CLI_WAKE_INIT;
+    (void)walk_rested(5000ULL);
     unsigned long long before = cells_in_use(owners);
     const unsigned long long last_ms = cli_clock_milliseconds() + 2000ULL;
     for (;;)
@@ -399,8 +417,8 @@ static void branches_read(unsigned int *bytes)
     }
 }
 
-// each branch that is new after the second round or holds other bytes than then, its path and its bytes after each,
-// written beside the check that reads it
+// Write each branch that is new after the second round, or holds other bytes than then, beside the check. Write its
+// path and its bytes after each round.
 static void branches_grown(const unsigned int *second, const unsigned int *sixth)
 {
     for (unsigned int file = 0u; file < CLI_BRANCHES_MAX; file += 1u)
@@ -465,9 +483,9 @@ static void tiers_moved(const RoundTiers *rounds)
     }
 }
 
-// a document of many lines opened, changed and closed over six rounds: the cells in use after the last round are no
-// more than after the second, which holds that a closed document gives its cells back. The first round fills the
-// tables sized to live data, the tree's records of the file among them, which the second round reads as they stand
+// A document of many lines opens, changes and closes over six rounds. The cells in use after the last round are no
+// more than after the second. This holds that a closed document gives its cells back. The first round fills the
+// tables sized to live data, the tree's records of the file among them. The second round reads them as they stand.
 static void cells_rounds_checked(void)
 {
     static char s_lines[96u * 1024u];
@@ -507,8 +525,8 @@ static void cells_rounds_checked(void)
     cli_check(every_round_opened && (cli_view_count() == 0u), "the rounds' document opens and closes each round");
     if (after_last > after_first)
     {
-        // each owner that holds more after the sixth round than after the second, with its bytes in use after each
-        // round, beside the check that reads it
+        // Write each owner that holds more after the sixth round than after the second beside the check, with its
+        // bytes in use after each round.
         (void)fprintf(stderr, "  cells in use after the second round %llu, after the sixth %llu\n", after_first,
                       after_last);
         for (size_t at = 0u; (at < mmgr_owner_table_count) && (at < MMGR_CARCER_OWNERS); at += 1u)
@@ -552,7 +570,8 @@ static unsigned int row_runs_waited(unsigned int row, unsigned long long millise
 static void cursor_put(unsigned long long line, unsigned long long col);
 static void stepped_for(unsigned long long milliseconds);
 
-// a C file opened and typed into: the line typed into is colored again after each edit, its runs back in the frame
+// A C file opens and takes typed text. The walk colors the typed line again after each edit, and its runs come back
+// in the frame.
 static void typed_colored_checked(void)
 {
     tabs_closed("typed.c", "int one(void)\n{\n    return 1;\n}\n", NULL, NULL);
@@ -594,8 +613,8 @@ static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsig
     return runs;
 }
 
-// A C file opens while the thread holds a temporary cell of 1.5 MiB. The grammar's store takes more than the
-// thread's region has left. The walk colors the file's lines all the same
+// A C file opens while the thread holds a temporary cell of 1.5 MiB. The grammar's store takes more than the room
+// left in the thread's region. The walk colors the file's lines all the same.
 static void grammar_held_checked(void)
 {
     const unsigned long long held_bytes = 1536ULL << 10u;
@@ -610,9 +629,10 @@ static void grammar_held_checked(void)
 
 static unsigned long long cells_settled(unsigned long long *owners);
 
-// A C file of seven thousand lines opens and takes its first edit. The first edit gives the branch its own cells.
-// Ten more edits of one character leave the cells in use within 64 KiB of the first edit's count. Each owner that
-// moved over the ten is written beside the check
+// A C file of seven thousand lines opens and takes its first edit. The first edit gives the branch its own cells. The
+// first count waits for the walk of the whole file, which the first edit can start again. Ten more edits of one
+// character leave the cells in use within 64 KiB of the first edit's count. The check writes each owner that moved
+// over the ten beside it.
 static void edits_cells_checked(void)
 {
     const unsigned long long capacity = 512ULL << 10u;
@@ -660,7 +680,7 @@ static void edits_cells_checked(void)
     (void)asked("close-all", NULL);
 }
 
-// the private working set of this process, in bytes, 0 where the system does not say
+// Return the private `working set` of this process, in bytes, 0 if the system does not say.
 static unsigned long long working_set(void)
 {
     CliProcessMemory measured;
@@ -670,8 +690,8 @@ static unsigned long long working_set(void)
 }
 
 // A large C file opens and takes five edits, which the walk colors on its threads. The file closes. The idle pages
-// of the cellblock given back lower the working set by a megabyte or more: the pages the walk's threads touched
-// are no longer resident
+// of the cellblock go back, and the `working set` falls by a megabyte or more. The pages the walk's threads touched
+// are no longer resident.
 static void idle_pages_checked(void)
 {
     const unsigned long long capacity = 512ULL << 10u;
@@ -711,8 +731,8 @@ static void idle_pages_checked(void)
               "the idle pages given back lower the working set by a megabyte or more");
 }
 
-// a C file with an include opened, the include's closing quote erased and typed back: the line's runs are as they
-// were before, the string colored as a string
+// A C file with an include opens. The check erases the include's last quote and types it back. The line's runs are
+// as they were before, and the string keeps its color as a string.
 static void retyped_colored_checked(void)
 {
     tabs_closed("retyped.c", "#include \"a.h\"\nint one;\n", NULL, NULL);
@@ -738,8 +758,8 @@ static void retyped_colored_checked(void)
     (void)asked("close-all", NULL);
 }
 
-// one language's sample: the file's name, whose extension names the plugin, and its text, a line of it at most
-// WINDOW_SAMPLE_LINES and each line's last character a plain one typed back after it is erased
+// One language's sample: the file's name, whose extension names the plugin, and its text. The text has at most
+// WINDOW_SAMPLE_LINES lines. Each line's last character is a plain one, which the check erases and types back.
 typedef struct
 {
     const char *name;
@@ -825,8 +845,8 @@ static int sample_runs_same(unsigned int rows, unsigned int before[][2u * WINDOW
     return same;
 }
 
-// one language's sample opened and colored, then each line's last character erased and typed back: the rows' runs
-// are as they were after every retyping
+// One language's sample opens and the walk colors it. The check erases each line's last character and types it
+// back. The rows' runs are as they were after every character typed back.
 static void language_sample_checked(const LanguageSample *sample)
 {
     tabs_closed(sample->name, sample->text, NULL, NULL);
@@ -869,7 +889,7 @@ static void language_sample_checked(const LanguageSample *sample)
         same = sample_runs_same(rows, before, before_counts);
         if (!same)
         {
-            // the rows' runs before and after the retyping, beside the check that reads them
+            // Write the rows' runs before and after the character typed back beside the check.
             unsigned int after[WINDOW_SAMPLE_LINES][2u * WINDOW_SAMPLE_RUNS];
             unsigned int after_counts[WINDOW_SAMPLE_LINES];
             (void)sample_runs_copied(rows, after, after_counts);
@@ -896,7 +916,7 @@ static void language_sample_checked(const LanguageSample *sample)
     (void)asked("close-all", NULL);
 }
 
-// every language plugin's sample: editing a line leaves the highlighting of every line as it was
+// Every language plugin's sample: an edit to a line leaves every line's colors as they were.
 static void languages_colored_checked(void)
 {
     for (unsigned int at = 0u; at < (sizeof(s_language_samples) / sizeof(s_language_samples[0])); at += 1u)
@@ -927,8 +947,8 @@ static void reduce_motion_checked(void)
     (void)asked("reduce-motion", "off");
 }
 
-// a file opened through the interface with a line and a column after its path, each a colon and digits counted from 1,
-// the cursor located there; with a line alone, at the line's start
+// A file opens through the interface with a line and a column after its path, each a colon and digits counted from
+// 1. The cursor goes there. With a line alone, the cursor goes to the line's start.
 static void place_checked(void)
 {
     tabs_closed("placed.txt", "one\ntwo\nthree\n", NULL, NULL);
@@ -952,9 +972,9 @@ static void place_checked(void)
               "a line alone puts the cursor at the line's start");
 }
 
-// A table file: the frame carries the delimiter character and the column offsets, and the editor positions the caret
-// at a field's column offset, the second field five cells right of the first
-// the caret's ink as the window draws it at the moment `now_ms`
+// A table file: the frame carries the delimiter character and the column offsets. The editor positions the caret at
+// a field's column offset, the second field five cells right of the first.
+// Return the caret's ink as the window draws it at the moment `now_ms`.
 static unsigned int caret_ink_at(unsigned long long now_ms)
 {
     g_test_clock_ms = now_ms;
@@ -1000,8 +1020,8 @@ static void stepped_for(unsigned long long milliseconds)
     }
 }
 
-// The explorer stays while the pointer works in it: the claim on, a rest in the left band brings the side_menu and the
-// side, and a pointer that moves from the side_menu onto the side's rows arms no hide
+// The explorer stays while the pointer works in it. With the claim on, a rest in the left band brings the side_menu
+// and the side. A pointer that moves from the side_menu onto the side's rows arms no hide.
 static void explorer_stays_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -1024,8 +1044,8 @@ static void explorer_stays_checked(void)
               "the left edge and the side are while the pointer rests on the side");
 }
 
-// The minimap's lines are beside the view wherever it is: a tall file opened has its map's lines taken at once,
-// and the view placed deep in the file has the lines of the map's rows there, the map away or displayed
+// The minimap's lines are beside the view wherever it is. A tall file opened has its map's lines taken at once. The
+// view placed deep in the file has the lines of the map's rows there, with the map away or displayed.
 static void minimap_lines_checked(void)
 {
     static char s_tall[CLI_POOL_BYTES / 4096u];
@@ -1055,8 +1075,8 @@ static void minimap_lines_checked(void)
               "the map's lines are the lines its rows are for");
 }
 
-// The right edge comes on a rest and goes once the pointer leaves it for the text: the claim on, a rest in the right
-// band shows the map, and the pointer moved into the text takes it away after the hide's rest
+// The right edge comes on a rest and goes after the pointer leaves it for the text. With the claim on, a rest in the
+// right band shows the map. The pointer moved into the text takes it away after the hide's rest.
 static void map_collapses_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -1119,9 +1139,10 @@ static int cell_near(int x, int start, float cell, int cells)
     return (gap >= -1) && (gap <= 1);
 }
 
-// the pixel of the displayed line's first cell at the frame displayed, as the editor positions it: the text's edge past
-// the gutter, moved left by the cells the view has slid past and the part of a cell the scroll is past them. The
-// editor's rectangle moves as the keys' claim slides the edges: the start is read at the caret's own frame
+// Return the pixel of the displayed line's first cell at the frame displayed, as the editor positions it. It is the
+// text's edge past the gutter, moved left by the cells the view slid past. The part of a cell the scroll is past them
+// moves it left as well. The editor's rectangle moves as the keys' claim slides the edges. The check reads the start
+// at the caret's own frame.
 static int line_start_x(float cell)
 {
     const CliViewFrame *const frame = s_window.editor.frame;
@@ -1131,8 +1152,8 @@ static int line_start_x(float cell)
     return (int)(((float)(s_window.frame.editor.x + gutter) - slid - s_window.editor.scroll_x) + 0.5f);
 }
 
-// whether the caret is `cells` cells right of the line's start, both read at the frame displayed; the cursor, the
-// caret and the cell told where it is not
+// Return whether the caret is `cells` cells right of the line's start, both read at the frame displayed. If it is
+// not, write the cursor, the caret and the cell beside the check.
 static int caret_at_cells(float cell, int cells)
 {
     const int x = caret_x();
@@ -1182,11 +1203,11 @@ static void table_checked(void)
               "the line let go leaves the third column's offset at cell 11");
 }
 
-// A middle press in the text starts a scroll that follows the pointer's distance from the press point: the pointer
-// below the press point scrolls the view down each frame, one above it scrolls it back up, and the next press
-// ends it. A middle button let go where it was pressed leaves the scroll to run; one let go after the pointer
-// dragged past the rest pixels, in the window or out of it, ends the scroll. The tall file the map's check opened,
-// placed deep in it, is the text
+// A middle press in the text starts a scroll that follows the pointer's distance from the press point. The pointer
+// below the press point scrolls the view down each frame, and one above it scrolls it back up. The next press ends
+// it. A middle button let go at the press point leaves the scroll to run. One let go after a drag past the rest
+// pixels, in the window or out of it, ends the scroll. The text is the tall file the map's check opened, placed deep
+// in it.
 static void autoscroll_checked(void)
 {
     const int displayed = cli_view_displayed();
@@ -1283,9 +1304,9 @@ static int same(const char *text, const char *required)
     return cellul.eq(&(CatenaFinitaCfg){.src = text, .other = required, .cap = CLI_POOL_BYTES});
 }
 
-// A rest on a button shows its tip: the pointer moved onto the first tool shows nothing at once and the tool's label
-// and keys as GUI_TIP_REST_MS pass, the box under the button; moved onto the minimize control, the control's name;
-// moved into the text, the tip goes; a press on a button whose tip shows takes the tip away
+// A rest on a button shows its tip. The pointer moved onto the first tool shows nothing at once. As GUI_TIP_REST_MS
+// pass, it shows the tool's label and keys in a box under the button. Moved onto the minimize control, it shows the
+// control's name. Moved into the text, the tip goes. A press on a button whose tip shows takes the tip away.
 static void tips_checked(void)
 {
     const GuiRect tool = EMBED_CALL(gui_side_menu.button, GuiSideMenuCfg, .frame = &s_window.frame, .at = 0u);
@@ -1297,7 +1318,7 @@ static void tips_checked(void)
               "the tip carries the tool's label");
     cli_check((s_window.tip.keys != NULL) && same(s_window.tip.keys, g_gui_tools[0].keys),
               "the tip carries the tool's keys");
-    // the box's rectangle comes from a drawn frame: one is drawn to read it
+    // The box's rectangle comes from a drawn frame. The check draws one to read it.
     EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
     cli_check((s_window.tip.rect.width > 0) && (s_window.tip.rect.x >= tool.x + tool.width) &&
                   (s_window.tip.rect.y < tool.y + tool.height) &&
@@ -1320,8 +1341,8 @@ static void tips_checked(void)
     cli_check(!s_window.tip.displayed, "a press takes the tip away");
     released_with(tool.x + (tool.width / 2), tool.y + (tool.height / 2), GUI_BUTTON_LEFT);
     moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
-    // the window without the focus: a rest on a tool still lights it and shows its tip, through a rest long past the
-    // side pane's own waits
+    // The window without the focus: a rest on a tool still lights it and shows its tip. The rest is long past the
+    // side pane's own waits.
     EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
                .input = &(GuiInput){.type = GUI_INPUT_BLUR});
     stepped();
@@ -1337,9 +1358,9 @@ static void tips_checked(void)
     stepped();
 }
 
-// The bar's tools before the controls: the pointer on the Preferences tool lights it and, at rest, names it with its
-// keys; a press on it opens Preferences; the pointer off it unlights it; a press on Notifications presses the status
-// bar's notice and leaves the window located
+// The bar's tools before the controls. The pointer on the Preferences tool lights it, and at rest names it with its
+// keys. A press on it opens Preferences. The pointer off it unlights it. A press on Notifications presses the status
+// bar's notice and leaves the window located.
 static void bar_tools_checked(void)
 {
     const GuiRect preferences = EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = &s_window.frame,
@@ -1373,8 +1394,8 @@ static void bar_tools_checked(void)
     moved(editor.x + (editor.width / 2), editor.y + (editor.height / 2));
 }
 
-// Preferences' own window: sized by the system, a frame owed until it is drawn into its own raster, what a pixel of it
-// is on, and a press on a section's tab in it showing that section
+// Preferences' own window. The system sizes it. It owes a frame until the window draws it into its own raster. The
+// check reads what a pixel of it is on. A press on a section's tab in it shows that section.
 static void preferences_window_checked(void)
 {
     key_pressed("Ctrl+,");
@@ -1431,8 +1452,8 @@ static void driven_taken(void)
     stepped();
 }
 
-// The mouse's own motion while the window reads raw input: each relative input adds its counts to the window's sums,
-// across and down apart, and no relative input moves the window's pointer
+// The mouse's own motion while the window reads raw input. Each relative input adds its counts to the window's sums,
+// across and down apart. No relative input moves the window's pointer.
 static void raw_checked(void)
 {
     const int x = s_window.pointer.x;
@@ -1450,8 +1471,9 @@ static void raw_checked(void)
               "ten relative inputs of 5 across and 3 up add up to 50 and -30, and the pointer stays where it is");
 }
 
-// The pointer the window draws: its shape over the text, over a tool of the bar and on the border; the sprite in the
-// frame drawn; the pointer off the window on a leave; and the inputs the interface's pointer command drives
+// The pointer the window draws. The checks read its shape over the text, over a tool of the bar and on the border.
+// They read the sprite in the drawn frame, the pointer off the window on a leave, and the inputs the interface's
+// pointer command drives.
 static void pointer_checked(void)
 {
     tabs_closed("pointed.txt", "one two three four five six seven eight nine ten\nsecond line of text\n", NULL, NULL);
@@ -1462,8 +1484,9 @@ static void pointer_checked(void)
     moved(text_x, text_y);
     cli_check(s_window.pointer.shown && (s_window.pointer.shape == GUI_POINTER_TEXT) && (s_window.pointer.x == text_x),
               "over the text the pointer is the beam at the pointer's place");
-    // The pointer is on a surface of its own: a frame draws none of it. The frame's pixel at the beam's hot point is
-    // the text's, the same with the beam there as with a beam drawn over a copy of the frame differing from it
+    // The pointer is on a surface of its own, and a frame draws none of it. The frame's pixel at the beam's hot point
+    // is the text's. A beam drawn over a copy of the frame changes that pixel, and the frame with the beam there does
+    // not.
     EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
     const unsigned int hot = ((unsigned int)text_y * s_window.raster->width) + (unsigned int)text_x;
     const GuiColor framed = s_window.raster->pixels[hot];
@@ -1525,8 +1548,8 @@ static void pointer_checked(void)
     cli_check(asked("pointer", "off") && !s_window.pointer_own, "off gives the pointer back to the system");
 
     // A move to a control by its name goes at once if the speed is 0. The checks move to the strip's Run tool, a
-    // window control, a menu by its title and a tab by its name, each at the middle of its rectangle. The window
-    // refuses a kind it does not know.
+    // window control, a menu by its title and a tab by its name. Each move ends at the middle of the control's
+    // rectangle. The window refuses a kind it does not know.
     unsigned int run_tool = g_gui_tools_count;
     for (unsigned int at = 0u; at < g_gui_tools_count; at += 1u)
     {
@@ -1645,9 +1668,10 @@ static int answered_is(const char *text)
     return cellul.eq(&(CatenaFinitaCfg){.src = s_ask.answer.text, .other = text, .cap = CLI_POOL_BYTES});
 }
 
-// The sessions other hosts' windows are reached through, as text: with none the list answers so and a leave is refused
-// with why; a far end of impero's, where ORIOR_IMP names it, joined as a host, listed, sent a command that reaches this
-// window itself through its own door and answers under the host's name, and left
+// The sessions that reach other hosts' windows, as text. With none, the list says so, and the window refuses a leave
+// with why. If ORIOR_IMP names a far end of impero's, the check joins it as a host and lists it. It sends a command
+// that reaches this window itself through its own door, and that answers under the host's name. Then it leaves the
+// host.
 static void sessions_checked(void)
 {
     cli_check(asked("sessions", NULL) && answered_is("no sessions"), "with no session the list answers no sessions");
@@ -1678,8 +1702,8 @@ static void sessions_checked(void)
     cli_check(
         asked_words("session-send", sent, 3u) && answered_is("self: "),
         "a command sent to every host reaches this window through its own door and answers under the host's name");
-    // the door macros: steps recorded as the door runs them, replayed on the host through the sessions, each pointer
-    // step on a hand of the sender's name
+    // The door macros. The door records steps as it runs them, and the sessions replay them on the host. Each pointer
+    // step goes on a hand of the sender's name.
     cli_check(!asked("door-stop", NULL) && answered_is("no macro records"),
               "stopping with no recording is refused with why");
     cli_check(asked("door-record", "walk") && answered_is("recording walk"),
@@ -1717,8 +1741,9 @@ static void sessions_checked(void)
     cli_check(asked("sessions", NULL) && answered_is("no sessions"), "the list is empty again");
 }
 
-// The window's redraws and waits: the deadline that set a wait named, the changes drawn again on the raster displayed
-// and paid, the busy circle's step paid, and the frame positioned at a stage while the claim slides and at rest after
+// The window's redraws and waits. The window names the deadline that set a wait. It draws the changes again on the
+// raster displayed and pays them, and pays the busy circle's step. The frame is at a stage while the claim slides,
+// and at rest after.
 static void redraws_checked(void)
 {
     const unsigned long long wait_ms =
@@ -1784,8 +1809,8 @@ static void terminal_menu_checked(void)
     (void)asked("toggle", NULL);
 }
 
-// The tab's menu on a right press: the list's Tab popup at the point, Close first, Close others off with one tab open,
-// Close All third, a line after it, fourteen rows in all; Escape closes it
+// The tab's menu on a right press is the list's Tab popup at the point. Close is first, Close others is off with one
+// tab open, Close All is third, and a line follows it. It has fourteen rows in all, and Escape closes it.
 static void tab_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -1817,8 +1842,8 @@ static void tab_menu_checked(void)
     cli_check(g_cli_menus_open.levels == 0u, "Escape closes it");
 }
 
-// The view's menu from the keys: the menu key and Shift+F10 open the editor's menu at the caret while the editor has
-// the keys, under no title of the bar, and Escape closes it
+// The view's menu from the keys. The menu key and Shift+F10 open the editor's menu at the caret while the editor has
+// the keys, under no title of the bar. Escape closes it.
 static void editor_menu_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
@@ -1836,12 +1861,7 @@ static void editor_menu_checked(void)
     cli_check(g_cli_menus_open.levels == 0u, "and Escape closes it again");
 }
 
-// whether the text `text` is `required`
-// The theme commands through the interface: a theme made from the scheme's colors and chosen, renamed, given an icon
-// the explorer's marks take, given a color the palette takes, shared to the clipboard, left for the scheme's own colors
-// and chosen again, read back from the clipboard as a theme of its own, its icon taken off, and deleted; the themes and
-// the choice are in the home's state; and the image commands stay refused
-// the theme `at` of the window's read into a record of the check's: the record, zero where `at` names none
+// Read the theme `at` of the window's into a record of the check's. Return the record, zero if `at` names none.
 static GuiTheme s_theme_read;
 static const GuiTheme *theme_at(unsigned int at)
 {
@@ -1851,6 +1871,11 @@ static const GuiTheme *theme_at(unsigned int at)
     return &s_theme_read;
 }
 
+// The theme commands through the interface. The check makes a theme from the scheme's colors and chooses it. It
+// renames the theme, gives it an icon the explorer's marks take, and a color the palette takes. It shares the theme to
+// the clipboard, leaves it for the scheme's own colors, and chooses it again. It reads the clipboard back as a theme
+// of its own, takes its icon off, and deletes it. The themes and the choice are in the home's state, and the image
+// commands stay refused.
 static void themes_checked(void)
 {
     GuiThemes *const themes = &s_window.themes;
@@ -1938,9 +1963,9 @@ static int view_checked_on(const char *label)
     return g_cli_menus_open.checked(&item);
 }
 
-// The sticky rows stop short of the controls' pane: the view placed inside a long function with the edges claimed, a
-// rest in the controls' corner brings the pane down over the editor's top corner, and the pinned row's ground ends
-// before the border's bend round the pane
+// The sticky rows stop short of the controls' pane. The check places the view inside a long function with the edges
+// claimed. A rest in the controls' corner brings the pane down over the editor's top corner. The pinned row's ground
+// ends before the border's bend round the pane.
 static void sticky_notch_checked(void)
 {
     static char s_long[8192];
@@ -1971,8 +1996,8 @@ static void sticky_notch_checked(void)
     stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 200ULL);
     cli_check(s_window.frame.controls_pane_share >= GUI_FIXED_ONE,
               "a rest in the corner brings the controls' pane down");
-    // the editor drawn on a raster of its own, clear, with the pane's notch at its top right: the sticky row's ground
-    // reaches the raster's left and leaves the bend before the notch clear
+    // The check draws the editor on a clear raster of its own, with the pane's notch at its top right. The sticky
+    // row's ground reaches the raster's left and leaves the bend before the notch clear.
     const GuiColor clear = GUI_RGB(1u, 2u, 3u);
     const GuiRect place = {0, 0, 640, 4 * line_height};
     const GuiRect notch = {place.width - 120, 0, 120, 2 * line_height};
@@ -1992,8 +2017,8 @@ static void sticky_notch_checked(void)
         raster.pixels[(y * raster.width) + (unsigned int)(notch.x - ((int)s_window.frame.radius / 2))];
     cli_check(inside != clear, "the sticky row's ground is at the editor's left");
     cli_check(bend == clear, "and it stops short of the bend round the controls' pane");
-    // a press on the sticky row, under the top band the claim reads a press in as the bar's, puts its line at the
-    // view's top, the frame following within a second
+    // A press on the sticky row puts its line at the view's top, and the frame follows within a second. The row is
+    // under the top band, where the claim reads a press in as the bar's.
     const GuiRect editor = s_window.frame.editor;
     const unsigned long long pinned = s_window.editor.frame->row[s_window.editor.frame->count].number;
     pressed_with(editor.x + 60, editor.y + line_height - 2, GUI_BUTTON_LEFT);
@@ -2008,9 +2033,9 @@ static void sticky_notch_checked(void)
               "a press on the sticky row puts its line at the view's top");
 }
 
-// The View menu's switches and tool views through the interface: whitespace marks, the eased scroll, the sticky rows
-// and the claim turned off and on, each saved as its setting and displayed checked in the menu; and a tool view opening
-// and closing the side_menu's tool
+// The View menu's switches and tool views through the interface. The check turns whitespace marks, the eased scroll,
+// the sticky rows and the claim off and on. Each switch saves its value under its key and shows checked in the menu. A
+// tool view opens and closes the side_menu's tool.
 static void view_checked(void)
 {
     cli_check(asked("whitespace", "on") && s_window.editor.whitespace && view_checked_on("Show Whitespace"),
@@ -2169,17 +2194,17 @@ static int explorer_settles(const char *name, int listed, unsigned long long mil
     return explorer_lists(name) == listed;
 }
 
-// The File menu's commands through the interface: a folder made in the tree and made a repository, the tree retained as
-// a template, auto save turned on and saving a changed tab once the edits rest, the trust question asked and its answer
-// retained, and the environment setting saved
+// The File menu's commands through the interface. The check makes a folder in the tree and makes it a repository, and
+// keeps the tree as a template. It turns auto save on, which saves a changed tab after the edits rest. It asks the
+// trust question and keeps its answer, and saves the environment command's word.
 static void file_checked(void)
 {
     char path[CLI_PATH_MAX_LEN];
     joined(s_root, "made_here", path);
     cli_check(asked("create-folder", "made_here") && folder_is(path), "create-folder makes the folder in the tree");
     cli_check(!asked("create-folder", NULL), "create-folder without a name is refused");
-    // a folder made and a folder deleted on the disk, outside the window, list the explorer again as the watch reports
-    // them; the folder holds a file, which the poll of a system that cannot watch the tree reads
+    // A folder made and a folder deleted on the disk, outside the window, list the explorer again as the watch reports
+    // them. The folder holds a file, which the poll reads on a system that cannot watch the tree.
     char gone[CLI_PATH_MAX_LEN];
     joined(s_root, "gone_here", gone);
     if (cli_files_explorer_rows() == 0u)
@@ -2214,8 +2239,8 @@ static void file_checked(void)
     tabs_closed("retained.txt", "alpha  \n", NULL, NULL);
     cli_check(tab_opened("retained.txt"), "a file opens");
     typed("x");
-    // an edit that does not reach the view fails with where the text went: the views open, the one displayed, the
-    // dialog, which part takes the keys, and the notice displayed
+    // An edit that does not reach the view fails with a report of where the text went. The report names the views
+    // open, the one displayed, the dialog, the part that takes the keys, and the notice displayed.
     char edited_why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea edited_line = {edited_why, sizeof(edited_why), 0ULL};
     mmgr_line_put(&edited_line, "an edit marks the tab changed and starts the rest");
@@ -2334,9 +2359,9 @@ static int checks_on(const char *checks)
     return g_cli_menus_open.checked(&item);
 }
 
-// The Edit menu's commands through the interface: a paragraph filled to the documentation margin, a macro recorded,
-// played, retained and played by name, the clipboard compared against the displayed file, Local History's snapshot
-// displayed, and the settings saved
+// The Edit menu's commands through the interface. The check fills a paragraph to the documentation margin. It records
+// a macro, plays it, keeps it and plays it by name. It compares the clipboard against the displayed file, displays
+// Local History's snapshot, and saves the settings.
 static void edit_checked(void)
 {
     cli_check(asked("doc-margin", "12") && (cli_view_fill() == 12ULL), "doc-margin sets the fill's width");
@@ -2402,9 +2427,10 @@ static int clipboard_holds(const char *expected)
     return same(s_held, expected);
 }
 
-// Copy, Cut and Paste in the editor, checked against the system's clipboard: a selection copied with the system's line
-// end between its lines, the cursor's line and its line end copied where nothing is chosen, the clipboard's text pasted
-// in place of a selection and at the cursor, and a cut that puts its text on the clipboard and takes it out
+// Copy, Cut and Paste in the editor, checked against the system's clipboard. Copy puts a selection on the clipboard
+// with the system's line end between its lines. With no selection, it copies the cursor's line and its line end.
+// Paste puts the clipboard's text in place of a selection, and at the cursor. Cut puts its text on the clipboard and
+// takes it out.
 static void clipboard_checked(void)
 {
     tabs_closed("copy.txt", "one\ntwo\nthree\n", NULL, NULL);
@@ -2479,8 +2505,8 @@ static unsigned int tool_at(const char *name)
 }
 
 // The view thread's map of a surface: a pixel on a border, a corner, a control, a client rectangle, the caption or
-// none of them; and the window's place for a tree, stored in orior's home and read back fitted to a monitor. Orior's
-// home is a folder of the run while the place is stored, and as it was after
+// none of them. The window stores its place for a tree in orior's home and reads it back fitted to a monitor. Orior's
+// home is a folder of the run while the check stores the place, and as it was after.
 static void view_thread_checked(void)
 {
     GuiRect client = {100, 0, 200, 30};
@@ -2544,8 +2570,8 @@ static void view_thread_checked(void)
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home_before);
 }
 
-// Go to Definition opens the declaration's file at its line; Find Usages lists the references by file in the
-// References pane; Rename Symbol opens its box over the name, and Enter renames the name in every file
+// Go to Definition opens the declaration's file at its line. Find Usages lists the references by file in the
+// References pane. Rename Symbol opens its box over the name, and Enter renames the name in every file.
 static void symbols_checked(void)
 {
     cli_check(tab_opened("sym/use.c"), "use.c opens for the symbol commands");
@@ -2571,7 +2597,7 @@ static void symbols_checked(void)
         file_reads("sym/shape.h", "#ifndef SHAPE_H\n#define SHAPE_H\nint extent(int side);\n#define SIDES 4\n#endif\n");
     if (!renamed)
     {
-        // the rename's notice, which says why it was refused, beside the check that reads it
+        // Write the rename's notice, which says why the window refused it, beside the check.
         const char *const notice = cli_notice_displayed();
         (void)fprintf(stderr, "  rename: box open %d, notice %s\n", s_window.rename.open,
                       (notice != NULL) ? notice : "none");
@@ -2579,8 +2605,8 @@ static void symbols_checked(void)
     cli_check(renamed, "Enter renames the name in every file and Save All writes them");
 }
 
-// whether the check named `name` runs: every check runs where ORIOR_WINDOW_CHECKS is not set, else those it names,
-// separated by commas
+// Return whether the check named `name` runs. Every check runs if ORIOR_WINDOW_CHECKS has no value. Otherwise those it
+// names run, separated by commas.
 static int check_wanted(const char *name)
 {
     char named[CLI_PATH_MAX_LEN];
@@ -2657,7 +2683,7 @@ int main(void)
 {
     (void)cli_pool_made(CLI_POOL_BYTES);
     cli_check_folder("window_tree", s_root);
-    // the symbol commands' files, written before the tree is read so its walk reads them
+    // Write the symbol commands' files before the tree's read, which lets its walk read them.
     char sym[CLI_PATH_MAX_LEN];
     cli_check_folder("window_tree/sym", sym);
     file_written("sym/shape.h", "#ifndef SHAPE_H\n#define SHAPE_H\nint area(int side);\n#define SIDES 4\n#endif\n");
@@ -2688,7 +2714,7 @@ int main(void)
         .dst = s_root,
         .src = cli_command_line_root(),
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = cli_command_line_root(), .cap = CLI_PATH_MAX_LEN}) + 1u});
-    // the name's pane, which takes every key and all text while it is, left once the tree is read
+    // Leave the name's pane, which takes every key and all text while it is, after the tree's read.
     CliWake pause = CLI_WAKE_INIT;
     const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
     while (s_window.wordmark.exists && (cli_clock_milliseconds() < last_ms))
