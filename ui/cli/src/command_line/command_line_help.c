@@ -252,6 +252,8 @@ void cli_help(const CliCommandLineOutErrMsgShellCtx *args)
                   "  imp help pointer drag <x> <y> [<x> <y>...]    the left button down, each place, up at the last\n"
                   "  imp help pointer wheel up|down [notches]\n"
                   "  imp help pointer off                   the pointer given back to the system\n"
+                  "  imp help pointer --as <name> ...       the same words drive a hand of that name, a pointer of\n"
+                  "                                         its own with its own surface and mark; off takes it away\n"
                   "  imp edit macro-record, macro-play [times] [name], macro-retain [name]\n"
                   "                                         the window's keys recorded, played back and kept\n"
                   "Over ssh, as text: a session is `imp sessions relay` started on the host, and one window holds\n"

@@ -258,7 +258,8 @@ static void main_pointer_put(const MainCtx *args)
                .shown = order->shown && (system != NULL));
     if (order->raster.pixels != NULL)
     {
-        const CliViewEvent taken = {.type = CLI_VIEW_EVENT_POINTER_TAKEN, .surface = order->surface};
+        const CliViewEvent taken = {
+            .type = CLI_VIEW_EVENT_POINTER_TAKEN, .surface = order->surface, .pointer = order->pointer};
         cli_view_event(&(CliViewThreadCfg){.event = &taken});
     }
 }

@@ -63,6 +63,26 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 // the inputs the window's own pointer drives that wait for the view's thread at once: a drag's press, its places and
 // its release
 #define GUI_WINDOW_DRIVEN 64u
+// The hands: the pointers beside the window's own, each driven through the door under a name, with a surface of the
+// system's own and a mark. A hand's mark is the palette's mark color at the hand's place in the ring, and its picture
+// is the pointer's sprite baked in that color. The hands and the window's own pointer take the system's surfaces, one
+// each
+#define GUI_WINDOW_HANDS 8u
+#define GUI_WINDOW_HAND_NAME 64u
+_Static_assert(GUI_WINDOW_HANDS <= GUI_MARKS, "each hand has a mark color of the palette's ring");
+
+// A hand: its name, whether it is in use, where its hot point is in the client's pixels, its shape, whether it is on
+// the window, and its picture as baked
+typedef struct
+{
+    char name[GUI_WINDOW_HAND_NAME];
+    int used;
+    int x;
+    int y;
+    unsigned int shape;
+    int shown;
+    GuiColor picture[GUI_POINTER_PICTURE_MAX];
+} GuiHand;
 
 // The editor's scroll: the rows one notch of the wheel moves; the milliseconds in which an eased scroll covers all but
 // a share of 1/e of its way; the max milliseconds one step counts, so that a late frame does not jump; and the part
@@ -291,7 +311,9 @@ typedef struct GuiWindow
     // whether the window's own pointer is on: a test moves it through the interface's pointer command, and the
     // system's leaves are not read while it is
     int pointer_own;
-    // the inputs the window's own pointer drives, in their order, that the view's thread takes as the system's
+    GuiHand hands[GUI_WINDOW_HANDS];
+    // the inputs the window's own pointer and the hands drive, in their order, that the view's thread takes as the
+    // system's
     GuiInput driven[GUI_WINDOW_DRIVEN];
     unsigned int driven_count;
     unsigned int terminal_dragged;

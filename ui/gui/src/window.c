@@ -186,6 +186,12 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->pointer);
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->preferences_pointer);
     EMBED_CALL(gui_pointer.init, GuiPointerCfg, .pointer = &args->window->dialog_pointer);
+    for (unsigned int hand = 0u; hand < GUI_WINDOW_HANDS; hand += 1u)
+    {
+        args->window->hands[hand].used = 0;
+        args->window->hands[hand].shown = 0;
+        args->window->hands[hand].name[0] = '\0';
+    }
     args->window->raw_wanted = 0;
     args->window->lock_wanted = 0;
     args->window->relative_x = 0LL;
@@ -270,8 +276,11 @@ typedef struct
     double to;
     double share;
     const GuiInput *input;
+    unsigned int hand;
+    int make;
 } GuiWindowCtx;
 
+EMBED_INLINE unsigned int window_pointer_shape(const GuiWindowCtx *args);
 EMBED_INLINE void window_setting_apply(const GuiWindowCtx *args);
 EMBED_INLINE void window_autosave_step(const GuiWindowCtx *args);
 EMBED_INLINE void window_autosave_after_apply(const GuiWindowCtx *args);
@@ -5331,6 +5340,7 @@ EMBED_INLINE int window_driven_put(const GuiWindowCtx *args)
         return 0;
     }
     window->driven[window->driven_count] = *args->input;
+    window->driven[window->driven_count].hand = args->hand;
     window->driven_count += 1u;
     return 1;
 }
@@ -5358,29 +5368,119 @@ EMBED_INLINE unsigned int window_word_button(const GuiWindowCtx *args)
     return EMBED_CALL(window_is, GuiWindowCtx, .name = args->name, .key = "right") ? GUI_BUTTON_RIGHT : GUI_BUTTON_LEFT;
 }
 
-// The window's own pointer driven by the words of the interface's `pointer` command. Each input goes on the queue the
-// view's thread takes as the system's own, in the order the words give. The words are one of these:
+// The hand named `name`, counted from 1, 0 where there is none: the one in use under that name, else the first not in
+// use, taken for the name where `make` is 1 and the name fits
+EMBED_INLINE unsigned int window_hand_named(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    unsigned int free_hand = 0u;
+    for (unsigned int at = 0u; at < GUI_WINDOW_HANDS; at += 1u)
+    {
+        GuiHand *const hand = &window->hands[at];
+        if (hand->used && EMBED_CALL(window_is, GuiWindowCtx, .name = hand->name, .key = args->name))
+        {
+            return at + 1u;
+        }
+        if (!hand->used && (free_hand == 0u))
+        {
+            free_hand = at + 1u;
+        }
+    }
+    if (!args->make || (free_hand == 0u))
+    {
+        return 0u;
+    }
+    GuiHand *const hand = &window->hands[free_hand - 1u];
+    VerbaLinea name = {hand->name, sizeof(hand->name), 0ULL};
+    mmgr_line_put(&name, args->name);
+    if (mmgr_line_finish(&name) == 0ULL)
+    {
+        return 0u;
+    }
+    hand->used = 1;
+    hand->shown = 0;
+    hand->x = 0;
+    hand->y = 0;
+    hand->shape = GUI_POINTER_ARROW;
+    return free_hand;
+}
+
+// The hand `hand`, counted from 1, put at x, y in the shape the window is in there where `on`, or taken off the window:
+// the view's thread moves its surface, and the frame draws nothing for it
+EMBED_INLINE void window_hand_track(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    if ((args->hand == 0u) || (args->hand > GUI_WINDOW_HANDS))
+    {
+        return;
+    }
+    GuiHand *const hand = &window->hands[args->hand - 1u];
+    if (!hand->used)
+    {
+        return;
+    }
+    if (args->on)
+    {
+        hand->x = args->x;
+        hand->y = args->y;
+        hand->shape = EMBED_CALL(window_pointer_shape, GuiWindowCtx, .window_read = window, .x = args->x, .y = args->y);
+    }
+    hand->shown = args->on;
+    window->pending = 1;
+}
+
+// The window's own pointer, or a hand, driven by the words of the interface's `pointer` command. `--as` and a name
+// first drive the hand of that name, made where there is none; without them the words drive the window's own
+// pointer. Each input goes on the queue the view's thread takes as the system's own, in the order the words give. The
+// words are one of these:
 // - x y: a move to the client's pixel x, y.
 // - press, release or click, and a button: the button pressed, let go, or both where the pointer is. The button is
 //   left, middle or right, and the left where the word is not given.
 // - drag and places, x y each: the left button pressed where the pointer is, a move to each place, and the button let
 //   go at the last place.
 // - wheel, down or up, and a count: the wheel turned that many notches where the pointer is, one where no count is.
-// The result is 1, or 0 where the words are none of these or the queue cannot take all of the inputs
+// - off: a hand taken away, its surface off the screen and its name free.
+// The result is 1, or 0 where the words are none of these, no hand is free for a new name, or the queue cannot take
+// all of the inputs
 EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
-    const char *const *const words = args->words;
-    const unsigned int count = args->count;
+    const char *const *words = args->words;
+    unsigned int count = args->count;
+    unsigned int hand = 0u;
+    if ((count >= 2u) && EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "--as"))
+    {
+        hand = EMBED_CALL(window_hand_named, GuiWindowCtx, .window = window, .name = words[1], .make = 1);
+        if (hand == 0u)
+        {
+            return 0;
+        }
+        words += 2;
+        count -= 2u;
+    }
     if (count == 0u)
     {
         return 0;
     }
-    window->pointer_own = 1;
+    if (hand == 0u)
+    {
+        window->pointer_own = 1;
+    }
+    else if (EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "off"))
+    {
+        window->hands[hand - 1u].used = 0;
+        window->hands[hand - 1u].shown = 0;
+        window->pending = 1;
+        return 1;
+    }
     // the pointer is where the last input on the queue puts it, as the view's thread has not taken it yet
-    const GuiInput *const last = (window->driven_count != 0u) ? &window->driven[window->driven_count - 1u] : NULL;
-    const int x = (last != NULL) ? last->x : window->pointer.x;
-    const int y = (last != NULL) ? last->y : window->pointer.y;
+    const GuiInput *last = NULL;
+    for (unsigned int at = window->driven_count; (at > 0u) && (last == NULL); at -= 1u)
+    {
+        last = (window->driven[at - 1u].hand == hand) ? &window->driven[at - 1u] : NULL;
+    }
+    const int x = (last != NULL) ? last->x : ((hand == 0u) ? window->pointer.x : window->hands[hand - 1u].x);
+    const int y = (last != NULL) ? last->y : ((hand == 0u) ? window->pointer.y : window->hands[hand - 1u].y);
     const char *const verb = words[0];
     const char *const named = (count > 1u) ? words[1] : NULL;
     const int press = EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "press");
@@ -5394,12 +5494,12 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
         const unsigned int button = EMBED_CALL(window_word_button, GuiWindowCtx, .name = named);
         if (!release)
         {
-            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
                              .input = &(GuiInput){.type = GUI_INPUT_DOWN, .x = x, .y = y, .button = button});
         }
         if (!press)
         {
-            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
                              .input = &(GuiInput){.type = GUI_INPUT_UP, .x = x, .y = y, .button = button});
         }
         return 1;
@@ -5411,7 +5511,7 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
         {
             return 0;
         }
-        (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+        (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
                          .input = &(GuiInput){.type = GUI_INPUT_DOWN, .x = x, .y = y, .button = GUI_BUTTON_LEFT});
         int to_x = x;
         int to_y = y;
@@ -5419,10 +5519,10 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
         {
             to_x = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[1u + (2u * place)]);
             to_y = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[2u + (2u * place)]);
-            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+            (void)EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
                              .input = &(GuiInput){.type = GUI_INPUT_MOVED, .x = to_x, .y = to_y});
         }
-        return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+        return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
                           .input = &(GuiInput){.type = GUI_INPUT_UP, .x = to_x, .y = to_y, .button = GUI_BUTTON_LEFT});
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "wheel"))
@@ -5434,14 +5534,14 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
         }
         const int notches = (count > 2u) ? EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[2]) : 1;
         const int rows = up ? -notches : notches;
-        return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+        return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
                           .input = GUI_WHEEL_INPUT(x, y, rows, rows * GUI_WHEEL_UNITS, 0));
     }
     if (count < 2u)
     {
         return 0;
     }
-    return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window,
+    return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
                       .input = &(GuiInput){.type = GUI_INPUT_MOVED,
                                            .x = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[0]),
                                            .y = EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[1])});
@@ -8442,10 +8542,19 @@ void gui_window_input(const GuiWindowInputTypeCfg *args)
     const GuiInput *input = args->input;
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &s_window_handlers, .window = window,
                .input = input);
-    // the pointer follows each input with a place, in the shape the window is in after the input; a leave takes it
-    // off the window, but the window's own pointer stays while a test drives it
-    if ((input->type == GUI_INPUT_MOVED) || (input->type == GUI_INPUT_DOWN) || (input->type == GUI_INPUT_UP) ||
-        (input->type == GUI_INPUT_WHEEL))
+    // the pointer the input names follows each input with a place, in the shape the window is in after the input; a
+    // leave takes it off the window, but the window's own pointer stays while a test drives it
+    const int placed = (input->type == GUI_INPUT_MOVED) || (input->type == GUI_INPUT_DOWN) ||
+                       (input->type == GUI_INPUT_UP) || (input->type == GUI_INPUT_WHEEL);
+    if (input->hand != 0u)
+    {
+        if (placed || (input->type == GUI_INPUT_LEFT))
+        {
+            EMBED_CALL(window_hand_track, GuiWindowCtx, .window = window, .hand = input->hand, .x = input->x,
+                       .y = input->y, .on = placed);
+        }
+    }
+    else if (placed)
     {
         EMBED_CALL(window_pointer_track, GuiWindowCtx, .window = window, .x = input->x, .y = input->y, .on = 1);
     }

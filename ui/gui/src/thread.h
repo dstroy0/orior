@@ -146,6 +146,8 @@ typedef struct
     unsigned int frame_ms;
     int flag;
     GuiInput input;
+    // the pointer surface a taken picture was for, as the order named it
+    unsigned int pointer;
 } CliViewEvent;
 
 // what the view orders of the system's thread: a raster displayed on a surface, whole or the rows of `part`; the window

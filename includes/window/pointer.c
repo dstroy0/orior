@@ -5,7 +5,13 @@
 #include "pointer.h"
 
 // a figure of `count_` points with corners rounded by `corner_`, the points after
-#define POINTER_FIGURE(corner_, count_, ...) {(count_), (corner_), {__VA_ARGS__}}
+#define POINTER_FIGURE(corner_, count_, ...)                                                                           \
+    {                                                                                                                  \
+        (count_), (corner_),                                                                                           \
+        {                                                                                                              \
+            __VA_ARGS__                                                                                                \
+        }                                                                                                              \
+    }
 
 // the arrow, its tip at the top left; the double arrow from left to right; the arrow's figure is the busy arrow's too
 #define POINTER_ARROW_FIGURE POINTER_FIGURE(1.0, 4u, {1.5, 1.5}, {19.0, 11.0}, {10.0, 12.6}, {7.4, 20.8})
@@ -95,7 +101,7 @@ static const GuiPointerSprite s_sprites[GUI_POINTER_SHAPES] = {
 
 // the cosine and sine of each eighth of a turn
 static const double s_turns[8][2] = {
-    {1.0, 0.0}, {0.70710678118654752, 0.70710678118654752}, {0.0, 1.0}, {-0.70710678118654752, 0.70710678118654752},
+    {1.0, 0.0},  {0.70710678118654752, 0.70710678118654752},   {0.0, 1.0},  {-0.70710678118654752, 0.70710678118654752},
     {-1.0, 0.0}, {-0.70710678118654752, -0.70710678118654752}, {0.0, -1.0}, {0.70710678118654752, -0.70710678118654752},
 };
 
@@ -345,10 +351,9 @@ EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
                 scale;
             const int lit = (sprite->lit != 0u) && (nearest == sprite->lit);
             const double cover = (edge > 0.5) ? 0.0 : ((edge < -0.5) ? 1.0 : (0.5 - edge));
-            const double shadowed =
-                EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite, .x = x - POINTER_SHADOW_X,
-                           .y = y - POINTER_SHADOW_Y) *
-                scale;
+            const double shadowed = EMBED_CALL(pointer_sprite_distance, PointerCtx, .sprite = sprite,
+                                               .x = x - POINTER_SHADOW_X, .y = y - POINTER_SHADOW_Y) *
+                                    scale;
             PointerShares made = {0.0, 0.0, 0.0, 0.0};
             made = pointer_over(made, shadow,
                                 shadow.alpha * (1.0 - cover) *
@@ -387,8 +392,8 @@ EMBED_INLINE void pointer_sprite_bake(const PointerCtx *args)
                 made = pointer_over(made, glint, glint.alpha * cover * glinted);
             }
             args->picture[(row * width) + column] = (pointer_byte(made.alpha) << 24u) |
-                                                    (pointer_byte(made.red) << 16u) |
-                                                    (pointer_byte(made.green) << 8u) | pointer_byte(made.blue);
+                                                    (pointer_byte(made.red) << 16u) | (pointer_byte(made.green) << 8u) |
+                                                    pointer_byte(made.blue);
         }
     }
 }
@@ -468,6 +473,28 @@ const GuiColor *gui_pointer_picture(const GuiPointerRasterCfg *args)
     EMBED_CALL(pointer_sheet_bake, PointerCtx, .pointer = pointer, .palette = args->palette,
                .scale = gui_pointer_scale(&(GuiPointerReadCfg){.pointer_read = pointer, .scale = args->scale}));
     return pointer->sheet.pixels[pointer->shape];
+}
+
+void gui_pointer_hand_bake(const GuiPointerHandCfg *args)
+{
+    // the palette as given, the fill the hand's mark
+    GuiPalette marked = *args->palette;
+    marked.pointer_fill = args->fill;
+    const unsigned int shape = (args->shape < GUI_POINTER_SHAPES) ? args->shape : GUI_POINTER_ARROW;
+    EMBED_CALL(pointer_sprite_bake, PointerCtx, .sprite = &s_sprites[shape], .palette = &marked,
+               .picture = args->picture,
+               .scale = gui_pointer_scale(&(GuiPointerReadCfg){.pointer_read = NULL, .scale = args->scale}));
+}
+
+GuiRect gui_pointer_hand_rect(const GuiPointerHandCfg *args)
+{
+    const unsigned int shape = (args->shape < GUI_POINTER_SHAPES) ? args->shape : GUI_POINTER_ARROW;
+    const GuiPointerSprite *const sprite = &s_sprites[shape];
+    const int scale = gui_pointer_scale(&(GuiPointerReadCfg){.pointer_read = NULL, .scale = args->scale});
+    return (GuiRect){args->x - EMBED_CALL(pointer_hot_pixel, PointerCtx, .value = sprite->hot_x, .scale = scale),
+                     args->y - EMBED_CALL(pointer_hot_pixel, PointerCtx, .value = sprite->hot_y, .scale = scale),
+                     EMBED_CALL(pointer_pixels, PointerCtx, .value = sprite->width, .scale = scale),
+                     EMBED_CALL(pointer_pixels, PointerCtx, .value = sprite->height, .scale = scale)};
 }
 
 GuiRect gui_pointer_draw(const GuiPointerRasterCfg *args)

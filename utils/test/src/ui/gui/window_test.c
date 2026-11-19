@@ -355,10 +355,9 @@ static unsigned long long cells_in_use(unsigned long long *owners)
     unsigned long long in_use = 0ULL;
     for (size_t at = 0u; (at < mmgr_owner_table_count) && (at < MMGR_CARCER_OWNERS); at += 1u)
     {
-        const int logs_asks = cellul.eq(&(CatenaFinitaCfg){
-            .src = mmgr_owner_table[at].name, .other = "cli_comms", .cap = CLI_POOL_BYTES});
-        const unsigned long long own =
-            logs_asks ? 0ULL : (unsigned long long)mmgr_owner_in_use(&mmgr_owner_table[at]);
+        const int logs_asks = cellul.eq(
+            &(CatenaFinitaCfg){.src = mmgr_owner_table[at].name, .other = "cli_comms", .cap = CLI_POOL_BYTES});
+        const unsigned long long own = logs_asks ? 0ULL : (unsigned long long)mmgr_owner_in_use(&mmgr_owner_table[at]);
         in_use += own;
         if (owners != NULL)
         {
@@ -706,7 +705,8 @@ static void idle_pages_checked(void)
     cli_pool_idle_released();
     const unsigned long long after = working_set();
     (void)fprintf(stderr, "  working set %llu before the idle pages go back, %llu after\n", before, after);
-    cli_check((before != 0ULL) && (after + (1ULL << 20u) <= before), "the idle pages given back lower the working set by a megabyte or more");
+    cli_check((before != 0ULL) && (after + (1ULL << 20u) <= before),
+              "the idle pages given back lower the working set by a megabyte or more");
 }
 
 // a C file with an include opened, the include's closing quote erased and typed back: the line's runs are as they
@@ -750,7 +750,8 @@ typedef struct
 static const LanguageSample s_language_samples[] = {
     {"sample.apib", "FORMAT: 1A\n# One\n## Two [/two]\n+ Response 200\n"},
     {"sample.bat", "@echo off\nset ONE=two\nif \"%ONE%\"==\"two\" echo three\nrem four\n"},
-    {"sample.c", "#include \"a.h\"\n// one\nint two(int three) { return three + 1; }\nstatic const char *four = \"five\";\n"},
+    {"sample.c",
+     "#include \"a.h\"\n// one\nint two(int three) { return three + 1; }\nstatic const char *four = \"five\";\n"},
     {"sample.css", ".one { color: #fff; margin: 0 auto; }\n/* two */\n#three > a:hover { width: 10px; }\n"},
     {"sample.g", "grammar One;\ntwo : THREE+ ;\nTHREE : [a-z]+ ;\n// four\n"},
     {"sample.groovy", "def one = \"two\"\n// three\nclass Four { int five = 6 }\nprintln one\n"},
@@ -785,7 +786,8 @@ static const LanguageSample s_language_samples[] = {
     {"sample.vhd", "-- one\nlibrary ieee;\nentity two is end;\narchitecture three of two is begin end;\n"},
     {"sample.ans", "\x1b[31mone\x1b[0m\ntwo \x1b[1mthree\x1b[0m\nfour\n"},
     {"sample.yml", "one: two\nthree:\n  - four\n  - five\n"},
-    {"sample.zig", "// one\nconst two = @import(\"std\");\npub fn three(four: u32) u32 { return four + 1; }\nconst five = \"six\";\n"},
+    {"sample.zig", "// one\nconst two = @import(\"std\");\npub fn three(four: u32) u32 { return four + 1; }\nconst "
+                   "five = \"six\";\n"},
 };
 
 // the runs of the sample's first rows copied into `words`, WINDOW_SAMPLE_RUNS runs a row at most, each row's count
@@ -1387,8 +1389,8 @@ static void preferences_window_checked(void)
         drawn |= s_window.preferences_raster.pixels[((at / 900u) * s_window.preferences_raster.width) + (at % 900u)];
     }
     cli_check(!s_window.preferences_pending && (drawn != 0u), "Preferences drawn into its raster owes no frame");
-    const GuiRect close = EMBED_CALL(gui_preferences_row.close_rect, GuiPreferencesRowCfg,
-                                     .preferences_read = &s_window.preferences);
+    const GuiRect close =
+        EMBED_CALL(gui_preferences_row.close_rect, GuiPreferencesRowCfg, .preferences_read = &s_window.preferences);
     const GuiRect second = EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg,
                                       .preferences_read = &s_window.preferences, .at = 1u);
     cli_check((EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = &s_window,
@@ -1480,8 +1482,7 @@ static void pointer_checked(void)
 
     const char *const place[2] = {"300", "260"};
     cli_check(asked_words("pointer", place, 2u) && (s_window.driven_count == 1u) &&
-                  (s_window.driven[0].type == GUI_INPUT_MOVED) && (s_window.driven[0].x == 300) &&
-                  s_window.pointer_own,
+                  (s_window.driven[0].type == GUI_INPUT_MOVED) && (s_window.driven[0].x == 300) && s_window.pointer_own,
               "the pointer command queues a move to its place, the window's own pointer on");
     const char *const click[2] = {"click", "right"};
     cli_check(asked_words("pointer", click, 2u) && (s_window.driven_count == 3u) &&
@@ -1510,6 +1511,49 @@ static void pointer_checked(void)
     cli_check(!asked_words("pointer", wrong, 2u) && (s_window.driven_count == 0u),
               "words the pointer command does not know queue nothing");
     cli_check(asked("pointer", "off") && !s_window.pointer_own, "off gives the pointer back to the system");
+
+    // the hands: pointers beside the window's own, each named through --as
+    const char *const named[4] = {"--as", "robot", "120", "80"};
+    cli_check(asked_words("pointer", named, 4u) && (s_window.driven_count == 1u) && (s_window.driven[0].hand == 1u) &&
+                  (s_window.driven[0].x == 120) && s_window.hands[0].used,
+              "--as names a hand: the move queues on the hand, which takes the first free record");
+    driven_taken();
+    cli_check(s_window.hands[0].shown && (s_window.hands[0].x == 120) && (s_window.hands[0].y == 80) &&
+                  !s_window.pointer_own && (s_window.pointer.x == 300),
+              "the hand's move taken puts the hand at its place and leaves the window's own pointer alone");
+    const char *const other[4] = {"--as", "teacher", "200", "90"};
+    cli_check(asked_words("pointer", other, 4u) && (s_window.driven[0].hand == 2u) && s_window.hands[1].used,
+              "a second name takes the second hand");
+    driven_taken();
+    const char *const again[3] = {"--as", "robot", "click"};
+    cli_check(asked_words("pointer", again, 3u) && (s_window.driven_count == 2u) && (s_window.driven[0].hand == 1u) &&
+                  (s_window.driven[0].type == GUI_INPUT_DOWN) && (s_window.driven[0].x == 120) &&
+                  (s_window.driven[0].y == 80),
+              "a hand named again is the same hand, and its click is where that hand is");
+    driven_taken();
+    cli_check((s_window.hands[0].x == 120) && (s_window.hands[1].x == 200), "each hand keeps its own place");
+    static GuiColor marked[GUI_POINTER_PICTURE_MAX];
+    static GuiColor other_marked[GUI_POINTER_PICTURE_MAX];
+    EMBED_CALL(gui_pointer_hand.bake, GuiPointerHandCfg, .shape = GUI_POINTER_ARROW, .scale = s_window.frame.scale,
+               .palette = s_window.palette, .fill = s_window.palette->mark[0], .picture = marked);
+    EMBED_CALL(gui_pointer_hand.bake, GuiPointerHandCfg, .shape = GUI_POINTER_ARROW, .scale = s_window.frame.scale,
+               .palette = s_window.palette, .fill = s_window.palette->mark[1], .picture = other_marked);
+    const GuiRect hand_rect = EMBED_CALL(gui_pointer_hand.rect, GuiPointerHandCfg, .shape = GUI_POINTER_ARROW,
+                                         .scale = s_window.frame.scale, .x = 120, .y = 80);
+    int differs = 0;
+    for (int at = 0; at < (hand_rect.width * hand_rect.height); at += 1)
+    {
+        differs = differs || (marked[at] != other_marked[at]);
+    }
+    cli_check(differs && (hand_rect.width > 0) && (hand_rect.x <= 120) && (120 < (hand_rect.x + hand_rect.width)) &&
+                  (hand_rect.y <= 80) && (80 < (hand_rect.y + hand_rect.height)),
+              "a hand's picture is baked in its own mark, and its rectangle holds its hot point");
+    const char *const gone[3] = {"--as", "robot", "off"};
+    cli_check(asked_words("pointer", gone, 3u) && !s_window.hands[0].used && !s_window.hands[0].shown &&
+                  s_window.hands[1].used,
+              "off takes the named hand away and leaves the other");
+    const char *const other_gone[3] = {"--as", "teacher", "off"};
+    cli_check(asked_words("pointer", other_gone, 3u) && !s_window.hands[1].used, "the other hand goes the same way");
 }
 
 // whether the window's last answer reads `text` whole
@@ -1536,8 +1580,9 @@ static void sessions_checked(void)
     const char *const words[4] = {imp, "sessions", "relay", NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    cli_check(EMBED_CALL(cli_sessions.join_words, CliSessionsCfg, .address = "self", .words = words, .err_msg = &err_msg),
-              "a far end of impero's joins as a host");
+    cli_check(
+        EMBED_CALL(cli_sessions.join_words, CliSessionsCfg, .address = "self", .words = words, .err_msg = &err_msg),
+        "a far end of impero's joins as a host");
     // the join's answer, given through the module since no door command holds it
     char text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ULL};
@@ -1547,8 +1592,9 @@ static void sessions_checked(void)
     }
     cli_check(asked("sessions", NULL) && answered_is("self"), "the list names the host");
     const char *const sent[3] = {"help", "telemetry", "on"};
-    cli_check(asked_words("session-send", sent, 3u) && answered_is("self: "),
-              "a command sent to every host reaches this window through its own door and answers under the host's name");
+    cli_check(
+        asked_words("session-send", sent, 3u) && answered_is("self: "),
+        "a command sent to every host reaches this window through its own door and answers under the host's name");
     cli_check(asked("session-leave", "self") && answered_is("left self"), "the host left answers so");
     cli_check(asked("sessions", NULL) && answered_is("no sessions"), "the list is empty again");
 }
@@ -1557,8 +1603,8 @@ static void sessions_checked(void)
 // and paid, the busy circle's step paid, and the frame positioned at a stage while the claim slides and at rest after
 static void redraws_checked(void)
 {
-    const unsigned long long wait_ms = EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg,
-                                                  .window_read = &s_window, .input = NULL);
+    const unsigned long long wait_ms =
+        EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = &s_window, .input = NULL);
     const unsigned int source = gui_window_timeout_source();
     cli_check((wait_ms == 0ULL) ? (source == GUI_WINDOW_WAKES)
                                 : ((source < GUI_WINDOW_WAKES) && (g_gui_window_wake_names[source] != NULL)),
@@ -1805,15 +1851,16 @@ static void sticky_notch_checked(void)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CODE_LINE, .scale = s_window.frame.scale);
     moved(s_window.frame.work.x + s_window.frame.work.width - 4, 4);
     stepped_for(GUI_AUTOHIDE_SHOW_DELAY_MS + GUI_AUTOHIDE_ANIMATION_MS + 200ULL);
-    cli_check(s_window.frame.controls_pane_share >= GUI_FIXED_ONE, "a rest in the corner brings the controls' pane down");
+    cli_check(s_window.frame.controls_pane_share >= GUI_FIXED_ONE,
+              "a rest in the corner brings the controls' pane down");
     // the editor drawn on a raster of its own, clear, with the pane's notch at its top right: the sticky row's ground
     // reaches the raster's left and leaves the bend before the notch clear
     const GuiColor clear = GUI_RGB(1u, 2u, 3u);
     const GuiRect place = {0, 0, 640, 4 * line_height};
     const GuiRect notch = {place.width - 120, 0, 120, 2 * line_height};
     GuiRaster raster;
-    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = (unsigned int)place.width,
-                         .part = GUI_BLOCK_DIALOG_GROUND, .segment = 0u,
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster,
+                         .width = (unsigned int)place.width, .part = GUI_BLOCK_DIALOG_GROUND, .segment = 0u,
                          .height = (unsigned int)place.height),
               "a raster for the editor is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = place, .color = clear);
@@ -1823,11 +1870,12 @@ static void sticky_notch_checked(void)
     // the probes are inside the raster, whose sides an unsigned int represents
     const unsigned int y = (unsigned int)(line_height - 3);
     const GuiColor inside = raster.pixels[(y * raster.width) + 2u];
-    const GuiColor bend = raster.pixels[(y * raster.width) + (unsigned int)(notch.x - ((int)s_window.frame.radius / 2))];
+    const GuiColor bend =
+        raster.pixels[(y * raster.width) + (unsigned int)(notch.x - ((int)s_window.frame.radius / 2))];
     cli_check(inside != clear, "the sticky row's ground is at the editor's left");
     cli_check(bend == clear, "and it stops short of the bend round the controls' pane");
-    // a press on the sticky row, under the top band the claim reads a press in as the bar's, puts its line at the view's
-    // top, the frame following within a second
+    // a press on the sticky row, under the top band the claim reads a press in as the bar's, puts its line at the
+    // view's top, the frame following within a second
     const GuiRect editor = s_window.frame.editor;
     const unsigned long long pinned = s_window.editor.frame->row[s_window.editor.frame->count].number;
     pressed_with(editor.x + 60, editor.y + line_height - 2, GUI_BUTTON_LEFT);
@@ -2160,9 +2208,9 @@ static int clipboard_holds(const char *expected)
     return same(s_held, expected);
 }
 
-// Copy, Cut and Paste in the editor, checked against the system's clipboard: a selection copied with the system's line end
-// between its lines, the cursor's line and its line end copied where nothing is chosen, the clipboard's text pasted in
-// place of a selection and at the cursor, and a cut that puts its text on the clipboard and takes it out
+// Copy, Cut and Paste in the editor, checked against the system's clipboard: a selection copied with the system's line
+// end between its lines, the cursor's line and its line end copied where nothing is chosen, the clipboard's text pasted
+// in place of a selection and at the cursor, and a cut that puts its text on the clipboard and takes it out
 static void clipboard_checked(void)
 {
     tabs_closed("copy.txt", "one\ntwo\nthree\n", NULL, NULL);
@@ -2276,30 +2324,29 @@ static void view_thread_checked(void)
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
     const CliWindowArea monitor = {0, 0, 1920u, 1080u};
     CliWindowPosition place = {0};
-    cli_check(!cli_view_place_saved(
-                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}),
-              "a tree with no place saved has none");
+    cli_check(
+        !cli_view_place_saved(&(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}),
+        "a tree with no place saved has none");
     CliWindowPosition stored = {120, 80, 1200u, 800u, 0};
     cli_view_place_store(&(CliViewThreadCfg){.root = s_root, .place = &stored});
     CliWindowPosition other = {0, 0, 1000u, 700u, 1};
     cli_view_place_store(&(CliViewThreadCfg){.root = "elsewhere", .place = &other});
-    cli_check(cli_view_place_saved(
-                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}) &&
-                  (place.x == 120) && (place.y == 80) && (place.width == 1200u) && (place.height == 800u) &&
-                  !place.maximized,
-              "a place stored for a tree is read back for it beside another tree's");
+    cli_check(
+        cli_view_place_saved(&(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}) &&
+            (place.x == 120) && (place.y == 80) && (place.width == 1200u) && (place.height == 800u) && !place.maximized,
+        "a place stored for a tree is read back for it beside another tree's");
     CliWindowPosition off = {5000, 5000, 1000u, 700u, 0};
     cli_view_place_store(&(CliViewThreadCfg){.root = s_root, .place = &off});
-    cli_check(cli_view_place_saved(
-                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}) &&
-                  (place.x >= 0) && ((place.x + (int)place.width) <= 1920) && (place.y >= 0) &&
-                  ((place.y + (int)place.height) <= 1080),
-              "a place on no monitor there is goes onto the first");
+    cli_check(
+        cli_view_place_saved(&(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}) &&
+            (place.x >= 0) && ((place.x + (int)place.width) <= 1920) && (place.y >= 0) &&
+            ((place.y + (int)place.height) <= 1080),
+        "a place on no monitor there is goes onto the first");
     CliWindowPosition small = {0, 0, 100u, 100u, 0};
     cli_view_place_store(&(CliViewThreadCfg){.root = s_root, .place = &small});
-    cli_check(!cli_view_place_saved(
-                  &(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}),
-              "a place below the least size is not put back");
+    cli_check(
+        !cli_view_place_saved(&(CliViewThreadCfg){.root = s_root, .areas = &monitor, .count = 1u, .place = &place}),
+        "a place below the least size is not put back");
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home_before);
 }
 
@@ -2374,42 +2421,42 @@ typedef struct
 } WindowCheck;
 
 static const WindowCheck s_checks[] = {{"saves", saves_checked},
-                                         {"closes", closes_checked},
-                                         {"save_rows", save_rows_checked},
-                                         {"failed_save", failed_save_checked},
-                                         {"cells_rounds", cells_rounds_checked},
-                                         {"typed_colored", typed_colored_checked},
-                                         {"grammar_held", grammar_held_checked},
-                                         {"edits_cells", edits_cells_checked},
-                                         {"idle_pages", idle_pages_checked},
-                                         {"retyped_colored", retyped_colored_checked},
-                                         {"languages_colored", languages_colored_checked},
-                                         {"reduce_motion", reduce_motion_checked},
-                                         {"place", place_checked},
-                                         {"table", table_checked},
-                                         {"caret", caret_checked},
-                                         {"explorer_stays", explorer_stays_checked},
-                                         {"terminal_menu", terminal_menu_checked},
-                                         {"tab_menu", tab_menu_checked},
-                                         {"editor_menu", editor_menu_checked},
-                                         {"minimap_lines", minimap_lines_checked},
-                                         {"autoscroll", autoscroll_checked},
-                                         {"tips", tips_checked},
-                                         {"bar_tools", bar_tools_checked},
-                                         {"preferences_window", preferences_window_checked},
-                                         {"redraws", redraws_checked},
-                                         {"pointer", pointer_checked},
-                                         {"sessions", sessions_checked},
-                                         {"raw", raw_checked},
-                                         {"map_collapses", map_collapses_checked},
-                                         {"themes", themes_checked},
-                                         {"sticky_notch", sticky_notch_checked},
-                                         {"view", view_checked},
-                                         {"edit", edit_checked},
-                                         {"clipboard", clipboard_checked},
-                                         {"symbols", symbols_checked},
-                                         {"view_thread", view_thread_checked},
-                                         {"file", file_checked}};
+                                       {"closes", closes_checked},
+                                       {"save_rows", save_rows_checked},
+                                       {"failed_save", failed_save_checked},
+                                       {"cells_rounds", cells_rounds_checked},
+                                       {"typed_colored", typed_colored_checked},
+                                       {"grammar_held", grammar_held_checked},
+                                       {"edits_cells", edits_cells_checked},
+                                       {"idle_pages", idle_pages_checked},
+                                       {"retyped_colored", retyped_colored_checked},
+                                       {"languages_colored", languages_colored_checked},
+                                       {"reduce_motion", reduce_motion_checked},
+                                       {"place", place_checked},
+                                       {"table", table_checked},
+                                       {"caret", caret_checked},
+                                       {"explorer_stays", explorer_stays_checked},
+                                       {"terminal_menu", terminal_menu_checked},
+                                       {"tab_menu", tab_menu_checked},
+                                       {"editor_menu", editor_menu_checked},
+                                       {"minimap_lines", minimap_lines_checked},
+                                       {"autoscroll", autoscroll_checked},
+                                       {"tips", tips_checked},
+                                       {"bar_tools", bar_tools_checked},
+                                       {"preferences_window", preferences_window_checked},
+                                       {"redraws", redraws_checked},
+                                       {"pointer", pointer_checked},
+                                       {"sessions", sessions_checked},
+                                       {"raw", raw_checked},
+                                       {"map_collapses", map_collapses_checked},
+                                       {"themes", themes_checked},
+                                       {"sticky_notch", sticky_notch_checked},
+                                       {"view", view_checked},
+                                       {"edit", edit_checked},
+                                       {"clipboard", clipboard_checked},
+                                       {"symbols", symbols_checked},
+                                       {"view_thread", view_thread_checked},
+                                       {"file", file_checked}};
 
 int main(void)
 {

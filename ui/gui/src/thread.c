@@ -31,6 +31,20 @@ typedef struct
     CliViewHits *retained;
 } CliViewHitsTransfer;
 
+// A hand as last ordered onto its surface: whether a picture was ever baked for it, the shape, the scale and the fill
+// the picture is baked in, the place and the picture's size, whether it shows, and whether a picture is on its way to
+// the system's thread
+typedef struct
+{
+    int baked;
+    unsigned int shape;
+    int scale;
+    GuiColor fill;
+    GuiRect part;
+    int shown;
+    int taking;
+} ViewHandSent;
+
 // The view: its window; the rings and the maps, in one cell; what wakes each thread; whether the thread is to end and
 // whether it runs; a raster's showing awaited on each surface, the framebuffer a whole frame ordered is in, when
 // the last was displayed and the monitor's refresh; when the tick the window wants is due; whether Preferences' window
@@ -77,6 +91,9 @@ typedef struct
     unsigned int pointer_bakes;
     int pointer_shown;
     int pointer_taking;
+    // Each hand as last ordered onto its surface, the window's hands counted from 1: its shape, the scale and the
+    // fill its picture is baked at, the place, whether it shows, and whether a picture is on its way
+    ViewHandSent hand_sent[1u + GUI_WINDOW_HANDS];
     // the mouse's raw input and the pointer's lock as last ordered of the system
     int raw_ordered;
     int lock_ordered;
@@ -548,7 +565,14 @@ static void view_event(const ViewThreadCtx *args)
         s_view.preferences_opened = 0;
         break;
     case CLI_VIEW_EVENT_POINTER_TAKEN:
-        s_view.pointer_taking = 0;
+        if (args->event->pointer == 0u)
+        {
+            s_view.pointer_taking = 0;
+        }
+        else if (args->event->pointer <= GUI_WINDOW_HANDS)
+        {
+            s_view.hand_sent[args->event->pointer].taking = 0;
+        }
         break;
     default:
         break;
@@ -589,8 +613,7 @@ static void view_events_take(void)
         {
             const CliViewEvent *const next = (const CliViewEvent *)(const void *)anularis.seg_at(
                 &(AnularisCfg){.ring = &s_view.event_ring, .index = at});
-            if ((next->type == CLI_VIEW_EVENT_INPUT) && (next->input.type == type) &&
-                (next->surface == event.surface))
+            if ((next->type == CLI_VIEW_EVENT_INPUT) && (next->input.type == type) && (next->surface == event.surface))
             {
                 carried_x += (type == GUI_INPUT_RELATIVE) ? event.input.x : 0;
                 carried_y += (type == GUI_INPUT_RELATIVE) ? event.input.y : 0;
@@ -825,10 +848,10 @@ static void view_pointer_follow(void)
     const GuiRect part = EMBED_CALL(gui_pointer_read.rect, GuiPointerReadCfg, .pointer_read = record, .scale = scale);
     // a locked pointer stays in the window's middle and shows nothing
     const int shown = record->shown && !window->lock_wanted && (part.width > 0) && (part.height > 0);
-    const int pictured = !shown || ((s_view.pointer_record == record) && (s_view.pointer_shape == record->shape) &&
-                                    (s_view.pointer_bakes == record->sheet.bakes) && record->sheet.made &&
-                                    (record->sheet.scale ==
-                                     EMBED_CALL(gui_pointer_read.scale, GuiPointerReadCfg, .scale = scale)));
+    const int pictured =
+        !shown || ((s_view.pointer_record == record) && (s_view.pointer_shape == record->shape) &&
+                   (s_view.pointer_bakes == record->sheet.bakes) && record->sheet.made &&
+                   (record->sheet.scale == EMBED_CALL(gui_pointer_read.scale, GuiPointerReadCfg, .scale = scale)));
     const int placed = (s_view.pointer_shown == shown) && (s_view.pointer_surface == surface) &&
                        (!shown || ((s_view.pointer_part.x == part.x) && (s_view.pointer_part.y == part.y)));
     if (pictured && placed)
@@ -840,8 +863,8 @@ static void view_pointer_follow(void)
     const int picture_sent = !pictured && !s_view.pointer_taking;
     if (picture_sent)
     {
-        order.raster.pixels = (GuiColor *)EMBED_CALL(gui_pointer_raster.picture, GuiPointerRasterCfg,
-                                                     .pointer = record, .palette = window->palette, .scale = scale);
+        order.raster.pixels = (GuiColor *)EMBED_CALL(gui_pointer_raster.picture, GuiPointerRasterCfg, .pointer = record,
+                                                     .palette = window->palette, .scale = scale);
     }
     else if (placed)
     {
@@ -861,6 +884,60 @@ static void view_pointer_follow(void)
         s_view.pointer_shape = record->shape;
         s_view.pointer_bakes = record->sheet.bakes;
         s_view.pointer_taking = 1;
+    }
+}
+
+// Each hand ordered onto its own surface where it changed, the main window's at the main window's scale. A hand's
+// picture is its shape's sprite baked in the hand's mark, the palette's mark color at the hand's place; a new shape,
+// scale or mark sends the picture, a move the place alone, and a picture still on its way lets only the place go. A
+// hand not in use is off its surface. A full ring leaves the order to the next pass
+static void view_hands_follow(void)
+{
+    GuiWindow *const window = &s_view.window;
+    const int scale = window->frame.scale;
+    for (unsigned int at = 1u; at <= GUI_WINDOW_HANDS; at += 1u)
+    {
+        GuiHand *const hand = &window->hands[at - 1u];
+        ViewHandSent *const sent = &s_view.hand_sent[at];
+        const GuiColor fill = window->palette->mark[at - 1u];
+        const int shown = hand->used && hand->shown && !window->lock_wanted;
+        const GuiRect part = shown ? EMBED_CALL(gui_pointer_hand.rect, GuiPointerHandCfg, .shape = hand->shape,
+                                                .scale = scale, .x = hand->x, .y = hand->y)
+                                   : (GuiRect){0, 0, 0, 0};
+        const int pictured =
+            !shown || (sent->baked && (sent->shape == hand->shape) && (sent->scale == scale) && (sent->fill == fill));
+        const int placed = (sent->shown == shown) && (!shown || ((sent->part.x == part.x) && (sent->part.y == part.y)));
+        if (pictured && placed)
+        {
+            continue;
+        }
+        CliViewOrder order = {
+            .type = CLI_VIEW_ORDER_POINTER, .surface = CLI_VIEW_MAIN, .pointer = at, .part = part, .shown = shown};
+        const int picture_sent = !pictured && !sent->taking;
+        if (picture_sent)
+        {
+            EMBED_CALL(gui_pointer_hand.bake, GuiPointerHandCfg, .shape = hand->shape, .scale = scale,
+                       .palette = window->palette, .fill = fill, .picture = hand->picture);
+            order.raster.pixels = hand->picture;
+        }
+        else if (placed)
+        {
+            continue;
+        }
+        if (!EMBED_CALL(view_order_write, ViewThreadCtx, .order = &order))
+        {
+            continue;
+        }
+        sent->part = part;
+        sent->shown = shown;
+        if (picture_sent)
+        {
+            sent->baked = 1;
+            sent->shape = hand->shape;
+            sent->scale = scale;
+            sent->fill = fill;
+            sent->taking = 1;
+        }
     }
 }
 
@@ -920,6 +997,7 @@ static void view_run(void *context)
         }
         // the pointer's surface moved before the frame is drawn, so a move waits on no frame
         view_pointer_follow();
+        view_hands_follow();
         view_raw_follow();
         view_preferences_follow();
         view_dialog_follow();

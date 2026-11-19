@@ -51,6 +51,9 @@ typedef struct
     unsigned long long size;
     int wheel_down;
     int wheel_across;
+    // the pointer the input moves: 0 for the window's own, else one of the hands driven through the door, counted
+    // from 1
+    unsigned int hand;
 } GuiInput;
 
 // the wheel's units in one notch, as Win32 counts them; X11 turns a whole notch at a press of a wheel button

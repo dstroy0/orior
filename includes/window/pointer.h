@@ -11,14 +11,15 @@
 #ifndef GUI_WINDOW_POINTER_H
 #define GUI_WINDOW_POINTER_H
 #include "../raster/raster.h"
-#include "palette.h"
 #include "embed_dispatch_layout.h"
+#include "palette.h"
 
 typedef struct GuiPointerCfg GuiPointerCfg;
 typedef struct GuiPointerPlaceCfg GuiPointerPlaceCfg;
 typedef struct GuiPointerReadCfg GuiPointerReadCfg;
 typedef struct GuiPointerRasterCfg GuiPointerRasterCfg;
 typedef struct GuiPointerShapeCfg GuiPointerShapeCfg;
+typedef struct GuiPointerHandCfg GuiPointerHandCfg;
 
 // The shapes: the arrow; the text beam; the hand on a part a press acts on; the four resize arrows, up and down, left
 // and right, and the two diagonals; the compass of the glide at rest; and the arrow with an hourglass while the window
@@ -54,7 +55,8 @@ typedef struct GuiPointerShapeCfg GuiPointerShapeCfg;
 #define GUI_POINTER_PICTURE_MAX (GUI_POINTER_PIXELS_MAX * GUI_POINTER_PIXELS_MAX)
 #define GUI_POINTER_POINTS 12u
 #define GUI_POINTER_FIGURES 9u
-_Static_assert((GUI_POINTER_SCALE_MOST / GUI_SCALE_ONE) == 3, "GUI_POINTER_PIXELS_MAX holds a sprite at the most scale");
+_Static_assert((GUI_POINTER_SCALE_MOST / GUI_SCALE_ONE) == 3,
+               "GUI_POINTER_PIXELS_MAX holds a sprite at the most scale");
 
 // A figure of a sprite: its points in design units, in order round its edge, and the radius in design units its
 // corners are rounded by. The rounding grows the figure by the radius. A figure of one point is a disc of that radius
@@ -162,6 +164,32 @@ struct GuiPointerRasterCfg
 struct GuiPointerShapeCfg
 {
     unsigned int shape;
+};
+
+// A hand's sprite, a pointer beside the window's own: the sprite of `shape` baked at `scale`, the window's percent, in
+// the palette's pointer colors but for the fill, which is `fill`, the hand's mark, into `picture`, which holds
+// GUI_POINTER_PICTURE_MAX colors; and the rectangle the sprite of `shape` covers with its hot point at x, y at `scale`
+void gui_pointer_hand_bake(const GuiPointerHandCfg *args);
+GuiRect gui_pointer_hand_rect(const GuiPointerHandCfg *args);
+struct GuiPointerHandCfg
+{
+    unsigned int shape;
+    int scale;
+    const GuiPalette *palette;
+    GuiColor fill;
+    GuiColor *picture;
+    int x;
+    int y;
+};
+typedef struct
+{
+    void (*bake)(const GuiPointerHandCfg *args);
+    GuiRect (*rect)(const GuiPointerHandCfg *args);
+} GuiPointerHandNs;
+EMBED_TABLE_LAYOUT(GuiPointerHandNs, bake, rect);
+EMBED_TABLE_STORAGE GuiPointerHandNs gui_pointer_hand EMBED_UNUSED = {
+    .bake = gui_pointer_hand_bake,
+    .rect = gui_pointer_hand_rect,
 };
 
 typedef struct
