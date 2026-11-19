@@ -477,10 +477,11 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
     const unsigned long long end_at =
         EMBED_CALL(cli_index_end, PagesCtx, .one = args->one, .to = args->to, .whole = whole);
     const unsigned long long window = (end_at > begin) ? (end_at - begin) : 0ULL;
-    // The window read is no wider than the text the lines hold and one byte: what lies past that could not be kept.
-    // A window cut short ends the lines at the last whole line in it and marks them full, and the caller reads again
-    // with fewer lines
-    const unsigned long long cap = ((lines->text_max != 0ULL) ? lines->text_max : CLI_PAGE_READ_TEXT) + 1ULL;
+    // The window read is no wider than the text the lines hold and one more word of the pool's alignment: what lies
+    // past that could not be kept. A window cut short ends the lines at the last whole line in it and marks them full,
+    // and the caller reads again with fewer lines
+    const unsigned long long cap =
+        ((lines->text_max != 0ULL) ? lines->text_max : CLI_PAGE_READ_TEXT) + (unsigned long long)MMGR_CARCER_ALIGN;
     const int cut = window > cap;
     unsigned long long size = 0ULL;
     const unsigned char *const bytes =
