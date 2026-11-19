@@ -31,6 +31,7 @@ from .readings import reading, show_lines, show_slack
 from .refs import manifests_covering, refs_for
 from .repository import DEFAULT_ROOTS, REPOSITORY
 from .scan import attributed, banned_tokens, em_dashes
+from .ste import ste_findings
 
 
 
@@ -205,11 +206,14 @@ def main():
         # the way down. Neither is a comment; everything else here is read for its comments.
         # smart_quotes reads the same blanked lines the ban table does. printed_hits reads the parse
         # tree instead, because the text a tool prints is the one type of prose prose_only blanks.
+        # ste_findings reads the comments against ASD-STE100, the standard for every comment. A page
+        # has its own ratchet under `docs ste`, and a .tex is not a comment.
+        comments = not path.endswith((".md", ".tex"))
         wording = (
             banned_tokens(
                 said,
                 quotations=path.endswith(".md"),
-                comments=not path.endswith((".md", ".tex")),
+                comments=comments,
                 path=path,
                 ledger=ledger,
                 regions=regions,
@@ -217,6 +221,7 @@ def main():
             + marker_edges(lines)
             + smart_quotes(said, path=path, ledger=ledger)
             + printed_hits(path, lines)
+            + (ste_findings(said) if comments else [])
         )
 
         for at, what in sorted(structural):
