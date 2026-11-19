@@ -7,14 +7,20 @@
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static char s_root[CLI_PATH_MAX_LEN];
+static char s_home[CLI_PATH_MAX_LEN];
 static char s_out[256];
 static char s_error[256];
 
 void setUp(void)
 {
     cli_unity_begun();
-    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME",
-                                .value = "build/harness/history_home"));
+    // orior's home a folder of this test's own, made empty once for the process: no snapshot of an earlier run is read
+    if (s_home[0] == '\0')
+    {
+        cli_unity_folder("history_home", s_home);
+    }
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = s_home));
 }
 
 void tearDown(void)

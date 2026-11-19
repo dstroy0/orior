@@ -280,7 +280,7 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     {
         EMBED_CALL(pages_let_go, PagesCtx, .one = one);
     }
-    // a paged text's record carries the index its reader thread writes, so the records are fixed outside the pool,
+    // a paged text's record carries the index its reader thread writes: the records are fixed outside the pool,
     // one place for each paged text open at once, where they punch no hole in the persistent tier
     static CliPaged s_places[CLI_PAGED_MAX];
     one = NULL;
@@ -477,10 +477,15 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
     const unsigned long long end_at =
         EMBED_CALL(cli_index_end, PagesCtx, .one = args->one, .to = args->to, .whole = whole);
     const unsigned long long window = (end_at > begin) ? (end_at - begin) : 0ULL;
+    // The window read is no wider than the text the lines hold and one byte: what lies past that could not be kept.
+    // A window cut short ends the lines at the last whole line in it and marks them full, and the caller reads again
+    // with fewer lines
+    const unsigned long long cap = ((lines->text_max != 0ULL) ? lines->text_max : CLI_PAGE_READ_TEXT) + 1ULL;
+    const int cut = window > cap;
     unsigned long long size = 0ULL;
     const unsigned char *const bytes =
         EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->one->path, .from = begin,
-                   .count_u64 = window, .size_pointer = &size, .owner = g_cli_editor_owner);
+                   .count_u64 = cut ? cap : window, .size_pointer = &size, .owner = g_cli_editor_owner);
     if (bytes == NULL)
     {
         mmgr_line_put(args->err_msg, "it could not be read");
@@ -493,13 +498,19 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
     {
         const unsigned char *const newline =
             (at < size) ? memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at}) : NULL;
+        // a line a cut window does not end is not read in part: the lines are full here
+        if ((newline == NULL) && cut)
+        {
+            lines->full = 1;
+            break;
+        }
         // a newline found lies in the window, at or past `at`
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         unsigned long long length = end - at;
         length -= ((newline != NULL) && (length > 0ULL) && (bytes[end - 1ULL] == '\r')) ? 1ULL : 0ULL;
         const unsigned long long read = (newline != NULL) ? (end - at + 1ULL) : (size - at);
-        // the line read as UTF-8 straight after the lines read, a byte that starts no whole character written as U+FFFD,
-        // three bytes
+        // the line read as UTF-8 straight after the lines read, a byte that starts no whole character written as
+        // U+FFFD, three bytes
         if ((line >= from) && !lines->full &&
             EMBED_CALL(cli_pages_lines_lines_more_internal.page_lines_capacity, CliPagesLinesLinesMoreCtx,
                        .lines = lines, .lines_more = 1ULL, .text_more = 3ULL * length))
@@ -641,7 +652,8 @@ EMBED_INLINE int pages_pieces_read(const PagesCtx *args)
     return 1;
 }
 
-// `lines` positioned over one cell of `count` lines and `bytes` of text, the one before given back: 1, or 0 with why given
+// `lines` positioned over one cell of `count` lines and `bytes` of text, the one before given back: 1, or 0 with why
+// given
 EMBED_INLINE int pages_lines_resize(const PagesCtx *args)
 {
     CliPageLines *lines = args->lines;
@@ -748,7 +760,8 @@ EMBED_INLINE unsigned long long pages_max(const PagesCtx *args)
 }
 
 // the lines a step of `one`, a text of `total` lines, reads: as many as REST_BYTES reach at the text's bytes a line,
-// its size over its lines, a line cut after `cut` characters counting no more than those, from REST_LEAST to half of SAVED
+// its size over its lines, a line cut after `cut` characters counting no more than those, from REST_LEAST to half of
+// SAVED
 EMBED_INLINE unsigned long long pages_step(const PagesCtx *args)
 {
     const unsigned long long whole = (args->total != 0ULL) ? ((args->one_read->size / args->total) + 1ULL) : 1ULL;
@@ -821,9 +834,9 @@ EMBED_INLINE void pages_rows_trim(const PagesCtx *args)
 
 // the lines of `one` from `*from` to before `*to`, a step toward the ends of the page's lines below them where `below`
 // is 1 and above where 0, trimmed to those from the page's side that CLI_PAGE_REMAINDER_BYTES of their bytes reach, a
-// line cut after `cut` characters counting no more than those, and where the view moves and wraps at `width` characters, that
-// fill the rows placed, a line as many rows as its characters fill; one line at the least. As placed where the lines
-// cannot be read whole; under the pages' lock
+// line cut after `cut` characters counting no more than those, and where the view moves and wraps at `width`
+// characters, that fill the rows placed, a line as many rows as its characters fill; one line at the least. As placed
+// where the lines cannot be read whole; under the pages' lock
 EMBED_INLINE void pages_step_trim(const PagesCtx *args)
 {
     unsigned long long *from = args->from_pointer;

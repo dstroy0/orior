@@ -71,8 +71,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\history\\test_history\\test_history.c");
-  run_test(test_a_files_snapshots_are_stored_with_the_text_before_the_first_and_read_back_oldest_first, "test_a_files_snapshots_are_stored_with_the_text_before_the_first_and_read_back_oldest_first", 44);
-  run_test(test_a_snapshot_no_file_has_is_refused_with_why, "test_a_snapshot_no_file_has_is_refused_with_why", 69);
+  run_test(test_a_files_snapshots_are_stored_with_the_text_before_the_first_and_read_back_oldest_first, "test_a_files_snapshots_are_stored_with_the_text_before_the_first_and_read_back_oldest_first", 50);
+  run_test(test_a_snapshot_no_file_has_is_refused_with_why, "test_a_snapshot_no_file_has_is_refused_with_why", 75);
 
   return UNITY_END();
 }

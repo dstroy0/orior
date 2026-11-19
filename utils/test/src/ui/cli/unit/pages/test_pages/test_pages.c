@@ -60,6 +60,8 @@ static int s_wide_run_result;
 static int s_wide_opened;
 static unsigned long long s_wide_lines;
 static char s_wide_found[256];
+static char s_wide_find_error[512];
+static char s_wide_save_error[512];
 static int s_wide_saved;
 static int s_wide_sized;
 static unsigned long long s_wide_size;
@@ -271,9 +273,11 @@ static void wide_run_result(void)
     err_msg.at = 0ull;
     (void)EMBED_CALL(cli_pages_out_err_msg_needle.find, CliPagesOutErrMsgNeedleCfg, .key = "wide", .needle = &needle, .max = 10ull, .out = &out, .err_msg = &err_msg);
     text_stored(s_wide_found, sizeof(s_wide_found), s_out, out.at);
+    text_stored(s_wide_find_error, sizeof(s_wide_find_error), s_error, err_msg.at);
     out.at = 0ull;
     err_msg.at = 0ull;
     s_wide_saved = EMBED_CALL(cli_pages_path.save, CliPagesPathCfg, .key = "wide", .out = &out, .err_msg = &err_msg);
+    text_stored(s_wide_save_error, sizeof(s_wide_save_error), s_error, err_msg.at);
     s_wide_sized = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &s_wide_size);
     EMBED_CALL(cli_pages.release, CliPagesCfg, .key = "wide");
 }
@@ -392,13 +396,13 @@ void test_a_file_of_wide_lines_opens_and_is_indexed_complete(void)
 void test_find_reaches_the_line_end_a_block_wider_than_a_read_state(void)
 {
     wide_run_result();
-    TEST_ASSERT_EQUAL_STRING("[[9024,0,8]]", s_wide_found);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE("[[9024,0,8]]", s_wide_found, s_wide_find_error);
 }
 
 void test_a_save_writes_every_byte_of_every_wide_line(void)
 {
     wide_run_result();
-    TEST_ASSERT_TRUE(s_wide_saved);
+    TEST_ASSERT_TRUE_MESSAGE(s_wide_saved, s_wide_save_error);
     TEST_ASSERT_TRUE(s_wide_sized);
     TEST_ASSERT_EQUAL_UINT64(s_wide_total, s_wide_size);
 }
