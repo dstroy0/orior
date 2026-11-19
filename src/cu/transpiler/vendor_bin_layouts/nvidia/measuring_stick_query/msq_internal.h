@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// msq_internal.h: what the modules of the cross share: its includes, the bounds of a run and a question, the control operations, the listing, question, reader, registers, distinct and frame structures, the run and the reader given, and the functions one module reads from another
+// msq_internal.h: what the modules of the cross share: its includes, the bounds of a run and a question, the control
+// operations, the listing, question, reader, registers, distinct and frame structures, the run and the reader given,
+// and the functions one module reads from another
 #ifndef MSQ_INTERNAL_H
 #define MSQ_INTERNAL_H
 
@@ -88,8 +90,8 @@ typedef struct
     unsigned long long size;
 } MsqBytes;
 
-// a question: its answers' stem, its code's name, its position, the registers its kernel allots, its container's code, and
-// its probe instruction as the part would be passed it, where the code contains the probe
+// a question: its answers' stem, its code's name, its position, the registers its kernel allots, its container's code,
+// and its probe instruction as the part would be passed it, where the code contains the probe
 typedef struct
 {
     char stem[256];
@@ -150,8 +152,8 @@ typedef struct
     int readable;
 } MsqFrame;
 
-// one piece the cross reads: a distinct position encoding, a frame, or a distinct tail, all of them read together as one
-// accumulated run (msq_accumulated_read)
+// one piece the cross reads: a distinct position encoding, a frame, or a distinct tail, all of them read together as
+// one accumulated run (msq_accumulated_read)
 typedef enum
 {
     MSQ_PIECE_WORD = 0,
@@ -200,16 +202,13 @@ typedef struct
 } MsqPool;
 
 // what the cross records, stored as it goes: the gated list, the report, the lines it reports of each refusal, the
-// refusals the teacher reads, and the positions it read clear, a line `<stem> <operation>` each, for a conference the gate
-// may call
+// refusals the teacher reads, and the positions it read clear, a line `<stem> <operation>` each, for a conference the
+// gate may call
 typedef struct
 {
     unsigned char *gated;
     size_t gated_size;
     size_t gated_room;
-    unsigned char *report;
-    size_t report_size;
-    size_t report_room;
     unsigned char *report;
     size_t report_size;
     size_t report_room;
@@ -251,7 +250,8 @@ unsigned int msq_processors(void);
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing);
 int msq_tables_read(void);
 int msq_vendor_reads(const MsqBytes *piece);
-void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, MsqReading *readings, MsqFrame *frames, MsqRegisters *addressed);
+void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, MsqReading *readings, MsqFrame *frames,
+                    MsqRegisters *addressed);
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read);
 void msq_frame_free(MsqFrame *read);
 int msq_control_read(const char *body);

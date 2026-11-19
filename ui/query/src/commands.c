@@ -301,9 +301,13 @@ int query_run(const QueryCfg *args)
             EMBED_CALL(query_loops_context_err_msg_name.loop_run, QueryLoopsContextErrMsgNameCfg, .context = &s_context,
                        .name = s_words[0], .words = &s_words[1], .count = word_count - 1u, .err_msg = &err_msg);
     }
-    if ((code < 0) && (mmgr_line_finish(&err_msg) != 0ULL))
+    // the reason printed whole, or as much of it as the line holds where it did not all fit
+    const unsigned long long reason = mmgr_line_finish(&err_msg);
+    const unsigned long long said =
+        (reason != 0ULL) ? reason : cellul.len(&(CatenaFinitaCfg){.src = err_buf, .cap = sizeof(err_buf)});
+    if ((code < 0) && (said != 0ULL))
     {
-        EMBED_CALL(sink.print, CliEachLineSizeCfg, .context = sink.context, .line = err_buf, .size = err_msg.at);
+        EMBED_CALL(sink.print, CliEachLineSizeCfg, .context = sink.context, .line = err_buf, .size = said);
     }
     return code;
 }
