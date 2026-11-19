@@ -1711,4 +1711,4 @@ utils/test/src/ui/gui/work_test.c	3
 utils/test/src/ui/sanitized.sh	1
 utils/test/test_motion_read.py	5
 utils/test/test_motion_report.py	2
-utils/test/window_cpu.ps1	2
+utils/test/window_cpu.ps1	1

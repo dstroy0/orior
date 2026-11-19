@@ -1536,6 +1536,9 @@ def cmd_cpu(a):
     log = os.path.join(ROOT, "build", "harness", "window_cpu.txt")
     words = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Minutes", str(a.minutes),
              "-Step", str(a.step), "-Spike", str(a.spike), "-Log", log, "-Symbols", os.path.dirname(program())]
+    process_id = a.id or pid_read()
+    if process_id:
+        words += ["-ProcessId", str(process_id)]
     return subprocess.call(words)
 
 
@@ -2149,6 +2152,7 @@ def register(sub):
     p.add_argument("--minutes", type=int, default=2)
     p.add_argument("--step", type=int, default=5)
     p.add_argument("--spike", type=int, default=150)
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none, else the first tab process")
     p.set_defaults(fn=cmd_cpu)
 
     p = window.add_parser("gpu", help="the window's process tree over --seconds, the GPU's 3D engine it retained busy and the "
