@@ -15,6 +15,8 @@ extern void test_a_command_the_far_end_cannot_run_is_refused_with_its_errors(voi
 extern void test_every_host_answers_on_a_line_of_its_own(void);
 extern void test_a_host_left_answers_no_more(void);
 extern void test_a_second_command_while_one_gathers_is_refused(void);
+extern void test_the_tree_is_served_on_the_loopback(void);
+extern void test_the_far_end_clones_the_served_tree_and_pulls_each_state(void);
 extern void test_a_relay_that_ended_gives_no_answer(void);
 
 
@@ -85,7 +87,9 @@ int main(void)
   run_test(test_every_host_answers_on_a_line_of_its_own, "test_every_host_answers_on_a_line_of_its_own", 123);
   run_test(test_a_host_left_answers_no_more, "test_a_host_left_answers_no_more", 138);
   run_test(test_a_second_command_while_one_gathers_is_refused, "test_a_second_command_while_one_gathers_is_refused", 155);
-  run_test(test_a_relay_that_ended_gives_no_answer, "test_a_relay_that_ended_gives_no_answer", 166);
+  run_test(test_the_tree_is_served_on_the_loopback, "test_the_tree_is_served_on_the_loopback", 196);
+  run_test(test_the_far_end_clones_the_served_tree_and_pulls_each_state, "test_the_far_end_clones_the_served_tree_and_pulls_each_state", 221);
+  run_test(test_a_relay_that_ended_gives_no_answer, "test_a_relay_that_ended_gives_no_answer", 257);
 
   return UNITY_END();
 }

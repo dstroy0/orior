@@ -62,6 +62,9 @@ struct CliLinkAddressCfg
     const char *line;
     int terminal;
     CliWords *words;
+    // a port of the far host led back to one of this machine's over ssh, `far:host:near` as ssh -R takes it, NULL for
+    // none; the other ways reach this machine's ports on their own
+    const char *forward;
 };
 
 struct CliLinkTextCfg

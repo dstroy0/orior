@@ -35,6 +35,11 @@ typedef struct
     unsigned long long until;
     char text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line;
+    // the file server that serves this window's tree, git daemon on a port of the loopback, 0 while none is up, and
+    // the tree it serves
+    CliSpawned server;
+    unsigned int port;
+    char served[CLI_PATH_MAX_LEN];
 } SessionsCtx;
 
 typedef struct
@@ -47,11 +52,16 @@ typedef struct
     const unsigned char *bytes_read;
     unsigned long long size;
     const char *root;
+    const char *address;
+    const char *const *words;
     VerbaLinea *out;
+    VerbaLinea *err_msg;
     int done;
 } SessionsOpCtx;
 
 static SessionsCtx s_sessions;
+
+EMBED_INLINE void relay_text_put(const SessionsOpCtx *args);
 
 // the record at `at` read into `session`, and `session_read` written at `at`
 EMBED_INLINE void session_read(const SessionsOpCtx *args)
@@ -238,8 +248,33 @@ int cli_sessions_join(const CliSessionsCfg *args)
     {
         return 0;
     }
-    // the far end's line on the host, given the tree the far window is open on where the address names one
-    char line[CLI_PATH_MAX_LEN * 2u + 16u];
+    int git = 0;
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->request[at], .other = "--git", .cap = CLI_POOL_BYTES}))
+        {
+            git = 1;
+        }
+        else
+        {
+            mmgr_line_put(args->err_msg, "a session takes no ");
+            mmgr_line_put(args->err_msg, args->request[at]);
+            return 0;
+        }
+    }
+    if (git && (address.folder[0] == '\0'))
+    {
+        mmgr_line_put(args->err_msg, "the tree goes to the address's folder, and the address names none");
+        return 0;
+    }
+    if (git && (args->root == NULL))
+    {
+        mmgr_line_put(args->err_msg, "no tree is open here to serve");
+        return 0;
+    }
+    // the far end's line on the host, given the tree the far window is open on where the address names one, and the
+    // served tree's address where the tree goes with the session
+    char line[CLI_PATH_MAX_LEN * 3u + 32u];
     VerbaLinea relay = {line, sizeof(line), 0ULL};
     mmgr_line_put(&relay, "imp sessions relay");
     if (address.folder[0] != '\0')
@@ -248,6 +283,28 @@ int cli_sessions_join(const CliSessionsCfg *args)
         EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = address.folder,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = address.folder, .cap = CLI_POOL_BYTES}), .out = &relay);
     }
+    char forward[64];
+    const char *forward_read = NULL;
+    if (git)
+    {
+        char url[CLI_PATH_MAX_LEN + 64u];
+        VerbaLinea url_line = {url, sizeof(url), 0ULL};
+        if (!EMBED_CALL(cli_sessions.served, CliSessionsCfg, .root = args->root, .address = args->address,
+                        .out = &url_line, .err_msg = args->err_msg))
+        {
+            return 0;
+        }
+        (void)mmgr_line_finish(&url_line);
+        mmgr_line_put(&relay, " --git ");
+        mmgr_line_put(&relay, url);
+        // over ssh the server's port is led to the same port on the far host
+        VerbaLinea forward_line = {forward, sizeof(forward), 0ULL};
+        mmgr_line_decimal(&forward_line, s_sessions.port, 1u);
+        mmgr_line_put(&forward_line, ":127.0.0.1:");
+        mmgr_line_decimal(&forward_line, s_sessions.port, 1u);
+        (void)mmgr_line_finish(&forward_line);
+        forward_read = (address.way == CLI_LINK_SSH) ? forward : NULL;
+    }
     if (mmgr_line_finish(&relay) == 0ULL)
     {
         mmgr_line_put(args->err_msg, "the address does not fit the relay's line");
@@ -255,7 +312,7 @@ int cli_sessions_join(const CliSessionsCfg *args)
     }
     static CliWords s_words;
     EMBED_CALL(cli_link_address_table.runs, CliLinkAddressCfg, .address = &address, .line = line, .terminal = 0,
-               .words = &s_words);
+               .words = &s_words, .forward = forward_read);
     if (s_words.full)
     {
         mmgr_line_put(args->err_msg, "the link's words do not fit");
@@ -513,6 +570,190 @@ void cli_sessions_close(void)
     s_sessions.count = 0u;
     s_sessions.pending = 0;
     s_sessions.sending = 0;
+    if (s_sessions.port != 0u)
+    {
+        EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &s_sessions.server);
+        (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &s_sessions.server);
+        EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &s_sessions.server);
+        s_sessions.port = 0u;
+        s_sessions.served[0] = '\0';
+    }
+}
+
+// `words`, ended by a NULL, run in the folder `root`, NULL for the working folder: 1 where it exited with 0, its
+// output trimmed into `out` where `out` is given; else 0 with its errors, or its output where the errors are empty,
+// into `err_msg`
+EMBED_INLINE int sessions_run(const SessionsOpCtx *args)
+{
+    CliRunResult *const run_result = cli_run_result_alloc();
+    if (run_result == NULL)
+    {
+        mmgr_line_put(args->err_msg, "no cell holds what git reports");
+        return 0;
+    }
+    const int ran = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = args->words, .folder = args->root,
+                               .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = args->err_msg);
+    const int well = ran && (run_result->code == 0LL);
+    if (well && (args->out != NULL))
+    {
+        EMBED_CALL(relay_text_put, SessionsOpCtx, .out = args->out,
+                   .bytes_read = (const unsigned char *)run_result->out, .size = run_result->out_size);
+    }
+    if (ran && !well)
+    {
+        const int errors = run_result->err_size != 0ULL;
+        EMBED_CALL(relay_text_put, SessionsOpCtx, .out = args->err_msg,
+                   .bytes_read = (const unsigned char *)(errors ? run_result->err : run_result->out),
+                   .size = errors ? run_result->err_size : run_result->out_size);
+    }
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    return well;
+}
+
+// the name of the tree at `root`, the part after its last separator, and the folder it stands in into `out`
+EMBED_INLINE const char *sessions_tree_name(const SessionsOpCtx *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES});
+    unsigned long long cut = length;
+    // a path ends in no separator; the name follows the last one of either kind
+    while ((cut > 0ULL) && (args->root[cut - 1ULL] != '/') && (args->root[cut - 1ULL] != '\\'))
+    {
+        cut -= 1ULL;
+    }
+    mmgr_line_put_n(args->out, args->root, (cut > 1ULL) ? cut - 1ULL : cut);
+    return args->root + cut;
+}
+
+int cli_sessions_served(const CliSessionsCfg *args)
+{
+    const int up = (s_sessions.port != 0u) &&
+                   cellul.eq(&(CatenaFinitaCfg){.src = s_sessions.served, .other = args->root, .cap = CLI_POOL_BYTES});
+    long long code = 0LL;
+    if (up &&
+        (EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &s_sessions.server, .code = &code) != 0))
+    {
+        EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &s_sessions.server);
+        s_sessions.port = 0u;
+    }
+    if (s_sessions.port != 0u && !up)
+    {
+        mmgr_line_put(args->err_msg, "this window serves ");
+        mmgr_line_put(args->err_msg, s_sessions.served);
+        mmgr_line_put(args->err_msg, " already");
+        return 0;
+    }
+    char base[CLI_PATH_MAX_LEN];
+    VerbaLinea base_line = {base, sizeof(base), 0ULL};
+    const char *const name = EMBED_CALL(sessions_tree_name, SessionsOpCtx, .root = args->root, .out = &base_line);
+    (void)mmgr_line_finish(&base_line);
+    if (s_sessions.port == 0u)
+    {
+        unsigned int port = 0u;
+        if (!EMBED_CALL(cli_err_msg_port_internal.port_free, CliErrMsgPortCtx, .port_pointer = &port,
+                        .err_msg = args->err_msg))
+        {
+            return 0;
+        }
+        char port_word[32];
+        VerbaLinea port_line = {port_word, sizeof(port_word), 0ULL};
+        mmgr_line_put(&port_line, "--port=");
+        mmgr_line_decimal(&port_line, port, 1u);
+        (void)mmgr_line_finish(&port_line);
+        char base_word[CLI_PATH_MAX_LEN + 16u];
+        VerbaLinea base_word_line = {base_word, sizeof(base_word), 0ULL};
+        mmgr_line_put(&base_word_line, "--base-path=");
+        mmgr_line_put(&base_word_line, base);
+        (void)mmgr_line_finish(&base_word_line);
+        const char *const words[8] = {
+            "git", "daemon", "--export-all", "--reuseaddr", "--listen=127.0.0.1", port_word, base_word, NULL};
+        memor.set(&(MemoriaCfg){.dst = &s_sessions.server, .val = 0, .bytes = sizeof(s_sessions.server)});
+        if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &s_sessions.server,
+                        .words = words, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1,
+                        .err_msg = args->err_msg))
+        {
+            return 0;
+        }
+        // the server takes connections within a few seconds, else it ended, and what it reported says why
+        const unsigned long long until = cli_clock_milliseconds() + 5000ULL;
+        for (;;)
+        {
+            CliSocket probe;
+            char why[CLI_ERR_MSG_MAX_LEN];
+            VerbaLinea probe_err_msg = {why, sizeof(why), 0ULL};
+            if (EMBED_CALL(cli_err_msg_internal.socket_connected_within, CliErrMsgCtx, .sock_out = &probe,
+                           .host = "127.0.0.1", .port = port, .milliseconds = 200u, .err_msg = &probe_err_msg))
+            {
+                EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &probe);
+                break;
+            }
+            if ((EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &s_sessions.server,
+                            .code = &code) != 0) ||
+                (cli_clock_milliseconds() > until))
+            {
+                char errors[CLI_ERR_MSG_MAX_LEN];
+                const unsigned long long got =
+                    EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                               .pipe_handle = s_sessions.server.err, .piece = errors, .capacity = sizeof(errors));
+                EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &s_sessions.server);
+                (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &s_sessions.server);
+                EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &s_sessions.server);
+                mmgr_line_put(args->err_msg, "git daemon serves nothing: ");
+                EMBED_CALL(relay_text_put, SessionsOpCtx, .out = args->err_msg,
+                           .bytes_read = (const unsigned char *)errors, .size = got);
+                return 0;
+            }
+            EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 50u);
+        }
+        s_sessions.port = port;
+        VerbaLinea served = {s_sessions.served, sizeof(s_sessions.served), 0ULL};
+        mmgr_line_put(&served, args->root);
+        (void)mmgr_line_finish(&served);
+    }
+    // the host the far end reaches this machine by: the led port's loopback over ssh and in a WSL distribution, the
+    // host's name a container knows
+    CliLinkAddress address;
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
+    const int docker = (args->address != NULL) &&
+                       EMBED_CALL(cli_link_text.address_parse, CliLinkTextCfg, .text = args->address,
+                                  .address_out = &address, .err_msg = &unread) &&
+                       (address.way == CLI_LINK_DOCKER);
+    mmgr_line_put(args->out, docker ? "git://host.docker.internal:" : "git://127.0.0.1:");
+    mmgr_line_decimal(args->out, s_sessions.port, 1u);
+    mmgr_line_ch(args->out, '/');
+    mmgr_line_put(args->out, name);
+    return 1;
+}
+
+int cli_sessions_pull(const CliSessionsCfg *args)
+{
+    const char *const ref = (args->count > 0u) ? args->request[0] : "HEAD";
+    const char *const fetch[5] = {"git", "fetch", "session", ref, NULL};
+    const char *const checkout[5] = {"git", "checkout", "--detach", "FETCH_HEAD", NULL};
+    const char *const head[4] = {"git", "rev-parse", "HEAD", NULL};
+    return EMBED_CALL(sessions_run, SessionsOpCtx, .root = args->root, .words = fetch, .err_msg = args->err_msg) &&
+           EMBED_CALL(sessions_run, SessionsOpCtx, .root = args->root, .words = checkout, .err_msg = args->err_msg) &&
+           EMBED_CALL(sessions_run, SessionsOpCtx, .root = args->root, .words = head, .out = args->out,
+                      .err_msg = args->err_msg);
+}
+
+// the far end's tree made ready for the served tree at `address`: cloned into `root` where no repository is there,
+// else the server named as its remote `session`: 1, or 0 with what git reported
+EMBED_INLINE int relay_tree_ready(const SessionsOpCtx *args)
+{
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ULL};
+    const char *const inside[6] = {"git", "-C", args->root, "rev-parse", "--git-dir", NULL};
+    if (!EMBED_CALL(sessions_run, SessionsOpCtx, .root = NULL, .words = inside, .err_msg = &unread))
+    {
+        const char *const clone[7] = {"git", "clone", "-o", "session", args->address, args->root, NULL};
+        return EMBED_CALL(sessions_run, SessionsOpCtx, .root = NULL, .words = clone, .err_msg = args->err_msg);
+    }
+    const char *const remove[5] = {"git", "remote", "remove", "session", NULL};
+    const char *const add[6] = {"git", "remote", "add", "session", args->address, NULL};
+    unread.at = 0ULL;
+    (void)EMBED_CALL(sessions_run, SessionsOpCtx, .root = args->root, .words = remove, .err_msg = &unread);
+    return EMBED_CALL(sessions_run, SessionsOpCtx, .root = args->root, .words = add, .err_msg = args->err_msg);
 }
 
 // `size` bytes of `bytes_read` put on the reply `out`, trimmed of the white at both ends, and cut to what fits
@@ -627,22 +868,28 @@ int cli_sessions_relay(const CliSessionsCfg *args)
     static unsigned char s_body[CLI_SESSIONS_FRAME];
     const unsigned long long in = cli_standard_input();
     const unsigned long long out = cli_standard_output();
+    if ((args->address != NULL) && (args->root != NULL) &&
+        !EMBED_CALL(relay_tree_ready, SessionsOpCtx, .root = args->root, .address = args->address,
+                    .err_msg = args->err_msg))
+    {
+        return 0;
+    }
     for (;;)
     {
         unsigned char head[SESSIONS_HEAD];
         if (!EMBED_CALL(sessions_read_whole, SessionsOpCtx, .pipe_handle = in, .bytes = head, .size = SESSIONS_HEAD))
         {
-            return 0;
+            return 1;
         }
         const unsigned long long size = EMBED_CALL(sessions_head_read, SessionsOpCtx, .bytes_read = head);
         if ((size == 0ULL) || (size > sizeof(s_body)))
         {
             // a frame no request fits is the end of what this far end reads
-            return 0;
+            return 1;
         }
         if (!EMBED_CALL(sessions_read_whole, SessionsOpCtx, .pipe_handle = in, .bytes = s_body, .size = size))
         {
-            return 0;
+            return 1;
         }
         EMBED_CALL(relay_answered, SessionsOpCtx, .root = args->root, .pipe_handle = out, .bytes_read = s_body,
                    .size = size);

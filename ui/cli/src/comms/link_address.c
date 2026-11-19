@@ -38,8 +38,8 @@ typedef struct
 // whether a character is white as Rust's char::is_whitespace has it
 EMBED_INLINE int address_white(const LinkAddressCtx *args)
 {
-    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
-           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) ||
+           (args->character == 0x85u) || (args->character == 0xa0u) || (args->character == 0x1680u) ||
            ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
            (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
            (args->character == 0x3000u);
@@ -56,9 +56,9 @@ EMBED_INLINE void address_trim(const LinkAddressCtx *args)
     unsigned int character = 0u;
     while (begin < length)
     {
-        const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)text, .length = length, .at = begin, .character = &character);
+        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                       .text_bytes = (const unsigned char *)text, .length = length,
+                                                       .at = begin, .character = &character);
         if (!EMBED_CALL(address_white, LinkAddressCtx, .character = character))
         {
             break;
@@ -190,6 +190,13 @@ void cli_link_runs(const CliLinkAddressCfg *args)
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word_text = alive[at]);
+        }
+        if (args->forward != NULL)
+        {
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word_text = "-R");
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word_text = args->forward);
         }
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                    .word_text = args->address->name);

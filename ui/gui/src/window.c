@@ -5534,7 +5534,9 @@ static int window_command_named(const char *command, const char *const *words, u
         int begun = 1;
         if (session_join)
         {
-            begun = EMBED_CALL(cli_sessions.join, CliSessionsCfg, .address = first, .err_msg = &err_msg);
+            begun = EMBED_CALL(cli_sessions.join, CliSessionsCfg, .address = first, .root = cli_command_line_root(),
+                               .request = (count > 1u) ? words + 1 : NULL, .count = (count > 1u) ? count - 1u : 0u,
+                               .err_msg = &err_msg);
         }
         else if (session_leave)
         {

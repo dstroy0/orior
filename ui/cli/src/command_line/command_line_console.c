@@ -369,20 +369,83 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
     {
         *code = EMBED_CALL(console_report_page, CommandLineConsoleCtx, .named = named, .words = words, .count = count);
     }
-    // the far end of a session: the requests read from the input sent to the window open on the tree named, or on
-    // the one tree open where none is
+    // The far end of a session: the requests read from the input each run as impero runs a command line, on the tree
+    // named where one is. With `--git` and the served tree's address, the tree is cloned into the folder named first,
+    // or the server named as its remote; the folder need not be a tree yet
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "relay", .cap = CLI_POOL_BYTES}))
     {
         VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
-        if ((first != NULL) && !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = first,
-                                           .root = s_root, .err_msg = &err_msg))
+        const char *tree = NULL;
+        const char *served = NULL;
+        for (unsigned int at = 0u; at < count; at += 1u)
         {
+            if (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--git", .cap = CLI_POOL_BYTES}))
+            {
+                served = (at + 1u < count) ? words[at + 1u] : "";
+                at += 1u;
+            }
+            else
+            {
+                tree = words[at];
+            }
+        }
+        if ((served == NULL) && (tree != NULL) &&
+            !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = tree, .root = s_root,
+                        .err_msg = &err_msg))
+        {
+            EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+            *code = CLI_WRONG;
+        }
+        else if ((served != NULL) && (tree == NULL))
+        {
+            mmgr_line_put(&err_msg, "the served tree needs a folder to go to");
             EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
             *code = CLI_WRONG;
         }
         else
         {
-            *code = EMBED_CALL(cli_sessions.relay, CliSessionsCfg, .root = (first != NULL) ? s_root : NULL);
+            const int ended = EMBED_CALL(cli_sessions.relay, CliSessionsCfg,
+                                         .root = (served != NULL) ? tree : ((tree != NULL) ? s_root : NULL),
+                                         .address = served, .err_msg = &err_msg);
+            if (!ended)
+            {
+                EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+            }
+            *code = ended ? 0 : CLI_WRONG;
+        }
+    }
+    // on a session's far host: a state of the served tree fetched into the tree named, or the working folder's, and
+    // checked out, the commit's hash printed
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "pull", .cap = CLI_POOL_BYTES}))
+    {
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
+        const int found = (named != NULL) ? EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg,
+                                                       .named = named, .root = s_root, .err_msg = &err_msg)
+                                          : EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = s_root);
+        if (!found)
+        {
+            if (err_msg.at == 0ULL)
+            {
+                mmgr_line_put(&err_msg, "no tree is here to pull into");
+            }
+            EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+            *code = CLI_WRONG;
+        }
+        else
+        {
+            VerbaLinea hash = {s_line, sizeof(s_line), 0ULL};
+            const int pulled = EMBED_CALL(cli_sessions.pull, CliSessionsCfg, .root = s_root, .request = words,
+                                          .count = count, .out = &hash, .err_msg = &err_msg);
+            (void)mmgr_line_finish(&hash);
+            if (pulled)
+            {
+                EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = s_line);
+            }
+            else
+            {
+                EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+            }
+            *code = pulled ? 0 : CLI_WRONG;
         }
     }
     else

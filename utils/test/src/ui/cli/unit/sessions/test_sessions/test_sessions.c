@@ -163,6 +163,97 @@ void test_a_second_command_while_one_gathers_is_refused(void)
     TEST_ASSERT_TRUE(stepped(&done));
 }
 
+// a repository made at `root` with one commit of the file `name` reading `text`, and the hash of its HEAD into `hash`,
+// CLI_NAME_MAX_LEN bytes
+static void repository_committed(const char *root, const char *name, const char *text, char *hash)
+{
+    cli_unity_file(root, name, text);
+    const char *const add[2] = {"add", name};
+    cli_unity_git(root, add, 2u);
+    const char *const commit[4] = {"commit", "-q", "-m", "one"};
+    cli_unity_git(root, commit, 4u);
+    const char *const head[4] = {"git", "rev-parse", "HEAD", NULL};
+    CliRunResult *const run_result = cli_run_result_alloc();
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = head, .folder = root, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &s_err_msg));
+    VerbaLinea line = {hash, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put_n(&line, run_result->out, (run_result->out_size > 40ull) ? 40ull : run_result->out_size);
+    (void)mmgr_line_finish(&line);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+}
+
+// a repository at `root` begun with the file `name` reading `text`, its HEAD's hash into `hash`
+static void repository_made(const char *root, const char *name, const char *text, char *hash)
+{
+    const char *const init[2] = {"init", "-q"};
+    cli_unity_git(root, init, 2u);
+    const char *const user[4] = {"config", "user.email", "sessions@localhost"};
+    cli_unity_git(root, user, 3u);
+    const char *const named[3] = {"config", "user.name", "sessions"};
+    cli_unity_git(root, named, 3u);
+    repository_committed(root, name, text, hash);
+}
+
+void test_the_tree_is_served_on_the_loopback(void)
+{
+    static char s_tree[CLI_PATH_MAX_LEN];
+    static char s_url[CLI_PATH_MAX_LEN];
+    char hash[CLI_NAME_MAX_LEN];
+    cli_unity_folder("sessions_served", s_tree);
+    repository_made(s_tree, "one.txt", "one\n", hash);
+    VerbaLinea url = {s_url, sizeof(s_url), 0ull};
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_sessions.served, CliSessionsCfg, .root = s_tree, .address = "me@host:tree", .out = &url, .err_msg = &s_err_msg), s_error);
+    (void)mmgr_line_finish(&url);
+    CLI_TEST_ASSERT_CONTAINS("git://127.0.0.1:", s_url);
+    CLI_TEST_ASSERT_CONTAINS("/sessions_served", s_url);
+    const char *const listed[4] = {"git", "ls-remote", s_url, NULL};
+    CliRunResult *const run_result = cli_run_result_alloc();
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = listed, .folder = NULL, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &s_err_msg));
+    TEST_ASSERT_EQUAL_INT64(0, run_result->code);
+    CLI_TEST_ASSERT_CONTAINS(hash, run_result->out);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    // a container reaches the server by the host's name a container knows
+    url.at = 0ull;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_sessions.served, CliSessionsCfg, .root = s_tree, .address = "docker:box:/tree", .out = &url, .err_msg = &s_err_msg));
+    (void)mmgr_line_finish(&url);
+    CLI_TEST_ASSERT_CONTAINS("git://host.docker.internal:", s_url);
+}
+
+void test_the_far_end_clones_the_served_tree_and_pulls_each_state(void)
+{
+    imp_needed();
+    static char s_tree[CLI_PATH_MAX_LEN];
+    static char s_clone[CLI_PATH_MAX_LEN];
+    char first[CLI_NAME_MAX_LEN];
+    char second[CLI_NAME_MAX_LEN];
+    cli_unity_folder("sessions_tree", s_tree);
+    repository_made(s_tree, "one.txt", "one\n", first);
+    cli_unity_folder("sessions_clone_parent", s_clone);
+    VerbaLinea clone = {s_clone, sizeof(s_clone), CLI_UNITY_LENGTH(s_clone)};
+    mmgr_line_put(&clone, "/clone");
+    (void)mmgr_line_finish(&clone);
+    // the far end, given a path as the served address, clones from the path: the protocol is git's own either way
+    const char *const words[7] = {s_imp, "sessions", "relay", s_clone, "--git", s_tree, NULL};
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_sessions.join_words, CliSessionsCfg, .address = "clone", .words = words, .err_msg = &s_err_msg), s_error);
+    int done = 0;
+    TEST_ASSERT_TRUE(stepped(&done));
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_sessions.send, CliSessionsCfg, .menu = "sessions", .command = "pull", .request = NULL, .count = 0u, .err_msg = &s_err_msg), s_error);
+    TEST_ASSERT_TRUE(stepped(&done));
+    TEST_ASSERT_TRUE_MESSAGE(done, s_text);
+    CLI_TEST_ASSERT_CONTAINS(first, s_text);
+    repository_committed(s_tree, "two.txt", "two\n", second);
+    TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = first, .other = second, .cap = CLI_POOL_BYTES}));
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_sessions.send, CliSessionsCfg, .menu = "sessions", .command = "pull", .request = NULL, .count = 0u, .err_msg = &s_err_msg), s_error);
+    TEST_ASSERT_TRUE(stepped(&done));
+    TEST_ASSERT_TRUE_MESSAGE(done, s_text);
+    CLI_TEST_ASSERT_CONTAINS(second, s_text);
+    // a state named gets checked out, not the newest
+    const char *const back[1] = {first};
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_sessions.send, CliSessionsCfg, .menu = "sessions", .command = "pull", .request = back, .count = 1u, .err_msg = &s_err_msg), s_error);
+    TEST_ASSERT_TRUE(stepped(&done));
+    TEST_ASSERT_TRUE_MESSAGE(done, s_text);
+    CLI_TEST_ASSERT_CONTAINS(first, s_text);
+}
+
 void test_a_relay_that_ended_gives_no_answer(void)
 {
     imp_needed();
