@@ -23,6 +23,7 @@
 #include "../../cli/src/command_line/command_line.h"
 #include "../../cli/src/command_line/pool.h"
 #include "../../cli/src/comms/comms.h"
+#include "../../cli/src/comms/sessions.h"
 #include "../../cli/src/debug/debug_pane.h"
 #include "../../cli/src/editor/document.h"
 #include "../../cli/src/editor/files.h"
@@ -285,6 +286,7 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_servers_panels_end();
     cli_files_explorer_end();
     cli_comms_pane_end();
+    cli_sessions_close();
     cli_comms_end();
     // the notices read the entries in place, so they let go before the entries do
     cli_notices_end();
@@ -1566,7 +1568,8 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
     GuiWindow *const window = args->window;
     window->busy_alone = 0;
     return EMBED_CALL(gui_busy_frame.redrawn, GuiBusyFrameCfg, .now_ms = cli_clock_milliseconds(),
-                      .busy = &window->busy, .raster = (window->displayed != NULL) ? window->displayed : window->raster);
+                      .busy = &window->busy,
+                      .raster = (window->displayed != NULL) ? window->displayed : window->raster);
 }
 
 // the deadline that set the last wait, its place among gui_window_timeout_ms's deadlines, GUI_WINDOW_WAKES for none
@@ -5352,8 +5355,7 @@ EMBED_INLINE unsigned int window_word_button(const GuiWindowCtx *args)
     {
         return GUI_BUTTON_MIDDLE;
     }
-    return EMBED_CALL(window_is, GuiWindowCtx, .name = args->name, .key = "right") ? GUI_BUTTON_RIGHT
-                                                                                  : GUI_BUTTON_LEFT;
+    return EMBED_CALL(window_is, GuiWindowCtx, .name = args->name, .key = "right") ? GUI_BUTTON_RIGHT : GUI_BUTTON_LEFT;
 }
 
 // The window's own pointer driven by the words of the interface's `pointer` command. Each input goes on the queue the
@@ -5512,6 +5514,48 @@ static int window_command_named(const char *command, const char *const *words, u
         window->raw_wanted = on ? 1 : (off ? 0 : window->raw_wanted);
         window->lock_wanted = lock ? 1 : (free_word ? 0 : window->lock_wanted);
         return on || off || lock || free_word;
+    }
+    // The sessions on other hosts, reached as text: a host joined or left, the hosts listed, and a command of a menu
+    // sent to every host. The door holds each until the sessions module has its answer, which gathers as the window
+    // steps; a second while one gathers is refused
+    const int session_join = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "session-join");
+    const int session_leave = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "session-leave");
+    const int session_send = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "session-send");
+    if (session_join || session_leave || session_send ||
+        EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "sessions"))
+    {
+        if (cli_sessions_pending() || window->sessions_held)
+        {
+            return 0;
+        }
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        const char *const first = (count > 0u) ? words[0] : NULL;
+        int begun = 1;
+        if (session_join)
+        {
+            begun = EMBED_CALL(cli_sessions.join, CliSessionsCfg, .address = first, .err_msg = &err_msg);
+        }
+        else if (session_leave)
+        {
+            begun = EMBED_CALL(cli_sessions.leave, CliSessionsCfg, .address = first, .err_msg = &err_msg);
+        }
+        else if (session_send)
+        {
+            begun = EMBED_CALL(cli_sessions.send, CliSessionsCfg, .menu = first,
+                               .command = (count > 1u) ? words[1] : NULL, .request = (count > 2u) ? words + 2 : NULL,
+                               .count = (count > 2u) ? count - 2u : 0u, .err_msg = &err_msg);
+        }
+        else
+        {
+            EMBED_CALL(cli_sessions.list, CliSessionsCfg, .out = NULL);
+        }
+        if (!begun)
+        {
+            EMBED_CALL(cli_sessions.refused, CliSessionsCfg, .err_msg = &err_msg);
+        }
+        window->sessions_held = 1;
+        return CLI_REACH_HOLD;
     }
     // The window's telemetry lines to the error stream, `on` or `off`: the cells' log on the memory tick, the frames'
     // line, the walk's line a step and a frame take's line; off until asked, so a window in use writes nothing
@@ -5877,6 +5921,20 @@ void gui_window_step(const GuiWindowCfg *args)
         window->relative_y = 0LL;
         window->relative_read_held = 0;
         cli_reach_held_answer(&(CliReachCfg){.done = 1, .text = counts});
+    }
+    // a sessions command's answer, given once the module has every host's line
+    if (window->sessions_held)
+    {
+        char text[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea line = {text, sizeof(text), 0ULL};
+        int done = 0;
+        if (EMBED_CALL(cli_sessions.step, CliSessionsCfg, .out = &line, .done = &done))
+        {
+            (void)mmgr_line_finish(&line);
+            window->sessions_held = 0;
+            cli_reach_held_answer(&(CliReachCfg){.done = done, .text = text});
+        }
+        window->pending = 1;
     }
     if (cli_servers_problems_step())
     {
@@ -6384,10 +6442,10 @@ void gui_window_draw(const GuiWindowCfg *args)
     const GuiRect whole = clipped ? clip : (GuiRect){0, 0, (int)raster->width, (int)raster->height};
     for (unsigned int hole = 0u; base_fits && view_displayed && (hole < count); hole += 1u)
     {
-        const GuiRect part = EMBED_CALL(
-            gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = holes[hole],
-            .other = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = whole,
-                                .other = (GuiRect){0, 0, (int)raster->width, (int)raster->height}));
+        const GuiRect part =
+            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = holes[hole],
+                       .other = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = whole,
+                                           .other = (GuiRect){0, 0, (int)raster->width, (int)raster->height}));
         if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = part))
         {
             EMBED_CALL(window_base_copy, GuiWindowCtx, .window = args->window, .caret = part);
@@ -6730,12 +6788,18 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
 EMBED_INLINE unsigned int window_pointer_border_shape(const GuiWindowCtx *args)
 {
     static const unsigned char s_shapes[GUI_HIT_CLOSE + 1u] = {
-        [GUI_HIT_CLIENT] = GUI_POINTER_SHAPES,          [GUI_HIT_CAPTION] = GUI_POINTER_SHAPES,
-        [GUI_HIT_LEFT] = GUI_POINTER_RESIZE_EW,         [GUI_HIT_RIGHT] = GUI_POINTER_RESIZE_EW,
-        [GUI_HIT_TOP] = GUI_POINTER_RESIZE_NS,          [GUI_HIT_BOTTOM] = GUI_POINTER_RESIZE_NS,
-        [GUI_HIT_TOP_LEFT] = GUI_POINTER_RESIZE_NWSE,   [GUI_HIT_BOTTOM_RIGHT] = GUI_POINTER_RESIZE_NWSE,
-        [GUI_HIT_TOP_RIGHT] = GUI_POINTER_RESIZE_NESW,  [GUI_HIT_BOTTOM_LEFT] = GUI_POINTER_RESIZE_NESW,
-        [GUI_HIT_MINIMIZE] = GUI_POINTER_HAND,          [GUI_HIT_MAXIMIZE] = GUI_POINTER_HAND,
+        [GUI_HIT_CLIENT] = GUI_POINTER_SHAPES,
+        [GUI_HIT_CAPTION] = GUI_POINTER_SHAPES,
+        [GUI_HIT_LEFT] = GUI_POINTER_RESIZE_EW,
+        [GUI_HIT_RIGHT] = GUI_POINTER_RESIZE_EW,
+        [GUI_HIT_TOP] = GUI_POINTER_RESIZE_NS,
+        [GUI_HIT_BOTTOM] = GUI_POINTER_RESIZE_NS,
+        [GUI_HIT_TOP_LEFT] = GUI_POINTER_RESIZE_NWSE,
+        [GUI_HIT_BOTTOM_RIGHT] = GUI_POINTER_RESIZE_NWSE,
+        [GUI_HIT_TOP_RIGHT] = GUI_POINTER_RESIZE_NESW,
+        [GUI_HIT_BOTTOM_LEFT] = GUI_POINTER_RESIZE_NESW,
+        [GUI_HIT_MINIMIZE] = GUI_POINTER_HAND,
+        [GUI_HIT_MAXIMIZE] = GUI_POINTER_HAND,
         [GUI_HIT_CLOSE] = GUI_POINTER_HAND,
     };
     return (args->at <= GUI_HIT_CLOSE) ? s_shapes[args->at] : GUI_POINTER_SHAPES;
@@ -6785,9 +6849,9 @@ EMBED_INLINE unsigned int window_pointer_shape(const GuiWindowCtx *args)
         return EMBED_CALL(window_autoscroll_compass, GuiWindowCtx, .window_read = window, .x = args->x, .y = args->y);
     }
     const GuiInput at = {.type = GUI_INPUT_MOVED, .x = args->x, .y = args->y};
-    const unsigned int border = EMBED_CALL(
-        window_pointer_border_shape, GuiWindowCtx,
-        .at = EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = &at));
+    const unsigned int border =
+        EMBED_CALL(window_pointer_border_shape, GuiWindowCtx,
+                   .at = EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = &at));
     if (border != GUI_POINTER_SHAPES)
     {
         return border;
@@ -6804,19 +6868,32 @@ EMBED_INLINE unsigned int window_pointer_shape(const GuiWindowCtx *args)
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = window, .x = args->x, .y = args->y, .hit = &hit);
     // each hit's shape, the arrow for a hit not named
     static const unsigned char s_hit_shapes[CLI_HIT_BAR_TOOL + 1u] = {
-        [CLI_HIT_EDITOR] = GUI_POINTER_TEXT,          [CLI_HIT_TERMINAL] = GUI_POINTER_TEXT,
-        [CLI_HIT_QUICK_BOX] = GUI_POINTER_TEXT,       [CLI_HIT_TERMINAL_PANEL] = GUI_POINTER_RESIZE_NS,
-        [CLI_HIT_MENU_TITLE] = GUI_POINTER_HAND,      [CLI_HIT_MENU_ROW] = GUI_POINTER_HAND,
-        [CLI_HIT_TAB] = GUI_POINTER_HAND,             [CLI_HIT_TAB_CLOSE] = GUI_POINTER_HAND,
-        [CLI_HIT_TOOL] = GUI_POINTER_HAND,            [CLI_HIT_PANE_ROW] = GUI_POINTER_HAND,
-        [CLI_HIT_PANE_ACTION] = GUI_POINTER_HAND,     [CLI_HIT_SUGGEST_ROW] = GUI_POINTER_HAND,
-        [CLI_HIT_WORDMARK] = GUI_POINTER_HAND,        [CLI_HIT_TERMINAL_TAB] = GUI_POINTER_HAND,
-        [CLI_HIT_TERMINAL_TAB_CLOSE] = GUI_POINTER_HAND, [CLI_HIT_TERMINAL_NEW] = GUI_POINTER_HAND,
-        [CLI_HIT_TERMINAL_SPLIT] = GUI_POINTER_HAND,  [CLI_HIT_STATUS_NOTICE] = GUI_POINTER_HAND,
-        [CLI_HIT_STATUS_SILENCE] = GUI_POINTER_HAND,  [CLI_HIT_STATUS_FOCUS] = GUI_POINTER_HAND,
-        [CLI_HIT_FOOT_ROW] = GUI_POINTER_HAND,        [CLI_HIT_FOOT_ACTION] = GUI_POINTER_HAND,
-        [CLI_HIT_QUICK_ROW] = GUI_POINTER_HAND,       [CLI_HIT_STATUS_CRUMB] = GUI_POINTER_HAND,
-        [CLI_HIT_CHANGE_PEEK] = GUI_POINTER_HAND,     [CLI_HIT_STICKY] = GUI_POINTER_HAND,
+        [CLI_HIT_EDITOR] = GUI_POINTER_TEXT,
+        [CLI_HIT_TERMINAL] = GUI_POINTER_TEXT,
+        [CLI_HIT_QUICK_BOX] = GUI_POINTER_TEXT,
+        [CLI_HIT_TERMINAL_PANEL] = GUI_POINTER_RESIZE_NS,
+        [CLI_HIT_MENU_TITLE] = GUI_POINTER_HAND,
+        [CLI_HIT_MENU_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_TAB] = GUI_POINTER_HAND,
+        [CLI_HIT_TAB_CLOSE] = GUI_POINTER_HAND,
+        [CLI_HIT_TOOL] = GUI_POINTER_HAND,
+        [CLI_HIT_PANE_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_PANE_ACTION] = GUI_POINTER_HAND,
+        [CLI_HIT_SUGGEST_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_WORDMARK] = GUI_POINTER_HAND,
+        [CLI_HIT_TERMINAL_TAB] = GUI_POINTER_HAND,
+        [CLI_HIT_TERMINAL_TAB_CLOSE] = GUI_POINTER_HAND,
+        [CLI_HIT_TERMINAL_NEW] = GUI_POINTER_HAND,
+        [CLI_HIT_TERMINAL_SPLIT] = GUI_POINTER_HAND,
+        [CLI_HIT_STATUS_NOTICE] = GUI_POINTER_HAND,
+        [CLI_HIT_STATUS_SILENCE] = GUI_POINTER_HAND,
+        [CLI_HIT_STATUS_FOCUS] = GUI_POINTER_HAND,
+        [CLI_HIT_FOOT_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_FOOT_ACTION] = GUI_POINTER_HAND,
+        [CLI_HIT_QUICK_ROW] = GUI_POINTER_HAND,
+        [CLI_HIT_STATUS_CRUMB] = GUI_POINTER_HAND,
+        [CLI_HIT_CHANGE_PEEK] = GUI_POINTER_HAND,
+        [CLI_HIT_STICKY] = GUI_POINTER_HAND,
         [CLI_HIT_BAR_TOOL] = GUI_POINTER_HAND,
     };
     const unsigned int shape = (hit.hit <= CLI_HIT_BAR_TOOL) ? s_hit_shapes[hit.hit] : GUI_POINTER_ARROW;
@@ -6830,9 +6907,9 @@ EMBED_INLINE void window_pointer_track(const GuiWindowCtx *args)
     GuiWindow *const window = args->window;
     const int x = args->on ? args->x : window->pointer.x;
     const int y = args->on ? args->y : window->pointer.y;
-    const unsigned int shape = args->on ? EMBED_CALL(window_pointer_shape, GuiWindowCtx, .window_read = window, .x = x,
-                                                     .y = y)
-                                        : window->pointer.shape;
+    const unsigned int shape =
+        args->on ? EMBED_CALL(window_pointer_shape, GuiWindowCtx, .window_read = window, .x = x, .y = y)
+                 : window->pointer.shape;
     // the view's thread moves the pointer's own surface to the place: the frame draws nothing for it
     (void)EMBED_CALL(gui_pointer_place_table.place, GuiPointerPlaceCfg, .pointer = &window->pointer, .x = x, .y = y,
                      .shape = shape, .shown = args->on);
@@ -7293,8 +7370,8 @@ EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
     // the minimap is the text's too: a middle press on the part of it that shows starts the autoscroll
     const GuiRect map = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->window->frame.map_whole,
                                    .other = args->window->frame.map);
-    const int on_map = (pressed.hit == CLI_HIT_NONE) &&
-                       EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = map, .x = args->x, .y = args->y);
+    const int on_map = (pressed.hit == CLI_HIT_NONE) && EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                                                                   .rect = map, .x = args->x, .y = args->y);
     if ((pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER) || on_map)
     {
         args->window->autoscroll = 1;
@@ -8383,8 +8460,7 @@ void gui_window_preferences_input(const GuiWindowInputTypeCfg *args)
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &s_preferences_handlers, .window = window,
                .input = input);
     // the pointer is on a surface of its own: its move draws nothing on Preferences' frame
-    (void)EMBED_CALL(gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &window->preferences_pointer,
-                     .input = input,
-                     .hit = EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = window,
-                                       .input = input));
+    (void)EMBED_CALL(
+        gui_window_pointer_table.surface, GuiWindowPointerCfg, .pointer = &window->preferences_pointer, .input = input,
+        .hit = EMBED_CALL(cli_window_input.preferences_hit, GuiWindowInputCfg, .window_read = window, .input = input));
 }

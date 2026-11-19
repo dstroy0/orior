@@ -5,6 +5,7 @@
 // the reader's stylesheet, the toolchains, a clone, the tree's dev container brought up and a window opened on it,
 // files formatted, run and validated; the tree's jobs listed, displayed and run, its tests and its bridge listed, and
 // the words of `imp protocol` sent to a window open on the tree or run here. And a word that names a file of the tree
+#include "../comms/sessions.h"
 #include "../deploy/devcontainer.h"
 #include "../editor/files.h"
 #include "../machine/install.h"
@@ -367,6 +368,22 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "report", .cap = CLI_POOL_BYTES}))
     {
         *code = EMBED_CALL(console_report_page, CommandLineConsoleCtx, .named = named, .words = words, .count = count);
+    }
+    // the far end of a session: the requests read from the input sent to the window open on the tree named, or on
+    // the one tree open where none is
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "relay", .cap = CLI_POOL_BYTES}))
+    {
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
+        if ((first != NULL) && !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = first,
+                                           .root = s_root, .err_msg = &err_msg))
+        {
+            EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
+            *code = CLI_WRONG;
+        }
+        else
+        {
+            *code = EMBED_CALL(cli_sessions.relay, CliSessionsCfg, .root = (first != NULL) ? s_root : NULL);
+        }
     }
     else
     {

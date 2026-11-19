@@ -179,6 +179,28 @@ int cli_output_terminal(void)
     return GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) == FILE_TYPE_CHAR;
 }
 
+// a standard handle as the spawn entries take one, 0 where the system has none open
+EMBED_INLINE unsigned long long windows_standard_handle(DWORD which)
+{
+    const HANDLE handle = GetStdHandle(which);
+    if ((handle == INVALID_HANDLE_VALUE) || (handle == NULL))
+    {
+        return 0ull;
+    }
+    // a handle is a pointer-sized value the pipe handle word stores whole
+    return (unsigned long long)(embed_word)handle;
+}
+
+unsigned long long cli_standard_input(void)
+{
+    return windows_standard_handle(STD_INPUT_HANDLE);
+}
+
+unsigned long long cli_standard_output(void)
+{
+    return windows_standard_handle(STD_OUTPUT_HANDLE);
+}
+
 unsigned int cli_arguments(const CliCapacityCountCtx *args)
 {
     static char s_text[1u << 16u];

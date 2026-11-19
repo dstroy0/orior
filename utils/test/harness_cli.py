@@ -199,6 +199,11 @@ def cmd_cli_test(a):
         if code != 0:
             print("the library's build ended with %d" % code, flush=True)
             return None
+        # the program too, from the same objects: the sessions suite starts it as a session's far end
+        code = streamed([bash(), CLI_BUILD, target], env=build_env)
+        if code != 0:
+            print("the program's build ended with %d" % code, flush=True)
+            return None
         return library_archive(target + (("-" + a.sanitize) if a.sanitize else ""))
 
     return harness_unity.run_suites(ROOT, a.names, library_built, a.sanitize)

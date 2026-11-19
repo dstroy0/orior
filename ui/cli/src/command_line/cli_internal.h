@@ -94,7 +94,6 @@ typedef struct CliTreeCtx CliTreeCtx;
 // the max processes the system lists, the max mounts a window lists, and the longest name of one
 #define CLI_PROCESSES_MAX 65536u
 
-
 #define CLI_NAME_MAX_LEN 256u
 
 // A folder or file mounted beside the tree, under its name; and the mounts, records in a movable cell the process
@@ -134,6 +133,10 @@ int cli_folder_current(const CliPathCapacityCtx *args);
 // 1 where this process's errors go to a terminal, and where its output does (platform/windows.c, platform/posix.c)
 int cli_errors_terminal(void);
 int cli_output_terminal(void);
+// this process's own input and output as pipe handles cli_spawn_read and cli_spawn_write take, 0 where the system
+// gives none (platform/windows.c, platform/posix.c)
+unsigned long long cli_standard_input(void);
+unsigned long long cli_standard_output(void);
 // the words this program was given after its name, at max `capacity` of them, into `words`, each UTF-8: on Windows as
 // the system stores them, wide, and elsewhere the `count` words of `supplied`, or as the system saves them where
 // `supplied` is NULL: their count

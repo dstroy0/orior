@@ -46,8 +46,11 @@ source "$HERE/../sanitized.sh"
 source "$TOP/ui/cli/lto_words.sh"
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "test exit 1"; exit 1; }
+# the program too, from the same objects: the sessions check starts it as a session's far end
+bash "$TOP/ui/cli/build.sh" "$HOST" || { echo "test exit 1"; exit 1; }
 CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
 LIBRARY="$TOP/build/cli/$HOST$SANITIZE_SUFFIX/lib$CLI_NAME.a"
+export ORIOR_IMP="$TOP/build/cli/$HOST$SANITIZE_SUFFIX/$CLI_NAME$SUFFIX"
 RUN="$TOP/build/gui_test$SANITIZE_SUFFIX"
 mkdir -p "$RUN"
 sanitized_checks_begin

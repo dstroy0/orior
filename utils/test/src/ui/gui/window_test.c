@@ -13,6 +13,7 @@
 #include "../../../../../ui/cli/src/code/references.h"
 #include "../../../../../ui/cli/src/code/symbols_tree.h"
 #include "../../../../../ui/cli/src/command_line/command_line.h"
+#include "../../../../../ui/cli/src/comms/sessions.h"
 #include "../../../../../ui/cli/src/editor/document.h"
 #include "../../../../../ui/cli/src/editor/view.h"
 #include "../../../../../ui/cli/src/machine/reach.h"
@@ -1511,6 +1512,47 @@ static void pointer_checked(void)
     cli_check(asked("pointer", "off") && !s_window.pointer_own, "off gives the pointer back to the system");
 }
 
+// whether the window's last answer reads `text` whole
+static int answered_is(const char *text)
+{
+    return cellul.eq(&(CatenaFinitaCfg){.src = s_ask.answer.text, .other = text, .cap = CLI_POOL_BYTES});
+}
+
+// The sessions other hosts' windows are reached through, as text: with none the list answers so and a leave is refused
+// with why; a far end of impero's, where ORIOR_IMP names it, joined as a host, listed, sent a command that reaches this
+// window itself through its own door and answers under the host's name, and left
+static void sessions_checked(void)
+{
+    cli_check(asked("sessions", NULL) && answered_is("no sessions"), "with no session the list answers no sessions");
+    cli_check(!asked("session-leave", "nobody") && answered_is("no session is open on nobody"),
+              "leaving a host with no session is refused with why");
+    char imp[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_IMP",
+                    .value_out = imp, .capacity = sizeof(imp)))
+    {
+        (void)fprintf(stderr, "  sessions: no impero is named by ORIOR_IMP, the far end is not checked\n");
+        return;
+    }
+    const char *const words[4] = {imp, "sessions", "relay", NULL};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    cli_check(EMBED_CALL(cli_sessions.join_words, CliSessionsCfg, .address = "self", .words = words, .err_msg = &err_msg),
+              "a far end of impero's joins as a host");
+    // the join's answer, given through the module since no door command holds it
+    char text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    int done = 0;
+    while (!EMBED_CALL(cli_sessions.step, CliSessionsCfg, .out = &line, .done = &done))
+    {
+    }
+    cli_check(asked("sessions", NULL) && answered_is("self"), "the list names the host");
+    const char *const sent[3] = {"help", "telemetry", "on"};
+    cli_check(asked_words("session-send", sent, 3u) && answered_is("self: "),
+              "a command sent to every host reaches this window through its own door and answers under the host's name");
+    cli_check(asked("session-leave", "self") && answered_is("left self"), "the host left answers so");
+    cli_check(asked("sessions", NULL) && answered_is("no sessions"), "the list is empty again");
+}
+
 // The window's redraws and waits: the deadline that set a wait named, the changes drawn again on the raster displayed
 // and paid, the busy circle's step paid, and the frame positioned at a stage while the claim slides and at rest after
 static void redraws_checked(void)
@@ -2357,6 +2399,7 @@ static const WindowCheck s_checks[] = {{"saves", saves_checked},
                                          {"preferences_window", preferences_window_checked},
                                          {"redraws", redraws_checked},
                                          {"pointer", pointer_checked},
+                                         {"sessions", sessions_checked},
                                          {"raw", raw_checked},
                                          {"map_collapses", map_collapses_checked},
                                          {"themes", themes_checked},

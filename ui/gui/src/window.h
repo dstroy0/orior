@@ -89,26 +89,25 @@ typedef struct
     int y;
 } GuiWindowHit;
 
-// The window: its frame; its two framebuffers, the raster the frame is drawn into and the one displayed, flipped as a frame
-// is presented, the displayed one NULL before any; the base every frame starts from and the ground under it, glyphs, icons,
-// palette; the parts and the side pane's waits, the editor's frame, token table and map, the terminal's panes and their
-// frames, each taken of the module whose state it is and released by the window; the hover and the completion as the
-// panels last had them; when the caret's blink begins, each frame of the view putting it an input rest later, the
-// caret's ink in the last frame drawn, and whether its ink alone has changed, which the caret drawn again over the
-// frame pays with no frame whole;
-// the busy circle, with whether its stage alone has changed; the pointer drawn on the main window, with whether its
-// move alone is to be drawn, and the pointers drawn on Preferences' window and the dialog's; Preferences, what its rows are at, the palette of the
-// window's own they change, and the scale the system gave, which the zoom positions the frame at a share of; the claim and
-// whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and the
-// settings ask it; the tree's name, the last part of its folder; the entries of orior's folder read as the window
-// began, which the modules restored from them read in place until the window ends; whether the editor takes the keys
-// and whether the window is to close; what orior takes in RAM and when it is next read; the view displayed when the frame
-// was last taken,
-// -1 for none; the editor's rows and columns, the bar's titles displayed and whether the rest fold, and the lines the map
-// is for, each as last passed on; the terminal's two panes' columns and rows and its height as last passed on; what
-// the pointer last moved onto; whether the pointer drags the terminal's top edge, whether it drags in the editor, and
-// the terminal's pane it drags in, one past it, 0 for none; the presses counted, when and where the last was; whether a
-// frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT where none
+// The window: its frame; its two framebuffers, the raster the frame is drawn into and the one displayed, flipped as a
+// frame is presented, the displayed one NULL before any; the base every frame starts from and the ground under it,
+// glyphs, icons, palette; the parts and the side pane's waits, the editor's frame, token table and map, the terminal's
+// panes and their frames, each taken of the module whose state it is and released by the window; the hover and the
+// completion as the panels last had them; when the caret's blink begins, each frame of the view putting it an input
+// rest later, the caret's ink in the last frame drawn, and whether its ink alone has changed, which the caret drawn
+// again over the frame pays with no frame whole; the busy circle, with whether its stage alone has changed; the pointer
+// drawn on the main window, with whether its move alone is to be drawn, and the pointers drawn on Preferences' window
+// and the dialog's; Preferences, what its rows are at, the palette of the window's own they change, and the scale the
+// system gave, which the zoom positions the frame at a share of; the claim and whether its slides ran at the last tick;
+// the controls' tab's shadow; the wordmark; less motion as the system and the settings ask it; the tree's name, the
+// last part of its folder; the entries of orior's folder read as the window began, which the modules restored from them
+// read in place until the window ends; whether the editor takes the keys and whether the window is to close; what orior
+// takes in RAM and when it is next read; the view displayed when the frame was last taken, -1 for none; the editor's
+// rows and columns, the bar's titles displayed and whether the rest fold, and the lines the map is for, each as last
+// passed on; the terminal's two panes' columns and rows and its height as last passed on; what the pointer last moved
+// onto; whether the pointer drags the terminal's top edge, whether it drags in the editor, and the terminal's pane it
+// drags in, one past it, 0 for none; the presses counted, when and where the last was; whether a frame is owed; and the
+// control pressed, for the system to act on, GUI_HIT_CLIENT where none
 typedef struct GuiWindow
 {
     GuiFrame frame;
@@ -149,6 +148,8 @@ typedef struct GuiWindow
     long long relative_x;
     long long relative_y;
     int relative_read_held;
+    // a sessions command the door holds while the sessions module gathers its answer
+    int sessions_held;
     GuiPointer preferences_pointer;
     GuiPointer dialog_pointer;
     GuiPreferences preferences;
@@ -199,8 +200,8 @@ typedef struct GuiWindow
     // the union of the parts of the frame that changed since it was last displayed, empty for none; a frame owed whole,
     // `pending`, draws it all
     GuiRect damage;
-    // The base the last whole frame positioned, the window's size, and whether it holds that base. A frame of changes alone
-    // copies its part of the base from here, since the lattice and the grounds change only with a whole frame
+    // The base the last whole frame positioned, the window's size, and whether it holds that base. A frame of changes
+    // alone copies its part of the base from here, since the lattice and the grounds change only with a whole frame
     GuiRaster base_retained;
     int base_retained_whole;
     GuiDialog dialog;
@@ -305,9 +306,9 @@ typedef struct GuiWindow
     unsigned int pressed;
 } GuiWindow;
 
-// the double-click window, the pixels a press may move and still count, the caret's blink, displayed for the first half of
-// its period and hidden for the second, and the input rest the caret is displayed through after a key before its blink
-// begins
+// the double-click window, the pixels a press may move and still count, the caret's blink, displayed for the first half
+// of its period and hidden for the second, and the input rest the caret is displayed through after a key before its
+// blink begins
 #define GUI_DOUBLE_CLICK_MS 500ull
 #define GUI_CLICK_ADJACENT 4
 #define GUI_CARET_BLINK_PERIOD_MS 1060ull
@@ -320,10 +321,10 @@ void gui_window_end(const GuiWindowCfg *args);
 // the window sized `width` by `height` at `scale`: its frame arranged and its raster made anew: 1, or 0 where the
 // raster's cell could not be taken
 int gui_window_resize(const GuiWindowWidthCfg *args);
-// Preferences' system window, which the program opens and closes as `preferences.displayed` says: its client sized at the
-// scale the system draws it at, the zoom positioned over that; an input in it, none of them the main window's and none of the
-// main window's its; where the pointer on the input is, as the names above give the places; and its frame drawn
-// into its own raster, the frame owed no more
+// Preferences' system window, which the program opens and closes as `preferences.displayed` says: its client sized at
+// the scale the system draws it at, the zoom positioned over that; an input in it, none of them the main window's and
+// none of the main window's its; where the pointer on the input is, as the names above give the places; and its frame
+// drawn into its own raster, the frame owed no more
 void gui_window_preferences_resize(const GuiWindowWidthCfg *args);
 void gui_window_preferences_input(const GuiWindowInputTypeCfg *args);
 unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args);
@@ -337,8 +338,8 @@ void gui_window_preferences_draw(const GuiWindowCfg *args);
 // system
 void gui_window_start(const GuiWindowCfg *args);
 void gui_window_preferences_close(const GuiWindowCfg *args);
-// the frame drawn into the raster not displayed, the frame owed no more; and the two flipped once that frame is presented,
-// the raster drawn the one displayed and the other the one to draw into
+// the frame drawn into the raster not displayed, the frame owed no more; and the two flipped once that frame is
+// presented, the raster drawn the one displayed and the other the one to draw into
 void gui_window_draw(const GuiWindowCfg *args);
 void gui_window_flip(const GuiWindowCfg *args);
 // the caret drawn again on the raster displayed, over the frame last drawn, at the ink its breath is at now, the frame
@@ -356,9 +357,9 @@ void gui_window_preferences_hits(const GuiWindowHitsCfg *args);
 // where the pointer on the input is; and an input in the main window, as its table says
 unsigned int gui_window_hit(const GuiWindowInputCfg *args);
 void gui_window_input(const GuiWindowInputTypeCfg *args);
-// on the window's thread, the modules stepped: the commands come through the interface run, the servers' reports and the
-// panels' timers taken, the terminal's shells drained, the notices' and the menus' timers taken, lines the walk colored
-// taken into the frame, what orior takes in RAM read when its time comes; each that changed owing a frame
+// on the window's thread, the modules stepped: the commands come through the interface run, the servers' reports and
+// the panels' timers taken, the terminal's shells drained, the notices' and the menus' timers taken, lines the walk
+// colored taken into the frame, what orior takes in RAM read when its time comes; each that changed owing a frame
 void gui_window_step(const GuiWindowCfg *args);
 // the tick the window asked for come: the claim's timers run and its parts positioned where its slides are, and the
 // ground drawn again where its loop shows a change; and when the window next wants a tick, in milliseconds, 0 for
@@ -370,8 +371,8 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 #define GUI_WINDOW_WAKES 23u
 extern const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES];
 unsigned int gui_window_timeout_source(void);
-// the frame positioned for the claim's movement at `time_ms`: while a slide runs the stage located then, the stages made
-// where a slide has been sent since they were; at rest the frame the slides rest at
+// the frame positioned for the claim's movement at `time_ms`: while a slide runs the stage located then, the stages
+// made where a slide has been sent since they were; at rest the frame the slides rest at
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args);
 // the system's wish for less motion set, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
 // folder, stills the lattice, the claim's slides, the name's flight and the caret's blink
@@ -569,9 +570,9 @@ EMBED_TABLE_STORAGE CliWindowIconNs cli_window_icon EMBED_UNUSED = {
 };
 
 // The dialog's system window (window_dialog.c), modal over the surface that owns it. A caller asks it with the texts
-// and the surface that owns it. Where `held` is set, the interface's held command takes the answer, the pressed button's
-// label or nothing for a close. Else `dialog_answer` retains the answer for the caller. The dialog shows only one ask at
-// a time, so a second ask while one shows is refused
+// and the surface that owns it. Where `held` is set, the interface's held command takes the answer, the pressed
+// button's label or nothing for a close. Else `dialog_answer` retains the answer for the caller. The dialog shows only
+// one ask at a time, so a second ask while one shows is refused
 typedef struct GuiWindowDialogAskCfg GuiWindowDialogAskCfg;
 typedef struct GuiWindowDialogWantCfg GuiWindowDialogWantCfg;
 int gui_window_dialog_ask(const GuiWindowDialogAskCfg *args);

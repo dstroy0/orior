@@ -252,6 +252,17 @@ int cli_output_terminal(void)
     return isatty(1);
 }
 
+// a pipe handle is the descriptor and one, as the spawn entries read it
+unsigned long long cli_standard_input(void)
+{
+    return 1ULL;
+}
+
+unsigned long long cli_standard_output(void)
+{
+    return 2ULL;
+}
+
 // the max bytes of the words this program was started with, read where none are given
 #define CLI_ARGUMENTS_TEXT (1u << 16u)
 

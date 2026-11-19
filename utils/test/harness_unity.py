@@ -275,6 +275,10 @@ def run_suites(root, names, library_built, sanitize=""):
     os.makedirs(run, exist_ok=True)
     flags = sanitize_words(root, sanitize) if sanitize else plain_words(root)
     env = sanitize_env(sanitize, "sanitizer", suite_env())
+    # impero as built beside the library, which the sessions suite starts as a session's far end
+    imp = os.path.join(root, "build", "cli", target + (("-" + sanitize) if sanitize else ""), "imp" + suffix)
+    if os.path.isfile(imp):
+        env = dict(env, ORIOR_IMP=imp)
     tests = 0
     failures = 0
     failing = []
