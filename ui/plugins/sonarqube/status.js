@@ -14,10 +14,8 @@ let changing = null;
 // The panel a status is chosen in: the statuses allowed, a comment where one is asked, and Change.
 async function drawStatus(title, statuses, comment, labels = {}) {
   const options = statuses.map((one) => `<label><input type="radio" name="status" value="${escaped(one)}"> ${escaped(labels[one] ?? one)}</label>`).join("");
-  await displayed(
-    "status",
-    `<h1>${escaped(title)}</h1><form>${options}${comment ? `<label>${escaped(comment)}<br><textarea name="comment"></textarea></label>` : ""}${button("Change Status", "status-change")}</form>`,
-  );
+  const asked = comment ? "<label>" + escaped(comment) + '<br><textarea name="comment"></textarea></label>' : "";
+  await displayed("status", `<h1>${escaped(title)}</h1><form>${options}${asked}${button("Change Status", "status-change")}</form>`);
 }
 
 // An issue resolved: the statuses the server allows for it chosen from, and a comment.
@@ -165,9 +163,11 @@ async function hotspotsScanned() {
 async function drawCompile(message) {
   const found = (await orior.tree.files().catch(() => [])).filter((path) => path.split("/").pop() === "compile_commands.json");
   const rows = found.map((path) => `<li>${button(path, "compile-choose", path)}</li>`).join("");
+  const said = message ? "<p>" + escaped(message) + "</p>" : "";
+  const list = rows ? "<ul>" + rows + "</ul>" : '<p class="quiet">No compile_commands.json is in the tree: generate one with your build to analyze C and C++.</p>';
   await displayed(
     "compile",
-    `<h1>Compilation database</h1>${message ? `<p>${escaped(message)}</p>` : ""}<p>Now: ${escaped(sonar.settings?.pathToCompileCommands ?? "none")}</p>${rows ? `<ul>${rows}</ul>` : '<p class="quiet">No compile_commands.json is in the tree: generate one with your build to analyze C and C++.</p>'}${button("Do Not Ask Again", "compile-quiet")}`,
+    `<h1>Compilation database</h1>${said}<p>Now: ${escaped(sonar.settings?.pathToCompileCommands ?? "none")}</p>${list}${button("Do Not Ask Again", "compile-quiet")}`,
   );
 }
 
@@ -198,10 +198,14 @@ async function drawLanguages() {
   const rows = sonar.statuses
     .slice()
     .sort((one, other) => String(one.language).localeCompare(String(other.language)))
-    .map(
-      (one) =>
-        `<tr><td>${escaped(one.language)}</td><td>${escaped(one.pluginName)}</td><td>${escaped(one.state)}</td><td>${escaped(one.source)}${one.serverVersion ? ` ${escaped(one.serverVersion)}` : ""}</td><td>${escaped(one.actualVersion ?? "")}${one.overriddenVersion ? ` (${escaped(one.overriddenVersion)})` : ""}</td></tr>`,
-    )
+    .map((one) => {
+      const server = one.serverVersion ? " " + escaped(one.serverVersion) : "";
+      const overridden = one.overriddenVersion ? " (" + escaped(one.overriddenVersion) + ")" : "";
+      return `<tr><td>${escaped(one.language)}</td><td>${escaped(one.pluginName)}</td><td>${escaped(one.state)}</td><td>${escaped(one.source)}${server}</td><td>${escaped(one.actualVersion ?? "")}${overridden}</td></tr>`;
+    })
     .join("");
-  await displayed("languages", `<h1>Supported languages and analyzers</h1>${rows ? `<table><tr><th>Language</th><th>Analyzer</th><th>State</th><th>Source</th><th>Version</th></tr>${rows}</table>` : '<p class="quiet">The server has not said yet.</p>'}`);
+  const table = rows
+    ? "<table><tr><th>Language</th><th>Analyzer</th><th>State</th><th>Source</th><th>Version</th></tr>" + rows + "</table>"
+    : '<p class="quiet">The server has not said yet.</p>';
+  await displayed("languages", `<h1>Supported languages and analyzers</h1>${table}`);
 }

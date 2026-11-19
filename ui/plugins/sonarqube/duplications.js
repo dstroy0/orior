@@ -19,7 +19,7 @@ async function boundServer() {
   if (!one) {
     return { failed: "The tree is bound to no project: bind it through SonarQube: Connections and Bindings first" };
   }
-  const base = one.cloud ? (one.region === "US" ? "https://sonarqube.us" : "https://sonarcloud.io") : one.serverUrl;
+  const base = one.cloud ? cloudBase(one.region) : one.serverUrl;
   const token = (await orior.secrets.read(tokenKey(one)).catch(() => null)) ?? "";
   return { one, base, token, projectKey: project.projectKey, organization: one.cloud ? one.organizationKey : null };
 }
@@ -38,7 +38,8 @@ async function asked(server, path, params) {
         return "";
       }
     })();
-    throw new Error(`${path}: the server answered ${answer.status}${said ? `: ${said}` : ""}`);
+    const reason = said ? ": " + said : "";
+    throw new Error(`${path}: the server answered ${answer.status}${reason}`);
   }
   return JSON.parse(answer.body);
 }
@@ -96,7 +97,12 @@ async function drawDuplications() {
   const lines = files.reduce((sum, file) => sum + file.lines, 0);
   const rows = groups
     .map((blocks, at) => {
-      const places = blocks.map((block, which) => `${linked(`${block.path}:${block.from}`, "duplication-open", `${at}:${which}`)} <span class="quiet">${block.size} lines</span>`).join("<br>");
+      const places = blocks
+        .map((block, which) => {
+          const link = linked(block.path + ":" + block.from, "duplication-open", at + ":" + which);
+          return `${link} <span class="quiet">${block.size} lines</span>`;
+        })
+        .join("<br>");
       return `<tr><td>${blocks[0].size}</td><td>${blocks.length}</td><td>${places}</td></tr>`;
     })
     .join("");
@@ -104,7 +110,8 @@ async function drawDuplications() {
   const summary = files.length
     ? `<p>${lines} duplicated lines in ${files.length} files, in ${groups.length} groups of blocks found the same, from the server's last analysis of the project.</p>`
     : `<p class="quiet">The server holds no duplicated lines for ${escaped(server.projectKey)}: the project has no analysis of its whole code yet, or none is duplicated. The scanner runs such an analysis; this plugin reads what it found.</p>`;
-  await displayed("duplications", `<h1>Duplications</h1><div class="row">${button("Read Again", "duplication-refresh")}</div>${summary}${rows ? `<table><tr><th>Lines</th><th>Places</th><th>Blocks</th></tr>${rows}</table>` : ""}`);
+  const table = rows ? "<table><tr><th>Lines</th><th>Places</th><th>Blocks</th></tr>" + rows + "</table>" : "";
+  await displayed("duplications", `<h1>Duplications</h1><div class="row">${button("Read Again", "duplication-refresh")}</div>${summary}${table}`);
 }
 
 onPressed("duplication-refresh", () => drawDuplications());

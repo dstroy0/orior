@@ -88,7 +88,8 @@ function tokenKey(connection) {
   if (connection.serverUrl !== undefined) {
     return connection.serverUrl;
   }
-  return `${connection.region ? `${connection.region}_` : ""}${connection.organizationKey}`;
+  const region = connection.region ? connection.region + "_" : "";
+  return region + connection.organizationKey;
 }
 
 orior.server.on("sonarlint/getTokenForServer", async (serverOrOrganization) => orior.secrets.read(String(serverOrOrganization)));
@@ -97,7 +98,7 @@ orior.server.on("sonarlint/getTokenForServer", async (serverOrOrganization) => o
 function machineArguments() {
   const line = String(sonar.settings?.ls?.vmargs ?? "");
   return (line.match(/(?:[^\s"]+|"[^"]*")+/g) ?? [])
-    .map((one) => one.replace(/(\\)?"/g, (whole, slash) => (slash ? whole : "")).replace(/\\"/g, '"'))
+    .map((one) => one.replace(/(\\)?"/g, (whole, slash) => (slash ? whole : "")).replaceAll('\\"', '"'))
     .filter((one, at, all) => all.indexOf(one) === at);
 }
 

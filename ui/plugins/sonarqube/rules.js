@@ -19,7 +19,7 @@ pre[data-diff-type=noncompliant]{border-left:3px solid #c74e39}pre[data-diff-typ
 
 // A word as a capitalized label.
 function capitalized(word) {
-  const text = String(word ?? "").toLocaleLowerCase("en-us").replace(/_/g, " ");
+  const text = String(word ?? "").toLocaleLowerCase("en-us").replaceAll("_", " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
@@ -42,12 +42,14 @@ function taxonomy(rule) {
 function contexts(tab, at) {
   const chosenKey = tab.defaultContextKey || "others";
   const title = tab.title.endsWith("?") ? tab.title.slice(0, -1) : tab.title;
-  return `<div class="contexts">${tab.ruleDescriptionTabContextual
-    .map(
-      (one, inner) =>
-        `<input type="radio" name="contexts-${at}" id="context-${at}-${inner}"${String(one.contextKey) === chosenKey ? " checked" : ""}><label for="context-${at}-${inner}">${escaped(one.displayName)}</label><section>${one.contextKey === "others" ? "" : `<h4>${escaped(title)} in ${escaped(one.displayName)}</h4>`}<div>${one.htmlContent}</div></section>`,
-    )
-    .join("")}</div>`;
+  const choices = tab.ruleDescriptionTabContextual
+    .map((one, inner) => {
+      const checked = String(one.contextKey) === chosenKey ? " checked" : "";
+      const heading = one.contextKey === "others" ? "" : "<h4>" + escaped(title) + " in " + escaped(one.displayName) + "</h4>";
+      return `<input type="radio" name="contexts-${at}" id="context-${at}-${inner}"${checked}><label for="context-${at}-${inner}">${escaped(one.displayName)}</label><section>${heading}<div>${one.htmlContent}</div></section>`;
+    })
+    .join("");
+  return `<div class="contexts">${choices}</div>`;
 }
 
 // The rule's description: its tabs, each a choice, or the one description where it has none.
@@ -56,12 +58,14 @@ function described(rule) {
   if (!tabs.length) {
     return `<div>${rule.htmlDescription ?? ""}</div>`;
   }
-  return `<main class="tabs">${tabs
-    .map(
-      (tab, at) =>
-        `<input type="radio" name="tabs" id="tab-${at}"${at === 0 ? " checked" : ""}><label for="tab-${at}">${escaped(tab.title)}</label><section>${tab.hasContextualInformation ? contexts(tab, at) : `<div>${tab.ruleDescriptionTabNonContextual?.htmlContent ?? ""}</div>`}</section>`,
-    )
-    .join("")}</main>`;
+  const choices = tabs
+    .map((tab, at) => {
+      const checked = at === 0 ? " checked" : "";
+      const body = tab.hasContextualInformation ? contexts(tab, at) : "<div>" + (tab.ruleDescriptionTabNonContextual?.htmlContent ?? "") + "</div>";
+      return `<input type="radio" name="tabs" id="tab-${at}"${checked}><label for="tab-${at}">${escaped(tab.title)}</label><section>${body}</section>`;
+    })
+    .join("");
+  return `<main class="tabs">${choices}</main>`;
 }
 
 // The rule's parameters and what the settings set each to.
@@ -104,7 +108,7 @@ async function ruleToggled(key, level, activeByDefault) {
   await settingsChanged((settings) => {
     const rules = { ...settings.rules };
     if (activeByDefault === undefined || (level === "on" && !activeByDefault) || (level === "off" && activeByDefault)) {
-      rules[key] = { ...(rules[key] ?? {}), level };
+      rules[key] = { ...rules[key], level };
     } else {
       delete rules[key];
     }
@@ -144,7 +148,7 @@ async function drawRules(filter, key) {
   sonar.rules = await orior.server.request("sonarlint/listAllRules", null).catch(() => sonar.rules ?? {});
   const wanted = key ? String(key).toUpperCase() : null;
   const sections = Object.keys(sonar.rules)
-    .sort()
+    .sort((one, other) => one.localeCompare(other))
     .map((language) => {
       const rows = sonar.rules[language]
         .map((rule) => ({ rule, on: (ruleLevel(rule.key) ?? (rule.activeByDefault ? "on" : "off")) === "on" }))

@@ -13,35 +13,44 @@ const SCAN_FILES_MAX = 1000;
 const SCAN_FILE_BYTES = 500000;
 
 // A glob of the settings as a pattern: `**` any folders, `*` any characters but `/`, `?` any character.
+// The pattern of the run of stars at `at` in the glob, and the place after the run and after the slash that a `**`
+// folder takes with it.
+function starsPattern(glob, at) {
+  const before = glob[at - 1];
+  let end = at + 1;
+  while (glob[end] === "*") {
+    end += 1;
+  }
+  const after = glob[end];
+  if (end - at > 1 && (before === "/" || before === undefined) && (after === "/" || after === undefined)) {
+    return { pattern: "((?:[^/]*(?:/|$))*)", next: end + 1 };
+  }
+  return { pattern: "([^/]*)", next: end };
+}
+
 function globPattern(glob) {
   if (/^\*\*\/\*\.[a-z0-9]{1,6}$/.test(glob)) {
-    return `\\.${glob.slice(5)}$`;
+    return String.raw`\.${glob.slice(5)}$`;
   }
   const special = new Set([".", "+", "/", "|", "$", "^", "(", ")", "=", "!", ","]);
   let pattern = "";
-  for (let at = 0; at < glob.length; at += 1) {
+  let at = 0;
+  while (at < glob.length) {
     const character = glob[at];
+    if (character === "*") {
+      const stars = starsPattern(glob, at);
+      pattern += stars.pattern;
+      at = stars.next;
+      continue;
+    }
     if (special.has(character)) {
-      pattern += `\\${character}`;
-    } else if (character === "*") {
-      const before = glob[at - 1];
-      let stars = 1;
-      while (glob[at + 1] === "*") {
-        stars += 1;
-        at += 1;
-      }
-      const after = glob[at + 1];
-      if (stars > 1 && (before === "/" || before === undefined) && (after === "/" || after === undefined)) {
-        pattern += "((?:[^/]*(?:/|$))*)";
-        at += 1;
-      } else {
-        pattern += "([^/]*)";
-      }
+      pattern += "\\" + character;
     } else if (character === "?") {
       pattern += ".";
     } else {
       pattern += character;
     }
+    at += 1;
   }
   return `^${pattern}$`;
 }
@@ -113,15 +122,11 @@ async function foundFile(path, read) {
 orior.server.on("sonarlint/listFilesInFolder", async ({ folderUri }) => {
   sonar.folder ??= folderUri;
   const files = await orior.tree.files().catch(() => []);
-  const found = [];
-  for (const path of files) {
+  const wanted = files.filter((path) => {
     const name = path.split("/").pop();
-    if (name === SCANNER_PROPERTIES || name === AUTOSCAN_PROPERTIES) {
-      found.push(await foundFile(path, true));
-    } else if (/^\.sonarlint\/[^/]+\.json$/.test(path)) {
-      found.push(await foundFile(path, true));
-    }
-  }
+    return name === SCANNER_PROPERTIES || name === AUTOSCAN_PROPERTIES || /^\.sonarlint\/[^/]+\.json$/.test(path);
+  });
+  const found = await Promise.all(wanted.map((path) => foundFile(path, true)));
   return { foundFiles: found };
 });
 
@@ -129,22 +134,24 @@ orior.server.on("sonarlint/listFilesInFolder", async ({ folderUri }) => {
 // reads by the patterns it gives, git does not ignore and the settings do not exclude.
 async function scannedFiles(patterns) {
   const files = await orior.tree.files().catch(() => []);
-  const matching = [];
-  for (const path of files) {
+  const excluded = excludedGlobs();
+  const read = files.filter((path) => {
     const uri = uriInTree(path);
-    if (globbed(uri, patterns) && !globbed(uri, excludedGlobs()) && !(await orior.git.ignored(path).catch(() => false))) {
-      matching.push(path);
-    }
-  }
-  return matching;
+    return globbed(uri, patterns) && !globbed(uri, excluded);
+  });
+  const ignored = await Promise.all(read.map((path) => orior.git.ignored(path).catch(() => false)));
+  return read.filter((path, at) => !ignored[at]);
 }
 
 // The documents a scan for hotspots passes the server: each file's text as the editor holds it or the
 // disk does, a file past the largest size left out.
 async function scannedDocuments(paths) {
+  const texts = await Promise.all(
+    paths.map((path) => (sonar.open.has(path) ? orior.editor.text(path) : orior.files.read(path)).catch(() => null)),
+  );
   const documents = [];
-  for (const path of paths) {
-    const text = sonar.open.has(path) ? await orior.editor.text(path).catch(() => null) : await orior.files.read(path).catch(() => null);
+  for (const [at, path] of paths.entries()) {
+    const text = texts[at];
     if (text === null || text.length > SCAN_FILE_BYTES) {
       logged(`File will not be analysed because it's too large: ${path}`);
       continue;
