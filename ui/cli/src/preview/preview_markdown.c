@@ -1467,6 +1467,7 @@ static unsigned int list_positioned(const MarkdownCtx *args)
     const char *const text = args->text;
     int *const y = args->y;
     MarkdownItem first;
+    memor.set(&(MemoriaCfg){.dst = &first, .val = 0, .bytes = sizeof(first)});
     (void)EMBED_CALL(slice_item, MarkdownCtx, .text = text, .slice = &args->lines[args->at], .item_out = &first);
     unsigned long long number = first.number;
     unsigned int at = args->at;

@@ -480,7 +480,7 @@ int cli_job_runs_line_read(const CliJobRunsRowCfg *args)
             .dst = &s_line_spans[at],
             .src = anularis.seg_at(&(AnularisCfg){
                 .ring = &rings->span, .index = MMGR_RING_WRAP(line.span_first + at, CLI_JOB_RUNS_SPANS_MAX)}),
-            .bytes = sizeof(*s_line_spans)});
+            .bytes = sizeof(s_line_spans[0])});
     }
     *args->line_out = (CliJobRunLine){s_line_text, length, (spans != 0u) ? s_line_spans : NULL, spans, line.stream};
     return 1;

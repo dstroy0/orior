@@ -172,7 +172,7 @@ typedef struct
     unsigned int at;
     CliJobRunsGroup *group;
     CliJobRunsRun *run;
-    CliJobRunsSection *section;
+    const CliJobRunsSection *section;
 } CliJobRunsCellCfg;
 int cli_job_runs_group_write(const CliJobRunsCellCfg *args);
 int cli_job_runs_run_write(const CliJobRunsCellCfg *args);

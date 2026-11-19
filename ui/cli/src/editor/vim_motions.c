@@ -452,7 +452,7 @@ void cli_vim_motion(const CliVimCtx *args)
         const unsigned long long half = ((rows / 2u) > 1u) ? (unsigned long long)(rows / 2u) : 1ULL;
         const unsigned long long by = ((name == CLI_VIM_DOWN) || (name == CLI_VIM_UP)) ? half * times : times;
         const int down = (name == 'j') || (name == CLI_VIM_DOWN);
-        unsigned long long line = from.line;
+        unsigned long long line;
         if (down)
         {
             line = ((last_line - from.line) > by) ? from.line + by : last_line;

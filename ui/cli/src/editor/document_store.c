@@ -1045,6 +1045,8 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
     // so the words hold as many changes as the two have lines
     CliLines then;
     CliLines now;
+    memor.set(&(MemoriaCfg){.dst = &then, .val = 0, .bytes = sizeof(then)});
+    memor.set(&(MemoriaCfg){.dst = &now, .val = 0, .bytes = sizeof(now)});
     const int copied = EMBED_CALL(stored_copy_enter, DocumentStoreCtx, .stored_read = &one->head, .lines = &then) &&
                        EMBED_CALL(stored_copy_enter, DocumentStoreCtx, .stored_read = &one->lines, .lines = &now);
     // the lines of both texts are far below 2^32

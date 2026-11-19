@@ -986,7 +986,7 @@ struct CliSpawnLinesCtx
     unsigned long long pipe_handle;
     char *line;
     unsigned long long capacity;
-    void (*each)(void *context, char *line, unsigned long long used);
+    void (*each)(void *context, const char *line, unsigned long long used);
     void *context;
 };
 

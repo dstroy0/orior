@@ -236,7 +236,6 @@ EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
     unsigned long long size = args->size;
     char home[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    char snapshot[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home))
     {
         mmgr_line_put(args->err_msg, s_no_home);

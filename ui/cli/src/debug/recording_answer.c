@@ -146,7 +146,6 @@ EMBED_INLINE void answer_variables(const RecordingAnswerCtx *args)
 EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
-    const CliRecording *const recording = &g_cli_replay->recording;
     unsigned long long length = 0ULL;
     const char *name = EMBED_CALL(answer_text, RecordingAnswerCtx, .json = json, .arguments = args->arguments,
                                   .name = "expression", .length = &length);

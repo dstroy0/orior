@@ -870,6 +870,7 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     g_cli_guard->persistent_buf_release(scratch, g_cli_diff_view_owner);
     // the two sides' lines in cells of this call, compared, then retained in the view's lines cell
     CliLines positioned[2];
+    memor.set(&(MemoriaCfg){.dst = positioned, .val = 0, .bytes = sizeof(positioned)});
     unsigned char *cells[2] = {NULL, NULL};
     const int opened = copied &&
                        EMBED_CALL(lines_positioned, DiffViewCtx, .err_msg = args->err_msg, .on = on,

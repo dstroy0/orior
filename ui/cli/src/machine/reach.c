@@ -485,7 +485,8 @@ static void reach_released(const ReachCtx *args)
 {
     embed_u64 seen = 0u;
     (void)embed_ticket_ring_drain_release(&s_interface.turnstiles, &s_interface.ring, args->stamp, &seen);
-    embed_atomic_u32_store(&s_interface.taken, embed_ticket_of_stamp(args->stamp) + 1u);
+    // a ticket holds 32 bits at most, and the next ticket wraps to 0 as the 32 bit count of taken tickets does
+    embed_atomic_u32_store(&s_interface.taken, (embed_u32)(embed_ticket_of_stamp(args->stamp) + 1u));
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_interface.room);
 }
 

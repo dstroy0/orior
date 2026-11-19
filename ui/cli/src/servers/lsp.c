@@ -271,7 +271,7 @@ static void lsp_complaint_line(const LspCtx *args)
 }
 
 // a line the pipe's reader cut from the server's errors, retained
-static void lsp_complaint_each(void *context, char *line, unsigned long long used)
+static void lsp_complaint_each(void *context, const char *line, unsigned long long used)
 {
     EMBED_CALL(lsp_complaint_line, LspCtx, .lsp = (CliLsp *)context, .line = line, .size = used);
 }

@@ -231,7 +231,7 @@ EMBED_INLINE int install_license(const InstallCtx *args)
     VerbaLinea line = {path, sizeof(path), 0ULL};
     EMBED_CALL(install_joined, InstallCtx, .line = &line, .folder = args->folder, .name = "LICENSE");
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_license, sizeof(s_license) - 1u);
-    if ((size != QRY_MEMBER_UNREAD) && (size != 0ULL))
+    if ((size != QRY_MEMBER_UNREAD) && (size != 0ULL) && (size < sizeof(s_license)))
     {
         s_license[size] = '\0';
         args->cfg->say(args->cfg->context, s_license);
@@ -630,7 +630,7 @@ int cli_install_run(const CliInstallCfg *args)
 EMBED_INLINE unsigned long long install_record_read(const InstallCtx *args)
 {
     const unsigned long long size = qry_member_file_read(args->path, (unsigned char *)s_record, sizeof(s_record) - 1u);
-    if ((size == QRY_MEMBER_UNREAD) || (size == 0ULL))
+    if ((size == QRY_MEMBER_UNREAD) || (size == 0ULL) || (size >= sizeof(s_record)))
     {
         return 0ULL;
     }

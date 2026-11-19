@@ -5514,7 +5514,6 @@ EMBED_INLINE void view_top_put(const ViewCtx *args)
 // reserved for the view, 0 where it was not or an edit failed with why into `err_msg`
 EMBED_INLINE int view_input_taken(const ViewCtx *args)
 {
-    const char *key = args->key;
     CliView *const view = args->view;
     int reserved = 1;
     EMBED_CALL(view_folds_refresh, ViewCtx, .view = view);
