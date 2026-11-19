@@ -197,8 +197,8 @@ typedef struct
 // the columns a frame cuts its rows at while nothing has told the view its size
 #define CLI_VIEW_UNSIZED_COLUMNS 256ULL
 #define CLI_VIEW_STEP_EDITS 256u
-// the max of each list a view retains; each list's movable cell is taken once at its max, but for the steps' cell, which
-// grows with its steps
+// the max of each list a view retains; each list's movable cell is taken once at its max, but for the steps' cell,
+// which grows with its steps
 #define CLI_VIEW_FOLDS 65536u
 #define CLI_VIEW_TABLE_COLUMNS 256u
 #define CLI_VIEW_STEPS 4096u
@@ -364,6 +364,7 @@ typedef struct
     const ViewPairRead *pair_other;
     unsigned long long serial;
     unsigned int states;
+    unsigned long long reach;
 } ViewCtx;
 
 // A view's lists live in movable cells, which the mover sorts down; a record is read by value and written back.
@@ -2611,8 +2612,7 @@ EMBED_INLINE int view_steps_room(const ViewCtx *args)
     CliView *const view = args->view;
     if ((view->steps == view->steps_capacity) && (view->steps_capacity < CLI_VIEW_STEPS))
     {
-        const unsigned int doubled =
-            (view->steps_capacity == 0u) ? CLI_VIEW_STEPS_FIRST : (view->steps_capacity * 2u);
+        const unsigned int doubled = (view->steps_capacity == 0u) ? CLI_VIEW_STEPS_FIRST : (view->steps_capacity * 2u);
         const unsigned int capacity = (doubled < CLI_VIEW_STEPS) ? doubled : CLI_VIEW_STEPS;
         const CarcerMovableEntry *const grown =
             g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliViewStep), g_cli_views_owner);
@@ -3392,12 +3392,13 @@ EMBED_INLINE int view_character_type(const ViewCtx *args)
         // a quote typed inside a string or a comment, as the run under the unit before it is named, or after an odd
         // count of its own kind on the line, those escaped left out, closes or is text, and brings no closer
         const int quoted =
-            quote && (((EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = args->view->key,
-                                   .line = (unsigned int)from.line, .col = (from.col > 0ULL) ? (from.col - 1ULL) : 0ULL) &
-                        CLI_ROLE_QUOTED) != 0u) ||
-                      ((EMBED_CALL(view_quotes_before, ViewCtx, .view = args->view, .line = from.line, .col = from.col,
-                                   .unit = character) %
-                        2u) == 1u));
+            quote &&
+            (((EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = args->view->key,
+                          .line = (unsigned int)from.line, .col = (from.col > 0ULL) ? (from.col - 1ULL) : 0ULL) &
+               CLI_ROLE_QUOTED) != 0u) ||
+             ((EMBED_CALL(view_quotes_before, ViewCtx, .view = args->view, .line = from.line, .col = from.col,
+                          .unit = character) %
+               2u) == 1u));
         const int prev_ok = !quote || (!quoted && ((prev != 0u) ? (!EMBED_CALL(view_word_unit, ViewCtx, .unit = prev) &&
                                                                    (prev != '\\') && (prev != character))
                                                                 : 1));
@@ -5168,14 +5169,14 @@ EMBED_INLINE int view_move_key(const ViewCtx *args)
 EMBED_INLINE void view_line_place(const CliStoredText *one, unsigned long long line, unsigned long long *start,
                                   unsigned long long *length)
 {
-    (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = one->lines.starts, .offset = line * sizeof(*start), .dst = start, .bytes = sizeof(*start)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = one->lines.starts, .offset = line * sizeof(*start), .dst = start, .bytes = sizeof(*start)});
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = one->lines.lengths, .offset = line * sizeof(*length), .dst = length, .bytes = sizeof(*length)});
 }
 
-// This function puts the selection on the system's clipboard. Where nothing is chosen, it puts the cursor's line and its
-// line end. The clipboard reads each line's span from the text's cell, and puts its own line end between lines. It
+// This function puts the selection on the system's clipboard. Where nothing is chosen, it puts the cursor's line and
+// its line end. The clipboard reads each line's span from the text's cell, and puts its own line end between lines. It
 // writes the span it put into `from_pointer` and `to_pointer`. It gives 1, or 0 where the clipboard took nothing.
 EMBED_INLINE int view_copied(const ViewCtx *args)
 {
@@ -5218,10 +5219,10 @@ EMBED_INLINE int view_copied(const ViewCtx *args)
         view_line_place(one, line, &start, &length);
         const unsigned long long first = (line == from.line) ? from.col : 0ULL;
         const unsigned long long end = (line == to.line) ? to.col : length;
-        (void)cli_clipboard_units_append(&(CarcerMovableCfg){
-            .cell = one->lines.units,
-            .offset = (start + first) * sizeof(unsigned short),
-            .bytes = ((end > first) ? (end - first) : 0ULL) * sizeof(unsigned short)});
+        (void)cli_clipboard_units_append(
+            &(CarcerMovableCfg){.cell = one->lines.units,
+                                .offset = (start + first) * sizeof(unsigned short),
+                                .bytes = ((end > first) ? (end - first) : 0ULL) * sizeof(unsigned short)});
         if (line < to.line)
         {
             (void)cli_clipboard_units_break(&(CliClipboardUnitsCtx){.count = 0ULL});
@@ -5657,11 +5658,11 @@ static int s_pair_ring_positioned;
 static ViewPairRead s_pair_answer;
 static ViewPairRead s_pair_request;
 
-// the bracket pair at the cursor of `read`, into its `pair` and `found`: the bracket that ends at the cursor, else the
-// one that starts at it, first and the one it pairs with second. It reads the text's lines from as far above and below
-// the cursor as CLI_VIEW_PAIR_LINES reach, and no others, as the tree reads a text from the state of the first line.
-// `found` is 0 where no bracket of a pair is at the cursor or the lines do not read
-static void view_pair_read(const ViewCtx *args)
+// The bracket pair at the cursor of `read` within `reach` lines of it, into its `pair` and `found`: the bracket that
+// ends at the cursor, else the one that starts at it, first and the one it pairs with second. The lines read start
+// from the state the tree keeps for the first of them. Returns whether a bracket of a pair stands at the cursor at
+// all, which a wider reach may still pair
+static int view_pair_within(const ViewCtx *args)
 {
     args->read->found = 0;
     unsigned long long low = 0ULL;
@@ -5669,10 +5670,10 @@ static void view_pair_read(const ViewCtx *args)
     (void)EMBED_CALL(cli_document_key_low.bounds, CliDocumentKeyLowCfg, .key = args->read->key, .low = &low,
                      .high = &high);
     const unsigned long long line = args->read->cursor.line;
-    const unsigned long long reach = (line > CLI_VIEW_PAIR_LINES) ? (line - CLI_VIEW_PAIR_LINES) : 0ULL;
+    const unsigned long long reach = (line > args->reach) ? (line - args->reach) : 0ULL;
     const unsigned long long start = (reach > low) ? reach : low;
     const unsigned long long end =
-        ((high != 0ULL) && ((line + CLI_VIEW_PAIR_LINES) >= high)) ? (high - 1ULL) : (line + CLI_VIEW_PAIR_LINES);
+        ((high != 0ULL) && ((line + args->reach) >= high)) ? (high - 1ULL) : (line + args->reach);
     const unsigned long long first = (start < line) ? start : line;
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
@@ -5682,20 +5683,37 @@ static void view_pair_read(const ViewCtx *args)
                                   .capacity = sizeof(state), .owner = g_cli_views_owner);
     if (text == NULL)
     {
-        return;
+        return 0;
     }
     CliSymbolPosition found[2] = {{0u, 0u}, {0u, 0u}};
+    int bracket = 0;
     // a place in a text a view shows is below 2^32 lines and columns
     args->read->found = EMBED_CALL(
         cli_symbols_path_text_size_state.pair, CliSymbolsPathTextSizeStateCfg, .path = args->read->path,
         .state = (state[0] != '\0') ? state : "root", .text = text, .size = size,
         .at_symbol_position = (CliSymbolPosition){(unsigned int)(line - first), (unsigned int)args->read->cursor.col},
-        .pair = found);
+        .pair = found, .bracket_pointer = &bracket);
     g_cli_guard->persistent_buf_release(text, g_cli_views_owner);
     for (unsigned int at = 0u; args->read->found && (at < 2u); at += 1u)
     {
         args->read->pair[at].line = first + found[at].line;
         args->read->pair[at].col = found[at].col;
+    }
+    return bracket;
+}
+
+// The bracket pair at the cursor of `read`, into its `pair` and `found`. The cursor's line alone is read first, and a
+// cursor on no bracket ends there, which is most cursor moves. A bracket at the cursor widens the reach a step at a
+// time, to CLI_VIEW_PAIR_LINES above and below, until its peer is in the lines read. `found` is 0 where no bracket
+// of a pair is at the cursor, its peer lies past the reach, or the lines do not read
+static void view_pair_read(const ViewCtx *args)
+{
+    static const unsigned long long s_reaches[] = {0ULL, 64ULL, 512ULL, CLI_VIEW_PAIR_LINES};
+    int bracket = 1;
+    for (unsigned int at = 0u; bracket && !args->read->found && (at < (sizeof(s_reaches) / sizeof(s_reaches[0])));
+         at += 1u)
+    {
+        bracket = EMBED_CALL(view_pair_within, ViewCtx, .read = args->read, .reach = s_reaches[at]);
     }
 }
 

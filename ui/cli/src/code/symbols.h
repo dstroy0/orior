@@ -49,8 +49,8 @@ int cli_symbols_reads(const CliSymbolsPathNameCfg *args);
 void cli_symbols_declare(const CliSymbolsPathTextSizeCfg *args);
 // How well `query` names `name`, higher the better, into `points`: the name itself first, then a name it begins, then
 // one containing it, then one whose words it starts, as `gtf` starts `go_to_file` and `goToFile`, then one containing
-// its characters in order. Case is set aside, and the shorter of two names that answer alike comes first. 1, or 0 where it
-// does not name it
+// its characters in order. Case is set aside, and the shorter of two names that answer alike comes first. 1, or 0 where
+// it does not name it
 int cli_symbols_score(const CliSymbolsQueryCfg *args);
 // every branch forgotten, for a tree opened in place of the last
 void cli_tree_forgotten(void);
@@ -361,6 +361,7 @@ struct CliSymbolsPathTextSizeStateCfg
     const char *state;
     CliSymbolPosition at_symbol_position;
     CliSymbolPosition *pair;
+    int *bracket_pointer; /**< Set to whether a bracket is at the position, where the caller gives one. */
 };
 
 struct CliSymbolsPathNameCfg
@@ -602,10 +603,10 @@ EMBED_TABLE_STORAGE CliSymbolsPathTextSizeStateNs cli_symbols_path_text_size_sta
     .pair = cli_symbols_pair,
 };
 
-// The outline, the declarations of the view displayed as rows (symbols_outline.c): a row is a declaration's name, `length`
-// bytes, what it is, its line counted from 0, and how deep it is, its line's indent in steps of the text's smallest
-// indent, no deeper than CLI_OUTLINE_DEEPEST. A text longer than CLI_OUTLINE_LINES_MAX lines has no rows, and at max
-// CLI_OUTLINE_ROWS are read
+// The outline, the declarations of the view displayed as rows (symbols_outline.c): a row is a declaration's name,
+// `length` bytes, what it is, its line counted from 0, and how deep it is, its line's indent in steps of the text's
+// smallest indent, no deeper than CLI_OUTLINE_DEEPEST. A text longer than CLI_OUTLINE_LINES_MAX lines has no rows, and
+// at max CLI_OUTLINE_ROWS are read
 #define CLI_OUTLINE_DEEPEST 5u
 #define CLI_OUTLINE_ROWS 4096u
 #define CLI_OUTLINE_LINES_MAX 50000ULL

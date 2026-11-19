@@ -58,8 +58,10 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #define GUI_BORDER 5
 #define GUI_WINDOW_HIT_CLIENTS (GUI_MENUBAR_TITLES + GUI_MENU_LEVELS + 1u + GUI_TOP_MENU_TOOLS)
 #define GUI_VIEW_FRAME_MS 17u
-// the least milliseconds between two readings of what orior takes in RAM, read on ticks that run for other reasons
+// the least milliseconds between two releases of the cellblock's free pages to the system, on ticks that run for
+// other reasons, and the bytes of the RAM readout's last digit, a tenth of a megabyte
 #define GUI_MEMORY_MS 2000ULL
+#define GUI_MEMORY_TENTH (1024ULL * 1024ULL / 10ULL)
 // the inputs the window's own pointer drives that wait for the view's thread at once: a drag's press, its places and
 // its release
 #define GUI_WINDOW_DRIVEN 64u

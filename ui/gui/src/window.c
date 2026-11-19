@@ -6475,26 +6475,26 @@ void gui_window_step(const GuiWindowCfg *args)
                        .height_px = window->frame.preview.height, .scale = window->frame.scale) ||
             window->pending;
     }
-    // The RAM readout reads the working set on a tick that runs for another reason, no sooner than GUI_MEMORY_MS after
-    // the last reading. It sets no deadline of its own, so an idle window draws no frame for it. A reading that
-    // changed draws the readout
+    // The RAM readout reads the working set on every tick, and a change the readout shows, a tenth of a megabyte,
+    // draws it. Nothing here sets a deadline, so an idle window draws no frame for it
+    CliProcessMemory measured;
+    const unsigned long long was = window->memory_bytes;
+    window->memory_bytes =
+        EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
+            ? measured.working
+            : 0ULL;
+    window->pending = ((window->memory_bytes / GUI_MEMORY_TENTH) != (was / GUI_MEMORY_TENTH)) || window->pending;
+    // The pages of the cellblock no cell holds go back to the system no sooner than GUI_MEMORY_MS after the last
+    // release, on a tick that runs for another reason, so the working set reads the live cells and not every page a
+    // take has touched since the window started
     if (now_ms >= window->memory_due_ms)
     {
-        CliProcessMemory measured;
-        const unsigned long long was = window->memory_bytes;
-        window->memory_bytes =
-            EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
-                ? measured.working
-                : 0ULL;
         if (window->telemetry)
         {
             cli_pool_telemetry_log();
         }
-        // the pages of the cellblock no cell holds go back to the system with each reading, and the working set reads
-        // the live cells and not every page a take has touched since the window started
         cli_pool_idle_released();
         window->memory_due_ms = now_ms + GUI_MEMORY_MS;
-        window->pending = (window->memory_bytes != was) || window->pending;
     }
     EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &window->busy,
                .running = cli_servers_problems_checking(), .now_ms = cli_clock_milliseconds());

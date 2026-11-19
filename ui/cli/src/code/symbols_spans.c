@@ -486,6 +486,10 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
                : read.count;
     const int opens = (bracket < read.count) && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx,
                                                            .read_read = &read, .leaf = bracket, .roles = CLI_LEAF_OPEN);
+    if (args->bracket_pointer != NULL)
+    {
+        *args->bracket_pointer = bracket < read.count;
+    }
     unsigned int peer;
     if (bracket >= read.count)
     {
