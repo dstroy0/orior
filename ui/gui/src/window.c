@@ -7378,6 +7378,8 @@ EMBED_INLINE void window_pressed(const GuiWindowCtx *args)
                        .table = foot ? EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = window)
                                      : EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window),
                        .row = hit->index, .frame = &window->frame,
+                       .pane = foot ? EMBED_CALL(window_foot_pane, GuiWindowCtx, .window = window)
+                                    : EMBED_CALL(window_pane, GuiWindowCtx, .window = window),
                        .pane_read = foot ? EMBED_CALL(window_foot_pane, GuiWindowCtx, .window = window)
                                          : EMBED_CALL(window_pane, GuiWindowCtx, .window = window),
                        .x = hit->x, .root = cli_command_line_root(), .open_out = &open))

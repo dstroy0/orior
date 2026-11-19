@@ -20,9 +20,11 @@
 #include "../../../../../ui/cli/src/machine/state.h"
 #include "../../../../../ui/cli/src/machine/trust.h"
 #include "../../../../../ui/cli/src/plugins/templates.h"
+#include "../../../../../ui/cli/src/runs/job_runs.h"
 #include "../../../../../ui/cli/src/terminal/terminal_tabs.h"
 #include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/gui/src/explorer.h"
+#include "../../../../../ui/gui/src/run.h"
 #include "../../../../../ui/gui/src/window.h"
 #include "../../../../../ui/query/src/query_internal.h"
 #include "../cli/cli_check.h"
@@ -1976,6 +1978,64 @@ static void view_checked(void)
     cli_check(asked("comms-view", NULL) && (s_window.side_menu.foot == GUI_SIDE_MENU_NONE), "and closes it again");
 }
 
+// the check's catalog for the Run pane: one job of one word param
+static CliJob s_run_jobs[4];
+static CliParam s_run_params[4];
+static CliStep s_run_steps[4];
+static CliArg s_run_args[4];
+static unsigned int s_run_lists[8];
+static char s_run_text[1024];
+static CliCatalog s_run_catalog;
+
+// the Run pane at the foot: a job's param row pressed through the window gives the pane the keys, and the text typed
+// reaches the param's value in place of the editor
+static void run_keys_checked(void)
+{
+    tabs_closed("run_typed.txt", "one\n", NULL, NULL);
+    cli_check(tab_opened("run_typed.txt"), "a file of text opens for the Run pane check");
+    cli_check(asked("run-view", NULL) && (s_window.side_menu.foot != GUI_SIDE_MENU_NONE),
+              "the Run tool opens its pane at the foot");
+    stepped();
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_run_catalog, .jobs = s_run_jobs,
+               .jobs_max = 4u, .params = s_run_params, .params_max = 4u, .steps = s_run_steps, .steps_max = 4u,
+               .request = s_run_args, .args_max = 4u, .lists = s_run_lists, .lists_max = 8u, .text_out = s_run_text,
+               .text_max = sizeof(s_run_text));
+    (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_run_catalog, .id = "build/alpha",
+                     .group = "build", .title = "Alpha build", .file = "src/alpha.sh", .about = "builds the alpha",
+                     .opens = "");
+    EMBED_CALL(cli_catalog_key_type.param, CliCatalogKeyTypeCfg, .catalog = &s_run_catalog, .key = "name",
+               .type = "word", .required = 1);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_run_catalog, .text = "job.sh",
+               .program = CLI_PROGRAM_BASH);
+    EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = NULL, .catalog = &s_run_catalog);
+    EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
+    cli_check(EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 1u, "the one group is listed");
+    // the group's row at 0 pressed opens it and puts the job's at 1; the job's pressed puts its file's row at 2 and its
+    // param's at 3
+    // the foot is a tool among the tools
+    const GuiPane *const pane = &s_window.panes[(unsigned int)s_window.side_menu.foot];
+    static const unsigned int s_rows[3] = {0u, 1u, 3u};
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        const GuiRect row = EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = &gui_run_table, .pane_read = pane,
+                                       .frame = &s_window.frame, .row = s_rows[at]);
+        pressed_with(row.x + (row.width / 2), row.y + (row.height / 2), GUI_BUTTON_LEFT);
+        released_with(row.x + (row.width / 2), row.y + (row.height / 2), GUI_BUTTON_LEFT);
+    }
+    cli_check(EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 4u,
+              "the group opened and the job chosen list the job, its file and its param");
+    cli_check(pane->keys, "the param's row pressed through the window gives the pane the keys");
+    typed("ab");
+    CliJobRunRow param;
+    cli_check(EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = 3u, .row_out = &param) &&
+                  (param.second_length == 2ULL) &&
+                  (memor.cmp(&(MemoriaCfg){.src = param.second, .other = "ab", .bytes = 2u}) == 0),
+              "the text typed reaches the param's value");
+    cli_check(asked("run-view", NULL) && (s_window.side_menu.foot == GUI_SIDE_MENU_NONE),
+              "the Run tool closes its pane again");
+    stepped();
+}
+
 // whether the folder at `path` is
 static int folder_is(const char *path)
 {
@@ -2491,6 +2551,7 @@ static const WindowCheck s_checks[] = {{"saves", saves_checked},
                                        {"preferences_window", preferences_window_checked},
                                        {"redraws", redraws_checked},
                                        {"pointer", pointer_checked},
+                                       {"run_keys", run_keys_checked},
                                        {"sessions", sessions_checked},
                                        {"raw", raw_checked},
                                        {"map_collapses", map_collapses_checked},
