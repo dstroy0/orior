@@ -90,3 +90,9 @@ who 03e2016701bd000018df32727338d384
 removed krs query13-20261017T030839 replaced form test_word_le where left right = ISETP.LE.U32.AND {right}, {left}, {where}\n
 removed krs query13-20261017T030839 replaced form test_word_ge where left right = ISETP.LE.U32.AND {left}, {right}, {where}\n
 removed krs query16-20261017T033025 replaced form parameter_load_word to offset = MOV {to}, {offset}\n
+who 00000176000000000002a0658bf25074
+removed krs query56-20261119T195611 replaced form test_word_ne where left right = ISETP.NE.AND {left}, {right}, R2, {where}, PT\n
+removed krs query56-20261119T195611 replaced form test_signed_word_le where left right = ISETP.LE.AND {left}, {right}, R2, {where}, PT\n
+removed krs query56-20261119T195611 replaced form test_signed_word_ge where left right = ISETP.LE.AND {right}, {left}, R2, {where}, PT\n
+removed krs query56-20261119T195611 replaced form global_load_constant_word to address offset = LD {to}, [{address}.64], {offset}, R0\n
+removed krs query56-20261119T195611 replaced form record_store_word offset from = ST [R4.64], {from}, {offset}\n

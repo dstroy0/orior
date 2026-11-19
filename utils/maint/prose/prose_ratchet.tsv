@@ -530,11 +530,7 @@ includes/file_defs/krep/krep_records/rows.c	6
 includes/file_defs/krep/krep_records/viewed.c	3
 includes/file_defs/krf/krf.c	1
 includes/file_defs/krf/krf.h	4
-includes/file_defs/krs/krs_write.c	53
-includes/file_defs/krs/krs_write/fixed.c	2
-includes/file_defs/krs/krs_write/fixed.h	6
 includes/file_defs/krs/krs_write/forms.c	8
-includes/file_defs/krs/krs_write/frame_forms.c	11
 includes/file_defs/krs/krs_write/frame_forms.h	8
 includes/file_defs/krs/krs_write/head.h	3
 includes/file_defs/krs/krs_write/krs_write_internal.h	5
@@ -952,7 +948,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/fields.c	38
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/sass_assemble_internal.h	9
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	59
-src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/machine.c	9
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/sass_machine_internal.h	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	13
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/bar0_driver.c	23
@@ -1553,7 +1548,6 @@ utils/test/src/cu/transpiler/lstar/protocol/stem_group_check.c	4
 utils/test/src/cu/transpiler/lstar/protocol/survivors_check.c	1
 utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c	5
 utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing_check.c	11
-utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c	6
 utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c	6
 utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c	12
 utils/test/src/cu/types/file_defs/kdecode_check.sh	5

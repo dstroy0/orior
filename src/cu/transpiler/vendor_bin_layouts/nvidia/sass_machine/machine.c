@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// machine.c: the machine file: a form of the machine, the exit encoding, the operations that transfer control or wait, the barrier and the schedule, the machine taken from text, the runs, types and answers written and read, and the file written and read
-#include "sass_machine_internal.h"
+// machine.c: the machine file. The module holds a form of the machine, the exit encoding, the operations that
+// transfer control or wait, the barrier and the schedule. It takes the machine from text, writes and reads the runs,
+// the types and the answers, and writes and reads the file.
 #include "../../../../../../includes/parsers/line_read.h"
+#include "sass_machine_internal.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 #include <string.h>
@@ -29,9 +31,9 @@ unsigned long long sass_exit_encoding(const SassMachine *machine)
 
 int sass_operation_control_or_wait(const char *operation)
 {
-    static const char *const s_unsafe[] = {"BRA",  "BRX",   "JMP",    "JMX",       "CALL", "RET",    "EXIT",   "BSSY",
-                                           "BSYNC", "BREAK", "BMOV",   "WARPSYNC",  "YIELD", "BAR",   "DEPBAR", "NANOSLEEP",
-                                           "BPT",  "RTT",   "KILL",   "RPCMOV",    "RETIRE", "PMTRIG"};
+    static const char *const s_unsafe[] = {
+        "BRA",      "BRX",   "JMP", "JMX",    "CALL",      "RET", "EXIT", "BSSY", "BSYNC",  "BREAK",  "BMOV",
+        "WARPSYNC", "YIELD", "BAR", "DEPBAR", "NANOSLEEP", "BPT", "RTT",  "KILL", "RPCMOV", "RETIRE", "PMTRIG"};
     for (unsigned int at = 0u; at < (sizeof(s_unsafe) / sizeof(s_unsafe[0])); at += 1u)
     {
         if (strncmp(operation, s_unsafe[at], strlen(s_unsafe[at])) == 0)
@@ -49,7 +51,7 @@ int sass_barrier_set(unsigned long long high, unsigned int first)
 
 unsigned int sass_operation_schedule(const SassMachine *machine, const char *operation, unsigned int *soonest)
 {
-    // the names before the first dot NVIDIA's compiler gives a write barrier at every place, or a read barrier
+    // The names before the first dot that NVIDIA's compiler gives a write barrier at every place, or a read barrier.
     static const char *const s_late[] = {"LDG", "LDS", "S2R", "S2UR", "F2I", "I2F", "MUFU", "ATOMG"};
     static const char *const s_store[] = {"STG", "STS", "STL", "ST", "RED"};
     const size_t base = strcspn(operation, ".");
@@ -149,11 +151,27 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
     return 1;
 }
 
+// Return the bytes of the constant operand `text` that come before its immediate: the bank, the base and the `+`.
+// Return the bytes up to the second bracket's inside if the operand has no `+`. Return 0 if the text is not a constant
+// of the form `c[<bank>][<offset>]`.
+static size_t sass_constant_head(const char *text)
+{
+    const char *const first_close = strchr(text, ']');
+    const char *const second = (first_close != NULL) ? strchr(first_close + 1, '[') : NULL;
+    if (second == NULL)
+    {
+        return 0u;
+    }
+    const char *const plus = strrchr(second, '+');
+    // The head is a few bytes of a short operand.
+    return (size_t)(((plus != NULL) ? plus : second) + 1 - text);
+}
+
 int sass_text_placed(const SassForm *form, char *written, size_t room)
 {
     SassInstructionParts parts;
     sass_instruction_read(form->text, &parts);
-    // a guard run with a place is written as its place before the operation, in the guard's position
+    // A guard run with a place gets its place before the operation, in the guard's position.
     unsigned int guard_place = SASS_RUN_NO_PLACE;
     for (unsigned int number = 0u; number < form->runs; number += 1u)
     {
@@ -185,19 +203,24 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         const char *const between = (operand == 0u) ? " " : ", ";
         const char *const mark = s_mark_names[parts.mark[operand]];
         const char *const text = parts.operand[operand];
-        // a placed address retains its brackets and what follows its register inside them, `[{<place>}.64]`, so that
-        // the operand reads as an address where the place is filled
+        // A placed address keeps its brackets and what follows its register inside them, `[{<place>}.64]`. The
+        // operand then reads as an address after the place takes its value.
         const int address = (parts.type[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
         const size_t inner = address ? (1u + strcspn(text + 1, ".+]")) : 0u;
+        // A placed constant keeps its bank and its base and places its immediate, `c[0x0][0x160+{<place>}]`. The
+        // operand then reads as a constant after the place takes its value.
+        const size_t head = (parts.type[operand] == SASS_OPERAND_CONSTANT) ? sass_constant_head(text) : 0u;
         printed = (place == SASS_RUN_NO_PLACE) ? snprintf(written + at, room - at, "%s%s%s", between, mark, text)
                   : address ? snprintf(written + at, room - at, "%s%s[{%u}%s", between, mark, place, text + inner)
-                            : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
+                  : head != 0u
+                      ? snprintf(written + at, room - at, "%s%s%.*s{%u}]", between, mark, (int)head, text, place)
+                      : snprintf(written + at, room - at, "%s%s{%u}", between, mark, place);
         at += (printed > 0) ? (size_t)printed : room;
     }
     return (at < room) ? 1 : 0;
 }
 
-// the runs of `form` written into `written` as one column, each with its place, "none" where the probe found it none
+// Write the runs of `form` into `written` as one column, each with its place, "none" if the probe found none.
 static void sass_runs_write(const SassForm *form, char *written, size_t room)
 {
     size_t at = 0u;
@@ -216,7 +239,7 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
         }
         const int printed = snprintf(written + at, room - at, "%s%u:%u-%u:%s", (number == 0u) ? "" : ";", run->operand,
                                      run->first, run->last, place);
-        // snprintf gives the characters it would have written, which the room below bounds
+        // snprintf gives the characters of the whole text, and the room below bounds them.
         at += ((printed > 0) && ((size_t)printed < (room - at))) ? (size_t)printed : 0u;
     }
     if (form->runs == 0u)
@@ -225,8 +248,8 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
     }
 }
 
-// one form's runs column read into `form`, each run's place after its last bit where the column contains one and
-// SASS_RUN_NO_PLACE where it does not: 1, or 0 where a run does not read
+// Read one form's runs column into `form`. Each run's place comes after its last bit if the column contains one,
+// and is SASS_RUN_NO_PLACE if it does not. Return 1, or 0 if a run does not read.
 static int sass_runs_read(SassForm *form, const char *column)
 {
     form->runs = 0u;
@@ -240,7 +263,7 @@ static int sass_runs_read(SassForm *form, const char *column)
         unsigned int operand = 0u;
         unsigned int first = 0u;
         unsigned int last = 0u;
-        // a run, `<operand>:<first>-<last>`
+        // A run is `<operand>:<first>-<last>`.
         const char *walk = at;
         int whole = line_unsigned(&walk, &operand) && (*walk == ':');
         walk += whole ? 1 : 0;
@@ -251,7 +274,7 @@ static int sass_runs_read(SassForm *form, const char *column)
         {
             return 0;
         }
-        // a run's characters are within its column, which an int counts
+        // A run's characters are within its column, and an int counts them.
         const int read = (int)(walk - at);
         unsigned int place = SASS_RUN_NO_PLACE;
         if ((at[read] == ':') && (strncmp(&at[read + 1], SASS_RUN_NO_PLACE_TEXT, strlen(SASS_RUN_NO_PLACE_TEXT)) != 0))
@@ -269,7 +292,7 @@ static int sass_runs_read(SassForm *form, const char *column)
     return 1;
 }
 
-// the types and marks of `form` written into `written` as one column, "none" where it takes no operand
+// Write the types and marks of `form` into `written` as one column, "none" if it takes no operand.
 static void sass_types_write(const SassForm *form, char *written, size_t room)
 {
     size_t at = 0u;
@@ -278,7 +301,7 @@ static void sass_types_write(const SassForm *form, char *written, size_t room)
     {
         const int printed = snprintf(written + at, room - at, "%s%s%s", (place == 0u) ? "" : ",",
                                      s_type_names[form->type[place]], s_mark_names[form->mark[place]]);
-        // snprintf gives the characters it would have written, which the room below bounds
+        // snprintf gives the characters of the whole text, and the room below bounds them.
         at += ((printed > 0) && ((size_t)printed < (room - at))) ? (size_t)printed : 0u;
     }
     if (form->operands == 0u)
@@ -293,11 +316,11 @@ int sass_machine_write(const SassMachine *machine, const char *path)
     VerbaLinea file = {s_file_bytes, sizeof(s_file_bytes), 0ull};
     mmgr_line_put(&file, "forms 2" SASS_LINE_END);
     mmgr_line_put(&file,
-                     "# The part's instructions as the cell's probes read them back: one line a form, an operation "
-                     "and" SASS_LINE_END
-                     "# the type and mark of each printed operand, with the encoding the form was first seen with "
-                     "and" SASS_LINE_END "# the instruction it was seen as. The format is the comment at the head of "
-                     "sass_machine.h." SASS_LINE_END);
+                  "# The part's instructions as the cell's probes read them back: one line a form, an operation "
+                  "and" SASS_LINE_END
+                  "# the type and mark of each printed operand, with the encoding the form was first seen with "
+                  "and" SASS_LINE_END "# the instruction it was seen as. The format is the comment at the head of "
+                  "sass_machine.h." SASS_LINE_END);
     mmgr_line_put(&file, "part ");
     mmgr_line_put(&file, machine->part);
     mmgr_line_put(&file, SASS_LINE_END);
@@ -327,7 +350,7 @@ int sass_machine_write(const SassMachine *machine, const char *path)
         mmgr_line_put(&file, form->text);
         mmgr_line_put(&file, SASS_LINE_END);
     }
-    // passed to the run's writer whole, which writes it in the file's place (qry_member_filed)
+    // The whole text goes to the run's writer, which writes it in the file's place (qry_member_filed).
     if (!mmgr_line_ok(&file) || !qry_member_filed(path, file.out, file.at))
     {
         printf("  sass_machine: %s could not be written: no run's writer runs, or it is outside the tree\n", path);
@@ -336,7 +359,7 @@ int sass_machine_write(const SassMachine *machine, const char *path)
     return 1;
 }
 
-// the place of `word` among the names, or `count` where it is none of them
+// Return the place of `word` among the names, or `count` if it is none of them.
 static unsigned int sass_name_place(const char *const *names, unsigned int count, const char *word, size_t length)
 {
     unsigned int found = count;
@@ -347,7 +370,7 @@ static unsigned int sass_name_place(const char *const *names, unsigned int count
     return found;
 }
 
-// one form's types column read into `form`: 1, or 0 where a type or a mark is none the writer names
+// Read one form's types column into `form`. Return 1, or 0 if a type or a mark is none the writer names.
 static int sass_types_read(SassForm *form, const char *column)
 {
     form->operands = 0u;
@@ -359,17 +382,16 @@ static int sass_types_read(SassForm *form, const char *column)
     while (*at != '\0')
     {
         const size_t length = strcspn(at, ",");
-        // the mark is the last character where it is one, and the type the rest
+        // The mark is the last character if it is one, and the type is the rest.
         const size_t mark_length = ((length != 0u) && (sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT,
-                                                                      at + length - 1u, 1u) != SASS_MARK_COUNT))
+                                                                       at + length - 1u, 1u) != SASS_MARK_COUNT))
                                        ? 1u
                                        : 0u;
         const unsigned int type =
             sass_name_place(s_type_names, (unsigned int)SASS_KIND_COUNT, at, length - mark_length);
         const unsigned int mark =
-            (mark_length == 0u)
-                ? (unsigned int)SASS_MARK_NONE
-                : sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT, at + length - 1u, 1u);
+            (mark_length == 0u) ? (unsigned int)SASS_MARK_NONE
+                                : sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT, at + length - 1u, 1u);
         if ((type == SASS_KIND_COUNT) || (form->operands == SASS_MACHINE_OPERANDS))
         {
             return 0;
@@ -382,10 +404,10 @@ static int sass_types_read(SassForm *form, const char *column)
     return 1;
 }
 
-// what the part answered on the run channel, read from the .ksc of the machine file's stem at `path` into `machine`:
-// the soonest reads, each operation's the largest of its lines, the last register a question's code can name, and how
-// many registers past the highest its code names a container declares. A machine with no .ksc beside it contains no
-// soonest read, every register, and no count past
+// Read what the part answered on the run channel into `machine`, from the .ksc of the machine file's stem at `path`.
+// The answers are the soonest reads, each operation's the largest of its lines, and the last register a question's
+// code can name. They also say how many registers past the highest named a container declares. A machine with no
+// .ksc beside it contains no soonest read, every register, and no count past.
 static void sass_answers_read(SassMachine *machine, const char *path)
 {
     machine->register_last = SASS_MACHINE_UNANSWERED;
@@ -394,7 +416,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
     const size_t length = strlen(path);
     const int typed = (length > 4u) && (strcmp(path + length - 4u, ".khw") == 0);
     snprintf(ksc, sizeof(ksc), "%.*s.ksc", (int)(typed ? (length - 4u) : length), path);
-    // the .ksc as the run stores it (ksc.h)
+    // The .ksc as the run stores it (ksc.h).
     static KscFile s_file;
     static KscRow s_row;
     ksc_read(&s_file, ksc);
@@ -406,7 +428,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         {
             continue;
         }
-        // a stall and a register are each at max eight hex digits, which an unsigned int represents
+        // A stall and a register are each at max eight hex digits, and an unsigned int represents each.
         const unsigned int answered = (unsigned int)s_row.value;
         if (strncmp(s_row.question, "register last", 13u) == 0)
         {
@@ -447,7 +469,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
 
 int sass_machine_read(SassMachine *machine, const char *path)
 {
-    // the machine file as the run stores it (qry_member_file)
+    // The machine file as the run stores it (qry_member_file).
     const unsigned char *file_bytes = NULL;
     unsigned long long file_size = 0ull;
     unsigned long long file_at = 0ull;
@@ -474,7 +496,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
         }
         if (strncmp(line, "part ", 5u) == 0)
         {
-            // a part's name is short, and a longer one is cut to what the field fits
+            // A part's name is short, and the field cuts a longer one to what it fits.
             snprintf(machine->part, sizeof(machine->part), "%.*s", (int)(sizeof(machine->part) - 1u), line + 5);
             continue;
         }
@@ -490,8 +512,8 @@ int sass_machine_read(SassMachine *machine, const char *path)
         char signed_read[SASS_MACHINE_TOKEN] = "";
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
-        // the text past the runs, and at forms 2 past the relation and the signedness, is the instruction the form was
-        // seen as, and contains spaces
+        // The text past the runs is the instruction the probe read the form as, and it contains spaces. At forms 2
+        // it is also past the relation and the signedness.
         const char *seen = line + 5;
         int read = line_word(&seen, operation, sizeof(operation)) && line_word(&seen, types, sizeof(types)) &&
                    line_number(&seen, 1, &low) && line_number(&seen, 1, &high) && line_word(&seen, runs, sizeof(runs));

@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// naming_check.c: the vendor's writer's texts checked on forms written by hand (Open 6.4)
+// naming_check.c: the vendor's writer's texts, checked on forms written by hand (Open 6.4).
 //
-//   name     a form is named from the table by its relation, the count of its sources and its type, none where no type
-//            row reads the relation
-//   mark     a take form carries the vendor's mark on the operand at the relation's second word, in whatever bit
-//            order the operands are
-//   flag     a run of one bit with no place prints nothing, and is retained past the operand count; a wider run with no
-//            place prints as a register
-//   guard    a predicate run prints before the operation as the vendor writes a guard
-//   stored   the form stored in a machine contains each printed operand's run under its operand and the mark on its
-//   operand
+//   Name     The table names a form by its relation, the count of its sources and its type, none if no type row
+//            reads the relation.
+//   Mark     A take form carries the vendor's mark on the operand at the relation's second word, in any bit order of
+//            the operands.
+//   Flag     A run of one bit with no place prints nothing and stays past the operand count. A wider run with no
+//            place prints as a register.
+//   Guard    A predicate run prints before the operation, as the vendor writes a guard.
+//   Stored   The form a machine stores contains each printed operand's run under its operand, and the mark on its
+//            operand.
 //
 //     naming_check <mnemonics>
 #include "../../../../../../../includes/file_defs/khw/khw_machine_write/khw_machine_write_internal.h"
@@ -28,7 +28,7 @@ static void check_that(int passed, const char *what)
     }
 }
 
-// one run of a hand form: its bits, its place and its type
+// One run of a hand form: its bits, its place and its type.
 typedef struct
 {
     unsigned int first;
@@ -37,7 +37,7 @@ typedef struct
     unsigned int type;
 } HandRun;
 
-// a form written by hand: `relation` over the encoding `low` and `high` with `count` runs
+// Write a form by hand: `relation` over the bits `low` and `high` with `count` runs.
 static void hand_form(KhwForm *form, const char *relation, unsigned long long low, unsigned long long high,
                       const HandRun *runs, unsigned int count)
 {
@@ -55,7 +55,7 @@ static void hand_form(KhwForm *form, const char *relation, unsigned long long lo
     }
 }
 
-// the text the writer composes for `form`, checked against `expected`
+// Check the text the writer composes for `form` against `expected`.
 static void check_text(const KhwForm *form, const char *expected, const char *what)
 {
     char text[SASS_MACHINE_TEXT];
@@ -78,8 +78,8 @@ int main(int count, char **words)
     }
     check_that(khw_pieces_read(words[1]), "the vendor's table is read");
 
-    // the kernel's IADD3 at the probe place, its registers R7, R0 and R7 in the fields 16-23, 24-31 and 32-39, and bit
-    // 72 a negate bit, clear
+    // The kernel's IADD3 at the probe place. Its registers R7, R0 and R7 are in the fields 16-23, 24-31 and 32-39.
+    // Bit 72 is a negate bit, clear.
     const unsigned long long add_low = 0x0000000700077210ull;
     const unsigned long long add_high = 0x004fca0007ffe0ffull;
     const HandRun add_runs[4] = {{16u, 23u, 2u, KHW_KIND_REGISTER},
@@ -90,7 +90,7 @@ int main(int count, char **words)
     hand_form(&add, "ladder.add", add_low, add_high, add_runs, 4u);
     check_text(&add, "IADD3 R7, R0, R7", "an add form reads its three registers, the flag bit printing nothing");
 
-    // the same bits read as take: the mark on the operand at the relation's second word
+    // The same bits read as take: the mark is on the operand at the relation's second word.
     KhwForm take;
     hand_form(&take, "ladder.take", add_low, add_high | (1ull << 8u), add_runs, 4u);
     check_text(&take, "IADD3 R7, R0, -R7", "a take form carries the mark on its second word's operand");
@@ -102,14 +102,14 @@ int main(int count, char **words)
     hand_form(&swapped, "ladder.take", add_low, add_high | (1ull << 8u), swapped_runs, 4u);
     check_text(&swapped, "IADD3 R7, -R0, R7", "and on the second word where it is first in the bits");
 
-    // the lane form with its special register, a run of eight bits with no place, printed as a register
+    // The lane form with its special register, a run of eight bits with no place, prints it as a register.
     const HandRun lane_runs[2] = {{16u, 23u, 0u, KHW_KIND_REGISTER}, {72u, 79u, SASS_RUN_NO_PLACE, KHW_KIND_REGISTER}};
     KhwForm lane;
     hand_form(&lane, "frame.lane", 0x0000000000077919ull, 0x000e240000002100ull, lane_runs, 2u);
     check_text(&lane, "S2R R7, R33", "a wide run with no place prints as a register");
 
-    // the block size read from the constant bank: the offset run and the bank run, both constant runs with no
-    // place, printed once as the bank's operand by the offset run
+    // The block size read from the constant bank. The offset run and the bank run are constant runs with no place.
+    // The offset run prints them once, as the bank's operand.
     const HandRun dim_runs[3] = {{16u, 23u, 0u, KHW_KIND_REGISTER},
                                  {38u, 53u, SASS_RUN_NO_PLACE, KHW_KIND_CONSTANT},
                                  {54u, 58u, SASS_RUN_NO_PLACE, KHW_KIND_CONSTANT}};
@@ -121,14 +121,15 @@ int main(int count, char **words)
     hand_form(&banked, "frame.dim", 0x0040000000017a02ull | (0x28ull << 38u), 0x000fe40000000f00ull, dim_runs, 3u);
     check_text(&banked, "MOV R1, c[0x1][0x28]", "the bank and the offset read from the encoding's bits");
 
-    // a parameter's word read from the constant bank: its offset run a place, printed as the run encodes it
+    // A parameter's word read from the constant bank: its offset run is a place, and prints as the run encodes it.
     const HandRun parameter_runs[2] = {{16u, 23u, 1u, KHW_KIND_REGISTER}, {38u, 53u, 0u, KHW_KIND_CONSTANT}};
     KhwForm parameter;
     hand_form(&parameter, "frame.parameter", 0x0000000000017a02ull | (0x170ull << 38u), 0x000fe40000000f00ull,
               parameter_runs, 2u);
 
-    // a test: the predicate it writes in the field at 81 is an operand, the answer's place, and the predicates it
-    // reads at 84 and 87, PT, are operands with no place; the relation read unsigned carries U32 and signed nothing
+    // A test. The predicate it writes in the field at 81 is an operand, the answer's place. The predicates it reads
+    // at 84 and 87, PT, are operands with no place. The relation read unsigned carries U32, and signed carries
+    // nothing.
     khw_guard_field_set(12u, 3u);
     const HandRun test_runs[5] = {{24u, 31u, 0u, KHW_KIND_REGISTER},
                                   {32u, 39u, 1u, KHW_KIND_REGISTER},
@@ -144,13 +145,13 @@ int main(int count, char **words)
     test.signed_read = 1;
     check_text(&test, "ISETP.GE.AND P0, PT, R0, R7, PT", "and read signed carries no qualifier");
 
-    // a guarded exit
+    // A guarded exit.
     const HandRun exit_runs[1] = {{12u, 15u, 0u, KHW_KIND_PREDICATE}};
     KhwForm guarded;
     hand_form(&guarded, "frame.exit", 0x000000000000094dull, 0x000fea0003800000ull, exit_runs, 1u);
     check_text(&guarded, "@P0 EXIT", "a predicate run prints before the operation");
 
-    // the forms stored in a machine: the flag past the operand count, the mark on its operand
+    // The forms a machine stores: the flag past the operand count, the mark on its operand.
     memset(&s_test_machine, 0, sizeof(s_test_machine));
     char text[SASS_MACHINE_TEXT];
     khw_text_composed(&add, text, sizeof(text));
@@ -176,8 +177,13 @@ int main(int count, char **words)
                "a form of the dim form's shape answering another relation is a form of its own, with its own text");
     char placed[SASS_MACHINE_TEXT];
     check_that(sass_text_placed(&s_test_machine.form[3], placed, sizeof(placed)) &&
-                   (strcmp(placed, "MOV {1}, {0}") == 0),
-               "and its placed text names the offset by its place");
+                   (strcmp(placed, "MOV {1}, c[0x0][{0}]") == 0),
+               "and its placed text keeps the constant's bank and names the offset by its place");
+    // The disassembler writes a parameter's constant with its base, and the place takes the immediate alone.
+    SassForm based = s_test_machine.form[3];
+    snprintf(based.text, sizeof(based.text), "%s", "MOV R1, c[0x0][0x160+0x10]");
+    check_that(sass_text_placed(&based, placed, sizeof(placed)) && (strcmp(placed, "MOV {1}, c[0x0][0x160+{0}]") == 0),
+               "a constant with a base keeps the base and places the immediate after its +");
     printf("naming_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

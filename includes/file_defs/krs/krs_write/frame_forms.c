@@ -1,26 +1,27 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// frame_forms.c: the frame forms of a part's ruleset: the table of names read, a form's line as the schema's form, and the
-// lines written, the ruleset's own line retained where the run passes none
+// frame_forms.c: the frame forms of a part's ruleset. The module reads the table of names, writes a form's line as
+// the schema's form, and writes the lines. The ruleset's own line stays where the run passes none.
 #include "frame_forms.h"
 
 #include "../../../parsers/line_read.h"
 #include "../../krf/krf.h"
+#include "fixed.h"
 #include "krs_write_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
-// the max rows the table contains, and the max places a row gives a form's parameters
+// The max rows the table contains, and the max places a row gives a form's parameters.
 #define KRS_FRAME_ROWS 32u
 
 #define KRS_FRAME_PLACES 8u
 
-// the max form lines a ruleset gives, and the longest
+// The max form lines a ruleset gives, and the longest line.
 #define KRS_FRAME_GIVEN_MAX 256u
 
 #define KRS_FRAME_LINE (KRS_FRAME_TEXT * 2u)
 
-// one row of the table: the relation, the schema's form it is written as, and the place of the relation's tuple each
-// of the form's parameters takes, in the parameters' order
+// One row of the table: the relation and the schema's form the writer writes it as. The row also holds the place of
+// the relation's tuple each of the form's parameters takes, in the parameters' order.
 typedef struct
 {
     char relation[KRS_FRAME_RELATION];
@@ -32,21 +33,21 @@ typedef struct
 static KrsFrameRow s_row[KRS_FRAME_ROWS];
 static unsigned int s_rows;
 
-// a form line the ruleset gave before this run: the form's name and the line whole
+// A form line the ruleset gave before this run: the form's name and the whole line.
 typedef struct
 {
     char name[KRS_NAME];
     char line[KRS_FRAME_LINE];
 } KrsFrameGiven;
 
-// the table's path where none is passed: frame_forms.tsv in the folder of this source in the tree it was built from
+// The table's path if the caller passes none: frame_forms.tsv in this source's folder in the tree of the build.
 static void frame_table_beside(char *path, size_t room)
 {
     const char *const file = __FILE__;
     const char *const forward = strrchr(file, '/');
     const char *const back = strrchr(file, '\\');
     const char *const slash = (back == NULL) ? forward : ((forward == NULL) || (back > forward)) ? back : forward;
-    // the folder is __FILE__ up to and with its last slash, and a file named with no folder is in this one
+    // The folder is __FILE__ up to and with its last slash. A file name with no folder is in this folder.
     const int folder = (slash != NULL) ? (int)((slash - file) + 1) : 0;
     snprintf(path, room, "%.*sframe_forms.tsv", folder, file);
 }
@@ -81,13 +82,13 @@ unsigned int krs_frame_read(const char *path)
             continue;
         }
         *form = '\0';
-        // the places column may be empty, a form of no parameters, and a line may end before it
+        // The places column can be empty, a form of no parameters, and a line can end before it.
         char *const places = strchr(form + 1, '\t');
         if (places != NULL)
         {
             *places = '\0';
         }
-        // the head line names the columns
+        // The head line names the columns.
         if (strcmp(line, "relation") == 0)
         {
             continue;
@@ -100,7 +101,7 @@ unsigned int krs_frame_read(const char *path)
         unsigned long long place = 0ull;
         while ((row->places < KRS_FRAME_PLACES) && line_number(&rest, 0, &place) && (place <= 0xffffffffull))
         {
-            // a place an unsigned int represents
+            // A place is a small number that an unsigned int represents.
             row->place[row->places] = (unsigned int)place;
             row->places += 1u;
         }
@@ -109,7 +110,7 @@ unsigned int krs_frame_read(const char *path)
     return s_rows;
 }
 
-// how many places `text` contains, each {<place>} counted once
+// Return how many places `text` contains, each {<place>} counted once.
 static unsigned int frame_places_count(const char *text)
 {
     unsigned int seen = 0u;
@@ -130,13 +131,14 @@ static unsigned int frame_places_count(const char *text)
     return count;
 }
 
-// 1 where `row` names `form`: the row is of the form's relation and its places are as many as the form's text contains
+// Return 1 if `row` names `form`: the row is of the form's relation, and its places are as many as the form's text
+// contains.
 static int frame_row_fits(const KrsFrameRow *row, const KrsFrameForm *form)
 {
     return (strcmp(row->relation, form->relation) == 0) && (row->places == frame_places_count(form->text));
 }
 
-// the first row that names `form`, or NULL where none does
+// Return the first row that names `form`, or NULL if none does.
 static const KrsFrameRow *frame_row_of(const KrsFrameForm *form)
 {
     for (unsigned int at = 0u; at < s_rows; at += 1u)
@@ -149,9 +151,9 @@ static const KrsFrameRow *frame_row_of(const KrsFrameForm *form)
     return NULL;
 }
 
-// `form` with its guard struck, into `bare`, where its text opens with a placed guard, `@{<place>}`, and that is its
-// one place: the vendor writes a guard at every predicate as none, and the form read with its guard is then the
-// relation's form with no place as well, exit_if's instruction return's. 1 where `bare` is written
+// Write `form` without its guard into `bare` if its text opens with a placed guard, `@{<place>}`, and that is its
+// one place. The vendor writes a guard at every predicate as none. The form read with its guard is then also the
+// relation's form with no place, as exit_if's instruction is return's. Return 1 if `bare` holds the form.
 static int frame_unguarded(const KrsFrameForm *form, KrsFrameForm *bare)
 {
     unsigned int place = 0u;
@@ -166,8 +168,8 @@ static int frame_unguarded(const KrsFrameForm *form, KrsFrameForm *bare)
     return 1;
 }
 
-// `form` written as the schema's form `row` names, into `line`: 1, or 0 where the row fits no parameters the ruleset
-// names or the line does not fit
+// Write `form` into `line` as the schema's form `row` names. Return 1, or 0 if the row fits no parameters the
+// ruleset names or the line does not fit.
 static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, const char *named_ruleset, char *line,
                            size_t room)
 {
@@ -181,7 +183,7 @@ static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, con
     {
         return 0;
     }
-    // the text with each place written as the parameter that takes it
+    // Write the text with each place as the parameter that takes it.
     char text[KRS_FRAME_LINE];
     size_t at = 0u;
     for (const char *walk = form->text; *walk != '\0';)
@@ -212,7 +214,11 @@ static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, con
         text[at] = '\0';
         walk += 1;
     }
-    // the line: the form's name, its parameters, and the text as the ruleset reads a form's, ending in \n
+    if (!krs_fixed_placed(text, sizeof(text)))
+    {
+        return 0;
+    }
+    // The line is the form's name, its parameters, and the text as the ruleset reads a form's, with \n at its end.
     size_t used = 0u;
     int added = snprintf(line, room, "form %s", row->form);
     used += (added > 0) ? (size_t)added : room;
@@ -234,8 +240,8 @@ int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *l
     return frame_row_named(frame_row_of(form), form, named_ruleset, line, room);
 }
 
-// every `form <name> ...` line the ruleset at `krs_path` gave, into `given`, at max KRS_FRAME_GIVEN_MAX; the count,
-// 0 where there is no path or no file
+// Read every `form <name> ...` line the ruleset at `krs_path` gave into `given`, at max KRS_FRAME_GIVEN_MAX. Return
+// the count, 0 if there is no path or no file.
 static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
 {
     const unsigned char *file_bytes = NULL;
@@ -264,7 +270,8 @@ static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
     return count;
 }
 
-// the line the ruleset gave the form `name` before this run, of the `count` in `given`, or NULL where it gave none
+// Return the line the ruleset gave the form `name` before this run, of the `count` lines in `given`. Return NULL
+// if it gave none.
 static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count, const char *name)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -277,14 +284,14 @@ static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count
     return NULL;
 }
 
-// 1 where `before`, a line with no newline, is `line` up to its newline
+// Return 1 if `before`, a line with no newline, is `line` up to its newline.
 static int frame_same_line(const char *before, const char *line)
 {
     const size_t length = strcspn(line, "\n");
     return (strlen(before) == length) && (strncmp(before, line, length) == 0);
 }
 
-// `row` written into `line` from the first of the `count` forms in `form` it fits: 1, or 0 where none is named by it
+// Write `row` into `line` from the first of the `count` forms in `form` it fits. Return 1, or 0 if it names none.
 static int frame_row_written(const KrsFrameRow *row, const KrsFrameForm *form, unsigned int count,
                              const char *named_ruleset, char *line, size_t room)
 {
@@ -292,7 +299,7 @@ static int frame_row_written(const KrsFrameRow *row, const KrsFrameForm *form, u
     for (unsigned int each = 0u; (each < count) && !named; each += 1u)
     {
         named = frame_row_fits(row, &form[each]) && frame_row_named(row, &form[each], named_ruleset, line, room);
-        // a row of no places is also written from a form of its relation whose one place is a guard
+        // A form of the row's relation whose one place is a guard also writes a row of no places.
         KrsFrameForm bare;
         named = named || ((row->places == 0u) && frame_unguarded(&form[each], &bare) && frame_row_fits(row, &bare) &&
                           frame_row_named(row, &bare, named_ruleset, line, room));
@@ -300,7 +307,7 @@ static int frame_row_written(const KrsFrameRow *row, const KrsFrameForm *form, u
     return named;
 }
 
-// the first row of the table that writes the schema's form the row at `at` writes
+// Return the first row of the table that writes the schema's form the row at `at` writes.
 static unsigned int frame_form_first(unsigned int at)
 {
     unsigned int first = 0u;
@@ -316,14 +323,15 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
 {
     static KrsFrameGiven s_given[KRS_FRAME_GIVEN_MAX];
     const unsigned int givens = frame_given_read(krs_path, s_given);
-    // the given lines a written one replaces with another text, stored in the .krf beside the .ksc
+    // The given lines a written line replaces with another text go into the .krf beside the .ksc.
     const char *removed[KRS_FRAME_ROWS];
     unsigned int removals = 0u;
     unsigned int written = 0u;
     for (unsigned int place = 0u; place < s_rows; place += 1u)
     {
-        // a schema form more than one row writes, its relation's own row and another relation's mirror row, is one
-        // line, at its first row, from the first of its rows in the table's order a form is named by
+        // A schema form that more than one row writes is one line at its first row. The rows are its relation's
+        // own row and another relation's mirror row. The line comes from the first of its rows, in the table's
+        // order, that a form names.
         if (frame_form_first(place) != place)
         {
             continue;
@@ -350,7 +358,11 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
         }
         if (before != NULL)
         {
-            *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = before});
+            // Keep the line as the ruleset gave it. Each fixed register it names by its number gets its placeholder.
+            char kept[KRS_FRAME_LINE];
+            snprintf(kept, sizeof(kept), "%s", before);
+            (void)krs_fixed_placed(kept, sizeof(kept));
+            *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = kept});
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});
             written += 1u;
             printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset retains its form\n",
