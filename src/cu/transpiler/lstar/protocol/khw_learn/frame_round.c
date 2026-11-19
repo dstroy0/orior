@@ -89,9 +89,9 @@ static void khw_place_varied(const KhwAnswered *probed_form, const KhwFrameField
         const unsigned long long is = khw_run_read(variants[at].low, variants[at].high, fields->immediate_first,
                                                        immediate_last);
         // 0 first, then each immediate a retained place contains; a variant that contains one already is that variant
-        for (unsigned int each = 0u; (is != 0ull) && (each <= fields->known_immediates); each += 1u)
+        for (unsigned int each = 0u; (is != 0ULL) && (each <= fields->known_immediates); each += 1u)
         {
-            const unsigned long long set = (each == 0u) ? 0ull : fields->known_immediate[each - 1u];
+            const unsigned long long set = (each == 0u) ? 0ULL : fields->known_immediate[each - 1u];
             if (set == is)
             {
                 continue;
@@ -116,7 +116,7 @@ static void khw_known_immediates_read(KhwFrameFields *fields)
         const unsigned long long high = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 8u);
         const unsigned long long value_read =
             khw_run_read(low, high, fields->immediate_first, fields->immediate_first + fields->immediate_bits - 1u);
-        int known = (value_read == 0ull) || (place == s_probe_place) ||
+        int known = (value_read == 0ULL) || (place == s_probe_place) ||
                     ((low == s_unreached_low) && (high == s_unreached_high));
         for (unsigned int at = 0u; at < fields->known_immediates; at += 1u)
         {
@@ -172,7 +172,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
     KhwFrameFields fields;
     memset(&fields, 0, sizeof(fields));
     fields.guarded = khw_field_read("guard", &fields.guard_first, &fields.guard_bits);
-    fields.every_predicate = fields.guarded ? ((1ull << fields.guard_bits) - 1ull) : 0ull;
+    fields.every_predicate = fields.guarded ? ((1ULL << fields.guard_bits) - 1ULL) : 0ULL;
     fields.immediate = khw_field_read("immediate", &fields.immediate_first, &fields.immediate_bits);
     fields.record = khw_fixed_register("record");
     khw_known_immediates_read(&fields);

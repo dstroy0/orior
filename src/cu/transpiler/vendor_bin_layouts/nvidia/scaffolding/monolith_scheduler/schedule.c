@@ -96,23 +96,23 @@ static void scheduler_follow(unsigned int count)
                 if (writer->write_barrier != SASS_BARRIER_NONE)
                 {
                     const int waited = scheduler_waited(writer->write_barrier, at + 1u, next);
-                    operation->readers_waiting += waited ? 1ull : 0ull;
-                    operation->readers_not_waiting += waited ? 0ull : 1ull;
+                    operation->readers_waiting += waited ? 1ULL : 0ULL;
+                    operation->readers_not_waiting += waited ? 0ULL : 1ULL;
                 }
                 else if (scheduler_behind_later(at, next))
                 {
-                    operation->readers_behind_later += 1ull;
+                    operation->readers_behind_later += 1ULL;
                 }
                 else if (scheduler_behind_earlier(at, next) != UINT_MAX)
                 {
                     const unsigned int after = scheduler_behind_earlier(at, next);
-                    operation->readers_behind_earlier += 1ull;
+                    operation->readers_behind_earlier += 1ULL;
                     operation->soonest_after_earlier =
                         (after < operation->soonest_after_earlier) ? after : operation->soonest_after_earlier;
                 }
                 else
                 {
-                    operation->timed_reads += 1ull;
+                    operation->timed_reads += 1ULL;
                     operation->soonest_read = (cycles < operation->soonest_read) ? cycles : operation->soonest_read;
                 }
                 break;
@@ -129,7 +129,7 @@ static void scheduler_follow(unsigned int count)
 // reads
 int scheduler_cubin(unsigned long long size)
 {
-    if ((size < 0x40ull) || (memcmp(s_cubin, "\x7f" "ELF", 4u) != 0))
+    if ((size < 0x40ULL) || (memcmp(s_cubin, "\x7f" "ELF", 4u) != 0))
     {
         return 0;
     }
@@ -153,12 +153,12 @@ int scheduler_cubin(unsigned long long size)
         {
             continue;
         }
-        const unsigned int instructions = (unsigned int)(length / 16ull);
+        const unsigned int instructions = (unsigned int)(length / 16ULL);
         const unsigned int retained =
             (instructions < SCHEDULER_SECTION_INSTRUCTIONS) ? instructions : SCHEDULER_SECTION_INSTRUCTIONS;
         for (unsigned int at = 0u; at < retained; at += 1u)
         {
-            scheduler_instruction(&s_cubin[offset + (16ull * at)], 16ull * at, &s_section[at]);
+            scheduler_instruction(&s_cubin[offset + (16ULL * at)], 16ULL * at, &s_section[at]);
         }
         scheduler_follow(retained);
     }
@@ -173,7 +173,7 @@ static void scheduler_stalls(const SchedulerOperation *operation, char *text, si
     unsigned int often = 0u;
     for (unsigned int stall = 0u; stall < 16u; stall += 1u)
     {
-        if (operation->stalls[stall] == 0ull)
+        if (operation->stalls[stall] == 0ULL)
         {
             continue;
         }
@@ -227,7 +227,7 @@ int scheduler_record(const char *path)
         char stalls[64];
         char soonest[64];
         scheduler_stalls(operation, stalls, sizeof(stalls));
-        if (operation->timed_reads == 0ull)
+        if (operation->timed_reads == 0ULL)
         {
             snprintf(soonest, sizeof(soonest), "-");
         }
@@ -236,7 +236,7 @@ int scheduler_record(const char *path)
             snprintf(soonest, sizeof(soonest), "%u over %llu", operation->soonest_read, operation->timed_reads);
         }
         char earlier[64];
-        if (operation->readers_behind_earlier == 0ull)
+        if (operation->readers_behind_earlier == 0ULL)
         {
             snprintf(earlier, sizeof(earlier), "0");
         }

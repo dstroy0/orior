@@ -26,7 +26,7 @@ extern "C"
 
 // a device of sixteen zero bytes names the host's processors, which a job declares and reports in thousandths of one
 // logical processor
-#define TESSERA_HOST_PROCESSOR 1000ull
+#define TESSERA_HOST_PROCESSOR 1000ULL
 
     typedef enum
     {

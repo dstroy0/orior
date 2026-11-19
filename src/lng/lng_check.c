@@ -114,7 +114,7 @@ int main(void)
 
     // gnascor's word map, read whole
     lng_check_read(LNG_GNASCOR);
-    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t joined = 0u;
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {

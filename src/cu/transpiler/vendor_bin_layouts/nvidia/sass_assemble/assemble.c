@@ -54,9 +54,9 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     {
         for (unsigned int other = place + 1u; (places[place].by_text == 0) && (other < parts.operands); other += 1u)
         {
-            unsigned long long one = 0ull;
-            unsigned long long two = 0ull;
-            unsigned long long offset = 0ull;
+            unsigned long long one = 0ULL;
+            unsigned long long two = 0ULL;
+            unsigned long long offset = 0ULL;
             const int shared = (places[other].by_text == 0) && (places[other].value.first == places[place].value.first);
             if (shared && sass_operand_value(&parts, place, address, target, &one, &offset) &&
                 sass_operand_value(&parts, other, address, target, &two, &offset) && (one != two))
@@ -86,8 +86,8 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             }
             continue;
         }
-        unsigned long long value = 0ull;
-        unsigned long long offset = 0ull;
+        unsigned long long value = 0ULL;
+        unsigned long long offset = 0ULL;
         sass_operand_value(&parts, place, address, target, &value, &offset);
         const unsigned long long counted = value / places[place].value.scale;
         sass_bits_write(low, high, places[place].value.first, places[place].value.bits,
@@ -107,14 +107,14 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             const unsigned long long descriptor = (strncmp(uniform, "URZ", 3u) == 0) ? SASS_DESCRIPTOR_ZERO
                                                                                     : sass_register_value(uniform);
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, descriptor);
-            sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, (parts.operand[place][0] == 'd') ? 1ull : 0ull);
+            sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, (parts.operand[place][0] == 'd') ? 1ULL : 0ULL);
         }
         // a constant's bank must be the one the form carries, since the bank's own bits were not found by probing. And
         // its offset a whole word the field holds, refused and not cut where it is part of a word or past the bank
         if (parts.type[place] == SASS_OPERAND_CONSTANT)
         {
-            unsigned long long bank = 0ull;
-            unsigned long long base_bank = 0ull;
+            unsigned long long bank = 0ULL;
+            unsigned long long base_bank = 0ULL;
             sass_constant_value(parts.operand[place], &bank);
             sass_constant_value(base.operand[place], &base_bank);
             if (bank != base_bank)
@@ -122,7 +122,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
                 printf("  sass_assemble: %s reads bank %llu where its form reads %llu\n", text, bank, base_bank);
                 return 0;
             }
-            if (((value % places[place].value.scale) != 0ull) || ((counted >> places[place].value.bits) != 0ull))
+            if (((value % places[place].value.scale) != 0ULL) || ((counted >> places[place].value.bits) != 0ULL))
             {
                 printf("  sass_assemble: %s reads offset 0x%llx, which is no word its %u-bit field holds\n", text, value,
                        places[place].value.bits);
@@ -131,10 +131,10 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         }
     }
     const unsigned long long guard = (parts.guard[0] == '\0')
-                                         ? 7ull
+                                         ? 7ULL
                                          : sass_register_value(parts.guard + ((parts.guard[1] == '!') ? 2u : 1u));
     sass_bits_write(low, high, SASS_GUARD_FIRST, SASS_GUARD_BITS, guard);
-    sass_bits_write(low, high, SASS_GUARD_NOT, 1u, (parts.guard[1] == '!') ? 1ull : 0ull);
+    sass_bits_write(low, high, SASS_GUARD_NOT, 1u, (parts.guard[1] == '!') ? 1ULL : 0ULL);
     if (control == SASS_CONTROL_SAFE)
     {
         sass_control_safe(machine, form, high);
@@ -187,7 +187,7 @@ static unsigned long long sass_label_address(const SassLabels *labels, const cha
     const char *const open = strchr(operand, '(');
     const size_t length = (open != NULL) ? strcspn(open + 1, ")") : 0u;
     *known = 0;
-    unsigned long long found = 0ull;
+    unsigned long long found = 0ULL;
     for (unsigned int at = 0u; (open != NULL) && (at < labels->count); at += 1u)
     {
         if ((strlen(labels->name[at]) == length) && (strncmp(labels->name[at], open + 1, length) == 0))
@@ -205,7 +205,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
     static SassLabels s_labels;
     s_labels.count = 0u;
     char line[SASS_MACHINE_TEXT];
-    unsigned long long address = 0ull;
+    unsigned long long address = 0ULL;
     for (const char *walk = sass_line_take(text, line, sizeof(line)); walk != NULL;
          walk = sass_line_take(walk, line, sizeof(line)))
     {
@@ -223,7 +223,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
             s_labels.address[s_labels.count] = address;
             s_labels.count += 1u;
         }
-        address += sass_line_is_instruction(line) ? 16ull : 0ull;
+        address += sass_line_is_instruction(line) ? 16ULL : 0ULL;
     }
     const unsigned long long bytes = address;
     if (bytes > room)
@@ -231,7 +231,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         printf("  sass_assemble: %llu bytes of code where the room is %llu\n", bytes, room);
         return 0u;
     }
-    address = 0ull;
+    address = 0ULL;
     for (const char *walk = sass_line_take(text, line, sizeof(line)); walk != NULL;
          walk = sass_line_take(walk, line, sizeof(line)))
     {
@@ -241,7 +241,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         }
         SassInstructionParts parts;
         sass_instruction_read(line, &parts);
-        unsigned long long target = 0ull;
+        unsigned long long target = 0ULL;
         int known = 1;
         for (unsigned int place = 0u; place < parts.operands; place += 1u)
         {
@@ -258,8 +258,8 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
             printf("  sass_assemble: %s names a label the text does not\n", line);
             return 0u;
         }
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         if (!sass_assemble(machine, line, address, target, control, &low, &high))
         {
             return 0u;
@@ -268,9 +268,9 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         {
             // each word is written low byte first, as the part reads it
             code[address + byte] = (unsigned char)((low >> (8u * byte)) & 0xffu);
-            code[address + 8ull + byte] = (unsigned char)((high >> (8u * byte)) & 0xffu);
+            code[address + 8ULL + byte] = (unsigned char)((high >> (8u * byte)) & 0xffu);
         }
-        address += 16ull;
+        address += 16ULL;
     }
-    return (unsigned int)(bytes / 16ull);
+    return (unsigned int)(bytes / 16ULL);
 }

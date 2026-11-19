@@ -18,7 +18,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
     {
         if (s_cycle_programs[at].source == text)
         {
-            s_cycle_programs[at].holders += 1ull;
+            s_cycle_programs[at].holders += 1ULL;
             record->kernel = s_cycle_programs[at].kernel;
             record->compiled = 1u;
             if (report != 0)
@@ -33,8 +33,8 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
     std::vector<char> cubin = path.empty() ? std::vector<char>() : cycle_cache_read(path, text);
     const int found = !cubin.empty();
     size_t object_bytes = 0u;
-    unsigned long long compile_nanoseconds = 0ull;
-    unsigned long long link_nanoseconds = 0ull;
+    unsigned long long compile_nanoseconds = 0ULL;
+    unsigned long long link_nanoseconds = 0ULL;
     if (!found)
     {
         const auto began = std::chrono::steady_clock::now();
@@ -58,7 +58,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
     CycleCompiledProgram program;
     program.library = NULL;
     program.kernel = NULL;
-    program.holders = 1ull;
+    program.holders = 1ULL;
     const int loaded =
         !cubin.empty() &&
         (cudaLibraryLoadData(&program.library, cubin.data(), NULL, NULL, 0u, NULL, NULL, 0u) == cudaSuccess) &&
@@ -113,8 +113,8 @@ void cycle_program_release(cudaKernel_t kernel)
     {
         if (s_cycle_programs[at].kernel == kernel)
         {
-            s_cycle_programs[at].holders -= 1ull;
-            if (s_cycle_programs[at].holders == 0ull)
+            s_cycle_programs[at].holders -= 1ULL;
+            if (s_cycle_programs[at].holders == 0ULL)
             {
                 cudaLibraryUnload(s_cycle_programs[at].library);
                 s_cycle_programs.erase(s_cycle_programs.begin() + (std::ptrdiff_t)at);

@@ -7,14 +7,14 @@ static const ZstdTableKind zstd_weight_type = {NULL, 0u, 0u, ZSTD_WEIGHT_SYMBOLS
 
 static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
 {
-    if (input->length == 0ull)
+    if (input->length == 0ULL)
     {
         return 0;
     }
     unsigned char weights[ZSTD_HUFFMAN_WEIGHTS];
     unsigned int described = 0u;
     const unsigned int header = input->bytes[0u];
-    zstd_advance(input, 1ull);
+    zstd_advance(input, 1ULL);
     if (header >= 128u)
     {
         described = header - 127u;
@@ -53,7 +53,7 @@ static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
     {
         ranks[weight] = 0u;
     }
-    unsigned long total = 0ul;
+    unsigned long total = 0UL;
     for (unsigned int symbol = 0u; symbol < described; symbol += 1u)
     {
         const unsigned int weight = weights[symbol];
@@ -62,9 +62,9 @@ static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
             return 0;
         }
         ranks[weight] += 1u;
-        total += (1ul << weight) >> 1u;
+        total += (1UL << weight) >> 1u;
     }
-    if (total == 0ul)
+    if (total == 0UL)
     {
         return 0;
     }
@@ -73,9 +73,9 @@ static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
     {
         return 0;
     }
-    const unsigned long rest = (1ul << bits) - total;
+    const unsigned long rest = (1UL << bits) - total;
     const unsigned int last = zstd_high_bit(rest) + 1u;
-    if ((1ul << (last - 1u)) != rest)
+    if ((1UL << (last - 1u)) != rest)
     {
         return 0;
     }
@@ -86,7 +86,7 @@ static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
         return 0;
     }
     unsigned long starts[ZSTD_HUFFMAN_BITS_MAXIMUM + 1u];
-    unsigned long running = 0ul;
+    unsigned long running = 0UL;
     for (unsigned int weight = 1u; weight <= bits; weight += 1u)
     {
         starts[weight] = running;
@@ -99,8 +99,8 @@ static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
         {
             continue;
         }
-        const unsigned long length = 1ul << (weight - 1u);
-        for (unsigned long fill = 0ul; fill < length; fill += 1ul)
+        const unsigned long length = 1UL << (weight - 1u);
+        for (unsigned long fill = 0UL; fill < length; fill += 1UL)
         {
             decoder->huffman[starts[weight] + fill].symbol = (unsigned char)symbol;
             decoder->huffman[starts[weight] + fill].bits = (unsigned char)(bits + 1u - weight);
@@ -121,7 +121,7 @@ static int zstd_huffman_stream(const ZstdDecoder *decoder, const unsigned char *
         return 0;
     }
     const unsigned int bits = decoder->huffman_bits;
-    for (unsigned long long produced = 0ull; produced < count; produced += 1ull)
+    for (unsigned long long produced = 0ULL; produced < count; produced += 1ULL)
     {
         const ZstdHuffmanCell cell = decoder->huffman[zstd_backward_peek(&stream, bits)];
         out[produced] = cell.symbol;
@@ -132,14 +132,14 @@ static int zstd_huffman_stream(const ZstdDecoder *decoder, const unsigned char *
 
 int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
 {
-    if (input->length == 0ull)
+    if (input->length == 0ULL)
     {
         return 0;
     }
     const unsigned int first = input->bytes[0u];
     const unsigned int type = first & 3u;
     const unsigned int format = (first >> 2u) & 3u;
-    decoder->literals_used = 0ull;
+    decoder->literals_used = 0ULL;
     if (type < 2u)
     {
         const unsigned int header = ((format & 1u) == 0u) ? 1u : ((format == 1u) ? 2u : 3u);
@@ -154,7 +154,7 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
             return 0;
         }
         zstd_advance(input, header);
-        const unsigned long long needed = (type == 0u) ? regenerated : 1ull;
+        const unsigned long long needed = (type == 0u) ? regenerated : 1ULL;
         if (input->length < needed)
         {
             return 0;
@@ -179,7 +179,7 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
         return 0;
     }
     const unsigned long long value = zstd_little_endian(input->bytes, header);
-    const unsigned long long mask = (1ull << width) - 1ull;
+    const unsigned long long mask = (1ULL << width) - 1ULL;
     const unsigned long long regenerated = (value >> 4u) & mask;
     const unsigned long long compressed = (value >> (4u + width)) & mask;
     zstd_advance(input, header);
@@ -206,23 +206,23 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
     {
         return zstd_huffman_stream(decoder, payload.bytes, payload.length, decoder->literal_buffer, regenerated);
     }
-    if (payload.length < 6ull)
+    if (payload.length < 6ULL)
     {
         return 0;
     }
     const unsigned long long first_size = zstd_little_endian(payload.bytes, 2u);
     const unsigned long long second_size = zstd_little_endian(&payload.bytes[2u], 2u);
     const unsigned long long third_size = zstd_little_endian(&payload.bytes[4u], 2u);
-    zstd_advance(&payload, 6ull);
+    zstd_advance(&payload, 6ULL);
     const unsigned long long leading = first_size + second_size + third_size;
-    const unsigned long long segment = (regenerated + 3ull) / 4ull;
-    if ((leading > payload.length) || ((3ull * segment) > regenerated))
+    const unsigned long long segment = (regenerated + 3ULL) / 4ULL;
+    if ((leading > payload.length) || ((3ULL * segment) > regenerated))
     {
         return 0;
     }
     const unsigned long long sizes[4u] = {first_size, second_size, third_size, payload.length - leading};
-    const unsigned long long lengths[4u] = {segment, segment, segment, regenerated - (3ull * segment)};
-    unsigned long long produced = 0ull;
+    const unsigned long long lengths[4u] = {segment, segment, segment, regenerated - (3ULL * segment)};
+    unsigned long long produced = 0ULL;
     for (unsigned int stream = 0u; stream < 4u; stream += 1u)
     {
         if (!zstd_huffman_stream(decoder, payload.bytes, sizes[stream], &decoder->literal_buffer[produced],
@@ -244,7 +244,7 @@ int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *
     }
     if (mode == 1u)
     {
-        if ((input->length == 0ull) || (input->bytes[0u] >= type->symbols))
+        if ((input->length == 0ULL) || (input->bytes[0u] >= type->symbols))
         {
             table->ready = 0;
             return 0;
@@ -254,7 +254,7 @@ int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *
         table->cells[0u].baseline = 0u;
         table->accuracy = 0u;
         table->ready = 1;
-        zstd_advance(input, 1ull);
+        zstd_advance(input, 1ULL);
         return 1;
     }
     if (mode == 2u)
@@ -302,7 +302,7 @@ int zstd_match_copy(ZstdDecoder *decoder, unsigned long long offset, unsigned lo
     }
     else
     {
-        for (unsigned long long place = 0ull; place < length; place += 1ull)
+        for (unsigned long long place = 0ULL; place < length; place += 1ULL)
         {
             target[place] = source[place];
         }
@@ -314,26 +314,26 @@ int zstd_match_copy(ZstdDecoder *decoder, unsigned long long offset, unsigned lo
 int zstd_offset_resolve(ZstdDecoder *decoder, unsigned long long offset_value, unsigned long long literal_length,
                         unsigned long long *offset)
 {
-    if (offset_value > 3ull)
+    if (offset_value > 3ULL)
     {
-        *offset = offset_value - 3ull;
+        *offset = offset_value - 3ULL;
         decoder->repeat[2u] = decoder->repeat[1u];
         decoder->repeat[1u] = decoder->repeat[0u];
         decoder->repeat[0u] = *offset;
         return 1;
     }
-    const unsigned long long repeat_at = (offset_value - 1ull) + ((literal_length == 0ull) ? 1ull : 0ull);
-    if (repeat_at == 0ull)
+    const unsigned long long repeat_at = (offset_value - 1ULL) + ((literal_length == 0ULL) ? 1ULL : 0ULL);
+    if (repeat_at == 0ULL)
     {
         *offset = decoder->repeat[0u];
         return 1;
     }
-    const unsigned long long chosen = (repeat_at == 3ull) ? (decoder->repeat[0u] - 1ull) : decoder->repeat[repeat_at];
-    if (chosen == 0ull)
+    const unsigned long long chosen = (repeat_at == 3ULL) ? (decoder->repeat[0u] - 1ULL) : decoder->repeat[repeat_at];
+    if (chosen == 0ULL)
     {
         return 0;
     }
-    if (repeat_at != 1ull)
+    if (repeat_at != 1ULL)
     {
         decoder->repeat[2u] = decoder->repeat[1u];
     }

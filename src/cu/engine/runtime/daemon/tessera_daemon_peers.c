@@ -68,7 +68,7 @@ static void daemon_peer_gone(TesseraPeer *peer)
 {
     daemon_lock();
     const unsigned long long now = daemon_now();
-    if (peer->identity != 0ull)
+    if (peer->identity != 0ULL)
     {
         daemon_job_dropped(peer, now, s_daemon_reason_closed);
     }
@@ -81,8 +81,8 @@ static void daemon_peer_gone(TesseraPeer *peer)
     {
         *link = peer->next;
     }
-    g_daemon.peer_count -= 1ull;
-    if ((g_daemon.peer_count == 0ull) && (g_daemon.ledger.job_count == 0ull))
+    g_daemon.peer_count -= 1ULL;
+    if ((g_daemon.peer_count == 0ULL) && (g_daemon.ledger.job_count == 0ULL))
     {
         tessera_ledger_idle(&g_daemon.ledger, now, g_daemon.ledger.idle_microseconds);
         daemon_signal_changed();
@@ -233,7 +233,7 @@ int daemon_peer_start(TesseraPeer *peer, unsigned long long pid)
     daemon_lock();
     peer->next = g_daemon.peers;
     g_daemon.peers = peer;
-    g_daemon.peer_count += 1ull;
+    g_daemon.peer_count += 1ULL;
     daemon_unlock();
 #if defined(_WIN32)
     const HANDLE thread = CreateThread(NULL, 0u, daemon_peer, peer, 0u, NULL);

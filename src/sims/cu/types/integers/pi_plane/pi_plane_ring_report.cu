@@ -11,7 +11,7 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
     VerbaLinea *const line = &results->line;
     const std::vector<unsigned long long> sizes = plane_ring_sizes(bits, PLANE_BITS_MAX);
     const unsigned long long total = plane_ring_total(sizes);
-    if ((sizes.size() < 2u) || (total + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
+    if ((sizes.size() < 2u) || (total + PLANE_GUARD + 64ULL > ORIOR_EXACT_BITS))
     {
         mmgr_line_put(line, "  the rings need ");
         mmgr_line_decimal(line, total, 1u);
@@ -37,8 +37,8 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
     const size_t center = std::min<size_t>(PLANE_RING_CENTER, sizes.size());
     ok = ok && plane_ring_unrolled(sizes, ring_bits.data(), directory + "/pi_rings_unrolled.png") &&
          plane_ring_unrolled(sizes, drawn.data(), directory + "/shuffled_rings_unrolled.png") &&
-         plane_ring_circle(sizes, ring_bits.data(), turn, sizes.size(), 1ll, directory + "/pi_rings.png") &&
-         plane_ring_circle(sizes, drawn.data(), turn, sizes.size(), 1ll, directory + "/shuffled_rings.png") &&
+         plane_ring_circle(sizes, ring_bits.data(), turn, sizes.size(), 1LL, directory + "/pi_rings.png") &&
+         plane_ring_circle(sizes, drawn.data(), turn, sizes.size(), 1LL, directory + "/shuffled_rings.png") &&
          plane_ring_circle(sizes, ring_bits.data(), turn, center, PLANE_RING_CENTER_SCALE,
                            directory + "/pi_rings_center.png") &&
          plane_ring_circle(sizes, drawn.data(), turn, center, PLANE_RING_CENTER_SCALE,
@@ -78,17 +78,17 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
 
     // the spirals, on the bits the pictures showed and on pi's next block of as many bits, which no picture showed
     plane_ring_spiral_read(results, sizes, ring_bits, draws, "the rings' bits");
-    if (2ull * total + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS)
+    if (2ULL * total + PLANE_GUARD + 64ULL > ORIOR_EXACT_BITS)
     {
         mmgr_line_put(line, "  the next block needs an exact width of ");
-        mmgr_line_decimal(line, (2ull * total) + PLANE_GUARD + 64ull, 1u);
+        mmgr_line_decimal(line, (2ULL * total) + PLANE_GUARD + 64ULL, 1u);
         mmgr_line_put(line, " bits, not read\n");
         sim_flush(results);
         return 1;
     }
     std::vector<unsigned char> both;
     // twice the total is at max 2 PLANE_BITS_MAX, below 2^17
-    const int more = plane_bits(results, (unsigned int)(2ull * total), &both);
+    const int more = plane_bits(results, (unsigned int)(2ULL * total), &both);
     sim_check(results, more, "pi's next block of the rings' size is certified");
     if (more)
     {
@@ -99,11 +99,11 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
     }
     if (more && (blind > 0u))
     {
-        plane_blind(results, sizes, 2ull * total, blind_first, blind, balanced, directory);
+        plane_blind(results, sizes, 2ULL * total, blind_first, blind, balanced, directory);
     }
     if (more && (funnels > 0u))
     {
-        plane_funnels(results, sizes, 2ull * total, funnels, draws, directory);
+        plane_funnels(results, sizes, 2ULL * total, funnels, draws, directory);
     }
     return 1;
 }
@@ -117,12 +117,12 @@ std::vector<long long> plane_path_cells(const PlaneExtent &extent, const char *p
     {
         return under;
     }
-    long long row = 0ll;
-    long long column = 0ll;
+    long long row = 0LL;
+    long long column = 0LL;
     while (fscanf(in, "%lld %lld", &row, &column) == 2)
     {
         const long long cell = plane_cell_at(extent, row, column);
-        if (cell >= 0ll)
+        if (cell >= 0LL)
         {
             under.push_back(cell);
         }
@@ -133,7 +133,7 @@ std::vector<long long> plane_path_cells(const PlaneExtent &extent, const char *p
 
 unsigned long long plane_ones_under(const std::vector<long long> &under, const unsigned char *bits)
 {
-    unsigned long long ones = 0ull;
+    unsigned long long ones = 0ULL;
     for (const long long cell : under)
     {
         ones += (unsigned long long)bits[cell];
@@ -196,10 +196,10 @@ void plane_line_print(VerbaLinea *line, const PlaneLine &found)
 void plane_band_print(VerbaLinea *line, std::vector<unsigned long long> band, unsigned long long measurement)
 {
     std::sort(band.begin(), band.end());
-    unsigned long long reached = 0ull;
+    unsigned long long reached = 0ULL;
     for (const unsigned long long each : band)
     {
-        reached += (each >= measurement) ? 1ull : 0ull;
+        reached += (each >= measurement) ? 1ULL : 0ULL;
     }
     mmgr_line_put(line, "; the draws: least ");
     mmgr_line_decimal(line, band.front(), 1u);

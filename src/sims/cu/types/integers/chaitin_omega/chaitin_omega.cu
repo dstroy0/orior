@@ -32,12 +32,12 @@ static __global__ void omega_kernel(OmegaBatch *batch, const unsigned long long 
     buffers.stored_ends = (unsigned short *)base;
     base += ((((size_t)tokens + 1u) * 2u) + 15u) & ~(size_t)15u;
     buffers.stack = base;
-    unsigned long long halts = 0ull;
-    unsigned long long steps_key = 0ull;
-    unsigned long long bits_key = 0ull;
+    unsigned long long halts = 0ULL;
+    unsigned long long steps_key = 0ULL;
+    unsigned long long bits_key = 0ULL;
     for (;;)
     {
-        const unsigned long long offset = atomicAdd(&batch->next, 1ull);
+        const unsigned long long offset = atomicAdd(&batch->next, 1ULL);
         if (offset >= total)
         {
             break;
@@ -49,15 +49,15 @@ static __global__ void omega_kernel(OmegaBatch *batch, const unsigned long long 
         unsigned int fate = omega_device_run(&buffers, &term, &next, &size, steps, tokens, buffer, &taken);
         if (fate == OMEGA_HALTS)
         {
-            unsigned long long bits = 0ull;
+            unsigned long long bits = 0ULL;
             for (unsigned int at = 0u; at < size; at += 1u)
             {
-                bits += (term[at] <= 0) ? 2ull : ((unsigned long long)term[at] + 1ull);
+                bits += (term[at] <= 0) ? 2ULL : ((unsigned long long)term[at] + 1ULL);
             }
-            if (bits <= 0xFFFFFFFFull)
+            if (bits <= 0xFFFFFFFFULL)
             {
-                const unsigned long long rank = 0xFFFFFFFFull - offset;
-                halts += 1ull;
+                const unsigned long long rank = 0xFFFFFFFFULL - offset;
+                halts += 1ULL;
                 steps_key = max(steps_key, ((unsigned long long)taken << 32u) | rank);
                 bits_key = max(bits_key, (bits << 32u) | rank);
                 continue;
@@ -68,7 +68,7 @@ static __global__ void omega_kernel(OmegaBatch *batch, const unsigned long long 
         fate = (((fate == OMEGA_OPEN) && (steps_short != 0)) || ((fate == OMEGA_GREW) && (tokens_short != 0)))
                    ? OMEGA_HOST_RUNS
                    : fate;
-        hand[atomicAdd(&batch->passed, 1ull)] = (offset << 8u) | fate;
+        hand[atomicAdd(&batch->passed, 1ULL)] = (offset << 8u) | fate;
     }
     atomicAdd(&batch->halts, halts);
     atomicMax(&batch->steps_key, steps_key);
@@ -86,9 +86,9 @@ static void omega_hand_worker(const OmegaCounts *counts, unsigned int length, un
     for (unsigned long long at = worker; at < passed; at += workers)
     {
         const unsigned long long index = from + (hand[at] >> 8u);
-        OmegaFate fate = (OmegaFate)(hand[at] & 0xFFull);
+        OmegaFate fate = (OmegaFate)(hand[at] & 0xFFULL);
         unsigned int taken = 0u;
-        if ((hand[at] & 0xFFull) == OMEGA_HOST_RUNS)
+        if ((hand[at] & 0xFFULL) == OMEGA_HOST_RUNS)
         {
             term.clear();
             omega_unrank(counts, length, 0u, index, term);
@@ -124,7 +124,7 @@ static void omega_hand_settle(const OmegaCounts *counts, unsigned int length, un
 // on every run. A finished job's exact counts are one line of the ledger, written whole and flushed, and a run finds
 // every job its ledger already records under the same budgets and runs only the rest. A run stopped at any point
 // resumes where it stopped, and reaching a longer L costs only the new lengths.
-#define OMEGA_JOB_TERMS (1ull << 28u)
+#define OMEGA_JOB_TERMS (1ULL << 28u)
 
 // the ledger's fields a line: steps, tokens, length, from, count, the six fates, the contradictions, and the two
 // busy beavers with their champions
@@ -144,7 +144,7 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         OmegaLedgerJob job;
         omega_results_open(&job.results);
         unsigned long long fate[6];
-        unsigned long long contradictions = 0ull;
+        unsigned long long contradictions = 0ULL;
         unsigned long long max[4];
         const size_t written = strlen(line);
         if ((written == 0u) || (line[written - 1u] != '\n'))
@@ -263,13 +263,13 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
     // the launch before this one, whose passed back terms the host settles while this one runs
     std::vector<unsigned long long> stored_hand;
     unsigned int stored_length = 0u;
-    unsigned long long stored_from = 0ull;
-    unsigned long long size = 1ull << 12u;
+    unsigned long long stored_from = 0ULL;
+    unsigned long long size = 1ULL << 12u;
     static OmegaResults job;
     for (unsigned int length = 2u; (ok != 0) && (length <= counts->length); length += 1u)
     {
         const unsigned long long total = omega_count(counts, length, 0u);
-        for (unsigned long long job_from = 0ull; (ok != 0) && (job_from < total); job_from += OMEGA_JOB_TERMS)
+        for (unsigned long long job_from = 0ULL; (ok != 0) && (job_from < total); job_from += OMEGA_JOB_TERMS)
         {
             const unsigned long long job_count =
                 ((total - job_from) < OMEGA_JOB_TERMS) ? (total - job_from) : OMEGA_JOB_TERMS;
@@ -286,7 +286,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
             if (ledger_job != NULL)
             {
                 omega_merge(fates, &ledger_job->results);
-                *jobs_retained += 1ull;
+                *jobs_retained += 1ULL;
                 continue;
             }
             omega_results_open(&job);
@@ -316,7 +316,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
                     break;
                 }
                 stored_hand.resize(result.passed);
-                ok = (result.passed == 0ull) ||
+                ok = (result.passed == 0ULL) ||
                      sim_status_check(results,
                                       cudaMemcpy(stored_hand.data(), hand, result.passed * sizeof(unsigned long long),
                                                  cudaMemcpyDeviceToHost),
@@ -324,25 +324,25 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
                 stored_length = length;
                 stored_from = from;
                 job.fate[OMEGA_HALTS][length] += result.halts;
-                if (result.steps_key != 0ull)
+                if (result.steps_key != 0ULL)
                 {
                     omega_champion(&job.max_steps[length], &job.steps_champion[length], result.steps_key >> 32u,
-                                   from + (0xFFFFFFFFull - (result.steps_key & 0xFFFFFFFFull)));
+                                   from + (0xFFFFFFFFULL - (result.steps_key & 0xFFFFFFFFULL)));
                     omega_champion(&job.max_bits[length], &job.bits_champion[length], result.bits_key >> 32u,
-                                   from + (0xFFFFFFFFull - (result.bits_key & 0xFFFFFFFFull)));
+                                   from + (0xFFFFFFFFULL - (result.bits_key & 0xFFFFFFFFULL)));
                 }
-                for (unsigned long long at = 0ull; at < result.passed; at += 1ull)
+                for (unsigned long long at = 0ULL; at < result.passed; at += 1ULL)
                 {
-                    *host_runs += ((stored_hand[at] & 0xFFull) == OMEGA_HOST_RUNS) ? 1ull : 0ull;
+                    *host_runs += ((stored_hand[at] & 0xFFULL) == OMEGA_HOST_RUNS) ? 1ULL : 0ULL;
                 }
                 from += take;
                 if ((milliseconds < 100.0f) && (take == size) && (size < OMEGA_BATCH_MAX))
                 {
-                    size *= 2ull;
+                    size *= 2ULL;
                 }
-                else if ((milliseconds > 500.0f) && (size > 1024ull))
+                else if ((milliseconds > 500.0f) && (size > 1024ULL))
                 {
-                    size /= 2ull;
+                    size /= 2ULL;
                 }
             }
             // the job is whole only once its last launch's passed back terms are settled
@@ -359,7 +359,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
                 break;
             }
             omega_merge(fates, &job);
-            *jobs_run += 1ull;
+            *jobs_run += 1ULL;
         }
     }
     (void)cudaEventDestroy(finished);

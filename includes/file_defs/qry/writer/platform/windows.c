@@ -26,7 +26,7 @@ static void qry_shared_named(const char *path, char *name)
 {
     static const char s_prefix[] = "Local\\qry-";
     static const char s_digits[] = "0123456789abcdef";
-    unsigned long long hash = 0xcbf29ce484222325ull;
+    unsigned long long hash = 0xcbf29ce484222325ULL;
     for (const char *at = path; *at != '\0'; at += 1)
     {
         // Windows reads a path the same either way its separators are written and whatever its
@@ -34,12 +34,12 @@ static void qry_shared_named(const char *path, char *name)
         const unsigned char folded = (*at == '\\')                    ? (unsigned char)'/'
                                      : ((*at >= 'A') && (*at <= 'Z')) ? (unsigned char)(*at + ('a' - 'A'))
                                                                       : (unsigned char)*at;
-        hash = (hash ^ folded) * 0x100000001b3ull;
+        hash = (hash ^ folded) * 0x100000001b3ULL;
     }
     memcpy(name, s_prefix, sizeof(s_prefix) - 1u);
     for (unsigned int digit = 0u; digit < 16u; digit += 1u)
     {
-        name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfull];
+        name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfULL];
     }
     name[sizeof(s_prefix) - 1u + 16u] = '\0';
 }
@@ -52,7 +52,7 @@ QryShared *qry_writer_shared_made(const char *path, unsigned long long bytes)
     qry_shared_named(path, name);
     // the region made whole, zeros, its bytes the system's to manage from here
     s_section = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD)(bytes >> 32u),
-                                   (DWORD)(bytes & 0xffffffffull), name);
+                                   (DWORD)(bytes & 0xffffffffULL), name);
     if ((s_section == NULL) || (GetLastError() == ERROR_ALREADY_EXISTS))
     {
         return NULL;
@@ -77,7 +77,7 @@ long long qry_writer_file_made(const char *path)
 
 int qry_writer_file_put(long long file, const unsigned char *bytes, unsigned long long size)
 {
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     while (done < size)
     {
         // a write is at max QRY_WRITER_PIECE_BYTES, at max a gibibyte, which a DWORD counts
@@ -161,7 +161,7 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
     {
         return 0;
     }
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     int whole = 1;
     while (whole && (done < size))
     {
@@ -179,12 +179,12 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
 unsigned long long qry_writer_input_read(unsigned char *bytes, unsigned long long room)
 {
     const HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     for (;;)
     {
         // a read is at max a gibibyte, which a DWORD counts
         const unsigned long long left = room - size;
-        const DWORD piece = (DWORD)((left < (1ull << 30u)) ? left : (1ull << 30u));
+        const DWORD piece = (DWORD)((left < (1ULL << 30u)) ? left : (1ULL << 30u));
         DWORD got = 0u;
         if (!ReadFile(input, bytes + size, piece, &got, NULL))
         {
@@ -245,11 +245,11 @@ unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, 
     }
     // a file's length is not negative and fits `room`
     const unsigned long long size = (unsigned long long)length.QuadPart;
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     while (done < size)
     {
         // a read is at max a gibibyte, which a DWORD counts
-        const DWORD piece = (DWORD)(((size - done) < (1ull << 30u)) ? (size - done) : (1ull << 30u));
+        const DWORD piece = (DWORD)(((size - done) < (1ULL << 30u)) ? (size - done) : (1ULL << 30u));
         DWORD got = 0u;
         if (!ReadFile(file, bytes + done, piece, &got, NULL) || (got == 0u))
         {
@@ -275,7 +275,7 @@ QryShared *qry_member_shared(const char *path)
     QryShared *const shared = (QryShared *)MapViewOfFile(section, FILE_MAP_ALL_ACCESS, 0u, 0u, 0u);
     CloseHandle(section);
     // a region whose whole the writer has not written yet is no run yet
-    if ((shared != NULL) && (atomic_load(&shared->whole) == 0ull))
+    if ((shared != NULL) && (atomic_load(&shared->whole) == 0ULL))
     {
         UnmapViewOfFile(shared);
         return NULL;
@@ -297,7 +297,7 @@ unsigned long long qry_member_clock(void)
     // the counter and its frequency are not negative; the seconds and the rest are turned apart so neither overflows
     const unsigned long long ticks = (unsigned long long)count.QuadPart;
     const unsigned long long rate = (unsigned long long)frequency.QuadPart;
-    return ((ticks / rate) * 1000000000ull) + (((ticks % rate) * 1000000000ull) / rate);
+    return ((ticks / rate) * 1000000000ULL) + (((ticks % rate) * 1000000000ULL) / rate);
 }
 
 unsigned long long qry_member_process(void)
@@ -323,7 +323,7 @@ const unsigned char *qry_member_file_mapped(const char *path, unsigned long long
     }
     // a file's length is not negative
     *size = (unsigned long long)length.QuadPart;
-    if (*size == 0ull)
+    if (*size == 0ULL)
     {
         CloseHandle(file);
         return s_none;
@@ -341,7 +341,7 @@ const unsigned char *qry_member_file_mapped(const char *path, unsigned long long
 
 void qry_member_file_unmapped(const unsigned char *bytes, unsigned long long size)
 {
-    if ((bytes != NULL) && (size != 0ull))
+    if ((bytes != NULL) && (size != 0ULL))
     {
         UnmapViewOfFile(bytes);
     }

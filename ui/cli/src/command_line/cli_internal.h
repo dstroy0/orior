@@ -179,7 +179,7 @@ int cli_file_stamp(const CliPathSizeCtx *args);
 // file ends first: 1, or 0 where the file could not be opened or read
 int cli_file_read_at(const CliPathFromCtx *args);
 // the bytes past a file's stored in its cell, zero: a word a walk loads over a text's last bytes, and the terminator
-#define CLI_FILE_SLACK 64ull
+#define CLI_FILE_SLACK 64ULL
 // The bytes of a file in one temporary cell of their size and the slack, counted to `owner`: the file at `path` read
 // whole, its size into `*size`; the same where its bytes read as UTF-8 whole; or `count` bytes of it from `from`, their
 // count into `*size`, fewer where the file ends first. NULL where the file could not be read or the cells cannot meet
@@ -586,11 +586,11 @@ typedef struct
 } CliSocket;
 
 // what a read that takes what came returns beside a count
-#define CLI_SOCKET_CLOSED 0ll
+#define CLI_SOCKET_CLOSED 0LL
 
-#define CLI_SOCKET_WAITED (-2ll)
+#define CLI_SOCKET_WAITED (-2LL)
 
-#define CLI_SOCKET_FAILED (-1ll)
+#define CLI_SOCKET_FAILED (-1LL)
 
 // a connection made to `host`:`port`, its delay of small writes off; `size` bytes written whole; `size` bytes read
 // whole, 0 where the peer closed or the wait ran out; the wait of a read set, 0 for none; the connection ended both

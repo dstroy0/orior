@@ -143,7 +143,7 @@ int main(int count, char **word)
         words += 1u;
     }
     carrier[words] = NULL;
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -200,7 +200,7 @@ int main(int count, char **word)
     {
         KhwAnswered kernel;
         memset(&kernel, 0, sizeof(kernel));
-        unsigned long long nanoseconds = 0ull;
+        unsigned long long nanoseconds = 0ULL;
         unsigned int probe_place = 0u;
         if (!khw_first_round(&kernel, &probe_place, &nanoseconds) || (probe_place == s_kernel_places))
         {
@@ -280,12 +280,12 @@ int main(int count, char **word)
             static KhwAnswered *s_forms[KHW_FORMS];
             const unsigned int count =
                 khw_comparisons_void(s_forms, khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms));
-            unsigned long long stages = 0ull;
+            unsigned long long stages = 0ULL;
             for (unsigned int at = 0u; at < count; at += 1u)
             {
                 stages += (unsigned long long)khw_turning_cases(s_forms[at]);
             }
-            khw_plan_passed("turns", stages * ((unsigned long long)KHW_TURNS + 1ull));
+            khw_plan_passed("turns", stages * ((unsigned long long)KHW_TURNS + 1ULL));
             const unsigned int fields_turned = khw_fields_turns(s_forms, count);
             run_channel_close();
             if (!khw_forms_work_written())
@@ -332,7 +332,7 @@ int main(int count, char **word)
         {
             printf("  registers: %u classified form(s) with a place present twice queried again\n", count - turned);
         }
-        unsigned long long settings = 0ull;
+        unsigned long long settings = 0ULL;
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             settings += (unsigned long long)s_forms[at]->runs * KHW_SETTINGS * KHW_STAGES;
@@ -350,7 +350,7 @@ int main(int count, char **word)
     }
     KhwAnswered kernel;
     memset(&kernel, 0, sizeof(kernel));
-    unsigned long long nanoseconds = 0ull;
+    unsigned long long nanoseconds = 0ULL;
     unsigned int probe_place = 0u;
     const int related = khw_first_round(&kernel, &probe_place, &nanoseconds);
     if (s_kernel_probe_place < s_kernel_places)
@@ -363,7 +363,7 @@ int main(int count, char **word)
     else
     {
         printf("  the first round: the kernel's relation and %llu places queried for the probe place, %llu queries\n",
-               s_query_count - 1ull, s_query_count);
+               s_query_count - 1ULL, s_query_count);
     }
     // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
     // position the .ksc names, every round put through the airlock as on a live channel and nothing launched

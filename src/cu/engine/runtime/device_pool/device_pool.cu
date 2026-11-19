@@ -8,10 +8,10 @@
 
 static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
 
-static_assert((DEVICE_POOL_SLICE_ALIGN & (DEVICE_POOL_SLICE_ALIGN - 1ull)) == 0ull,
+static_assert((DEVICE_POOL_SLICE_ALIGN & (DEVICE_POOL_SLICE_ALIGN - 1ULL)) == 0ULL,
               "a slice's alignment is a power of two, so rounding to it is a mask");
 
-static_assert((DEVICE_POOL_PAGE_BYTES & (DEVICE_POOL_PAGE_BYTES - 1ull)) == 0ull,
+static_assert((DEVICE_POOL_PAGE_BYTES & (DEVICE_POOL_PAGE_BYTES - 1ULL)) == 0ULL,
               "the page is a power of two, so rounding to it is a mask");
 
 static_assert(sizeof(size_t) >= sizeof(unsigned long long),
@@ -28,15 +28,15 @@ static_assert(sizeof(size_t) >= sizeof(unsigned long long),
 
 // a plan's sum is bounded by this, a whole number of slices and of pages. Its rounding to either never wraps and never
 // passes it
-#define DEVICE_POOL_BYTES_MAX (1ull << 62u)
+#define DEVICE_POOL_BYTES_MAX (1ULL << 62u)
 
-static_assert(((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_SLICE_ALIGN) == 0ull) &&
-                  ((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_PAGE_BYTES) == 0ull),
+static_assert(((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_SLICE_ALIGN) == 0ULL) &&
+                  ((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_PAGE_BYTES) == 0ULL),
               "the max a plan contains rounds to itself on the slice and on the page");
 
 static unsigned long long device_pool_round(unsigned long long bytes, unsigned long long step)
 {
-    return (bytes + (step - 1ull)) & ~(step - 1ull);
+    return (bytes + (step - 1ULL)) & ~(step - 1ULL);
 }
 
 extern "C" unsigned long long device_pool_plan_slice(DevicePoolPlan *plan, unsigned long long bytes)
@@ -49,13 +49,13 @@ extern "C" unsigned long long device_pool_plan_slice(DevicePoolPlan *plan, unsig
         return offset;
     }
     plan->bytes = offset + bytes;
-    plan->slices += 1ull;
+    plan->slices += 1ULL;
     return offset;
 }
 
 extern "C" unsigned long long device_pool_plan_bytes(const DevicePoolPlan *plan)
 {
-    return (plan->spoiled != 0) ? 0ull : device_pool_round(plan->bytes, DEVICE_POOL_PAGE_BYTES);
+    return (plan->spoiled != 0) ? 0ULL : device_pool_round(plan->bytes, DEVICE_POOL_PAGE_BYTES);
 }
 
 extern "C" long device_pool_reserve(const DevicePoolReserveRequest *request)
@@ -73,7 +73,7 @@ extern "C" long device_pool_reserve(const DevicePoolReserveRequest *request)
     DevicePool *const pool = request->pool;
     memset(pool, 0, sizeof(*pool));
     const unsigned long long bytes = device_pool_plan_bytes(request->plan);
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         return 0L;
     }
@@ -114,7 +114,7 @@ extern "C" long device_pool_take(const DevicePoolTakeRequest *request)
 
 extern "C" void device_pool_return(DevicePool *pool)
 {
-    pool->used = 0ull;
+    pool->used = 0ULL;
 }
 
 extern "C" void device_pool_release(DevicePool *pool)

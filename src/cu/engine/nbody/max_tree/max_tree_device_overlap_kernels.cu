@@ -60,7 +60,7 @@ __global__ void max_tree_overlap_pairs_kernel(const unsigned char *earlier_range
     const unsigned int landed = (unsigned int)((((z * (long long)height) + y) * (long long)width) + x) * inside;
     const unsigned int alive =
         inside & (unsigned int)(earlier_ranges[voxel] != 0u) & (unsigned int)(later_ranges[landed] != 0u);
-    pairs[voxel] = (alive != 0u) ? (((unsigned long long)earlier_label[voxel] << 32u) | later_label[landed]) : ~0ull;
+    pairs[voxel] = (alive != 0u) ? (((unsigned long long)earlier_label[voxel] << 32u) | later_label[landed]) : ~0ULL;
 }
 
 __global__ void max_tree_overlap_partners_kernel(const unsigned long long *sorted, unsigned int count,
@@ -72,14 +72,14 @@ __global__ void max_tree_overlap_partners_kernel(const unsigned long long *sorte
         return;
     }
     const unsigned long long pair = sorted[place];
-    if ((pair == ~0ull) || ((place > 0u) && (sorted[place - 1u] == pair)))
+    if ((pair == ~0ULL) || ((place > 0u) && (sorted[place - 1u] == pair)))
     {
         return;
     }
     // the high half contains an earlier label below 2^32. It narrows to unsigned int exactly
     atomicAdd(&earlier_partners[(unsigned int)(pair >> 32u)], 1u);
     // the low half contains a later label below 2^32. It narrows to unsigned int exactly
-    atomicAdd(&later_partners[(unsigned int)(pair & 0xFFFFFFFFull)], 1u);
+    atomicAdd(&later_partners[(unsigned int)(pair & 0xFFFFFFFFULL)], 1u);
 }
 
 __global__ void max_tree_overlap_one_kernel(const unsigned char *ranges, const unsigned int *label,
@@ -103,14 +103,14 @@ __global__ void max_tree_overlap_backs_kernel(const unsigned long long *sorted, 
         return;
     }
     const unsigned long long pair = sorted[place];
-    if ((pair == ~0ull) || ((place > 0u) && (sorted[place - 1u] == pair)))
+    if ((pair == ~0ULL) || ((place > 0u) && (sorted[place - 1u] == pair)))
     {
         return;
     }
     // the high half contains an earlier label below 2^32. It narrows to unsigned int exactly
     const unsigned int earlier = (unsigned int)(pair >> 32u);
     // the low half contains a later label below 2^32. It narrows to unsigned int exactly
-    const unsigned int later = (unsigned int)(pair & 0xFFFFFFFFull);
+    const unsigned int later = (unsigned int)(pair & 0xFFFFFFFFULL);
     if (later_partners[later] == 1u)
     {
         atomicAdd(&earlier_backs[earlier], 1u);

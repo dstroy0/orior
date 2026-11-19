@@ -187,7 +187,7 @@ typedef struct
 
 // the bytes each line's ending is given among the endings: its states as JSON and the comma before it; a coloring whose
 // endings take more leaves them cut
-#define CLI_HIGHLIGHT_ENDING 256ull
+#define CLI_HIGHLIGHT_ENDING 256ULL
 
 // The coloring work state, its parts placed in one cell the store takes once and retains, at twice the sizes the
 // largest coloring requested so far, taken again only where a larger one comes: a line's characters, `max` of them for

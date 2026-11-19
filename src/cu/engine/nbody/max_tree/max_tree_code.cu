@@ -98,7 +98,7 @@ __global__ static void max_tree_code_start_kernel(unsigned int voxels, unsigned 
         return;
     }
     belongs[voxel] = voxel;
-    best[voxel] = 0ull;
+    best[voxel] = 0ULL;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
         bound[((size_t)voxel * 3u) + axis] = 0u;
@@ -153,12 +153,12 @@ __global__ static void max_tree_code_partner_kernel(const unsigned long long *be
         return;
     }
     const unsigned long long key = best[voxel];
-    if ((belongs[voxel] != voxel) || (key == 0ull))
+    if ((belongs[voxel] != voxel) || (key == 0ULL))
     {
         partner[voxel] = voxel;
         return;
     }
-    const unsigned int name = ~(unsigned int)(key & 0xFFFFFFFFull);
+    const unsigned int name = ~(unsigned int)(key & 0xFFFFFFFFULL);
     const unsigned int lower = name / 3u;
     const unsigned int plane = height * width;
     const unsigned int stride[3] = {plane, width, 1u};
@@ -177,7 +177,7 @@ __global__ static void max_tree_code_hook_kernel(unsigned long long *best, const
         return;
     }
     const unsigned long long key = best[voxel];
-    best[voxel] = 0ull;
+    best[voxel] = 0ULL;
     const unsigned int other = partner[voxel];
     const unsigned int mutual = (unsigned int)(partner[other] == voxel);
     const unsigned int joins = (unsigned int)(other != voxel) & ((mutual ^ 1u) | (unsigned int)(voxel > other));
@@ -186,7 +186,7 @@ __global__ static void max_tree_code_hook_kernel(unsigned long long *best, const
         return;
     }
     belongs[voxel] = other;
-    bound[~(unsigned int)(key & 0xFFFFFFFFull)] = 1u;
+    bound[~(unsigned int)(key & 0xFFFFFFFFULL)] = 1u;
     moved[0] = 1u;
     last[0] = tick + 1u;
 }

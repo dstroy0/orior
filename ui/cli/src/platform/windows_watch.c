@@ -46,7 +46,7 @@ typedef struct
 // the records the system wrote, `written` bytes, each reported by its path from the tree's top and what happened to it
 EMBED_INLINE void cli_records_emit(const WindowsWatchCtx *args)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const unsigned char *const bytes = (const unsigned char *)s_watch.buffer;
     const unsigned long long size = (args->written < sizeof(s_watch.buffer)) ? args->written : sizeof(s_watch.buffer);
     while ((at + CLI_WATCH_NAME_AT) <= size)

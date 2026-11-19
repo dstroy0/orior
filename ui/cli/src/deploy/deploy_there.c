@@ -237,7 +237,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
     char digest[65];
     VerbaLinea digest_line = {digest, sizeof(digest), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
     EMBED_CALL(there_pair_append, DeployThereCtx,
                .path = EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &s_pool, .text = path,
                                   .size = path_line.at),

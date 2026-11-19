@@ -87,7 +87,7 @@ EMBED_INLINE unsigned int values_read(const RequestsValuesCtx *args)
     if ((bytes == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
         mmgr_line_put(err_msg, args->file);
         mmgr_line_put(err_msg, ": it could not be read");
         return CLI_JSON_NONE;
@@ -100,7 +100,7 @@ EMBED_INLINE unsigned int values_read(const RequestsValuesCtx *args)
     const unsigned int object = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                            .json = &s_json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                            .text_more = 0ULL, .err_msg = &read_err_msg, .owner = g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
     if (object == CLI_JSON_NONE)
     {
         mmgr_line_put(err_msg, args->file);
@@ -417,7 +417,7 @@ EMBED_INLINE int values_ignore(const RequestsValuesCtx *args)
                       .src = list_entries + start, .other = names[name], .bytes = (embed_word)(end - start)}) == 0));
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_requests_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
     return named;
 }
 

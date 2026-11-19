@@ -497,7 +497,7 @@ int cli_on_validate(const CliValidatePathCfg *args)
             validated = EMBED_CALL(validate_text, ValidateCtx, .path = args->path, .text = (const char *)bytes,
                                    .size = size, .report = args->report, .err_msg = args->err_msg);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_plugins_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_plugins_owner);
     }
     g_cli_guard->persistent_buf_release(g_cli_validate->json.node,
                                         mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->json.node));

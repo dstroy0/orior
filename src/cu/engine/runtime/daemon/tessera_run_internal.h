@@ -33,22 +33,22 @@
 #include <unistd.h>
 #endif
 
-#define RUN_RUNNING_MICROSECONDS 2000000ull
-#define RUN_SWEEP_MICROSECONDS 1000000ull
-#define RUN_IDLE_MICROSECONDS 30000000ull
+#define RUN_RUNNING_MICROSECONDS 2000000ULL
+#define RUN_SWEEP_MICROSECONDS 1000000ULL
+#define RUN_IDLE_MICROSECONDS 30000000ULL
 // until a parent and its child greeted each other, each reads the other's record this often
-#define RUN_GREETING_MICROSECONDS 20000ull
+#define RUN_GREETING_MICROSECONDS 20000ULL
 // a keepalive unchanged this long sends the child looking for its parent ($TESSERA_RUN_SILENT_MS)
-#define RUN_SILENT_MICROSECONDS 10000000ull
+#define RUN_SILENT_MICROSECONDS 10000000ULL
 // a parent that still locks its record and sent no keepalive this long is not responding
 // ($TESSERA_RUN_UNRESPONSIVE_MS)
-#define RUN_UNRESPONSIVE_MICROSECONDS 60000000ull
+#define RUN_UNRESPONSIVE_MICROSECONDS 60000000ULL
 // a command requested to end is given this long before what is left of it is ended by force
-#define RUN_GRACE_MICROSECONDS 10000000ull
+#define RUN_GRACE_MICROSECONDS 10000000ULL
 // how often a command requested to end is read for what is left of it
-#define RUN_ENDING_MICROSECONDS 100000ull
-#define RUN_MILLION 1000000ull
-#define RUN_THOUSAND 1000ull
+#define RUN_ENDING_MICROSECONDS 100000ULL
+#define RUN_MILLION 1000000ULL
+#define RUN_THOUSAND 1000ULL
 // the exit of a child that ended its command for want of a parent, as timeout(1) exits when it ends one
 #define RUN_ORPHANED 124
 #define RUN_FAILED 125

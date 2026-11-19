@@ -14,10 +14,10 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
     const PiWide bound = pi_tower_power_two(PI_TOWER_RECORD_BITS);
     std::vector<PiWide> low;
     std::vector<PiWide> high;
-    PiWide numerator_before = pi_tower_unsigned(1ull);
-    PiWide numerator = pi_tower_unsigned(0ull);
-    PiWide fibonacci_before = pi_tower_unsigned(0ull);
-    PiWide fibonacci = pi_tower_unsigned(1ull);
+    PiWide numerator_before = pi_tower_unsigned(1ULL);
+    PiWide numerator = pi_tower_unsigned(0ULL);
+    PiWide fibonacci_before = pi_tower_unsigned(0ULL);
+    PiWide fibonacci = pi_tower_unsigned(1ULL);
     int alternates = 1;
     int above_golden_floor = 1;
     int under_next = 1;
@@ -63,11 +63,11 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
         // shrink below 1/phi exactly where (2 x + y)^2 < 5 y^2, x = |delta_j|, y = |delta_(j-1)|: that falls as x
         // rises and rises with y. The two corners of the bracket decide it
         const PiWide least =
-            pi_tower_difference(pi_tower_product(pi_tower_unsigned(5ull), pi_tower_product(low[at - 1u], low[at - 1u])),
+            pi_tower_difference(pi_tower_product(pi_tower_unsigned(5ULL), pi_tower_product(low[at - 1u], low[at - 1u])),
                                 pi_tower_product(pi_tower_sum(pi_tower_sum(high[at], high[at]), low[at - 1u]),
                                                  pi_tower_sum(pi_tower_sum(high[at], high[at]), low[at - 1u])));
         const PiWide max = pi_tower_difference(
-            pi_tower_product(pi_tower_unsigned(5ull), pi_tower_product(high[at - 1u], high[at - 1u])),
+            pi_tower_product(pi_tower_unsigned(5ULL), pi_tower_product(high[at - 1u], high[at - 1u])),
             pi_tower_product(pi_tower_sum(pi_tower_sum(low[at], low[at]), high[at - 1u]),
                              pi_tower_sum(pi_tower_sum(low[at], low[at]), high[at - 1u])));
         const int under = least.sign > 0;
@@ -78,7 +78,7 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
         const int wide = pi_tower_compare(pi_tower_sum(low[at], low[at]), high[at - 1u]) > 0;
         const int narrow = pi_tower_compare(pi_tower_sum(high[at], high[at]), low[at - 1u]) < 0;
         decided = decided && ((wide != 0) || (narrow != 0));
-        const int one_floor = pi_tower_compare(floors[at + 1u], pi_tower_unsigned(1ull)) == 0;
+        const int one_floor = pi_tower_compare(floors[at + 1u], pi_tower_unsigned(1ULL)) == 0;
         band_ok = band_ok && (wide == one_floor);
         banded += (wide != 0) ? 1u : 0u;
         mmgr_line_put(&results->line, "    ");
@@ -95,14 +95,14 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
     PiWide scaled = denominators[last];
     for (size_t place = 0u; place < (6u * last); place += 1u)
     {
-        scaled = pi_tower_product(scaled, pi_tower_unsigned(10ull));
+        scaled = pi_tower_product(scaled, pi_tower_unsigned(10ULL));
     }
-    unsigned long long root_low = 1000000ull;
-    unsigned long long root_high = 100000000ull;
-    while ((root_high - root_low) > 1ull)
+    unsigned long long root_low = 1000000ULL;
+    unsigned long long root_high = 100000000ULL;
+    while ((root_high - root_low) > 1ULL)
     {
-        const unsigned long long middle = root_low + ((root_high - root_low) / 2ull);
-        PiWide power = pi_tower_unsigned(1ull);
+        const unsigned long long middle = root_low + ((root_high - root_low) / 2ULL);
+        PiWide power = pi_tower_unsigned(1ULL);
         for (size_t times = 0u; times < last; times += 1u)
         {
             power = pi_tower_product(power, pi_tower_unsigned(middle));
@@ -118,7 +118,7 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
     }
     // phi = (1 + sqrt 5) / 2 to 6 places: (10^6 + floor(sqrt(5 10^12))) / 2, the root's floor taken exactly
     const unsigned long long golden =
-        (1000000ull + pi_tower_word(pi_tower_root(pi_tower_unsigned(5000000000000ull)))) / 2ull;
+        (1000000ULL + pi_tower_word(pi_tower_root(pi_tower_unsigned(5000000000000ULL)))) / 2ULL;
     mmgr_line_put(&results->line, "    ");
     mmgr_line_decimal(&results->line, below, 1u);
     mmgr_line_put(&results->line, " floors shrink below the golden 1/phi and ");
@@ -130,13 +130,13 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
     mmgr_line_put(&results->line, "^(1/");
     mmgr_line_decimal(&results->line, last, 1u);
     mmgr_line_put(&results->line, ") = ");
-    mmgr_line_decimal(&results->line, root_low / 1000000ull, 1u);
+    mmgr_line_decimal(&results->line, root_low / 1000000ULL, 1u);
     mmgr_line_ch(&results->line, '.');
-    mmgr_line_decimal(&results->line, root_low % 1000000ull, 6u);
+    mmgr_line_decimal(&results->line, root_low % 1000000ULL, 6u);
     mmgr_line_put(&results->line, ", against the golden phi = ");
-    mmgr_line_decimal(&results->line, golden / 1000000ull, 1u);
+    mmgr_line_decimal(&results->line, golden / 1000000ULL, 1u);
     mmgr_line_ch(&results->line, '.');
-    mmgr_line_decimal(&results->line, golden % 1000000ull, 6u);
+    mmgr_line_decimal(&results->line, golden % 1000000ULL, 6u);
     mmgr_line_ch(&results->line, '\n');
     sim_check(results, alternates,
               "the residues flip sign on every floor, a half turn: from above on even floors, from below on odd");

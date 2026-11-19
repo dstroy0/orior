@@ -82,7 +82,7 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
                    : CLI_JSON_NONE;
     }
     g_cli_guard->persistent_buf_release(plain_text, g_cli_state_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_state_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_state_owner);
     if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json, .node = root,
                    .type = CFG_JSON_OBJECT))
     {

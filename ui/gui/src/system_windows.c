@@ -83,7 +83,7 @@ struct GuiSystem
 static GuiSystem s_systems[SYSTEM_WINDOWS];
 
 // the boundary a framebuffer's buffer is placed on in its heap, and the bytes a copied row's pitch steps by
-#define SYSTEM_PLACE (64ull << 10u)
+#define SYSTEM_PLACE (64ULL << 10u)
 #define SYSTEM_ROW_STEP 256u
 
 // the COM object released where there is one, and the pointer left NULL
@@ -130,7 +130,7 @@ EMBED_INLINE void system_surfaces_release(const SystemWindowsCtx *args)
 {
     if ((args->device->queue != NULL) && (args->device->fence != NULL))
     {
-        args->device->fence_value += 1ull;
+        args->device->fence_value += 1ULL;
         ID3D12CommandQueue_Signal(args->device->queue, args->device->fence, args->device->fence_value);
         if (ID3D12Fence_GetCompletedValue(args->device->fence) < args->device->fence_value)
         {
@@ -141,7 +141,7 @@ EMBED_INLINE void system_surfaces_release(const SystemWindowsCtx *args)
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         SYSTEM_RELEASED(args->device->positioned[at], ID3D12Resource_Release);
-        args->device->positioned_at[at] = 0ull;
+        args->device->positioned_at[at] = 0ULL;
     }
     SYSTEM_RELEASED(args->device->heap, ID3D12Heap_Release);
     args->device->heap_pages = NULL;
@@ -222,7 +222,7 @@ EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
                                                   args->device->allocator, NULL, &IID_ID3D12GraphicsCommandList,
                                                   (void **)&args->device->list)) &&
         SUCCEEDED(ID3D12GraphicsCommandList_Close(args->device->list)) &&
-        SUCCEEDED(ID3D12Device3_CreateFence(args->device->device, 0ull, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence,
+        SUCCEEDED(ID3D12Device3_CreateFence(args->device->device, 0ULL, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence,
                                             (void **)&args->device->fence)) &&
         SUCCEEDED(CreateDXGIFactory2(0u, &IID_IDXGIFactory4, (void **)&factory)) &&
         SUCCEEDED(IDXGIFactory4_CreateSwapChainForHwnd(factory, (IUnknown *)args->device->queue, args->window,
@@ -338,7 +338,7 @@ static int system_flip(const SystemWindowsCtx *args)
         args->system->device_tried = 1;
     }
     if (!device->ready || (args->raster->pages == NULL) ||
-        (((unsigned long long)args->raster->width * sizeof(GuiColor)) % SYSTEM_ROW_STEP != 0ull) ||
+        (((unsigned long long)args->raster->width * sizeof(GuiColor)) % SYSTEM_ROW_STEP != 0ULL) ||
         !EMBED_CALL(system_back_resize, SystemWindowsCtx, .device = device, .window = args->system->window))
     {
         return 0;
@@ -370,7 +370,7 @@ static int system_flip(const SystemWindowsCtx *args)
     memor.set(&(MemoriaCfg){.dst = &from, .val = 0, .bytes = sizeof(from)});
     from.pResource = source;
     from.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    from.PlacedFootprint.Offset = 0ull;
+    from.PlacedFootprint.Offset = 0ULL;
     from.PlacedFootprint.Footprint.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     from.PlacedFootprint.Footprint.Width = args->raster->width;
     from.PlacedFootprint.Footprint.Height = args->raster->height;
@@ -392,7 +392,7 @@ static int system_flip(const SystemWindowsCtx *args)
     }
     ID3D12CommandList *const lists[1] = {(ID3D12CommandList *)device->list};
     ID3D12CommandQueue_ExecuteCommandLists(device->queue, 1u, lists);
-    device->fence_value += 1ull;
+    device->fence_value += 1ULL;
     ID3D12CommandQueue_Signal(device->queue, device->fence, device->fence_value);
     const HRESULT displayed = IDXGISwapChain3_Present(device->chain, 1u, 0u);
     if (ID3D12Fence_GetCompletedValue(device->fence) < device->fence_value)
@@ -481,26 +481,26 @@ EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
                    {VK_OEM_6, "]"},        {VK_OEM_2, "/"},       {VK_OEM_5, "\\"},        {VK_OEM_PERIOD, "."},
                    {VK_OEM_COMMA, ","},    {VK_OEM_1, ";"},       {VK_OEM_7, "'"},         {VK_OEM_3, "`"},
                    {VK_OEM_MINUS, "-"},    {VK_OEM_PLUS, "="},    {VK_APPS, "ContextMenu"}};
-    VerbaLinea line = {name, args->capacity, 0ull};
+    VerbaLinea line = {name, args->capacity, 0ULL};
     for (unsigned int at = 0u; at < sizeof(s_named) / sizeof(s_named[0]); at += 1u)
     {
         if (s_named[at].key == key)
         {
             mmgr_line_put(&line, s_named[at].name);
-            return mmgr_line_finish(&line) != 0ull;
+            return mmgr_line_finish(&line) != 0ULL;
         }
     }
     if (((key >= 'A') && (key <= 'Z')) || ((key >= '0') && (key <= '9')))
     {
         // a character's or a digit's virtual key is its own character
         mmgr_line_ch(&line, (char)key);
-        return mmgr_line_finish(&line) != 0ull;
+        return mmgr_line_finish(&line) != 0ULL;
     }
     if ((key >= VK_F1) && (key <= VK_F24))
     {
         mmgr_line_ch(&line, 'F');
-        mmgr_line_decimal(&line, (unsigned long long)(key - VK_F1) + 1ull, 1u);
-        return mmgr_line_finish(&line) != 0ull;
+        mmgr_line_decimal(&line, (unsigned long long)(key - VK_F1) + 1ULL, 1u);
+        return mmgr_line_finish(&line) != 0ULL;
     }
     return 0;
 }
@@ -515,7 +515,7 @@ EMBED_INLINE void system_key_press(const SystemWindowsCtx *args)
     }
     const unsigned int mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = args->system);
     char named[48];
-    VerbaLinea line = {named, sizeof(named), 0ull};
+    VerbaLinea line = {named, sizeof(named), 0ULL};
     mmgr_line_put(&line, (mods & GUI_MOD_CONTROL) ? "Mod+" : "");
     mmgr_line_put(&line, (mods & GUI_MOD_ALT) ? "Alt+" : "");
     mmgr_line_put(&line, (mods & GUI_MOD_SHIFT) ? "Shift+" : "");
@@ -551,7 +551,7 @@ EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
         args->system->high_surrogate = 0u;
     }
     char text[8];
-    VerbaLinea line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ULL};
     EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
     EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                .input = GUI_TEXT_INPUT(text, line.at));

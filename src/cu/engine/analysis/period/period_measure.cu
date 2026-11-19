@@ -145,9 +145,9 @@ int period_margin_compare(const void *one, const void *other)
 
 static unsigned long long period_mix(unsigned long long word)
 {
-    unsigned long long mixed = word + 0x9E3779B97F4A7C15ull;
-    mixed = (mixed ^ (mixed >> 30u)) * 0xBF58476D1CE4E5B9ull;
-    mixed = (mixed ^ (mixed >> 27u)) * 0x94D049BB133111EBull;
+    unsigned long long mixed = word + 0x9E3779B97F4A7C15ULL;
+    mixed = (mixed ^ (mixed >> 30u)) * 0xBF58476D1CE4E5B9ULL;
+    mixed = (mixed ^ (mixed >> 27u)) * 0x94D049BB133111EBULL;
     return mixed ^ (mixed >> 31u);
 }
 
@@ -156,7 +156,7 @@ void period_shuffle_fill(PeriodShuffle *shuffle, const EngineSignum *content, un
     unsigned long long words[PERIOD_SEED_WORDS];
     for (unsigned int word = 0u; word < PERIOD_SEED_WORDS; word += 1u)
     {
-        unsigned long long word_value = 0ull;
+        unsigned long long word_value = 0ULL;
         for (unsigned int byte = 0u; byte < 8u; byte += 1u)
         {
             word_value |= (unsigned long long)content->bytes[(word * 8u) + byte] << (8u * byte);
@@ -174,17 +174,17 @@ void period_shuffle_fill(PeriodShuffle *shuffle, const EngineSignum *content, un
 
 static unsigned long long period_beside(const unsigned long long *same, unsigned long long lag)
 {
-    const unsigned long long before = same[lag - 2ull];
+    const unsigned long long before = same[lag - 2ULL];
     const unsigned long long after = same[lag];
     return (before > after) ? before : after;
 }
 
 static int period_peak(const unsigned long long *same, unsigned long long candidate, PeriodPeak *peak)
 {
-    const unsigned long long at = same[candidate - 1ull];
+    const unsigned long long at = same[candidate - 1ULL];
     const unsigned long long beside = period_beside(same, candidate);
-    const unsigned long long doubled = same[(2ull * candidate) - 1ull];
-    const unsigned long long beside_double = period_beside(same, 2ull * candidate);
+    const unsigned long long doubled = same[(2ULL * candidate) - 1ULL];
+    const unsigned long long beside_double = period_beside(same, 2ULL * candidate);
     if ((at <= beside) || (doubled <= beside_double))
     {
         return 0;
@@ -216,11 +216,11 @@ static void period_axis_set(PeriodAxis *axis, const PeriodPeak *peak)
 void period_strongest(const unsigned long long *same, PeriodAxis *axis)
 {
     const unsigned long long lags = axis->lags;
-    for (unsigned long long candidate = 2ull; ((2ull * candidate) + 1ull) <= lags; candidate += 1ull)
+    for (unsigned long long candidate = 2ULL; ((2ULL * candidate) + 1ULL) <= lags; candidate += 1ULL)
     {
         PeriodPeak peak;
         if ((period_peak(same, candidate, &peak) != 0) &&
-            ((axis->candidate == 0ull) || (peak.height > axis->margin.numerator)))
+            ((axis->candidate == 0ULL) || (peak.height > axis->margin.numerator)))
         {
             period_axis_set(axis, &peak);
         }
@@ -233,7 +233,7 @@ void period_strongest(const unsigned long long *same, PeriodAxis *axis)
 int period_fundamental(const unsigned long long *same, const PeriodMargin *top, PeriodAxis *axis)
 {
     const unsigned long long lags = axis->lags;
-    for (unsigned long long candidate = 2ull; ((2ull * candidate) + 1ull) <= lags; candidate += 1ull)
+    for (unsigned long long candidate = 2ULL; ((2ULL * candidate) + 1ULL) <= lags; candidate += 1ULL)
     {
         PeriodPeak peak;
         if (period_peak(same, candidate, &peak) == 0)
@@ -252,10 +252,10 @@ int period_fundamental(const unsigned long long *same, const PeriodMargin *top, 
 
 extern "C" unsigned long long period_agreement_entries(unsigned int rank, const unsigned long long *extent)
 {
-    unsigned long long entries = 0ull;
+    unsigned long long entries = 0ULL;
     for (unsigned int axis = 0u; (extent != NULL) && (axis < rank) && (axis < ENGINE_ARRAY_RANK); axis += 1u)
     {
-        entries += extent[axis] / 2ull;
+        entries += extent[axis] / 2ULL;
     }
     return entries;
 }
@@ -270,7 +270,7 @@ static DevicePoolPlan period_plan(unsigned long long voxels, unsigned long long 
         {&resident->pool, PERIOD_VALUES * sizeof(unsigned int), (void **)&resident->histogram, error},
         {&resident->pool, entries * sizeof(unsigned long long), (void **)&resident->agreement, error},
         {&resident->pool, voxels * sizeof(unsigned short), (void **)&resident->shuffled, error}};
-    DevicePoolPlan plan = {0ull, 0ull, 0};
+    DevicePoolPlan plan = {0ULL, 0ULL, 0};
     for (unsigned int at = 0u; at < PERIOD_SLICES; at += 1u)
     {
         takes[at] = requests[at];
@@ -294,8 +294,8 @@ int period_reserve(unsigned long long voxels, unsigned long long entries, Engine
     resident->histogram = NULL;
     resident->agreement = NULL;
     resident->shuffled = NULL;
-    resident->voxels = 0ull;
-    resident->entries = 0ull;
+    resident->voxels = 0ULL;
+    resident->entries = 0ULL;
     DevicePoolTakeRequest takes[PERIOD_SLICES];
     const DevicePoolPlan plan = period_plan(max_voxels, max_entries, error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
@@ -305,19 +305,19 @@ int period_reserve(unsigned long long voxels, unsigned long long entries, Engine
     {
         ok = device_pool_take(&takes[at]) == 0L;
     }
-    resident->voxels = (ok != 0) ? max_voxels : 0ull;
-    resident->entries = (ok != 0) ? max_entries : 0ull;
+    resident->voxels = (ok != 0) ? max_voxels : 0ULL;
+    resident->entries = (ok != 0) ? max_entries : 0ULL;
     return ok;
 }
 
 extern "C" unsigned long long period_reserve_bytes(unsigned long long voxels, unsigned long long entries)
 {
-    if ((voxels == 0ull) || (voxels > PERIOD_VOXELS_MAX))
+    if ((voxels == 0ULL) || (voxels > PERIOD_VOXELS_MAX))
     {
-        return 0ull;
+        return 0ULL;
     }
     DevicePoolTakeRequest takes[PERIOD_SLICES];
     // the agreement's slice contains one entry at the least, as the calls size it
-    const DevicePoolPlan plan = period_plan(voxels, (entries != 0ull) ? entries : 1ull, NULL, takes);
+    const DevicePoolPlan plan = period_plan(voxels, (entries != 0ULL) ? entries : 1ULL, NULL, takes);
     return device_pool_plan_bytes(&plan);
 }

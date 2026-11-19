@@ -24,7 +24,7 @@
 #include <vector>
 
 // the bytes of one operand of a case: two words of the run channel
-static const unsigned long long s_carrier_operand_bytes = 2ull * sizeof(unsigned int);
+static const unsigned long long s_carrier_operand_bytes = 2ULL * sizeof(unsigned int);
 
 // one link of a carrier: the register it writes, the registers it reads, each also as the link writes it, a pair's
 // high word with its `.hi`, and the register and offset it loads through
@@ -77,7 +77,7 @@ static inline std::vector<std::string> carrier_registers(const std::string &oper
 static inline CarrierLink carrier_link_read(const std::string &text)
 {
     static const std::regex s_memory("\\[(U?R[0-9]+)(\\.64)?(\\+([0-9a-fA-Fx]+))?\\]");
-    CarrierLink link{std::string(), {}, {}, 0, std::string(), 0ull};
+    CarrierLink link{std::string(), {}, {}, 0, std::string(), 0ULL};
     std::string rest = carrier_trimmed(text);
     if (!rest.empty() && (rest[0] == '@'))
     {
@@ -100,7 +100,7 @@ static inline CarrierLink carrier_link_read(const std::string &text)
         {
             link.loads = 1;
             link.address_register = memory[1].str();
-            link.offset = memory[4].matched ? std::stoull(memory[4].str(), nullptr, 0) : 0ull;
+            link.offset = memory[4].matched ? std::stoull(memory[4].str(), nullptr, 0) : 0ULL;
         }
         const std::vector<std::string> named = carrier_registers(operands[at]);
         const std::vector<std::string> named_whole = carrier_registers(operands[at], 1);

@@ -113,27 +113,27 @@ static long long entry_geff_array(const char *root, const char *leaf, unsigned l
         (layout.extent.element_type == ENGINE_ELEMENT_FLOAT))
     {
         fprintf(stderr, "  %s/%s: not an 8 byte integer array of rank %llu\n", root, leaf, want_rank);
-        return -1ll;
+        return -1LL;
     }
-    unsigned long long elements = 1ull;
+    unsigned long long elements = 1ULL;
     for (unsigned int axis = 0u; axis < layout.extent.rank; axis += 1u)
     {
         elements *= layout.extent.sizes[axis];
     }
     *rows = layout.extent.sizes[0];
-    unsigned char *const out = (unsigned char *)malloc((size_t)(elements * 8ull) + 8u);
+    unsigned char *const out = (unsigned char *)malloc((size_t)(elements * 8ULL) + 8u);
     ZarrReadRequest read;
     read.root = array_root;
     read.layout = &layout;
     read.tools = entry_ingest_tools();
-    read.first = 0ull;
+    read.first = 0ULL;
     read.end = layout.extent.sizes[0];
     read.out = out;
-    read.out_capacity = elements * 8ull;
-    if ((out == NULL) || ((elements != 0ull) && (zarr_read(&read) != (long long)(elements * 8ull))))
+    read.out_capacity = elements * 8ULL;
+    if ((out == NULL) || ((elements != 0ULL) && (zarr_read(&read) != (long long)(elements * 8ULL))))
     {
         free(out);
-        return -1ll;
+        return -1LL;
     }
     *bytes = out;
     return (long long)elements;
@@ -152,26 +152,26 @@ extern "C" long engine_geff_read(const char *path, EngineGeff *geff)
     memset(geff, 0, sizeof(*geff));
     static const char *const PLACES[4] = {"nodes/props/t/values", "nodes/props/z/values", "nodes/props/y/values",
                                           "nodes/props/x/values"};
-    unsigned long long rows = 0ull;
+    unsigned long long rows = 0ULL;
     unsigned char *ids = NULL;
     unsigned char *edges = NULL;
     unsigned char *places[4] = {NULL, NULL, NULL, NULL};
-    int ok = (entry_geff_array(path, "nodes/ids", 1ull, &geff->nodes, &ids) >= 0ll);
+    int ok = (entry_geff_array(path, "nodes/ids", 1ULL, &geff->nodes, &ids) >= 0LL);
     for (unsigned int axis = 0u; ok && (axis < 4u); axis += 1u)
     {
-        ok = (entry_geff_array(path, PLACES[axis], 1ull, &rows, &places[axis]) >= 0ll) && (rows == geff->nodes);
+        ok = (entry_geff_array(path, PLACES[axis], 1ULL, &rows, &places[axis]) >= 0LL) && (rows == geff->nodes);
     }
-    ok = ok && (entry_geff_array(path, "edges/ids", 2ull, &geff->edges, &edges) >= 0ll);
+    ok = ok && (entry_geff_array(path, "edges/ids", 2ULL, &geff->edges, &edges) >= 0LL);
     geff->node_identity =
-        ok ? (unsigned long long *)malloc((size_t)(geff->nodes + 1ull) * sizeof(unsigned long long)) : NULL;
-    geff->node_place = ok ? (long long *)malloc((size_t)(geff->nodes + 1ull) * 4u * sizeof(long long)) : NULL;
+        ok ? (unsigned long long *)malloc((size_t)(geff->nodes + 1ULL) * sizeof(unsigned long long)) : NULL;
+    geff->node_place = ok ? (long long *)malloc((size_t)(geff->nodes + 1ULL) * 4u * sizeof(long long)) : NULL;
     ok = ok && (geff->node_identity != NULL) && (geff->node_place != NULL);
-    for (unsigned long long node = 0ull; ok && (node < geff->nodes); node += 1ull)
+    for (unsigned long long node = 0ULL; ok && (node < geff->nodes); node += 1ULL)
     {
-        memcpy(&geff->node_identity[node], &ids[8ull * node], 8u);
+        memcpy(&geff->node_identity[node], &ids[8ULL * node], 8u);
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            memcpy(&geff->node_place[(4ull * node) + axis], &places[axis][8ull * node], 8u);
+            memcpy(&geff->node_place[(4ULL * node) + axis], &places[axis][8ULL * node], 8u);
         }
     }
     if (ok)
@@ -216,12 +216,12 @@ extern "C" long engine_iapx_head(const char *set, const char *sample, unsigned l
 
 unsigned long long entry_lanes(const unsigned long long extent[4])
 {
-    unsigned long long lanes = 1ull;
+    unsigned long long lanes = 1ULL;
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        if ((extent[axis] == 0ull) || (extent[axis] > (1ull << 40u)) || (lanes > ((1ull << 40u) / extent[axis])))
+        if ((extent[axis] == 0ULL) || (extent[axis] > (1ULL << 40u)) || (lanes > ((1ULL << 40u) / extent[axis])))
         {
-            return 0ull;
+            return 0ULL;
         }
         lanes *= extent[axis];
     }
@@ -299,10 +299,10 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
     {
         return ENGINE_ERROR;
     }
-    const unsigned long long lanes = (extent != NULL) ? entry_lanes(extent) : 0ull;
+    const unsigned long long lanes = (extent != NULL) ? entry_lanes(extent) : 0ULL;
     int *device_values = NULL;
     int ok =
-        ENGINE_CHECK((values != NULL) && (bits != NULL) && (lanes != 0ull), &values, error, ENGINE_ERROR_REQUEST) &&
+        ENGINE_CHECK((values != NULL) && (bits != NULL) && (lanes != 0ULL), &values, error, ENGINE_ERROR_REQUEST) &&
         ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_values, (size_t)lanes * sizeof(int)), &device_values, error) &&
         ENGINE_STATUS_CHECK(cudaMemcpy(device_values, values, (size_t)lanes * sizeof(int), cudaMemcpyHostToDevice),
                             device_values, error);

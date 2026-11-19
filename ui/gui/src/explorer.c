@@ -457,14 +457,14 @@ static int explorer_menu(const GuiPaneCfg *args)
 // Return the text of the row `row` and put its byte count into `length_out`. Return NULL if there is no such row.
 static const char *explorer_row_text(const GuiPaneCfg *args)
 {
-    static CliExplorerRow s_named;
-    if (!cli_files_explorer_row(&(CliFilesExplorerCfg){.at = args->row, .row = &s_named}))
+    static CliExplorerRow s_row_read;
+    if (!cli_files_explorer_row(&(CliFilesExplorerCfg){.at = args->row, .row = &s_row_read}))
     {
         *args->length_out = 0ULL;
         return NULL;
     }
-    *args->length_out = cellul.len(&(CatenaFinitaCfg){.src = s_named.name, .cap = CLI_PATH_MAX_LEN});
-    return s_named.name;
+    *args->length_out = cellul.len(&(CatenaFinitaCfg){.src = s_row_read.name, .cap = CLI_PATH_MAX_LEN});
+    return s_row_read.name;
 }
 
 const GuiPaneTable gui_explorer_table = {

@@ -13,9 +13,9 @@ static unsigned int s_next = 1u;
 static void cli_jobs_let_go(void)
 {
     g_cli_guard->persistent_buf_release(s_request.group, g_cli_ipp_owner);
-    *(&s_request) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
+    s_request = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     g_cli_guard->persistent_buf_release(s_answer.group, g_cli_ipp_owner);
-    *(&s_answer) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
+    s_answer = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
 }
 
 int cli_ipp_status(const CliIppCodeCfg *args)

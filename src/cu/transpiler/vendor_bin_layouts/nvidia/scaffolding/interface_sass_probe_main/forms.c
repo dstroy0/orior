@@ -170,8 +170,8 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
     high[0] = operation->first.high;
     for (unsigned int bit = 0u; bit < SASS_BITS; bit += 1u)
     {
-        low[1u + bit] = low[0] ^ ((bit < 64u) ? (1ull << bit) : 0ull);
-        high[1u + bit] = high[0] ^ ((bit >= 64u) ? (1ull << (bit - 64u)) : 0ull);
+        low[1u + bit] = low[0] ^ ((bit < 64u) ? (1ULL << bit) : 0ULL);
+        high[1u + bit] = high[0] ^ ((bit >= 64u) ? (1ULL << (bit - 64u)) : 0ULL);
     }
     char path[1024];
     snprintf(path, sizeof(path), "%s/opcode_%03x", probe->folder, operation->key);

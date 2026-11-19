@@ -29,7 +29,7 @@ static unsigned int contact_side_put(ContactSideWriter *writer, EngineRecordOper
 
 static unsigned int contact_side_constant(ContactSideWriter *writer, unsigned long long value)
 {
-    return contact_side_put(writer, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull),
+    return contact_side_put(writer, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFULL),
                             (unsigned int)(value >> 32u), 0u);
 }
 
@@ -37,7 +37,7 @@ extern "C" long contact_side_difference_program(const ContactSideDifferenceReque
                                                 EngineRecordStep program[CONTACT_SIDE_DIFFERENCE_STEPS],
                                                 unsigned int outputs[CONTACT_SIDE_DIFFERENCE_OUTPUTS])
 {
-    if ((request->voxel_pm[0] == 0ull) || (request->voxel_pm[1] == 0ull) || (request->voxel_pm[2] == 0ull))
+    if ((request->voxel_pm[0] == 0ULL) || (request->voxel_pm[1] == 0ULL) || (request->voxel_pm[2] == 0ULL))
     {
         return CONTACT_SIDE_ERROR;
     }
@@ -70,7 +70,7 @@ extern "C" long contact_side_sign_program(const ContactSideSignRequest *request,
 {
     memset(program, 0, CONTACT_SIDE_SIGN_STEPS * sizeof(EngineRecordStep));
     ContactSideWriter writer = {program, CONTACT_SIDE_SIGN_STEPS, 0u};
-    const unsigned int one = contact_side_constant(&writer, 1ull);
+    const unsigned int one = contact_side_constant(&writer, 1ULL);
     unsigned int dot = 0u;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {

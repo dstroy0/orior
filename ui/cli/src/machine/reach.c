@@ -236,7 +236,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
             EMBED_CALL(reach_entry_add, ReachCtx, .read = read, .entry = one);
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
 }
 
 // whether two paths name one place, as their parts compare, a separator at the end aside

@@ -31,16 +31,16 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
         }
     }
     // the background's gain: its order on each axis and 2 bits for each of its spaced pairs
-    unsigned long long gain = 0ull;
+    unsigned long long gain = 0ULL;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
         gain += request->background_orders[axis];
         for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
         {
-            gain += 2ull * request->background_spaced[axis][spacing];
+            gain += 2ULL * request->background_spaced[axis][spacing];
         }
     }
-    if (!RESIDUAL_CHECK(gain <= 0xFFFFFFFFull, request->background_spaced, error, ENGINE_ERROR_REQUEST))
+    if (!RESIDUAL_CHECK(gain <= 0xFFFFFFFFULL, request->background_spaced, error, ENGINE_ERROR_REQUEST))
     {
         return RESIDUAL_ERROR;
     }

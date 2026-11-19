@@ -80,7 +80,7 @@ extern "C"
     long cycle_record_run_host(const CycleRecordHostRequest *request);
 
 // the latch's answer where no lane's output is true: the minimum over no lane, infinity
-#define CYCLE_LATCH_NONE 0xFFFFFFFFFFFFFFFFull
+#define CYCLE_LATCH_NONE 0xFFFFFFFFFFFFFFFFULL
 
     // The latch: the first of `count` records whose output at bit `offset`, `bits` wide, is not zero, the least such
     // lane, or CYCLE_LATCH_NONE where no lane's is. The output is a program's condition, and it is true where it is not

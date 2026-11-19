@@ -11,7 +11,7 @@ int khw_turning_case(KhwAnswered *form, KhwStaged *stage)
 {
     stage->form = form;
     stage->at = 0u;
-    stage->base = 0ull;
+    stage->base = 0ULL;
     if (form->frame != (unsigned int)FRAME_RELATION_COUNT)
     {
         stage->word[0][0] = 3u;
@@ -73,7 +73,7 @@ static void khw_turns_pooled(const KhwStaged *stage)
     {
         unsigned long long low = stage->form->low;
         unsigned long long high = stage->form->high;
-        khw_run_write(&low, &high, bit, bit, khw_run_read(low, high, bit, bit) ^ 1ull);
+        khw_run_write(&low, &high, bit, bit, khw_run_read(low, high, bit, bit) ^ 1ULL);
         khw_staged_pooled(stage, low, high);
     }
 }

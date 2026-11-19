@@ -9,11 +9,11 @@ __device__ static void noise_spikes_flush(unsigned long long *cells, unsigned in
     unsigned long long *const cell = &cells[level_bin * NOISE_SPIKE_SUMS];
     for (unsigned int sum = 0u; sum < NOISE_SPIKE_SUMS; sum += 1u)
     {
-        if (run[sum] != 0ull)
+        if (run[sum] != 0ULL)
         {
             atomicAdd(&cell[sum], run[sum]);
         }
-        run[sum] = 0ull;
+        run[sum] = 0ULL;
     }
 }
 
@@ -29,7 +29,7 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
     __shared__ unsigned int shared_values[NOISE_SHARED_VALUES];
     for (unsigned int entry = threadIdx.x; entry < NOISE_SPIKE_CELLS; entry += blockDim.x)
     {
-        cells[entry] = 0ull;
+        cells[entry] = 0ULL;
     }
     for (unsigned int entry = threadIdx.x; entry < NOISE_SHARED_VALUES; entry += blockDim.x)
     {
@@ -38,8 +38,8 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
     __syncthreads();
     const unsigned long long voxels = depth * height * width;
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    unsigned long long at_zero = 0ull;
-    unsigned long long at_top = 0ull;
+    unsigned long long at_zero = 0ULL;
+    unsigned long long at_top = 0ULL;
     for (unsigned long long voxel = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; voxel < voxels;
          voxel += jump)
     {
@@ -48,50 +48,50 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
         unsigned long long run[NOISE_SPIKE_SUMS];
         for (unsigned int sum = 0u; sum < NOISE_SPIKE_SUMS; sum += 1u)
         {
-            run[sum] = 0ull;
+            run[sum] = 0ULL;
         }
         unsigned int run_bin = 0u;
         unsigned int earlier = 0u;
         unsigned int middle = 0u;
-        for (unsigned long long frame = 0ull; frame < frames; frame += 1ull)
+        for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)
         {
             const unsigned int value = lanes[(frame * voxels) + voxel];
             least = (value < least) ? value : least;
             max = (value > max) ? value : max;
-            at_zero += (value == 0u) ? 1ull : 0ull;
-            at_top += (value == NOISE_LANE_TOP) ? 1ull : 0ull;
+            at_zero += (value == 0u) ? 1ULL : 0ULL;
+            at_top += (value == NOISE_LANE_TOP) ? 1ULL : 0ULL;
             if (value < NOISE_SHARED_VALUES)
             {
                 atomicAdd(&shared_values[value], 1u);
             }
             else
             {
-                atomicAdd(&values[value], 1ull);
+                atomicAdd(&values[value], 1ULL);
             }
-            if (frame >= 2ull)
+            if (frame >= 2ULL)
             {
                 // the middle frame against the frames either side of it, binned by their mean
                 const unsigned int summed_bin = (earlier + value) >> NOISE_LEVEL_BIN_SHIFT;
                 const unsigned int level_bin = (summed_bin < NOISE_LEVEL_BINS) ? summed_bin : (NOISE_LEVEL_BINS - 1u);
-                if ((level_bin != run_bin) && (run[NOISE_SPIKE_TRIPLES] != 0ull))
+                if ((level_bin != run_bin) && (run[NOISE_SPIKE_TRIPLES] != 0ULL))
                 {
                     noise_spikes_flush(cells, run_bin, run);
                 }
                 run_bin = level_bin;
                 const unsigned int higher = (earlier > value) ? earlier : value;
                 const unsigned int lower = (earlier < value) ? earlier : value;
-                run[NOISE_SPIKE_TRIPLES] += 1ull;
+                run[NOISE_SPIKE_TRIPLES] += 1ULL;
                 for (unsigned int threshold = 0u; threshold < NOISE_SPIKE_THRESHOLDS; threshold += 1u)
                 {
                     const unsigned int apart = NOISE_SPIKE_LEAST << threshold;
-                    run[1u + (2u * threshold)] += (middle >= (higher + apart)) ? 1ull : 0ull;
-                    run[2u + (2u * threshold)] += ((middle + apart) <= lower) ? 1ull : 0ull;
+                    run[1u + (2u * threshold)] += (middle >= (higher + apart)) ? 1ULL : 0ULL;
+                    run[2u + (2u * threshold)] += ((middle + apart) <= lower) ? 1ULL : 0ULL;
                 }
             }
             earlier = middle;
             middle = value;
         }
-        if (run[NOISE_SPIKE_TRIPLES] != 0ull)
+        if (run[NOISE_SPIKE_TRIPLES] != 0ULL)
         {
             noise_spikes_flush(cells, run_bin, run);
         }
@@ -99,16 +99,16 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
         {
             continue;
         }
-        atomicAdd(&counts[NOISE_CLIPS_CONSTANT], 1ull);
+        atomicAdd(&counts[NOISE_CLIPS_CONSTANT], 1ULL);
         if (least == 0u)
         {
-            atomicAdd(&counts[NOISE_CLIPS_CONSTANT_ZERO], 1ull);
+            atomicAdd(&counts[NOISE_CLIPS_CONSTANT_ZERO], 1ULL);
         }
         if (least == NOISE_LANE_TOP)
         {
-            atomicAdd(&counts[NOISE_CLIPS_CONSTANT_TOP], 1ull);
+            atomicAdd(&counts[NOISE_CLIPS_CONSTANT_TOP], 1ULL);
         }
-        atomicAdd(&constant_values[least], 1ull);
+        atomicAdd(&constant_values[least], 1ULL);
         // each coordinate is below its extent, which the host bounds under 2^32
         const unsigned int place[ENGINE_AXES] = {(unsigned int)(voxel / (height * width)),
                                                  (unsigned int)((voxel / width) % height),
@@ -122,7 +122,7 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
     __syncthreads();
     for (unsigned int entry = threadIdx.x; entry < NOISE_SPIKE_CELLS; entry += blockDim.x)
     {
-        if (cells[entry] != 0ull)
+        if (cells[entry] != 0ULL)
         {
             atomicAdd(&spikes[entry], cells[entry]);
         }
@@ -134,11 +134,11 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
             atomicAdd(&values[entry], (unsigned long long)shared_values[entry]);
         }
     }
-    if (at_zero != 0ull)
+    if (at_zero != 0ULL)
     {
         atomicAdd(&counts[NOISE_CLIPS_AT_ZERO], at_zero);
     }
-    if (at_top != 0ull)
+    if (at_top != 0ULL)
     {
         atomicAdd(&counts[NOISE_CLIPS_AT_TOP], at_top);
     }
@@ -152,15 +152,15 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     const unsigned long long height = extent[2];
     const unsigned long long width = extent[3];
     const unsigned long long voxels = depth * height * width;
-    const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
-    const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+    const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
+    const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
     // the voxels each thread takes in turn
-    const unsigned long long rounds = (blocks != 0u) ? ((needed + blocks - 1ull) / blocks) : 0ull;
+    const unsigned long long rounds = (blocks != 0u) ? ((needed + blocks - 1ULL) / blocks) : 0ULL;
     // every count is at max the sample's voxel-frames; a block's shared counts are at max its threads' voxel-frames,
     // which an unsigned int represents. Every coordinate fits an unsigned int
-    const int bounded = (frames >= 1ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
-                        (depth <= 0xFFFFFFFFull) && (height <= 0xFFFFFFFFull) && (width <= 0xFFFFFFFFull) &&
-                        (rounds <= ((0xFFFFFFFFull / NOISE_DETECTOR_THREADS) / frames));
+    const int bounded = (frames >= 1ULL) && (voxels != 0ULL) && (frames <= (~0ULL / voxels)) &&
+                        (depth <= 0xFFFFFFFFULL) && (height <= 0xFFFFFFFFULL) && (width <= 0xFFFFFFFFULL) &&
+                        (rounds <= ((0xFFFFFFFFULL / NOISE_DETECTOR_THREADS) / frames));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -230,7 +230,7 @@ static void noise_clips_range(const NoiseClips *clips, unsigned int *least, unsi
     *max = 0u;
     for (unsigned int value = 0u; value < NOISE_VALUES; value += 1u)
     {
-        if (clips->values[value] == 0ull)
+        if (clips->values[value] == 0ULL)
         {
             continue;
         }
@@ -238,10 +238,10 @@ static void noise_clips_range(const NoiseClips *clips, unsigned int *least, unsi
         *max = value;
         found = 1;
     }
-    *empty = 0ull;
+    *empty = 0ULL;
     for (unsigned int value = *least; (found != 0) && (value <= *max); value += 1u)
     {
-        *empty += (clips->values[value] == 0ull) ? 1ull : 0ull;
+        *empty += (clips->values[value] == 0ULL) ? 1ULL : 0ULL;
     }
 }
 
@@ -262,14 +262,14 @@ void noise_clips_summary(const char *name, const NoiseClips *clips)
 {
     unsigned int least = 0u;
     unsigned int max = 0u;
-    unsigned long long empty = 0ull;
+    unsigned long long empty = 0ULL;
     noise_clips_range(clips, &least, &max, &empty);
     printf("  %-24s values %u to %u, %llu never present between; at 0: %llu, at the top: %llu; constant voxels: %llu"
            " (at 0: %llu, at the top: %llu)",
            name, least, max, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
            clips->counts[NOISE_CLIPS_CONSTANT], clips->counts[NOISE_CLIPS_CONSTANT_ZERO],
            clips->counts[NOISE_CLIPS_CONSTANT_TOP]);
-    if (clips->counts[NOISE_CLIPS_CONSTANT] != 0ull)
+    if (clips->counts[NOISE_CLIPS_CONSTANT] != 0ULL)
     {
         printf(", within z %u to %u, y %u to %u, x %u to %u", clips->box[0], clips->box[1], clips->box[2],
                clips->box[3], clips->box[4], clips->box[5]);
@@ -291,7 +291,7 @@ int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, c
 {
     unsigned int least = 0u;
     unsigned int max = 0u;
-    unsigned long long empty = 0ull;
+    unsigned long long empty = 0ULL;
     noise_clips_range(clips, &least, &max, &empty);
     int ok =
         fprintf(tables[NOISE_TABLE_CLIPS], "%s\t%u\t%u\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu\t%u\t%u\t%u\t%u\t%u\t%u\n",
@@ -301,7 +301,7 @@ int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, c
                 clips->box[4], clips->box[5]) > 0;
     for (unsigned int value = 0u; ok && (value < NOISE_VALUES); value += 1u)
     {
-        if (clips->values[value] == 0ull)
+        if (clips->values[value] == 0ULL)
         {
             continue;
         }
@@ -311,7 +311,7 @@ int noise_clips_rows(FILE *const tables[NOISE_CLIPS_TABLES], const char *name, c
     for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
     {
         const unsigned long long *const cell = &clips->spikes[level_bin * NOISE_SPIKE_SUMS];
-        if (cell[NOISE_SPIKE_TRIPLES] == 0ull)
+        if (cell[NOISE_SPIKE_TRIPLES] == 0ULL)
         {
             continue;
         }

@@ -13,7 +13,7 @@ static PovmNumber povm_number(SimRational rational, SimRational root)
 
 PovmNumber povm_fraction(long long numerator, long long denominator)
 {
-    return povm_number(sim_rational(numerator, denominator), sim_rational(0ll, 1ll));
+    return povm_number(sim_rational(numerator, denominator), sim_rational(0LL, 1LL));
 }
 
 PovmNumber povm_number_sum(PovmNumber left, PovmNumber right)
@@ -32,7 +32,7 @@ PovmNumber povm_number_product(PovmNumber left, PovmNumber right)
 {
     const SimRational roots = sim_rational_product(left.root, right.root);
     const SimRational rational = sim_rational_sum(sim_rational_product(left.rational, right.rational),
-                                                  sim_rational_product(sim_rational(3ll, 1ll), roots));
+                                                  sim_rational_product(sim_rational(3LL, 1LL), roots));
     const SimRational root = sim_rational_sum(sim_rational_product(left.rational, right.root),
                                               sim_rational_product(left.root, right.rational));
     return povm_number(rational, root);
@@ -54,7 +54,7 @@ int povm_number_sign(PovmNumber value)
     }
     const SimRational square = sim_rational_product(value.rational, value.rational);
     const SimRational root_square =
-        sim_rational_product(sim_rational(3ll, 1ll), sim_rational_product(value.root, value.root));
+        sim_rational_product(sim_rational(3LL, 1LL), sim_rational_product(value.root, value.root));
     return (sim_rational_sign(sim_rational_difference(square, root_square)) > 0) ? rational : root;
 }
 
@@ -86,7 +86,7 @@ void povm_number_print(VerbaLinea *line, PovmNumber value)
 }
 
 static const long long s_povm_signs[POVM_OUTCOMES][POVM_AXES] = {
-    {1ll, 1ll, 1ll}, {1ll, -1ll, -1ll}, {-1ll, 1ll, -1ll}, {-1ll, -1ll, 1ll}};
+    {1LL, 1LL, 1LL}, {1LL, -1LL, -1LL}, {-1LL, 1LL, -1LL}, {-1LL, -1LL, 1LL}};
 
 void povm_frame_rational(PovmFrame *frame)
 {
@@ -95,7 +95,7 @@ void povm_frame_rational(PovmFrame *frame)
     {
         for (unsigned int axis = 0u; axis < POVM_AXES; axis += 1u)
         {
-            frame->vector[outcome][axis] = povm_fraction(s_povm_signs[outcome][axis], 2ll);
+            frame->vector[outcome][axis] = povm_fraction(s_povm_signs[outcome][axis], 2LL);
         }
     }
 }
@@ -109,14 +109,14 @@ void povm_frame_sic(PovmFrame *frame)
         for (unsigned int axis = 0u; axis < POVM_AXES; axis += 1u)
         {
             frame->vector[outcome][axis] =
-                povm_number(sim_rational(0ll, 1ll), sim_rational(s_povm_signs[outcome][axis], 3ll));
+                povm_number(sim_rational(0LL, 1LL), sim_rational(s_povm_signs[outcome][axis], 3LL));
         }
     }
 }
 
 PovmNumber povm_dot(const PovmNumber *left, const PovmNumber *right)
 {
-    PovmNumber total = povm_fraction(0ll, 1ll);
+    PovmNumber total = povm_fraction(0LL, 1LL);
     for (unsigned int axis = 0u; axis < POVM_AXES; axis += 1u)
     {
         total = povm_number_sum(total, povm_number_product(left[axis], right[axis]));
@@ -130,7 +130,7 @@ int povm_frame_open(SimResults *results, PovmFrame *frame, PovmNumber *length_sq
     int sums_zero = 1;
     for (unsigned int axis = 0u; axis < POVM_AXES; axis += 1u)
     {
-        PovmNumber total = povm_fraction(0ll, 1ll);
+        PovmNumber total = povm_fraction(0LL, 1LL);
         for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
         {
             total = povm_number_sum(total, frame->vector[outcome][axis]);
@@ -142,17 +142,17 @@ int povm_frame_open(SimResults *results, PovmFrame *frame, PovmNumber *length_sq
     for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
     {
         const PovmNumber square = povm_dot(frame->vector[outcome], frame->vector[outcome]);
-        positive = positive && (povm_number_sign(povm_number_difference(povm_fraction(1ll, 1ll), square)) >= 0);
+        positive = positive && (povm_number_sign(povm_number_difference(povm_fraction(1LL, 1LL), square)) >= 0);
         *length_square = square;
     }
     sim_check(results, positive, "every operator of the POVM is positive (|v|^2 at max 1)");
     int identity = 1;
-    PovmNumber diagonal = povm_fraction(0ll, 1ll);
+    PovmNumber diagonal = povm_fraction(0LL, 1LL);
     for (unsigned int row = 0u; row < POVM_AXES; row += 1u)
     {
         for (unsigned int column = 0u; column < POVM_AXES; column += 1u)
         {
-            PovmNumber entry = povm_fraction(0ll, 1ll);
+            PovmNumber entry = povm_fraction(0LL, 1LL);
             for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
             {
                 entry = povm_number_sum(
@@ -171,10 +171,10 @@ int povm_frame_open(SimResults *results, PovmFrame *frame, PovmNumber *length_sq
     }
     identity = identity && (sim_rational_sign(diagonal.root) == 0) && (sim_rational_sign(diagonal.rational) != 0);
     sim_check(results, identity, "the POVM's frame is a multiple of the identity, so it is complete");
-    frame->factor = sim_rational(0ll, 1ll);
+    frame->factor = sim_rational(0LL, 1LL);
     if (identity != 0)
     {
-        frame->factor = sim_rational_product(sim_rational(4ll, 1ll), sim_rational_reciprocal(diagonal.rational));
+        frame->factor = sim_rational_product(sim_rational(4LL, 1LL), sim_rational_reciprocal(diagonal.rational));
     }
     return identity;
 }
@@ -184,16 +184,16 @@ void povm_answers(const PovmFrame *frame, const PovmNumber *bloch, PovmNumber *a
     for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
     {
         answer[outcome] = povm_number_product(
-            povm_fraction(1ll, 4ll), povm_number_sum(povm_fraction(1ll, 1ll), povm_dot(bloch, frame->vector[outcome])));
+            povm_fraction(1LL, 4LL), povm_number_sum(povm_fraction(1LL, 1LL), povm_dot(bloch, frame->vector[outcome])));
     }
 }
 
 void povm_state_from(const PovmFrame *frame, const PovmNumber *answer, PovmNumber *bloch)
 {
-    const PovmNumber factor = povm_number(frame->factor, sim_rational(0ll, 1ll));
+    const PovmNumber factor = povm_number(frame->factor, sim_rational(0LL, 1LL));
     for (unsigned int axis = 0u; axis < POVM_AXES; axis += 1u)
     {
-        PovmNumber total = povm_fraction(0ll, 1ll);
+        PovmNumber total = povm_fraction(0LL, 1LL);
         for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
         {
             total = povm_number_sum(total, povm_number_product(answer[outcome], frame->vector[outcome][axis]));
@@ -206,13 +206,13 @@ void povm_state_from(const PovmFrame *frame, const PovmNumber *answer, PovmNumbe
 PovmNumber povm_weight(const PovmFrame *frame, unsigned int outcome, unsigned int axis)
 {
     const PovmNumber half_factor =
-        povm_number(sim_rational_product(frame->factor, sim_rational(1ll, 2ll)), sim_rational(0ll, 1ll));
-    return povm_number_sum(povm_fraction(1ll, 2ll), povm_number_product(half_factor, frame->vector[outcome][axis]));
+        povm_number(sim_rational_product(frame->factor, sim_rational(1LL, 2LL)), sim_rational(0LL, 1LL));
+    return povm_number_sum(povm_fraction(1LL, 2LL), povm_number_product(half_factor, frame->vector[outcome][axis]));
 }
 
 PovmNumber povm_cross(const PovmFrame *frame, const PovmNumber *answer, unsigned int axis)
 {
-    PovmNumber total = povm_fraction(0ll, 1ll);
+    PovmNumber total = povm_fraction(0LL, 1LL);
     for (unsigned int outcome = 0u; outcome < POVM_OUTCOMES; outcome += 1u)
     {
         total = povm_number_sum(total, povm_number_product(answer[outcome], povm_weight(frame, outcome, axis)));
@@ -223,12 +223,12 @@ PovmNumber povm_cross(const PovmFrame *frame, const PovmNumber *answer, unsigned
 int povm_is_probability(PovmNumber value)
 {
     return (povm_number_sign(value) >= 0) &&
-           (povm_number_sign(povm_number_difference(povm_fraction(1ll, 1ll), value)) >= 0);
+           (povm_number_sign(povm_number_difference(povm_fraction(1LL, 1LL), value)) >= 0);
 }
 
 int povm_valid(const PovmFrame *frame, const PovmNumber *answer)
 {
     PovmNumber bloch[POVM_AXES];
     povm_state_from(frame, answer, bloch);
-    return povm_number_sign(povm_number_difference(povm_fraction(1ll, 1ll), povm_dot(bloch, bloch))) >= 0;
+    return povm_number_sign(povm_number_difference(povm_fraction(1LL, 1LL), povm_dot(bloch, bloch))) >= 0;
 }

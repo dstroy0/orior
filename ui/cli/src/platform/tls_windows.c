@@ -59,30 +59,30 @@ EMBED_INLINE void cli_status_err_write(const TlsWindowsCtx *args)
     const char *reason = "Schannel reported 0x";
     switch (code)
     {
-    case 0x80090325ul:
+    case 0x80090325UL:
         reason = "the server's certificate is not signed by a root this system trusts";
         break;
-    case 0x80090322ul:
+    case 0x80090322UL:
         reason = "the server's certificate names another host";
         break;
-    case 0x80090328ul:
+    case 0x80090328UL:
         reason = "the server's certificate has expired";
         break;
-    case 0x80090331ul:
+    case 0x80090331UL:
         reason = "the server and this system share no TLS version or cipher";
         break;
-    case 0x80090326ul:
+    case 0x80090326UL:
         reason = "the server sent a message TLS does not allow";
         break;
-    case 0x80090327ul:
+    case 0x80090327UL:
         reason = "the server's certificate could not be read";
         break;
     default:
         break;
     }
     mmgr_line_put(args->err_msg, reason);
-    if ((code != 0x80090325ul) && (code != 0x80090322ul) && (code != 0x80090328ul) && (code != 0x80090331ul) &&
-        (code != 0x80090326ul) && (code != 0x80090327ul))
+    if ((code != 0x80090325UL) && (code != 0x80090322UL) && (code != 0x80090328UL) && (code != 0x80090331UL) &&
+        (code != 0x80090326UL) && (code != 0x80090327UL))
     {
         mmgr_line_hex(args->err_msg, code, 8u);
     }
@@ -104,9 +104,9 @@ long long cli_tls_write(const CliTlsDataCfg *args)
     SecBuffer buffers[4] = {{header, SECBUFFER_STREAM_HEADER, message},
                             {part, SECBUFFER_DATA, message + header},
                             {trailer, SECBUFFER_STREAM_TRAILER, message + header + part},
-                            {0ul, SECBUFFER_EMPTY, NULL}};
-    SecBufferDesc list = {SECBUFFER_VERSION, 4ul, buffers};
-    const SECURITY_STATUS status = EncryptMessage(&args->tls->context, 0ul, &list, 0ul);
+                            {0UL, SECBUFFER_EMPTY, NULL}};
+    SecBufferDesc list = {SECBUFFER_VERSION, 4UL, buffers};
+    const SECURITY_STATUS status = EncryptMessage(&args->tls->context, 0UL, &list, 0UL);
     const int sent =
         (status == SEC_E_OK) &&
         EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->tls->socket, .bytes = message,

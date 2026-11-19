@@ -36,10 +36,11 @@ static unsigned int comms_rows(const GuiPaneCfg *args)
 static int comms_head(const GuiPaneCfg *args)
 {
     const unsigned int view = EMBED_CALL(comms_view, CommsPartCtx, .pane = args);
-    const int under = (view == CLI_COMMS_VIEW_REQUESTS)   ? gui_requests_view.head(args)
-                      : (view == CLI_COMMS_VIEW_CHANNELS) ? GUI_PANE_CHOICE
-                                                          : 0;
-    return GUI_PANE_CHOICE + under;
+    if (view == CLI_COMMS_VIEW_REQUESTS)
+    {
+        return GUI_PANE_CHOICE + gui_requests_view.head(args);
+    }
+    return (view == CLI_COMMS_VIEW_CHANNELS) ? GUI_PANE_CHOICE + GUI_PANE_CHOICE : GUI_PANE_CHOICE;
 }
 
 // the rectangle of the choice of the view `which`, a quarter of the head's first row

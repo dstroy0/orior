@@ -66,7 +66,7 @@ __global__ void track_query_kernel(const unsigned int *planes, const TrackQuery 
             const long long x = (position % side) + step[2];
             const long long y = ((position / side) % side) + step[1];
             const long long z = (position / (side * side)) + step[0];
-            const int ok = (x >= 0ll) && (x < side) && (y >= 0ll) && (y < side) && (z >= 0ll) && (z < side);
+            const int ok = (x >= 0LL) && (x < side) && (y >= 0LL) && (y < side) && (z >= 0LL) && (z < side);
             inside |= ((ok != 0) ? 1u : 0u) << bit;
         }
         candidate &= inside;
@@ -76,21 +76,21 @@ __global__ void track_query_kernel(const unsigned int *planes, const TrackQuery 
             // the first position is below 2^12, and a source word is taken unsigned only once it is found inside
             const long long first = (long long)(word * TRACK_WORD_BITS) + ((long long)step[0] * side * side) +
                                     ((long long)step[1] * side) + (long long)step[2];
-            const long long source = (first >= 0ll) ? (first / 32ll) : -(((-first) + 31ll) / 32ll);
+            const long long source = (first >= 0LL) ? (first / 32LL) : -(((-first) + 31LL) / 32LL);
             // the remainder of a floored division by 32 lies in [0, 32)
-            const unsigned int shift = (unsigned int)(first - (source * 32ll));
+            const unsigned int shift = (unsigned int)(first - (source * 32LL));
             const long long words = (long long)TRACK_WORDS;
             // candidate bit b reads bit b + shift of the source word, or bit b + shift - 32 of the word after it
             const unsigned int lower_wanted = candidate << shift;
             const unsigned int upper_wanted = (shift != 0u) ? (candidate >> (32u - shift)) : 0u;
-            const unsigned int lower = ((source >= 0ll) && (source < words) && (lower_wanted != 0u))
+            const unsigned int lower = ((source >= 0LL) && (source < words) && (lower_wanted != 0u))
                                            ? track_range(frame_planes, (unsigned long long)source, query->low[cell],
                                                          query->high[cell], lower_wanted, &taken)
                                            : 0u;
             unsigned int upper = 0u;
-            if ((upper_wanted != 0u) && ((source + 1ll) >= 0ll) && ((source + 1ll) < words))
+            if ((upper_wanted != 0u) && ((source + 1LL) >= 0LL) && ((source + 1LL) < words))
             {
-                upper = track_range(frame_planes, (unsigned long long)(source + 1ll), query->low[cell],
+                upper = track_range(frame_planes, (unsigned long long)(source + 1LL), query->low[cell],
                                     query->high[cell], upper_wanted, &taken);
             }
             candidate &= (shift == 0u) ? lower : ((lower >> shift) | (upper << (32u - shift)));
@@ -117,24 +117,24 @@ void track_control_bodies(SimBody *body, unsigned long long frames)
 {
     SimDraws draws;
     draws.key = TRACK_KEY ^ TRACK_CONTROL_PURPOSE;
-    draws.counter = 0ull;
+    draws.counter = 0ULL;
     for (unsigned int index = 0u; index < TRACK_CONTROL_BODIES; index += 1u)
     {
         SimBody *const one = &body[index];
         // each draw is a few tens of voxels, far inside a long long
-        one->center[0] = (long long)sim_draws_between(&draws, 14ull, 50ull);
-        one->center[1] = (long long)sim_draws_between(&draws, 20ull, 36ull);
-        one->center[2] = (long long)sim_draws_between(&draws, 20ull, 36ull);
-        one->velocity[0] = 0ll;
+        one->center[0] = (long long)sim_draws_between(&draws, 14ULL, 50ULL);
+        one->center[1] = (long long)sim_draws_between(&draws, 20ULL, 36ULL);
+        one->center[2] = (long long)sim_draws_between(&draws, 20ULL, 36ULL);
+        one->velocity[0] = 0LL;
         one->velocity[1] = TRACK_CELL;
         one->velocity[2] = TRACK_CELL;
-        one->range[0] = (long long)sim_draws_between(&draws, 2ull, 3ull);
-        one->range[1] = (long long)sim_draws_between(&draws, 4ull, 7ull);
-        one->range[2] = (long long)sim_draws_between(&draws, 4ull, 7ull);
-        one->brightness = sim_draws_between(&draws, 150ull, 400ull);
-        one->born = 0ull;
+        one->range[0] = (long long)sim_draws_between(&draws, 2ULL, 3ULL);
+        one->range[1] = (long long)sim_draws_between(&draws, 4ULL, 7ULL);
+        one->range[2] = (long long)sim_draws_between(&draws, 4ULL, 7ULL);
+        one->brightness = sim_draws_between(&draws, 150ULL, 400ULL);
+        one->born = 0ULL;
         one->ended = frames;
-        one->parent = -1ll;
+        one->parent = -1LL;
     }
 }
 
@@ -143,7 +143,7 @@ void track_scan(const TrackQuery *query, const unsigned short *floor_values, uns
 {
     const long long side = (long long)TRACK_FLOOR_SIDE;
     memset(expected, 0, (size_t)TRACK_WORDS * sizeof(unsigned int));
-    for (long long position = 0ll; position < (long long)TRACK_FLOOR_VALUES; position += 1ll)
+    for (long long position = 0LL; position < (long long)TRACK_FLOOR_VALUES; position += 1LL)
     {
         int ok = 1;
         for (unsigned int cell = 0u; ok && (cell < query->count); cell += 1u)
@@ -151,7 +151,7 @@ void track_scan(const TrackQuery *query, const unsigned short *floor_values, uns
             const long long x = (position % side) + query->step[cell][2];
             const long long y = ((position / side) % side) + query->step[cell][1];
             const long long z = (position / (side * side)) + query->step[cell][0];
-            ok = (x >= 0ll) && (x < side) && (y >= 0ll) && (y < side) && (z >= 0ll) && (z < side);
+            ok = (x >= 0LL) && (x < side) && (y >= 0LL) && (y < side) && (z >= 0LL) && (z < side);
             if (ok)
             {
                 const unsigned int value = floor_values[(((z * side) + y) * side) + x];
@@ -175,7 +175,7 @@ int track_gated(unsigned long long from, unsigned long long position)
     const long long dz = (a / (side * side)) - (b / (side * side));
     const long long dy = ((a / side) % side) - ((b / side) % side);
     const long long dx = (a % side) - (b % side);
-    return (dz >= -1ll) && (dz <= 1ll) && (dy >= -1ll) && (dy <= 1ll) && (dx >= -1ll) && (dx <= 1ll);
+    return (dz >= -1LL) && (dz <= 1LL) && (dy >= -1LL) && (dy <= 1LL) && (dx >= -1LL) && (dx <= 1LL);
 }
 
 // a body's step is clear when, in both frames, no other body reaches the samples its 27 cells read, and those cells
@@ -204,8 +204,8 @@ int track_clear(const SimScene *scene, unsigned int index, unsigned long long fr
             for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
             {
                 const long long center = sim_body_at(body, ends[end], axis);
-                const long long low = (TRACK_CELL * (cell[axis] - 1ll)) - TRACK_SUPPORT;
-                const long long high = (TRACK_CELL * (cell[axis] + 1ll)) + TRACK_SUPPORT;
+                const long long low = (TRACK_CELL * (cell[axis] - 1LL)) - TRACK_SUPPORT;
+                const long long high = (TRACK_CELL * (cell[axis] + 1LL)) + TRACK_SUPPORT;
                 meets = meets && ((center + body->range[axis]) >= low) && ((center - body->range[axis]) <= high);
             }
             clear = clear && (meets == 0);

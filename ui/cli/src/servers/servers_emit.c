@@ -345,7 +345,7 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     VerbaLinea supplied = mmgr_line_over(joined, capacity);
     EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = path, .text = (const char *)build,
                .size = build_size, .each = emit_name_append, .context = &supplied);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)build, (g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)build, g_cli_servers_owner);
     const int integer = mmgr_line_ok(&supplied);
     const int put = EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_input,
                                .key = key, .adjacent_value = "", .text = integer ? supplied.out : "",

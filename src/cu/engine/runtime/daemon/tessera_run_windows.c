@@ -254,7 +254,7 @@ int run_cpu(const RunChild *child, unsigned long long *microseconds)
     const unsigned long long user = (unsigned long long)accounting.TotalUserTime.QuadPart;
     // the job's user and kernel times are counts of 100-nanosecond ticks, never negative
     const unsigned long long kernel = (unsigned long long)accounting.TotalKernelTime.QuadPart;
-    *microseconds = (user + kernel) / 10ull;
+    *microseconds = (user + kernel) / 10ULL;
     return 1;
 }
 
@@ -274,7 +274,7 @@ unsigned long long run_end_command(RunChild *child, unsigned long long grace)
     }
     // a grace's milliseconds fit a DWORD
     WaitForSingleObject(child->process, (DWORD)(grace / RUN_THOUSAND));
-    return 1ull;
+    return 1ULL;
 }
 
 void run_folder_make(const char *path)

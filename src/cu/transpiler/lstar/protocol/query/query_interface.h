@@ -16,7 +16,7 @@
 #include "query_put.h"
 
 // the max addresses one probe is given, which bounds the lines it writes back
-#define QUERY_INTERFACE_MAX 1024ull
+#define QUERY_INTERFACE_MAX 1024ULL
 
 // one walk: the program it runs as, the qualifier put at every address, the addresses, and how long a probe is given
 // before the interface ends it

@@ -126,13 +126,13 @@ static int krs_read(const char *path, Krs *krs)
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 0;
     }
     std::string line;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         line.clear();
@@ -142,9 +142,9 @@ static int krs_read(const char *path, Krs *krs)
             {
                 line += (char)bytes[at];
             }
-            at += 1ull;
+            at += 1ULL;
         }
-        at += 1ull;
+        at += 1ULL;
         const size_t equals = line.find(" = ");
         if (equals == std::string::npos)
         {
@@ -1490,8 +1490,8 @@ static std::string hex_number(const std::string &decimal)
 static int number_named(std::string *named, const std::string &number, const std::string &name, std::string *why)
 {
     const unsigned long long word = strtoull(number.c_str(), NULL, 10);
-    const std::string negative = ((word >= 0x80000000ull) && (word <= 0xffffffffull))
-                                     ? std::to_string(-(long long)(0x100000000ull - word))
+    const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
+                                     ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : number;
     for (const std::string &literal : {hex_number(number), number, hex_number(negative), negative})
     {
@@ -1533,12 +1533,12 @@ static std::string numbers_named(const std::string &text, const Question &questi
         {
             continue;
         }
-        const unsigned long long word = (role.number[0] == '-') ? 0ull : strtoull(role.number.c_str(), NULL, 10);
-        if (number_named(&named, role.number, "{" + role.name + "}", why) || (word <= 0xffffffffull))
+        const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
+        if (number_named(&named, role.number, "{" + role.name + "}", why) || (word <= 0xffffffffULL))
         {
             continue;
         }
-        number_named(&named, std::to_string(word & 0xffffffffull), "{" + role.name + "}", why);
+        number_named(&named, std::to_string(word & 0xffffffffULL), "{" + role.name + "}", why);
         number_named(&named, std::to_string(word >> 32u), "{" + role.name + "}.hi", why);
     }
     return named;
@@ -1560,9 +1560,9 @@ static int number_carried(const std::string &text, const Role &role)
         }
         low = text.find(named, low + 1u);
     }
-    const unsigned long long word = (role.number[0] == '-') ? 0ull : strtoull(role.number.c_str(), NULL, 10);
-    const std::string negative = ((word >= 0x80000000ull) && (word <= 0xffffffffull))
-                                     ? std::to_string(-(long long)(0x100000000ull - word))
+    const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
+    const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
+                                     ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : role.number;
     for (const std::string &literal : {hex_number(role.number), role.number, hex_number(negative), negative})
     {
@@ -2316,7 +2316,7 @@ static int sass_assembles(const std::string &text, const Question &question)
         // assembler reads: a bare decimal it would take for a register number, which tests the wrong operand type
         if ((role.type == "number") || role.opaque)
         {
-            const unsigned long long word = (role.number[0] == '-') ? 0ull : strtoull(role.number.c_str(), NULL, 10);
+            const unsigned long long word = (role.number[0] == '-') ? 0ULL : strtoull(role.number.c_str(), NULL, 10);
             const std::string high = "{" + role.name + "}.hi";
             size_t at = filled.find(high);
             while (at != std::string::npos)
@@ -2324,8 +2324,8 @@ static int sass_assembles(const std::string &text, const Question &question)
                 filled.replace(at, high.size(), hex_number(std::to_string(word >> 32u)));
                 at = filled.find(high, at);
             }
-            const std::string low = ((role.number[0] != '-') && (word > 0xffffffffull))
-                                        ? std::to_string(word & 0xffffffffull)
+            const std::string low = ((role.number[0] != '-') && (word > 0xffffffffULL))
+                                        ? std::to_string(word & 0xffffffffULL)
                                         : role.number;
             filled = text_fill(filled, role.name, hex_number(low));
             continue;
@@ -2499,7 +2499,7 @@ static int krs_apply(const char *path, const std::map<std::string, std::string> 
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return -1;

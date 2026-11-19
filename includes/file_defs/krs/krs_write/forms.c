@@ -51,7 +51,7 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
     s_forms = 0u;
     s_frame_forms = 0u;
     const unsigned long long rows = size / sizeof(FormsBlobRow);
-    for (unsigned long long at = 0ull; (at < rows) && (s_forms < KRS_FORMS); at += 1ull)
+    for (unsigned long long at = 0ULL; (at < rows) && (s_forms < KRS_FORMS); at += 1ULL)
     {
         FormsBlobRow row;
         memcpy(&row, bytes + (at * sizeof(FormsBlobRow)), sizeof(row));
@@ -141,8 +141,8 @@ unsigned int krs_given_read(const char *path)
 {
     s_givens = 0u;
     const unsigned char *file_bytes = NULL;
-    unsigned long long file_size = 0ull;
-    unsigned long long file_at = 0ull;
+    unsigned long long file_size = 0ULL;
+    unsigned long long file_at = 0ULL;
     if (!qry_member_file_blob(path, &file_bytes, &file_size))
     {
         return 0u;
@@ -217,9 +217,9 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
 {
     unsigned int first = writers;
-    unsigned long long least = 0ull;
-    unsigned long long next = 0ull;
-    unsigned long long spread = 0ull;
+    unsigned long long least = 0ULL;
+    unsigned long long next = 0ULL;
+    unsigned long long spread = 0ULL;
     for (unsigned int at = 0u; at < writers; at += 1u)
     {
         const KrsCost *const cost = krs_cost_of(s_form[writer[at]].low, s_form[writer[at]].high);

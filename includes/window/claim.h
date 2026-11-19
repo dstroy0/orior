@@ -40,10 +40,10 @@ typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 // window of the pointer's path its speed is measured over, and the speed, in pixels a millisecond, past which it is
 // passing through;
 // how many gaps in from an edge its band reaches; and the points of the pointer's path saved
-#define GUI_AUTOHIDE_SHOW_DELAY_MS 300ull
-#define GUI_AUTOHIDE_HIDE_DELAY_MS 450ull
-#define GUI_AUTOHIDE_ANIMATION_MS 300ull
-#define GUI_AUTOHIDE_TRAIL_WINDOW_MS 50ull
+#define GUI_AUTOHIDE_SHOW_DELAY_MS 300ULL
+#define GUI_AUTOHIDE_HIDE_DELAY_MS 450ULL
+#define GUI_AUTOHIDE_ANIMATION_MS 300ULL
+#define GUI_AUTOHIDE_TRAIL_WINDOW_MS 50ULL
 #define GUI_AUTOHIDE_SPEED_THRESHOLD 0.5f
 // the pixels a resting hand moves the pointer, which the pace does not count as travel
 #define GUI_AUTOHIDE_TREMOR_PX 4
@@ -52,7 +52,7 @@ typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
 // The lag a pane's far edge trails its front edge by. The frame reads a bead's slide a second time this many
 // milliseconds behind the clock, at its start where the lag reaches before it. The pane stretches between the two
 // readings. A bead's slide runs the lag past its end: the far edge catches up before the slides rest
-#define GUI_AUTOHIDE_LAG_MS 40ull
+#define GUI_AUTOHIDE_LAG_MS 40ULL
 
 // A slide: a number of GUI_FIXED_ONE running from `from` to `to` from `start_ms` over its length on its curve, the
 // claim's own GUI_AUTOHIDE_ANIMATION_MS on the page's ease; a slide whose ends are one is at them. A bead's slide

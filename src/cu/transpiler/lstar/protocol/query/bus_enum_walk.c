@@ -13,7 +13,7 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
                                              unsigned long long given, void *answers)
 {
     unsigned int *const types = (unsigned int *)answers;
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     const char *at = lines;
     while (read < given)
     {
@@ -43,7 +43,7 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
         }
         // a type is one of the few HostKind values, which an unsigned int represents
         types[next + read] = (unsigned int)type;
-        read += 1ull;
+        read += 1ULL;
     }
     return read;
 }
@@ -60,7 +60,7 @@ int bus_enum_walk(const QueryWalk *walk, unsigned int *types, unsigned long long
                   unsigned long long *records, EngineError *error)
 {
     const QueryInterfaceDriver driver = {0, bus_enum_walk_read, bus_enum_walk_ended, types};
-    unsigned long long probes = 0ull;
+    unsigned long long probes = 0ULL;
     if (query_interface_run(walk, &driver, &probes, error) == 0)
     {
         return -1;

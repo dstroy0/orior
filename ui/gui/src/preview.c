@@ -89,11 +89,13 @@ EMBED_INLINE void preview_text_draw(const PreviewCtx *args)
     unsigned int face = GUI_FACE_HEAD;
     if (item->face == CLI_PREVIEW_FACE_CODE)
     {
-        face = bold ? GUI_FACE_CODE_BOLD : (italic ? GUI_FACE_CODE_ITALIC : GUI_FACE_CODE);
+        const unsigned int plain = italic ? GUI_FACE_CODE_ITALIC : GUI_FACE_CODE;
+        face = bold ? GUI_FACE_CODE_BOLD : plain;
     }
     else
     {
-        face = bold ? GUI_FACE_HEAD_BOLD : (italic ? GUI_FACE_TEXT : GUI_FACE_HEAD);
+        const unsigned int plain = italic ? GUI_FACE_TEXT : GUI_FACE_HEAD;
+        face = bold ? GUI_FACE_HEAD_BOLD : plain;
     }
     // a text's size in pixels is a few dozen
     const unsigned int size =

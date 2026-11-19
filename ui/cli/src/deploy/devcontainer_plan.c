@@ -29,7 +29,7 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
                                                 .size_pointer = &size, .owner = g_cli_devcontainer_owner);
     if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)raw, (g_cli_devcontainer_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)raw, g_cli_devcontainer_owner);
         mmgr_line_put(args->err_msg, args->file);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
@@ -40,7 +40,7 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
     // the description's bytes read as the text they are
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)raw, .size = size,
                .plain = &plain);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)raw, (g_cli_devcontainer_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)raw, g_cli_devcontainer_owner);
     const unsigned int counted =
         mmgr_line_ok(&plain)
             ? EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = s_plain, .size = plain.at)

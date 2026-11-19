@@ -37,7 +37,7 @@ int cli_plugin_catalog_lock(const CliPluginCatalogCtx *args)
     g_cli_catalog = &s_catalog_work_state;
     g_cli_catalog->bytes = NULL;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &g_cli_catalog->json,
-               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
 }
 
@@ -49,7 +49,7 @@ unsigned int cli_plugin_catalog_tree(const CliPluginCatalogCtx *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                       .json = &g_cli_catalog->json, .text = args->text, .size = args->size_value, .nodes_more = 0u,
-                      .text_more = 0ull, .err_msg = args->err_msg, .owner = g_cli_plugins_owner);
+                      .text_more = 0ULL, .err_msg = args->err_msg, .owner = g_cli_plugins_owner);
 }
 
 typedef struct

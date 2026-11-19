@@ -265,6 +265,6 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
         piece = next;
     }
     g_cli_guard->persistent_buf_release(s_binary_tests.found, g_cli_cargo_owner);
-    *(&s_binary_tests) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
+    s_binary_tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return built;
 }

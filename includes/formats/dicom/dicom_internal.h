@@ -17,8 +17,8 @@
     engine_error_check((condition_), (type_), ENGINE_MODULE_DICOM, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
 
-#define DICOM_PREAMBLE 128ull
-#define DICOM_UNDEFINED 0xFFFFFFFFull
+#define DICOM_PREAMBLE 128ULL
+#define DICOM_UNDEFINED 0xFFFFFFFFULL
 #define DICOM_ITEM_GROUP 0xFFFEu
 #define DICOM_ITEM 0xE000u
 #define DICOM_ITEM_END 0xE00Du

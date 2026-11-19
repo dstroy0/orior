@@ -154,7 +154,7 @@ static unsigned int kdm_seed(const char *part)
 
 // the section, every line after the first to the tail (kdm.h), put together in s_section_bytes and then written in the
 // file's place, `s_section_at` bytes so far, the room once a write did not fit
-static char s_section_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_section_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_section_at;
 
 // `text` written after what the section contains

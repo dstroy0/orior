@@ -29,7 +29,7 @@
 
 // a run's limit: one load and one launch, far under a second, and a turned encoding that leaves the part waiting
 // is ended here and read as not run
-#define UNPRINTED_LIMIT 10000000ull
+#define UNPRINTED_LIMIT 10000000ULL
 
 // the widest field turned through every value, and the max bits a question fixes beside it
 #define UNPRINTED_FIELD_MAX 6u
@@ -46,7 +46,7 @@
 #define UNPRINTED_REGISTERS 255u
 
 // the bits of the high word that are the operation's, 64 to 104, and not the scheduler's
-#define UNPRINTED_OPERATION_HIGH 0x1ffffffffffull
+#define UNPRINTED_OPERATION_HIGH 0x1ffffffffffULL
 
 // bits a question fixes at one value while the field is turned
 typedef struct
@@ -101,13 +101,13 @@ static const UnprintedQuestion s_questions[] = {
      "IMAD.IADD R7, R0, 0x1, R7",
      87u,
      4u,
-     {{0u, 0u, 0ull}},
+     {{0u, 0u, 0ULL}},
      0x00000012u},
     {UNPRINTED_PREDICATES "IMAD.IADD R7, R0, 0x1, -R7",
      "IMAD.IADD R7, R0, 0x1, -R7",
      87u,
      4u,
-     {{0u, 0u, 0ull}},
+     {{0u, 0u, 0ULL}},
      0x00000004u},
     // ISETP's predicate beside its printed ones, which ISETP reads as .EX, probed where the comparison is true and
     // where
@@ -116,33 +116,33 @@ static const UnprintedQuestion s_questions[] = {
      "ISETP.GE.U32.AND P0, PT, R0, R7, PT",
      68u,
      4u,
-     {{0u, 0u, 0ull}},
+     {{0u, 0u, 0ULL}},
      0x0000000bu},
     {UNPRINTED_PREDICATES "ISETP.GE.U32.AND P0, PT, R7, R0, PT\nSEL R7, R0, RZ, P0",
      "ISETP.GE.U32.AND P0, PT, R7, R0, PT",
      68u,
      4u,
-     {{0u, 0u, 0ull}},
+     {{0u, 0u, 0ULL}},
      0x00000000u},
     // the load's predicate at 64 to 67, its number inverted at 64 to 66 and bit 67 negating it, probed with every
     // predicate false and then with every predicate true
-    {UNPRINTED_FALSE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ull}}, 0x0000000bu},
-    {UNPRINTED_TRUE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ull}}, 0x0000000bu},
+    {UNPRINTED_FALSE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ULL}}, 0x0000000bu},
+    {UNPRINTED_TRUE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ULL}}, 0x0000000bu},
     // the load's predicate printed, each assembled into the field at 64 and run as written: P1 is true and P2 false
-    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", P1", UNPRINTED_LOAD ", P1", 0u, 0u, {{0u, 0u, 0ull}}, 0x0000000bu},
-    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", P2", UNPRINTED_LOAD ", P2", 0u, 0u, {{0u, 0u, 0ull}}, 0x00000000u},
-    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", !P1", UNPRINTED_LOAD ", !P1", 0u, 0u, {{0u, 0u, 0ull}}, 0x00000000u},
-    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", !P2", UNPRINTED_LOAD ", !P2", 0u, 0u, {{0u, 0u, 0ull}}, 0x0000000bu},
-    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", !PT", UNPRINTED_LOAD ", !PT", 0u, 0u, {{0u, 0u, 0ull}}, 0x00000000u},
+    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", P1", UNPRINTED_LOAD ", P1", 0u, 0u, {{0u, 0u, 0ULL}}, 0x0000000bu},
+    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", P2", UNPRINTED_LOAD ", P2", 0u, 0u, {{0u, 0u, 0ULL}}, 0x00000000u},
+    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", !P1", UNPRINTED_LOAD ", !P1", 0u, 0u, {{0u, 0u, 0ULL}}, 0x00000000u},
+    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", !P2", UNPRINTED_LOAD ", !P2", 0u, 0u, {{0u, 0u, 0ULL}}, 0x0000000bu},
+    {UNPRINTED_PREDICATES UNPRINTED_LOAD ", !PT", UNPRINTED_LOAD ", !PT", 0u, 0u, {{0u, 0u, 0ULL}}, 0x00000000u},
     // the load's descriptor register, with bit 101 clear and with it set
-    {UNPRINTED_LOAD, UNPRINTED_LOAD, 32u, 6u, {{101u, 1u, 0ull}}, 0x0000000bu},
-    {UNPRINTED_LOAD, UNPRINTED_LOAD, 32u, 6u, {{101u, 1u, 1ull}}, 0x0000000bu},
+    {UNPRINTED_LOAD, UNPRINTED_LOAD, 32u, 6u, {{101u, 1u, 0ULL}}, 0x0000000bu},
+    {UNPRINTED_LOAD, UNPRINTED_LOAD, 32u, 6u, {{101u, 1u, 1ULL}}, 0x0000000bu},
     // the two bits past the load's descriptor register
-    {UNPRINTED_LOAD, UNPRINTED_LOAD, 38u, 2u, {{0u, 0u, 0ull}}, 0x0000000bu},
+    {UNPRINTED_LOAD, UNPRINTED_LOAD, 38u, 2u, {{0u, 0u, 0ULL}}, 0x0000000bu},
     // NVIDIA's 64-bit atomic add, which the resident runs, at every value of bits 64 to 71, where its compare and swap
     // encodes the second register it reads and its descriptor register sits: R0 and R1 added to the answer's third and
     // fourth words, the word it found stored as the second, and the third read back
-    {UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ, UNPRINTED_ATOMIC, 64u, 8u, {{0u, 0u, 0ull}}, 0x0000000bu},
+    {UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ, UNPRINTED_ATOMIC, 64u, 8u, {{0u, 0u, 0ULL}}, 0x0000000bu},
     // the same with 64 to 71 fixed at 100, R100 and R101 given known words first: 0 and 0, 4 and 0, 0 and 1. Where the
     // pair were read into the address, 4 would move the add to the fourth word and 1 in the high word past every
     // word the question allocates
@@ -150,32 +150,32 @@ static const UnprintedQuestion s_questions[] = {
      UNPRINTED_ATOMIC,
      64u,
      0u,
-     {{64u, 8u, 100ull}},
+     {{64u, 8u, 100ULL}},
      0x0000000bu},
     {"IMAD.MOV.U32 R100, RZ, RZ, 0x4\nIMAD.MOV.U32 R101, RZ, RZ, 0x0\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
      UNPRINTED_ATOMIC,
      64u,
      0u,
-     {{64u, 8u, 100ull}},
+     {{64u, 8u, 100ULL}},
      0x0000000bu},
     {"IMAD.MOV.U32 R100, RZ, RZ, 0x0\nIMAD.MOV.U32 R101, RZ, RZ, 0x1\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
      UNPRINTED_ATOMIC,
      64u,
      0u,
-     {{64u, 8u, 100ull}},
+     {{64u, 8u, 100ULL}},
      0x0000000bu},
     // the store's descriptor register with bit 101 clear, and the two bits past it, read back through a load
     {UNPRINTED_STORE "\nLDG.E.CONSTANT R7, term[UR4][R4.64+0x8]",
      UNPRINTED_STORE,
      64u,
      6u,
-     {{101u, 1u, 0ull}},
+     {{101u, 1u, 0ULL}},
      0x0000000bu},
     {UNPRINTED_STORE "\nLDG.E.CONSTANT R7, term[UR4][R4.64+0x8]",
      UNPRINTED_STORE,
      70u,
      2u,
-     {{0u, 0u, 0ull}},
+     {{0u, 0u, 0ULL}},
      0x0000000bu},
 };
 

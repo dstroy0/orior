@@ -43,7 +43,7 @@ static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piec
     {
         // the reading points into the listing's text, which the cross retains until it ends
         pool->readings[piece->index] =
-            (status == 0) ? msq_listing_at(&listing, 0ull) : (MsqReading){MSQ_NONE, "", NULL};
+            (status == 0) ? msq_listing_at(&listing, 0ULL) : (MsqReading){MSQ_NONE, "", NULL};
         pool->readings[piece->index].type =
             ((status != 0) && msq_illegal_found(reader->output, (size_t)reader->output_size))
                 ? MSQ_ILLEGAL
@@ -64,7 +64,7 @@ void *msq_pool_worker(void *argument)
     MsqPool *const pool = (MsqPool *)argument;
     MsqReader reader;
     memset(&reader, 0, sizeof(reader));
-    reader.output_room = 8ull << 20u;
+    reader.output_room = 8ULL << 20u;
     reader.output = (char *)malloc((size_t)reader.output_room);
     if (reader.output == NULL)
     {
@@ -110,7 +110,7 @@ unsigned int msq_processors(void)
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
 {
     memset(read, 0, sizeof(*read));
-    const size_t instructions = (size_t)(frame->size / 16ull);
+    const size_t instructions = (size_t)(frame->size / 16ULL);
     unsigned char *const copy = (unsigned char *)malloc((size_t)frame->size + 1u);
     read->illegal = (unsigned long long *)malloc((instructions + 1u) * sizeof(unsigned long long));
     if ((copy == NULL) || (read->illegal == NULL))
@@ -134,9 +134,9 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
             free(copy);
             return read->readable;
         }
-        unsigned long long address = 0ull;
+        unsigned long long address = 0ULL;
         int stepped = msq_stopped_at(reader->output, (size_t)reader->output_size, &address) &&
-                      ((address % 16ull) == 0ull) && ((address + 16ull) <= frame->size);
+                      ((address % 16ULL) == 0ULL) && ((address + 16ULL) <= frame->size);
         for (size_t at = 0u; stepped && (at < read->illegal_count); at += 1u)
         {
             stepped = (read->illegal[at] != address);
@@ -197,8 +197,8 @@ void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, cons
     {
         length += 1u;
     }
-    unsigned long long low = 0ull;
-    unsigned long long high = 0ull;
+    unsigned long long low = 0ULL;
+    unsigned long long high = 0ULL;
     memcpy(&low, encoding, 8u);
     memcpy(&high, encoding + 8u, 8u);
     char clear[400];
@@ -212,7 +212,7 @@ void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, cons
 unsigned int msq_clearing(unsigned long long reached)
 {
     // a count at max MSQ_ALLOTTED_MAX fits an unsigned int
-    return (reached < MSQ_ALLOTTED_MAX) ? (unsigned int)(reached + 1ull) : 0u;
+    return (reached < MSQ_ALLOTTED_MAX) ? (unsigned int)(reached + 1ULL) : 0u;
 }
 
 // One refusal of `question`: the encoding at `encoding`, NULL where there is none to block, added to the gated list,
@@ -224,8 +224,8 @@ void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const
     char where[48] = "(no encoding)";
     if (encoding != NULL)
     {
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         memcpy(&low, encoding, 8u);
         memcpy(&high, encoding + 8u, 8u);
         char line[48];

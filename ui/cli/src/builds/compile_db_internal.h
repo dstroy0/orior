@@ -84,11 +84,11 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args);
 // the nodes and bytes the entries gathered are taken with, the max projects, languages and flags of one compile group,
 // and the bytes the database and a compile group's flags are written in
 #define CLI_GATHER_NODES_CAPACITY (1u << 18u)
-#define CLI_GATHER_TEXT_CAPACITY (16ull << 20u)
+#define CLI_GATHER_TEXT_CAPACITY (16ULL << 20u)
 #define CLI_GATHER_PROJECTS 256u
 #define CLI_GATHER_LANGUAGES 16u
 #define CLI_GATHER_FLAGS 4096u
-#define CLI_GATHER_FLAGS_CAPACITY (1ull << 20u)
+#define CLI_GATHER_FLAGS_CAPACITY (1ULL << 20u)
 
 // A project's entries: its folder, when its configuration was written, and its entries in the gathered tree
 typedef struct

@@ -15,7 +15,7 @@ long marginal_arrangements(const MarginalRequest *request, const MarginalQuestio
     {
         return MARGINAL_ERROR;
     }
-    unsigned long long arrangements = 1ull;
+    unsigned long long arrangements = 1ULL;
     for (unsigned int local = 0u; local < one->sources; local += 1u)
     {
         const MarginalSource *const source = &request->sources[one->source_first + local];
@@ -31,7 +31,7 @@ long marginal_arrangements(const MarginalRequest *request, const MarginalQuestio
                 return MARGINAL_ERROR;
             }
         }
-        arrangements *= (unsigned long long)source->options + 1ull;
+        arrangements *= (unsigned long long)source->options + 1ULL;
         if (arrangements > MARGINAL_ARRANGEMENTS_MAX)
         {
             return MARGINAL_ERROR;
@@ -81,7 +81,7 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
     unsigned long long taken[MARGINAL_SOURCES_MAX + 1u];
     unsigned int choice[MARGINAL_SOURCES_MAX + 1u];
     marginal_host_word(&product[0], 1u);
-    taken[0] = 0ull;
+    taken[0] = 0ULL;
     choice[0] = 0u;
     unsigned int depth = 0u;
     int ok = 1;
@@ -111,14 +111,14 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
             continue;
         }
         unsigned int weight = source->absent;
-        unsigned long long mark = 0ull;
+        unsigned long long mark = 0ULL;
         if (choice[depth] != 0u)
         {
             const MarginalOption *const option = &request->options[source->option_first + choice[depth] - 1u];
             weight = option->weight;
-            mark = 1ull << option->target;
+            mark = 1ULL << option->target;
         }
-        if ((taken[depth] & mark) != 0ull)
+        if ((taken[depth] & mark) != 0ULL)
         {
             choice[depth] += 1u;
             continue;

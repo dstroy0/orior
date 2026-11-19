@@ -42,8 +42,8 @@ static unsigned int s_registers;
 static unsigned int fixed_given_read(const char *krs_path, KrsFixedGiven *given)
 {
     const unsigned char *file_bytes = NULL;
-    unsigned long long file_size = 0ull;
-    unsigned long long file_at = 0ull;
+    unsigned long long file_size = 0ULL;
+    unsigned long long file_at = 0ULL;
     unsigned int count = 0u;
     if ((krs_path == NULL) || !qry_member_file_blob(krs_path, &file_bytes, &file_size))
     {
@@ -100,17 +100,17 @@ static void fixed_answers_read(const char *ksc_path, int *answered, unsigned lon
 {
     static KscFile s_file;
     static KscRow s_row;
-    *top = 0ull;
+    *top = 0ULL;
     ksc_read(&s_file, ksc_path);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        unsigned long long first = 0ull;
-        unsigned long long bits = 0ull;
+        unsigned long long first = 0ULL;
+        unsigned long long bits = 0ULL;
         const char *read = s_file.line[line];
         if (line_characters(&read, "field") && line_characters(&read, "rd ") && line_number(&read, 0, &first) &&
             line_number(&read, 0, &bits))
         {
-            *top = (bits >= 64u) ? 0xffffffffffffffffull : ((1ull << bits) - 1ull);
+            *top = (bits >= 64u) ? 0xffffffffffffffffULL : ((1ULL << bits) - 1ULL);
             continue;
         }
         if (!ksc_row_read(s_file.line[line], "run", &s_row) || (strcmp(s_row.answer, "answers") != 0) ||
@@ -133,7 +133,7 @@ static void fixed_answers_read(const char *ksc_path, int *answered, unsigned lon
 // Write the fixed line of the answered register `name` into `line`. The register is RZ at the top value.
 static void fixed_line_of(unsigned int name, unsigned long long value, unsigned long long top, char *line, size_t room)
 {
-    if ((top != 0ull) && (value == top))
+    if ((top != 0ULL) && (value == top))
     {
         snprintf(line, room, "fixed %s = RZ", s_fixed_names[name]);
     }
@@ -161,8 +161,8 @@ unsigned int krs_fixed_read(const char *ksc_path, const char *krs_path)
 {
     static KrsFixedGiven s_given[KRS_FIXED_GIVEN_MAX];
     int answered[KRS_FIXED_NAMES] = {0};
-    unsigned long long number[KRS_FIXED_NAMES] = {0ull};
-    unsigned long long top = 0ull;
+    unsigned long long number[KRS_FIXED_NAMES] = {0ULL};
+    unsigned long long top = 0ULL;
     s_registers = 0u;
     fixed_answers_read(ksc_path, answered, number, &top);
     const unsigned int givens = fixed_given_read(krs_path, s_given);
@@ -263,8 +263,8 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
 {
     static KrsFixedGiven s_given[KRS_FIXED_GIVEN_MAX];
     int answered[KRS_FIXED_NAMES] = {0};
-    unsigned long long number[KRS_FIXED_NAMES] = {0ull};
-    unsigned long long top = 0ull;
+    unsigned long long number[KRS_FIXED_NAMES] = {0ULL};
+    unsigned long long top = 0ULL;
     fixed_answers_read(ksc_path, answered, number, &top);
     const unsigned int givens = fixed_given_read(krs_path, s_given);
     unsigned int written = 0u;

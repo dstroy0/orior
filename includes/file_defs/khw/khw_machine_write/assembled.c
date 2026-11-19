@@ -37,7 +37,7 @@ static int khw_assembled_reason(const char *first, const char *second)
 int khw_texts_assembled(const char *path, const char *answers)
 {
     const unsigned char *texts = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_blob(answers, &texts, &size, NULL))
     {
         return khw_assembled_reason("the run contains no ", answers);
@@ -53,17 +53,17 @@ int khw_texts_assembled(const char *path, const char *answers)
     {
         return khw_assembled_reason(answers, " names no call");
     }
-    unsigned long long call = 0ull;
+    unsigned long long call = 0ULL;
     while ((from < size) && (texts[from] >= '0') && (texts[from] <= '9'))
     {
-        call = (call * 10ull) + (unsigned long long)(texts[from] - '0');
-        from += 1ull;
+        call = (call * 10ULL) + (unsigned long long)(texts[from] - '0');
+        from += 1ULL;
     }
     if ((from >= size) || (texts[from] != '\n'))
     {
         return khw_assembled_reason(answers, " names no call");
     }
-    from += 1ull;
+    from += 1ULL;
     unsigned int taken = 0u;
     size_t written = sizeof(call) + sizeof(taken);
     while (from < size)
@@ -84,7 +84,7 @@ int khw_texts_assembled(const char *path, const char *answers)
         written += sizeof(instructions) + ((size_t)instructions * KHW_INSTRUCTION);
         taken += 1u;
         // past the form feed and the line's end after it
-        from = (unsigned long long)(end - texts) + 2ull;
+        from = (unsigned long long)(end - texts) + 2ULL;
     }
     memcpy(s_assembled, &call, sizeof(call));
     memcpy(s_assembled + sizeof(call), &taken, sizeof(taken));

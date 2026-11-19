@@ -2,29 +2,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "periodic_energy.h"
 
-#define CLASSIFY_HEIGHT 8ull
+#define CLASSIFY_HEIGHT 8ULL
 
-#define CLASSIFY_WIDTH 8ull
+#define CLASSIFY_WIDTH 8ULL
 
 #define CLASSIFY_FRAME (CLASSIFY_HEIGHT * CLASSIFY_WIDTH)
 
-#define CLASSIFY_FRAMES 48ull
+#define CLASSIFY_FRAMES 48ULL
 
 #define CLASSIFY_LENGTH (CLASSIFY_FRAME * CLASSIFY_FRAMES)
 
-#define CLASSIFY_SWING 20ll
+#define CLASSIFY_SWING 20LL
 
-#define CLASSIFY_AMPLITUDE 40ll
+#define CLASSIFY_AMPLITUDE 40LL
 
-#define CLASSIFY_DRAWS 8ull
+#define CLASSIFY_DRAWS 8ULL
 
-#define CLASSIFY_KEY 0xF17Aull
+#define CLASSIFY_KEY 0xF17AULL
 
-#define CLASSIFY_SUBJECT_MAX 200ull
+#define CLASSIFY_SUBJECT_MAX 200ULL
 
-#define CLASSIFY_IMPULSE_MAX 255ull
+#define CLASSIFY_IMPULSE_MAX 255ULL
 
-#define CLASSIFY_REPEAT_VARIANCE 144ull
+#define CLASSIFY_REPEAT_VARIANCE 144ULL
 
 typedef struct
 {
@@ -34,7 +34,7 @@ typedef struct
     long long stack[CLASSIFY_LENGTH];
     long long truth[CLASSIFY_LENGTH];
     long long shuffled[CLASSIFY_LENGTH];
-    long long sums[(CLASSIFY_FRAME * (CLASSIFY_FRAME + 1ull)) / 2ull];
+    long long sums[(CLASSIFY_FRAME * (CLASSIFY_FRAME + 1ULL)) / 2ULL];
     long long welford_numerator[CLASSIFY_FRAME];
     unsigned long long welford_denominator[CLASSIFY_FRAME];
     long long by_count[CLASSIFY_FRAME];
@@ -50,20 +50,20 @@ static __global__ void classify_consensus_kernel(const long long *values, unsign
         return;
     }
     long long member[CLASSIFY_FRAMES];
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     for (unsigned long long at = phase; (at < length) && (count < CLASSIFY_FRAMES); at += period)
     {
         member[count] = values[at];
-        count += 1ull;
+        count += 1ULL;
     }
-    unsigned long long max = 0ull;
-    long long chosen = 0ll;
-    for (unsigned long long one = 0ull; one < count; one += 1ull)
+    unsigned long long max = 0ULL;
+    long long chosen = 0LL;
+    for (unsigned long long one = 0ULL; one < count; one += 1ULL)
     {
-        unsigned long long same = 0ull;
-        for (unsigned long long other = 0ull; other < count; other += 1ull)
+        unsigned long long same = 0ULL;
+        for (unsigned long long other = 0ULL; other < count; other += 1ULL)
         {
-            same += (member[other] == member[one]) ? 1ull : 0ull;
+            same += (member[other] == member[one]) ? 1ULL : 0ULL;
         }
         if ((same > max) || ((same == max) && (member[one] < chosen)))
         {
@@ -72,18 +72,18 @@ static __global__ void classify_consensus_kernel(const long long *values, unsign
         }
     }
     by_count[phase] = chosen;
-    for (unsigned long long at = 1ull; at < count; at += 1ull)
+    for (unsigned long long at = 1ULL; at < count; at += 1ULL)
     {
         const long long key = member[at];
         unsigned long long place = at;
-        while ((place > 0ull) && (member[place - 1ull] > key))
+        while ((place > 0ULL) && (member[place - 1ULL] > key))
         {
-            member[place] = member[place - 1ull];
-            place -= 1ull;
+            member[place] = member[place - 1ULL];
+            place -= 1ULL;
         }
         member[place] = key;
     }
-    by_median[phase] = member[(count - 1ull) / 2ull];
+    by_median[phase] = member[(count - 1ULL) / 2ULL];
 }
 
 static int classify_consensus(SimResults *results, const long long *values, long long *by_count, long long *by_median)
@@ -125,24 +125,24 @@ static int classify_consensus(SimResults *results, const long long *values, long
 static void classify_scene(long long *scene, unsigned long long key)
 {
     long long members[CLASSIFY_FRAMES];
-    for (unsigned long long pixel = 0ull; pixel < CLASSIFY_FRAME; pixel += 1ull)
+    for (unsigned long long pixel = 0ULL; pixel < CLASSIFY_FRAME; pixel += 1ULL)
     {
-        const unsigned long long half = CLASSIFY_FRAMES / 2ull;
-        for (unsigned long long step = 0ull; step < half; step += 1ull)
+        const unsigned long long half = CLASSIFY_FRAMES / 2ULL;
+        for (unsigned long long step = 0ULL; step < half; step += 1ULL)
         {
             // a draw below the swing is a small non-negative integer
-            members[step] = 1ll + (long long)sim_draw_below(key, (pixel * CLASSIFY_FRAMES) + step, CLASSIFY_SWING);
+            members[step] = 1LL + (long long)sim_draw_below(key, (pixel * CLASSIFY_FRAMES) + step, CLASSIFY_SWING);
             members[step + half] = -members[step];
         }
-        for (unsigned long long at = CLASSIFY_FRAMES - 1ull; at > 0ull; at -= 1ull)
+        for (unsigned long long at = CLASSIFY_FRAMES - 1ULL; at > 0ULL; at -= 1ULL)
         {
             const unsigned long long other =
-                sim_draw_below(key ^ 0x5348554Full, (pixel * CLASSIFY_FRAMES) + at, at + 1ull);
+                sim_draw_below(key ^ 0x5348554FULL, (pixel * CLASSIFY_FRAMES) + at, at + 1ULL);
             const long long temporary = members[at];
             members[at] = members[other];
             members[other] = temporary;
         }
-        for (unsigned long long step = 0ull; step < CLASSIFY_FRAMES; step += 1ull)
+        for (unsigned long long step = 0ULL; step < CLASSIFY_FRAMES; step += 1ULL)
         {
             scene[pixel + (step * CLASSIFY_FRAME)] = members[step];
         }
@@ -151,19 +151,19 @@ static void classify_scene(long long *scene, unsigned long long key)
 
 static void classify_pattern(long long *pattern, unsigned long long key)
 {
-    long long total = 0ll;
-    for (unsigned long long pixel = 0ull; pixel < CLASSIFY_FRAME; pixel += 1ull)
+    long long total = 0LL;
+    for (unsigned long long pixel = 0ULL; pixel < CLASSIFY_FRAME; pixel += 1ULL)
     {
         // the draw is below 2 A + 1, a small non-negative integer
         pattern[pixel] =
-            (long long)sim_draw_below(key ^ 0x5A5Aull, pixel, (2ull * CLASSIFY_AMPLITUDE) + 1ull) - CLASSIFY_AMPLITUDE;
+            (long long)sim_draw_below(key ^ 0x5A5AULL, pixel, (2ULL * CLASSIFY_AMPLITUDE) + 1ULL) - CLASSIFY_AMPLITUDE;
         total += pattern[pixel];
     }
     // the frame is 64, far below 2^63
     const long long frame = (long long)CLASSIFY_FRAME;
     const long long quotient = total / frame;
-    const long long shift = (((total % frame) != 0ll) && (total < 0ll)) ? (quotient - 1ll) : quotient;
-    for (unsigned long long pixel = 0ull; pixel < CLASSIFY_FRAME; pixel += 1ull)
+    const long long shift = (((total % frame) != 0LL) && (total < 0LL)) ? (quotient - 1LL) : quotient;
+    for (unsigned long long pixel = 0ULL; pixel < CLASSIFY_FRAME; pixel += 1ULL)
     {
         pattern[pixel] -= shift;
     }
@@ -172,7 +172,7 @@ static void classify_pattern(long long *pattern, unsigned long long key)
 static long long classify_noise(unsigned long long key, unsigned long long at, unsigned long long variance)
 {
     // a head count of at max 4 v is far below 2^62
-    return (long long)sim_binomial_half(key, at, 4ull * variance) - (2ll * (long long)variance);
+    return (long long)sim_binomial_half(key, at, 4ULL * variance) - (2LL * (long long)variance);
 }
 
 // present where the live reading clears the top of 8 shuffles' band. Each case is one keyed draw, and a null reading
@@ -181,10 +181,10 @@ static void classify_detect(SimResults *results, ClassifyWork *work, const char 
 {
     EnergyMeasurement live;
     EnergyMeasurement top;
-    unsigned long long reached = 0ull;
+    unsigned long long reached = 0ULL;
     *ok = *ok && energy_recover(results, work->stack, CLASSIFY_LENGTH, CLASSIFY_FRAME, work->sums, &live);
     *ok = *ok && energy_band_top(results, work->stack, CLASSIFY_LENGTH, CLASSIFY_FRAME, CLASSIFY_DRAWS,
-                                 CLASSIFY_KEY ^ 0x42414E44ull, work->shuffled, work->sums, &top, &reached);
+                                 CLASSIFY_KEY ^ 0x42414E44ULL, work->shuffled, work->sums, &top, &reached);
     *present = *ok && (live.period == CLASSIFY_FRAME) && energy_above(&live, &top);
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  ");
@@ -219,21 +219,21 @@ static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, cons
     ok = ok && energy_welford(results, work->stack, CLASSIFY_LENGTH, CLASSIFY_FRAME, work->welford_numerator,
                               work->welford_denominator);
     const long long *const batch = &work->sums[energy_phase_base(CLASSIFY_FRAME)];
-    unsigned long long flagged = 0ull;
-    unsigned long long exact = 0ull;
-    for (unsigned long long phase = 0ull; ok && (phase < CLASSIFY_FRAME); phase += 1ull)
+    unsigned long long flagged = 0ULL;
+    unsigned long long exact = 0ULL;
+    for (unsigned long long phase = 0ULL; ok && (phase < CLASSIFY_FRAME); phase += 1ULL)
     {
         // a phase's member count and the Welford denominator are both below 2^16
         const long long members = (long long)energy_members(CLASSIFY_LENGTH, CLASSIFY_FRAME, phase);
         const long long denominator = (long long)work->welford_denominator[phase];
-        flagged += ((batch[phase] * denominator) != (work->welford_numerator[phase] * members)) ? 1ull : 0ull;
+        flagged += ((batch[phase] * denominator) != (work->welford_numerator[phase] * members)) ? 1ULL : 0ULL;
     }
-    for (unsigned long long at = 0ull; ok && (at < CLASSIFY_LENGTH); at += 1ull)
+    for (unsigned long long at = 0ULL; ok && (at < CLASSIFY_LENGTH); at += 1ULL)
     {
         // the member count is below 2^16
         const long long members = (long long)energy_members(CLASSIFY_LENGTH, CLASSIFY_FRAME, at % CLASSIFY_FRAME);
         exact +=
-            (((members * work->stack[at]) - batch[at % CLASSIFY_FRAME]) == (members * work->truth[at])) ? 1ull : 0ull;
+            (((members * work->stack[at]) - batch[at % CLASSIFY_FRAME]) == (members * work->truth[at])) ? 1ULL : 0ULL;
     }
     OriorExactInteger share_numerator;
     OriorExactInteger share_denominator;
@@ -245,7 +245,7 @@ static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, cons
     mmgr_line_put(line, " of ");
     mmgr_line_decimal(line, CLASSIFY_LENGTH, 1u);
     mmgr_line_put(line, ", reduction ");
-    if (ok && sim_exact_scaled(&share_numerator, 100ull, &percent))
+    if (ok && sim_exact_scaled(&share_numerator, 100ULL, &percent))
     {
         sim_ratio_print(line, &percent, &share_denominator, 4u);
     }
@@ -253,23 +253,23 @@ static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, cons
     mmgr_line_put(line, "%\n                              the batch and incremental routes disagree on ");
     mmgr_line_decimal(line, flagged, 1u);
     mmgr_line_put(line, " of 64 pixels\n\n");
-    sim_check(results, ok && (exact == CLASSIFY_LENGTH) && (flagged == 0ull),
+    sim_check(results, ok && (exact == CLASSIFY_LENGTH) && (flagged == 0ULL),
               "the subject is recovered bit-exact, and the batch and incremental routes agree");
 }
 
 static void classify_repeat(SimResults *results, ClassifyWork *work, const char *name, int expect_resolved_everywhere)
 {
     const int ok = classify_consensus(results, work->stack, work->by_count, work->by_median);
-    unsigned long long flagged = 0ull;
-    unsigned long long resolved_exact = 0ull;
-    for (unsigned long long phase = 0ull; ok && (phase < CLASSIFY_FRAME); phase += 1ull)
+    unsigned long long flagged = 0ULL;
+    unsigned long long resolved_exact = 0ULL;
+    for (unsigned long long phase = 0ULL; ok && (phase < CLASSIFY_FRAME); phase += 1ULL)
     {
         if (work->by_count[phase] != work->by_median[phase])
         {
-            flagged += 1ull;
+            flagged += 1ULL;
             continue;
         }
-        resolved_exact += (work->by_count[phase] == work->subject[phase]) ? 1ull : 0ull;
+        resolved_exact += (work->by_count[phase] == work->subject[phase]) ? 1ULL : 0ULL;
     }
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  ");
@@ -285,7 +285,7 @@ static void classify_repeat(SimResults *results, ClassifyWork *work, const char 
     sim_check(results, ok, "the consensus ran");
     if (expect_resolved_everywhere)
     {
-        sim_check(results, (flagged == 0ull) && (resolved_exact == CLASSIFY_FRAME),
+        sim_check(results, (flagged == 0ULL) && (resolved_exact == CLASSIFY_FRAME),
                   "impulses on a repeat are recovered exactly on every pixel");
     }
 }
@@ -312,47 +312,47 @@ int main(void)
     mmgr_line_put(&results.line, " draws=8\n\n");
     classify_scene(work->scene, CLASSIFY_KEY);
     classify_pattern(work->pattern, CLASSIFY_KEY);
-    for (unsigned long long pixel = 0ull; pixel < CLASSIFY_FRAME; pixel += 1ull)
+    for (unsigned long long pixel = 0ULL; pixel < CLASSIFY_FRAME; pixel += 1ULL)
     {
         // the draw is at max 200, a small non-negative integer
         work->subject[pixel] =
-            (long long)sim_draw_below(CLASSIFY_KEY ^ 0x53554Aull, pixel, CLASSIFY_SUBJECT_MAX + 1ull);
+            (long long)sim_draw_below(CLASSIFY_KEY ^ 0x53554AULL, pixel, CLASSIFY_SUBJECT_MAX + 1ULL);
     }
 
-    for (unsigned long long at = 0ull; at < CLASSIFY_LENGTH; at += 1ull)
+    for (unsigned long long at = 0ULL; at < CLASSIFY_LENGTH; at += 1ULL)
     {
         work->stack[at] = work->scene[at] + work->pattern[at % CLASSIFY_FRAME];
         work->truth[at] = work->scene[at];
     }
     classify_fixed_pattern(&results, work, "fixed pattern, varies    ", 1);
 
-    for (unsigned long long at = 0ull; at < CLASSIFY_LENGTH; at += 1ull)
+    for (unsigned long long at = 0ULL; at < CLASSIFY_LENGTH; at += 1ULL)
     {
         // the amplitude is 40: its square is 1,600
         work->stack[at] =
-            work->scene[at] + classify_noise(CLASSIFY_KEY ^ 0x47415553ull, at,
+            work->scene[at] + classify_noise(CLASSIFY_KEY ^ 0x47415553ULL, at,
                                              (unsigned long long)(CLASSIFY_AMPLITUDE * CLASSIFY_AMPLITUDE));
     }
     classify_fixed_pattern(&results, work, "incoherent, varies       ", 0);
     sim_flush(&results);
 
-    for (unsigned long long at = 0ull; at < CLASSIFY_LENGTH; at += 1ull)
+    for (unsigned long long at = 0ULL; at < CLASSIFY_LENGTH; at += 1ULL)
     {
         work->stack[at] = work->subject[at % CLASSIFY_FRAME];
     }
-    for (unsigned long long impulse = 0ull; impulse < (CLASSIFY_LENGTH / 10ull); impulse += 1ull)
+    for (unsigned long long impulse = 0ULL; impulse < (CLASSIFY_LENGTH / 10ULL); impulse += 1ULL)
     {
-        const unsigned long long at = sim_draw_below(CLASSIFY_KEY ^ 0x494D50ull, 2ull * impulse, CLASSIFY_LENGTH);
+        const unsigned long long at = sim_draw_below(CLASSIFY_KEY ^ 0x494D50ULL, 2ULL * impulse, CLASSIFY_LENGTH);
         // the draw is at max 255, a small non-negative integer
         work->stack[at] =
-            (long long)sim_draw_below(CLASSIFY_KEY ^ 0x494D50ull, (2ull * impulse) + 1ull, CLASSIFY_IMPULSE_MAX + 1ull);
+            (long long)sim_draw_below(CLASSIFY_KEY ^ 0x494D50ULL, (2ULL * impulse) + 1ULL, CLASSIFY_IMPULSE_MAX + 1ULL);
     }
     classify_repeat(&results, work, "impulses on a repeat     ", 1);
 
-    for (unsigned long long at = 0ull; at < CLASSIFY_LENGTH; at += 1ull)
+    for (unsigned long long at = 0ULL; at < CLASSIFY_LENGTH; at += 1ULL)
     {
         work->stack[at] = work->subject[at % CLASSIFY_FRAME] +
-                          classify_noise(CLASSIFY_KEY ^ 0x52455045ull, at, CLASSIFY_REPEAT_VARIANCE);
+                          classify_noise(CLASSIFY_KEY ^ 0x52455045ULL, at, CLASSIFY_REPEAT_VARIANCE);
     }
     classify_repeat(&results, work, "incoherent on a repeat   ", 0);
 

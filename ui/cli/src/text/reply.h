@@ -23,7 +23,7 @@ typedef struct
     const char *text;
     unsigned long long size;
 } CliReply;
-#define CLI_REPLY_NONE 0xffffffffffffffffull
+#define CLI_REPLY_NONE 0xffffffffffffffffULL
 
 // the reply file at `path` mapped into `reply`: 1, or 0 with the reply empty where it cannot be read; and a reply
 // mapped so let go. The reply's value at its start; the value of member `key` of the object at `object`; the first item

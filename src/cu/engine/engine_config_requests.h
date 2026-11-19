@@ -97,7 +97,7 @@ extern "C"
 
 #define ENGINE_RESIDUAL_BOTH_PROVED 2u
 
-#define ENGINE_COEFFICIENT_LIMIT (1ll << 30)
+#define ENGINE_COEFFICIENT_LIMIT (1LL << 30)
 
     typedef struct
     {

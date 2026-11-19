@@ -44,15 +44,15 @@ static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned 
         s_cost_question.word[place][0] = word[place][0];
         s_cost_question.word[place][1] = word[place][1];
     }
-    s_query_count += 1ull;
-    unsigned long long before[4] = {0ull, 0ull, 0ull, 0ull};
+    s_query_count += 1ULL;
+    unsigned long long before[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     run_channel_clocks(&before[0], &before[1], &before[2], &before[3]);
     const int answered = run_channel_put(&s_cost_question);
     khw_round_printed(1u, before);
     *least = s_cost_question.least;
     *max = s_cost_question.max;
     *clock_address = s_cost_question.clock_address;
-    return answered && (s_cost_question.max != 0ull);
+    return answered && (s_cost_question.max != 0ULL);
 }
 
 // The cost of every form the machine file names, queried (P6): each classified form whose runs carry every place of its
@@ -79,10 +79,10 @@ unsigned int khw_costs_queried(const char *path)
     // the gate's for the costs questions, the kernel's places arranged as forms before the forms the part answered
     // for, and the forms a word is written by are the carried-in file's alone
     const unsigned char *machine = NULL;
-    unsigned long long machine_size = 0ull;
+    unsigned long long machine_size = 0ULL;
     const char *const machine_name = qry_member_file_name(s_path);
     const size_t named = (machine_name != NULL) ? strlen(machine_name) : 0u;
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     while ((named != 0u) && (machine == NULL) && qry_member_read(&at, &record))
     {
@@ -95,7 +95,7 @@ unsigned int khw_costs_queried(const char *path)
     if (machine == NULL)
     {
         printf("  khw_write: the run carried no %s in, and no form is timed\n", s_path);
-        machine_size = 0ull;
+        machine_size = 0ULL;
     }
     unsigned int to_time = 0u;
     for (unsigned int at = 0u; at < s_names; at += 1u)
@@ -110,17 +110,17 @@ unsigned int khw_costs_queried(const char *path)
             to_time += 1u;
         }
     }
-    khw_plan_passed("costs", (unsigned long long)to_time + 1ull);
+    khw_plan_passed("costs", (unsigned long long)to_time + 1ULL);
     // the kernel alone, the reference, over the kernel's own relation's cases
     const unsigned int kernel_count =
         (s_names != 0u)
             ? khw_anchor_cases(s_named[s_to_time[0]].anchor, s_named[s_to_time[0]].swapped, s_word, s_plain, s_signed)
             : 0u;
-    unsigned long long kernel_least = 0ull;
-    unsigned long long kernel_max = 0ull;
+    unsigned long long kernel_least = 0ULL;
+    unsigned long long kernel_max = 0ULL;
     unsigned int clock_address = 0u;
     if ((to_time == 0u) ||
-        !khw_cost_timed(0u, 0ull, 0ull, s_word, kernel_count, &kernel_least, &kernel_max, &clock_address))
+        !khw_cost_timed(0u, 0ULL, 0ULL, s_word, kernel_count, &kernel_least, &kernel_max, &clock_address))
     {
         printf("  costs: the kernel alone could not be timed, and no form is\n");
         return 0u;
@@ -142,8 +142,8 @@ unsigned int khw_costs_queried(const char *path)
             continue;
         }
         const unsigned int count = khw_anchor_cases(form->anchor, form->swapped, s_word, s_plain, s_signed);
-        unsigned long long least = 0ull;
-        unsigned long long max = 0ull;
+        unsigned long long least = 0ULL;
+        unsigned long long max = 0ULL;
         if (!khw_cost_timed(KHW_COST_COPIES, form->low, form->high, s_word, count, &least, &max, &clock_address) ||
             (clock_address == 0u))
         {
@@ -151,7 +151,7 @@ unsigned int khw_costs_queried(const char *path)
         }
         s_low[timed] = form->low;
         s_high[timed] = form->high;
-        s_least[timed] = (least > kernel_least) ? (least - kernel_least) : 0ull;
+        s_least[timed] = (least > kernel_least) ? (least - kernel_least) : 0ULL;
         s_spread[timed] = max - least;
         printf("  cost: %016llx %016llx, %llu over %u copies above the kernel alone, the spread %llu\n", form->low,
                form->high, s_least[timed], KHW_COST_COPIES, s_spread[timed]);

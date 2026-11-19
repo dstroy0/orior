@@ -25,21 +25,21 @@ int main(int count_of_words, char **words)
     const unsigned long long from = strtoull(words[1], NULL, 16);
     const unsigned long long count = strtoull(words[2], NULL, 16);
     const unsigned long long stride = strtoull(words[3], NULL, 16);
-    for (unsigned long long number = 0ull; number < count; number += 1ull)
+    for (unsigned long long number = 0ULL; number < count; number += 1ULL)
     {
         const unsigned long long at = from + (number * stride);
         unsigned int read_back = 0u;
         const unsigned int type = host_address_probe(at, &read_back);
         // an address and two words in hex, each in the room of a 64-bit word's digits
         char text[64];
-        VerbaLinea line = {text, sizeof(text), 0ull};
+        VerbaLinea line = {text, sizeof(text), 0ULL};
         mmgr_line_hex(&line, at, 0u);
         mmgr_line_ch(&line, ' ');
         mmgr_line_hex(&line, type, 0u);
         mmgr_line_ch(&line, ' ');
         mmgr_line_hex(&line, read_back, 0u);
         mmgr_line_ch(&line, '\n');
-        if (qry_member_append(QUERY_WALK_RECORD, text, line.at, QRY_ORDINARY) == 0ull)
+        if (qry_member_append(QUERY_WALK_RECORD, text, line.at, QRY_ORDINARY) == 0ULL)
         {
             return 3;
         }

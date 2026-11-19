@@ -217,7 +217,7 @@ CODEGEN_CORE unsigned int asm_printer_core_part(AsmPrinterCoreBuild *build, cons
 CODEGEN_CORE unsigned int asm_printer_core_index_bits(unsigned long long count)
 {
     unsigned int bits = 1u;
-    while ((1ull << bits) < count)
+    while ((1ULL << bits) < count)
     {
         bits += 1u;
     }

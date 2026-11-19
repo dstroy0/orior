@@ -21,7 +21,7 @@ extern "C" long cycle_key_load(const EngineKeyLayout *layout, CycleKey **key_out
     ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&key->device_terms, (size_t)layout->terms * sizeof(DeviceTerm)),
                                   &key->device_terms, error);
     ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&key->device_weights,
-                                             (size_t)(layout->weight_count + 1ull) * sizeof(unsigned int)),
+                                             (size_t)(layout->weight_count + 1ULL) * sizeof(unsigned int)),
                                   &key->device_weights, error);
     ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(key->device_terms, layout->term_table,
                                              (size_t)layout->terms * sizeof(DeviceTerm), cudaMemcpyHostToDevice),
@@ -135,7 +135,7 @@ template <unsigned int WIDE> static int cycle_launch(CycleLaunch launch, EngineE
                                                               dim3(CYCLE_BLOCK), arguments, 0u, 0),
                                   launch.out, error);
     }
-    const unsigned int blocks = (unsigned int)((needed < 0x7FFFFFFFull) ? needed : 0x7FFFFFFFull);
+    const unsigned int blocks = (unsigned int)((needed < 0x7FFFFFFFULL) ? needed : 0x7FFFFFFFULL);
     cycle_step_digits(launch, (unsigned long long)blocks * CYCLE_BLOCK);
     for (unsigned int sweep = 0u; (sweep < ENGINE_AXES) && (ok != 0); sweep += 1u)
     {
@@ -154,21 +154,21 @@ extern "C" long cycle_run(const CycleRunRequest *request)
         return CYCLE_ERROR;
     }
     EngineError *const error = request->error;
-    if (!CYCLE_CHECK((request->key != NULL) && (request->atoms != NULL) && (request->count != 0ull) &&
+    if (!CYCLE_CHECK((request->key != NULL) && (request->atoms != NULL) && (request->count != 0ULL) &&
                          (request->device_out != NULL),
                      request, error, ENGINE_ERROR_REQUEST) ||
-        !CYCLE_CHECK(((unsigned long long)request->limbs * 32ull) >= request->key->bits, &request->limbs, error,
+        !CYCLE_CHECK(((unsigned long long)request->limbs * 32ULL) >= request->key->bits, &request->limbs, error,
                      ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;
     }
     const Atom *const extent = &request->atoms[0];
-    if (!CYCLE_CHECK((extent->depth != 0ull) && (extent->height != 0ull) && (extent->width != 0ull), extent, error,
+    if (!CYCLE_CHECK((extent->depth != 0ULL) && (extent->height != 0ULL) && (extent->width != 0ULL), extent, error,
                      ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;
     }
-    for (unsigned long long atom = 0ull; atom < request->count; atom += 1ull)
+    for (unsigned long long atom = 0ULL; atom < request->count; atom += 1ULL)
     {
         const Atom *const each = &request->atoms[atom];
         if (!CYCLE_CHECK((each->lanes != NULL) && (each->depth == extent->depth) && (each->height == extent->height) &&
@@ -178,7 +178,7 @@ extern "C" long cycle_run(const CycleRunRequest *request)
             return CYCLE_ERROR;
         }
     }
-    const unsigned long long max = 0xFFFFFFFFFFFFFFFFull;
+    const unsigned long long max = 0xFFFFFFFFFFFFFFFFULL;
     if (!CYCLE_CHECK((extent->height <= (max / extent->width)) &&
                          (extent->depth <= (max / (extent->height * extent->width))),
                      extent, error, ENGINE_ERROR_REQUEST))
@@ -187,7 +187,7 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     }
     const unsigned long long voxels = extent->depth * extent->height * extent->width;
     if (!CYCLE_CHECK((request->count <= (max / voxels)) &&
-                         ((request->count * voxels) <= (max / 4ull / (request->key->planes + 1u))),
+                         ((request->count * voxels) <= (max / 4ULL / (request->key->planes + 1u))),
                      &request->count, error, ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;
@@ -232,14 +232,14 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     launch.extent[2] = extent->width;
     launch.stride[0] = extent->height * extent->width;
     launch.stride[1] = extent->width;
-    launch.stride[2] = 1ull;
+    launch.stride[2] = 1ULL;
     std::vector<unsigned long long> folds;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
         launch.fold_start[axis] = (unsigned long long)folds.size();
         launch.range[axis] = request->key->range[axis];
-        const unsigned long long span = launch.extent[axis] + (2ull * launch.range[axis]);
-        for (unsigned long long entry = 0ull; entry < span; entry += 1ull)
+        const unsigned long long span = launch.extent[axis] + (2ULL * launch.range[axis]);
+        for (unsigned long long entry = 0ULL; entry < span; entry += 1ULL)
         {
             const long long position = (long long)entry - (long long)launch.range[axis];
             folds.push_back(cycle_reflect(position, (long long)launch.extent[axis]) * launch.stride[axis]);

@@ -22,7 +22,7 @@ typedef struct
 
 static int snappy_preamble(SnappyWalk *walk)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int byte_count = 0u; byte_count < SNAPPY_PREAMBLE_BYTES; byte_count += 1u)
     {
         if (walk->at == walk->in_bytes)
@@ -30,12 +30,12 @@ static int snappy_preamble(SnappyWalk *walk)
             return 0;
         }
         const unsigned int byte = walk->in[walk->at];
-        walk->at += 1ull;
+        walk->at += 1ULL;
         value |= (unsigned long long)(byte & 0x7Fu) << (7u * byte_count);
         if ((byte & 0x80u) == 0u)
         {
             walk->expected = value;
-            return value <= 0xFFFFFFFFull;
+            return value <= 0xFFFFFFFFULL;
         }
     }
     return 0;
@@ -43,7 +43,7 @@ static int snappy_preamble(SnappyWalk *walk)
 
 static unsigned long long snappy_little_endian(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int byte = 0u; byte < count; byte += 1u)
     {
         value |= (unsigned long long)bytes[byte] << (8u * byte);
@@ -54,7 +54,7 @@ static unsigned long long snappy_little_endian(const unsigned char *bytes, unsig
 static int snappy_literal(SnappyWalk *walk, unsigned int tag)
 {
     const unsigned int short_length = tag >> 2u;
-    unsigned long long length = (unsigned long long)short_length + 1ull;
+    unsigned long long length = (unsigned long long)short_length + 1ULL;
     if (short_length >= SNAPPY_LONG_LITERAL)
     {
         const unsigned int length_bytes = short_length - (SNAPPY_LONG_LITERAL - 1u);
@@ -62,7 +62,7 @@ static int snappy_literal(SnappyWalk *walk, unsigned int tag)
         {
             return 0;
         }
-        length = snappy_little_endian(walk->in + walk->at, length_bytes) + 1ull;
+        length = snappy_little_endian(walk->in + walk->at, length_bytes) + 1ULL;
         walk->at += length_bytes;
     }
     if ((length > (walk->in_bytes - walk->at)) || (length > (walk->expected - walk->written)))
@@ -87,8 +87,8 @@ static int snappy_copy(SnappyWalk *walk, unsigned int tag)
     walk->at += offset_bytes;
     const unsigned long long offset =
         (type == SNAPPY_COPY_ONE) ? (((unsigned long long)(tag >> 5u) << 8u) | stored) : stored;
-    const unsigned long long length = (type == SNAPPY_COPY_ONE) ? (4ull + ((tag >> 2u) & 7u)) : ((tag >> 2u) + 1ull);
-    if ((offset == 0ull) || (offset > walk->written) || (length > (walk->expected - walk->written)))
+    const unsigned long long length = (type == SNAPPY_COPY_ONE) ? (4ULL + ((tag >> 2u) & 7u)) : ((tag >> 2u) + 1ULL);
+    if ((offset == 0ULL) || (offset > walk->written) || (length > (walk->expected - walk->written)))
     {
         return 0;
     }
@@ -100,7 +100,7 @@ static int snappy_copy(SnappyWalk *walk, unsigned int tag)
     }
     else
     {
-        for (unsigned long long copied = 0ull; copied < length; copied += 1ull)
+        for (unsigned long long copied = 0ULL; copied < length; copied += 1ULL)
         {
             target[copied] = source[copied];
         }
@@ -111,7 +111,7 @@ static int snappy_copy(SnappyWalk *walk, unsigned int tag)
 
 long long snappy_decode(const EngineBytesRequest *request)
 {
-    SnappyWalk walk = {request->in, request->in_bytes, 0ull, request->out, 0ull, 0ull};
+    SnappyWalk walk = {request->in, request->in_bytes, 0ULL, request->out, 0ULL, 0ULL};
     if (!snappy_preamble(&walk) || (walk.expected > request->out_capacity))
     {
         return ENGINE_BYTES_ERROR;
@@ -120,12 +120,12 @@ long long snappy_decode(const EngineBytesRequest *request)
     while (ok && (walk.at < walk.in_bytes))
     {
         const unsigned int tag = walk.in[walk.at];
-        walk.at += 1ull;
+        walk.at += 1ULL;
         ok = ((tag & 3u) == SNAPPY_LITERAL) ? snappy_literal(&walk, tag) : snappy_copy(&walk, tag);
     }
     if (!ok || (walk.written != walk.expected))
     {
-        if (walk.written != 0ull)
+        if (walk.written != 0ULL)
         {
             memset(request->out, 0, (size_t)walk.written);
         }

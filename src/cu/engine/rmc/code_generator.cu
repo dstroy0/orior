@@ -186,16 +186,16 @@ static std::vector<MachineInstr> code_generator_decided(MachineFunction *lane, c
 {
     MachineFunction counting = *lane;
     counting.items = NULL;
-    counting.capacity = 0ull;
-    counting.count = 0ull;
+    counting.capacity = 0ULL;
+    counting.count = 0ULL;
     decide(&counting);
     std::vector<MachineInstr> items((size_t)counting.count);
     lane->items = items.data();
     lane->capacity = counting.count;
-    lane->count = 0ull;
+    lane->count = 0ULL;
     decide(lane);
     lane->items = NULL;
-    lane->capacity = 0ull;
+    lane->capacity = 0ULL;
     return items;
 }
 
@@ -231,10 +231,10 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
         }
     }
     // the change in live words at each step, their count its running sum
-    std::vector<long long> change((size_t)steps + 1u, 0ll);
+    std::vector<long long> change((size_t)steps + 1u, 0LL);
     for (unsigned int at = 0u; at < steps; at += 1u)
     {
-        const long long value = (long long)program->steps[at].limbs + 1ll;
+        const long long value = (long long)program->steps[at].limbs + 1LL;
         change[at] += value + (long long)step_words[at];
         change[read_last[at] + 1u] -= value;
         change[at + 1u] -= (long long)step_words[at];
@@ -243,20 +243,20 @@ static unsigned int code_generator_live_max(const IrProgram *program, const std:
     {
         if (program->put_last[word] != 0u)
         {
-            change[program->put_first[word]] += 1ll;
-            change[program->put_last[word]] -= 1ll;
+            change[program->put_first[word]] += 1LL;
+            change[program->put_last[word]] -= 1LL;
         }
     }
     for (unsigned int atom = 0u; atom < atoms; atom += 1u)
     {
         if (program->atom_reader[atom] != steps)
         {
-            change[program->atom_reader[atom]] += 1ll;
-            change[(size_t)atom_last[atom] + 1u] -= 1ll;
+            change[program->atom_reader[atom]] += 1LL;
+            change[(size_t)atom_last[atom] + 1u] -= 1LL;
         }
     }
-    long long live = 0ll;
-    long long max = 0ll;
+    long long live = 0LL;
+    long long max = 0LL;
     for (unsigned int at = 0u; at < steps; at += 1u)
     {
         live += change[at];
@@ -542,9 +542,9 @@ std::string CodeGenerator::lane(const EngineRecordLayout *layout, const TargetIn
                                    : (one.scratch_of != CODEGEN_NO_ITEM)
                                        ? ("scratch of " + std::string(s_opcode_names[items[one.scratch_of].form].text))
                                        : std::string(s_regclass_names[one.bank].text);
-        claim_lines += written + " " + holder + " claimed " + std::to_string(one.claimed + 1ull) + " " +
+        claim_lines += written + " " + holder + " claimed " + std::to_string(one.claimed + 1ULL) + " " +
                        s_opcode_names[items[one.claimed].form].text + " released " +
-                       std::to_string(one.released + 1ull) + " " + s_opcode_names[items[one.released].form].text + "\n";
+                       std::to_string(one.released + 1ULL) + " " + s_opcode_names[items[one.released].form].text + "\n";
     }
     int broken = 0;
     std::string text;

@@ -41,14 +41,14 @@ extern "C"
         for (unsigned int at = 0u; at < cases; at += 1u)
         {
             // the store is 32 bits wide: the value is the low word of what the register contained
-            const unsigned int value = (unsigned int)(values[at] & 0xffffffffull);
+            const unsigned int value = (unsigned int)(values[at] & 0xffffffffULL);
             lane = lane && (value == at);
             word_0 = word_0 && (value == first[at]);
             word_1 = word_1 && (value == second[at]);
             if ((at + 1u) < cases)
             {
                 // the step between two cases' values, at the width the store leaves them
-                const unsigned int step = (unsigned int)((values[at + 1u] - values[at]) & 0xffffffffull);
+                const unsigned int step = (unsigned int)((values[at + 1u] - values[at]) & 0xffffffffULL);
                 record = record && (step == 16u);
                 index = index && (step == 32u);
             }

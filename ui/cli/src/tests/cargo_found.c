@@ -171,7 +171,7 @@ static void found_walk(const CargoFoundCtx *args)
         EMBED_CALL(cli_cargo_tests_internal.cargo_tokens, CliCargoTestsCtx, .text = (const char *)bytes, .size = size);
         count = EMBED_CALL(cli_cargo_tests_internal.cargo_scan, CliCargoTestsCtx, .text = (const char *)bytes);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_cargo_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_cargo_owner);
     for (unsigned int at = first; at < first + count; at += 1u)
     {
         if (g_cli_cargo_scan.items[at].test)
@@ -354,7 +354,7 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
                               .folder = package_folder, .text = (const char *)bytes, .size = size, .package = package,
                               .count = &target_count)
                  : NULL;
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_cargo_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_cargo_owner);
         if (!read)
         {
             continue;

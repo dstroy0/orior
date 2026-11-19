@@ -549,6 +549,6 @@ int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args)
         *program = s_search.best;
     }
     g_cli_guard->persistent_buf_release(s_search.folders.path, g_cli_compile_owner);
-    *(&s_search.folders) = (CliFoundFolders){NULL, 0u, 0u};
+    s_search.folders = (CliFoundFolders){NULL, 0u, 0u};
     return found;
 }

@@ -9,7 +9,7 @@
 // the output a process gives, a cubin's whole listing with its encodings
 #define SASS_OUTPUT_CAPACITY (4u * 1024u * 1024u)
 // a process's limit: one disassembly
-#define SASS_LIMIT 120000000ull
+#define SASS_LIMIT 120000000ULL
 
 static char s_sass_output[SASS_OUTPUT_CAPACITY];
 
@@ -70,7 +70,7 @@ static unsigned long long sass_word_read(const char *text, const char *line_end,
 {
     const char *const start = strstr(text, "/* 0x");
     *found = (start != NULL) && (start < line_end);
-    return *found ? strtoull(start + 5, NULL, 16) : 0ull;
+    return *found ? strtoull(start + 5, NULL, 16) : 0ULL;
 }
 
 int sass_listing_read(const char *output, SassListing *listing)
@@ -119,13 +119,13 @@ int sass_listing_read(const char *output, SassListing *listing)
             memcpy(instruction->text, text, length);
             instruction->text[length] = '\0';
             instruction->low = sass_word_read(semicolon, line_end, &encoded);
-            instruction->high = 0ull;
+            instruction->high = 0ULL;
         }
         else if (encoded && (listing->count != 0u))
         {
             int found = 0;
             const unsigned long long high = sass_word_read(line, line_end, &found);
-            listing->instructions[listing->count - 1u].high = found ? high : 0ull;
+            listing->instructions[listing->count - 1u].high = found ? high : 0ULL;
             encoded = 0;
         }
         line = (newline != NULL) ? (newline + 1) : line_end;
@@ -215,7 +215,7 @@ static int sass_binary_write(const char *path, const unsigned long long *low, co
             for (unsigned int byte = 0u; byte < 8u; byte += 1u)
             {
                 // one byte of the word, the lowest first
-                written = written && (fputc((int)((words[word] >> (8u * byte)) & 0xffull), file) != EOF);
+                written = written && (fputc((int)((words[word] >> (8u * byte)) & 0xffULL), file) != EOF);
             }
         }
     }
@@ -258,7 +258,7 @@ static void sass_target_relative(char *text, unsigned long long address)
     }
     const unsigned long long magnitude = strtoull(target + (negative ? 1 : 0), NULL, 16);
     // the address and the distance are both two's complement words of 64 bits, and their difference is taken as one
-    const long long distance = (long long)((negative ? (0ull - magnitude) : magnitude) - (address + 16ull));
+    const long long distance = (long long)((negative ? (0ULL - magnitude) : magnitude) - (address + 16ULL));
     const size_t room = SASS_TEXT - (size_t)(target - text);
     snprintf(target, room, "%s0x%llx", (distance < 0) ? "-" : "",
              (unsigned long long)((distance < 0) ? -distance : distance));
@@ -298,13 +298,13 @@ static int sass_decode_pass(const char *architecture, const char *path, const un
     for (unsigned int number = 0u; number < s_sass_decoded.count; number += 1u)
     {
         const SassInstruction *const decoded = &s_sass_decoded.instructions[number];
-        if (((decoded->address % 16ull) != 0ull) || ((decoded->address / 16ull) >= (unsigned long long)count))
+        if (((decoded->address % 16ULL) != 0ULL) || ((decoded->address / 16ULL) >= (unsigned long long)count))
         {
             printf("  %s: a line at address 0x%llx, past the %u encodings given\n", output, decoded->address, count);
             return -1;
         }
-        memcpy(texts[chosen[decoded->address / 16ull]], decoded->text, SASS_TEXT);
-        sass_target_relative(texts[chosen[decoded->address / 16ull]], decoded->address);
+        memcpy(texts[chosen[decoded->address / 16ULL]], decoded->text, SASS_TEXT);
+        sass_target_relative(texts[chosen[decoded->address / 16ULL]], decoded->address);
     }
     return 0;
 }
@@ -338,7 +338,7 @@ int sass_decode(const char *architecture, const char *path, const unsigned long 
     for (const char *walk = strstr(sass_output(), "at address 0x"); walk != NULL;
          walk = strstr(walk + 1, "at address 0x"))
     {
-        const unsigned long long place = strtoull(walk + 13, NULL, 16) / 16ull;
+        const unsigned long long place = strtoull(walk + 13, NULL, 16) / 16ULL;
         if (place < (unsigned long long)count)
         {
             named += refused[place] ? 0u : 1u;

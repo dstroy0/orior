@@ -805,7 +805,7 @@ EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
     {
         // the rank saved plus 1, a name's place among no more than CLI_DOC_RANKS
         unsigned int roles = 0u;
-        if ((place) < args->one->roles_capacity)
+        if (place < args->one->roles_capacity)
         {
             (void)g_cli_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = args->one->roles,
@@ -2446,23 +2446,23 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         {
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
-                .offset = (((unsigned long long)(CLI_DOC_WORD_BEGUN)*one->lines.lines) + (line)) * sizeof(unsigned int),
+                .offset = (((unsigned long long)(CLI_DOC_WORD_BEGUN)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
-                .offset = (((unsigned long long)(CLI_DOC_WORD_ENDED)*one->lines.lines) + (line)) * sizeof(unsigned int),
+                .offset = (((unsigned long long)(CLI_DOC_WORD_ENDED)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = one->lines.words,
-                                    .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + (line)) *
+                                    .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + line) *
                                               sizeof(unsigned int),
                                     .src = &(unsigned int){0u},
                                     .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
-                .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*one->lines.lines) + (line)) * sizeof(unsigned int),
+                .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_NO_RUNS},
                 .bytes = sizeof(unsigned int)});
         }
@@ -2868,7 +2868,7 @@ EMBED_INLINE unsigned int branch_word_units(const DocumentBranchCtx *args)
     const unsigned int *const col = record + CLI_DOC_RECORD_HEAD;
     const unsigned int name = col[runs + args->name];
     unsigned int roles = 0u;
-    if ((name) < one->roles_capacity)
+    if (name < one->roles_capacity)
     {
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->roles,
                                                                 .offset = (unsigned long long)(name) * sizeof(roles),

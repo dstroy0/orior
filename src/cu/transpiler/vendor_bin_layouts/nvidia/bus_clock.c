@@ -67,7 +67,7 @@ int main(int count, char **words)
     const unsigned long long from = strtoull(words[2], NULL, 16);
     const unsigned long long address_given = strtoull(words[3], NULL, 16);
     const unsigned long long turns = strtoull(words[4], NULL, 16);
-    if ((address_given == 0ull) || (address_given > BUS_CLOCK_WORDS_MAX) || ((from % 4ull) != 0ull))
+    if ((address_given == 0ULL) || (address_given > BUS_CLOCK_WORDS_MAX) || ((from % 4ULL) != 0ULL))
     {
         fprintf(stderr, "orior_bus_clock: from 1 to %u words, from a whole word's offset\n", BUS_CLOCK_WORDS_MAX);
         return 2;
@@ -78,12 +78,12 @@ int main(int count, char **words)
         printf("  orior_bus_clock: the BAR0 driver is not reached: its service GpuBar0 is not started (install_bar0.ps1)\n");
         return 2;
     }
-    unsigned long long base = 0ull;
-    unsigned long long size = 0ull;
-    if (!mmio_extent(device, &base, &size) || ((from + (address_given * 4ull)) > size))
+    unsigned long long base = 0ULL;
+    unsigned long long size = 0ULL;
+    if (!mmio_extent(device, &base, &size) || ((from + (address_given * 4ULL)) > size))
     {
         printf("  orior_bus_clock: the span 0x%llx to 0x%llx is not inside BAR0 of %llu bytes\n", from,
-               from + (address_given * 4ull), size);
+               from + (address_given * 4ULL), size);
         mmio_close(device);
         return 2;
     }
@@ -95,13 +95,13 @@ int main(int count, char **words)
         qry_member_append("plan.txt", plan, (unsigned long long)plan_length, QRY_ORDINARY);
     }
     printf("  plan: clock %llu\n", address_given);
-    unsigned long long value_read = 0ull;
+    unsigned long long value_read = 0ULL;
     unsigned int clock = 0u;
     unsigned int step = 0u;
     int found = 0;
-    for (unsigned long long at = 0ull; at < address_given; at += 1ull)
+    for (unsigned long long at = 0ULL; at < address_given; at += 1ULL)
     {
-        const unsigned int offset = (unsigned int)(from + (at * 4ull));
+        const unsigned int offset = (unsigned int)(from + (at * 4ULL));
         unsigned int first = 0u;
         unsigned int then = 0u;
         if (!mmio_read(device, offset, 1u, &first))
@@ -109,7 +109,7 @@ int main(int count, char **words)
             break;
         }
         then = first;
-        for (unsigned long long turn = 0ull; (turn < turns) && (then == first); turn += 1ull)
+        for (unsigned long long turn = 0ULL; (turn < turns) && (then == first); turn += 1ULL)
         {
             if (!mmio_read(device, offset, 1u, &then))
             {
@@ -121,7 +121,7 @@ int main(int count, char **words)
         const int length =
             snprintf(s_lines + value_read, sizeof(s_lines) - value_read, "%x %u %u\n", offset, advanced, then - first);
         // a line of three short numbers fits what is left of the room while the words are bounded
-        value_read += (length > 0) ? (unsigned long long)length : 0ull;
+        value_read += (length > 0) ? (unsigned long long)length : 0ULL;
         if (advanced && !found)
         {
             found = 1;

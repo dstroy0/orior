@@ -49,7 +49,7 @@ typedef struct CliValidateIdCtx CliValidateIdCtx;
 #define CLI_VALIDATE_CHECKS_TEXT (1u << 16u)
 
 // a place of the work state's texts that contains none
-#define CLI_VALIDATE_NONE (~0ull)
+#define CLI_VALIDATE_NONE (~0ULL)
 
 // A limit of the machine: its name and what it is, the arrays of the types and the words of the messages it stops a
 // check with and of the words, `not` in its plugin.json, those messages do not contain, the word that sets it, and

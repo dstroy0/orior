@@ -12,14 +12,14 @@
 int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned int *registers)
 {
     const unsigned char *kernel = NULL;
-    unsigned long long kernel_size = 0ull;
+    unsigned long long kernel_size = 0ULL;
     KernelBlobHead head;
     if (!qry_member_blob(KERNEL_BLOB_NAME, &kernel, &kernel_size, NULL) || (kernel_size < sizeof(head)))
     {
         return 0;
     }
     memcpy(&head, kernel, sizeof(head));
-    if ((head.places == 0u) || ((kernel_size - sizeof(head)) < (16ull * head.places)))
+    if ((head.places == 0u) || ((kernel_size - sizeof(head)) < (16ULL * head.places)))
     {
         return 0;
     }
@@ -45,7 +45,7 @@ struct FrameQuery
 static int frame_matches(unsigned long long dropped, void *context)
 {
     FrameQuery *const query = (FrameQuery *)context;
-    const std::vector<unsigned char> variant(query->kernel->begin() + (std::ptrdiff_t)(dropped * 16ull),
+    const std::vector<unsigned char> variant(query->kernel->begin() + (std::ptrdiff_t)(dropped * 16ULL),
                                              query->kernel->end());
     const int alike = question_alike(variant, *query->reference, *query->places, query->question, query->queries);
     run_print(query->table, "opening %llu %s%s%s\n", dropped, alike ? "truthy" : "falsy", alike ? "" : ": ",
@@ -74,7 +74,7 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
         return 1;
     }
     std::vector<unsigned char> kernel(code, code + (16u * (size_t)places));
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -86,7 +86,7 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     stall_cases(&s_question, &case_places);
     // no host value checks the whole kernel: the query is whether the part answers it at all
     const std::vector<std::string> nothing(IDENTITY_CASES, "-");
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     RunWritten table = {(folder + "/frame.txt"), 0, std::string()};
     const int returned = question_alike(kernel, nothing, case_places, &s_question, &queries);
     run_print(&table, "container %s%s%s\n", returned ? "returned" : "not returned", returned ? "" : ": ",
@@ -116,7 +116,7 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
         reference[case_places[place]] = answered;
     }
     FrameQuery query = {&kernel, &reference, &case_places, &s_question, &queries, &table};
-    const unsigned long long from = frame_greatest(frame_matches, &query, 0ull, (unsigned long long)places);
+    const unsigned long long from = frame_greatest(frame_matches, &query, 0ULL, (unsigned long long)places);
     if (!run_closed(&table))
     {
         printf("orior_klq_identity frame: %s/frame.txt could not be written\n", folder.c_str());

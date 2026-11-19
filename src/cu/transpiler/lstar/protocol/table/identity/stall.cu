@@ -32,10 +32,10 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     }
     const StallField stall = fields["stall"];
     const StallField barrier = fields["write_barrier"];
-    const unsigned long long longest = (1ull << stall.bits) - 1ull;
-    const unsigned long long none = (1ull << barrier.bits) - 1ull;
+    const unsigned long long longest = (1ULL << stall.bits) - 1ULL;
+    const unsigned long long none = (1ULL << barrier.bits) - 1ULL;
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -45,7 +45,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     // the questions put together, STALL_CARRIED_MAX to a process, none waiting on another's answer: each one's mark,
     // `=` alike with the host's answers to the chain `numbers` names at its place on every case, `x` apart on one, `!`
     // refused
@@ -148,7 +148,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
             {
                 continue;
             }
-            for (unsigned long long step = 0ull; step < longest; step += 1ull)
+            for (unsigned long long step = 0ULL; step < longest; step += 1ULL)
             {
                 std::vector<unsigned char> turned = probe.code;
                 stall_bits_write(&turned, probe.writer, stall, step);
@@ -246,7 +246,7 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
                 {
                     stall_bits_write(&code, index, stall, longest);
                 }
-                for (unsigned long long step = 0ull; step <= longest; step += 1ull)
+                for (unsigned long long step = 0ULL; step <= longest; step += 1ULL)
                 {
                     std::vector<unsigned char> turned = code;
                     stall_bits_write(&turned, written_count - 1u, stall, step);
@@ -295,10 +295,10 @@ int identity_stall(const char *engine, const char *answers, const char *ksc, con
     for (const auto &each : came_back)
     {
         // the soonest is the least stall from which every longer one answers alike
-        unsigned long long soonest = longest + 1ull;
-        while ((soonest > 0ull) && (each.second[(size_t)soonest - 1u] == '='))
+        unsigned long long soonest = longest + 1ULL;
+        while ((soonest > 0ULL) && (each.second[(size_t)soonest - 1u] == '='))
         {
-            soonest -= 1ull;
+            soonest -= 1ULL;
         }
         std::string over;
         for (const std::string &number : queried_over[each.first])

@@ -103,7 +103,7 @@
 #define PI_TOWER_WORDS (PI_TOWER_BITS / 64u)
 
 // the first 64 bits of pi after the point
-#define PI_TOWER_PUBLISHED_BITS 0x243F6A8885A308D3ull
+#define PI_TOWER_PUBLISHED_BITS 0x243F6A8885A308D3ULL
 
 #define PI_TOWER_PUBLISHED_FLOORS 21u
 
@@ -126,7 +126,7 @@
 #define PI_TOWER_SEGMENT_MAX 65536u
 
 // the deepest resolution the exact turn is represented at; past it a resolution is read on the engine alone
-#define PI_TOWER_EXACT_MAX (1ull << 20u)
+#define PI_TOWER_EXACT_MAX (1ULL << 20u)
 
 extern int g_pi_tower_error;
 
@@ -325,8 +325,8 @@ typedef struct
 } PiTowerPublished;
 
 static const PiTowerPublished s_pi_tower_published[] = {
-    {1ull, "243F6A8885A308D3"},      {1000000ull, "26C65E52CB4593"},   {1000001ull, "6C65E52CB459350050E4BB1"},
-    {10000000ull, "17AF5863EFED8D"}, {100000000ull, "ECB840E21926EC"},
+    {1ULL, "243F6A8885A308D3"},      {1000000ULL, "26C65E52CB4593"},   {1000001ULL, "6C65E52CB459350050E4BB1"},
+    {10000000ULL, "17AF5863EFED8D"}, {100000000ULL, "ECB840E21926EC"},
 };
 
 #define PI_TOWER_PUBLISHED_COUNT (sizeof(s_pi_tower_published) / sizeof(s_pi_tower_published[0]))

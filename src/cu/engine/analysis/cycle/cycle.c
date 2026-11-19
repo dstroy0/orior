@@ -64,8 +64,8 @@ static int cycle_host_ladder(const OriorExactInteger *numerator, const OriorExac
 {
     OriorExactInteger magnitude = *numerator;
     magnitude.sign = (numerator->sign != 0) ? 1 : 0;
-    unsigned long long lower = 0ull;
-    unsigned long long upper = 1ull;
+    unsigned long long lower = 0ULL;
+    unsigned long long upper = 1ULL;
     unsigned int counted = 0u;
     int below = 1;
     for (unsigned int rung = 1u; (below != 0) && (rung < ENGINE_GOLDEN_RUNGS); rung += 1u)
@@ -73,7 +73,7 @@ static int cycle_host_ladder(const OriorExactInteger *numerator, const OriorExac
         OriorExactInteger step;
         OriorExactInteger reached;
         orior_exact_zero(&step);
-        step.limb[0] = (uint32_t)(upper & 0xFFFFFFFFull);
+        step.limb[0] = (uint32_t)(upper & 0xFFFFFFFFULL);
         step.limb[1] = (uint32_t)(upper >> 32u);
         cycle_host_settle(&step, 1);
         if (orior_exact_multiply(&step, denominator, &reached) != ORIOR_EXACT_OK)
@@ -100,17 +100,17 @@ static uint32_t cycle_host_complement(const OriorExactInteger *value, unsigned i
     }
     const unsigned long long total = (unsigned long long)(~value->limb[at] & 0xFFFFFFFFu) + *carry;
     *carry = total >> 32u;
-    return (uint32_t)(total & 0xFFFFFFFFull);
+    return (uint32_t)(total & 0xFFFFFFFFULL);
 }
 
 // the low `limbs` of a two's complement read back as a magnitude, masked to `bits`, and settled with `negative`
 static void cycle_host_uncomplement(OriorExactInteger *value, unsigned int limbs, unsigned int bits, int negative)
 {
-    unsigned long long carry = 1ull;
+    unsigned long long carry = 1ULL;
     for (unsigned int at = 0u; (negative != 0) && (at < limbs); at += 1u)
     {
         const unsigned long long total = (unsigned long long)(~value->limb[at] & 0xFFFFFFFFu) + carry;
-        value->limb[at] = (uint32_t)(total & 0xFFFFFFFFull);
+        value->limb[at] = (uint32_t)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
     const unsigned int top_bits = bits - (32u * (limbs - 1u));
@@ -125,8 +125,8 @@ static void cycle_host_bitwise(const DeviceRecordStep *step, const OriorExactInt
 {
     OriorExactInteger result;
     orior_exact_zero(&result);
-    unsigned long long left_carry = 1ull;
-    unsigned long long right_carry = 1ull;
+    unsigned long long left_carry = 1ULL;
+    unsigned long long right_carry = 1ULL;
     for (unsigned int at = 0u; at < step->limbs; at += 1u)
     {
         const uint32_t one = cycle_host_complement(left, at, &left_carry);
@@ -151,7 +151,7 @@ static void cycle_host_wrap(const DeviceRecordStep *step, const OriorExactIntege
     }
     OriorExactInteger result;
     orior_exact_zero(&result);
-    unsigned long long carry = 1ull;
+    unsigned long long carry = 1ULL;
     for (unsigned int at = 0u; at < step->limbs; at += 1u)
     {
         result.limb[at] = cycle_host_complement(source, at, &carry);
@@ -191,7 +191,7 @@ static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *ato
     if (step->operation == ENGINE_RECORD_LANE)
     {
         orior_exact_zero(value);
-        value->limb[0] = (uint32_t)(lane & 0xFFFFFFFFull);
+        value->limb[0] = (uint32_t)(lane & 0xFFFFFFFFULL);
         value->limb[1] = (uint32_t)(lane >> 32u);
         cycle_host_settle(value, 1);
         return 1;
@@ -206,11 +206,11 @@ static int cycle_host_step(const DeviceRecordStep *step, const unsigned int *ato
         cycle_host_field(atom, in_limbs, step->left, step->right, step->limbs, value);
         const unsigned int top = step->right - 1u;
         const int negative = (((value->limb[top / 32u] >> (top % 32u)) & 1u) != 0u) ? 1 : 0;
-        unsigned long long carry = 1ull;
+        unsigned long long carry = 1ULL;
         for (unsigned int at = 0u; (negative != 0) && (at < step->limbs); at += 1u)
         {
             const unsigned long long total = (unsigned long long)(~value->limb[at] & 0xFFFFFFFFu) + carry;
-            value->limb[at] = (uint32_t)(total & 0xFFFFFFFFull);
+            value->limb[at] = (uint32_t)(total & 0xFFFFFFFFULL);
             carry = total >> 32u;
         }
         const unsigned int left = step->right - (32u * (step->limbs - 1u));
@@ -329,9 +329,9 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
     for (unsigned int member = 0u; member < layout->members; member += 1u)
     {
         // with no index, lane i reads record i of a member, or its one record where it has one
-        if (!CYCLE_CHECK((request->in[member] != NULL) && (request->bodies[member] != 0ull) &&
+        if (!CYCLE_CHECK((request->in[member] != NULL) && (request->bodies[member] != 0ULL) &&
                              ((request->index != NULL) || (request->first + request->count <= request->bodies[member]) ||
-                              (request->bodies[member] == 1ull)),
+                              (request->bodies[member] == 1ULL)),
                          &request->in[member], error, ENGINE_ERROR_REQUEST))
         {
             return CYCLE_ERROR;
@@ -352,7 +352,7 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
         return CYCLE_ERROR;
     }
     int ok = 1;
-    for (unsigned long long written = 0ull; ok && (written < request->count); written += 1ull)
+    for (unsigned long long written = 0ULL; ok && (written < request->count); written += 1ULL)
     {
         const unsigned long long lane = request->first + written;
         const unsigned int *atom[ENGINE_RECORD_MEMBERS_MAX];
@@ -360,11 +360,11 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
         {
             const unsigned long long body = (request->index != NULL)
                                                 ? (unsigned long long)request->index[(lane * layout->members) + member]
-                                                : ((request->bodies[member] == 1ull) ? 0ull : lane);
+                                                : ((request->bodies[member] == 1ULL) ? 0ULL : lane);
             // a lane whose index names a record past its member errors on the run, as the device's errored count does
             ok = ok &&
                  CYCLE_CHECK(body < request->bodies[member], &request->bodies[member], error, ENGINE_ERROR_REQUEST);
-            atom[member] = &request->in[member][(ok ? body : 0ull) * layout->in_limbs[member]];
+            atom[member] = &request->in[member][(ok ? body : 0ULL) * layout->in_limbs[member]];
         }
         unsigned int *const record = &request->out[written * layout->out_limbs];
         memset(record, 0, (size_t)layout->out_limbs * sizeof(unsigned int));
@@ -410,16 +410,16 @@ long cycle_record_latch_host(const CycleRecordLatchRequest *request)
         return CYCLE_ERROR;
     }
     EngineError *const error = request->error;
-    if (!CYCLE_CHECK((request->records != NULL) && (request->first != NULL) && (request->count != 0ull) &&
+    if (!CYCLE_CHECK((request->records != NULL) && (request->first != NULL) && (request->count != 0ULL) &&
                          (request->out_limbs != 0u) && (request->bits != 0u) &&
                          (((unsigned long long)request->offset + request->bits) <=
-                          (32ull * (unsigned long long)request->out_limbs)),
+                          (32ULL * (unsigned long long)request->out_limbs)),
                      request, error, ENGINE_ERROR_REQUEST))
     {
         return CYCLE_ERROR;
     }
     unsigned long long first = CYCLE_LATCH_NONE;
-    for (unsigned long long lane = 0ull; (first == CYCLE_LATCH_NONE) && (lane < request->count); lane += 1ull)
+    for (unsigned long long lane = 0ULL; (first == CYCLE_LATCH_NONE) && (lane < request->count); lane += 1ULL)
     {
         const unsigned int *const record = &request->records[lane * request->out_limbs];
         first = cycle_host_latch_valid(record, request->offset, request->bits) ? lane : CYCLE_LATCH_NONE;
@@ -432,7 +432,7 @@ long cycle_record_latch_host(const CycleRecordLatchRequest *request)
 static unsigned int cycle_host_bit_length(unsigned long long value)
 {
     unsigned int length = 0u;
-    while (value != 0ull)
+    while (value != 0ULL)
     {
         length += 1u;
         value >>= 1u;
@@ -444,11 +444,11 @@ static unsigned int cycle_host_bit_length(unsigned long long value)
 // inside its record, and the sums wide enough for the field and the run's count beside it. Shared by both routes
 int cycle_record_sum_valid(const CycleRecordSumRequest *request)
 {
-    return (request->records != NULL) && (request->sums != NULL) && (request->count != 0ull) &&
-           (request->group != 0ull) && (request->group <= (1ull << 32u)) &&
-           ((request->count % request->group) == 0ull) && (request->out_limbs != 0u) && (request->bits != 0u) &&
-           (((unsigned long long)request->offset + request->bits) <= (32ull * (unsigned long long)request->out_limbs)) &&
-           ((32ull * (unsigned long long)request->sum_limbs) >=
+    return (request->records != NULL) && (request->sums != NULL) && (request->count != 0ULL) &&
+           (request->group != 0ULL) && (request->group <= (1ULL << 32u)) &&
+           ((request->count % request->group) == 0ULL) && (request->out_limbs != 0u) && (request->bits != 0u) &&
+           (((unsigned long long)request->offset + request->bits) <= (32ULL * (unsigned long long)request->out_limbs)) &&
+           ((32ULL * (unsigned long long)request->sum_limbs) >=
             ((unsigned long long)request->bits + cycle_host_bit_length(request->group)));
 }
 
@@ -488,15 +488,15 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
         return CYCLE_ERROR;
     }
     const unsigned long long runs = request->count / request->group;
-    for (unsigned long long run = 0ull; run < runs; run += 1ull)
+    for (unsigned long long run = 0ULL; run < runs; run += 1ULL)
     {
         unsigned int *const sum = &request->sums[run * limbs];
         memset(sum, 0, limbs * sizeof(unsigned int));
-        for (unsigned long long lane = run * request->group; lane < ((run + 1ull) * request->group); lane += 1ull)
+        for (unsigned long long lane = run * request->group; lane < ((run + 1ULL) * request->group); lane += 1ULL)
         {
             cycle_host_sum_field(&request->records[lane * request->out_limbs], request->offset, request->bits, value,
                                  limbs);
-            unsigned long long carry = 0ull;
+            unsigned long long carry = 0ULL;
             for (unsigned int limb = 0u; limb < limbs; limb += 1u)
             {
                 carry += (unsigned long long)sum[limb] + value[limb];
@@ -513,10 +513,10 @@ long cycle_record_sum_host(const CycleRecordSumRequest *request)
 // lane is a 32-bit index, and the field inside its record. Shared by both routes
 int cycle_record_sort_valid(const CycleRecordSortRequest *request)
 {
-    return (request->records != NULL) && (request->order != NULL) && (request->count != 0ull) &&
-           (request->count <= (1ull << 32u)) && (request->group != 0ull) &&
-           ((request->count % request->group) == 0ull) && (request->out_limbs != 0u) && (request->bits != 0u) &&
-           (((unsigned long long)request->offset + request->bits) <= (32ull * (unsigned long long)request->out_limbs));
+    return (request->records != NULL) && (request->order != NULL) && (request->count != 0ULL) &&
+           (request->count <= (1ULL << 32u)) && (request->group != 0ULL) &&
+           ((request->count % request->group) == 0ULL) && (request->out_limbs != 0u) && (request->bits != 0u) &&
+           (((unsigned long long)request->offset + request->bits) <= (32ULL * (unsigned long long)request->out_limbs));
 }
 
 // the order of two records' fields read as magnitudes, limb by limb from the top: -1, 0 or 1
@@ -562,25 +562,25 @@ long cycle_record_sort_host(const CycleRecordSortRequest *request)
     }
     const unsigned long long runs = request->count / request->group;
     const unsigned long long group = request->group;
-    for (unsigned long long run = 0ull; run < runs; run += 1ull)
+    for (unsigned long long run = 0ULL; run < runs; run += 1ULL)
     {
         unsigned int *const order = &request->order[run * group];
-        for (unsigned long long at = 0ull; at < group; at += 1ull)
+        for (unsigned long long at = 0ULL; at < group; at += 1ULL)
         {
             // every lane is below 2^32
             order[at] = (unsigned int)((run * group) + at);
         }
         // bottom-up merges of widening spans; a record from the left span goes first unless the right one's field is
         // less. Equal fields preserve their lanes' order
-        for (unsigned long long span = 1ull; span < group; span *= 2ull)
+        for (unsigned long long span = 1ULL; span < group; span *= 2ULL)
         {
-            for (unsigned long long start = 0ull; start < group; start += 2ull * span)
+            for (unsigned long long start = 0ULL; start < group; start += 2ULL * span)
             {
                 const unsigned long long middle = ((start + span) < group) ? (start + span) : group;
-                const unsigned long long end = ((start + (2ull * span)) < group) ? (start + (2ull * span)) : group;
+                const unsigned long long end = ((start + (2ULL * span)) < group) ? (start + (2ULL * span)) : group;
                 unsigned long long left = start;
                 unsigned long long right = middle;
-                for (unsigned long long out = start; out < end; out += 1ull)
+                for (unsigned long long out = start; out < end; out += 1ULL)
                 {
                     const int take_right =
                         (left >= middle) ||

@@ -104,7 +104,7 @@ EMBED_INLINE unsigned int run_place(const JobRunsCtx *args)
     for (unsigned int at = store->runs; at > 0u; at -= 1u)
     {
         unsigned long long number = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[(at - 1u)],
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[at - 1u],
                                                                 .offset = offsetof(CliJobRunsRun, run),
                                                                 .dst = &number,
                                                                 .bytes = sizeof(number)});

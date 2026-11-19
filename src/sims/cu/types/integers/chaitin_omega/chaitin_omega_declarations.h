@@ -63,12 +63,12 @@
 // the brute-force parse checks the enumeration through this length
 #define OMEGA_PARSED_MAX 22u
 
-#define OMEGA_CHUNK 4096ull
+#define OMEGA_CHUNK 4096ULL
 
 // fixed point: 62 fraction bits. A mass of 1 and its sums fit a word
 #define OMEGA_POINT 62u
 
-#define OMEGA_ONE (1ull << OMEGA_POINT)
+#define OMEGA_ONE (1ULL << OMEGA_POINT)
 
 // tokens of a term in the order its code is read: a lambda, an application, or a variable's index from 1
 #define OMEGA_LAMBDA 0
@@ -190,7 +190,7 @@ void omega_host(const OmegaCounts *counts, unsigned int max, unsigned int worker
 #define OMEGA_STEP_OVERFLOW 2u
 
 // the max terms one launch takes. An offset fits the 32 bits of a busy beaver key and 56 of a passed code
-#define OMEGA_BATCH_MAX (1ull << 24u)
+#define OMEGA_BATCH_MAX (1ULL << 24u)
 
 // the device's fates are checked against the host's through this length
 #define OMEGA_CROSS_MAX 30u
@@ -248,12 +248,12 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
 // exit left open, and a stop leaves every live term open. The run is one tessera job.
 
 // a job: one length's terms from `from`, at max this many, admitted to the live pool as the pool drains
-#define OMEGA_ENGINE_JOB (1ull << 22u)
+#define OMEGA_ENGINE_JOB (1ULL << 22u)
 
 // the pool takes the next job once fewer terms than this are live
-#define OMEGA_ENGINE_REFILL (1ull << 21u)
+#define OMEGA_ENGINE_REFILL (1ULL << 21u)
 
 // a sweep of the record machine is at max this many lanes; the lane's plan index restarts at each sweep
-#define OMEGA_ENGINE_SWEEP (1ull << 26u)
+#define OMEGA_ENGINE_SWEEP (1ULL << 26u)
 
 #endif

@@ -23,7 +23,7 @@ static void inflate_refill(InflateStream *stream)
     while ((stream->bit_count <= 56u) && (stream->at < stream->in_bytes))
     {
         stream->bits |= (unsigned long long)stream->in[stream->at] << stream->bit_count;
-        stream->at += 1ull;
+        stream->at += 1ULL;
         stream->bit_count += 8u;
     }
 }
@@ -38,7 +38,7 @@ int inflate_take(InflateStream *stream, unsigned int count, unsigned int *value)
     {
         return 0;
     }
-    *value = (unsigned int)(stream->bits & ((1ull << count) - 1ull));
+    *value = (unsigned int)(stream->bits & ((1ULL << count) - 1ULL));
     stream->bits >>= count;
     stream->bit_count -= count;
     return 1;
@@ -50,7 +50,7 @@ void inflate_align(InflateStream *stream)
     stream->bits >>= partial;
     stream->bit_count -= partial;
     stream->at -= (unsigned long long)(stream->bit_count / 8u);
-    stream->bits = 0ull;
+    stream->bits = 0ULL;
     stream->bit_count = 0u;
 }
 
@@ -66,17 +66,17 @@ int inflate_build(InflateHuffman *huffman, const unsigned char *lengths, unsigne
             used += 1u;
         }
     }
-    long long left = 1ll;
+    long long left = 1LL;
     for (unsigned int length = 1u; length <= INFLATE_MAXIMUM_BITS; length += 1u)
     {
-        left = (left * 2ll) - (long long)huffman->counts[length];
-        if (left < 0ll)
+        left = (left * 2LL) - (long long)huffman->counts[length];
+        if (left < 0LL)
         {
             return 0;
         }
     }
     const int single = single_permitted && (used == 1u) && (huffman->counts[1u] == 1u);
-    if ((left > 0ll) && (used != 0u) && !single)
+    if ((left > 0LL) && (used != 0u) && !single)
     {
         return 0;
     }
@@ -140,7 +140,7 @@ int inflate_symbol(InflateStream *stream, const InflateHuffman *huffman, unsigne
     unsigned int passed = 0u;
     for (unsigned int length = 1u; (length <= INFLATE_MAXIMUM_BITS) && (length <= stream->bit_count); length += 1u)
     {
-        code |= (unsigned int)((stream->bits >> (length - 1u)) & 1ull);
+        code |= (unsigned int)((stream->bits >> (length - 1u)) & 1ULL);
         const unsigned int count = huffman->counts[length];
         if (code < (first + count))
         {
@@ -172,7 +172,7 @@ int inflate_codes(InflateStream *stream, const InflateHuffman *literals, const I
                 return 0;
             }
             stream->out[stream->written] = (unsigned char)symbol;
-            stream->written += 1ull;
+            stream->written += 1ULL;
             continue;
         }
         if (symbol == INFLATE_END_OF_BLOCK)
@@ -213,7 +213,7 @@ int inflate_codes(InflateStream *stream, const InflateHuffman *literals, const I
         }
         else
         {
-            for (unsigned long long copied = 0ull; copied < length; copied += 1ull)
+            for (unsigned long long copied = 0ULL; copied < length; copied += 1ULL)
             {
                 target[copied] = source[copied];
             }

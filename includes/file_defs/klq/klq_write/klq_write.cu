@@ -44,9 +44,9 @@ static const char *const s_type_written[] = {"form", "nop", "err", "construct"};
 
 // the language's map and the bridge, each put together here and then passed to the run's writer as its file, and the
 // bytes each contains so far, the room once a write did not fit
-static char s_map_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_map_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_map_at;
-static char s_bridge_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_bridge_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_bridge_at;
 
 // `text` written after what the map contains
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
     std::string pair_key;
     // the bridge as the run stores it (qry_member_file), empty on a first run
     const unsigned char *bridge_bytes = NULL;
-    unsigned long long bridge_size = 0ull;
+    unsigned long long bridge_size = 0ULL;
     std::string bridge_read;
     if (qry_member_file_blob(path.c_str(), &bridge_bytes, &bridge_size))
     {

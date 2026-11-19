@@ -58,20 +58,20 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
             {
                 printf("  %-24s positioned down already: read back whole, projected from the " ENTRY_CRYSTAL_SUFFIX
                        " as it is, in %llu ms\n",
-                       name, (engine_clock_microseconds() - began) / 1000ull);
+                       name, (engine_clock_microseconds() - began) / 1000ULL);
                 fflush(stdout);
                 continue;
             }
         }
 
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         EngineSignum sample_root;
         memset(&sample_root, 0, sizeof(sample_root));
         ok = (engine_iapx_load(request->set.set, name, extent, &volume, &sample_root, NULL, error) == 0L);
         const long windows = ok ? entropy_history_windows(extent, error) : ENTROPY_HISTORY_ERROR;
         ok = ok && (windows != ENTROPY_HISTORY_ERROR);
-        const unsigned long long window_count = ok ? (unsigned long long)windows : 0ull;
+        const unsigned long long window_count = ok ? (unsigned long long)windows : 0ULL;
         std::vector<unsigned long long> cloud((size_t)(window_count * window_count));
         std::vector<unsigned long long> payload((size_t)(window_count * extent[1] * extent[2] * extent[3]));
         EngineHistory history;
@@ -85,10 +85,10 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         project.sample = sample_root;
         project.history = &history;
         project.error = error;
-        unsigned long long broken = 0ull;
+        unsigned long long broken = 0ULL;
         ok = ok && (entropy_history_project(&project, &broken) == 0L);
         free(volume);
-        if (ENGINE_CHECK(broken == 0ull, &broken, error, ENGINE_ERROR_LOGIC) == 0)
+        if (ENGINE_CHECK(broken == 0ULL, &broken, error, ENGINE_ERROR_LOGIC) == 0)
         {
             fprintf(stderr, "  %s: entropy not conserved: %llu voxels' flips break parity with their net change\n",
                     name, broken);
@@ -111,7 +111,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
                "back whole, CRC-64 %016llx, in %llu ms\n",
                name, extent[0], window_count, ENGINE_HISTORY_WINDOW,
                (unsigned long long)(payload.size() * sizeof(unsigned long long)) >> 20u, history.payload_crc,
-               (engine_clock_microseconds() - began) / 1000ull);
+               (engine_clock_microseconds() - began) / 1000ULL);
         entropy_history_report(&history);
         fflush(stdout);
     }
@@ -193,7 +193,7 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
         (ok != 0) &&
         ENGINE_CHECK((back.bodies == table->bodies) && (back.crc == table->crc) &&
                          (memcmp(back.frame_start, table->frame_start,
-                                 (size_t)(table->frames + 1ull) * sizeof(unsigned long long)) == 0) &&
+                                 (size_t)(table->frames + 1ULL) * sizeof(unsigned long long)) == 0) &&
                          (memcmp(back.words, table->words,
                                  (size_t)(table->bodies * ENGINE_BODY_WORDS) * sizeof(unsigned long long)) == 0),
                      &back, error, ENGINE_ERROR_LOGIC);

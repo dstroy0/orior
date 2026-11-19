@@ -52,7 +52,7 @@
 static int sve_present(void)
 {
 #if ORIOR_SVE_CAN_DETECT
-    return ((getauxval(AT_HWCAP) & (unsigned long)HWCAP_SVE) != 0ul) ? 1 : 0;
+    return ((getauxval(AT_HWCAP) & (unsigned long)HWCAP_SVE) != 0UL) ? 1 : 0;
 #else
     return 0;
 #endif

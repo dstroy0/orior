@@ -226,7 +226,7 @@ EMBED_INLINE int changed_names(const ServersChangedCtx *args)
         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size) &&
         EMBED_CALL(changed_text_names, ServersChangedCtx, .text = (const char *)mapped, .size = size,
                    .tool = args->tool, .files = args->files, .count = args->count);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
     return names;
 }
 
@@ -452,7 +452,7 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
                                                        .size_pointer = &size, .owner = g_cli_servers_owner);
         const int integer = (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                            .bytes = (const char *)mapped, .size = size);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, (g_cli_servers_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
         if (integer)
         {
             EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx,

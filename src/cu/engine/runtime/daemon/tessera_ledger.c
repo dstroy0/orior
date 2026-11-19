@@ -17,10 +17,10 @@ static int tessera_grow(void **items, unsigned long long *capacity, unsigned lon
     {
         return 1;
     }
-    unsigned long long grown_capacity = (*capacity == 0ull) ? 1ull : *capacity;
+    unsigned long long grown_capacity = (*capacity == 0ULL) ? 1ULL : *capacity;
     while (grown_capacity < wanted)
     {
-        grown_capacity *= 2ull;
+        grown_capacity *= 2ULL;
     }
     void *const grown = realloc(*items, (size_t)grown_capacity * size);
     if (grown == NULL)
@@ -46,7 +46,7 @@ static int tessera_reserve(TesseraLedger *ledger, TesseraCallKind type)
 int tessera_ledger_open(TesseraLedger *ledger)
 {
     memset(ledger, 0, sizeof(*ledger));
-    ledger->next_identity = 1ull;
+    ledger->next_identity = 1ULL;
     return 1;
 }
 

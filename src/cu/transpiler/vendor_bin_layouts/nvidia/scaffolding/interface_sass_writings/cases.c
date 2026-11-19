@@ -39,7 +39,7 @@ unsigned long long writings_file_read(const char *path, unsigned char *bytes, un
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long read = (unsigned long long)fread(bytes, 1u, (size_t)room, file);
     fclose(file);
@@ -306,7 +306,7 @@ int writings_instruction(const SassForm *form, unsigned int table, unsigned int 
 // `code`, `count` instructions, positioned into a cubin and written to `path`: 1, or 0 where it was not
 int writings_cubin(unsigned int count, const char *path)
 {
-    const unsigned long long code_size = 16ull * count;
+    const unsigned long long code_size = 16ULL * count;
     CubinWrite written;
     memset(&written, 0, sizeof(written));
     written.pattern = s_pattern;
@@ -317,8 +317,8 @@ int writings_cubin(unsigned int count, const char *path)
     written.registers = WRITINGS_REGISTERS;
     written.exit_count = cubin_exits_find(s_code, code_size, sass_exit_encoding(&s_machine), s_exits, WRITINGS_EXITS);
     written.exits = s_exits;
-    unsigned long long size = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long at = 0ULL;
     if (!cubin_write(&written, s_cubin, sizeof(s_cubin), &size) ||
         (cubin_safe_image(&s_machine, s_cubin, size, written.registers, &at) != CUBIN_SAFE))
     {

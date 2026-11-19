@@ -131,7 +131,7 @@ int main(int count, char **words)
         if (strcmp(words[1], "--lessons") == 0)
         {
             const unsigned char *lessons = NULL;
-            unsigned long long lessons_size = 0ull;
+            unsigned long long lessons_size = 0ULL;
             if (count < 3)
             {
                 fprintf(stderr, "--lessons names no file\n");

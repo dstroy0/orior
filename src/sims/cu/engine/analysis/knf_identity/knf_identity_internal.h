@@ -8,13 +8,13 @@
 
 #include "../../../../../cu/engine/analysis/entropy_history/entropy_history.h"
 
-#define KNF_KEY 0x4E424F4459ull
+#define KNF_KEY 0x4E424F4459ULL
 
-#define KNF_WINDOWS 16ull
+#define KNF_WINDOWS 16ULL
 
-#define KNF_FRAMES (1ull + ((unsigned long long)ENGINE_HISTORY_WINDOW * KNF_WINDOWS))
+#define KNF_FRAMES (1ULL + ((unsigned long long)ENGINE_HISTORY_WINDOW * KNF_WINDOWS))
 
-#define KNF_SIDE 64ull
+#define KNF_SIDE 64ULL
 
 #define KNF_FOUNDERS 10u
 
@@ -30,27 +30,27 @@
 
 #define KNF_CONTROLS 64u
 
-#define KNF_CONTROL_SIDE 32ull
+#define KNF_CONTROL_SIDE 32ULL
 
 #define KNF_FLIPS 8192u
 
 // the controls' identified count over n volumes at 1/(draws + 1) each may exceed n p by 5 sqrt(n p), this squared over
 // n p: the binomial's spread is sqrt(n p (1 - p)). At 19 draws the tolerance is 5.13 of it
-#define KNF_RANGE_SQUARED 25ull
+#define KNF_RANGE_SQUARED 25ULL
 
 #define KNF_BOX_FIELDS 6u
 
-#define KNF_MOTION_PURPOSE 0x4D4F5645ull
+#define KNF_MOTION_PURPOSE 0x4D4F5645ULL
 
-#define KNF_NULL_PURPOSE 0x4E554C4Cull
+#define KNF_NULL_PURPOSE 0x4E554C4CULL
 
-#define KNF_FLIP_PURPOSE 0x464C4950ull
+#define KNF_FLIP_PURPOSE 0x464C4950ULL
 
-#define KNF_CONTROL_PURPOSE 0x434F4E54ull
+#define KNF_CONTROL_PURPOSE 0x434F4E54ULL
 
 static_assert(KNF_WINDOWS <= ENGINE_HISTORY_WINDOWS_MAX, "knf_identity: the run's windows fit the history");
 static_assert(KNF_BODIES <= 16u, "knf_identity: a voxel's boxes are one bit a body in 16 bits");
-static_assert((1ull << (KNF_SCALES - 1u)) == KNF_SIDE, "knf_identity: the tile sizes run 1 to the side by doubling");
+static_assert((1ULL << (KNF_SCALES - 1u)) == KNF_SIDE, "knf_identity: the tile sizes run 1 to the side by doubling");
 
 typedef struct
 {

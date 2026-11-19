@@ -283,7 +283,7 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
     }
     g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
     g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
-    *(&list_entries) = (QueryRuns){NULL, NULL, 0u};
+    list_entries = (QueryRuns){NULL, NULL, 0u};
 }
 
 int query_crystal_build(const QueryRetentionContextCtx *args)

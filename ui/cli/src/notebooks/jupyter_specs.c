@@ -283,7 +283,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
                 : CLI_JSON_NONE;
         const int read = (root != CLI_JSON_NONE) &&
                          EMBED_CALL(jupyter_spec_read, JupyterSpecsCtx, .root = root, .name = name, .folder = folder);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_notebook_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_notebook_owner);
         if (read && !jupyter_list(args))
         {
             return 0;

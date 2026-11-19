@@ -15,7 +15,7 @@ void PairWork::chosen(const char *const *names, unsigned int count, const std::s
     {
         return;
     }
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         word |= query_trace_flag(s_query_trace, names[at]);
@@ -122,7 +122,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     {
         work.bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -186,7 +186,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         std::string reads;
     };
     // what every put reads of the engine: each chain's text and the host's answers to its cases, by its question
-    unsigned long long engine_read = 0xcbf29ce484222325ull;
+    unsigned long long engine_read = 0xcbf29ce484222325ULL;
     for (const auto &chain : work.carriers.texts)
     {
         engine_read = record_hash(chain.first.c_str(), chain.first.size() + 1u, engine_read);

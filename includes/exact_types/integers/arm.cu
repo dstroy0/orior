@@ -110,15 +110,15 @@ __device__ static int device_magnitude_is_zero(const unsigned int *value)
  */
 __device__ static int device_magnitude_add(const unsigned int *left, const unsigned int *right, unsigned int *result)
 {
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         const unsigned long long total = (unsigned long long)left[at] + (unsigned long long)right[at] + carry;
         // Explicit narrowing to a limb. The high half is the carry and is retained.
-        result[at] = (unsigned int)(total & 0xFFFFFFFFull);
+        result[at] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32;
     }
-    return (carry != 0ull) ? 1 : 0;
+    return (carry != 0ULL) ? 1 : 0;
 }
 
 /**
@@ -131,15 +131,15 @@ __device__ static int device_magnitude_add(const unsigned int *left, const unsig
 __device__ static void device_magnitude_subtract(const unsigned int *left, const unsigned int *right,
                                                  unsigned int *result)
 {
-    unsigned long long borrow = 0ull;
+    unsigned long long borrow = 0ULL;
     for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         // The base maintains the arithmetic non negative before the narrowing. No unsigned wrap has
         // to be reasoned about at the point the limb is stored.
         const unsigned long long total =
-            (1ull << 32) + (unsigned long long)left[at] - (unsigned long long)right[at] - borrow;
-        result[at] = (unsigned int)(total & 0xFFFFFFFFull);
-        borrow = (total < (1ull << 32)) ? 1ull : 0ull;
+            (1ULL << 32) + (unsigned long long)left[at] - (unsigned long long)right[at] - borrow;
+        result[at] = (unsigned int)(total & 0xFFFFFFFFULL);
+        borrow = (total < (1ULL << 32)) ? 1ULL : 0ULL;
     }
 }
 

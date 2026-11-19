@@ -53,7 +53,7 @@ typedef struct
 } CliCargoFound;
 
 // the bytes of a piece of the tests' texts, past which a text longer takes a piece of its own size
-#define CLI_CARGO_PIECE (64ull << 10u)
+#define CLI_CARGO_PIECE (64ULL << 10u)
 
 // A piece of the tests' texts: the piece put before it, the bytes put in it and those it contains, and its bytes
 typedef struct CliCargoPieceStruct

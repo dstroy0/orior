@@ -337,7 +337,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
                                                  .xml = &s_xml, .element = project, .name = "project"))
     {
         g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
-        *(&s_xml) = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
+        s_xml = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
         return;
     }
     EMBED_CALL(cli_maven_text_size_model_internal.model_get, CliMavenTextSizeModelCtx, .path = args->path,
@@ -398,7 +398,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
         }
     }
     g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
-    *(&s_xml) = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
+    s_xml = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     g_cli_guard->persistent_buf_release(s_model.name_at, g_cli_maven_model_owner);
-    *(&s_model) = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
+    s_model = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
 }

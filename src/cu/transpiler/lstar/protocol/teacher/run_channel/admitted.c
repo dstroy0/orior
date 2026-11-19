@@ -16,8 +16,8 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
                                          int alone)
 {
     const unsigned char *read = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long sequence = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long sequence = 0ULL;
     if (!qry_member_blob(RUN_AIRLOCK_READ, &read, &size, &sequence) ||
         (sequence < s_channel.airlock_began))
     {
@@ -32,26 +32,26 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         char stem[RUN_NAME_MAX_LEN + sizeof(RUN_AIRLOCK_ANSWERS)];
         char popped[RUN_NAME_MAX_LEN + sizeof(RUN_AIRLOCK_ANSWERS)];
         run_channel_named(at, alone, code_name, cases_name, answers_name);
-        VerbaLinea stem_line = {stem, sizeof(stem), 0ull};
+        VerbaLinea stem_line = {stem, sizeof(stem), 0ULL};
         mmgr_line_put(&stem_line, RUN_AIRLOCK_ANSWERS);
         mmgr_line_put_max(&stem_line, answers_name, strcspn(answers_name, "."));
         mmgr_line_finish(&stem_line);
-        VerbaLinea popped_line = {popped, sizeof(popped), 0ull};
+        VerbaLinea popped_line = {popped, sizeof(popped), 0ULL};
         mmgr_line_put(&popped_line, RUN_AIRLOCK_ANSWERS);
         mmgr_line_put(&popped_line, answers_name);
         mmgr_line_finish(&popped_line);
         // the pop's answer, the gate's verdict with the part taken out: its first line
         const unsigned char *answer = NULL;
-        unsigned long long answer_size = 0ull;
-        unsigned long long answer_sequence = 0ull;
+        unsigned long long answer_size = 0ULL;
+        unsigned long long answer_sequence = 0ULL;
         if (!qry_member_blob(popped, &answer, &answer_size, &answer_sequence) ||
             (answer_sequence < s_channel.airlock_began))
         {
             continue;
         }
         char verdict[160];
-        VerbaLinea verdict_line = {verdict, sizeof(verdict), 0ull};
-        mmgr_line_put_max(&verdict_line, (const char *)answer, (answer_size < 159ull) ? answer_size : 159ull);
+        VerbaLinea verdict_line = {verdict, sizeof(verdict), 0ULL};
+        mmgr_line_put_max(&verdict_line, (const char *)answer, (answer_size < 159ULL) ? answer_size : 159ULL);
         mmgr_line_finish(&verdict_line);
         verdict[strcspn(verdict, "\r\n")] = '\0';
         if (!run_channel_key_gated(verdict))
@@ -62,12 +62,12 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         // place's, or every instruction's of a question read whole, each `<operation> <low> <high>`
         const size_t stem_length = strlen(stem);
         unsigned int clear = 0u;
-        for (unsigned long long walk = 0ull; walk < size;)
+        for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
             const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
-            walk += (unsigned long long)length + 1ull;
+            walk += (unsigned long long)length + 1ULL;
             clear += ((length > stem_length) && (memcmp(line, stem, stem_length) == 0) && (line[stem_length] == ' '))
                          ? 1u
                          : 0u;
@@ -85,21 +85,21 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         kqr_identity_text(&numbered, identity, sizeof(identity));
         // the accounts: the cross's reading, the gate's block, and what the record contains of the identity
         char account[512];
-        VerbaLinea account_line = {account, sizeof(account), 0ull};
+        VerbaLinea account_line = {account, sizeof(account), 0ULL};
         mmgr_line_put(&account_line, "reads ");
         mmgr_line_decimal(&account_line, clear, 0u);
         mmgr_line_put(&account_line, " instruction(s) of it clear, each legal, no control transfer, wait, memory "
                                       "access or register past the count; admit");
         mmgr_line_finish(&account_line);
         overseer_account(s_channel.buffer, identity, "cross", account);
-        account_line.at = 0ull;
+        account_line.at = 0ULL;
         mmgr_line_put(&account_line, "contains it,");
         mmgr_line_put(&account_line, verdict);
         mmgr_line_put(&account_line, "; gray");
         mmgr_line_finish(&account_line);
         overseer_account(s_channel.buffer, identity, "gate", account);
         static KqrQuery s_recorded;
-        account_line.at = 0ull;
+        account_line.at = 0ULL;
         if (!s_record.open || !kqr_find(&s_record, &numbered, &s_recorded))
         {
             mmgr_line_put(&account_line, "contains no answer of it; admit");
@@ -128,21 +128,21 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         unsigned int ruled = 0u;
         OverseerRuling ruling;
         memset(&ruling, 0, sizeof(ruling));
-        for (unsigned long long walk = 0ull; walk < size;)
+        for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
             const char *const end = (const char *)memchr(line, '\n', (size_t)(size - walk));
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
-            walk += (unsigned long long)length + 1ull;
+            walk += (unsigned long long)length + 1ULL;
             if ((length <= stem_length) || (memcmp(line, stem, stem_length) != 0) || (line[stem_length] != ' '))
             {
                 continue;
             }
             char operation[64];
-            unsigned long long low = 0ull;
-            unsigned long long high = 0ull;
+            unsigned long long low = 0ULL;
+            unsigned long long high = 0ULL;
             char text[400];
-            VerbaLinea text_line = {text, sizeof(text), 0ull};
+            VerbaLinea text_line = {text, sizeof(text), 0ULL};
             mmgr_line_put_max(&text_line, line + stem_length + 1u, length - stem_length - 1u);
             mmgr_line_finish(&text_line);
             const char *at = text;
@@ -151,7 +151,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
                 continue;
             }
             char encoding[48];
-            VerbaLinea encoding_line = {encoding, sizeof(encoding), 0ull};
+            VerbaLinea encoding_line = {encoding, sizeof(encoding), 0ULL};
             mmgr_line_hex(&encoding_line, low, 16u);
             mmgr_line_ch(&encoding_line, ' ');
             mmgr_line_hex(&encoding_line, high, 16u);
@@ -161,7 +161,7 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         }
         admitted += taught;
         char message[OVERSEER_RULING_MAX_LEN + 128u];
-        VerbaLinea message_line = {message, sizeof(message), 0ull};
+        VerbaLinea message_line = {message, sizeof(message), 0ULL};
         if (ruled != 0u)
         {
             mmgr_line_put(&message_line, "admitted by its conference: ");
@@ -209,7 +209,7 @@ int run_channel_checked(RunQuestion *const *questions, unsigned int first, unsig
         }
         if (!run_channel_relisted(questions, first, count, alone))
         {
-            VerbaLinea refused_line = {refused, room, 0ull};
+            VerbaLinea refused_line = {refused, room, 0ULL};
             mmgr_line_put(&refused_line, "the round could not be listed again after the check, and it is not carried");
             mmgr_line_finish(&refused_line);
             return 0;
@@ -221,11 +221,11 @@ int run_channel_checked(RunQuestion *const *questions, unsigned int first, unsig
 // panic where the carrier did not end clean, the carrier losing its mind: its ending is the record of it
 void run_channel_output_passed(const InterfaceAnswer *answer)
 {
-    const int clean = (answer->ending == INTERFACE_ENDING_EXITED) && (answer->code == 0ull);
+    const int clean = (answer->ending == INTERFACE_ENDING_EXITED) && (answer->code == 0ULL);
     const unsigned long long copied = (answer->output_bytes < (sizeof(s_carrier_output) - 1u))
                                           ? answer->output_bytes
                                           : (sizeof(s_carrier_output) - 1u);
-    VerbaLinea ending_line = {s_carrier_text, RUN_CARRIER_ENDING, 0ull};
+    VerbaLinea ending_line = {s_carrier_text, RUN_CARRIER_ENDING, 0ULL};
     mmgr_line_put(&ending_line, "the carrier ");
     mmgr_line_put(&ending_line, interface_ending_name(answer->ending));
     mmgr_line_put(&ending_line, ", code ");
@@ -247,22 +247,22 @@ void run_channel_output_passed(const InterfaceAnswer *answer)
 void run_channel_traced(RunQuestion *const *questions, unsigned int count, const char *how)
 {
     static const char *const s_outcomes[] = {"answered", "nothing", "illegal", "no channel", "gated"};
-    const unsigned int priority = (run_channel_on_line() != 0ull) ? QRY_PANIC : QRY_ORDINARY;
+    const unsigned int priority = (run_channel_on_line() != 0ULL) ? QRY_PANIC : QRY_ORDINARY;
     if ((s_channel.buffer == NULL) || (count == 0u))
     {
         return;
     }
     // a line is at max its identity, `how`, an outcome and a refusal; the trace is passed whenever the room left
     // could not take one more
-    const unsigned long long line_max = 96ull + 64ull + sizeof(questions[0]->refused) + 256ull;
+    const unsigned long long line_max = 96ULL + 64ULL + sizeof(questions[0]->refused) + 256ULL;
     static char s_trace_bytes[RUN_TRACE_ROOM];
-    VerbaLinea text = {s_trace_bytes, sizeof(s_trace_bytes), 0ull};
+    VerbaLinea text = {s_trace_bytes, sizeof(s_trace_bytes), 0ULL};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if ((text.capacity - text.at) <= line_max)
         {
             qry_member_append("trace", text.out, text.at, priority);
-            text.at = 0ull;
+            text.at = 0ULL;
         }
         KqrIdentity numbered;
         char identity[96];
@@ -272,7 +272,7 @@ void run_channel_traced(RunQuestion *const *questions, unsigned int count, const
         mmgr_line_put(&text, "teacher: ");
         mmgr_line_put(&text, identity);
         mmgr_line_ch(&text, ' ');
-        mmgr_line_put_max(&text, how, 64ull);
+        mmgr_line_put_max(&text, how, 64ULL);
         mmgr_line_put(&text, ": ");
         mmgr_line_put(&text, (outcome < (sizeof(s_outcomes) / sizeof(s_outcomes[0]))) ? s_outcomes[outcome] : "?");
         if (questions[at]->refused[0] != '\0')

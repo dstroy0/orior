@@ -14,8 +14,8 @@
 #include "memoria_operor/memoria_operor.h"
 
 // the lanes of a spread pixel: blue at bit 0, red at 16, green at 32 and alpha at 48, a byte each
-#define BEAD_LANES 0x00ff00ff00ff00ffull
-#define BEAD_LANE_CARRY 0x0001000100010001ull
+#define BEAD_LANES 0x00ff00ff00ff00ffULL
+#define BEAD_LANE_CARRY 0x0001000100010001ULL
 // the rim's power, and the share of the rim that is all round, the rest on the side away from the light
 #define BEAD_RIM_POWER 2.0
 #define BEAD_RIM_ROUND 0.4
@@ -163,7 +163,7 @@ EMBED_INLINE unsigned long long bead_spread(GuiColor pixel)
 EMBED_INLINE GuiColor bead_pack(unsigned long long lanes)
 {
     // the lanes hold a byte each, which the pixel's bytes take whole
-    return (GuiColor)(lanes & 0x00ff00ffull) | (GuiColor)((lanes >> 24u) & 0xff00ff00ull);
+    return (GuiColor)(lanes & 0x00ff00ffULL) | (GuiColor)((lanes >> 24u) & 0xff00ff00ULL);
 }
 
 // a light's `color` at `share` of the color's alpha positioned over the premultiplied `had`, premultiplied

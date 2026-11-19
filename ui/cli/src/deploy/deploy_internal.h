@@ -34,8 +34,8 @@ typedef struct CliDeployCtx CliDeployCtx;
 
 // the max bytes of a shell line a deployment runs and of the listing of a machine's releases, and of the hashes of the
 // files a place has
-#define CLI_DEPLOY_LINE (1ull << 20u)
-#define CLI_DEPLOY_HASHES (32ull << 20u)
+#define CLI_DEPLOY_LINE (1ULL << 20u)
+#define CLI_DEPLOY_HASHES (32ULL << 20u)
 
 // A deployment: its name, the folder whose files go, the patterns of the files that stay, the places, how many
 // releases each place retains, and whether its files go into each place's folder itself

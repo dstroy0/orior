@@ -16,14 +16,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SIM_LINE_CAPACITY 8192ull
+#define SIM_LINE_CAPACITY 8192ULL
 
 // the words a counter owns in its key's run of counters: sim_binomial_half takes one word per 64 trials,
 // sim_poisson_four_cumulants one per 6 electrons and sim_thinned one per 64 / bits electrons, and a word past these
 // is drawn on a key of the counter's own (sim_counter_draw). No count runs into the next counter's words
-#define SIM_COUNTER_STRIDE 65536ull
+#define SIM_COUNTER_STRIDE 65536ULL
 
-#define SIM_COUNTER_PAST_PURPOSE 0x50415354ull
+#define SIM_COUNTER_PAST_PURPOSE 0x50415354ULL
 
 struct TesseraClient;
 
@@ -45,9 +45,9 @@ void sim_job_release(SimResults *results);
 
 static inline __host__ __device__ unsigned long long sim_mix(unsigned long long word)
 {
-    unsigned long long mixed = word + 0x9E3779B97F4A7C15ull;
-    mixed = (mixed ^ (mixed >> 30u)) * 0xBF58476D1CE4E5B9ull;
-    mixed = (mixed ^ (mixed >> 27u)) * 0x94D049BB133111EBull;
+    unsigned long long mixed = word + 0x9E3779B97F4A7C15ULL;
+    mixed = (mixed ^ (mixed >> 30u)) * 0xBF58476D1CE4E5B9ULL;
+    mixed = (mixed ^ (mixed >> 27u)) * 0x94D049BB133111EBULL;
     return mixed ^ (mixed >> 31u);
 }
 
@@ -77,36 +77,36 @@ static inline __host__ __device__ unsigned long long sim_counter_draw(unsigned l
 
 static inline __host__ __device__ unsigned long long sim_bits_set(unsigned long long word)
 {
-    word = word - ((word >> 1u) & 0x5555555555555555ull);
-    word = (word & 0x3333333333333333ull) + ((word >> 2u) & 0x3333333333333333ull);
-    word = (word + (word >> 4u)) & 0x0F0F0F0F0F0F0F0Full;
-    return (word * 0x0101010101010101ull) >> 56u;
+    word = word - ((word >> 1u) & 0x5555555555555555ULL);
+    word = (word & 0x3333333333333333ULL) + ((word >> 2u) & 0x3333333333333333ULL);
+    word = (word + (word >> 4u)) & 0x0F0F0F0F0F0F0F0FULL;
+    return (word * 0x0101010101010101ULL) >> 56u;
 }
 
 static inline __host__ __device__ unsigned long long sim_binomial_half(unsigned long long key,
                                                                        unsigned long long counter,
                                                                        unsigned long long trials)
 {
-    unsigned long long heads = 0ull;
-    unsigned long long word = 0ull;
-    for (unsigned long long done = 0ull; done < trials; done += 64ull)
+    unsigned long long heads = 0ULL;
+    unsigned long long word = 0ULL;
+    for (unsigned long long done = 0ULL; done < trials; done += 64ULL)
     {
         const unsigned long long draw = sim_counter_draw(key, counter, word);
         const unsigned long long left = trials - done;
-        const unsigned long long masked = (left >= 64ull) ? draw : (draw & ((1ull << left) - 1ull));
+        const unsigned long long masked = (left >= 64ULL) ? draw : (draw & ((1ULL << left) - 1ULL));
         heads += sim_bits_set(masked);
-        word += 1ull;
+        word += 1ULL;
     }
     return heads;
 }
 
 // one electron's draw of the shot below: 0, 1, 2 or 4 with chances 9, 8, 6 and 1 in 24
-#define SIM_SHOT_CHANCES 24ull
+#define SIM_SHOT_CHANCES 24ULL
 
 // six electrons' chances from one word, 24^6 of them
-#define SIM_SHOT_DIGITS 6ull
+#define SIM_SHOT_DIGITS 6ULL
 
-#define SIM_SHOT_DIGIT_WORD 191102976ull
+#define SIM_SHOT_DIGIT_WORD 191102976ULL
 
 // A count of mean S whose first four cumulants are each S, a Poisson count's: each of the S expected electrons adds
 // 0, 1, 2 or 4 with chances 9, 8, 6 and 1 in 24, a law whose factorial moments are 1 to the fourth, as Poisson(1)'s
@@ -116,20 +116,20 @@ static inline __host__ __device__ unsigned long long sim_poisson_four_cumulants(
                                                                                 unsigned long long counter,
                                                                                 unsigned long long electrons)
 {
-    unsigned long long collected = 0ull;
-    unsigned long long word = 0ull;
-    for (unsigned long long done = 0ull; done < electrons; done += SIM_SHOT_DIGITS)
+    unsigned long long collected = 0ULL;
+    unsigned long long word = 0ULL;
+    for (unsigned long long done = 0ULL; done < electrons; done += SIM_SHOT_DIGITS)
     {
         unsigned long long digits = sim_counter_draw(key, counter, word) % SIM_SHOT_DIGIT_WORD;
         const unsigned long long left = electrons - done;
         const unsigned long long taken = (left < SIM_SHOT_DIGITS) ? left : SIM_SHOT_DIGITS;
-        for (unsigned long long digit = 0ull; digit < taken; digit += 1ull)
+        for (unsigned long long digit = 0ULL; digit < taken; digit += 1ULL)
         {
             const unsigned long long chance = digits % SIM_SHOT_CHANCES;
             digits /= SIM_SHOT_CHANCES;
-            collected += (chance < 9ull) ? 0ull : ((chance < 17ull) ? 1ull : ((chance < 23ull) ? 2ull : 4ull));
+            collected += (chance < 9ULL) ? 0ULL : ((chance < 17ULL) ? 1ULL : ((chance < 23ULL) ? 2ULL : 4ULL));
         }
-        word += 1ull;
+        word += 1ULL;
     }
     return collected;
 }
@@ -144,16 +144,16 @@ static inline void sim_open(SimResults *results, char *capacity)
 static inline void sim_flush(SimResults *results)
 {
     (void)(mmgr_line_ok(&results->line) && (fwrite(results->line.out, 1u, mmgr_line_finish(&results->line), stdout) == results->line.at));
-    results->line.at = 0ull;
+    results->line.at = 0ULL;
     fflush(stdout);
 }
 
 static inline void sim_check(SimResults *results, int passed, const char *what)
 {
-    results->checks += 1ull;
+    results->checks += 1ULL;
     if (passed == 0)
     {
-        results->failures += 1ull;
+        results->failures += 1ULL;
         mmgr_line_put(&results->line, "  FAILED: ");
         mmgr_line_put(&results->line, what);
         mmgr_line_ch(&results->line, '\n');
@@ -171,26 +171,26 @@ static inline int sim_close(SimResults *results, const char *name)
     mmgr_line_decimal(&results->line, results->failures, 1u);
     mmgr_line_put(&results->line, " failed\n");
     sim_flush(results);
-    return (results->failures == 0ull) ? 0 : 1;
+    return (results->failures == 0ULL) ? 0 : 1;
 }
 
 static inline void sim_exact_unsigned(OriorExactInteger *value, unsigned long long number)
 {
     orior_exact_zero(value);
     // the low and high halves of a 64-bit word each fit one 32-bit limb
-    value->limb[0] = (uint32_t)(number & 0xFFFFFFFFull);
+    value->limb[0] = (uint32_t)(number & 0xFFFFFFFFULL);
     // the high half, shifted down, is below 2^32
     value->limb[1] = (uint32_t)(number >> 32u);
-    value->sign = (number == 0ull) ? 0 : 1;
+    value->sign = (number == 0ULL) ? 0 : 1;
 }
 
 static inline void sim_exact_signed(OriorExactInteger *value, long long number)
 {
     // the magnitude of a negative 64-bit word is its two's complement negation, taken unsigned
     const unsigned long long magnitude =
-        (number < 0ll) ? (0ull - (unsigned long long)number) : (unsigned long long)number;
+        (number < 0LL) ? (0ULL - (unsigned long long)number) : (unsigned long long)number;
     sim_exact_unsigned(value, magnitude);
-    if (number < 0ll)
+    if (number < 0LL)
     {
         value->sign = -1;
     }
@@ -242,19 +242,19 @@ static inline int sim_ratio_compare(const OriorExactInteger *numerator, const Or
 static inline unsigned long long sim_ratio_floor(const OriorExactInteger *numerator,
                                                  const OriorExactInteger *denominator, unsigned long long bound)
 {
-    unsigned long long below = 0ull;
-    unsigned long long above = bound - 1ull;
+    unsigned long long below = 0ULL;
+    unsigned long long above = bound - 1ULL;
     OriorExactInteger trial;
     while (below < above)
     {
-        const unsigned long long middle = below + ((above - below) / 2ull) + ((above - below) & 1ull);
+        const unsigned long long middle = below + ((above - below) / 2ULL) + ((above - below) & 1ULL);
         if ((sim_exact_scaled(denominator, middle, &trial) != 0) && (orior_exact_compare(&trial, numerator) <= 0))
         {
             below = middle;
         }
         else
         {
-            above = middle - 1ull;
+            above = middle - 1ULL;
         }
     }
     return below;
@@ -262,20 +262,20 @@ static inline unsigned long long sim_ratio_floor(const OriorExactInteger *numera
 
 // one group of an exact integer's decimal digits: 10^9, the widest power of ten whose remainder shifted up a limb
 // still fits a word
-#define SIM_DECIMAL_GROUP 1000000000ull
+#define SIM_DECIMAL_GROUP 1000000000ULL
 
 #define SIM_DECIMAL_GROUP_DIGITS 9u
 
 // 10^9 exceeds 2^29. A magnitude of ORIOR_EXACT_BITS bits has at max ORIOR_EXACT_BITS / 29 + 1 groups
-#define SIM_DECIMAL_GROUPS ((((unsigned long long)(ORIOR_EXACT_BITS)) / 29ull) + 1ull)
+#define SIM_DECIMAL_GROUPS ((((unsigned long long)(ORIOR_EXACT_BITS)) / 29ULL) + 1ULL)
 
 // the count of limbs up to and including the top non-zero one; 0 for zero
 static inline unsigned long long sim_exact_limbs_used(const OriorExactInteger *value)
 {
     unsigned long long used = ORIOR_EXACT_LIMBS;
-    while ((used > 0ull) && (value->limb[used - 1ull] == 0u))
+    while ((used > 0ULL) && (value->limb[used - 1ULL] == 0u))
     {
-        used -= 1ull;
+        used -= 1ULL;
     }
     return used;
 }
@@ -286,27 +286,27 @@ static inline void sim_exact_decimal(VerbaLinea *line, const OriorExactInteger *
 {
     OriorExactInteger work = *value;
     unsigned int groups[SIM_DECIMAL_GROUPS];
-    unsigned long long count = 0ull;
+    unsigned long long count = 0ULL;
     unsigned long long used = sim_exact_limbs_used(&work);
     do
     {
-        unsigned long long remainder = 0ull;
-        for (unsigned long long index = used; index > 0ull; index -= 1ull)
+        unsigned long long remainder = 0ULL;
+        for (unsigned long long index = used; index > 0ULL; index -= 1ULL)
         {
-            const unsigned long long dividend = (remainder << 32u) | work.limb[index - 1ull];
+            const unsigned long long dividend = (remainder << 32u) | work.limb[index - 1ULL];
             // the remainder is below 10^9. The dividend is below 10^9 * 2^32 and its quotient fits a limb
-            work.limb[index - 1ull] = (uint32_t)(dividend / SIM_DECIMAL_GROUP);
+            work.limb[index - 1ULL] = (uint32_t)(dividend / SIM_DECIMAL_GROUP);
             remainder = dividend % SIM_DECIMAL_GROUP;
         }
         // a remainder by 10^9 is below 2^30
         groups[count] = (unsigned int)remainder;
-        count += 1ull;
+        count += 1ULL;
         used = sim_exact_limbs_used(&work);
-    } while (used > 0ull);
-    mmgr_line_decimal(line, groups[count - 1ull], 1u);
-    for (unsigned long long group = count - 1ull; group > 0ull; group -= 1ull)
+    } while (used > 0ULL);
+    mmgr_line_decimal(line, groups[count - 1ULL], 1u);
+    for (unsigned long long group = count - 1ULL; group > 0ULL; group -= 1ULL)
     {
-        mmgr_line_decimal(line, groups[group - 1ull], SIM_DECIMAL_GROUP_DIGITS);
+        mmgr_line_decimal(line, groups[group - 1ULL], SIM_DECIMAL_GROUP_DIGITS);
     }
 }
 
@@ -340,10 +340,10 @@ static inline void sim_ratio_print(VerbaLinea *line, const OriorExactInteger *nu
     sim_exact_decimal(line, &integer_part);
     if (places > 0u)
     {
-        unsigned long long unit = 1ull;
+        unsigned long long unit = 1ULL;
         for (unsigned int place = 0u; place < places; place += 1u)
         {
-            unit *= 10ull;
+            unit *= 10ULL;
         }
         mmgr_line_ch(line, '.');
         mmgr_line_decimal(line, sim_ratio_floor(&rest, &bottom, unit), places);
@@ -377,7 +377,7 @@ static inline int sim_status_check(SimResults *results, cudaError_t status, cons
 
 static inline unsigned long long sim_launch_blocks(unsigned long long count, unsigned long long threads)
 {
-    return (count + threads - 1ull) / threads;
+    return (count + threads - 1ULL) / threads;
 }
 
 static inline EngineSignum sim_content(const unsigned short *lanes, unsigned long long count, unsigned long long key)

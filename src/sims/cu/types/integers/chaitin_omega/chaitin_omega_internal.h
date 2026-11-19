@@ -7,9 +7,9 @@
 #include "chaitin_omega_declarations.h"
 
 // the engine's index is 32 bits. Every token a round reads must sit below this in the pool
-#define OMEGA_ENGINE_INDEX_MAX 0xFFFFFFFFull
+#define OMEGA_ENGINE_INDEX_MAX 0xFFFFFFFFULL
 
-#define OMEGA_ENGINE_NONE (~0ull)
+#define OMEGA_ENGINE_NONE (~0ULL)
 
 // the terms settled on the engine are checked against omega_run through this length
 #define OMEGA_ENGINE_CROSS_MAX 24u
@@ -242,7 +242,7 @@ typedef struct
 
 #define OMEGA_POOL_BLOCK 256u
 
-#define OMEGA_POOL_GRID_MAX 65536ull
+#define OMEGA_POOL_GRID_MAX 65536ULL
 
 unsigned int omega_pool_grid(unsigned long long count);
 

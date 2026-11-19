@@ -16,10 +16,10 @@ static int dicom_open(const EngineIngestTools *tools, const char *path, const ch
     }
     dicom_resident_release();
     const ZipArchive *const archive = zip_archive_cached(tools, path, error);
-    unsigned long long first = 0ull;
-    unsigned long long count = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long count = 0ULL;
     if ((archive == NULL) || !zip_folder_find(archive, member, &first, &count) ||
-        !DICOM_CHECK(count != 0ull, member, error, ENGINE_ERROR_REQUEST))
+        !DICOM_CHECK(count != 0ULL, member, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
@@ -47,7 +47,7 @@ static void dicom_extent(EngineArrayExtent *extent)
     const DicomSlice *const lead = &resident->slices[0];
     memset(extent, 0, sizeof(*extent));
     extent->rank = 4u;
-    extent->sizes[0] = 1ull;
+    extent->sizes[0] = 1ULL;
     extent->sizes[1] = resident->count;
     extent->sizes[2] = lead->rows;
     extent->sizes[3] = lead->columns;
@@ -68,27 +68,27 @@ int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const
     EngineError probe;
     memset(&probe, 0, sizeof(probe));
     const ZipArchive *const archive = (member != NULL) ? zip_archive_cached(tools, path, &probe) : NULL;
-    unsigned long long first = 0ull;
-    unsigned long long count = 0ull;
+    unsigned long long first = 0ULL;
+    unsigned long long count = 0ULL;
     if ((archive == NULL) || !zip_folder_find(archive, member, &first, &count))
     {
         return 0;
     }
-    for (unsigned long long at = first; at < (first + count); at += 1ull)
+    for (unsigned long long at = first; at < (first + count); at += 1ULL)
     {
         ZipEntry entry;
         if (!zip_entry_at(archive, at, &entry, &probe))
         {
             return 0;
         }
-        if ((entry.name_length == 0ull) || (entry.name[entry.name_length - 1ull] == '/'))
+        if ((entry.name_length == 0ULL) || (entry.name[entry.name_length - 1ULL] == '/'))
         {
             continue;
         }
         unsigned char *const member = (unsigned char *)malloc((size_t)entry.uncompressed + 1u);
         const int read = (member != NULL) && (zip_member_read(tools, path, archive, &entry, member, entry.uncompressed,
                                                               &probe) != ZIP_ERROR);
-        const int preamble_valid = read && (entry.uncompressed >= (DICOM_PREAMBLE + 4ull)) &&
+        const int preamble_valid = read && (entry.uncompressed >= (DICOM_PREAMBLE + 4ULL)) &&
                                    (memcmp(member + DICOM_PREAMBLE, "DICM", 4u) == 0);
         free(member);
         return preamble_valid ? 1 : 0;
@@ -115,49 +115,49 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
 {
     const unsigned int element_bytes = slice->bits_allocated / 8u;
     const unsigned int width = 8u * element_bytes;
-    const unsigned long long mask = (width >= 64u) ? ~0ull : ((1ull << width) - 1ull);
+    const unsigned long long mask = (width >= 64u) ? ~0ULL : ((1ULL << width) - 1ULL);
     const unsigned int low = (slice->high_bit + 1u) - slice->bits_stored;
-    const unsigned long long field = (slice->bits_stored >= 64u) ? ~0ull : ((1ull << slice->bits_stored) - 1ull);
-    const unsigned long long sign = 1ull << (slice->bits_stored - 1u);
+    const unsigned long long field = (slice->bits_stored >= 64u) ? ~0ULL : ((1ULL << slice->bits_stored) - 1ULL);
+    const unsigned long long sign = 1ULL << (slice->bits_stored - 1u);
     const unsigned long long elements = slice->pixel_bytes / element_bytes;
     // a stored field the element's whole width wide is its own sign extension: every element is left as it is
     if ((low == 0u) && (slice->bits_stored == width))
     {
-        return 0ull;
+        return 0ULL;
     }
-    unsigned long long extended_any = 0ull;
+    unsigned long long extended_any = 0ULL;
     if (element_bytes == 2u)
     {
         // the same extension on a little-endian 16-bit element, read and written as one word
-        for (unsigned long long element = 0ull; element < elements; element += 1ull)
+        for (unsigned long long element = 0ULL; element < elements; element += 1ULL)
         {
-            unsigned char *const at = pixels + (element * 2ull);
+            unsigned char *const at = pixels + (element * 2ULL);
             const unsigned long long word = (unsigned long long)at[0] | ((unsigned long long)at[1] << 8u);
             const unsigned long long stored = (word >> low) & field;
-            const unsigned long long extended = ((stored & sign) != 0ull) ? ((stored | ~field) & mask) : stored;
-            extended_any |= (((extended << low) & mask) != word) ? 1ull : 0ull;
+            const unsigned long long extended = ((stored & sign) != 0ULL) ? ((stored | ~field) & mask) : stored;
+            extended_any |= (((extended << low) & mask) != word) ? 1ULL : 0ULL;
             // the extended element is 16 bits, taken a byte at a time
-            at[0] = (unsigned char)(extended & 0xFFull);
-            at[1] = (unsigned char)((extended >> 8u) & 0xFFull);
+            at[0] = (unsigned char)(extended & 0xFFULL);
+            at[1] = (unsigned char)((extended >> 8u) & 0xFFULL);
         }
         return extended_any;
     }
-    for (unsigned long long element = 0ull; element < elements; element += 1ull)
+    for (unsigned long long element = 0ULL; element < elements; element += 1ULL)
     {
         unsigned char *const at = pixels + (element * element_bytes);
-        unsigned long long word = 0ull;
+        unsigned long long word = 0ULL;
         for (unsigned int place = element_bytes; place > 0u; place -= 1u)
         {
             word = (word << 8u) | (unsigned long long)at[place - 1u];
         }
         const unsigned long long stored = (word >> low) & field;
-        const unsigned long long extended = ((stored & sign) != 0ull) ? ((stored | ~field) & mask) : stored;
+        const unsigned long long extended = ((stored & sign) != 0ULL) ? ((stored | ~field) & mask) : stored;
         const unsigned long long canonical = (extended << low) & mask;
-        extended_any |= (canonical != word) ? 1ull : 0ull;
+        extended_any |= (canonical != word) ? 1ULL : 0ULL;
         for (unsigned int place = 0u; place < element_bytes; place += 1u)
         {
             // one byte of the extended word is taken whole
-            at[place] = (unsigned char)((extended >> (8u * place)) & 0xFFull);
+            at[place] = (unsigned char)((extended >> (8u * place)) & 0xFFULL);
         }
     }
     return extended_any;
@@ -179,12 +179,12 @@ static void dicom_side_release(EngineSideBytes *side)
 static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
 {
     const DicomResident *const resident = &g_dicom_resident;
-    unsigned long long byte_total = 0ull;
-    unsigned long long named = 0ull;
-    for (unsigned long long at = 0ull; at < resident->count; at += 1ull)
+    unsigned long long byte_total = 0ULL;
+    unsigned long long named = 0ULL;
+    for (unsigned long long at = 0ULL; at < resident->count; at += 1ULL)
     {
         const DicomSlice *const slice = &resident->slices[at];
-        byte_total += slice->member_bytes - ((slice->pixel_stored != 0ull) ? 0ull : slice->pixel_bytes);
+        byte_total += slice->member_bytes - ((slice->pixel_stored != 0ULL) ? 0ULL : slice->pixel_bytes);
         named += slice->name_length;
     }
     memset(side, 0, sizeof(*side));
@@ -204,13 +204,13 @@ static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
         dicom_side_release(side);
         return 0;
     }
-    unsigned long long byte_at = 0ull;
-    unsigned long long name_at = 0ull;
-    for (unsigned long long place = 0ull; place < resident->count; place += 1ull)
+    unsigned long long byte_at = 0ULL;
+    unsigned long long name_at = 0ULL;
+    for (unsigned long long place = 0ULL; place < resident->count; place += 1ULL)
     {
         const DicomSlice *const slice = &resident->slices[resident->order[place]];
         const unsigned long long after =
-            (slice->pixel_stored != 0ull) ? slice->pixel_at : (slice->pixel_at + slice->pixel_bytes);
+            (slice->pixel_stored != 0ULL) ? slice->pixel_at : (slice->pixel_at + slice->pixel_bytes);
         side->pixel_at[place] = slice->pixel_at;
         side->pixel_stored[place] = slice->pixel_stored;
         side->byte_start[place] = byte_at;
@@ -248,8 +248,8 @@ long long dicom_read(const EngineArrayRead *request)
     const unsigned long long slice_bytes = resident->slices[0].pixel_bytes;
     const unsigned long long total = slice_bytes * resident->count;
     int agrees = (found.rank == request->extent->rank) && (found.element_bytes == request->extent->element_bytes) &&
-                 (found.element_type == request->extent->element_type) && (request->first == 0ull) &&
-                 (request->end == 1ull) && (total <= request->out_capacity);
+                 (found.element_type == request->extent->element_type) && (request->first == 0ULL) &&
+                 (request->end == 1ULL) && (total <= request->out_capacity);
     for (unsigned int axis = 0u; agrees && (axis < found.rank); axis += 1u)
     {
         agrees = (found.sizes[axis] == request->extent->sizes[axis]);
@@ -259,7 +259,7 @@ long long dicom_read(const EngineArrayRead *request)
         dicom_resident_release();
         return -1LL;
     }
-    for (unsigned long long place = 0ull; place < resident->count; place += 1ull)
+    for (unsigned long long place = 0ULL; place < resident->count; place += 1ULL)
     {
         DicomSlice *const slice = &resident->slices[resident->order[place]];
         unsigned char *const pixels = request->out + (place * slice_bytes);

@@ -9,20 +9,20 @@ __global__ static void obsignatio_level_kernel(const unsigned int *from, unsigne
                                                unsigned long long width, ObsignatioKey key, unsigned int mode,
                                                unsigned int *to, unsigned char *signa)
 {
-    const unsigned long long half = (width + 1ull) / 2ull;
+    const unsigned long long half = (width + 1ULL) / 2ULL;
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
     for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
          index < (messages * half); index += jump)
     {
         const unsigned long long message = index / half;
         const unsigned long long pair = index % half;
-        const unsigned int *const left = &from[((message * width) + (2ull * pair)) * OBSIGNATIO_CHAINING_WORDS];
+        const unsigned int *const left = &from[((message * width) + (2ULL * pair)) * OBSIGNATIO_CHAINING_WORDS];
         unsigned int *const out = &to[index * OBSIGNATIO_CHAINING_WORDS];
-        if (((2ull * pair) + 1ull) < width)
+        if (((2ULL * pair) + 1ULL) < width)
         {
             ObsignatioNode node;
             obsignatio_parent(key.words, mode, left, left + OBSIGNATIO_CHAINING_WORDS, &node);
-            if (width == 2ull)
+            if (width == 2ULL)
             {
                 obsignatio_root(&node, &signa[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES);
             }
@@ -51,7 +51,7 @@ static int obsignatio_launch_config(const void *kernel, unsigned long long work,
         return 0;
     }
     // the occupancy query returns positive counts below INT_MAX. Both convert to unsigned exactly
-    const unsigned long long wanted = (work + (unsigned long long)block - 1ull) / (unsigned long long)block;
+    const unsigned long long wanted = (work + (unsigned long long)block - 1ULL) / (unsigned long long)block;
     // the grid is capped at the occupancy grid, which fits an unsigned int
     *grid = (wanted < (unsigned long long)least_grid) ? (unsigned int)wanted : (unsigned int)least_grid;
     // a positive block size below INT_MAX converts to unsigned exactly
@@ -67,21 +67,21 @@ extern "C" long obsignatio_many(const ObsignatioManyRequest *request)
     }
     EngineError *const error = request->error;
     if (OBSIGNATIO_CHECK(
-            ((request->messages == 0ull) || ((request->device_bytes != NULL) && (request->device_signa != NULL))) &&
+            ((request->messages == 0ULL) || ((request->device_bytes != NULL) && (request->device_signa != NULL))) &&
                 obsignatio_mode_valid(request->mode, request->key),
             request, error) == 0)
     {
         return OBSIGNATIO_ERROR;
     }
-    if (request->messages == 0ull)
+    if (request->messages == 0ULL)
     {
         return 0L;
     }
     const ObsignatioKey key = obsignatio_key_load(request->key);
     const unsigned long long chunks =
-        (request->length == 0ull) ? 1ull
-                                  : ((request->length + OBSIGNATIO_CHUNK_BYTES - 1ull) >> OBSIGNATIO_CHUNK_SHIFT);
-    const unsigned long long halves = (chunks + 1ull) / 2ull;
+        (request->length == 0ULL) ? 1ULL
+                                  : ((request->length + OBSIGNATIO_CHUNK_BYTES - 1ULL) >> OBSIGNATIO_CHUNK_SHIFT);
+    const unsigned long long halves = (chunks + 1ULL) / 2ULL;
     unsigned int *wide = NULL;
     unsigned int *narrow = NULL;
     const size_t wide_bytes = (size_t)(request->messages * chunks * OBSIGNATIO_CHAINING_WORDS * sizeof(unsigned int));
@@ -89,7 +89,7 @@ extern "C" long obsignatio_many(const ObsignatioManyRequest *request)
     unsigned int grid = 0u;
     unsigned int threads = 0u;
     int ok =
-        ((chunks == 1ull) || (OBSIGNATIO_STATUS_CHECK(cudaMalloc((void **)&wide, wide_bytes), &wide, error) &&
+        ((chunks == 1ULL) || (OBSIGNATIO_STATUS_CHECK(cudaMalloc((void **)&wide, wide_bytes), &wide, error) &&
                               OBSIGNATIO_STATUS_CHECK(cudaMalloc((void **)&narrow, narrow_bytes), &narrow, error))) &&
         obsignatio_launch_config((const void *)obsignatio_chunk_kernel, request->messages * chunks, &grid, &threads,
                                  error);
@@ -102,10 +102,10 @@ extern "C" long obsignatio_many(const ObsignatioManyRequest *request)
     }
     unsigned int *from = wide;
     unsigned int *to = narrow;
-    for (unsigned long long width = chunks; ok && (width > 1ull); width = (width + 1ull) / 2ull)
+    for (unsigned long long width = chunks; ok && (width > 1ULL); width = (width + 1ULL) / 2ULL)
     {
         ok = obsignatio_launch_config((const void *)obsignatio_level_kernel,
-                                      request->messages * ((width + 1ull) / 2ull), &grid, &threads, error);
+                                      request->messages * ((width + 1ULL) / 2ULL), &grid, &threads, error);
         if (ok)
         {
             obsignatio_level_kernel<<<grid, threads>>>(from, request->messages, width, key, request->mode, to,
@@ -129,7 +129,7 @@ __global__ static void obsignatio_bits_check_kernel(const unsigned long long *of
     for (unsigned long long message = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; message < messages;
          message += jump)
     {
-        const unsigned long long end = ((message + 1ull) < messages) ? offsets[message + 1ull] : bits;
+        const unsigned long long end = ((message + 1ULL) < messages) ? offsets[message + 1ULL] : bits;
         if ((offsets[message] > end) || (end > bits))
         {
             atomicOr(broken, 1u);
@@ -145,10 +145,10 @@ __global__ static void obsignatio_bits_kernel(const unsigned int *limbs, const u
     for (unsigned long long message = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; message < messages;
          message += jump)
     {
-        const unsigned long long end = ((message + 1ull) < messages) ? offsets[message + 1ull] : bits;
+        const unsigned long long end = ((message + 1ULL) < messages) ? offsets[message + 1ULL] : bits;
         const unsigned long long length = end - offsets[message];
         const ObsignatioSource source = {NULL, limbs, offsets[message], length,
-                                         OBSIGNATIO_LENGTH_BYTES + ((length + 7ull) / 8ull)};
+                                         OBSIGNATIO_LENGTH_BYTES + ((length + 7ULL) / 8ULL)};
         obsignatio_digest(key.words, mode, &source, &signa[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES);
     }
 }
@@ -161,14 +161,14 @@ extern "C" long obsignatio_bits(const ObsignatioBitsRequest *request)
     }
     EngineError *const error = request->error;
     if (OBSIGNATIO_CHECK(
-            ((request->messages == 0ull) || ((request->device_offsets != NULL) && (request->device_signa != NULL) &&
-                                             ((request->device_limbs != NULL) || (request->bits == 0ull)))) &&
+            ((request->messages == 0ULL) || ((request->device_offsets != NULL) && (request->device_signa != NULL) &&
+                                             ((request->device_limbs != NULL) || (request->bits == 0ULL)))) &&
                 obsignatio_mode_valid(request->mode, request->key),
             request, error) == 0)
     {
         return OBSIGNATIO_ERROR;
     }
-    if (request->messages == 0ull)
+    if (request->messages == 0ULL)
     {
         return 0L;
     }
@@ -289,14 +289,14 @@ extern "C" long obsignatio_seal_verify(const ObsignatioSealRequest *request)
 
 extern "C" unsigned long long obsignatio_lanes_nodes(const unsigned long long *extent)
 {
-    if ((extent == NULL) || (extent[0] == 0ull) || (extent[1] == 0ull) || (extent[2] == 0ull) || (extent[3] == 0ull))
+    if ((extent == NULL) || (extent[0] == 0ULL) || (extent[1] == 0ULL) || (extent[2] == 0ULL) || (extent[3] == 0ULL))
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long volumes = extent[0];
     const unsigned long long planes = volumes * extent[1];
     const unsigned long long rows = planes * extent[2];
-    return rows + planes + volumes + 1ull;
+    return rows + planes + volumes + 1ULL;
 }
 
 extern "C" long obsignatio_lanes(const ObsignatioLanesRequest *request)
@@ -307,7 +307,7 @@ extern "C" long obsignatio_lanes(const ObsignatioLanesRequest *request)
     }
     EngineError *const error = request->error;
     if (OBSIGNATIO_CHECK((request->device_lanes != NULL) && (request->device_nodes != NULL) &&
-                             (obsignatio_lanes_nodes(request->extent) != 0ull),
+                             (obsignatio_lanes_nodes(request->extent) != 0ULL),
                          request, error) == 0)
     {
         return OBSIGNATIO_ERROR;
@@ -341,7 +341,7 @@ extern "C" long obsignatio_lanes(const ObsignatioLanesRequest *request)
          OBSIGNATIO_MODE_KEYED, plane_nodes, error},
         {plane_nodes, volumes, extent[1] * OBSIGNATIO_SIGNUM_BYTES, extent[1] * OBSIGNATIO_SIGNUM_BYTES, volume_key,
          OBSIGNATIO_MODE_KEYED, volume_nodes, error},
-        {volume_nodes, 1ull, volumes * OBSIGNATIO_SIGNUM_BYTES, volumes * OBSIGNATIO_SIGNUM_BYTES, lanes_key,
+        {volume_nodes, 1ULL, volumes * OBSIGNATIO_SIGNUM_BYTES, volumes * OBSIGNATIO_SIGNUM_BYTES, lanes_key,
          OBSIGNATIO_MODE_KEYED, lanes_node, error}};
     for (unsigned int level = 0u; level < OBSIGNATIO_EXTENT_AXES; level += 1u)
     {

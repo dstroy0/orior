@@ -60,7 +60,7 @@ int ruleset_same(const Ruleset *left, const Ruleset *right)
 // device memory and left there as it ended
 __global__ void codegen_reader_read(RulesetCoreRead *read)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }
@@ -70,7 +70,7 @@ __global__ void codegen_reader_read(RulesetCoreRead *read)
 // the scratch in one thread (ruleset_core_scratch), since each form's goes on from the forms its lines write
 __global__ void codegen_reader_scratch(RulesetCoreScratch *scratch)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }
@@ -158,14 +158,14 @@ int ruleset_read_device(Ruleset *rules, const std::string &path, std::string *er
     RulesetCoreRead sized = read;
     ruleset_memory_size(&memory, &sized);
     codegen_reader_memory(&reader_arena, &memory, &read);
-    RulesetCoreRead *const device_read = codegen_device_copy(&reader_arena, &read, 1ull);
+    RulesetCoreRead *const device_read = codegen_device_copy(&reader_arena, &read, 1ULL);
     if (reader_arena.ok != 0)
     {
         codegen_reader_read<<<1u, 1u>>>(device_read);
         codegen_device_launched(&reader_arena);
     }
     RulesetCoreRead ended{};
-    codegen_device_read(&reader_arena, &ended, device_read, 1ull);
+    codegen_device_read(&reader_arena, &ended, device_read, 1ULL);
     RulesetCoreRead host{};
     if (reader_arena.ok != 0)
     {
@@ -204,11 +204,11 @@ int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, std:
     arranged.banks[2] = banks[2];
     scratch->assign((4u * (size_t)forms) + 1u, 0u);
     arranged.scratch = codegen_reader_take(&scratch_arena, *scratch);
-    arranged.counted = codegen_device_take<unsigned char>(&scratch_arena, (unsigned long long)forms + 1ull);
-    arranged.frames = codegen_device_take<RulesetCoreFrame>(&scratch_arena, (unsigned long long)forms + 1ull);
+    arranged.counted = codegen_device_take<unsigned char>(&scratch_arena, (unsigned long long)forms + 1ULL);
+    arranged.frames = codegen_device_take<RulesetCoreFrame>(&scratch_arena, (unsigned long long)forms + 1ULL);
     arranged.taken_bank = codegen_reader_take(&scratch_arena, std::vector<unsigned int>(flat.arguments.size()));
     arranged.taken_number = codegen_reader_take(&scratch_arena, std::vector<unsigned int>(flat.arguments.size()));
-    RulesetCoreScratch *const device_scratch = codegen_device_copy(&scratch_arena, &arranged, 1ull);
+    RulesetCoreScratch *const device_scratch = codegen_device_copy(&scratch_arena, &arranged, 1ULL);
     if (scratch_arena.ok != 0)
     {
         codegen_reader_scratch<<<1u, 1u>>>(device_scratch);

@@ -1004,7 +1004,7 @@ EMBED_INLINE unsigned long long text_run(const TextCtx *args)
     // Explicit casts read the addresses as integers, so a word's place and the text's start compare as numbers
     const embed_word first = (embed_word)args->text;
     embed_word word_at = first & ~(embed_word)(MMGR_SWAR_BYTES - 1u);
-    embed_word before = mask.lanes_below(&(ScrutMaskCfg){.bytes = (embed_word)(first - word_at)});
+    embed_word before = mask.lanes_below(&(ScrutMaskCfg){.bytes = (first - word_at)});
     for (;;)
     {
         const embed_word loaded = word.load_al(&(ScrutWordCfg){.at = (const void *)word_at});
@@ -1053,12 +1053,12 @@ const char *cli_text_last(const CliTextByteCfg *args)
     // Explicit cast reads the byte as unsigned before it is repeated into every lane
     const embed_word broadcast = MMGR_SWAR_ONES * (embed_word)(embed_u8)args->byte;
     embed_word word_at = (end - 1u) & ~(embed_word)(MMGR_SWAR_BYTES - 1u);
-    embed_word below_mask = mask.lanes_below(&(ScrutMaskCfg){.bytes = (embed_word)(end - word_at)});
+    embed_word below_mask = mask.lanes_below(&(ScrutMaskCfg){.bytes = (end - word_at)});
     for (;;)
     {
         if (word_at < first)
         {
-            below_mask &= ~mask.lanes_below(&(ScrutMaskCfg){.bytes = (embed_word)(first - word_at)});
+            below_mask &= ~mask.lanes_below(&(ScrutMaskCfg){.bytes = (first - word_at)});
         }
         const embed_word loaded = word.load_al(&(ScrutWordCfg){.at = (const void *)word_at});
         const embed_word hit = lane.has_zero(&(ScrutLaneCfg){.word = loaded ^ broadcast}) & below_mask;

@@ -119,7 +119,7 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
         }
     }
     // and the lane as the generator writes it, to determine whether an empty form stops it or is passed over in silence
-    const TargetInfo target = {0ull, 8, 6, 12, 0, ""};
+    const TargetInfo target = {0ULL, 8, 6, 12, 0, ""};
     unsigned int lane_places = 0u;
     unsigned int live = 0u;
     const std::string lane = sass_target().program(&loaded.layout, &target, std::string(), &lane_places, &live);

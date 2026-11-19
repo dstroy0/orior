@@ -295,7 +295,7 @@ EMBED_INLINE void cli_write(const CompileDbGatherCtx *args)
                                                       .size_pointer = &size, .owner = g_cli_build_owner);
         const int same = (there != NULL) && (size == out.at) &&
                          (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)there, (g_cli_build_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)there, g_cli_build_owner);
         char folder[CLI_PATH_MAX_LEN];
         if (!same && EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = path, .out = folder))
         {

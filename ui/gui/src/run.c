@@ -186,10 +186,15 @@ EMBED_INLINE GuiColor run_state_color(const RunCtx *args)
 {
     const GuiPalette *const palette = args->pane->palette;
     const unsigned int flags = args->row->flags;
-    return ((flags & CLI_JOB_RUN_LIVE) != 0u)     ? palette->signal
-           : ((flags & CLI_JOB_RUN_OK) != 0u)     ? palette->mark[1]
-           : ((flags & CLI_JOB_RUN_FAILED) != 0u) ? palette->error
-                                                  : palette->text_2;
+    if ((flags & CLI_JOB_RUN_LIVE) != 0u)
+    {
+        return palette->signal;
+    }
+    if ((flags & CLI_JOB_RUN_OK) != 0u)
+    {
+        return palette->mark[1];
+    }
+    return ((flags & CLI_JOB_RUN_FAILED) != 0u) ? palette->error : palette->text_2;
 }
 
 // a line of the run displayed drawn from `x_f32` in the code face: each piece its spans cut in the span's color of the
@@ -204,9 +209,8 @@ EMBED_INLINE void run_line_draw(const RunCtx *args)
     {
         return;
     }
-    const GuiColor base = (line.stream == CLI_JOB_RUN_STDERR)    ? palette->error
-                          : (line.stream == CLI_JOB_RUN_COMMAND) ? palette->text_3
-                                                                 : palette->editor_text;
+    const GuiColor not_error = (line.stream == CLI_JOB_RUN_COMMAND) ? palette->text_3 : palette->editor_text;
+    const GuiColor base = (line.stream == CLI_JOB_RUN_STDERR) ? palette->error : not_error;
     float x = args->x_f32;
     unsigned long long at = 0ULL;
     for (unsigned int each = 0u; each < line.spans; each += 1u)

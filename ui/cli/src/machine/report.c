@@ -105,7 +105,7 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
     {
         read = CLI_JSON_NONE;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
     const unsigned int root = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                          .node = read, .type = CFG_JSON_OBJECT)
                                   ? read

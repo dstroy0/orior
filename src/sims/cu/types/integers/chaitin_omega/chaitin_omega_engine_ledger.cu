@@ -17,7 +17,7 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         OmegaEngineJob job;
         omega_results_open(&job.results);
         unsigned long long fate[6];
-        unsigned long long contradictions = 0ull;
+        unsigned long long contradictions = 0ULL;
         unsigned long long max[4];
         int read = 0;
         const size_t written = strlen(line);
@@ -86,7 +86,7 @@ void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const O
     OmegaResults *const results = &job->results;
     if (settled->fate == OMEGA_HALTS)
     {
-        results->fate[OMEGA_HALTS][settled->length] += 1ull;
+        results->fate[OMEGA_HALTS][settled->length] += 1ULL;
         omega_champion(&results->max_steps[settled->length], &results->steps_champion[settled->length], settled->steps,
                        settled->index);
         omega_champion(&results->max_bits[settled->length], &results->bits_champion[settled->length], settled->bits,
@@ -97,7 +97,7 @@ void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const O
         // the type certificate and the contradiction check, read off the program
         omega_settle(counts, settled->length, settled->index, (OmegaFate)settled->fate, 0u, scratch, results);
     }
-    job->settled += 1ull;
+    job->settled += 1ULL;
     if (settled->length <= OMEGA_ENGINE_CROSS_MAX)
     {
         crossed->push_back(*settled);
@@ -153,11 +153,11 @@ int omega_buffer_scan(SimResults *results, OmegaBuffer *scratch, const unsigned 
     ok = ok &&
          sim_status_check(results, cub::DeviceScan::ExclusiveSum(scratch->data, bytes, values, sums, (long long)count),
                           "engine: scan");
-    unsigned long long last[2] = {0ull, 0ull};
+    unsigned long long last[2] = {0ULL, 0ULL};
     ok = ok &&
-         sim_status_check(results, cudaMemcpy(&last[0], &sums[count - 1ull], sizeof(last[0]), cudaMemcpyDeviceToHost),
+         sim_status_check(results, cudaMemcpy(&last[0], &sums[count - 1ULL], sizeof(last[0]), cudaMemcpyDeviceToHost),
                           "engine: scan read") &&
-         sim_status_check(results, cudaMemcpy(&last[1], &values[count - 1ull], sizeof(last[1]), cudaMemcpyDeviceToHost),
+         sim_status_check(results, cudaMemcpy(&last[1], &values[count - 1ULL], sizeof(last[1]), cudaMemcpyDeviceToHost),
                           "engine: scan read");
     *total = last[0] + last[1];
     return ok;
@@ -166,8 +166,8 @@ int omega_buffer_scan(SimResults *results, OmegaBuffer *scratch, const unsigned 
 // a grid for a launch over `count` items, each thread taking every stride-th
 unsigned int omega_pool_grid(unsigned long long count)
 {
-    const unsigned long long blocks = (count + OMEGA_POOL_BLOCK - 1ull) / OMEGA_POOL_BLOCK;
-    const unsigned long long grid = (blocks == 0ull) ? 1ull : blocks;
+    const unsigned long long blocks = (count + OMEGA_POOL_BLOCK - 1ULL) / OMEGA_POOL_BLOCK;
+    const unsigned long long grid = (blocks == 0ULL) ? 1ULL : blocks;
     // at max OMEGA_POOL_GRID_MAX, which an unsigned int stores
     return (unsigned int)((grid < OMEGA_POOL_GRID_MAX) ? grid : OMEGA_POOL_GRID_MAX);
 }
@@ -188,7 +188,7 @@ int omega_pool_insert_job(SimResults *results, OmegaBuffer *buffers, const Omega
     unsigned long long *const bases = OMEGA_BUFFER(buffers, OMEGA_BUFFER_OUT_BASES, unsigned long long);
     omega_pool_insert_sizes<<<omega_pool_grid(count), OMEGA_POOL_BLOCK>>>(
         OMEGA_BUFFER(buffers, OMEGA_BUFFER_COUNTS, unsigned long long), job->length, job->from, count, sizes);
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     if ((sim_status_check(results, cudaGetLastError(), "engine: admission sizes") == 0) ||
         (omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], sizes, bases, count, &total) == 0))
     {
@@ -234,18 +234,18 @@ int omega_pool_insert_job(SimResults *results, OmegaBuffer *buffers, const Omega
 // a token's bytes across a round's buffers: its token, its watcher's copy and a spine end, each twice (16 each), its
 // two frames (2), its record and its plan (8 each at max), its index pair (8), its reduct and the reduct's spine
 // end (8 each): 90, taken as 96
-#define OMEGA_ENGINE_TOKEN_BYTES 96ull
+#define OMEGA_ENGINE_TOKEN_BYTES 96ULL
 
 // The bytes a run on the engine declares to tessera: its first round's admitted terms, each at max tokens its
 // length allows (a token takes 2 bits at least), and the counts it copies to the device.
 unsigned long long omega_engine_declared(const OmegaCounts *counts)
 {
-    unsigned long long terms = 0ull;
-    unsigned long long tokens = 0ull;
+    unsigned long long terms = 0ULL;
+    unsigned long long tokens = 0ULL;
     for (unsigned int length = 2u; (length <= counts->length) && (terms < OMEGA_ENGINE_REFILL); length += 1u)
     {
         const unsigned long long total = omega_count(counts, length, 0u);
-        for (unsigned long long from = 0ull; (from < total) && (terms < OMEGA_ENGINE_REFILL); from += OMEGA_ENGINE_JOB)
+        for (unsigned long long from = 0ULL; (from < total) && (terms < OMEGA_ENGINE_REFILL); from += OMEGA_ENGINE_JOB)
         {
             const unsigned long long count = ((total - from) < OMEGA_ENGINE_JOB) ? (total - from) : OMEGA_ENGINE_JOB;
             terms += count;

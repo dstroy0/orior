@@ -31,7 +31,7 @@ SassMachine s_machine;
 // one word of an instruction
 unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         value |= (unsigned long long)instruction[byte + at] << (8u * at);
@@ -43,11 +43,11 @@ unsigned long long khw_word_read(const unsigned char *instruction, unsigned int 
 static unsigned long long khw_run_read(unsigned long long low, unsigned long long high, unsigned int first,
                                        unsigned int last)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int bit = first; bit <= last; bit += 1u)
     {
         const unsigned long long word = (bit < 64u) ? low : high;
-        value |= ((word >> (bit % 64u)) & 1ull) << (bit - first);
+        value |= ((word >> (bit % 64u)) & 1ULL) << (bit - first);
     }
     return value;
 }
@@ -246,7 +246,7 @@ static unsigned long long khw_constant_bank(const KhwForm *form, unsigned int fi
             return khw_run_read(form->low, form->high, form->first[run], form->last[run]);
         }
     }
-    return 0ull;
+    return 0ULL;
 }
 
 // the field of the instruction word the part's .ksc names the guard, as khw_guard_field_set gives it; a predicate run
@@ -337,11 +337,11 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
             continue;
         }
         const unsigned long long guard = khw_run_read(form->low, form->high, form->first[run], form->last[run]);
-        const unsigned long long predicate = guard & 7ull;
-        if (predicate != 7ull)
+        const unsigned long long predicate = guard & 7ULL;
+        if (predicate != 7ULL)
         {
             at +=
-                (size_t)snprintf(&written[at], room - at, "@%sP%llu ", ((guard & 8ull) != 0ull) ? "!" : "", predicate);
+                (size_t)snprintf(&written[at], room - at, "@%sP%llu ", ((guard & 8ULL) != 0ULL) ? "!" : "", predicate);
         }
     }
     at += (size_t)snprintf(&written[at], room - at, "%s", name);
@@ -359,9 +359,9 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
         snprintf(between, sizeof(between), "%s%s", (printed == 0u) ? " " : ", ", mark);
         if (form->type[run] == KHW_KIND_PREDICATE)
         {
-            ((number & 7ull) == 7ull)
+            ((number & 7ULL) == 7ULL)
                 ? (at += (size_t)snprintf(&written[at], room - at, "%sPT", between))
-                : (at += (size_t)snprintf(&written[at], room - at, "%sP%llu", between, number & 7ull));
+                : (at += (size_t)snprintf(&written[at], room - at, "%sP%llu", between, number & 7ULL));
         }
         else if (form->type[run] == KHW_KIND_CONSTANT)
         {

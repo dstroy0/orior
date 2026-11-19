@@ -14,7 +14,7 @@ static const unsigned char zip_wide_locator[4u] = {'P', 'K', 0x06u, 0x07u};
 
 unsigned long long zip_load(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = count; place > 0u; place -= 1u)
     {
         value = (value << 8u) | (unsigned long long)bytes[place - 1u];
@@ -31,7 +31,7 @@ int zip_fits_memory(unsigned long long bytes)
 int zip_fetch(const EngineIngestTools *tools, const char *path, unsigned long long offset, unsigned long long bytes,
               unsigned char *out)
 {
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         return 1;
     }
@@ -46,21 +46,21 @@ int zip_fetch(const EngineIngestTools *tools, const char *path, unsigned long lo
 unsigned long long zip_crc32(const unsigned char *bytes, unsigned long long length)
 {
     unsigned int crc = 0xFFFFFFFFu;
-    unsigned long long at = 0ull;
-    for (; (length - at) >= 8ull; at += 8ull)
+    unsigned long long at = 0ULL;
+    for (; (length - at) >= 8ULL; at += 8ULL)
     {
         // the eight bytes as two little-endian words, assembled byte by byte so no alignment is required of `bytes`
-        const unsigned int low = crc ^ ((unsigned int)bytes[at] | ((unsigned int)bytes[at + 1ull] << 8u) |
-                                        ((unsigned int)bytes[at + 2ull] << 16u) |
-                                        ((unsigned int)bytes[at + 3ull] << 24u));
-        const unsigned int high = (unsigned int)bytes[at + 4ull] | ((unsigned int)bytes[at + 5ull] << 8u) |
-                                  ((unsigned int)bytes[at + 6ull] << 16u) | ((unsigned int)bytes[at + 7ull] << 24u);
+        const unsigned int low = crc ^ ((unsigned int)bytes[at] | ((unsigned int)bytes[at + 1ULL] << 8u) |
+                                        ((unsigned int)bytes[at + 2ULL] << 16u) |
+                                        ((unsigned int)bytes[at + 3ULL] << 24u));
+        const unsigned int high = (unsigned int)bytes[at + 4ULL] | ((unsigned int)bytes[at + 5ULL] << 8u) |
+                                  ((unsigned int)bytes[at + 6ULL] << 16u) | ((unsigned int)bytes[at + 7ULL] << 24u);
         crc = zip_crc_slices[7][low & 0xFFu] ^ zip_crc_slices[6][(low >> 8u) & 0xFFu] ^
               zip_crc_slices[5][(low >> 16u) & 0xFFu] ^ zip_crc_slices[4][low >> 24u] ^
               zip_crc_slices[3][high & 0xFFu] ^ zip_crc_slices[2][(high >> 8u) & 0xFFu] ^
               zip_crc_slices[1][(high >> 16u) & 0xFFu] ^ zip_crc_slices[0][high >> 24u];
     }
-    for (; at < length; at += 1ull)
+    for (; at < length; at += 1ULL)
     {
         crc = zip_crc_slices[0][(crc ^ bytes[at]) & 0xFFu] ^ (crc >> 8u);
     }
@@ -100,12 +100,12 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
         free(tail);
         return 0;
     }
-    for (unsigned long long at = tail_bytes - 21ull; (record == tail_bytes) && (at > 0ull); at -= 1ull)
+    for (unsigned long long at = tail_bytes - 21ULL; (record == tail_bytes) && (at > 0ULL); at -= 1ULL)
     {
-        const unsigned char *const candidate = tail + at - 1ull;
+        const unsigned char *const candidate = tail + at - 1ULL;
         const int signed_here = (memcmp(candidate, zip_end, sizeof zip_end) == 0);
         record =
-            (signed_here && ((at - 1ull + 22ull + zip_load(candidate + 20u, 2u)) == tail_bytes)) ? (at - 1ull) : record;
+            (signed_here && ((at - 1ULL + 22ULL + zip_load(candidate + 20u, 2u)) == tail_bytes)) ? (at - 1ULL) : record;
     }
     if (!ZIP_CHECK(record != tail_bytes, path, error, ENGINE_ERROR_REQUEST))
     {
@@ -122,16 +122,16 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     const unsigned long long end_offset = tail_start + record;
     free(tail);
     unsigned char locator[20u];
-    const int located = (end_offset >= 20ull) && zip_fetch(tools, path, end_offset - 20ull, 20ull, locator) &&
+    const int located = (end_offset >= 20ULL) && zip_fetch(tools, path, end_offset - 20ULL, 20ULL, locator) &&
                         (memcmp(locator, zip_wide_locator, sizeof zip_wide_locator) == 0);
     if (located)
     {
         const unsigned long long record_offset = zip_load(locator + 8u, 8u);
         unsigned char wide[56u];
-        if (!ZIP_CHECK((zip_load(locator + 4u, 4u) == 0ull) && (zip_load(locator + 16u, 4u) <= 1ull) &&
-                           (record_offset <= end_offset) && ((end_offset - record_offset) >= 56ull),
+        if (!ZIP_CHECK((zip_load(locator + 4u, 4u) == 0ULL) && (zip_load(locator + 16u, 4u) <= 1ULL) &&
+                           (record_offset <= end_offset) && ((end_offset - record_offset) >= 56ULL),
                        locator, error, ENGINE_ERROR_REQUEST) ||
-            !ZIP_IO(zip_fetch(tools, path, record_offset, 56ull, wide), wide, error) ||
+            !ZIP_IO(zip_fetch(tools, path, record_offset, 56ULL, wide), wide, error) ||
             !ZIP_CHECK(memcmp(wide, zip_wide_end, sizeof zip_wide_end) == 0, wide, error, ENGINE_ERROR_REQUEST))
         {
             return 0;
@@ -148,11 +148,11 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     {
         return 0;
     }
-    if (!ZIP_CHECK((disk == 0ull) && (directory_disk == 0ull) && (disk_entries == entries) &&
+    if (!ZIP_CHECK((disk == 0ULL) && (directory_disk == 0ULL) && (disk_entries == entries) &&
                        (directory_offset <= file_bytes) && (directory_bytes <= (file_bytes - directory_offset)) &&
-                       (entries <= (directory_bytes / 46ull)),
+                       (entries <= (directory_bytes / 46ULL)),
                    path, error, ENGINE_ERROR_REQUEST) ||
-        !ZIP_CHECK(zip_fits_memory(directory_bytes + 1ull), &directory_bytes, error, ENGINE_ERROR_RESOURCE))
+        !ZIP_CHECK(zip_fits_memory(directory_bytes + 1ULL), &directory_bytes, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
     }
@@ -183,7 +183,7 @@ void zip_archive_release(ZipArchive *archive)
 int zip_entry_next(const ZipArchive *archive, unsigned long long *at, ZipEntry *entry, EngineError *error)
 {
     const unsigned long long start = *at;
-    if (!ZIP_CHECK((start <= archive->directory_bytes) && ((archive->directory_bytes - start) >= 46ull), at, error,
+    if (!ZIP_CHECK((start <= archive->directory_bytes) && ((archive->directory_bytes - start) >= 46ULL), at, error,
                    ENGINE_ERROR_REQUEST))
     {
         return 0;
@@ -196,7 +196,7 @@ int zip_entry_next(const ZipArchive *archive, unsigned long long *at, ZipEntry *
     const unsigned long long name_length = zip_load(fixed + 28u, 2u);
     const unsigned long long extra_length = zip_load(fixed + 30u, 2u);
     const unsigned long long comment_length = zip_load(fixed + 32u, 2u);
-    const unsigned long long total = 46ull + name_length + extra_length + comment_length;
+    const unsigned long long total = 46ULL + name_length + extra_length + comment_length;
     if (!ZIP_CHECK(total <= (archive->directory_bytes - start), fixed, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
@@ -217,38 +217,38 @@ int zip_entry_next(const ZipArchive *archive, unsigned long long *at, ZipEntry *
     const int wide_disk = (disk == ZIP_HALF);
     unsigned int widened = 0u;
     const unsigned char *const extra = fixed + 46u + name_length;
-    unsigned long long walk = 0ull;
-    while ((extra_length - walk) >= 4ull)
+    unsigned long long walk = 0ULL;
+    while ((extra_length - walk) >= 4ULL)
     {
         const unsigned long long identity = zip_load(extra + walk, 2u);
         const unsigned long long size = zip_load(extra + walk + 2u, 2u);
-        if (!ZIP_CHECK(size <= (extra_length - walk - 4ull), extra, error, ENGINE_ERROR_REQUEST))
+        if (!ZIP_CHECK(size <= (extra_length - walk - 4ULL), extra, error, ENGINE_ERROR_REQUEST))
         {
             return 0;
         }
-        if ((identity == 1ull) && (widened == 0u))
+        if ((identity == 1ULL) && (widened == 0u))
         {
             const unsigned char *const field = extra + walk + 4u;
-            const unsigned long long needed = (wide_uncompressed ? 8ull : 0ull) + (wide_compressed ? 8ull : 0ull) +
-                                              (wide_offset ? 8ull : 0ull) + (wide_disk ? 4ull : 0ull);
+            const unsigned long long needed = (wide_uncompressed ? 8ULL : 0ULL) + (wide_compressed ? 8ULL : 0ULL) +
+                                              (wide_offset ? 8ULL : 0ULL) + (wide_disk ? 4ULL : 0ULL);
             if (!ZIP_CHECK(needed <= size, field, error, ENGINE_ERROR_REQUEST))
             {
                 return 0;
             }
-            unsigned long long place = 0ull;
+            unsigned long long place = 0ULL;
             parsed.uncompressed = wide_uncompressed ? zip_load(field + place, 8u) : parsed.uncompressed;
-            place += wide_uncompressed ? 8ull : 0ull;
+            place += wide_uncompressed ? 8ULL : 0ULL;
             parsed.compressed = wide_compressed ? zip_load(field + place, 8u) : parsed.compressed;
-            place += wide_compressed ? 8ull : 0ull;
+            place += wide_compressed ? 8ULL : 0ULL;
             parsed.local_offset = wide_offset ? zip_load(field + place, 8u) : parsed.local_offset;
-            place += wide_offset ? 8ull : 0ull;
+            place += wide_offset ? 8ULL : 0ULL;
             disk = wide_disk ? zip_load(field + place, 4u) : disk;
             widened = 1u;
         }
-        walk += 4ull + size;
+        walk += 4ULL + size;
     }
     if (!ZIP_CHECK(((!wide_uncompressed && !wide_compressed && !wide_offset && !wide_disk) || (widened != 0u)) &&
-                       (disk == 0ull),
+                       (disk == 0ULL),
                    fixed, error, ENGINE_ERROR_REQUEST))
     {
         return 0;

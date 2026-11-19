@@ -9,6 +9,6 @@
 // a target's construction set for the compiler: each form's cost as the target measured it, then the forms' names,
 // each ended by a zero byte and the last word padded with zeros; words contains the costs and then the name words, and
 // crc is the CRC-64 of all of them
-#define KREP_FORMS_MAX 65536ull
+#define KREP_FORMS_MAX 65536ULL
 
 #endif

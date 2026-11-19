@@ -114,11 +114,11 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
 
 static void entry_fill(const EntryJson *json, unsigned int token, ZarrLayout *layout)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     const int counted = (token != 0u) && cfg_json_unsigned(json->text, &json->tokens[token], &value);
     for (unsigned int place = 0u; place < 8u; place += 1u)
     {
-        layout->fill[place] = (counted != 0) ? (unsigned char)((value >> (8u * place)) & 0xFFull) : 0u;
+        layout->fill[place] = (counted != 0) ? (unsigned char)((value >> (8u * place)) & 0xFFULL) : 0u;
     }
 }
 

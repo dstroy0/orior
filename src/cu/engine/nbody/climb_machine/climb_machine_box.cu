@@ -108,7 +108,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     }
     const size_t capacity = (size_t)boxed + 1u;
     const unsigned long long cells = (unsigned long long)boxed * CLIMB_MACHINE_BOX_CELLS;
-    const size_t cell_count = (cells <= 0x7FFFFFFFull) ? (size_t)cells : 0u;
+    const size_t cell_count = (cells <= 0x7FFFFFFFULL) ? (size_t)cells : 0u;
     machine->box_earlier = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     machine->box_later = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     machine->box_leaf = (unsigned int *)malloc(capacity * sizeof(unsigned int));
@@ -119,7 +119,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     unsigned int *const cell_climber = (unsigned int *)malloc((cell_count + 1u) * sizeof(unsigned int));
     unsigned int *const cell_total = (unsigned int *)malloc((cell_count + 1u) * sizeof(unsigned int));
     unsigned int *const cell_raw = (unsigned int *)malloc((cell_count + 1u) * sizeof(unsigned int));
-    int ok = (cells <= 0x7FFFFFFFull) && (machine->box_earlier != NULL) && (machine->box_later != NULL) &&
+    int ok = (cells <= 0x7FFFFFFFULL) && (machine->box_earlier != NULL) && (machine->box_later != NULL) &&
              (machine->box_leaf != NULL) && (machine->box_cell_first != NULL) && (machine->box_cell_shift != NULL) &&
              (machine->box_entry_first != NULL) && (climber_of_box != NULL) && (cell_climber != NULL) &&
              (cell_total != NULL) && (cell_raw != NULL);
@@ -215,14 +215,14 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
                              cudaMemcpyDeviceToHost) == cudaSuccess) &&
                  (cudaMemcpy(cell_raw, device_cell_raw, cell_count * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
                   cudaSuccess)));
-    unsigned long long entries = 0ull;
+    unsigned long long entries = 0ULL;
     for (size_t cell = 0u; ok && (cell < cell_count); cell += 1u)
     {
         const unsigned int here = machine->box_entry_first[cell];
         machine->box_entry_first[cell] = (unsigned int)entries;
         entries += (unsigned long long)here;
     }
-    ok = ok && (entries <= 0x7FFFFFFFull);
+    ok = ok && (entries <= 0x7FFFFFFFULL);
     if (ok)
     {
         machine->box_entry_first[cell_count] = (unsigned int)entries;
@@ -255,7 +255,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     const int counted = (device_error != NULL) && (cudaMemcpy(error, device_error, 2u * sizeof(unsigned int),
                                                                 cudaMemcpyDeviceToHost) == cudaSuccess);
     box->climbers = boxed;
-    box->cells = (unsigned int)((cells <= 0xFFFFFFFFull) ? cells : 0xFFFFFFFFull);
+    box->cells = (unsigned int)((cells <= 0xFFFFFFFFULL) ? cells : 0xFFFFFFFFULL);
     box->crowded = counted ? error[0] : 0u;
     box->broken = counted ? error[1] : 0u;
     ok = ok && counted && (error[1] == 0u) && machine_box_merge(machine, cell_raw, cell_count);

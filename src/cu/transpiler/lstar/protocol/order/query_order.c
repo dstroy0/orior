@@ -8,14 +8,14 @@
 static int query_order_to_edge(unsigned long long clock, unsigned long long turns, unsigned long long *reads,
                                unsigned int *edge)
 {
-    const unsigned long long max = (turns > 1ull) ? turns : 1ull;
+    const unsigned long long max = (turns > 1ULL) ? turns : 1ULL;
     const unsigned int was = host_read(clock);
     unsigned int now = was;
-    *reads = 0ull;
+    *reads = 0ULL;
     while ((now == was) && (*reads < max))
     {
         now = host_read(clock);
-        *reads += 1ull;
+        *reads += 1ULL;
     }
     *edge = now;
     return (now != was) ? 1 : 0;
@@ -25,14 +25,14 @@ static int query_order_to_edge(unsigned long long clock, unsigned long long turn
 static void query_order_exact(OriorExactInteger *value, unsigned long long given)
 {
     orior_exact_zero(value);
-    value->limb[0] = (uint32_t)(given & 0xffffffffull);
+    value->limb[0] = (uint32_t)(given & 0xffffffffULL);
     value->limb[1] = (uint32_t)(given >> 32);
-    value->sign = (given != 0ull) ? 1 : 0;
+    value->sign = (given != 0ULL) ? 1 : 0;
 }
 
 // a run's cost multiplies two counts of 64 bits and takes one such product from another: four limbs represent every
 // term, and the exact calls below are given no width they can refuse
-_Static_assert((unsigned long long)(ORIOR_EXACT_LIMBS) >= 4ull, "a run's cost represents two 64-bit counts multiplied");
+_Static_assert((unsigned long long)(ORIOR_EXACT_LIMBS) >= 4ULL, "a run's cost represents two 64-bit counts multiplied");
 
 // The links `covered` marks, each put `repeat` times, timed on a clock that turns over now and then and read finely by
 // counting. The run starts on a turn of the clock. When it ends, the reads of the clock word until its next turn are
@@ -42,29 +42,29 @@ _Static_assert((unsigned long long)(ORIOR_EXACT_LIMBS) >= 4ull, "a run's cost re
 // clock did not turn inside the order's turns at one of the three turns the run waits on
 static int query_order_run(const QueryOrder *order, const unsigned char *covered, QueryCost *cost)
 {
-    unsigned long long waited = 0ull;
+    unsigned long long waited = 0ULL;
     unsigned int start = 0u;
     if (query_order_to_edge(order->clock, order->turns, &waited, &start) == 0)
     {
         return 0;
     }
-    for (unsigned long long turn = 0ull; turn < order->repeat; turn += 1ull)
+    for (unsigned long long turn = 0ULL; turn < order->repeat; turn += 1ULL)
     {
         for (unsigned int link = 0u; link < order->links; link += 1u)
         {
             if (covered[link] != 0u)
             {
                 Query query = order->link[link];
-                query.clock = 0ull;
-                query.bound = 0ull;
+                query.clock = 0ULL;
+                query.bound = 0ULL;
                 query_put(&query);
             }
         }
     }
     unsigned int after = 0u;
-    unsigned long long tail = 0ull;
+    unsigned long long tail = 0ULL;
     unsigned int next = 0u;
-    unsigned long long turn_reads = 0ull;
+    unsigned long long turn_reads = 0ULL;
     if ((query_order_to_edge(order->clock, order->turns, &tail, &after) == 0) ||
         (query_order_to_edge(order->clock, order->turns, &turn_reads, &next) == 0))
     {
@@ -90,7 +90,7 @@ static int query_order_run(const QueryOrder *order, const unsigned char *covered
 
 int query_order_put(const QueryOrder *order, QueryCost *cost)
 {
-    if ((hadamard_order_fits(order->links) == 0) || (order->clock == 0ull))
+    if ((hadamard_order_fits(order->links) == 0) || (order->clock == 0ULL))
     {
         return 0;
     }
@@ -127,7 +127,7 @@ int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteg
     OriorExactInteger factor;
     for (unsigned int row = 0u; row < links; row += 1u)
     {
-        query_order_exact(&others[row], 1ull);
+        query_order_exact(&others[row], 1ULL);
         for (unsigned int other = 0u; other < links; other += 1u)
         {
             if (other == row)
@@ -148,7 +148,7 @@ int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteg
     {
         return 0;
     }
-    query_order_exact(&factor, (unsigned long long)links + 1ull);
+    query_order_exact(&factor, (unsigned long long)links + 1ULL);
     if (orior_exact_multiply(&every, &factor, denominator) != ORIOR_EXACT_OK)
     {
         return 0;
@@ -189,7 +189,7 @@ int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteg
 
 int query_order_sweep(const QueryOrder *order, unsigned int seed, unsigned int sweeps, QueryCost *sweep_cost)
 {
-    if ((hadamard_order_fits(order->links) == 0) || (order->clock == 0ull))
+    if ((hadamard_order_fits(order->links) == 0) || (order->clock == 0ULL))
     {
         return 0;
     }

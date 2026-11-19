@@ -68,10 +68,10 @@ extern "C"
             *answered = at / RUN_THREADS_A_BLOCK;
             return 1;
         case FRAME_LOAD:
-            *answered = (reading == 0ull) ? word[0] : word[1];
+            *answered = (reading == 0ULL) ? word[0] : word[1];
             return 1;
         case FRAME_STORE:
-            *answered = (unsigned long long)word[1] | ((unsigned long long)word[(reading == 0ull) ? 0u : 1u] << 32u);
+            *answered = (unsigned long long)word[1] | ((unsigned long long)word[(reading == 0ULL) ? 0u : 1u] << 32u);
             return 1;
         case FRAME_EXIT:
             *answered = RUN_UNWRITTEN_WORD;

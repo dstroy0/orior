@@ -7,7 +7,7 @@
 
 _Static_assert(sizeof(long long) == 8u, "heaviest_matching: long long must be 64 bits, a path cost");
 
-#define MATCHING_UNREACHED 0x7FFFFFFFFFFFFFFFll
+#define MATCHING_UNREACHED 0x7FFFFFFFFFFFFFFFLL
 
 typedef struct
 {
@@ -171,11 +171,11 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
         for (int node = 0; node < nodes; node += 1)
         {
             graph.head[node] = -1;
-            potential[node] = 0ll;
+            potential[node] = 0LL;
         }
         for (int before = 1; before <= befores; before += 1)
         {
-            matching_edge(&graph, 0, before, 0ll);
+            matching_edge(&graph, 0, before, 0LL);
         }
         for (unsigned int member = 0u; member < member_count; member += 1u)
         {
@@ -191,7 +191,7 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
         }
         for (int after = befores + 1; after < sink; after += 1)
         {
-            matching_edge(&graph, after, sink, 0ll);
+            matching_edge(&graph, after, sink, 0LL);
             if (potential[after] < potential[sink])
             {
                 potential[sink] = potential[after];
@@ -207,12 +207,12 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
                 arrived[node] = -1;
                 settled[node] = 0u;
             }
-            distance[0] = 0ll;
+            distance[0] = 0LL;
             heap.size = 0;
-            matching_heap_push(&heap, 0ll, 0);
+            matching_heap_push(&heap, 0LL, 0);
             while (heap.size > 0)
             {
-                long long reached = 0ll;
+                long long reached = 0LL;
                 int node = 0;
                 matching_heap_pop(&heap, &reached, &node);
                 if (settled[node] != 0u)
@@ -241,7 +241,7 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
                 break;
             }
             const long long true_cost = distance[sink] - potential[0] + potential[sink];
-            if (true_cost >= 0ll)
+            if (true_cost >= 0LL)
             {
                 break;
             }

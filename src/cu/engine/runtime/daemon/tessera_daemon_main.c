@@ -22,7 +22,7 @@ _Alignas(8) static const char s_daemon_no_pipe[] = "  tessera daemon: the next p
 
 int main(int count, char **arguments)
 {
-    unsigned long long idle = 0ull;
+    unsigned long long idle = 0ULL;
     if (!daemon_arguments(count, arguments, &idle))
     {
         fputs(s_daemon_usage, stderr);

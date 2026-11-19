@@ -113,7 +113,7 @@ __global__ static void machine_core_kernel(unsigned int items, const unsigned in
         const long long lagged_depth = (long long)depth_place + shift_depth;
         // height_place is below geometry.height, a 32-bit count. It re-signs to long long exactly
         const long long lagged_height = (long long)height_place + shift_height;
-        if ((lagged_depth < 0ll) || (lagged_depth >= geometry.depth) || (lagged_height < 0ll) ||
+        if ((lagged_depth < 0LL) || (lagged_depth >= geometry.depth) || (lagged_height < 0LL) ||
             (lagged_height >= geometry.height))
         {
             continue;
@@ -124,7 +124,7 @@ __global__ static void machine_core_kernel(unsigned int items, const unsigned in
             const unsigned long long width_place = (rest % geometry.width) + step;
             // width_place is below geometry.width, a 32-bit count. It re-signs to long long exactly
             const long long lagged_width = (long long)width_place + shift_width;
-            if ((lagged_width < 0ll) || (lagged_width >= geometry.width) ||
+            if ((lagged_width < 0LL) || (lagged_width >= geometry.width) ||
                 (painted[lagged_row + lagged_width] != match))
             {
                 continue;
@@ -138,7 +138,7 @@ __global__ static void machine_core_kernel(unsigned int items, const unsigned in
             // core_width widens from unsigned int to unsigned long long, matching the 64-bit offset item_bins is
             // indexed by
             unsigned long long *const bin = &item_bins[(unsigned long long)core_width * CLIMB_MACHINE_CORE_FIELDS];
-            bin[0] += 1ull;
+            bin[0] += 1ULL;
             bin[1] += depth_place;
             bin[2] += height_place;
             bin[3] += width_place;
@@ -396,7 +396,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
             for (unsigned int width = 0u; width < widest; width += 1u)
             {
                 // width widens from unsigned int to size_t, matching the size_t offset item_bins is indexed by
-                top_width = (item_bins[(size_t)width * CLIMB_MACHINE_CORE_FIELDS] != 0ull) ? (width + 1u) : top_width;
+                top_width = (item_bins[(size_t)width * CLIMB_MACHINE_CORE_FIELDS] != 0ULL) ? (width + 1u) : top_width;
             }
             if ((staged_count + top_width) > staged_capacity)
             {
@@ -415,7 +415,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
                 for (unsigned int field = 0u; field < CLIMB_MACHINE_CORE_FIELDS; field += 1u)
                 {
                     const unsigned long long wider_sum =
-                        (width == top_width) ? 0ull : staged[staged_offset + CLIMB_MACHINE_CORE_FIELDS + field];
+                        (width == top_width) ? 0ULL : staged[staged_offset + CLIMB_MACHINE_CORE_FIELDS + field];
                     staged[staged_offset + field] = item_bins[item_offset + field] + wider_sum;
                 }
             }
@@ -428,7 +428,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     steps_succeeded =
         steps_succeeded &&
         (cudaMemcpy(&error, device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess) &&
-        (error == 0u) && (staged_count <= 0xFFFFFFFFull);
+        (error == 0u) && (staged_count <= 0xFFFFFFFFULL);
     machine->core_fields =
         steps_succeeded
             ? (unsigned long long *)malloc((staged_count + 1u) * CLIMB_MACHINE_CORE_FIELDS * sizeof(unsigned long long))

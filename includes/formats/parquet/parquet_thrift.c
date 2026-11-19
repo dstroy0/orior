@@ -14,8 +14,8 @@ _Static_assert((7u * (PARQUET_VARINT_BYTES_MAX - 1u)) < 64u,
                "PARQUET_VARINT_BYTES_MAX: the last group's shift must stay below the 64-bit width");
 
 // a Thrift field id is an i16
-#define PARQUET_FIELD_ID_LEAST (-32768ll)
-#define PARQUET_FIELD_ID_MAX 32767ll
+#define PARQUET_FIELD_ID_LEAST (-32768LL)
+#define PARQUET_FIELD_ID_MAX 32767LL
 
 // one open container of a Thrift value being skipped: a struct's fields, or a list's or map's values
 typedef struct
@@ -29,7 +29,7 @@ typedef struct
 
 unsigned long long parquet_little(const unsigned char *bytes, unsigned int count)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int byte = 0u; byte < count; byte += 1u)
     {
         value |= (unsigned long long)bytes[byte] << (8u * byte);
@@ -45,7 +45,7 @@ unsigned int parquet_byte_read(ParquetCursor *cursor)
         return 0u;
     }
     const unsigned int byte = cursor->bytes[cursor->position];
-    cursor->position += 1ull;
+    cursor->position += 1ULL;
     return byte;
 }
 
@@ -54,7 +54,7 @@ unsigned int parquet_byte_read(ParquetCursor *cursor)
 // cursor
 unsigned long long parquet_varint_read(ParquetCursor *cursor)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int group = 0u; group < PARQUET_VARINT_BYTES_MAX; group += 1u)
     {
         const unsigned int byte = parquet_byte_read(cursor);
@@ -62,7 +62,7 @@ unsigned long long parquet_varint_read(ParquetCursor *cursor)
         if ((group == (PARQUET_VARINT_BYTES_MAX - 1u)) && ((group_bits >> PARQUET_VARINT_LAST_GROUP_BITS) != 0u))
         {
             cursor->broken = 1u;
-            return 0ull;
+            return 0ULL;
         }
         // widened to 64 bits before the shift, which reaches 63, and the last group was limited to the bits below 64
         value |= (unsigned long long)group_bits << (7u * group);
@@ -72,7 +72,7 @@ unsigned long long parquet_varint_read(ParquetCursor *cursor)
         }
     }
     cursor->broken = 1u;
-    return 0ull;
+    return 0ULL;
 }
 
 // a zigzag varint: the signed form every Thrift compact integer takes
@@ -82,17 +82,17 @@ static long long parquet_zigzag_read(ParquetCursor *cursor)
     // the bits past the sign bit are below 2^63 and convert exactly. The low bit alone decides the sign, and set,
     // the value is -value_bits - 1, which reaches -2^63 at max
     const long long value_bits = (long long)(stored >> 1u);
-    return ((stored & 1ull) != 0ull) ? (-value_bits - 1ll) : value_bits;
+    return ((stored & 1ULL) != 0ULL) ? (-value_bits - 1LL) : value_bits;
 }
 
 // a zigzag integer a count, size or offset field contains, refused where negative
 unsigned long long parquet_nonnegative_read(ParquetCursor *cursor)
 {
     const long long value = parquet_zigzag_read(cursor);
-    if (value < 0ll)
+    if (value < 0LL)
     {
         cursor->broken = 1u;
-        return 0ull;
+        return 0ULL;
     }
     // negative values were refused above, and the conversion is exact
     return (unsigned long long)value;
@@ -105,7 +105,7 @@ const unsigned char *parquet_binary_read(ParquetCursor *cursor, unsigned long lo
     if ((cursor->broken != 0u) || (*length > (cursor->byte_count - cursor->position)))
     {
         cursor->broken = 1u;
-        *length = 0ull;
+        *length = 0ULL;
         return cursor->bytes;
     }
     const unsigned char *const start = cursor->bytes + cursor->position;
@@ -119,7 +119,7 @@ unsigned long long parquet_list_header_read(ParquetCursor *cursor, unsigned int 
     const unsigned int header = parquet_byte_read(cursor);
     *element_type = header & 0x0Fu;
     const unsigned long long short_count = header >> 4u;
-    return (short_count == 15ull) ? parquet_varint_read(cursor) : short_count;
+    return (short_count == 15ULL) ? parquet_varint_read(cursor) : short_count;
 }
 
 // the next field of a struct: its id through *field_id and its type as the return, where PARQUET_THRIFT_STOP ends the
@@ -163,11 +163,11 @@ static void parquet_scalar_skip(ParquetCursor *cursor, unsigned int type)
         parquet_varint_read(cursor);
         break;
     case PARQUET_THRIFT_DOUBLE:
-        cursor->broken |= ((cursor->byte_count - cursor->position) < 8ull) ? 1u : 0u;
-        cursor->position += (cursor->broken != 0u) ? 0ull : 8ull;
+        cursor->broken |= ((cursor->byte_count - cursor->position) < 8ULL) ? 1u : 0u;
+        cursor->position += (cursor->broken != 0u) ? 0ULL : 8ULL;
         break;
     case PARQUET_THRIFT_BINARY: {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         parquet_binary_read(cursor, &length);
         break;
     }
@@ -201,10 +201,10 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
         {
             ParquetThriftFrame *const opened = &frame[depth];
             opened->container_type = (next_type == PARQUET_THRIFT_SET) ? PARQUET_THRIFT_LIST : next_type;
-            opened->values_left = 0ull;
+            opened->values_left = 0ULL;
             opened->key_type = 0u;
             opened->value_type = 0u;
-            opened->field_id = 0ll;
+            opened->field_id = 0LL;
             if (opened->container_type == PARQUET_THRIFT_LIST)
             {
                 opened->values_left = parquet_list_header_read(cursor, &opened->value_type);
@@ -213,11 +213,11 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
             else if (opened->container_type == PARQUET_THRIFT_MAP)
             {
                 const unsigned long long entry_count = parquet_varint_read(cursor);
-                const unsigned int map_types = (entry_count != 0ull) ? parquet_byte_read(cursor) : 0u;
+                const unsigned int map_types = (entry_count != 0ULL) ? parquet_byte_read(cursor) : 0u;
                 // every entry takes at least one byte: more entries than bytes left is refused, and the doubling
                 // that counts keys and values apart does not wrap
                 cursor->broken |= (entry_count > (cursor->byte_count - cursor->position)) ? 1u : 0u;
-                opened->values_left = (cursor->broken != 0u) ? 0ull : (2ull * entry_count);
+                opened->values_left = (cursor->broken != 0u) ? 0ULL : (2ULL * entry_count);
                 opened->key_type = map_types >> 4u;
                 opened->value_type = map_types & 0x0Fu;
             }
@@ -233,11 +233,11 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int type)
             {
                 next_type = parquet_field_read(cursor, &innermost->field_id);
             }
-            else if (innermost->values_left != 0ull)
+            else if (innermost->values_left != 0ULL)
             {
-                innermost->values_left -= 1ull;
+                innermost->values_left -= 1ULL;
                 // a map counts down from an even total, and an odd count left means a key comes next
-                next_type = ((innermost->values_left & 1ull) != 0ull) ? innermost->key_type : innermost->value_type;
+                next_type = ((innermost->values_left & 1ULL) != 0ULL) ? innermost->key_type : innermost->value_type;
                 // a boolean inside a list or map is one byte, not a type code carrying the value
                 next_type = ((next_type == PARQUET_THRIFT_TRUE) || (next_type == PARQUET_THRIFT_FALSE))
                                 ? PARQUET_THRIFT_BYTE
@@ -261,10 +261,10 @@ int parquet_bytes_append(ParquetBytes *bytes, const unsigned char *from, unsigne
 {
     if (count > (bytes->room - bytes->count))
     {
-        unsigned long long room = (bytes->room != 0ull) ? bytes->room : 64ull;
+        unsigned long long room = (bytes->room != 0ULL) ? bytes->room : 64ULL;
         while (count > (room - bytes->count))
         {
-            room *= 2ull;
+            room *= 2ULL;
         }
         unsigned char *const grown = (unsigned char *)realloc(bytes->bytes, (size_t)room);
         if (grown == NULL)
@@ -274,7 +274,7 @@ int parquet_bytes_append(ParquetBytes *bytes, const unsigned char *from, unsigne
         bytes->bytes = grown;
         bytes->room = room;
     }
-    if (count != 0ull)
+    if (count != 0ULL)
     {
         memcpy(bytes->bytes + bytes->count, from, (size_t)count);
     }

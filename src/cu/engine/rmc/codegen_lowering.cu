@@ -9,7 +9,7 @@
 // key_schedule's layout of the encoded program, in one thread (key_schedule_core_record_layout)
 __global__ void codegen_layout(KeyScheduleCoreLayout layout, LayoutEnd *ended)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }
@@ -93,7 +93,7 @@ int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecord
 static void codegen_device_move(DeviceArena *memory, MachineInstr *to, const MachineInstr *from,
                                 unsigned long long count)
 {
-    if ((memory->ok != 0) && (count != 0ull))
+    if ((memory->ok != 0) && (count != 0ULL))
     {
         memory->ok =
             cudaMemcpy(to, from, (size_t)(count * sizeof(MachineInstr)), cudaMemcpyDeviceToDevice) == cudaSuccess;
@@ -156,8 +156,8 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     summary[CODEGEN_WIDES_MAX] = 1u;
     unsigned int *const device_summary = codegen_device_copy(&memory, summary, CODEGEN_SUMMARY);
     CodegenParts parts{};
-    CodegenParts *const device_parts = codegen_device_copy(&memory, &parts, 1ull);
-    MachineFunction *const lane_out = codegen_device_take<MachineFunction>(&memory, 1ull);
+    CodegenParts *const device_parts = codegen_device_copy(&memory, &parts, 1ULL);
+    MachineFunction *const lane_out = codegen_device_take<MachineFunction>(&memory, 1ULL);
     const size_t out_bytes = sizeof(unsigned int) * layout->out_limbs;
     memory.ok = (memory.ok != 0) && (cudaMemset(put_first, 0xFF, out_bytes) == cudaSuccess) &&
                 (cudaMemset(put_last, 0, out_bytes) == cudaSuccess);
@@ -211,12 +211,12 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
                                               device_parts, NULL);
         codegen_device_launched(&memory);
     }
-    codegen_device_read(&memory, &parts, device_parts, 1ull);
-    parts.count[CODEGEN_HEADER] = 1ull;
+    codegen_device_read(&memory, &parts, device_parts, 1ULL);
+    parts.count[CODEGEN_HEADER] = 1ULL;
     parts.count[CODEGEN_STEPPED] = stepped;
     const unsigned int first_parts[7] = {CODEGEN_NOTE,   CODEGEN_HEADER,  CODEGEN_LANE_OPEN, CODEGEN_DECLARATIONS,
                                          CODEGEN_OPENED, CODEGEN_STEPPED, CODEGEN_CLOSED};
-    unsigned long long first_count = 0ull;
+    unsigned long long first_count = 0ULL;
     for (const unsigned int part : first_parts)
     {
         parts.at[part] = first_count;
@@ -249,7 +249,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     // phase two: the body split into states, counted, then written. An error's label for the opening and one for each
     // step at max, and each loop the steps wrote
     MachineInstr *scheduled_instrs = NULL;
-    unsigned long long scheduled_count = 0ull;
+    unsigned long long scheduled_count = 0ULL;
     unsigned int states = 0u;
     if (costs != NULL)
     {
@@ -257,20 +257,20 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
         device_schedule.cost = codegen_device_copy(&memory, costs->cost.data(), costs->cost.size());
         device_schedule.budget = costs->budget;
         device_schedule.dispatch_error =
-            codegen_device_take<MachineOperand>(&memory, (unsigned long long)steps + 1ull);
-        device_schedule.dispatch_state = codegen_device_take<unsigned int>(&memory, (unsigned long long)steps + 1ull);
+            codegen_device_take<MachineOperand>(&memory, (unsigned long long)steps + 1ULL);
+        device_schedule.dispatch_state = codegen_device_take<unsigned int>(&memory, (unsigned long long)steps + 1ULL);
         device_schedule.dispatch_max = steps + 1u;
-        device_schedule.loop_state = codegen_device_take<unsigned int>(&memory, (unsigned long long)loop_count + 1ull);
+        device_schedule.loop_state = codegen_device_take<unsigned int>(&memory, (unsigned long long)loop_count + 1ULL);
         device_schedule.loop_count = loop_count;
-        ScheduleEnd *const device_schedule_end = codegen_device_take<ScheduleEnd>(&memory, 1ull);
+        ScheduleEnd *const device_schedule_end = codegen_device_take<ScheduleEnd>(&memory, 1ULL);
         ScheduleEnd schedule_end{};
         if (memory.ok != 0)
         {
             codegen_schedule<<<1u, 1u>>>(program, device_summary, lane_out, device_schedule, costs->writes,
-                                         costs->ports, body, body_count, 0ull, NULL, device_schedule_end);
+                                         costs->ports, body, body_count, 0ULL, NULL, device_schedule_end);
             codegen_device_launched(&memory);
         }
-        codegen_device_read(&memory, &schedule_end, device_schedule_end, 1ull);
+        codegen_device_read(&memory, &schedule_end, device_schedule_end, 1ULL);
         scheduled_count = schedule_end.count;
         if ((memory.ok != 0) && (scheduled_count >= CODEGEN_COUNT_MAX))
         {
@@ -285,7 +285,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
                                          device_schedule_end);
             codegen_device_launched(&memory);
         }
-        codegen_device_read(&memory, &schedule_end, device_schedule_end, 1ull);
+        codegen_device_read(&memory, &schedule_end, device_schedule_end, 1ULL);
         states = schedule_end.states;
         report->states = schedule_end.states;
         report->max = schedule_end.max;
@@ -299,8 +299,8 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
                                               is_scheduled, states, device_parts, NULL);
         codegen_device_launched(&memory);
     }
-    codegen_device_read(&memory, &parts, device_parts, 1ull);
-    parts.at[CODEGEN_BODY_OPEN] = 0ull;
+    codegen_device_read(&memory, &parts, device_parts, 1ULL);
+    parts.at[CODEGEN_BODY_OPEN] = 0ULL;
     parts.at[CODEGEN_ENDING] = parts.count[CODEGEN_BODY_OPEN];
     const unsigned long long last_count = parts.count[CODEGEN_BODY_OPEN] + parts.count[CODEGEN_ENDING];
     memory.ok =

@@ -441,7 +441,7 @@ int cli_settings_sync_pack(const CliSettingsSyncCfg *args)
                        CliSettingsSyncTransferredPositionCtx, .transferred_out = args->packed, .place = place,
                        .value = (const char *)bytes, .size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
     }
     EMBED_CALL(settings_sync_release, SettingsSyncCtx, .paths = &s_paths, .work_state = &s_work_state);
     return 1;
@@ -500,7 +500,7 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
                            .place = EMBED_CALL(cli_settings_sync_transferred_at_internal.transferred_position,
                                                CliSettingsSyncTransferredAtCtx, .synced = &s_paths, .at = at),
                            .value = (const char *)bytes, .size = size);
-                g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+                g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
             }
         }
         EMBED_CALL(settings_sync_release, SettingsSyncCtx, .paths = &s_paths, .work_state = &s_work_state);
@@ -522,7 +522,7 @@ int cli_settings_sync_read(const CliSettingsSyncFromCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_work_state.json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL, .err_msg = &unread,
                    .owner = g_cli_machine_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
     const char *const mark =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state.json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,

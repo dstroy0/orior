@@ -17,7 +17,7 @@ unsigned long long cubin_run_host_now(void)
 #else
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    return ((unsigned long long)now.tv_sec * 1000000000ull) + (unsigned long long)now.tv_nsec;
+    return ((unsigned long long)now.tv_sec * 1000000000ULL) + (unsigned long long)now.tv_nsec;
 #endif
 }
 
@@ -46,11 +46,11 @@ static void *s_stop = NULL;
 
 // the part's memory a launch takes, allotted once and retained at the largest a question of the process requires: the
 // cases, a word each thread, and the room each thread writes its answer in
-static CubinRunAddress s_in = 0ull;
+static CubinRunAddress s_in = 0ULL;
 
 static size_t s_in_room = 0u;
 
-static CubinRunAddress s_out = 0ull;
+static CubinRunAddress s_out = 0ULL;
 
 static size_t s_out_room = 0u;
 
@@ -63,10 +63,10 @@ static CubinRunStatus cubin_run_room(const CubinRunDriver *driver, CubinRunAddre
     {
         return 0;
     }
-    if (*address != 0ull)
+    if (*address != 0ULL)
     {
         driver->release(*address);
-        *address = 0ull;
+        *address = 0ULL;
         *room = 0u;
     }
     const CubinRunStatus status = driver->allocate(address, needed);
@@ -82,7 +82,7 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
                                         const CubinRunShape *shape, unsigned long long *nanoseconds)
 {
     float milliseconds = 0.0f;
-    *nanoseconds = 0ull;
+    *nanoseconds = 0ULL;
     if (s_launch_timed_out)
     {
         return CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT;
@@ -100,7 +100,7 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
                            : status;
     status = (status == 0) ? driver->event_record(s_stop, NULL) : status;
     const unsigned long long began = cubin_run_host_now();
-    unsigned long long waited = 0ull;
+    unsigned long long waited = 0ULL;
     while (status == 0)
     {
         const CubinRunStatus reached = driver->event_query(s_stop);
@@ -159,12 +159,12 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
                                       unsigned long long *nanoseconds)
 {
     CubinRunStatus status = 0;
-    *nanoseconds = 0ull;
-    s_timed_least = 0ull;
-    s_timed_max = 0ull;
+    *nanoseconds = 0ULL;
+    s_timed_least = 0ULL;
+    s_timed_max = 0ULL;
     for (unsigned int launch = 0u; (status == 0) && (launch < launches); launch += 1u)
     {
-        unsigned long long latency = 0ull;
+        unsigned long long latency = 0ULL;
         // the timer register read before and after the launch where one is open: the launch's cost is its
         // advance, in the clock's own count. Otherwise the driver's event time
         unsigned int before = 0u;
@@ -195,12 +195,12 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
 static void cubin_run_answers_read(const unsigned int *written, unsigned int count)
 {
     unsigned long long reach = (unsigned long long)count * CUBIN_RUN_OUT_ROOM;
-    while ((reach > 0ull) && (written[reach - 1ull] == CUBIN_RUN_FILL_WORD))
+    while ((reach > 0ULL) && (written[reach - 1ULL] == CUBIN_RUN_FILL_WORD))
     {
-        reach -= 1ull;
+        reach -= 1ULL;
     }
-    const unsigned long long stride = (reach + count - 1ull) / count;
-    const unsigned long long words = (stride != 0ull) ? (reach - ((unsigned long long)(count - 1u) * stride)) : 0ull;
+    const unsigned long long stride = (reach + count - 1ULL) / count;
+    const unsigned long long words = (stride != 0ULL) ? (reach - ((unsigned long long)(count - 1u) * stride)) : 0ULL;
     for (unsigned int place = 0u; place < s_case_count; place += 1u)
     {
         for (unsigned int word = 0u; word < CUBIN_RUN_OUT_WORDS; word += 1u)
@@ -264,12 +264,12 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     status = (status == 0) ? driver->clear(s_out, CUBIN_RUN_FILL, out_bytes) : status;
     s_clocks.memory += cubin_run_host_now() - memory_began;
     void *arguments[] = {&s_in, &s_out, &count};
-    unsigned long long answered_latency = 0ull;
+    unsigned long long answered_latency = 0ULL;
     status = (status == 0) ? cubin_run_bounded(driver, function, arguments, shape, &answered_latency) : status;
     if (s_launch_timed_out)
     {
         free(written);
-        *nanoseconds = 0ull;
+        *nanoseconds = 0ULL;
         return status;
     }
     const unsigned long long read_began = cubin_run_host_now();
@@ -280,7 +280,7 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     }
     free(written);
     s_clocks.memory += cubin_run_host_now() - read_began;
-    *nanoseconds = 0ull;
+    *nanoseconds = 0ULL;
     status = ((status == 0) && (launches != 0u))
                  ? cubin_run_timed(driver, function, arguments, shape, launches, nanoseconds)
                  : status;
@@ -366,19 +366,19 @@ void cubin_run_dry_written(unsigned long long code_size, unsigned int registers,
     mmgr_line_put(dry, "\n");
     static unsigned char s_base[CUBIN_RUN_BYTES];
     const unsigned long long base_size = cubin_run_input(base_path, s_base, sizeof(s_base));
-    if (base_size == 0ull)
+    if (base_size == 0ULL)
     {
         qry_member_append(base_path, s_code, code_size, QRY_ORDINARY);
     }
-    for (unsigned long long place = 0ull; (place + 16ull) <= code_size; place += 16ull)
+    for (unsigned long long place = 0ULL; (place + 16ULL) <= code_size; place += 16ULL)
     {
-        const int base_matches = ((place + 16ull) <= base_size) && (memcmp(&s_code[place], &s_base[place], 16u) == 0);
+        const int base_matches = ((place + 16ULL) <= base_size) && (memcmp(&s_code[place], &s_base[place], 16u) == 0);
         if (base_matches && !(s_facets & CUBIN_FACET_QUERY))
         {
             continue;
         }
-        unsigned long long low = 0ull;
-        unsigned long long high = 0ull;
+        unsigned long long low = 0ULL;
+        unsigned long long high = 0ULL;
         for (unsigned int byte = 0u; byte < 8u; byte += 1u)
         {
             low |= (unsigned long long)s_code[place + byte] << (8u * byte);

@@ -46,7 +46,7 @@ static unsigned int who_hex_digit(char character)
 // the `characters` hex digits at `text` read into `value`: 1, or 0 where one is no hex digit
 static int who_hex(const char *text, unsigned int characters, unsigned long long *value)
 {
-    *value = 0ull;
+    *value = 0ULL;
     for (unsigned int at = 0u; at < characters; at += 1u)
     {
         const unsigned int digit = who_hex_digit(text[at]);
@@ -85,7 +85,7 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
     {
         return 0;
     }
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     const char *const tab = strchr(line, '\t');
     *number = 0u;
     source[0] = '\0';
@@ -146,8 +146,8 @@ static unsigned int who_source_number(const char *file)
         return 0u;
     }
     const unsigned char *table = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long at = 0ULL;
     unsigned int number = 0u;
     char source[WHO_PATH_MAX_LEN];
     if (!who_table(&table, &size))
@@ -179,8 +179,8 @@ static unsigned int who_program_number(void)
     const char *const base = (back > slash) ? (back + 1) : ((slash != NULL) ? (slash + 1) : path);
     const size_t stem = strcspn(base, ".");
     const unsigned char *table = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long at = 0ULL;
     unsigned int number = 0u;
     unsigned int found = 0u;
     unsigned int header = 0u;
@@ -236,17 +236,17 @@ Who who_here(const char *file, unsigned int line)
 
 void who_words(Who who, unsigned long long *words)
 {
-    words[0] = (((unsigned long long)who.source & 0xffffull) << 48u) |
-               (((unsigned long long)who.line & 0xffffull) << 32u) |
-               (((unsigned long long)who.program & 0xffffull) << 16u);
+    words[0] = (((unsigned long long)who.source & 0xffffULL) << 48u) |
+               (((unsigned long long)who.line & 0xffffULL) << 32u) |
+               (((unsigned long long)who.program & 0xffffULL) << 16u);
     words[1] = who.time;
 }
 
 Who who_of_words(const unsigned long long *words)
 {
     // each field is sixteen bits of the first word, which an unsigned int represents
-    const Who who = {(unsigned int)((words[0] >> 48u) & 0xffffull), (unsigned int)((words[0] >> 32u) & 0xffffull),
-                     (unsigned int)((words[0] >> 16u) & 0xffffull), words[1]};
+    const Who who = {(unsigned int)((words[0] >> 48u) & 0xffffULL), (unsigned int)((words[0] >> 32u) & 0xffffULL),
+                     (unsigned int)((words[0] >> 16u) & 0xffffULL), words[1]};
     return who;
 }
 
@@ -261,8 +261,8 @@ void who_code(Who who, char *code, size_t room)
     who_words(who, words);
     for (unsigned int at = 0u; at < 16u; at += 1u)
     {
-        code[at] = s_who_digits[(words[0] >> (60u - (4u * at))) & 0xfull];
-        code[16u + at] = s_who_digits[(words[1] >> (60u - (4u * at))) & 0xfull];
+        code[at] = s_who_digits[(words[0] >> (60u - (4u * at))) & 0xfULL];
+        code[16u + at] = s_who_digits[(words[1] >> (60u - (4u * at))) & 0xfULL];
     }
     code[WHO_CODE_CHARACTERS] = '\0';
 }
@@ -283,8 +283,8 @@ int who_read(const char *code, Who *who)
 static void who_source_path(unsigned int number, char *source)
 {
     const unsigned char *table = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long at = 0ULL;
     unsigned int row_number = 0u;
     const int read = (number != 0u) && who_table(&table, &size);
     while (read && who_row(table, size, &at, &row_number, source))

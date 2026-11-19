@@ -13,7 +13,7 @@ static_assert(MARGINAL_TARGETS_MAX <= 64u, "marginal: the targets taken must fit
 
 static_assert(sizeof(unsigned int) == 4u, "marginal: unsigned int must be 32 bits, a limb");
 
-static_assert(MARGINAL_ARRANGEMENTS_MAX <= (1ull << 32u),
+static_assert(MARGINAL_ARRANGEMENTS_MAX <= (1ULL << 32u),
               "marginal: a sum of arrangements must grow by one limb at max");
 
 typedef struct
@@ -29,11 +29,11 @@ typedef struct
 __device__ static void marginal_scale(const unsigned int *from, unsigned int limbs, unsigned int weight,
                                       unsigned int *to)
 {
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int limb = 0u; limb < limbs; limb += 1u)
     {
         const unsigned long long total = ((unsigned long long)from[limb] * (unsigned long long)weight) + carry;
-        to[limb] = (unsigned int)(total & 0xFFFFFFFFull);
+        to[limb] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
     to[limbs] = (unsigned int)carry;
@@ -41,12 +41,12 @@ __device__ static void marginal_scale(const unsigned int *from, unsigned int lim
 
 __device__ static void marginal_gather(unsigned int *sum, const unsigned int *product, unsigned int limbs)
 {
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (unsigned int limb = 0u; limb < MARGINAL_LIMBS; limb += 1u)
     {
         const unsigned long long total =
             (unsigned long long)sum[limb] + (unsigned long long)((limb < limbs) ? product[limb] : 0u) + carry;
-        sum[limb] = (unsigned int)(total & 0xFFFFFFFFull);
+        sum[limb] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
 }
@@ -82,7 +82,7 @@ __global__ static void marginal_kernel(MarginalLaunch launch)
         product[0][limb] = 0u;
     }
     product[0][0] = 1u;
-    taken[0] = 0ull;
+    taken[0] = 0ULL;
     choice[0] = 0u;
     unsigned int depth = 0u;
     for (;;)
@@ -111,14 +111,14 @@ __global__ static void marginal_kernel(MarginalLaunch launch)
             continue;
         }
         unsigned int weight = source.absent;
-        unsigned long long mark = 0ull;
+        unsigned long long mark = 0ULL;
         if (choice[depth] != 0u)
         {
             const MarginalOption option = launch.options[source.option_first + choice[depth] - 1u];
             weight = option.weight;
-            mark = 1ull << option.target;
+            mark = 1ULL << option.target;
         }
-        if ((taken[depth] & mark) != 0ull)
+        if ((taken[depth] & mark) != 0ULL)
         {
             choice[depth] += 1u;
             continue;

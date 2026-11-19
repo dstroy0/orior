@@ -310,11 +310,11 @@ int sass_class_read(const char *machines, const char *part)
             }
             continue;
         }
-        unsigned long long word_read = 0ull;
+        unsigned long long word_read = 0ULL;
         read = line;
         const int answered_line = line_word(&read, channel_text, sizeof(channel_text)) &&
                                   line_word(&read, class_text, sizeof(class_text)) &&
-                                  line_number(&read, 1, &word_read) && (word_read <= 0xffffffffull);
+                                  line_number(&read, 1, &word_read) && (word_read <= 0xffffffffULL);
         while (answered_line && ((*read == ' ') || (*read == '\t')))
         {
             read += 1;
@@ -346,7 +346,7 @@ int sass_class_read(const char *machines, const char *part)
 
 // the lines a file's text is put together as in memory, each ended by a newline, `s_lines_at` bytes of them so far, the
 // room once a write did not fit
-static char s_lines_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_lines_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_lines_at;
 
 // `length` bytes of `text` written after the lines written

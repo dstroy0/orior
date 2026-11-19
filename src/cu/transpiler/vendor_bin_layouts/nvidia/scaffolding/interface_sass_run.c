@@ -56,8 +56,8 @@ static int sass_run_cases(const char *path)
 {
     // the cases as the run stores them, a descent's written through the run's writer, or the disk where it stores none
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long at = 0ULL;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 0;
@@ -70,8 +70,8 @@ static int sass_run_cases(const char *path)
         unsigned int words[SASS_RUN_IN_WORDS] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
         const char *at_word = line;
         unsigned int read = 0u;
-        unsigned long long word = 0ull;
-        while ((read < SASS_RUN_IN_WORDS) && line_number(&at_word, 1, &word) && (word <= 0xffffffffull))
+        unsigned long long word = 0ULL;
+        while ((read < SASS_RUN_IN_WORDS) && line_number(&at_word, 1, &word) && (word <= 0xffffffffULL))
         {
             // the test above bounds the word inside 32 bits
             words[read] = (unsigned int)word;
@@ -157,7 +157,7 @@ int main(int count, char **words)
                 "interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<max>]]\n");
         return 2;
     }
-    const unsigned long max = (count == 7) ? strtoul(words[6], NULL, 10) : 0ul;
+    const unsigned long max = (count == 7) ? strtoul(words[6], NULL, 10) : 0UL;
     if ((count >= 6) && !sass_run_cases(words[5]))
     {
         fprintf(stderr, "the cases %s did not read, or contain more than %u\n", words[5], SASS_RUN_THREADS);
@@ -181,7 +181,7 @@ int main(int count, char **words)
     }
     const unsigned long first = strtoul(words[3], NULL, 10);
     char line[SASS_RUN_LINE];
-    unsigned long number = 0ul;
+    unsigned long number = 0UL;
     while (fgets(line, sizeof(line), list) != NULL)
     {
         char path[SASS_RUN_LINE];
@@ -189,10 +189,10 @@ int main(int count, char **words)
         const char *read = line;
         if ((number < first) || !line_word(&read, path, sizeof(path)) || !line_word(&read, kernel, sizeof(kernel)))
         {
-            number += 1ul;
+            number += 1UL;
             continue;
         }
-        if ((max != 0ul) && (number >= (first + max)))
+        if ((max != 0UL) && (number >= (first + max)))
         {
             fclose(answers);
             fclose(list);
@@ -203,20 +203,20 @@ int main(int count, char **words)
         if (strcmp(path, "skip") == 0)
         {
             fprintf(answers, "%lu skipped %s\n", number, kernel);
-            number += 1ul;
+            number += 1UL;
             continue;
         }
         // read on the host before the driver sees it: a cubin that does not read, or breaks a rule of cubin_safe, is
         // answered without the device
         const size_t size = sass_run_image(path);
-        unsigned long long at = 0ull;
+        unsigned long long at = 0ULL;
         const unsigned int verdict =
             (size == 0u) ? CUBIN_SAFE_SIZE : cubin_safe_image(&s_machine, s_image, size, 0u, &at);
         if (verdict != CUBIN_SAFE)
         {
             fprintf(answers, "%lu skipped cubin_safe_%u\n", number, verdict);
             printf("  %s blocked from the part: %s at byte %llu\n", path, cubin_safe_name(verdict), at);
-            number += 1ul;
+            number += 1UL;
             continue;
         }
         // the airlock: no line reaches the part without the vendor's verdict in hand, the cross must read it first
@@ -224,7 +224,7 @@ int main(int count, char **words)
         {
             fprintf(answers, "%lu skipped no vendor verdict\n", number);
             printf("  %s blocked from the part: the cross must read this code before the part\n", path);
-            number += 1ul;
+            number += 1UL;
             continue;
         }
         const CUresult status = sass_run_one(kernel);
@@ -252,7 +252,7 @@ int main(int count, char **words)
         }
         // the pause spaces the launches and prevents a run of them from flooding the part
         Sleep(SASS_RUN_PAUSE_MS);
-        number += 1ul;
+        number += 1UL;
     }
     fclose(answers);
     fclose(list);

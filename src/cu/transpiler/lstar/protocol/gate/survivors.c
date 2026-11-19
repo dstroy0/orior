@@ -23,7 +23,7 @@ unsigned int gate_survivors(const unsigned char fails[][GATE_CASES], unsigned in
 unsigned long long gate_price(const unsigned char fails[][GATE_CASES], unsigned int candidates, unsigned int cases,
                               const unsigned int *order)
 {
-    unsigned long long price = 0ull;
+    unsigned long long price = 0ULL;
     for (unsigned int candidate = 0u; candidate < candidates; candidate += 1u)
     {
         unsigned int place = cases;

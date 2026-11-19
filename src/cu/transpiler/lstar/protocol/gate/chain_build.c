@@ -335,7 +335,7 @@ unsigned int chain_text(const Chain *chain, char *text, unsigned int room)
     {
         return 0u;
     }
-    VerbaLinea line = {text, room, 0ull};
+    VerbaLinea line = {text, room, 0ULL};
     chain_child_text(chain, (unsigned char)(chain->nodes - 1u), &line);
     // a text is at max its room, which an unsigned int represents
     return (unsigned int)mmgr_line_finish(&line);

@@ -72,13 +72,13 @@ std::vector<unsigned long long> window_identities(const Question &question, size
     std::vector<unsigned long long> identities;
     std::map<std::string, std::string> names;
     unsigned int counts[5] = {0u, 0u, 0u, 0u, 0u};
-    unsigned long long hash = 14695981039346656037ull;
+    unsigned long long hash = 14695981039346656037ULL;
     for (size_t at = first; at < question.chain.size(); at += 1u)
     {
         const std::string text = link_render(question.chain[at], &names, counts) + "\n";
         for (const char character : text)
         {
-            hash = (hash ^ (unsigned char)character) * 1099511628211ull;
+            hash = (hash ^ (unsigned char)character) * 1099511628211ULL;
         }
         identities.push_back(hash);
     }

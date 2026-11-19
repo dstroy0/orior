@@ -16,8 +16,8 @@ KEYMATH_CORE unsigned int keymath_core_affine_bits(const KeymathCoreArena *arena
         bound[limb] = 0u;
     }
     // a magnitude within KEYMATH_COEFFICIENT_MAX fits an unsigned word
-    keymath_core_add_shifted(bound, (unsigned long long)keymath_core_magnitude(form->constant), 0ull);
-    for (unsigned long long at = 0ull; at < form->count; at += 1ull)
+    keymath_core_add_shifted(bound, (unsigned long long)keymath_core_magnitude(form->constant), 0ULL);
+    for (unsigned long long at = 0ULL; at < form->count; at += 1ULL)
     {
         const KeymathCoreTerm *const term = &arena->terms[form->first + at];
         // a coefficient within KEYMATH_COEFFICIENT_MAX fits an unsigned word
@@ -25,7 +25,7 @@ KEYMATH_CORE unsigned int keymath_core_affine_bits(const KeymathCoreArena *arena
                                  terms[term->atom].bits);
     }
     // an atom's coefficient is never 0: a form of any term bounds at least 1, and 1 less it takes no borrow past it
-    for (unsigned int limb = 0u; (form->count != 0ull) && (limb < KEYMATH_BOUND_LIMBS); limb += 1u)
+    for (unsigned int limb = 0u; (form->count != 0ULL) && (limb < KEYMATH_BOUND_LIMBS); limb += 1u)
     {
         const unsigned int was = bound[limb];
         bound[limb] = was - 1u;
@@ -58,7 +58,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
 {
     encoding->end = KEYMATH_CORE_OK;
     encoding->at = 0u;
-    encoding->arena.used = 0ull;
+    encoding->arena.used = 0ULL;
     encoding->arena.full = 0;
     EngineRecordTerm *const terms = encoding->terms;
     for (unsigned int step = 0u; step < encoding->count; step += 1u)
@@ -70,7 +70,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         term->right = doing->right;
         term->bits = 0u;
         term->member = 0u;
-        term->constant = 0ull;
+        term->constant = 0ULL;
         if (keymath_core_record_reads(doing->operation) &&
             !((doing->left < step) && ((doing->operation == ENGINE_RECORD_ABSOLUTE) || (doing->right < step))))
         {
@@ -103,7 +103,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         }
         else if (doing->operation == ENGINE_RECORD_LADDER)
         {
-            term->bits = keymath_core_word_bits((unsigned long long)ENGINE_GOLDEN_RUNGS - 1ull);
+            term->bits = keymath_core_word_bits((unsigned long long)ENGINE_GOLDEN_RUNGS - 1ULL);
         }
         else if (doing->operation == ENGINE_RECORD_ABSOLUTE)
         {
@@ -214,14 +214,14 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         if ((doing->operation == ENGINE_RECORD_SUM) || (doing->operation == ENGINE_RECORD_DIFFERENCE))
         {
             formed = keymath_core_affine_add(arena, &encoding->forms[doing->left], &encoding->forms[doing->right],
-                                             (doing->operation == ENGINE_RECORD_SUM) ? 1ll : -1ll, form);
+                                             (doing->operation == ENGINE_RECORD_SUM) ? 1LL : -1LL, form);
         }
-        else if ((doing->operation == ENGINE_RECORD_PRODUCT) && (encoding->forms[doing->right].count == 0ull))
+        else if ((doing->operation == ENGINE_RECORD_PRODUCT) && (encoding->forms[doing->right].count == 0ULL))
         {
             formed = keymath_core_affine_scale(arena, &encoding->forms[doing->left],
                                                encoding->forms[doing->right].constant, form);
         }
-        else if ((doing->operation == ENGINE_RECORD_PRODUCT) && (encoding->forms[doing->left].count == 0ull))
+        else if ((doing->operation == ENGINE_RECORD_PRODUCT) && (encoding->forms[doing->left].count == 0ULL))
         {
             formed = keymath_core_affine_scale(arena, &encoding->forms[doing->right],
                                                encoding->forms[doing->left].constant, form);
@@ -232,7 +232,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
             // the constant is at max KEYMATH_COEFFICIENT_MAX, and it fits a signed word
             form->constant = (long long)term->constant;
             form->first = arena->used;
-            form->count = 0ull;
+            form->count = 0ULL;
             formed = 1;
         }
         else if (wrap_passes != 0)
@@ -254,10 +254,10 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         {
             // the terms a form not formed left on the arena are given back, and the register is an atom
             arena->used = begun;
-            form->constant = 0ll;
+            form->constant = 0LL;
             form->first = arena->used;
-            form->count = 1ull;
-            if (keymath_core_push(arena, step, 1ll) == 0)
+            form->count = 1ULL;
+            if (keymath_core_push(arena, step, 1LL) == 0)
             {
                 return keymath_core_error(encoding, KEYMATH_CORE_FULL, step);
             }

@@ -273,7 +273,7 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
             const int immediate = (settings[1] == KHW_OFFSET_WORD);
             place = KHW_PLACE_NONE;
             type = KHW_KIND_REGISTER;
-            if (immediate && (form->frame == FRAME_NUMBER) && both && (answer[0] == 0ull) &&
+            if (immediate && (form->frame == FRAME_NUMBER) && both && (answer[0] == 0ULL) &&
                 (answer[1] == KHW_OFFSET_WORD))
             {
                 place = frame_place_number(form->frame);

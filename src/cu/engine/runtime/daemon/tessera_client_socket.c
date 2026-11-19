@@ -68,7 +68,7 @@ static int tessera_daemon_owns_lock(const unsigned char device[TESSERA_DEVICE_BY
     }
     VerbaLinea line = {lock_path, ENGINE_PATH_CAPACITY, strlen(lock_path)};
     mmgr_line_put(&line, s_client_lock);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return 0;
     }
@@ -88,20 +88,20 @@ int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobSubmit *sub
     _Alignas(8) char device_text[TESSERA_ARGUMENT_CAPACITY];
     _Alignas(8) char luid_text[TESSERA_ARGUMENT_CAPACITY];
     _Alignas(8) char idle_text[TESSERA_ARGUMENT_CAPACITY];
-    VerbaLinea device_line = {device_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
-    VerbaLinea luid_line = {luid_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
-    VerbaLinea idle_line = {idle_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
+    VerbaLinea device_line = {device_text, TESSERA_ARGUMENT_CAPACITY, 0ULL};
+    VerbaLinea luid_line = {luid_text, TESSERA_ARGUMENT_CAPACITY, 0ULL};
+    VerbaLinea idle_line = {idle_text, TESSERA_ARGUMENT_CAPACITY, 0ULL};
     tessera_bytes_hex(&device_line, submit->device, TESSERA_DEVICE_BYTES);
     mmgr_line_hex(&luid_line, submit->luid, 16u);
     mmgr_line_decimal(&idle_line, submit->idle_microseconds, 1u);
-    if ((mmgr_line_finish(&device_line) == 0ull) || (mmgr_line_finish(&luid_line) == 0ull) ||
-        (mmgr_line_finish(&idle_line) == 0ull))
+    if ((mmgr_line_finish(&device_line) == 0ULL) || (mmgr_line_finish(&luid_line) == 0ULL) ||
+        (mmgr_line_finish(&idle_line) == 0ULL))
     {
         return 0;
     }
 #if defined(_WIN32)
     _Alignas(8) char command[ENGINE_PATH_CAPACITY];
-    VerbaLinea line = {command, ENGINE_PATH_CAPACITY, 0ull};
+    VerbaLinea line = {command, ENGINE_PATH_CAPACITY, 0ULL};
     mmgr_line_put(&line, s_client_quote);
     tessera_text_staged(&line, submit->daemon_path);
     mmgr_line_put(&line, s_client_device);
@@ -110,7 +110,7 @@ int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobSubmit *sub
     mmgr_line_put(&line, luid_text);
     mmgr_line_put(&line, s_client_idle);
     mmgr_line_put(&line, idle_text);
-    if (mmgr_line_finish(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ULL)
     {
         return 0;
     }
@@ -251,18 +251,18 @@ unsigned long long tessera_client_now(void)
     const unsigned long long ticks = (unsigned long long)counter.QuadPart;
     // a performance counter and its frequency are positive
     const unsigned long long rate = (unsigned long long)frequency.QuadPart;
-    return ((ticks / rate) * 1000000ull) + (((ticks % rate) * 1000000ull) / rate);
+    return ((ticks / rate) * 1000000ULL) + (((ticks % rate) * 1000000ULL) / rate);
 #else
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * 1000000ull) + ((unsigned long long)now.tv_nsec / 1000ull);
+    return ((unsigned long long)now.tv_sec * 1000000ULL) + ((unsigned long long)now.tv_nsec / 1000ULL);
 #endif
 }
 
 int tessera_readable(TesseraClient *client, unsigned long long deadline)
 {
-    if (deadline == 0ull)
+    if (deadline == 0ULL)
     {
         return 1;
     }
@@ -290,10 +290,10 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
         {
             return 0;
         }
-        const unsigned long long left = ((deadline - now) + 999ull) / 1000ull;
+        const unsigned long long left = ((deadline - now) + 999ULL) / 1000ULL;
         struct pollfd watched = {client->socket_descriptor, POLLIN, 0};
         // the milliseconds left are bounded below 2^31 here, and narrow to int exactly
-        const int ready = poll(&watched, 1u, (int)((left < 0x7FFFFFFFull) ? left : 0x7FFFFFFFull));
+        const int ready = poll(&watched, 1u, (int)((left < 0x7FFFFFFFULL) ? left : 0x7FFFFFFFULL));
         if ((ready < 0) && (errno == EINTR))
         {
             continue;

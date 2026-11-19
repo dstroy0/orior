@@ -31,13 +31,13 @@ EMBED_INLINE int watch_number(const DebugWatchCtx *args)
     static const char s_mark[] = "Watchpoint ";
     const unsigned long long mark = sizeof(s_mark) - 1u;
     // each piece of the text between the marks, the first before any, read to its first colon
-    for (unsigned long long start = 0ull; start <= size;)
+    for (unsigned long long start = 0ULL; start <= size;)
     {
         unsigned long long end = start;
         while ((end + mark <= size) &&
                (memor.cmp(&(MemoriaCfg){.src = text + end, .other = s_mark, .bytes = mark}) != 0))
         {
-            end += 1ull;
+            end += 1ULL;
         }
         end = (end + mark <= size) ? end : size;
         unsigned long long colon = start;
@@ -48,21 +48,21 @@ EMBED_INLINE int watch_number(const DebugWatchCtx *args)
         while ((first < last) &&
                (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_POOL_BYTES, .byte = text[first]}) != NULL))
         {
-            first += 1ull;
+            first += 1ULL;
         }
         while ((last > first) && (cellul.chr(&(CatenaFinitaCfg){
-                                      .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = text[last - 1ull]}) != NULL))
+                                      .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = text[last - 1ULL]}) != NULL))
         {
-            last -= 1ull;
+            last -= 1ULL;
         }
-        unsigned long long value = 0ull;
-        int digits = (last > first) && (last - first <= 10ull);
-        for (unsigned long long at = first; digits && (at < last); at += 1ull)
+        unsigned long long value = 0ULL;
+        int digits = (last > first) && (last - first <= 10ULL);
+        for (unsigned long long at = first; digits && (at < last); at += 1ULL)
         {
             digits = (text[at] >= '0') && (text[at] <= '9');
-            value = (value * 10ull) + (unsigned long long)(text[at] - '0');
+            value = (value * 10ULL) + (unsigned long long)(text[at] - '0');
         }
-        if (digits && (value <= 0xffffffffull))
+        if (digits && (value <= 0xffffffffULL))
         {
             *number = (unsigned int)value;
             return 1;
@@ -95,14 +95,14 @@ EMBED_INLINE int watch_by_lldb(const DebugWatchCtx *args)
         address += 2;
     }
     char command[CLI_NAME_MAX_LEN * 2u];
-    VerbaLinea line = {command, sizeof(command), 0ull};
+    VerbaLinea line = {command, sizeof(command), 0ULL};
     mmgr_line_put(&line, "watchpoint set expression -w write -s ");
     mmgr_line_put(&line, slash + 1);
     mmgr_line_put(&line, " -- 0x");
     mmgr_line_put_n(&line, address, (unsigned long long)(slash - address));
     mmgr_line_finish(&line);
     char answer_buf[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea answer = {answer_buf, sizeof(answer_buf), 0ull};
+    VerbaLinea answer = {answer_buf, sizeof(answer_buf), 0ULL};
     unsigned int number = 0u;
     if (!EMBED_CALL(cli_debug_session_err_msg_internal.lldb_script, CliDebugSessionErrMsgCtx, .session = session,
                     .err_msg = err_msg) ||
@@ -113,26 +113,26 @@ EMBED_INLINE int watch_by_lldb(const DebugWatchCtx *args)
     }
     if (!EMBED_CALL(watch_number, DebugWatchCtx, .text = answer.out, .size = answer.at, .number = &number))
     {
-        unsigned long long start = 0ull;
+        unsigned long long start = 0ULL;
         unsigned long long end = answer.at;
         while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
                                      .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = answer.out[start]}) != NULL))
         {
-            start += 1ull;
+            start += 1ULL;
         }
         while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = answer.out[end - 1ull]}) != NULL))
+                                     .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = answer.out[end - 1ULL]}) != NULL))
         {
-            end -= 1ull;
+            end -= 1ULL;
         }
         mmgr_line_put_n(err_msg, answer.out + start, end - start);
         return 0;
     }
-    line.at = 0ull;
+    line.at = 0ULL;
     mmgr_line_put(&line, "watchpoint command add -F orior_lldb.changed ");
     mmgr_line_decimal(&line, number, 1u);
     mmgr_line_finish(&line);
-    answer.at = 0ull;
+    answer.at = 0ULL;
     if (!EMBED_CALL(cli_debug_session_err_msg_internal.lldb_command, CliDebugSessionErrMsgCtx, .session = session,
                     .text = command, .out = &answer, .err_msg = err_msg))
     {

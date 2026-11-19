@@ -120,7 +120,7 @@ std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const st
     std::stable_sort(found_links.begin(), found_links.end(),
                      [](const FoundLink &left, const FoundLink &right) { return left.vector < right.vector; });
     const unsigned long long drawn_hash = record_hash(drawn_for.c_str(), drawn_for.size(), seed);
-    std::seed_seq drawn_seed{(unsigned int)(drawn_hash & 0xffffffffull), (unsigned int)(drawn_hash >> 32u),
+    std::seed_seq drawn_seed{(unsigned int)(drawn_hash & 0xffffffffULL), (unsigned int)(drawn_hash >> 32u),
                              (unsigned int)seed};
     std::mt19937 drawn(drawn_seed);
     for (size_t first = 0u; first < found_links.size();)
@@ -284,8 +284,8 @@ std::string pair_verdicts_joined(const std::string &one_way, const std::string &
     {
         return other_way;
     }
-    const unsigned long one = (one_way.rfind("open ", 0u) == 0u) ? std::stoul(one_way.substr(5u)) : 0ul;
-    const unsigned long other = (other_way.rfind("open ", 0u) == 0u) ? std::stoul(other_way.substr(5u)) : 0ul;
+    const unsigned long one = (one_way.rfind("open ", 0u) == 0u) ? std::stoul(one_way.substr(5u)) : 0UL;
+    const unsigned long other = (other_way.rfind("open ", 0u) == 0u) ? std::stoul(other_way.substr(5u)) : 0UL;
     return "open " + std::to_string(one + other);
 }
 
@@ -305,13 +305,13 @@ void pair_row_passed(const std::string &first, const std::string &second, int re
     const int closed = (verdict.rfind("closed ", 0u) == 0u);
     const int open = (verdict.rfind("open ", 0u) == 0u);
     const std::string closing = closed ? verdict.substr(7u) : std::string();
-    unsigned long long row[2u + 8] = {0ull, 0ull, table_text(first.c_str(), first.size()),
+    unsigned long long row[2u + 8] = {0ULL, 0ULL, table_text(first.c_str(), first.size()),
                                        table_text(second.c_str(), second.size()),
-                                       closed ? 1ull : 0ull,
-                                       open ? strtoull(verdict.c_str() + 5, NULL, 10) : 0ull,
+                                       closed ? 1ULL : 0ULL,
+                                       open ? strtoull(verdict.c_str() + 5, NULL, 10) : 0ULL,
                                        table_text(closing.c_str(), closing.size()),
-                                       read ? 1ull : 0ull,
-                                       read ? reads : 0ull,
+                                       read ? 1ULL : 0ULL,
+                                       read ? reads : 0ULL,
                                        table_text(verdict.c_str(), verdict.size())};
     who_words(WHO_HERE, row);
     qry_member_append("pairs", row, sizeof(row), QRY_ORDINARY);

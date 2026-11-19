@@ -403,7 +403,7 @@ void query_leaf_show(const QueryPathTreeCtx *args)
             g_cli_guard->persistent_buf_release(diff.change, g_query_owner);
             g_cli_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
             g_cli_guard->persistent_buf_release(diff.change_length, g_query_owner);
-            memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(*(&diff))});
+            memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(diff)});
             return;
         }
         g_cli_guard->persistent_buf_release((void *)diff.before, g_query_owner);
@@ -415,7 +415,7 @@ void query_leaf_show(const QueryPathTreeCtx *args)
         g_cli_guard->persistent_buf_release(diff.change, g_query_owner);
         g_cli_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
         g_cli_guard->persistent_buf_release(diff.change_length, g_query_owner);
-        memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(*(&diff))});
+        memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(diff)});
     }
     mmgr_line_put(args->displayed, name);
     if (args->stored_size > args->tree_size)

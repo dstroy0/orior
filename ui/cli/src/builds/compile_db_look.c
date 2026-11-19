@@ -61,7 +61,7 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
             named = 1;
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_compile_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_compile_owner);
     return named;
 }
 
@@ -134,7 +134,7 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args)
         (void)EMBED_CALL(cli_input_append, CompileDbLookCtx, .inputs = args->inputs, .path = found.path[at]);
     }
     g_cli_guard->persistent_buf_release(found.path, g_cli_compile_owner);
-    *(&found) = (CliFoundFolders){NULL, 0u, 0u};
+    found = (CliFoundFolders){NULL, 0u, 0u};
     // sorted by path, then time
     for (unsigned int at = 1u; (args->inputs->file != NULL) && (at < args->inputs->count); at += 1u)
     {
@@ -230,7 +230,7 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
     if (same && EMBED_CALL(cli_same_inputs, CompileDbLookCtx, .other = &read_state))
     {
         g_cli_guard->persistent_buf_release(read_state.file, g_cli_compile_owner);
-        *(&read_state) = (CliInputs){0, NULL, 0u, 0u};
+        read_state = (CliInputs){0, NULL, 0u, 0u};
         s_cache.at = cli_clock_milliseconds();
         *database = s_cache.database;
         return 0;

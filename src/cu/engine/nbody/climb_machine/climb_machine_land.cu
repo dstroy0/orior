@@ -45,11 +45,11 @@ __global__ void machine_land_mass_kernel(const unsigned int *climber_side, const
                     const long long y = (long long)(rest / geometry.width) + (long long)lag_y;
                     const long long base_x = (long long)(rest % geometry.width) + (long long)lag_x;
                     const int inside =
-                        (z >= 0ll) && (z < (long long)geometry.depth) && (y >= 0ll) && (y < (long long)geometry.height);
+                        (z >= 0LL) && (z < (long long)geometry.depth) && (y >= 0LL) && (y < (long long)geometry.height);
                     for (unsigned int step = 0u; (inside != 0) && (step < length); step += 1u)
                     {
                         const long long x = base_x + (long long)step;
-                        if ((x < 0ll) || (x >= (long long)geometry.width))
+                        if ((x < 0LL) || (x >= (long long)geometry.width))
                         {
                             continue;
                         }
@@ -95,7 +95,7 @@ __global__ void machine_land_kernel(const unsigned int *climber_side, const unsi
     const long long z = (long long)(peak / plane) + (long long)center[0];
     const long long y = (long long)(rest / geometry.width) + (long long)center[1];
     const long long x = (long long)(rest % geometry.width) + (long long)center[2];
-    if ((z < 0ll) || (z >= (long long)geometry.depth) || (y < 0ll) || (y >= (long long)geometry.height) || (x < 0ll) ||
+    if ((z < 0LL) || (z >= (long long)geometry.depth) || (y < 0LL) || (y >= (long long)geometry.height) || (x < 0LL) ||
         (x >= (long long)geometry.width))
     {
         landed[climber] = CLIMB_MACHINE_OUTSIDE;
@@ -107,9 +107,9 @@ __global__ void machine_land_kernel(const unsigned int *climber_side, const unsi
     const unsigned long long rows = (unsigned long long)geometry.depth * geometry.height;
     const unsigned long long row = voxel / geometry.width;
     const unsigned long long base = other * (unsigned long long)run_capacity;
-    const unsigned long long offsets = other * (rows + 1ull);
+    const unsigned long long offsets = other * (rows + 1ULL);
     const unsigned int first = row_first[offsets + row];
-    const unsigned int end = row_first[offsets + row + 1ull];
+    const unsigned int end = row_first[offsets + row + 1ULL];
     const unsigned int empty = (unsigned int)(end <= first);
     unsigned int low = (empty != 0u) ? 0u : first;
     unsigned int high = (empty != 0u) ? 1u : end;
@@ -155,7 +155,7 @@ __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, Mac
     const unsigned long long other_word = other * geometry.words;
     const unsigned long long rows = (unsigned long long)geometry.depth * geometry.height;
     const unsigned long long base = other * (unsigned long long)run_capacity;
-    const unsigned long long offsets = other * (rows + 1ull);
+    const unsigned long long offsets = other * (rows + 1ULL);
     const unsigned int plane = geometry.height * geometry.width;
     unsigned int targets[CLIMB_MACHINE_BOX_TARGETS];
     unsigned int counts[CLIMB_MACHINE_BOX_TARGETS];
@@ -173,10 +173,10 @@ __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, Mac
             const long long z = (long long)(start / plane) + shift_z;
             const long long y = (long long)(rest / geometry.width) + shift_y;
             const long long x = (long long)(rest % geometry.width) + shift_x;
-            const long long first = (x < 0ll) ? -x : 0ll;
+            const long long first = (x < 0LL) ? -x : 0LL;
             const long long width_left = (long long)geometry.width - x;
             const long long end = (width_left < length) ? width_left : length;
-            if ((z < 0ll) || (z >= (long long)geometry.depth) || (y < 0ll) || (y >= (long long)geometry.height) ||
+            if ((z < 0LL) || (z >= (long long)geometry.depth) || (y < 0LL) || (y >= (long long)geometry.height) ||
                 (first >= end))
             {
                 continue;
@@ -188,7 +188,7 @@ __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, Mac
                                       (unsigned long long)start + (unsigned long long)first, other_word,
                                       (unsigned long long)from, (unsigned int)(end - first));
             const unsigned int row_start = row_first[offsets + row];
-            const unsigned int row_end = row_first[offsets + row + 1ull];
+            const unsigned int row_end = row_first[offsets + row + 1ULL];
             for (unsigned int place = row_start; place < row_end; place += 1u)
             {
                 const unsigned int at = run_at_row[base + place];

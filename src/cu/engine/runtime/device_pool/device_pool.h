@@ -14,11 +14,11 @@ extern "C"
 
 // every slice starts on 256 bytes, the alignment cudaMalloc gives its own allocations. Any kernel or cub workspace
 // reads a slice as it would read an allocation of its own
-#define DEVICE_POOL_SLICE_ALIGN 256ull
+#define DEVICE_POOL_SLICE_ALIGN 256ULL
 
 // the device's allocation page: the driver maps allocations in whole pages, small ones sharing a page. A pool is one
 // allocation, rounded to the page once
-#define DEVICE_POOL_PAGE_BYTES (2ull << 20u)
+#define DEVICE_POOL_PAGE_BYTES (2ULL << 20u)
 
     // A job's device buffers as one allocation. A plan arranges each buffer as a slice whose offset is the running
     // total rounded up to DEVICE_POOL_SLICE_ALIGN. The pool's size is known before any device work: the slices' sum,

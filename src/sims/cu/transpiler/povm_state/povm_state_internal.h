@@ -19,7 +19,7 @@
 
 #define POVM_AXES 3u
 
-#define POVM_GRID 12ll
+#define POVM_GRID 12LL
 
 #define POVM_STATES_MAX 32u
 

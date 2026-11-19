@@ -29,25 +29,25 @@ int main(int count, char **arguments)
 
     SimScene scene;
     memset(&scene, 0, sizeof(scene));
-    scene.frames = 1ull;
+    scene.frames = 1ULL;
     scene.extent[0] = MATCH_SIDE;
     scene.extent[1] = MATCH_SIDE;
     scene.extent[2] = MATCH_SIDE;
-    scene.background = 200ull;
-    scene.ramp = 1ull;
+    scene.background = 200ULL;
+    scene.ramp = 1ULL;
     scene.bodies = MATCH_FOUNDERS;
     SimBody body[MATCH_FOUNDERS];
     SimCamera camera;
     memset(&camera, 0, sizeof(camera));
     camera.key = MATCH_KEY;
-    camera.offset = 100ull;
-    camera.gain = 1ull;
-    camera.read_square = 3ull;
-    camera.pattern_range = 8ull;
-    camera.shot = 1ull;
+    camera.offset = 100ULL;
+    camera.gain = 1ULL;
+    camera.read_square = 3ULL;
+    camera.pattern_range = 8ULL;
+    camera.shot = 1ULL;
     SimDraws draws;
     draws.key = MATCH_KEY ^ MATCH_FOUNDER_PURPOSE;
-    draws.counter = 0ull;
+    draws.counter = 0ULL;
     sim_founders_draw(&draws, &scene, body, MATCH_FOUNDERS);
     scene.body = body;
 
@@ -60,10 +60,10 @@ int main(int count, char **arguments)
     ok = ok &&
          sim_status_check(&results, cudaMalloc((void **)&device_lanes, (size_t)MATCH_SAMPLES * sizeof(unsigned short)),
                           "device frame");
-    unsigned long long clipped = 0ull;
+    unsigned long long clipped = 0ULL;
     ok = ok && sim_render(&results, &scene, &camera, device_lanes, NULL, NULL, &clipped);
-    sim_check(&results, ok && (clipped == 0ull), "the frame renders with nothing clipped");
-    ok = ok && (clipped == 0ull) &&
+    sim_check(&results, ok && (clipped == 0ULL), "the frame renders with nothing clipped");
+    ok = ok && (clipped == 0ULL) &&
          sim_status_check(
              &results,
              cudaMemcpy(lanes, device_lanes, (size_t)MATCH_SAMPLES * sizeof(unsigned short), cudaMemcpyDeviceToHost),
@@ -71,13 +71,13 @@ int main(int count, char **arguments)
 
     // floor 2 from the engine, checked against the host's own lifting at every coefficient
     ok = ok && match_floor_engine(&results, device_lanes, crystal, corner, floor_values);
-    unsigned long long equal = 0ull;
+    unsigned long long equal = 0ULL;
     if (ok)
     {
         match_floor_host(lanes, work, before, floor_host);
-        for (unsigned long long at = 0ull; at < MATCH_FLOOR_VALUES; at += 1ull)
+        for (unsigned long long at = 0ULL; at < MATCH_FLOOR_VALUES; at += 1ULL)
         {
-            equal += (floor_host[at] == (long long)floor_values[at]) ? 1ull : 0ull;
+            equal += (floor_host[at] == (long long)floor_values[at]) ? 1ULL : 0ULL;
         }
     }
     sim_check(&results, ok && (equal == MATCH_FLOOR_VALUES),
@@ -108,8 +108,8 @@ int main(int count, char **arguments)
                                          cudaMemcpyDeviceToHost),
                               "planes read");
     }
-    unsigned long long bits_matched = 0ull;
-    for (unsigned long long at = 0ull; ok && (at < MATCH_FLOOR_VALUES); at += 1ull)
+    unsigned long long bits_matched = 0ULL;
+    for (unsigned long long at = 0ULL; ok && (at < MATCH_FLOOR_VALUES); at += 1ULL)
     {
         present[floor_values[at]] = 1u;
         for (unsigned int bit = 0u; bit < MATCH_BITS; bit += 1u)
@@ -117,15 +117,15 @@ int main(int count, char **arguments)
             const unsigned int plane_bit =
                 (planes[((unsigned long long)bit * MATCH_WORDS) + (at / MATCH_WORD_BITS)] >> (at % MATCH_WORD_BITS)) &
                 1u;
-            bits_matched += (plane_bit == ((floor_values[at] >> bit) & 1u)) ? 1ull : 0ull;
+            bits_matched += (plane_bit == ((floor_values[at] >> bit) & 1u)) ? 1ULL : 0ULL;
         }
     }
     sim_check(&results, ok && (bits_matched == (MATCH_FLOOR_VALUES * MATCH_BITS)),
               "the 16 planes contain every bit of every floor-2 value");
 
     // the queries: values drawn at keyed positions of floor 2, then values drawn over the lane that floor 2 lacks
-    unsigned long long distinct = 0ull;
-    for (unsigned long long value = 0ull; value < MATCH_VALUES_MAX; value += 1ull)
+    unsigned long long distinct = 0ULL;
+    for (unsigned long long value = 0ULL; value < MATCH_VALUES_MAX; value += 1ULL)
     {
         distinct += present[value];
     }
@@ -134,7 +134,7 @@ int main(int count, char **arguments)
         // the drawn position is below floor 2's count
         queries[query] = floor_values[sim_draw_below(MATCH_KEY ^ MATCH_PRESENT_PURPOSE, query, MATCH_FLOOR_VALUES)];
     }
-    unsigned long long absent_counter = 0ull;
+    unsigned long long absent_counter = 0ULL;
     for (unsigned int query = 0u; ok && (query < MATCH_QUERIES_EACH); query += 1u)
     {
         unsigned int value = 0u;
@@ -142,7 +142,7 @@ int main(int count, char **arguments)
         {
             // the draw is below the lane's 2^16 values
             value = (unsigned int)sim_draw_below(MATCH_KEY ^ MATCH_ABSENT_PURPOSE, absent_counter, MATCH_VALUES_MAX);
-            absent_counter += 1ull;
+            absent_counter += 1ULL;
         } while (present[value] != 0u);
         queries[MATCH_QUERIES_EACH + query] = value;
     }
@@ -187,7 +187,7 @@ int main(int count, char **arguments)
     {
         MatchSide *const side = &sides[query / MATCH_QUERIES_EACH];
         memset(expected, 0, (size_t)MATCH_WORDS * sizeof(unsigned int));
-        for (unsigned long long at = 0ull; at < MATCH_FLOOR_VALUES; at += 1ull)
+        for (unsigned long long at = 0ULL; at < MATCH_FLOOR_VALUES; at += 1ULL)
         {
             if ((unsigned int)floor_values[at] == queries[query])
             {
@@ -195,9 +195,9 @@ int main(int count, char **arguments)
             }
         }
         int same = 1;
-        unsigned long long found = 0ull;
-        unsigned long long taken = 0ull;
-        for (unsigned long long word = 0ull; word < MATCH_WORDS; word += 1ull)
+        unsigned long long found = 0ULL;
+        unsigned long long taken = 0ULL;
+        for (unsigned long long word = 0ULL; word < MATCH_WORDS; word += 1ULL)
         {
             const unsigned int got = matches[((unsigned long long)query * MATCH_WORDS) + word];
             same = same && (got == expected[word]);
@@ -214,14 +214,14 @@ int main(int count, char **arguments)
                 first_query_cell = (word * MATCH_WORD_BITS) + low;
             }
         }
-        side->matched += (same != 0) ? 1ull : 0ull;
+        side->matched += (same != 0) ? 1ULL : 0ULL;
         side->found += found;
         side->found_max = (found > side->found_max) ? found : side->found_max;
         side->total += taken;
         side->max = (taken > side->max) ? taken : side->max;
     }
 
-    const unsigned long long half = MATCH_SAMPLES / 2ull;
+    const unsigned long long half = MATCH_SAMPLES / 2ULL;
     const unsigned long long full = MATCH_BITS * MATCH_WORDS;
     VerbaLinea *const line = &results.line;
     mmgr_line_put(line, "  a: one 64^3 camera frame, n = ");
@@ -259,16 +259,16 @@ int main(int count, char **arguments)
         mmgr_line_put(line, ", ");
         mmgr_line_decimal(line, x, 1u);
         mmgr_line_put(line, "), centerd on a's (");
-        mmgr_line_decimal(line, 4ull * z, 1u);
+        mmgr_line_decimal(line, 4ULL * z, 1u);
         mmgr_line_put(line, ", ");
-        mmgr_line_decimal(line, 4ull * y, 1u);
+        mmgr_line_decimal(line, 4ULL * y, 1u);
         mmgr_line_put(line, ", ");
-        mmgr_line_decimal(line, 4ull * x, 1u);
+        mmgr_line_decimal(line, 4ULL * x, 1u);
         mmgr_line_put(line, ")\n");
     }
     sim_check(&results, ok && (sides[0].matched == MATCH_QUERIES_EACH),
               "every value on floor 2 is found at exactly the positions the host's scan finds");
-    sim_check(&results, ok && (sides[1].matched == MATCH_QUERIES_EACH) && (sides[1].found == 0ull),
+    sim_check(&results, ok && (sides[1].matched == MATCH_QUERIES_EACH) && (sides[1].found == 0ULL),
               "every value not on floor 2 is found nowhere");
     // the query kernel stops at the 16th plane. The reads are valid by construction; the check records that the bound,
     // 16 m / 32 plane words, sits below n / 2

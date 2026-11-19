@@ -8,9 +8,9 @@ static GoodsteinBlock goodstein_term(const GoodsteinNotation &exponent, unsigned
     GoodsteinBlock block;
     block.exponent = exponent;
     block.coefficient = coefficient;
-    block.origin = 0ull;
-    block.low = 0ull;
-    block.high = 0ull;
+    block.origin = 0ULL;
+    block.low = 0ULL;
+    block.high = 0ULL;
     return block;
 }
 
@@ -18,17 +18,17 @@ static GoodsteinBlock goodstein_term(const GoodsteinNotation &exponent, unsigned
 GoodsteinNotation goodstein_of(unsigned long long value, unsigned long long base)
 {
     GoodsteinNotation form;
-    unsigned long long position = 0ull;
+    unsigned long long position = 0ULL;
     unsigned long long rest = value;
-    while (rest != 0ull)
+    while (rest != 0ULL)
     {
         const unsigned long long digit = rest % base;
-        if (digit != 0ull)
+        if (digit != 0ULL)
         {
             form.blocks.push_back(goodstein_term(goodstein_of(position, base), digit));
         }
         rest /= base;
-        position += 1ull;
+        position += 1ULL;
     }
     std::reverse(form.blocks.begin(), form.blocks.end());
     return form;
@@ -38,11 +38,11 @@ GoodsteinNotation goodstein_of(unsigned long long value, unsigned long long base
 GoodsteinNotation goodstein_tower(unsigned int height)
 {
     GoodsteinNotation form;
-    form.blocks.push_back(goodstein_term(GoodsteinNotation(), 1ull));
+    form.blocks.push_back(goodstein_term(GoodsteinNotation(), 1ULL));
     for (unsigned int level = 0u; level < height; level += 1u)
     {
         GoodsteinNotation next;
-        next.blocks.push_back(goodstein_term(form, 1ull));
+        next.blocks.push_back(goodstein_term(form, 1ULL));
         form = next;
     }
     return form;
@@ -59,14 +59,14 @@ static void goodstein_cursor_enter(GoodsteinCursor *cursor)
 static void goodstein_cursor_next(GoodsteinCursor *cursor)
 {
     const GoodsteinBlock &block = cursor->form->blocks[cursor->block];
-    if ((block.origin == 0ull) || (cursor->high == block.low))
+    if ((block.origin == 0ULL) || (cursor->high == block.low))
     {
         cursor->block += 1u;
         goodstein_cursor_enter(cursor);
     }
     else
     {
-        cursor->high -= 1ull;
+        cursor->high -= 1ULL;
     }
 }
 
@@ -75,8 +75,8 @@ static void goodstein_cursor_next(GoodsteinCursor *cursor)
 // term for term down to the higher of their lows, and are passed in one move.
 int goodstein_compare(const GoodsteinNotation &left, const GoodsteinNotation &right, GoodsteinBudget *budget)
 {
-    GoodsteinCursor one = {&left, 0u, 0ull};
-    GoodsteinCursor other = {&right, 0u, 0ull};
+    GoodsteinCursor one = {&left, 0u, 0ULL};
+    GoodsteinCursor other = {&right, 0u, 0ULL};
     goodstein_cursor_enter(&one);
     goodstein_cursor_enter(&other);
     for (;;)
@@ -87,15 +87,15 @@ int goodstein_compare(const GoodsteinNotation &left, const GoodsteinNotation &ri
         {
             return (one_done == other_done) ? 0 : ((one_done != 0) ? -1 : 1);
         }
-        if (budget->terms == 0ull)
+        if (budget->terms == 0ULL)
         {
             budget->exhausted = 1;
             return 0;
         }
-        budget->terms -= 1ull;
+        budget->terms -= 1ULL;
         const GoodsteinBlock &one_block = left.blocks[one.block];
         const GoodsteinBlock &other_block = right.blocks[other.block];
-        if ((one_block.origin != 0ull) && (one_block.origin == other_block.origin) && (one.high == other.high) &&
+        if ((one_block.origin != 0ULL) && (one_block.origin == other_block.origin) && (one.high == other.high) &&
             (one_block.coefficient == other_block.coefficient))
         {
             const unsigned long long floor = std::max(one_block.low, other_block.low);
@@ -106,7 +106,7 @@ int goodstein_compare(const GoodsteinNotation &left, const GoodsteinNotation &ri
             }
             else
             {
-                one.high = floor - 1ull;
+                one.high = floor - 1ULL;
             }
             if (other_block.low == floor)
             {
@@ -115,22 +115,22 @@ int goodstein_compare(const GoodsteinNotation &left, const GoodsteinNotation &ri
             }
             else
             {
-                other.high = floor - 1ull;
+                other.high = floor - 1ULL;
             }
             continue;
         }
         GoodsteinNotation one_tree;
         GoodsteinNotation other_tree;
-        if (one_block.origin != 0ull)
+        if (one_block.origin != 0ULL)
         {
             one_tree = goodstein_of(one.high, one_block.origin);
         }
-        if (other_block.origin != 0ull)
+        if (other_block.origin != 0ULL)
         {
             other_tree = goodstein_of(other.high, other_block.origin);
         }
-        const int top = goodstein_compare((one_block.origin == 0ull) ? one_block.exponent : one_tree,
-                                          (other_block.origin == 0ull) ? other_block.exponent : other_tree, budget);
+        const int top = goodstein_compare((one_block.origin == 0ULL) ? one_block.exponent : one_tree,
+                                          (other_block.origin == 0ULL) ? other_block.exponent : other_tree, budget);
         if (budget->exhausted != 0)
         {
             return 0;
@@ -151,10 +151,10 @@ int goodstein_compare(const GoodsteinNotation &left, const GoodsteinNotation &ri
 // base^exponent, 0 where it leaves 64 bits
 int goodstein_power(unsigned long long base, unsigned long long exponent, unsigned long long *out)
 {
-    unsigned long long result = 1ull;
-    for (unsigned long long done = 0ull; done < exponent; done += 1ull)
+    unsigned long long result = 1ULL;
+    for (unsigned long long done = 0ULL; done < exponent; done += 1ULL)
     {
-        if (result > (~0ull / base))
+        if (result > (~0ULL / base))
         {
             return 0;
         }
@@ -168,13 +168,13 @@ int goodstein_power(unsigned long long base, unsigned long long exponent, unsign
 int goodstein_add_term(unsigned long long *total, unsigned long long coefficient, unsigned long long base,
                        unsigned long long exponent)
 {
-    unsigned long long power = 0ull;
-    if ((goodstein_power(base, exponent, &power) == 0) || (power > (~0ull / coefficient)))
+    unsigned long long power = 0ULL;
+    if ((goodstein_power(base, exponent, &power) == 0) || (power > (~0ULL / coefficient)))
     {
         return 0;
     }
     const unsigned long long term = power * coefficient;
-    if (term > (~0ull - *total))
+    if (term > (~0ULL - *total))
     {
         return 0;
     }
@@ -186,12 +186,12 @@ int goodstein_add_term(unsigned long long *total, unsigned long long coefficient
 // origin. A run reaching 64 overflows on its first term.
 int goodstein_value(const GoodsteinNotation &form, unsigned long long base, unsigned long long *out)
 {
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     for (const GoodsteinBlock &block : form.blocks)
     {
-        if (block.origin == 0ull)
+        if (block.origin == 0ULL)
         {
-            unsigned long long exponent = 0ull;
+            unsigned long long exponent = 0ULL;
             if ((goodstein_value(block.exponent, base, &exponent) == 0) ||
                 (goodstein_add_term(&total, block.coefficient, base, exponent) == 0))
             {
@@ -199,9 +199,9 @@ int goodstein_value(const GoodsteinNotation &form, unsigned long long base, unsi
             }
             continue;
         }
-        for (unsigned long long k = block.high;; k -= 1ull)
+        for (unsigned long long k = block.high;; k -= 1ULL)
         {
-            unsigned long long exponent = 0ull;
+            unsigned long long exponent = 0ULL;
             if ((goodstein_value(goodstein_of(k, block.origin), base, &exponent) == 0) ||
                 (goodstein_add_term(&total, block.coefficient, base, exponent) == 0))
             {
@@ -223,7 +223,7 @@ int goodstein_decrement(GoodsteinNotation &form, unsigned long long base)
 {
     const GoodsteinBlock lowest = form.blocks.back();
     GoodsteinNotation exponent;
-    if (lowest.origin == 0ull)
+    if (lowest.origin == 0ULL)
     {
         exponent = lowest.exponent;
         form.blocks.pop_back();
@@ -237,25 +237,25 @@ int goodstein_decrement(GoodsteinNotation &form, unsigned long long base)
         }
         else
         {
-            form.blocks.back().low += 1ull;
+            form.blocks.back().low += 1ULL;
         }
     }
-    if (lowest.coefficient > 1ull)
+    if (lowest.coefficient > 1ULL)
     {
-        form.blocks.push_back(goodstein_term(exponent, lowest.coefficient - 1ull));
+        form.blocks.push_back(goodstein_term(exponent, lowest.coefficient - 1ULL));
     }
     if (!exponent.blocks.empty())
     {
-        unsigned long long range = 0ull;
+        unsigned long long range = 0ULL;
         if (goodstein_value(exponent, base, &range) == 0)
         {
             return 0;
         }
         GoodsteinBlock run;
-        run.coefficient = base - 1ull;
+        run.coefficient = base - 1ULL;
         run.origin = base;
-        run.low = 0ull;
-        run.high = range - 1ull;
+        run.low = 0ULL;
+        run.high = range - 1ULL;
         form.blocks.push_back(run);
     }
     return 1;

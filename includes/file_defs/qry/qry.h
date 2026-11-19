@@ -36,8 +36,8 @@ _Static_assert(sizeof(QryRecord) == 24u, "QryRecord must be the 24 bytes a recor
 // blob to a whole word, and the CRC
 #define QRY_RECORD_BYTES(name_length_, blob_length_)                                                                   \
     ((((unsigned long long)sizeof(QryRecord) + (unsigned long long)(name_length_) +                                    \
-       (unsigned long long)(blob_length_) + 7ull) &                                                                    \
-      ~7ull) +                                                                                                         \
-     8ull)
+       (unsigned long long)(blob_length_) + 7ULL) &                                                                    \
+      ~7ULL) +                                                                                                         \
+     8ULL)
 
 #endif

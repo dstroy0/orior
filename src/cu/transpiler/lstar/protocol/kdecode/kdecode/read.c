@@ -12,14 +12,14 @@
 KqrRecord s_record;
 KrepFile s_file;
 
-static char s_displayed_bytes[QRY_WRITER_RING_BYTES / 2ull];
-VerbaLinea s_displayed = {s_displayed_bytes, sizeof(s_displayed_bytes), 0ull};
+static char s_displayed_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+VerbaLinea s_displayed = {s_displayed_bytes, sizeof(s_displayed_bytes), 0ULL};
 
 // what s_displayed contains passed on and emptied: to the run as KDECODE_DISPLAYED where this process is a member of one, and
 // where it is a member of none, written to the standard error where `failure` is 1 and to the standard output where 0
 static void kdecode_displayed_given(int failure)
 {
-    if (mmgr_line_ok(&s_displayed) && (s_displayed.at != 0ull))
+    if (mmgr_line_ok(&s_displayed) && (s_displayed.at != 0ULL))
     {
         if (qry_member_run() != NULL)
         {
@@ -31,12 +31,12 @@ static void kdecode_displayed_given(int failure)
             fwrite(s_displayed.out, 1u, (size_t)s_displayed.at, (failure != 0) ? stderr : stdout);
         }
     }
-    s_displayed.at = 0ull;
+    s_displayed.at = 0ULL;
 }
 
 void kdecode_displayed_passed(int whole)
 {
-    if (!whole && (s_displayed.at < (s_displayed.capacity / 2ull)))
+    if (!whole && (s_displayed.at < (s_displayed.capacity / 2ULL)))
     {
         return;
     }
@@ -82,9 +82,9 @@ void kdecode_records(const KrepFile *file, int raw, unsigned int from, unsigned 
         }
         for (unsigned int place = 0u; !raw && (place < record->count); place += 1u)
         {
-            unsigned long long length = 0ull;
+            unsigned long long length = 0ULL;
             const char *const text = krep_text(file, record->word[place], &length);
-            if ((record->code != KREP_RECORD_WHO) && (text != NULL) && (record->word[place] != 0ull))
+            if ((record->code != KREP_RECORD_WHO) && (text != NULL) && (record->word[place] != 0ULL))
             {
                 mmgr_line_put(&s_displayed, " [");
                 mmgr_line_hex(&s_displayed, record->word[place], 0u);
@@ -120,7 +120,7 @@ static int kdecode_field(const char *line, unsigned int field, char *word, size_
         at += 1;
     }
     const size_t length = strcspn(at, "\t\r\n");
-    VerbaLinea copied = {word, room, 0ull};
+    VerbaLinea copied = {word, room, 0ULL};
     mmgr_line_put_max(&copied, at, (length < room) ? length : (room - 1u));
     mmgr_line_finish(&copied);
     return 1;
@@ -132,7 +132,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                                   int codes_only)
 {
     static char s_line[KDECODE_LINE];
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (line_read(bytes, size, &at, s_line, sizeof(s_line)))
     {
         char where[KDECODE_WORD];
@@ -155,7 +155,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
         if (!codes_only && (strncmp(where, "column ", 7u) == 0))
         {
             const char *place_at = where + 7;
-            unsigned long long place = 0ull;
+            unsigned long long place = 0ULL;
             line_number(&place_at, 0, &place);
             if (place < TABLE_ROW_COLUMNS)
             {
@@ -181,7 +181,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                 if ((named != NULL) && (start < named))
                 {
                     // the oracle's name, its stem and .oracle.tsv, is far shorter than its room
-                    VerbaLinea codes_from = {column->codes_from, sizeof(column->codes_from), 0ull};
+                    VerbaLinea codes_from = {column->codes_from, sizeof(column->codes_from), 0ULL};
                     mmgr_line_put_max(&codes_from, start,
                                        (unsigned long long)(named - start) + (sizeof(".oracle.tsv") - 1u));
                     mmgr_line_finish(&codes_from);
@@ -194,7 +194,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
         {
             // a family numbered past its name, `record 1`, is the family its name gives
             KdecodeCode *const one = &oracle->code[oracle->codes];
-            VerbaLinea family = {one->family, sizeof(one->family), 0ull};
+            VerbaLinea family = {one->family, sizeof(one->family), 0ULL};
             mmgr_line_put_max(&family, where, strcspn(where, " "));
             mmgr_line_finish(&family);
             (void)verba_finis.finish(
@@ -203,7 +203,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                                  .at = verba_textus.put_clip(&(VerbaTextusCfg){
                                      .out = one->name, .cap = sizeof(one->name), .at = 0u, .text = type})});
             const char *value_at = code;
-            one->value = 0ull;
+            one->value = 0ULL;
             line_number(&value_at, 1, &one->value);
             oracle->codes += 1u;
         }
@@ -247,11 +247,11 @@ int kdecode_family_given(const KdecodeOracle *oracle, const char *family)
 // the word at `place` of the `size` bytes at `bytes`, the low byte first, its bytes past `size` taken as zeros
 static unsigned long long kdecode_word(const unsigned char *bytes, unsigned long long size, unsigned long long place)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        const unsigned long long byte = (place * 8ull) + at;
-        word |= (byte < size) ? ((unsigned long long)bytes[byte] << (8u * at)) : 0ull;
+        const unsigned long long byte = (place * 8ULL) + at;
+        word |= (byte < size) ? ((unsigned long long)bytes[byte] << (8u * at)) : 0ULL;
     }
     return word;
 }
@@ -318,36 +318,36 @@ void kdecode_blob(void *context, const char *name, unsigned int name_length, uns
     {
         kdecode_content_stored(run, name, name_length, bytes, size);
     }
-    const unsigned long long words = (size + 7ull) / 8ull;
-    if (kdecode_name_is(name, name_length, TABLE_TEXTS) && (words >= 4ull) &&
-        (kdecode_word(bytes, size, 3ull) <= (size - 32ull)))
+    const unsigned long long words = (size + 7ULL) / 8ULL;
+    if (kdecode_name_is(name, name_length, TABLE_TEXTS) && (words >= 4ULL) &&
+        (kdecode_word(bytes, size, 3ULL) <= (size - 32ULL)))
     {
-        kdecode_text_stored(run, 0ull, kdecode_word(bytes, size, 2ull), bytes + 32u, kdecode_word(bytes, size, 3ull));
+        kdecode_text_stored(run, 0ULL, kdecode_word(bytes, size, 2ULL), bytes + 32u, kdecode_word(bytes, size, 3ULL));
     }
     if (!kdecode_name_is(name, name_length, run->table))
     {
         return;
     }
-    const unsigned long long change = (words >= 4ull) ? kdecode_word(bytes, size, 3ull) : ~0ull;
-    if ((change == KREP_ROW_HEAD) && (words >= 5ull) && (run->files < KDECODE_FILES_MAX))
+    const unsigned long long change = (words >= 4ULL) ? kdecode_word(bytes, size, 3ULL) : ~0ULL;
+    if ((change == KREP_ROW_HEAD) && (words >= 5ULL) && (run->files < KDECODE_FILES_MAX))
     {
         KdecodeFile *const file = &run->file[run->files];
         file->key = sequence;
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
             // the type's four bytes are the low first in its word
-            file->type[at] = (char)((kdecode_word(bytes, size, 4ull) >> (8u * at)) & 0xffull);
+            file->type[at] = (char)((kdecode_word(bytes, size, 4ULL) >> (8u * at)) & 0xffULL);
         }
         file->type[4] = '\0';
         run->files += 1u;
     }
-    if ((change == KREP_ROW_TEXT) && (words >= 6ull) && (kdecode_word(bytes, size, 5ull) <= (size - 48ull)))
+    if ((change == KREP_ROW_TEXT) && (words >= 6ULL) && (kdecode_word(bytes, size, 5ULL) <= (size - 48ULL)))
     {
-        kdecode_text_stored(run, kdecode_word(bytes, size, 0ull), kdecode_word(bytes, size, 4ull), bytes + 48u,
-                            kdecode_word(bytes, size, 5ull));
+        kdecode_text_stored(run, kdecode_word(bytes, size, 0ULL), kdecode_word(bytes, size, 4ULL), bytes + 48u,
+                            kdecode_word(bytes, size, 5ULL));
     }
     const int ranged =
-        (sequence >= run->from) && (sequence <= run->to) && ((run->max == 0ull) || (run->rows < run->max));
+        (sequence >= run->from) && (sequence <= run->to) && ((run->max == 0ULL) || (run->rows < run->max));
     if (!ranged)
     {
         return;
@@ -376,7 +376,7 @@ int kdecode_oracle_read(const KdecodeRun *run, const char *path, KdecodeOracle *
         }
     }
     // an oracle is far below a mebibyte of lines
-    static unsigned char s_oracle[1ull << 22u];
+    static unsigned char s_oracle[1ULL << 22u];
     const unsigned long long size = qry_member_file_read(path, s_oracle, sizeof(s_oracle));
     if (size == QRY_MEMBER_UNREAD)
     {

@@ -47,7 +47,7 @@ static const unsigned int zstd_content_widths[4u] = {0u, 2u, 4u, 8u};
 
 static int zstd_sequences(ZstdDecoder *decoder, ZstdSpan *input)
 {
-    if (input->length == 0ull)
+    if (input->length == 0ULL)
     {
         return 0;
     }
@@ -59,19 +59,19 @@ static int zstd_sequences(ZstdDecoder *decoder, ZstdSpan *input)
     }
     const unsigned long long count = (header == 1u) ? (unsigned long long)first
                                      : (header == 2u)
-                                         ? ((((unsigned long long)first - 128ull) << 8u) + input->bytes[1u])
-                                         : (zstd_little_endian(&input->bytes[1u], 2u) + 0x7F00ull);
+                                         ? ((((unsigned long long)first - 128ULL) << 8u) + input->bytes[1u])
+                                         : (zstd_little_endian(&input->bytes[1u], 2u) + 0x7F00ULL);
     zstd_advance(input, header);
-    if (count == 0ull)
+    if (count == 0ULL)
     {
-        return (input->length == 0ull) && zstd_literal_copy(decoder, decoder->literal_count);
+        return (input->length == 0ULL) && zstd_literal_copy(decoder, decoder->literal_count);
     }
-    if (input->length == 0ull)
+    if (input->length == 0ULL)
     {
         return 0;
     }
     const unsigned int modes = input->bytes[0u];
-    zstd_advance(input, 1ull);
+    zstd_advance(input, 1ULL);
     if (((modes & 3u) != 0u) ||
         !zstd_table_prepare(input, modes >> 6u, &zstd_literal_length_type, &decoder->literal_lengths) ||
         !zstd_table_prepare(input, (modes >> 4u) & 3u, &zstd_offset_type, &decoder->offsets) ||
@@ -87,25 +87,25 @@ static int zstd_sequences(ZstdDecoder *decoder, ZstdSpan *input)
     unsigned int literal_state = (unsigned int)zstd_backward_read(&stream, decoder->literal_lengths.accuracy);
     unsigned int offset_state = (unsigned int)zstd_backward_read(&stream, decoder->offsets.accuracy);
     unsigned int match_state = (unsigned int)zstd_backward_read(&stream, decoder->match_lengths.accuracy);
-    for (unsigned long long sequence = 0ull; sequence < count; sequence += 1ull)
+    for (unsigned long long sequence = 0ULL; sequence < count; sequence += 1ULL)
     {
         const ZstdFseCell literal_cell = decoder->literal_lengths.cells[literal_state];
         const ZstdFseCell offset_cell = decoder->offsets.cells[offset_state];
         const ZstdFseCell match_cell = decoder->match_lengths.cells[match_state];
         const unsigned int offset_code = offset_cell.symbol;
-        const unsigned long long offset_value = (1ull << offset_code) + zstd_backward_read(&stream, offset_code);
+        const unsigned long long offset_value = (1ULL << offset_code) + zstd_backward_read(&stream, offset_code);
         const unsigned long long match_length = zstd_match_length_baselines[match_cell.symbol] +
                                                 zstd_backward_read(&stream, zstd_match_length_extra[match_cell.symbol]);
         const unsigned long long literal_length =
             zstd_literal_length_baselines[literal_cell.symbol] +
             zstd_backward_read(&stream, zstd_literal_length_extra[literal_cell.symbol]);
-        unsigned long long offset = 0ull;
+        unsigned long long offset = 0ULL;
         if (!zstd_offset_resolve(decoder, offset_value, literal_length, &offset) ||
             !zstd_literal_copy(decoder, literal_length) || !zstd_match_copy(decoder, offset, match_length))
         {
             return 0;
         }
-        if ((sequence + 1ull) < count)
+        if ((sequence + 1ULL) < count)
         {
             literal_state = literal_cell.baseline + (unsigned int)zstd_backward_read(&stream, literal_cell.bits);
             match_state = match_cell.baseline + (unsigned int)zstd_backward_read(&stream, match_cell.bits);
@@ -128,25 +128,25 @@ static unsigned long long zstd_xxh64_round(unsigned long long accumulator, unsig
 
 static unsigned long long zstd_xxh64_merge(unsigned long long hash, unsigned long long lane)
 {
-    const unsigned long long mixed = hash ^ zstd_xxh64_round(0ull, lane);
+    const unsigned long long mixed = hash ^ zstd_xxh64_round(0ULL, lane);
     return (mixed * ZSTD_XXH64_PRIME_ONE) + ZSTD_XXH64_PRIME_FOUR;
 }
 
 static unsigned long long zstd_xxh64(const unsigned char *bytes, unsigned long long length)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     unsigned long long hash = ZSTD_XXH64_PRIME_FIVE;
-    if (length >= 32ull)
+    if (length >= 32ULL)
     {
-        unsigned long long lanes[4u] = {ZSTD_XXH64_PRIME_ONE + ZSTD_XXH64_PRIME_TWO, ZSTD_XXH64_PRIME_TWO, 0ull,
-                                        0ull - ZSTD_XXH64_PRIME_ONE};
-        while ((length - at) >= 32ull)
+        unsigned long long lanes[4u] = {ZSTD_XXH64_PRIME_ONE + ZSTD_XXH64_PRIME_TWO, ZSTD_XXH64_PRIME_TWO, 0ULL,
+                                        0ULL - ZSTD_XXH64_PRIME_ONE};
+        while ((length - at) >= 32ULL)
         {
             for (unsigned int lane = 0u; lane < 4u; lane += 1u)
             {
-                lanes[lane] = zstd_xxh64_round(lanes[lane], zstd_little_endian(&bytes[at + (8ull * lane)], 8u));
+                lanes[lane] = zstd_xxh64_round(lanes[lane], zstd_little_endian(&bytes[at + (8ULL * lane)], 8u));
             }
-            at += 32ull;
+            at += 32ULL;
         }
         hash = zstd_rotate(lanes[0u], 1u) + zstd_rotate(lanes[1u], 7u) + zstd_rotate(lanes[2u], 12u) +
                zstd_rotate(lanes[3u], 18u);
@@ -156,23 +156,23 @@ static unsigned long long zstd_xxh64(const unsigned char *bytes, unsigned long l
         }
     }
     hash += length;
-    while ((length - at) >= 8ull)
+    while ((length - at) >= 8ULL)
     {
-        hash ^= zstd_xxh64_round(0ull, zstd_little_endian(&bytes[at], 8u));
+        hash ^= zstd_xxh64_round(0ULL, zstd_little_endian(&bytes[at], 8u));
         hash = (zstd_rotate(hash, 27u) * ZSTD_XXH64_PRIME_ONE) + ZSTD_XXH64_PRIME_FOUR;
-        at += 8ull;
+        at += 8ULL;
     }
-    if ((length - at) >= 4ull)
+    if ((length - at) >= 4ULL)
     {
         hash ^= zstd_little_endian(&bytes[at], 4u) * ZSTD_XXH64_PRIME_ONE;
         hash = (zstd_rotate(hash, 23u) * ZSTD_XXH64_PRIME_TWO) + ZSTD_XXH64_PRIME_THREE;
-        at += 4ull;
+        at += 4ULL;
     }
     while (at < length)
     {
         hash ^= (unsigned long long)bytes[at] * ZSTD_XXH64_PRIME_FIVE;
         hash = zstd_rotate(hash, 11u) * ZSTD_XXH64_PRIME_ONE;
-        at += 1ull;
+        at += 1ULL;
     }
     hash ^= hash >> 33u;
     hash *= ZSTD_XXH64_PRIME_TWO;
@@ -184,15 +184,15 @@ static unsigned long long zstd_xxh64(const unsigned char *bytes, unsigned long l
 
 static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
 {
-    if (input->length < 3ull)
+    if (input->length < 3ULL)
     {
         return 0;
     }
     const unsigned long long header = zstd_little_endian(input->bytes, 3u);
-    const unsigned int type = (unsigned int)((header >> 1u) & 3ull);
+    const unsigned int type = (unsigned int)((header >> 1u) & 3ULL);
     const unsigned long long size = header >> 3u;
-    zstd_advance(input, 3ull);
-    *last = (int)(header & 1ull);
+    zstd_advance(input, 3ULL);
+    *last = (int)(header & 1ULL);
     decoder->block_start = decoder->written;
     if ((type == 3u) || (size > decoder->block_max))
     {
@@ -200,13 +200,13 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
     }
     if (type == 1u)
     {
-        if ((input->length == 0ull) || !zstd_output_fits(decoder, size))
+        if ((input->length == 0ULL) || !zstd_output_fits(decoder, size))
         {
             return 0;
         }
         memset(&decoder->out[decoder->written], input->bytes[0u], (size_t)size);
         decoder->written += size;
-        zstd_advance(input, 1ull);
+        zstd_advance(input, 1ULL);
         return 1;
     }
     if (size > input->length)
@@ -230,7 +230,7 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
 
 static int zstd_frame(ZstdDecoder *decoder, ZstdSpan *input)
 {
-    if (input->length < 5ull)
+    if (input->length < 5ULL)
     {
         return 0;
     }
@@ -246,12 +246,12 @@ static int zstd_frame(ZstdDecoder *decoder, ZstdSpan *input)
         return 0;
     }
     const unsigned int window_byte = input->bytes[5u];
-    const unsigned long long window_base = 1ull << (10u + (window_byte >> 3u));
+    const unsigned long long window_base = 1ULL << (10u + (window_byte >> 3u));
     const unsigned long long dictionary = zstd_little_endian(&input->bytes[5u + window_width], dictionary_width);
     const unsigned long long content_field =
         zstd_little_endian(&input->bytes[5u + window_width + dictionary_width], content_width);
-    const unsigned long long content = content_field + ((content_width == 2u) ? 256ull : 0ull);
-    if ((dictionary != 0ull) || ((content_width != 0u) && (content > (decoder->out_capacity - decoder->written))))
+    const unsigned long long content = content_field + ((content_width == 2u) ? 256ULL : 0ULL);
+    if ((dictionary != 0ULL) || ((content_width != 0u) && (content > (decoder->out_capacity - decoder->written))))
     {
         return 0;
     }
@@ -262,9 +262,9 @@ static int zstd_frame(ZstdDecoder *decoder, ZstdSpan *input)
     decoder->literal_lengths.ready = 0;
     decoder->match_lengths.ready = 0;
     decoder->offsets.ready = 0;
-    decoder->repeat[0u] = 1ull;
-    decoder->repeat[1u] = 4ull;
-    decoder->repeat[2u] = 8ull;
+    decoder->repeat[0u] = 1ULL;
+    decoder->repeat[1u] = 4ULL;
+    decoder->repeat[2u] = 8ULL;
     zstd_advance(input, header);
     int last = 0;
     while (!last)
@@ -283,19 +283,19 @@ static int zstd_frame(ZstdDecoder *decoder, ZstdSpan *input)
     {
         return 1;
     }
-    if (input->length < 4ull)
+    if (input->length < 4ULL)
     {
         return 0;
     }
     const unsigned long long stored = zstd_little_endian(input->bytes, 4u);
     const unsigned long long hash = zstd_xxh64(&decoder->out[decoder->frame_start], produced);
-    zstd_advance(input, 4ull);
-    return stored == (hash & 0xFFFFFFFFull);
+    zstd_advance(input, 4ULL);
+    return stored == (hash & 0xFFFFFFFFULL);
 }
 
 long long zstd_decode(const EngineBytesRequest *request)
 {
-    if (request->in_bytes == 0ull)
+    if (request->in_bytes == 0ULL)
     {
         return ENGINE_BYTES_ERROR;
     }
@@ -306,21 +306,21 @@ long long zstd_decode(const EngineBytesRequest *request)
     }
     decoder->out = request->out;
     decoder->out_capacity = request->out_capacity;
-    decoder->written = 0ull;
+    decoder->written = 0ULL;
     ZstdSpan input = {request->in, request->in_bytes};
     int ok = 1;
-    while (ok && (input.length > 0ull))
+    while (ok && (input.length > 0ULL))
     {
-        const unsigned long long magic = (input.length >= 4ull) ? zstd_little_endian(input.bytes, 4u) : 0ull;
-        const unsigned long long skippable = (input.length >= 8ull) ? zstd_little_endian(&input.bytes[4u], 4u) : 0ull;
-        if ((input.length >= 4ull) && (magic == ZSTD_FRAME_MAGIC))
+        const unsigned long long magic = (input.length >= 4ULL) ? zstd_little_endian(input.bytes, 4u) : 0ULL;
+        const unsigned long long skippable = (input.length >= 8ULL) ? zstd_little_endian(&input.bytes[4u], 4u) : 0ULL;
+        if ((input.length >= 4ULL) && (magic == ZSTD_FRAME_MAGIC))
         {
             ok = zstd_frame(decoder, &input);
         }
-        else if ((input.length >= 8ull) && ((magic & ZSTD_SKIPPABLE_MASK) == ZSTD_SKIPPABLE_MAGIC) &&
-                 (skippable <= (input.length - 8ull)))
+        else if ((input.length >= 8ULL) && ((magic & ZSTD_SKIPPABLE_MASK) == ZSTD_SKIPPABLE_MAGIC) &&
+                 (skippable <= (input.length - 8ULL)))
         {
-            zstd_advance(&input, 8ull + skippable);
+            zstd_advance(&input, 8ULL + skippable);
         }
         else
         {
@@ -331,7 +331,7 @@ long long zstd_decode(const EngineBytesRequest *request)
     free(decoder);
     if (!ok || (written > ZSTD_RESULT_MAXIMUM))
     {
-        if (written > 0ull)
+        if (written > 0ULL)
         {
             memset(request->out, 0, (size_t)written);
         }

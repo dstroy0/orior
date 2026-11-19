@@ -580,7 +580,7 @@ static std::string stick_pipe_choice(const std::string &instruction, std::string
     {
         const unsigned long bits = strtoul(std::string(found[3]).c_str(), NULL, 0);
         *writing = "IMAD.SHL.U32 " + std::string(found[1]) + ", " + std::string(found[2]) + ", " +
-                   std::to_string(1ul << bits) + ", RZ";
+                   std::to_string(1UL << bits) + ", RZ";
         return "SHF.L.U32";
     }
     if (std::regex_match(text, found, shifted_product))
@@ -667,7 +667,7 @@ static std::string stick_constant(const std::string &text)
     {
         return std::string();
     }
-    unsigned long long offset = 0ull;
+    unsigned long long offset = 0ULL;
     const std::string terms = found[2];
     size_t at = 0u;
     while (at < terms.size())
@@ -1561,7 +1561,7 @@ class StickKernel
         const std::string digits = bare.substr(before.size(), bare.size() - before.size() - after.size());
         char *end = NULL;
         const unsigned long long value = strtoull(digits.c_str(), &end, 0);
-        if ((end == NULL) || (*end != '\0') || (value > 0xFFFFFFFFull))
+        if ((end == NULL) || (*end != '\0') || (value > 0xFFFFFFFFULL))
         {
             return 0;
         }
@@ -1930,16 +1930,16 @@ class StickKernel
         std::transform(suffix.begin(), suffix.end(), suffix.begin(),
                        [](unsigned char character) { return (char)tolower(character); });
         const int unsigned_one = (suffix.find('u') != std::string::npos);
-        const int wide = (suffix.find("ll") != std::string::npos) || (number > 0xFFFFFFFFull);
-        if (number > 0xFFFFFFFFull)
+        const int wide = (suffix.find("ll") != std::string::npos) || (number > 0xFFFFFFFFULL);
+        if (number > 0xFFFFFFFFULL)
         {
             return refuse("a number wider than a word: " + token);
         }
         const int type = (wide != 0) ? stick_type_bare((unsigned_one != 0) ? "unsignedlonglong" : "longlong")
-                         : ((unsigned_one != 0) || (number > 0x7FFFFFFFull)) ? stick_type_bare("unsignedint")
+                         : ((unsigned_one != 0) || (number > 0x7FFFFFFFULL)) ? stick_type_bare("unsignedint")
                                                                              : stick_type_bare("int");
         StickTyped written{number_text((unsigned int)number), type, 1};
-        written.zero_one = (number <= 1ull);
+        written.zero_one = (number <= 1ULL);
         return written;
     }
     // each wide that is the pair a word begins, by the wide's name, and the words so stored
@@ -3022,8 +3022,8 @@ int main(int argc, char **argv)
     const std::string out = argv[3];
     // engine.tsv, each kernel's line, and each kernel's <number>.sass, .bin and .registers, every one passed to the
     // run's writer as a file it writes as the run ends (qry_member_filed)
-    static char s_table_bytes[QRY_WRITER_RING_BYTES / 2ull];
-    VerbaLinea table = {s_table_bytes, sizeof(s_table_bytes), 0ull};
+    static char s_table_bytes[QRY_WRITER_RING_BYTES / 2ULL];
+    VerbaLinea table = {s_table_bytes, sizeof(s_table_bytes), 0ULL};
     mmgr_line_put(&table, "number\tanswer\tforms\tinstructions\tnote\n");
     unsigned int answered = 0u;
     unsigned int unfiled = 0u;

@@ -25,7 +25,7 @@
 
 #define TESSERA_NVML_SUCCESS 0
 #define TESSERA_NVML_INSUFFICIENT_SIZE 7
-#define TESSERA_NVML_NOT_AVAILABLE 0xFFFFFFFFFFFFFFFFull
+#define TESSERA_NVML_NOT_AVAILABLE 0xFFFFFFFFFFFFFFFFULL
 #define TESSERA_UUID_TEXT 41u
 
 typedef struct
@@ -136,7 +136,7 @@ TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_B
         measure->reported = 1;
         // a processor count is at max sixty-four. It converts exactly
         measure->host_capacity = (unsigned long long)engine_word_population(mask) * TESSERA_HOST_PROCESSOR;
-        if (mask == 0ull)
+        if (mask == 0ULL)
         {
             tessera_measure_close(measure);
             return NULL;
@@ -213,7 +213,7 @@ int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity
     if (measure->host)
     {
         *capacity = measure->host_capacity;
-        *in_use = 0ull;
+        *in_use = 0ULL;
         return 1;
     }
     TesseraNvmlMemory memory;
@@ -245,8 +245,8 @@ static int tessera_instance_field(const char *name, const char *label, unsigned 
 static int tessera_instance_luid(const char *name, unsigned long long *luid)
 {
     const char *const found = strstr(name, "luid_");
-    unsigned long long high = 0ull;
-    unsigned long long low = 0ull;
+    unsigned long long high = 0ULL;
+    unsigned long long low = 0ULL;
     if ((found == NULL) || !tessera_instance_field(found, "luid_", &high))
     {
         return 0;
@@ -256,14 +256,14 @@ static int tessera_instance_luid(const char *name, unsigned long long *luid)
     {
         return 0;
     }
-    *luid = (high << 32u) | (low & 0xFFFFFFFFull);
+    *luid = (high << 32u) | (low & 0xFFFFFFFFULL);
     return 1;
 }
 #endif
 
 int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, unsigned long long *used)
 {
-    *used = 0ull;
+    *used = 0ULL;
     // a reported measure reads no pid from outside: that process's own report is for it
     if (measure->reported)
     {
@@ -290,8 +290,8 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
     int ok = status == ERROR_SUCCESS;
     for (DWORD at = 0u; ok && (at < count); at += 1u)
     {
-        unsigned long long owner = 0ull;
-        unsigned long long luid = 0ull;
+        unsigned long long owner = 0ULL;
+        unsigned long long luid = 0ULL;
         const int named =
             tessera_instance_field(items[at].szName, "pid_", &owner) && tessera_instance_luid(items[at].szName, &luid);
         if (named && (owner == pid) && (luid == measure->luid) && (items[at].FmtValue.largeValue > 0))
@@ -326,7 +326,7 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
         if (list[at].pid == pid)
         {
             ok = list[at].used != TESSERA_NVML_NOT_AVAILABLE;
-            *used += ok ? list[at].used : 0ull;
+            *used += ok ? list[at].used : 0ULL;
         }
     }
     free(list);
@@ -342,7 +342,7 @@ static unsigned long long tessera_started(unsigned long long pid)
     FILE *const stat = fopen(path, "r");
     if (stat == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     char line[ENGINE_PATH_CAPACITY];
     const int read = fgets(line, sizeof(line), stat) != NULL;
@@ -350,7 +350,7 @@ static unsigned long long tessera_started(unsigned long long pid)
     const char *const after_name = read ? strrchr(line, ')') : NULL;
     if (after_name == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const char *field = after_name + 2;
     for (unsigned int skipped = 0u; (field != NULL) && (skipped < 19u); skipped += 1u)
@@ -358,7 +358,7 @@ static unsigned long long tessera_started(unsigned long long pid)
         field = strchr(field, ' ');
         field = (field != NULL) ? (field + 1) : NULL;
     }
-    return (field != NULL) ? strtoull(field, NULL, 10) : 0ull;
+    return (field != NULL) ? strtoull(field, NULL, 10) : 0ULL;
 }
 #endif
 
@@ -386,7 +386,7 @@ TesseraProcess *tessera_process_open(unsigned long long pid)
     process->descriptor = -1;
 #endif
     process->started = tessera_started(pid);
-    if ((process->descriptor < 0) && (process->started == 0ull))
+    if ((process->descriptor < 0) && (process->started == 0ULL))
     {
         free(process);
         return NULL;

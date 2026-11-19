@@ -7,7 +7,7 @@
 // the instructions' bits `field` takes at instruction `index` of `code`, sixteen bytes an instruction
 unsigned long long stall_bits(const std::vector<unsigned char> &code, size_t index, const StallField &field)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int bit = 0u; bit < field.bits; bit += 1u)
     {
         const unsigned int at = field.first + bit;
@@ -25,7 +25,7 @@ void stall_bits_write(std::vector<unsigned char> *code, size_t index, const Stal
         const unsigned int at = field.first + bit;
         unsigned char *const byte = &(*code)[(index * 16u) + (at / 8u)];
         const unsigned char mask = (unsigned char)(1u << (at % 8u));
-        *byte = (unsigned char)(((value >> bit) & 1ull) ? (*byte | mask) : (*byte & ~mask));
+        *byte = (unsigned char)(((value >> bit) & 1ULL) ? (*byte | mask) : (*byte & ~mask));
     }
 }
 
@@ -39,7 +39,7 @@ static std::set<std::string> stall_registers(const std::string &operand, int wid
         named.insert(walk->str());
         if (wide || (operand.find(".64") != std::string::npos))
         {
-            named.insert((*walk)[1].str() + std::to_string(std::stoul((*walk)[2].str()) + 1ul));
+            named.insert((*walk)[1].str() + std::to_string(std::stoul((*walk)[2].str()) + 1UL));
         }
     }
     return named;
@@ -148,11 +148,11 @@ unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long lon
         const unsigned long long left = values[(at / (each * each)) % each];
         const unsigned long long right = values[(at / each) % each];
         const unsigned long long third = values[at % each];
-        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffull),
+        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffULL),
                                                   (unsigned int)(left >> 32u),
-                                                  (unsigned int)(right & 0xffffffffull),
+                                                  (unsigned int)(right & 0xffffffffULL),
                                                   (unsigned int)(right >> 32u),
-                                                  (unsigned int)(third & 0xffffffffull),
+                                                  (unsigned int)(third & 0xffffffffULL),
                                                   (unsigned int)(third >> 32u),
                                                   0u,
                                                   0u};
@@ -173,8 +173,8 @@ void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
         const unsigned int at = (unsigned int)(((unsigned long long)place * IDENTITY_CASES) / count);
         const unsigned long long left = s_values[(at / IDENTITY_VALUES) % IDENTITY_VALUES];
         const unsigned long long right = s_values[at % IDENTITY_VALUES];
-        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffull), (unsigned int)(left >> 32u),
-                                                  (unsigned int)(right & 0xffffffffull), (unsigned int)(right >> 32u),
+        const unsigned int words[RUN_IN_WORDS] = {(unsigned int)(left & 0xffffffffULL), (unsigned int)(left >> 32u),
+                                                  (unsigned int)(right & 0xffffffffULL), (unsigned int)(right >> 32u),
                                                   (unsigned int)(at / (IDENTITY_VALUES * IDENTITY_VALUES)), 0u, 0u, 0u};
         memcpy(question->word[place], words, sizeof(words));
         places->push_back(at);
@@ -187,7 +187,7 @@ unsigned long long record_hash(const void *bytes, size_t size, unsigned long lon
     const unsigned char *const at = (const unsigned char *)bytes;
     for (size_t place = 0u; place < size; place += 1u)
     {
-        hash = (hash ^ at[place]) * 0x100000001b3ull;
+        hash = (hash ^ at[place]) * 0x100000001b3ULL;
     }
     return hash;
 }

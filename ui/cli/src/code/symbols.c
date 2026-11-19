@@ -88,7 +88,7 @@ EMBED_INLINE void symbols_walk_released(const SymbolsCtx *args)
     if (walk->languages != NULL)
     {
         g_cli_guard->persistent_buf_release(walk->languages->languages.pair, g_cli_plugins_owner);
-        *(&walk->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+        walk->languages->languages = (CliLanguages){NULL, 0u, 0u};
     }
     g_cli_guard->persistent_buf_release(walk->languages, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(walk, g_cli_code_owner);
@@ -799,7 +799,7 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         if (languages != NULL)
         {
             g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         g_cli_tree_walking = 0;
@@ -863,7 +863,7 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         if (s_walk->languages != NULL)
         {
             g_cli_guard->persistent_buf_release(s_walk->languages->languages.pair, g_cli_plugins_owner);
-            *(&s_walk->languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            s_walk->languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(s_walk->languages, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(s_walk, g_cli_code_owner);
@@ -884,7 +884,7 @@ void cli_tree_branches_walk(const CliSymbolsRootCfg *args)
         if (languages != NULL)
         {
             g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            *(&languages->languages) = (CliLanguages){NULL, 0u, 0u};
+            languages->languages = (CliLanguages){NULL, 0u, 0u};
         }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         return;

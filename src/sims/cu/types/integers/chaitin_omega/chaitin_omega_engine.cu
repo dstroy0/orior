@@ -18,13 +18,13 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
     for (unsigned int length = 2u; length <= counts->length; length += 1u)
     {
         const unsigned long long total = omega_count(counts, length, 0u);
-        for (unsigned long long from = 0ull; from < total; from += OMEGA_ENGINE_JOB)
+        for (unsigned long long from = 0ULL; from < total; from += OMEGA_ENGINE_JOB)
         {
             OmegaEngineJob job;
             job.length = length;
             job.from = from;
             job.count = ((total - from) < OMEGA_ENGINE_JOB) ? (total - from) : OMEGA_ENGINE_JOB;
-            job.settled = 0ull;
+            job.settled = 0ULL;
             omega_results_open(&job.results);
             const OmegaEngineJob *found = NULL;
             for (const OmegaEngineJob &one : retained)
@@ -38,7 +38,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             if (found != NULL)
             {
                 omega_merge(fates, &found->results);
-                report->jobs_retained += 1ull;
+                report->jobs_retained += 1ULL;
                 continue;
             }
             jobs.push_back(job);
@@ -49,7 +49,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
     memset(&error, 0, sizeof(error));
     OmegaBuffer buffers[OMEGA_BUFFERS];
     memset(buffers, 0, sizeof(buffers));
-    OmegaPoolExtent extent = {0ull, 0ull, 0ull, 0ull};
+    OmegaPoolExtent extent = {0ULL, 0ULL, 0ULL, 0ULL};
     std::vector<OmegaSettled> settled;
     std::vector<unsigned long long> out_sizes;
     std::vector<int> scratch;
@@ -67,8 +67,8 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
     OmegaRoundTotals *const totals = OMEGA_BUFFER(buffers, OMEGA_BUFFER_TOTALS, OmegaRoundTotals);
     size_t next_job = 0u;
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    unsigned long long report_at = 1ull;
-    while ((ok != 0) && ((next_job < jobs.size()) || (extent.live > 0ull)))
+    unsigned long long report_at = 1ULL;
+    while ((ok != 0) && ((next_job < jobs.size()) || (extent.live > 0ULL)))
     {
         // jobs join while fewer than OMEGA_ENGINE_REFILL terms are live and the device fits them beside the rest
         while ((ok != 0) && (next_job < jobs.size()) && (extent.live < OMEGA_ENGINE_REFILL))
@@ -82,7 +82,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             }
             next_job += 1u;
         }
-        if ((ok != 0) && (extent.live == 0ull))
+        if ((ok != 0) && (extent.live == 0ULL))
         {
             sim_check(results, 0, "engine: the device stores a job's terms");
             ok = 0;
@@ -116,7 +116,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         ok = ok && sim_status_check(results, cudaGetLastError(), "engine: survey") &&
              sim_status_check(results, cudaMemcpy(&found, totals, sizeof(found), cudaMemcpyDeviceToHost),
                               "engine: survey read");
-        unsigned long long out_total = 0ull;
+        unsigned long long out_total = 0ULL;
         ok = ok && omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], device_out_sizes, out_bases, extent.live,
                                      &out_total);
         if (ok == 0)
@@ -213,13 +213,13 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             {
                 largest = (out_sizes[at] > out_sizes[largest]) ? at : largest;
             }
-            if ((ok != 0) && (out_sizes[largest] == 0ull))
+            if ((ok != 0) && (out_sizes[largest] == 0ULL))
             {
                 sim_check(results, 0, "engine: the device fits a round once every reduct is parked");
                 ok = 0;
             }
             const int grew = OMEGA_GREW;
-            const unsigned long long none = 0ull;
+            const unsigned long long none = 0ULL;
             ok =
                 ok &&
                 sim_status_check(results, cudaMemcpy(&terms[largest].fate, &grew, sizeof(grew), cudaMemcpyHostToDevice),
@@ -229,7 +229,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                                  "engine: park") &&
                 omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], device_out_sizes, out_bases, extent.live,
                                   &out_total);
-            report->parked += (ok != 0) ? 1ull : 0ull;
+            report->parked += (ok != 0) ? 1ULL : 0ULL;
         }
         if ((ok != 0) && (extent.tokens > OMEGA_ENGINE_INDEX_MAX))
         {
@@ -245,7 +245,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         unsigned int *const index = OMEGA_BUFFER(buffers, OMEGA_BUFFER_INDEX, unsigned int);
         unsigned int *const out = OMEGA_BUFFER(buffers, OMEGA_BUFFER_OUT, unsigned int);
         OmegaToken *const reducts = OMEGA_BUFFER(buffers, OMEGA_BUFFER_REDUCTS, OmegaToken);
-        if (out_total > 0ull)
+        if (out_total > 0ULL)
         {
             omega_pool_pack<<<omega_pool_grid(extent.tokens), OMEGA_POOL_BLOCK>>>(tokens, extent.tokens, widths,
                                                                                   packed);
@@ -254,14 +254,14 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                 OMEGA_BUFFER(buffers, OMEGA_BUFFER_INNER_FRAMES, unsigned char), widths, plans, index);
             ok = sim_status_check(results, cudaGetLastError(), "engine: pack and arrange");
             // the sweeps: every token of the pool is member 0, and each sweep's plans member 1 from its first lane
-            for (unsigned long long first = 0ull; (ok != 0) && (first < out_total); first += OMEGA_ENGINE_SWEEP)
+            for (unsigned long long first = 0ULL; (ok != 0) && (first < out_total); first += OMEGA_ENGINE_SWEEP)
             {
                 const unsigned long long lanes =
                     ((out_total - first) < OMEGA_ENGINE_SWEEP) ? (out_total - first) : OMEGA_ENGINE_SWEEP;
                 const CycleRecordRunRequest run = {program->record,
                                                    {packed, &plans[first * widths.plan_limbs], NULL},
-                                                   {extent.tokens, lanes, 0ull},
-                                                   &index[2ull * first],
+                                                   {extent.tokens, lanes, 0ULL},
+                                                   &index[2ULL * first],
                                                    lanes,
                                                    out,
                                                    &error};
@@ -274,7 +274,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                 omega_pool_unpack<<<omega_pool_grid(lanes), OMEGA_POOL_BLOCK>>>(
                     out, lanes, out_limbs, program->out_offset, program->out_bits, &reducts[first], totals);
                 ok = sim_status_check(results, cudaGetLastError(), "engine: reducts");
-                report->sweeps += 1ull;
+                report->sweeps += 1ULL;
                 report->records += lanes;
             }
             unsigned int unread = 0u;
@@ -296,17 +296,17 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         {
             break;
         }
-        report->rounds += 1ull;
+        report->rounds += 1ULL;
         // the settled leave the pool into their jobs; a job whose every term settled is written to the ledger
         omega_pool_settled<<<omega_pool_grid(extent.live), OMEGA_POOL_BLOCK>>>(
             terms, extent.live, OMEGA_BUFFER(buffers, OMEGA_BUFFER_SETTLED, OmegaSettled), totals);
-        unsigned long long settled_count = 0ull;
+        unsigned long long settled_count = 0ULL;
         ok = sim_status_check(results, cudaGetLastError(), "engine: settled") &&
              sim_status_check(
                  results, cudaMemcpy(&settled_count, &totals->settled, sizeof(settled_count), cudaMemcpyDeviceToHost),
                  "engine: settled count");
         settled.resize((size_t)settled_count);
-        ok = ok && ((settled_count == 0ull) ||
+        ok = ok && ((settled_count == 0ULL) ||
                     sim_status_check(results,
                                      cudaMemcpy(settled.data(), buffers[OMEGA_BUFFER_SETTLED].data,
                                                 (size_t)settled_count * sizeof(OmegaSettled), cudaMemcpyDeviceToHost),
@@ -325,7 +325,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                     ok = 0;
                 }
                 omega_merge(fates, &job->results);
-                report->jobs_run += 1ull;
+                report->jobs_run += 1ULL;
             }
         }
         // the retained terms move into the other buffer of each pair, in pool order
@@ -339,7 +339,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         unsigned long long *const end_bases = OMEGA_BUFFER(buffers, OMEGA_BUFFER_END_BASES, unsigned long long);
         omega_pool_retained_sizes<<<omega_pool_grid(extent.live), OMEGA_POOL_BLOCK>>>(
             terms, extent.live, places, token_sizes, stored_sizes, end_sizes);
-        OmegaPoolExtent retained_extent = {0ull, 0ull, 0ull, 0ull};
+        OmegaPoolExtent retained_extent = {0ULL, 0ULL, 0ULL, 0ULL};
         ok = ok && sim_status_check(results, cudaGetLastError(), "engine: retained sizes") &&
              omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], places, place_bases, extent.live,
                                &retained_extent.live) &&
@@ -389,7 +389,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             mmgr_line_decimal(&results->line, (unsigned long long)(seconds * 1000.0), 1u);
             mmgr_line_put(&results->line, " ms\n");
             sim_flush(results);
-            report_at *= 2ull;
+            report_at *= 2ULL;
         }
     }
     for (std::map<unsigned long long, OmegaProgram>::iterator one = programs.begin(); one != programs.end(); ++one)

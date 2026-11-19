@@ -176,7 +176,7 @@ const char *khw_relation_named(const KhwAnswered *answered, int with_reading, ch
 // printed
 int khw_answers_written(void)
 {
-    static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     text_begun(s_forms_bytes, sizeof(s_forms_bytes));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
@@ -210,7 +210,7 @@ int khw_answers_written(void)
 // retained apart from what the vendor arranges. 1, or 0 with the reason printed
 int khw_forms_work_written(void)
 {
-    static char s_work_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_work_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     text_begun(s_work_bytes, sizeof(s_work_bytes));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {

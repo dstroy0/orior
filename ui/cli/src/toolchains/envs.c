@@ -276,6 +276,6 @@ void cli_required_in(const CliEnvsCtx *args)
         {
             EMBED_CALL(cli_requirements_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_envs_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_envs_owner);
     }
 }

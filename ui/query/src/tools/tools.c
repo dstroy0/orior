@@ -191,13 +191,13 @@ void query_every_source(const QueryToolsRootToolCCtx *args)
     unsigned int *cxx = args->cxx;
     unsigned int *tools = args->tools;
     g_cli_guard->persistent_buf_release(g_query_c_sources.path, g_query_owner);
-    *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_query_c_sources = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(g_query_cxx_sources.path, g_query_owner);
-    *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_query_cxx_sources = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(g_query_tool_sources.path, g_query_owner);
-    *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_query_tool_sources = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(g_query_objects.path, g_query_owner);
-    *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
+    g_query_objects = (QueryPaths){NULL, 0u, 0u};
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_c_sources,
                      .count = QUERY_SOURCES_MAX);
     (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_cxx_sources,
@@ -362,13 +362,13 @@ int query_stale(const QueryToolsRootToolCtx *args)
         list += 1u;
     }
     g_cli_guard->persistent_buf_release(g_query_c_sources.path, g_query_owner);
-    *(&g_query_c_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_query_c_sources = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(g_query_cxx_sources.path, g_query_owner);
-    *(&g_query_cxx_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_query_cxx_sources = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(g_query_tool_sources.path, g_query_owner);
-    *(&g_query_tool_sources) = (QueryPaths){NULL, 0u, 0u};
+    g_query_tool_sources = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(g_query_objects.path, g_query_owner);
-    *(&g_query_objects) = (QueryPaths){NULL, 0u, 0u};
+    g_query_objects = (QueryPaths){NULL, 0u, 0u};
     return stale || (newest > built);
 }
 

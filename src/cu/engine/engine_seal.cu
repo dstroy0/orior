@@ -5,7 +5,7 @@
 
 int entry_side_pack(EngineSideSection *section, EngineError *error)
 {
-    if (section->side.leaves == 0ull)
+    if (section->side.leaves == 0ULL)
     {
         return 1;
     }
@@ -23,13 +23,13 @@ int entry_side_pack(EngineSideSection *section, EngineError *error)
     pack.out_capacity = capacity;
     const long long packed = deflate_raw_encode(&pack);
     // a packed count that is not errored is at least zero, and fits an unsigned long long exactly
-    section->packed_bytes = (packed >= 0ll) ? (unsigned long long)packed : 0ull;
-    return ENGINE_CHECK(packed >= 0ll, section->packed, error, ENGINE_ERROR_RESOURCE);
+    section->packed_bytes = (packed >= 0LL) ? (unsigned long long)packed : 0ULL;
+    return ENGINE_CHECK(packed >= 0LL, section->packed, error, ENGINE_ERROR_RESOURCE);
 }
 
 static int entry_side_unpack(EngineSideSection *section, EngineError *error)
 {
-    if (section->side.leaves == 0ull)
+    if (section->side.leaves == 0ULL)
     {
         return 1;
     }
@@ -96,12 +96,12 @@ static int entry_keyed(ObsignatioLevel level, const unsigned char *bytes, unsign
 
 static void entry_words_place(unsigned char *out, const unsigned long long *words, unsigned long long count)
 {
-    for (unsigned long long word = 0ull; word < count; word += 1ull)
+    for (unsigned long long word = 0ULL; word < count; word += 1ULL)
     {
         for (unsigned int place = 0u; place < 8u; place += 1u)
         {
             // one byte of the word, shifted down and masked, fits an unsigned char
-            out[(8ull * word) + place] = (unsigned char)((words[word] >> (8u * place)) & 0xFFull);
+            out[(8ULL * word) + place] = (unsigned char)((words[word] >> (8u * place)) & 0xFFULL);
         }
     }
 }
@@ -124,11 +124,11 @@ static int entry_seal_lanes(const unsigned short *device_lanes, const unsigned l
 
 static int entry_seal_chunks(const EngineStream *stream, EngineSignum *leaves, EngineError *error)
 {
-    if (stream->chunks == 0ull)
+    if (stream->chunks == 0ULL)
     {
         return 1;
     }
-    const size_t limbs = (size_t)((stream->bits + 31ull) / 32ull);
+    const size_t limbs = (size_t)((stream->bits + 31ULL) / 32ULL);
     const size_t leaf_bytes = (size_t)stream->chunks * sizeof(EngineSignum);
     unsigned long long *device_offsets = NULL;
     unsigned int *device_limbs = NULL;
@@ -163,16 +163,16 @@ static int entry_seal_chunks(const EngineStream *stream, EngineSignum *leaves, E
 static int entry_seal_stream(const EngineStream *stream, const EngineSignum *leaves, EngineSignum *root,
                              EngineError *error)
 {
-    const unsigned long long offset_bytes = 8ull * stream->chunks;
-    const unsigned long long bytes = offset_bytes + 8ull + (ENGINE_SIGNUM_BYTES * stream->chunks);
+    const unsigned long long offset_bytes = 8ULL * stream->chunks;
+    const unsigned long long bytes = offset_bytes + 8ULL + (ENGINE_SIGNUM_BYTES * stream->chunks);
     unsigned char *const buffer = (unsigned char *)malloc((size_t)bytes);
     if (ENGINE_CHECK(buffer != NULL, &buffer, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;
     }
     entry_words_place(buffer, stream->offsets, stream->chunks);
-    entry_words_place(&buffer[offset_bytes], &stream->bits, 1ull);
-    memcpy(&buffer[offset_bytes + 8ull], leaves, (size_t)(ENGINE_SIGNUM_BYTES * stream->chunks));
+    entry_words_place(&buffer[offset_bytes], &stream->bits, 1ULL);
+    memcpy(&buffer[offset_bytes + 8ULL], leaves, (size_t)(ENGINE_SIGNUM_BYTES * stream->chunks));
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_STREAM, buffer, bytes, root, error);
     free(buffer);
     return ok;
@@ -180,14 +180,14 @@ static int entry_seal_stream(const EngineStream *stream, const EngineSignum *lea
 
 static int entry_seal_side_stored(const EngineSideSection *section, EngineSignum *root, EngineError *error)
 {
-    const unsigned long long stored = (section->side.leaves != 0ull) ? section->packed_bytes : 0ull;
+    const unsigned long long stored = (section->side.leaves != 0ULL) ? section->packed_bytes : 0ULL;
     return entry_keyed(OBSIGNATIO_LEVEL_SIDE_STORED, section->packed, stored, root, error);
 }
 
 static int entry_seal_side_inflated(const EngineSideSection *section, EngineSignum *root, EngineError *error)
 {
     const unsigned long long inflated =
-        (section->side.leaves != 0ull) ? section->side.byte_start[section->side.leaves] : 0ull;
+        (section->side.leaves != 0ULL) ? section->side.byte_start[section->side.leaves] : 0ULL;
     return entry_keyed(OBSIGNATIO_LEVEL_SIDE_INFLATED, section->side.bytes, inflated, root, error);
 }
 
@@ -203,29 +203,29 @@ static int entry_seal_members(const EngineSideSection *section, EngineSignum *ro
 {
     const EngineSideBytes *const side = &section->side;
     const unsigned long long leaves = side->leaves;
-    const unsigned long long words = (leaves != 0ull) ? ((6ull * leaves) + 2ull) : 0ull;
-    const unsigned long long names = (leaves != 0ull) ? side->name_start[leaves] : 0ull;
-    const unsigned long long bytes = (8ull * words) + names;
+    const unsigned long long words = (leaves != 0ULL) ? ((6ULL * leaves) + 2ULL) : 0ULL;
+    const unsigned long long names = (leaves != 0ULL) ? side->name_start[leaves] : 0ULL;
+    const unsigned long long bytes = (8ULL * words) + names;
     unsigned char *const buffer = (unsigned char *)malloc((size_t)bytes + 1u);
     if (ENGINE_CHECK(buffer != NULL, &buffer, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;
     }
-    if (leaves != 0ull)
+    if (leaves != 0ULL)
     {
         unsigned char *at = buffer;
         entry_words_place(at, side->pixel_at, leaves);
-        at = &at[8ull * leaves];
+        at = &at[8ULL * leaves];
         entry_words_place(at, side->pixel_stored, leaves);
-        at = &at[8ull * leaves];
-        entry_words_place(at, side->byte_start, leaves + 1ull);
-        at = &at[8ull * (leaves + 1ull)];
-        entry_words_place(at, side->name_start, leaves + 1ull);
-        at = &at[8ull * (leaves + 1ull)];
+        at = &at[8ULL * leaves];
+        entry_words_place(at, side->byte_start, leaves + 1ULL);
+        at = &at[8ULL * (leaves + 1ULL)];
+        entry_words_place(at, side->name_start, leaves + 1ULL);
+        at = &at[8ULL * (leaves + 1ULL)];
         entry_words_place(at, side->member_crc, leaves);
-        at = &at[8ull * leaves];
+        at = &at[8ULL * leaves];
         entry_words_place(at, side->member_bytes, leaves);
-        at = &at[8ull * leaves];
+        at = &at[8ULL * leaves];
         memcpy(at, side->names, (size_t)names);
     }
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_MEMBERS, buffer, bytes, root, error);
@@ -237,7 +237,7 @@ static int entry_seal_sample(const EngineStream *stream, const EngineSideSection
                              EngineError *error)
 {
     const EngineSideBytes *const side = &section->side;
-    const int sided = side->leaves != 0ull;
+    const int sided = side->leaves != 0ULL;
     const unsigned long long words[ENTRY_SAMPLE_WORDS] = {stream->extent[0],
                                                           stream->extent[1],
                                                           stream->extent[2],
@@ -246,14 +246,14 @@ static int entry_seal_sample(const EngineStream *stream, const EngineSideSection
                                                           stream->bits,
                                                           stream->lane_offset,
                                                           side->leaves,
-                                                          sided ? side->byte_start[side->leaves] : 0ull,
-                                                          sided ? section->packed_bytes : 0ull,
-                                                          sided ? side->name_start[side->leaves] : 0ull,
+                                                          sided ? side->byte_start[side->leaves] : 0ULL,
+                                                          sided ? section->packed_bytes : 0ULL,
+                                                          sided ? side->name_start[side->leaves] : 0ULL,
                                                           seal->lane_count};
     unsigned char byte[(8u * ENTRY_SAMPLE_WORDS) + (ENTRY_SAMPLE_ROOTS * ENGINE_SIGNUM_BYTES)];
     entry_words_place(byte, words, ENTRY_SAMPLE_WORDS);
     unsigned char *const roots = &byte[8u * ENTRY_SAMPLE_WORDS];
-    memcpy(roots, seal->lane_nodes[seal->lane_count - 1ull].bytes, ENGINE_SIGNUM_BYTES);
+    memcpy(roots, seal->lane_nodes[seal->lane_count - 1ULL].bytes, ENGINE_SIGNUM_BYTES);
     memcpy(&roots[ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_STREAM].bytes, ENGINE_SIGNUM_BYTES);
     memcpy(&roots[2u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_SIDE].bytes, ENGINE_SIGNUM_BYTES);
     memcpy(&roots[3u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_MEMBERS].bytes, ENGINE_SIGNUM_BYTES);
@@ -267,7 +267,7 @@ static int entry_seal_open(const EngineStream *stream, EngineSeal *seal, EngineE
     seal->chunk_count = stream->chunks;
     seal->lane_nodes = (EngineSignum *)calloc((size_t)seal->lane_count + 1u, sizeof(EngineSignum));
     seal->chunk_leaves = (EngineSignum *)calloc((size_t)seal->chunk_count + 1u, sizeof(EngineSignum));
-    return ENGINE_CHECK((seal->lane_count != 0ull) && (seal->lane_nodes != NULL) && (seal->chunk_leaves != NULL), seal,
+    return ENGINE_CHECK((seal->lane_count != 0ULL) && (seal->lane_nodes != NULL) && (seal->chunk_leaves != NULL), seal,
                         error, ENGINE_ERROR_RESOURCE);
 }
 
@@ -292,28 +292,28 @@ int entry_seal_make(const unsigned short *device_lanes, const EngineStream *stre
 
 static unsigned long long entry_roots_differ(const EngineSeal *fresh, const EngineSeal *stored, EngineSealRoot root)
 {
-    return entry_signum_same(&fresh->roots[root], &stored->roots[root]) ? 0ull : 1ull;
+    return entry_signum_same(&fresh->roots[root], &stored->roots[root]) ? 0ULL : 1ULL;
 }
 
 int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, const EngineSeal *seal,
                          const unsigned short *device_source, unsigned short *rebuilt, EngineSampleRecord *record,
                          EngineError *error)
 {
-    record->crystal_read = 1ull;
+    record->crystal_read = 1ULL;
     memcpy(record->extent, file->extent, sizeof(record->extent));
     record->root = seal->roots[ENGINE_SEAL_SAMPLE];
     EngineSeal fresh;
     int ok = entry_seal_open(file, &fresh, error);
     record->extent_differ =
-        (ok && ((seal->lane_count != fresh.lane_count) || (seal->chunk_count != fresh.chunk_count))) ? 1ull : 0ull;
-    ok = ok && ENGINE_CHECK(record->extent_differ == 0ull, seal, error, ENGINE_ERROR_LOGIC) &&
+        (ok && ((seal->lane_count != fresh.lane_count) || (seal->chunk_count != fresh.chunk_count))) ? 1ULL : 0ULL;
+    ok = ok && ENGINE_CHECK(record->extent_differ == 0ULL, seal, error, ENGINE_ERROR_LOGIC) &&
          entry_seal_chunks(file, fresh.chunk_leaves, error);
-    for (unsigned long long chunk = 0ull; ok && (chunk < fresh.chunk_count); chunk += 1ull)
+    for (unsigned long long chunk = 0ULL; ok && (chunk < fresh.chunk_count); chunk += 1ULL)
     {
         const int differs = entry_signum_same(&fresh.chunk_leaves[chunk], &seal->chunk_leaves[chunk]) ? 0 : 1;
         record->first_chunk_differ =
-            ((differs != 0) && (record->chunks_differ == 0ull)) ? chunk : record->first_chunk_differ;
-        record->chunks_differ += (differs != 0) ? 1ull : 0ull;
+            ((differs != 0) && (record->chunks_differ == 0ULL)) ? chunk : record->first_chunk_differ;
+        record->chunks_differ += (differs != 0) ? 1ULL : 0ULL;
     }
     ok = ok && entry_seal_stream(file, fresh.chunk_leaves, &fresh.roots[ENGINE_SEAL_STREAM], error) &&
          entry_seal_side_stored(section, &fresh.roots[ENGINE_SEAL_SIDE_STORED], error) &&
@@ -326,7 +326,7 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
     }
     const unsigned short *device_rebuilt = NULL;
     ok = ok &&
-         ENGINE_CHECK((record->chunks_differ == 0ull) && (record->roots_differ == 0ull), seal, error,
+         ENGINE_CHECK((record->chunks_differ == 0ULL) && (record->roots_differ == 0ULL), seal, error,
                       ENGINE_ERROR_LOGIC) &&
          entry_side_unpack(section, error) &&
          entry_seal_side_inflated(section, &fresh.roots[ENGINE_SEAL_SIDE_INFLATED], error) &&
@@ -336,28 +336,28 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
         record->roots_differ += entry_roots_differ(&fresh, seal, ENGINE_SEAL_SIDE_INFLATED) +
                                 entry_roots_differ(&fresh, seal, ENGINE_SEAL_SIDE);
     }
-    ok = ok && ENGINE_CHECK(record->roots_differ == 0ull, seal, error, ENGINE_ERROR_LOGIC) &&
+    ok = ok && ENGINE_CHECK(record->roots_differ == 0ULL, seal, error, ENGINE_ERROR_LOGIC) &&
          (entry_iapx_decode(file, device_source, rebuilt, &record->voxels_differ, &device_rebuilt, error) != 0) &&
          entry_seal_lanes(device_rebuilt, file->extent, fresh.lane_nodes, fresh.lane_count, error);
     const unsigned long long rows = file->extent[0] * file->extent[1] * file->extent[2];
-    for (unsigned long long node = 0ull; ok && (node < fresh.lane_count); node += 1ull)
+    for (unsigned long long node = 0ULL; ok && (node < fresh.lane_count); node += 1ULL)
     {
         const int differs = entry_signum_same(&fresh.lane_nodes[node], &seal->lane_nodes[node]) ? 0 : 1;
         const int row = node < rows;
         record->first_row_differ =
-            ((differs != 0) && row && (record->rows_differ == 0ull)) ? node : record->first_row_differ;
-        record->rows_differ += ((differs != 0) && row) ? 1ull : 0ull;
-        record->roots_differ += ((differs != 0) && !row) ? 1ull : 0ull;
+            ((differs != 0) && row && (record->rows_differ == 0ULL)) ? node : record->first_row_differ;
+        record->rows_differ += ((differs != 0) && row) ? 1ULL : 0ULL;
+        record->roots_differ += ((differs != 0) && !row) ? 1ULL : 0ULL;
     }
     ok = ok && entry_seal_sample(file, section, &fresh, error);
     if (ok)
     {
         record->rebuilt_root = fresh.roots[ENGINE_SEAL_SAMPLE];
-        record->root_rebuilt = 1ull;
+        record->root_rebuilt = 1ULL;
         record->roots_differ += entry_roots_differ(&fresh, seal, ENGINE_SEAL_SAMPLE);
     }
-    ok = ok && ENGINE_CHECK((record->rows_differ == 0ull) && (record->roots_differ == 0ull) &&
-                                (record->voxels_differ == 0ull),
+    ok = ok && ENGINE_CHECK((record->rows_differ == 0ULL) && (record->roots_differ == 0ULL) &&
+                                (record->voxels_differ == 0ULL),
                             seal, error, ENGINE_ERROR_LOGIC);
     krep_seal_release(&fresh);
     return ok;
@@ -379,9 +379,9 @@ void entry_signum_text(VerbaLinea *line, const EngineSignum *signum)
 
 void entry_percent(VerbaLinea *line, unsigned long long part, unsigned long long total)
 {
-    mmgr_line_decimal_columns(line, (total != 0ull) ? ((100ull * part) / total) : 0ull, 3u);
+    mmgr_line_decimal_columns(line, (total != 0ULL) ? ((100ULL * part) / total) : 0ULL, 3u);
     mmgr_line_ch(line, '.');
-    mmgr_line_decimal(line, (total != 0ull) ? (((1000ull * part) / total) % 10ull) : 0ull, 1u);
+    mmgr_line_decimal(line, (total != 0ULL) ? (((1000ULL * part) / total) % 10ULL) : 0ULL, 1u);
     mmgr_line_ch(line, '%');
 }
 
@@ -390,8 +390,8 @@ unsigned long long entry_report_capacity(char *const *samples, unsigned long lon
 {
     const unsigned long long fixed =
         strnlen(source, ENTRY_PATH_CAPACITY) + strnlen(set, ENTRY_PATH_CAPACITY);
-    unsigned long long needed = (2ull * ENTRY_ROW_TEXT) + fixed;
-    for (unsigned long long sample = 0ull; sample < reached; sample += 1ull)
+    unsigned long long needed = (2ULL * ENTRY_ROW_TEXT) + fixed;
+    for (unsigned long long sample = 0ULL; sample < reached; sample += 1ULL)
     {
         needed += ENTRY_ROW_TEXT + fixed + strnlen(samples[sample], ENTRY_PATH_CAPACITY);
     }
@@ -413,7 +413,7 @@ void entry_report_total(VerbaLinea *line, const EngineSetReport *report, unsigne
     mmgr_line_put(line, " raw, ");
     entry_percent(line, report->crystal_bytes, report->raw_bytes);
     mmgr_line_put(line, ", in ");
-    mmgr_line_decimal(line, report->microseconds / 1000ull, 1u);
+    mmgr_line_decimal(line, report->microseconds / 1000ULL, 1u);
     if (report->sealed != count)
     {
         mmgr_line_put(line, " ms\n  no set root: it seals every sample's, and not every sample verified\n");
@@ -426,20 +426,20 @@ void entry_report_total(VerbaLinea *line, const EngineSetReport *report, unsigne
 
 void entry_seal_failure(VerbaLinea *line, const EngineSampleRecord *record)
 {
-    if (record->crystal_read == 0ull)
+    if (record->crystal_read == 0ULL)
     {
         mmgr_line_put(line, "the file did not read as a crystal (missing, short, or arranged otherwise than its head "
                              "describes), so no node was compared");
         return;
     }
-    if (record->extent_differ != 0ull)
+    if (record->extent_differ != 0ULL)
     {
         mmgr_line_put(line, "the head's extent disagrees with its seal's node counts, so no node was compared");
         return;
     }
     mmgr_line_decimal(line, record->chunks_differ, 1u);
     mmgr_line_put(line, " stored chunks differ");
-    if (record->chunks_differ != 0ull)
+    if (record->chunks_differ != 0ULL)
     {
         mmgr_line_put(line, " (first chunk ");
         mmgr_line_decimal(line, record->first_chunk_differ, 1u);
@@ -448,7 +448,7 @@ void entry_seal_failure(VerbaLinea *line, const EngineSampleRecord *record)
     mmgr_line_put(line, ", ");
     mmgr_line_decimal(line, record->rows_differ, 1u);
     mmgr_line_put(line, " rows differ");
-    if ((record->rows_differ != 0ull) && (record->extent[1] != 0ull) && (record->extent[2] != 0ull))
+    if ((record->rows_differ != 0ULL) && (record->extent[1] != 0ULL) && (record->extent[2] != 0ULL))
     {
         const unsigned long long row = record->first_row_differ;
         mmgr_line_put(line, " (first at t ");
@@ -462,7 +462,7 @@ void entry_seal_failure(VerbaLinea *line, const EngineSampleRecord *record)
     mmgr_line_put(line, ", ");
     mmgr_line_decimal(line, record->roots_differ, 1u);
     mmgr_line_put(line, " other nodes differ; ");
-    if (record->root_rebuilt == 0ull)
+    if (record->root_rebuilt == 0ULL)
     {
         mmgr_line_put(line, "the check stopped before a root was rebuilt, against the file's ");
         entry_signum_text(line, &record->root);

@@ -11,30 +11,30 @@ static void zip_folder_of(const unsigned char *name, unsigned long long length, 
                           unsigned long long *span)
 {
     unsigned long long last = length;
-    while ((last > 0ull) && (name[last - 1ull] != '/'))
+    while ((last > 0ULL) && (name[last - 1ULL] != '/'))
     {
-        last -= 1ull;
+        last -= 1ULL;
     }
-    if (last == 0ull)
+    if (last == 0ULL)
     {
-        *start = 0ull;
-        *span = 0ull;
+        *start = 0ULL;
+        *span = 0ULL;
         return;
     }
-    unsigned long long before = last - 1ull;
-    while ((before > 0ull) && (name[before - 1ull] != '/'))
+    unsigned long long before = last - 1ULL;
+    while ((before > 0ULL) && (name[before - 1ULL] != '/'))
     {
-        before -= 1ull;
+        before -= 1ULL;
     }
     *start = before;
-    *span = (last - 1ull) - before;
+    *span = (last - 1ULL) - before;
 }
 
 static int zip_order_spans(const unsigned char *left, unsigned long long left_length, const unsigned char *right,
                            unsigned long long right_length)
 {
     const unsigned long long shorter = (left_length < right_length) ? left_length : right_length;
-    const int differ = (shorter != 0ull) ? memcmp(left, right, (size_t)shorter) : 0;
+    const int differ = (shorter != 0ULL) ? memcmp(left, right, (size_t)shorter) : 0;
     if (differ != 0)
     {
         return differ;
@@ -48,10 +48,10 @@ static int zip_order_entries(const void *left, const void *right)
     const unsigned char *const other = s_zip_sorting + *(const unsigned long long *)right;
     const unsigned long long one_length = zip_load(one + 28u, 2u);
     const unsigned long long other_length = zip_load(other + 28u, 2u);
-    unsigned long long one_start = 0ull;
-    unsigned long long one_span = 0ull;
-    unsigned long long other_start = 0ull;
-    unsigned long long other_span = 0ull;
+    unsigned long long one_start = 0ULL;
+    unsigned long long one_span = 0ULL;
+    unsigned long long other_start = 0ULL;
+    unsigned long long other_span = 0ULL;
     zip_folder_of(one + 46u, one_length, &one_start, &one_span);
     zip_folder_of(other + 46u, other_length, &other_start, &other_span);
     const int folder = zip_order_spans(one + 46u + one_start, one_span, other + 46u + other_start, other_span);
@@ -60,18 +60,18 @@ static int zip_order_entries(const void *left, const void *right)
 
 int zip_archive_index(ZipArchive *archive, EngineError *error)
 {
-    if (!ZIP_CHECK(zip_fits_memory((archive->entries + 1ull) * sizeof(unsigned long long)), &archive->entries, error,
+    if (!ZIP_CHECK(zip_fits_memory((archive->entries + 1ULL) * sizeof(unsigned long long)), &archive->entries, error,
                    ENGINE_ERROR_RESOURCE))
     {
         return 0;
     }
-    unsigned long long *const entry_at = malloc((size_t)(archive->entries + 1ull) * sizeof(unsigned long long));
+    unsigned long long *const entry_at = malloc((size_t)(archive->entries + 1ULL) * sizeof(unsigned long long));
     if (!ZIP_CHECK(entry_at != NULL, &archive->entries, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
     }
-    unsigned long long at = 0ull;
-    for (unsigned long long index = 0ull; index < archive->entries; index += 1ull)
+    unsigned long long at = 0ULL;
+    for (unsigned long long index = 0ULL; index < archive->entries; index += 1ULL)
     {
         ZipEntry entry = zip_empty_entry;
         entry_at[index] = at;
@@ -93,29 +93,29 @@ static int zip_folder_compare(const ZipArchive *archive, unsigned long long at, 
                               unsigned long long folder_length)
 {
     const unsigned char *const fixed = archive->directory + archive->entry_at[at];
-    unsigned long long start = 0ull;
-    unsigned long long span = 0ull;
+    unsigned long long start = 0ULL;
+    unsigned long long span = 0ULL;
     zip_folder_of(fixed + 46u, zip_load(fixed + 28u, 2u), &start, &span);
     return zip_order_spans(fixed + 46u + start, span, (const unsigned char *)folder, folder_length);
 }
 
 int zip_folder_find(const ZipArchive *archive, const char *folder, unsigned long long *first, unsigned long long *count)
 {
-    *first = 0ull;
-    *count = 0ull;
+    *first = 0ULL;
+    *count = 0ULL;
     if ((archive->entry_at == NULL) || (folder == NULL))
     {
         return 0;
     }
     const unsigned long long folder_length = strlen(folder);
-    unsigned long long low = 0ull;
+    unsigned long long low = 0ULL;
     unsigned long long high = archive->entries;
     while (low < high)
     {
-        const unsigned long long middle = low + ((high - low) / 2ull);
+        const unsigned long long middle = low + ((high - low) / 2ULL);
         if (zip_folder_compare(archive, middle, folder, folder_length) < 0)
         {
-            low = middle + 1ull;
+            low = middle + 1ULL;
         }
         else
         {
@@ -125,7 +125,7 @@ int zip_folder_find(const ZipArchive *archive, const char *folder, unsigned long
     unsigned long long end = low;
     while ((end < archive->entries) && (zip_folder_compare(archive, end, folder, folder_length) == 0))
     {
-        end += 1ull;
+        end += 1ULL;
     }
     *first = low;
     *count = end - low;
@@ -184,17 +184,17 @@ int zip_member_data(const EngineIngestTools *tools, const char *path, const ZipA
                     unsigned long long *data_start, EngineError *error)
 {
     unsigned char local[30u];
-    if (!ZIP_CHECK(((entry->flags & 0x41ull) == 0ull) && ((entry->method == 0ull) || (entry->method == 8ull)) &&
+    if (!ZIP_CHECK(((entry->flags & 0x41ULL) == 0ULL) && ((entry->method == 0ULL) || (entry->method == 8ULL)) &&
                        (entry->local_offset <= archive->file_bytes) &&
-                       ((archive->file_bytes - entry->local_offset) >= 30ull),
+                       ((archive->file_bytes - entry->local_offset) >= 30ULL),
                    entry, error, ENGINE_ERROR_REQUEST) ||
-        !ZIP_IO(zip_fetch(tools, path, entry->local_offset, 30ull, local), local, error) ||
+        !ZIP_IO(zip_fetch(tools, path, entry->local_offset, 30ULL, local), local, error) ||
         !ZIP_CHECK(memcmp(local, zip_local, sizeof zip_local) == 0, local, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
     const unsigned long long start =
-        entry->local_offset + 30ull + zip_load(local + 26u, 2u) + zip_load(local + 28u, 2u);
+        entry->local_offset + 30ULL + zip_load(local + 26u, 2u) + zip_load(local + 28u, 2u);
     if (!ZIP_CHECK((start <= archive->file_bytes) && (entry->compressed <= (archive->file_bytes - start)), local, error,
                    ENGINE_ERROR_REQUEST))
     {
@@ -209,7 +209,7 @@ int zip_member_data(const EngineIngestTools *tools, const char *path, const ZipA
 static int zip_member_unpack(const EngineIngestTools *tools, const unsigned char *packed, const ZipEntry *entry,
                              unsigned char *out, EngineError *error)
 {
-    if (entry->method == 0ull)
+    if (entry->method == 0ULL)
     {
         if (!ZIP_CHECK(entry->compressed == entry->uncompressed, entry, error, ENGINE_ERROR_REQUEST))
         {
@@ -243,10 +243,10 @@ long long zip_member_read(const EngineIngestTools *tools, const char *path, cons
     {
         return ZIP_ERROR;
     }
-    unsigned long long data_start = 0ull;
+    unsigned long long data_start = 0ULL;
     if (!ZIP_CHECK((tools != NULL) && (path != NULL) && (archive != NULL) && (entry != NULL) && (out != NULL) &&
                        (entry->uncompressed <= capacity) && zip_fits_memory(entry->uncompressed) &&
-                       zip_fits_memory(entry->compressed + 1ull),
+                       zip_fits_memory(entry->compressed + 1ULL),
                    entry, error, ENGINE_ERROR_REQUEST) ||
         !zip_member_data(tools, path, archive, entry, &data_start, error))
     {
@@ -265,24 +265,24 @@ int zip_span_read(const EngineIngestTools *tools, const char *path, const ZipArc
                   const ZipEntry *entries, unsigned long long count, ZipSpan *span, EngineError *error)
 {
     memset(span, 0, sizeof(*span));
-    if (!ZIP_CHECK((tools != NULL) && (path != NULL) && (archive != NULL) && (entries != NULL) && (count != 0ull),
+    if (!ZIP_CHECK((tools != NULL) && (path != NULL) && (archive != NULL) && (entries != NULL) && (count != 0ULL),
                    entries, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
     // the span runs from the first member's local header to the end of the last member's data. The last member's
     // local header gives where its data starts, since a local header's extra field need not be the directory's
-    unsigned long long first = 0ull;
-    for (unsigned long long at = 1ull; at < count; at += 1ull)
+    unsigned long long first = 0ULL;
+    for (unsigned long long at = 1ULL; at < count; at += 1ULL)
     {
         first = (entries[at].local_offset < entries[first].local_offset) ? at : first;
     }
-    unsigned long long last = 0ull;
-    for (unsigned long long at = 1ull; at < count; at += 1ull)
+    unsigned long long last = 0ULL;
+    for (unsigned long long at = 1ULL; at < count; at += 1ULL)
     {
         last = (entries[at].local_offset > entries[last].local_offset) ? at : last;
     }
-    unsigned long long data_start = 0ull;
+    unsigned long long data_start = 0ULL;
     if (!zip_member_data(tools, path, archive, &entries[last], &data_start, error))
     {
         return 0;
@@ -313,10 +313,10 @@ long long zip_span_member(const EngineIngestTools *tools, const ZipSpan *span, c
         return ZIP_ERROR;
     }
     if (!ZIP_CHECK((tools != NULL) && (span != NULL) && (span->bytes != NULL) && (entry != NULL) && (out != NULL) &&
-                       (entry->uncompressed <= capacity) && ((entry->flags & 0x41ull) == 0ull) &&
-                       ((entry->method == 0ull) || (entry->method == 8ull)) && (entry->local_offset >= span->first) &&
+                       (entry->uncompressed <= capacity) && ((entry->flags & 0x41ULL) == 0ULL) &&
+                       ((entry->method == 0ULL) || (entry->method == 8ULL)) && (entry->local_offset >= span->first) &&
                        ((entry->local_offset - span->first) <= span->length) &&
-                       ((span->length - (entry->local_offset - span->first)) >= 30ull),
+                       ((span->length - (entry->local_offset - span->first)) >= 30ULL),
                    entry, error, ENGINE_ERROR_REQUEST))
     {
         return ZIP_ERROR;
@@ -327,7 +327,7 @@ long long zip_span_member(const EngineIngestTools *tools, const ZipSpan *span, c
         return ZIP_ERROR;
     }
     const unsigned long long data_at =
-        (entry->local_offset - span->first) + 30ull + zip_load(local + 26u, 2u) + zip_load(local + 28u, 2u);
+        (entry->local_offset - span->first) + 30ULL + zip_load(local + 26u, 2u) + zip_load(local + 28u, 2u);
     if (!ZIP_CHECK((data_at <= span->length) && (entry->compressed <= (span->length - data_at)), local, error,
                    ENGINE_ERROR_REQUEST) ||
         !zip_member_unpack(tools, span->bytes + data_at, entry, out, error))

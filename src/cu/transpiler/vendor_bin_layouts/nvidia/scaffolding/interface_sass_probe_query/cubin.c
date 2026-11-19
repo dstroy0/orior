@@ -26,7 +26,7 @@ int sass_cubin_safe(const SassProbe *probe, const char *path)
     {
         fclose(file);
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     const unsigned int verdict = ((probe->machine == NULL) || (size == 0u) || (size == sizeof(s_safe_image)))
                                      ? CUBIN_SAFE_SIZE
                                      : cubin_safe_image(probe->machine, s_safe_image, size, 0u, &at);

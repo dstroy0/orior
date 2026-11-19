@@ -28,7 +28,7 @@ std::vector<char> cycle_cache_read(const std::string &path, const std::string &s
     fclose(file);
     const size_t magic = sizeof(s_cycle_cache_magic) - 1u;
     const size_t head = magic + sizeof(unsigned long long);
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     if (contents.size() >= head)
     {
         memcpy(&length, &contents[magic], sizeof(length));

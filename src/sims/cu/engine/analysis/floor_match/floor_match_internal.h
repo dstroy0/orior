@@ -16,15 +16,15 @@
 
 #include "../../../../../cu/engine/analysis/tower/tower.h"
 
-#define MATCH_KEY 0x464C4F4F52ull
+#define MATCH_KEY 0x464C4F4F52ULL
 
-#define MATCH_FOUNDER_PURPOSE 0x464F554Eull
+#define MATCH_FOUNDER_PURPOSE 0x464F554EULL
 
-#define MATCH_PRESENT_PURPOSE 0x50524553ull
+#define MATCH_PRESENT_PURPOSE 0x50524553ULL
 
-#define MATCH_ABSENT_PURPOSE 0x41425345ull
+#define MATCH_ABSENT_PURPOSE 0x41425345ULL
 
-#define MATCH_SIDE 64ull
+#define MATCH_SIDE 64ULL
 
 #define MATCH_FLOOR 2u
 
@@ -38,11 +38,11 @@
 // a floor-2 value's width: the engine's lowering confines every value to the 16-bit lane
 #define MATCH_BITS 16u
 
-#define MATCH_WORD_BITS 32ull
+#define MATCH_WORD_BITS 32ULL
 
 #define MATCH_WORDS (MATCH_FLOOR_VALUES / MATCH_WORD_BITS)
 
-#define MATCH_VALUES_MAX 65536ull
+#define MATCH_VALUES_MAX 65536ULL
 
 #define MATCH_FOUNDERS 6u
 
@@ -51,16 +51,16 @@
 
 #define MATCH_QUERIES (2u * MATCH_QUERIES_EACH)
 
-#define MATCH_THREADS 256ull
+#define MATCH_THREADS 256ULL
 
-static_assert((MATCH_FLOOR_VALUES % MATCH_WORD_BITS) == 0ull, "floor 2 fills whole plane words, one warp a word");
+static_assert((MATCH_FLOOR_VALUES % MATCH_WORD_BITS) == 0ULL, "floor 2 fills whole plane words, one warp a word");
 
-static_assert((MATCH_FLOOR_VALUES % MATCH_THREADS) == 0ull, "the plane kernel's blocks are whole warps");
+static_assert((MATCH_FLOOR_VALUES % MATCH_THREADS) == 0ULL, "the plane kernel's blocks are whole warps");
 
 // what the sim puts on the device at once: the frame, the tower's two retained coefficient arrays, floor 2, the planes,
 // the queries, and each query's match word and reads for every plane word
 #define MATCH_DECLARED                                                                                                 \
-    ((MATCH_SAMPLES * sizeof(unsigned short)) + (2ull * MATCH_SAMPLES * sizeof(int)) +                                 \
+    ((MATCH_SAMPLES * sizeof(unsigned short)) + (2ULL * MATCH_SAMPLES * sizeof(int)) +                                 \
      (MATCH_FLOOR_VALUES * sizeof(unsigned short)) + (MATCH_BITS * MATCH_WORDS * sizeof(unsigned int)) +               \
      (MATCH_QUERIES * sizeof(unsigned int)) +                                                                          \
      ((unsigned long long)MATCH_QUERIES * MATCH_WORDS * (sizeof(unsigned int) + sizeof(unsigned char))))

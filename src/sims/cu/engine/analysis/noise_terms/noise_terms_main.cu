@@ -3,14 +3,14 @@
 // noise_terms_main.cu: the mix and main
 #include "noise_terms_internal.h"
 
-static const unsigned long long TERMS_FLAT_LIGHT[TERMS_FLAT_LIGHTS] = {100ull, 200ull, 400ull};
+static const unsigned long long TERMS_FLAT_LIGHT[TERMS_FLAT_LIGHTS] = {100ULL, 200ULL, 400ULL};
 
 // the halves' covariance's tolerances at each light for each camera, in lane units squared
 static const unsigned long long TERMS_FLAT_RANGE[TERMS_HALVES_CAMERAS][TERMS_FLAT_LIGHTS][2] = {
-    {{1ull, 30ull}, {1ull, 30ull}, {1ull, 30ull}},
-    {{1ull, 10ull}, {1ull, 5ull}, {2ull, 5ull}},
-    {{1ull, 5ull}, {1ull, 5ull}, {1ull, 5ull}},
-    {{1ull, 5ull}, {1ull, 4ull}, {1ull, 2ull}}};
+    {{1ULL, 30ULL}, {1ULL, 30ULL}, {1ULL, 30ULL}},
+    {{1ULL, 10ULL}, {1ULL, 5ULL}, {2ULL, 5ULL}},
+    {{1ULL, 5ULL}, {1ULL, 5ULL}, {1ULL, 5ULL}},
+    {{1ULL, 5ULL}, {1ULL, 4ULL}, {1ULL, 2ULL}}};
 
 // each plane but the first takes 1/8 of the plane before it, rounded to the nearest, from the top plane down so each
 // mixes with an unmixed plane
@@ -18,16 +18,16 @@ static void terms_mix(unsigned short *lanes)
 {
     const unsigned long long plane = TERMS_HEIGHT * TERMS_WIDTH;
     const unsigned long long voxels = TERMS_DEPTH * plane;
-    for (unsigned long long frame = 0ull; frame < TERMS_FRAMES; frame += 1ull)
+    for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
     {
-        for (unsigned long long z = TERMS_DEPTH - 1ull; z >= 1ull; z -= 1ull)
+        for (unsigned long long z = TERMS_DEPTH - 1ULL; z >= 1ULL; z -= 1ULL)
         {
-            for (unsigned long long place = 0ull; place < plane; place += 1ull)
+            for (unsigned long long place = 0ULL; place < plane; place += 1ULL)
             {
                 const unsigned long long here = (frame * voxels) + (z * plane) + place;
                 const unsigned long long mixed =
-                    (((8ull - TERMS_MIX_EIGHTHS) * lanes[here]) + (TERMS_MIX_EIGHTHS * lanes[here - plane]) + 4ull) /
-                    8ull;
+                    (((8ULL - TERMS_MIX_EIGHTHS) * lanes[here]) + (TERMS_MIX_EIGHTHS * lanes[here - plane]) + 4ULL) /
+                    8ULL;
                 // an eighths-weighted mean of two lanes is itself a lane
                 lanes[here] = (unsigned short)mixed;
             }
@@ -46,7 +46,7 @@ int main(void)
     const unsigned long long count = TERMS_FRAMES * TERMS_DEPTH * TERMS_HEIGHT * TERMS_WIDTH;
     const unsigned long long lane_bytes = count * sizeof(unsigned short);
     // the sim's lanes, the detector's copy of them, and the detector's line sums and mask
-    int ok = sim_job_submit(&results, "noise_terms", 0, NULL, (2ull * lane_bytes) + (64ull << 20u));
+    int ok = sim_job_submit(&results, "noise_terms", 0, NULL, (2ULL * lane_bytes) + (64ULL << 20u));
     unsigned short *const lanes = (unsigned short *)malloc((size_t)lane_bytes);
     unsigned short *device_lanes = NULL;
     ok = ok && (lanes != NULL) &&
@@ -67,15 +67,15 @@ int main(void)
         terms_camera(&camera);
         if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
         {
-            terms_lines(&results, lanes, 0ull, 0ull, 0ull);
-            terms_flicker(&results, lanes, 0ull, 0u);
-            terms_neighbors(&results, lanes, 0ll);
-            terms_spikes(&results, lanes, 0ull, camera.shot);
+            terms_lines(&results, lanes, 0ULL, 0ULL, 0ULL);
+            terms_flicker(&results, lanes, 0ULL, 0u);
+            terms_neighbors(&results, lanes, 0LL);
+            terms_spikes(&results, lanes, 0ULL, camera.shot);
             sim_flush(&results);
             mmgr_line_put(&results.line, "  the null mixed along z, 1/8 of the plane before (an interpolation's"
                                           " weights): (1/8)(7/8) / ((7/8)^2 + (1/8)^2) = 7/50\n");
             terms_mix(lanes);
-            terms_neighbors(&results, lanes, 140ll);
+            terms_neighbors(&results, lanes, 140LL);
         }
         sim_flush(&results);
         mmgr_line_put(&results.line, "  the null with a box fixed at 0 and a box fixed at the top\n");
@@ -93,9 +93,9 @@ int main(void)
     {
         mmgr_line_put(&results.line, shared_names[shared]);
         terms_camera(&camera);
-        camera.row_square = (shared == 0u) ? TERMS_SHARED_SQUARE : 0ull;
-        camera.column_square = (shared == 1u) ? TERMS_SHARED_SQUARE : 0ull;
-        camera.plane_square = (shared == 2u) ? TERMS_SHARED_SQUARE : 0ull;
+        camera.row_square = (shared == 0u) ? TERMS_SHARED_SQUARE : 0ULL;
+        camera.column_square = (shared == 1u) ? TERMS_SHARED_SQUARE : 0ULL;
+        camera.plane_square = (shared == 2u) ? TERMS_SHARED_SQUARE : 0ULL;
         if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
         {
             terms_lines(&results, lanes, camera.row_square, camera.column_square, camera.plane_square);
@@ -116,7 +116,7 @@ int main(void)
         sim_flush(&results);
         mmgr_line_put(&results.line, "  spikes of 256 electrons at one voxel-frame in 1024\n");
         terms_camera(&camera);
-        camera.spike_numerator = 1ull;
+        camera.spike_numerator = 1ULL;
         camera.spike_denominator = TERMS_SPIKE_DENOMINATOR;
         camera.spike_electrons = TERMS_SPIKE_ELECTRONS;
         if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
@@ -143,7 +143,7 @@ int main(void)
             terms_shot_law(&results, lanes, laws[each]);
         }
         scene.background = TERMS_BACKGROUND;
-        unsigned long long clipped = 0ull;
+        unsigned long long clipped = 0ULL;
         const unsigned long long began = engine_clock_microseconds();
         const int rendered = sim_render(&results, &scene, &camera, device_lanes, NULL, NULL, &clipped);
         const unsigned long long spent = engine_clock_microseconds() - began;
@@ -156,7 +156,7 @@ int main(void)
             mmgr_line_put(&results.line, "    rendered at 100 electrons in ");
             mmgr_line_decimal(&results.line, spent, 1u);
             mmgr_line_put(&results.line, " microseconds\n");
-            terms_spikes(&results, lanes, 0ull, laws[each]);
+            terms_spikes(&results, lanes, 0ULL, laws[each]);
         }
         sim_flush(&results);
     }
@@ -168,7 +168,7 @@ int main(void)
         terms_camera(&camera);
         // the gain is a small positive constant
         camera.gain = (unsigned long long)TERMS_LADDER_GAIN;
-        camera.pattern_range = 0ull;
+        camera.pattern_range = 0ULL;
         scene.background = TERMS_LADDER_BACKGROUND;
         scene.ramp = TERMS_LADDER_RAMP;
         if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
@@ -176,7 +176,7 @@ int main(void)
             terms_ladder(&results, lanes);
         }
         scene.background = TERMS_BACKGROUND;
-        scene.ramp = 0ull;
+        scene.ramp = 0ULL;
         sim_flush(&results);
     }
     if (ok)
@@ -187,7 +187,7 @@ int main(void)
         sim_check(&results, drawn != NULL, "the crosstalk copy");
         if ((drawn != NULL) && terms_render(&results, &scene, &camera, device_lanes, lanes, count))
         {
-            terms_crosstalk(&results, lanes, 0ull);
+            terms_crosstalk(&results, lanes, 0ULL);
             sim_flush(&results);
             mmgr_line_put(&results.line,
                            "  the null with each voxel taking 1/8 of each x neighbor's value after the draw"
@@ -208,14 +208,14 @@ int main(void)
         // no fixed pattern. Each series draws on its own key as a second series of one camera would
         terms_camera(&camera);
         camera.gain = TERMS_CHARGE_GAIN;
-        camera.pattern_range = 0ull;
+        camera.pattern_range = 0ULL;
         camera.reset_square = TERMS_RESET_SQUARE;
-        scene.background = 0ull;
+        scene.background = 0ULL;
         unsigned short *const bias = (unsigned short *)malloc((size_t)lane_bytes);
         sim_check(&results, bias != NULL, "the bias series");
         if ((bias != NULL) && terms_render(&results, &scene, &camera, device_lanes, bias, count))
         {
-            for (unsigned long long exposure = 1ull; exposure <= TERMS_EXPOSURES; exposure += 1ull)
+            for (unsigned long long exposure = 1ULL; exposure <= TERMS_EXPOSURES; exposure += 1ULL)
             {
                 camera.key = TERMS_KEY + exposure;
                 camera.dark = exposure * TERMS_DARK;
@@ -231,12 +231,12 @@ int main(void)
             mmgr_line_put(&results.line,
                            "  thinning: 64 electrons of light against the same bias, each counted electron"
                            " retained with chance q = a/4; g f' = g (1 + q (f - 1))\n");
-            camera.dark = 0ull;
+            camera.dark = 0ULL;
             scene.background = TERMS_THIN_LIGHT;
             const unsigned long long thin_laws[3] = {SIM_SHOT_POISSON, SIM_SHOT_HALF, SIM_SHOT_PAIRED};
             // each law's Fano factor, a numerator over a denominator
-            const long long fano_numerator[3] = {1ll, 1ll, 2ll};
-            const long long fano_denominator[3] = {1ll, 2ll, 1ll};
+            const long long fano_numerator[3] = {1LL, 1LL, 2LL};
+            const long long fano_denominator[3] = {1LL, 2LL, 1LL};
             const char *const thin_names[3] = {"    the Poisson count, f = 1\n", "    Binomial(2S, 1/2), f = 1/2\n",
                                                "    twice a Poisson count of pairs, f = 2\n"};
             for (unsigned int law = 0u; law < 3u; law += 1u)
@@ -244,9 +244,9 @@ int main(void)
                 mmgr_line_put(&results.line, thin_names[law]);
                 camera.shot = thin_laws[law];
                 camera.thin_bits = TERMS_THIN_BITS;
-                for (unsigned long long thin_step = 1ull; thin_step <= TERMS_THIN_STEPS; thin_step += 1ull)
+                for (unsigned long long thin_step = 1ULL; thin_step <= TERMS_THIN_STEPS; thin_step += 1ULL)
                 {
-                    camera.key = TERMS_KEY + (16ull * (law + 1ull)) + thin_step;
+                    camera.key = TERMS_KEY + (16ULL * (law + 1ULL)) + thin_step;
                     camera.thin_numerator = thin_step;
                     mmgr_line_put(&results.line, "    q = ");
                     mmgr_line_decimal(&results.line, thin_step, 1u);
@@ -254,7 +254,7 @@ int main(void)
                     if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
                     {
                         // g (4 d + a (n - d)) / (4 d), each term a few units
-                        const long long denominator = 4ll * fano_denominator[law];
+                        const long long denominator = 4LL * fano_denominator[law];
                         const long long numerator =
                             (long long)camera.gain *
                             (denominator + ((long long)thin_step * (fano_numerator[law] - fano_denominator[law])));
@@ -267,9 +267,9 @@ int main(void)
                            "    the Poisson count thinned, then the excess, F^2 = 2: g f' = 2 g at every q\n");
             camera.shot = SIM_SHOT_POISSON;
             camera.excess = 1u;
-            for (unsigned long long thin_step = 1ull; thin_step <= TERMS_THIN_STEPS; thin_step += 3ull)
+            for (unsigned long long thin_step = 1ULL; thin_step <= TERMS_THIN_STEPS; thin_step += 3ULL)
             {
-                camera.key = TERMS_KEY + 128ull + thin_step;
+                camera.key = TERMS_KEY + 128ULL + thin_step;
                 camera.thin_numerator = thin_step;
                 mmgr_line_put(&results.line, "    q = ");
                 mmgr_line_decimal(&results.line, thin_step, 1u);
@@ -277,7 +277,7 @@ int main(void)
                 if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
                 {
                     // the gain is a small positive constant
-                    terms_thinned(&results, bias, lanes, 2ll * (long long)camera.gain, 1ull);
+                    terms_thinned(&results, bias, lanes, 2LL * (long long)camera.gain, 1ULL);
                 }
             }
         }
@@ -299,11 +299,11 @@ int main(void)
         if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
         {
             terms_blur(&results, lanes, &scene, &camera);
-            terms_neighbors(&results, lanes, 0ll);
-            terms_crosstalk(&results, lanes, 0ull);
+            terms_neighbors(&results, lanes, 0LL);
+            terms_crosstalk(&results, lanes, 0ULL);
         }
-        scene.plant_period = 0ull;
-        scene.plant_amplitude = 0ull;
+        scene.plant_period = 0ULL;
+        scene.plant_amplitude = 0ULL;
         sim_flush(&results);
     }
     if (ok)
@@ -313,7 +313,7 @@ int main(void)
                        " electrons, no fixed pattern; the null, then a light scale of 4 octaves of variance"
                        " 1024 over 2^10, octave o sustained 2^o frames\n");
         terms_camera(&camera);
-        camera.pattern_range = 0ull;
+        camera.pattern_range = 0ULL;
         scene.background = TERMS_STRUCTURE_BACKGROUND;
         scene.plant_axis = 2u;
         scene.plant_period = TERMS_WIDTH;
@@ -322,7 +322,7 @@ int main(void)
         for (unsigned int scaled = 0u; scaled < 2u; scaled += 1u)
         {
             mmgr_line_put(&results.line, (scaled != 0u) ? "    the scale\n" : "    the null\n");
-            camera.scale_square = (scaled != 0u) ? TERMS_SCALE_SQUARE : 0ull;
+            camera.scale_square = (scaled != 0u) ? TERMS_SCALE_SQUARE : 0ULL;
             camera.scale_octaves = (scaled != 0u) ? TERMS_SCALE_OCTAVES : 0u;
             camera.scale_bits = (scaled != 0u) ? TERMS_SCALE_BITS : 0u;
             if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
@@ -332,8 +332,8 @@ int main(void)
             sim_flush(&results);
         }
         scene.background = TERMS_BACKGROUND;
-        scene.plant_period = 0ull;
-        scene.plant_amplitude = 0ull;
+        scene.plant_period = 0ULL;
+        scene.plant_amplitude = 0ULL;
     }
     if (ok)
     {
@@ -350,9 +350,9 @@ int main(void)
             mmgr_line_put(&results.line, cameras[patterned]);
             const int gained = (patterned & 1u) != 0u;
             const int offset = (patterned & 2u) != 0u;
-            camera.gain_pattern_range = gained ? TERMS_GAIN_PATTERN_RANGE : 0ull;
+            camera.gain_pattern_range = gained ? TERMS_GAIN_PATTERN_RANGE : 0ULL;
             camera.gain_pattern_bits = gained ? TERMS_GAIN_PATTERN_BITS : 0u;
-            camera.offset_pattern_range = offset ? TERMS_OFFSET_PATTERN_RANGE : 0ull;
+            camera.offset_pattern_range = offset ? TERMS_OFFSET_PATTERN_RANGE : 0ULL;
             NoiseHalvesMeasurement readings[TERMS_FLAT_LIGHTS];
             int read = 1;
             for (unsigned int flat = 0u; flat < TERMS_FLAT_LIGHTS; flat += 1u)
@@ -370,7 +370,7 @@ int main(void)
             }
             sim_flush(&results);
         }
-        camera.offset_pattern_range = 0ull;
+        camera.offset_pattern_range = 0ULL;
         scene.background = TERMS_BACKGROUND;
     }
     cudaFree(device_lanes);

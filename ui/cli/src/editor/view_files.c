@@ -130,7 +130,7 @@ EMBED_INLINE void view_files_colored(const ViewFilesCtx *args)
     const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                                  .languages_read = &languages, .path = args->path, .id_out = id);
     g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    *(&languages) = (CliLanguages){NULL, 0u, 0u};
+    languages = (CliLanguages){NULL, 0u, 0u};
     grammar[0] = '\0';
     if (known && !EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar,
                              .err_msg = &err_msg))

@@ -86,17 +86,17 @@ static int deflate_trees(const DeflateToken *tokens, unsigned long long count, D
     memset(literal_frequency, 0, sizeof(literal_frequency));
     memset(distance_frequency, 0, sizeof(distance_frequency));
     memset(code_length_frequency, 0, sizeof(code_length_frequency));
-    for (unsigned long long token = 0ull; token < count; token += 1ull)
+    for (unsigned long long token = 0ULL; token < count; token += 1ULL)
     {
         if (tokens[token].length == 0u)
         {
-            literal_frequency[tokens[token].value] += 1ull;
+            literal_frequency[tokens[token].value] += 1ULL;
             continue;
         }
-        literal_frequency[DEFLATE_END_OF_BLOCK + 1u + deflate_length_code(tokens[token].length)] += 1ull;
-        distance_frequency[deflate_distance_code(tokens[token].value)] += 1ull;
+        literal_frequency[DEFLATE_END_OF_BLOCK + 1u + deflate_length_code(tokens[token].length)] += 1ULL;
+        distance_frequency[deflate_distance_code(tokens[token].value)] += 1ULL;
     }
-    literal_frequency[DEFLATE_END_OF_BLOCK] += 1ull;
+    literal_frequency[DEFLATE_END_OF_BLOCK] += 1ULL;
     if (!deflate_lengths(literal_frequency, DEFLATE_LITERAL_CODES, DEFLATE_CODE_BITS, trees->lengths) ||
         !deflate_lengths(distance_frequency, DEFLATE_DISTANCE_CODES, DEFLATE_CODE_BITS,
                          trees->lengths + DEFLATE_LITERAL_CODES))
@@ -118,7 +118,7 @@ static int deflate_trees(const DeflateToken *tokens, unsigned long long count, D
     deflate_runs(trees);
     for (unsigned int run = 0u; run < trees->run_count; run += 1u)
     {
-        code_length_frequency[trees->run_symbols[run]] += 1ull;
+        code_length_frequency[trees->run_symbols[run]] += 1ULL;
     }
     if (!deflate_lengths(code_length_frequency, DEFLATE_CODE_LENGTH_CODES, DEFLATE_CODE_LENGTH_BITS,
                          trees->code_length_lengths))
@@ -139,7 +139,7 @@ static unsigned long long deflate_symbol_bits(const DeflateToken *tokens, unsign
                                               const DeflateTrees *trees)
 {
     unsigned long long bits = trees->lengths[DEFLATE_END_OF_BLOCK];
-    for (unsigned long long token = 0ull; token < count; token += 1ull)
+    for (unsigned long long token = 0ULL; token < count; token += 1ULL)
     {
         if (tokens[token].length == 0u)
         {
@@ -157,7 +157,7 @@ static unsigned long long deflate_symbol_bits(const DeflateToken *tokens, unsign
 static unsigned long long deflate_dynamic_bits(const DeflateToken *tokens, unsigned long long count,
                                                const DeflateTrees *trees)
 {
-    unsigned long long bits = 3ull + 5ull + 5ull + 4ull + (3ull * trees->code_length_count);
+    unsigned long long bits = 3ULL + 5ULL + 5ULL + 4ULL + (3ULL * trees->code_length_count);
     for (unsigned int run = 0u; run < trees->run_count; run += 1u)
     {
         bits += trees->code_length_lengths[trees->run_symbols[run]] + deflate_run_extra_bits(trees->run_symbols[run]);
@@ -194,8 +194,8 @@ static void deflate_put(DeflateWriter *writer, unsigned int value, unsigned int 
             return;
         }
         // the low byte of the accumulator is taken whole
-        writer->out[writer->written] = (unsigned char)(writer->bits & 0xFFull);
-        writer->written += 1ull;
+        writer->out[writer->written] = (unsigned char)(writer->bits & 0xFFULL);
+        writer->written += 1ULL;
         writer->bits >>= 8u;
         writer->count -= 8u;
     }
@@ -212,7 +212,7 @@ static void deflate_align(DeflateWriter *writer)
 static void deflate_write_symbols(DeflateWriter *writer, const DeflateToken *tokens, unsigned long long count,
                                   const DeflateTrees *trees)
 {
-    for (unsigned long long token = 0ull; (token < count) && (writer->overflow == 0); token += 1ull)
+    for (unsigned long long token = 0ULL; (token < count) && (writer->overflow == 0); token += 1ULL)
     {
         if (tokens[token].length == 0u)
         {
@@ -264,7 +264,7 @@ static void deflate_write_fixed(DeflateWriter *writer, const DeflateToken *token
 
 static void deflate_write_stored(DeflateWriter *writer, const unsigned char *in, unsigned long long in_bytes)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     do
     {
         const unsigned long long take =
@@ -282,7 +282,7 @@ static void deflate_write_stored(DeflateWriter *writer, const unsigned char *in,
             writer->overflow = 1;
             return;
         }
-        if (take != 0ull)
+        if (take != 0ULL)
         {
             memcpy(writer->out + writer->written, in + at, (size_t)take);
         }
@@ -293,52 +293,52 @@ static void deflate_write_stored(DeflateWriter *writer, const unsigned char *in,
 
 unsigned long long deflate_raw_bound(unsigned long long in_bytes)
 {
-    const unsigned long long blocks = (in_bytes == 0ull) ? 1ull : (((in_bytes - 1ull) / DEFLATE_STORED_CEILING) + 1ull);
+    const unsigned long long blocks = (in_bytes == 0ULL) ? 1ULL : (((in_bytes - 1ULL) / DEFLATE_STORED_CEILING) + 1ULL);
     return in_bytes + (DEFLATE_STORED_FRAME * blocks);
 }
 
 long long deflate_raw_encode(const EngineBytesRequest *request)
 {
-    if ((request == NULL) || ((request->in == NULL) && (request->in_bytes != 0ull)) || (request->out == NULL))
+    if ((request == NULL) || ((request->in == NULL) && (request->in_bytes != 0ULL)) || (request->out == NULL))
     {
         return ENGINE_BYTES_ERROR;
     }
     const unsigned long long in_bytes = request->in_bytes;
     const unsigned long long range = (in_bytes < DEFLATE_KEYS) ? in_bytes : DEFLATE_KEYS;
     unsigned int key_bits = 0u;
-    while ((1ull << key_bits) < range)
+    while ((1ULL << key_bits) < range)
     {
         key_bits += 1u;
     }
-    const unsigned long long slots = 1ull << key_bits;
+    const unsigned long long slots = 1ULL << key_bits;
     DeflateMatcher matcher;
     matcher.in = request->in;
     matcher.in_bytes = in_bytes;
     matcher.heads = (unsigned long long *)calloc((size_t)slots, sizeof(unsigned long long));
     matcher.previous = (unsigned long long *)calloc((size_t)in_bytes + 1u, sizeof(unsigned long long));
-    matcher.mask = slots - 1ull;
+    matcher.mask = slots - 1ULL;
     matcher.key_bits = (key_bits == 0u) ? 1u : key_bits;
     DeflateToken *const tokens = (DeflateToken *)malloc(((size_t)in_bytes + 1u) * sizeof(DeflateToken));
     DeflateTrees *const trees = (DeflateTrees *)calloc(1u, sizeof(DeflateTrees));
     DeflateTrees *const fixed = (DeflateTrees *)calloc(1u, sizeof(DeflateTrees));
     int ok =
         (matcher.heads != NULL) && (matcher.previous != NULL) && (tokens != NULL) && (trees != NULL) && (fixed != NULL);
-    const unsigned long long count = ok ? deflate_parse(&matcher, tokens) : 0ull;
+    const unsigned long long count = ok ? deflate_parse(&matcher, tokens) : 0ULL;
     ok = ok && deflate_trees(tokens, count, trees);
     if (ok)
     {
         deflate_fixed_trees(fixed);
     }
-    const unsigned long long dynamic_bytes = ok ? ((deflate_dynamic_bits(tokens, count, trees) + 7ull) / 8ull) : 0ull;
+    const unsigned long long dynamic_bytes = ok ? ((deflate_dynamic_bits(tokens, count, trees) + 7ULL) / 8ULL) : 0ULL;
     const unsigned long long fixed_bytes =
-        ok ? ((3ull + deflate_symbol_bits(tokens, count, fixed) + 7ull) / 8ull) : 0ull;
+        ok ? ((3ULL + deflate_symbol_bits(tokens, count, fixed) + 7ULL) / 8ULL) : 0ULL;
     const unsigned long long stored_bytes = deflate_raw_bound(in_bytes);
     const int use_fixed = (fixed_bytes < dynamic_bytes);
     const unsigned long long coded_bytes = use_fixed ? fixed_bytes : dynamic_bytes;
     const int stored = (stored_bytes < coded_bytes);
     const unsigned long long chosen = stored ? stored_bytes : coded_bytes;
     ok = ok && (chosen <= request->out_capacity);
-    DeflateWriter writer = {request->out, request->out_capacity, 0ull, 0ull, 0u, 0};
+    DeflateWriter writer = {request->out, request->out_capacity, 0ULL, 0ULL, 0u, 0};
     if (ok && stored)
     {
         deflate_write_stored(&writer, request->in, in_bytes);

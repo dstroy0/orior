@@ -48,7 +48,7 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     fprintf(out, "| bit | operand | part |\n|---|---|---|\n");
     char line[256];
     char hidden_bits[512] = "";
-    unsigned long long baseline = 0ull;
+    unsigned long long baseline = 0ULL;
     int have_baseline = 0;
     unsigned int refused = 0u;
     unsigned int inside = 0u;
@@ -95,7 +95,7 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         }
         else
         {
-            unsigned long long answered = 0ull;
+            unsigned long long answered = 0ULL;
             const char *given = word;
             const int answered_read = have_baseline && line_number(&given, 1, &answered) && (answered != baseline);
             if (!answered_read)
@@ -281,11 +281,11 @@ int fields_names(const char *machine_path, const char *instructions)
     char instruction[512];
     char redirected[512];
     char observe[64];
-    unsigned long long low = 0ull;
-    unsigned long long high = 0ull;
+    unsigned long long low = 0ULL;
+    unsigned long long high = 0ULL;
     if (!fields_first(instructions, instruction, sizeof(instruction)) ||
         !fields_redirect(instruction, redirected, sizeof(redirected), observe, sizeof(observe)) ||
-        !sass_assemble(&s_machine, redirected, 0ull, 0ull, SASS_CONTROL_SAFE, &low, &high))
+        !sass_assemble(&s_machine, redirected, 0ULL, 0ULL, SASS_CONTROL_SAFE, &low, &high))
     {
         fprintf(stderr, "the instructions %s contain no form that assembles\n", instructions);
         return 2;
@@ -293,7 +293,7 @@ int fields_names(const char *machine_path, const char *instructions)
     char text[256];
     char base_text[256];
     SassInstructionParts base;
-    if (!sass_encoding_read(&s_machine, low, high, 0ull, base_text, sizeof(base_text)))
+    if (!sass_encoding_read(&s_machine, low, high, 0ULL, base_text, sizeof(base_text)))
     {
         fprintf(stderr, "%s does not read back\n", redirected);
         return 2;
@@ -302,9 +302,9 @@ int fields_names(const char *machine_path, const char *instructions)
     printf("NAMES\t%s\tbase\t%s\n", instruction, base_text);
     for (unsigned int bit = 0u; bit < FIELDS_OPERATION_BITS; bit += 1u)
     {
-        const unsigned long long turned_low = (bit < 64u) ? (low ^ (1ull << bit)) : low;
-        const unsigned long long turned_high = (bit < 64u) ? high : (high ^ (1ull << (bit - 64u)));
-        if (!sass_encoding_read(&s_machine, turned_low, turned_high, 0ull, text, sizeof(text)))
+        const unsigned long long turned_low = (bit < 64u) ? (low ^ (1ULL << bit)) : low;
+        const unsigned long long turned_high = (bit < 64u) ? high : (high ^ (1ULL << (bit - 64u)));
+        if (!sass_encoding_read(&s_machine, turned_low, turned_high, 0ULL, text, sizeof(text)))
         {
             printf("NAMES\t%s\t%u\tno form\n", instruction, bit);
             continue;

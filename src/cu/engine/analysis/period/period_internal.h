@@ -32,15 +32,15 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 
 #define PERIOD_GRID_ROWS_MAX 65535u
 
-#define PERIOD_VOXELS_MAX 0xFFFFFFFFull
+#define PERIOD_VOXELS_MAX 0xFFFFFFFFULL
 
-#define PERIOD_LOW_HALF 0xFFFFFFFFull
+#define PERIOD_LOW_HALF 0xFFFFFFFFULL
 
 #define PERIOD_ROUNDS 4u
 
 #define PERIOD_SEED_WORDS 4u
 
-#define PERIOD_ROW_TEXT 576ull
+#define PERIOD_ROW_TEXT 576ULL
 
 static_assert((PERIOD_SEED_WORDS * 8u) == ENGINE_SIGNUM_BYTES, "period: the seed words must cover the content signum");
 

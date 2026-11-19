@@ -40,7 +40,7 @@ static const unsigned int inflate_crc_table[256u] = {
 static int inflate_stored(InflateStream *stream)
 {
     inflate_align(stream);
-    if ((stream->in_bytes - stream->at) < 4ull)
+    if ((stream->in_bytes - stream->at) < 4ULL)
     {
         return 0;
     }
@@ -51,7 +51,7 @@ static int inflate_stored(InflateStream *stream)
     {
         return 0;
     }
-    stream->at += 4ull;
+    stream->at += 4ULL;
     if (((stream->in_bytes - stream->at) < length) || ((stream->out_capacity - stream->written) < length))
     {
         return 0;
@@ -188,9 +188,9 @@ static int inflate_blocks(InflateStream *stream)
 
 static unsigned int inflate_adler(const unsigned char *bytes, unsigned long long count)
 {
-    unsigned long long low = 1ull;
-    unsigned long long high = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long low = 1ULL;
+    unsigned long long high = 0ULL;
+    unsigned long long at = 0ULL;
     while (at < count)
     {
         const unsigned long long run_end = ((count - at) > INFLATE_ADLER_RUN) ? (at + INFLATE_ADLER_RUN) : count;
@@ -198,7 +198,7 @@ static unsigned int inflate_adler(const unsigned char *bytes, unsigned long long
         {
             low += bytes[at];
             high += low;
-            at += 1ull;
+            at += 1ULL;
         }
         low %= INFLATE_ADLER_MODULUS;
         high %= INFLATE_ADLER_MODULUS;
@@ -209,7 +209,7 @@ static unsigned int inflate_adler(const unsigned char *bytes, unsigned long long
 static unsigned int inflate_crc(const unsigned char *bytes, unsigned long long count)
 {
     unsigned int crc = 0xFFFFFFFFu;
-    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
         crc = inflate_crc_table[(crc ^ bytes[at]) & 0xFFu] ^ (crc >> 8u);
     }
@@ -227,14 +227,14 @@ static unsigned long long inflate_skip_string(const unsigned char *bytes, unsign
 {
     while ((cursor < available) && (bytes[cursor] != 0u))
     {
-        cursor += 1ull;
+        cursor += 1ULL;
     }
-    return (cursor < available) ? (cursor + 1ull) : 0ull;
+    return (cursor < available) ? (cursor + 1ULL) : 0ULL;
 }
 
 static long long inflate_error(const EngineBytesRequest *request, unsigned long long touched)
 {
-    if (touched != 0ull)
+    if (touched != 0ULL)
     {
         memset(request->out, 0, (size_t)touched);
     }
@@ -243,7 +243,7 @@ static long long inflate_error(const EngineBytesRequest *request, unsigned long 
 
 long long inflate_raw_decode(const EngineBytesRequest *request)
 {
-    InflateStream stream = {request->in, request->in_bytes, 0ull, 0ull, 0u, request->out, request->out_capacity, 0ull};
+    InflateStream stream = {request->in, request->in_bytes, 0ULL, 0ULL, 0u, request->out, request->out_capacity, 0ULL};
     if (!inflate_blocks(&stream) || (stream.at != stream.in_bytes))
     {
         return inflate_error(request, stream.written);
@@ -253,7 +253,7 @@ long long inflate_raw_decode(const EngineBytesRequest *request)
 
 long long inflate_zlib_decode(const EngineBytesRequest *request)
 {
-    if (request->in_bytes < 2ull)
+    if (request->in_bytes < 2ULL)
     {
         return ENGINE_BYTES_ERROR;
     }
@@ -265,9 +265,9 @@ long long inflate_zlib_decode(const EngineBytesRequest *request)
     {
         return ENGINE_BYTES_ERROR;
     }
-    InflateStream stream = {request->in + 2u, request->in_bytes - 2ull, 0ull, 0ull, 0u,
-                            request->out,     request->out_capacity,    0ull};
-    if (!inflate_blocks(&stream) || ((stream.in_bytes - stream.at) != 4ull))
+    InflateStream stream = {request->in + 2u, request->in_bytes - 2ULL, 0ULL, 0ULL, 0u,
+                            request->out,     request->out_capacity,    0ULL};
+    if (!inflate_blocks(&stream) || ((stream.in_bytes - stream.at) != 4ULL))
     {
         return inflate_error(request, stream.written);
     }
@@ -297,13 +297,13 @@ static int inflate_gzip_member(const EngineBytesRequest *request, unsigned long 
     unsigned long long cursor = INFLATE_GZIP_HEADER;
     if ((flags & 4u) != 0u)
     {
-        if ((available - cursor) < 2ull)
+        if ((available - cursor) < 2ULL)
         {
             return 0;
         }
         const unsigned long long extra_length =
-            (unsigned long long)member[cursor] | ((unsigned long long)member[cursor + 1ull] << 8u);
-        cursor += 2ull;
+            (unsigned long long)member[cursor] | ((unsigned long long)member[cursor + 1ULL] << 8u);
+        cursor += 2ULL;
         if ((available - cursor) < extra_length)
         {
             return 0;
@@ -313,7 +313,7 @@ static int inflate_gzip_member(const EngineBytesRequest *request, unsigned long 
     if ((flags & 8u) != 0u)
     {
         cursor = inflate_skip_string(member, cursor, available);
-        if (cursor == 0ull)
+        if (cursor == 0ULL)
         {
             return 0;
         }
@@ -321,32 +321,32 @@ static int inflate_gzip_member(const EngineBytesRequest *request, unsigned long 
     if ((flags & 16u) != 0u)
     {
         cursor = inflate_skip_string(member, cursor, available);
-        if (cursor == 0ull)
+        if (cursor == 0ULL)
         {
             return 0;
         }
     }
     if ((flags & 2u) != 0u)
     {
-        if ((available - cursor) < 2ull)
+        if ((available - cursor) < 2ULL)
         {
             return 0;
         }
-        const unsigned int header_check = (unsigned int)member[cursor] | ((unsigned int)member[cursor + 1ull] << 8u);
+        const unsigned int header_check = (unsigned int)member[cursor] | ((unsigned int)member[cursor + 1ULL] << 8u);
         if (header_check != (inflate_crc(member, cursor) & 0xFFFFu))
         {
             return 0;
         }
-        cursor += 2ull;
+        cursor += 2ULL;
     }
     InflateStream stream = {member + cursor,
                             available - cursor,
-                            0ull,
-                            0ull,
+                            0ULL,
+                            0ULL,
                             0u,
                             request->out + *total,
                             request->out_capacity - *total,
-                            0ull};
+                            0ULL};
     const int inflated = inflate_blocks(&stream);
     *total += stream.written;
     if (!inflated || ((stream.in_bytes - stream.at) < INFLATE_GZIP_TRAILER))
@@ -355,16 +355,16 @@ static int inflate_gzip_member(const EngineBytesRequest *request, unsigned long 
     }
     const unsigned char *const trailer = stream.in + stream.at;
     const int trailer_ok = (inflate_little_32(trailer) == inflate_crc(stream.out, stream.written)) &&
-                           (inflate_little_32(trailer + 4u) == (unsigned int)(stream.written & 0xFFFFFFFFull));
+                           (inflate_little_32(trailer + 4u) == (unsigned int)(stream.written & 0xFFFFFFFFULL));
     *at += cursor + stream.at + INFLATE_GZIP_TRAILER;
     return trailer_ok;
 }
 
 long long inflate_gzip_decode(const EngineBytesRequest *request)
 {
-    unsigned long long at = 0ull;
-    unsigned long long total = 0ull;
-    int ok = (request->in_bytes != 0ull);
+    unsigned long long at = 0ULL;
+    unsigned long long total = 0ULL;
+    int ok = (request->in_bytes != 0ULL);
     while (ok && (at < request->in_bytes))
     {
         ok = inflate_gzip_member(request, &at, &total);

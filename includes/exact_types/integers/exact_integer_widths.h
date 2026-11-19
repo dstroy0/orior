@@ -36,7 +36,7 @@ extern "C"
  * @note Defined on both arms so #if always has a value and an unset build is never a silent false.
  */
 #if defined(ORIOR_EXACT_BITS) && !defined(ORIOR_EXACT_LIMBS)
-#define ORIOR_EXACT_LIMBS ((ORIOR_EXACT_BITS) / 32ull)
+#define ORIOR_EXACT_LIMBS ((ORIOR_EXACT_BITS) / 32ULL)
 #endif
 
 #ifndef ORIOR_EXACT_LIMBS
@@ -47,7 +47,7 @@ extern "C"
  * @brief Bits the fixed width actually carries. Every size is taken from this or from the limbs.
  */
 #ifndef ORIOR_EXACT_BITS
-#define ORIOR_EXACT_BITS ((ORIOR_EXACT_LIMBS) * 32ull)
+#define ORIOR_EXACT_BITS ((ORIOR_EXACT_LIMBS) * 32ULL)
 #endif
 
 /**
@@ -89,34 +89,34 @@ extern "C"
  * bench binary carrying no CUDA symbols went on reporting a "cuda" arm that agreed with the portable
  * one. It agreed because it WAS the portable one. */
 #if defined(__cplusplus)
-    static_assert(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
-                      (((unsigned long long)(ORIOR_EXACT_BITS) & ((unsigned long long)(ORIOR_EXACT_BITS)-1ull)) ==
-                       0ull),
+    static_assert(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ULL) &&
+                      (((unsigned long long)(ORIOR_EXACT_BITS) & ((unsigned long long)(ORIOR_EXACT_BITS)-1ULL)) ==
+                       0ULL),
                   "ORIOR_EXACT_BITS must be a power of two of at least 32, so the width scales by doubling");
-    static_assert((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ull),
+    static_assert((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ULL),
                   "ORIOR_EXACT_BITS and ORIOR_EXACT_LIMBS must name the same width");
-    static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
+    static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ULL) / 1000ULL) + 1ULL) <=
                       (unsigned long long)(ORIOR_EXACT_BITS),
                   "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS represents");
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-_Static_assert(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
-                   (((unsigned long long)(ORIOR_EXACT_BITS) & ((unsigned long long)(ORIOR_EXACT_BITS)-1ull)) == 0ull),
+_Static_assert(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ULL) &&
+                   (((unsigned long long)(ORIOR_EXACT_BITS) & ((unsigned long long)(ORIOR_EXACT_BITS)-1ULL)) == 0ULL),
                "ORIOR_EXACT_BITS must be a power of two of at least 32, so the width scales by doubling");
-_Static_assert((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ull),
+_Static_assert((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ULL),
                "ORIOR_EXACT_BITS and ORIOR_EXACT_LIMBS must name the same width");
-_Static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
+_Static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ULL) / 1000ULL) + 1ULL) <=
                    (unsigned long long)(ORIOR_EXACT_BITS),
                "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS represents");
 #else
-typedef char orior_exact_bits_are_a_power_of_two[(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
+typedef char orior_exact_bits_are_a_power_of_two[(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ULL) &&
                                                    (((unsigned long long)(ORIOR_EXACT_BITS) &
-                                                     ((unsigned long long)(ORIOR_EXACT_BITS)-1ull)) == 0ull))
+                                                     ((unsigned long long)(ORIOR_EXACT_BITS)-1ULL)) == 0ULL))
                                                       ? 1
                                                       : -1];
 typedef char orior_exact_bits_and_limbs_agree
-    [((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ull)) ? 1 : -1];
-typedef char orior_exact_digits_fit_the_width[(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) +
-                                                 1ull) <= (unsigned long long)(ORIOR_EXACT_BITS))
+    [((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(ORIOR_EXACT_LIMBS) * 32ULL)) ? 1 : -1];
+typedef char orior_exact_digits_fit_the_width[(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ULL) / 1000ULL) +
+                                                 1ULL) <= (unsigned long long)(ORIOR_EXACT_BITS))
                                                    ? 1
                                                    : -1];
 #endif

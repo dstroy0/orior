@@ -8,7 +8,7 @@
 int khw_kernel_read(const char *path)
 {
     s_pattern_size = cubin_pattern_read(path, s_pattern, sizeof(s_pattern), s_kernel, sizeof(s_kernel));
-    if (s_pattern_size == 0ull)
+    if (s_pattern_size == 0ULL)
     {
         return 0;
     }
@@ -20,7 +20,7 @@ int khw_kernel_read(const char *path)
         printf("  orior_khw_machine_write: the container at %s contains no code the kernel is read from\n", path);
         return 0;
     }
-    if ((sizes[0] == 0ull) || ((sizes[0] % KHW_INSTRUCTION) != 0ull) ||
+    if ((sizes[0] == 0ULL) || ((sizes[0] % KHW_INSTRUCTION) != 0ULL) ||
         (sizes[0] > (unsigned long long)sizeof(s_kernel_text)))
     {
         printf("  orior_khw_machine_write: the kernel is %llu bytes, which is no whole count of places\n", sizes[0]);
@@ -140,7 +140,7 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
 {
     QryShared *const run = qry_member_run();
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (run == NULL)
     {
         printf("  orior_khw_machine_write: no run's writer runs to read %s from\n", answers);
@@ -153,13 +153,13 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
     }
     char line[2048];
     unsigned int read = 0u;
-    unsigned long long next = 0ull;
+    unsigned long long next = 0ULL;
     while ((next < size) && (read < room))
     {
         const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
         snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(bytes + next));
-        next += (unsigned long long)length + 1ull;
+        next += (unsigned long long)length + 1ULL;
         if ((line[0] == '#') || (line[0] == '\0') || (line[0] == '\r'))
         {
             continue;

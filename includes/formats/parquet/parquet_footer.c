@@ -24,33 +24,33 @@ typedef struct
 static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *footer, ParquetSchemaFrame *stack,
                                        unsigned int *depth, char *path)
 {
-    long long field_id = 0ll;
-    unsigned long long physical = 0ull;
-    unsigned long long fixed_bytes = 0ull;
+    long long field_id = 0LL;
+    unsigned long long physical = 0ULL;
+    unsigned long long fixed_bytes = 0ULL;
     unsigned long long repetition_type = PARQUET_REQUIRED;
-    unsigned long long children = 0ull;
+    unsigned long long children = 0ULL;
     const unsigned char *name = NULL;
-    unsigned long long name_bytes = 0ull;
+    unsigned long long name_bytes = 0ULL;
     for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
          type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (type == PARQUET_THRIFT_I32))
+        if ((field_id == 1LL) && (type == PARQUET_THRIFT_I32))
         {
             physical = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 2ll) && (type == PARQUET_THRIFT_I32))
+        else if ((field_id == 2LL) && (type == PARQUET_THRIFT_I32))
         {
             fixed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 3ll) && (type == PARQUET_THRIFT_I32))
+        else if ((field_id == 3LL) && (type == PARQUET_THRIFT_I32))
         {
             repetition_type = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 4ll) && (type == PARQUET_THRIFT_BINARY))
+        else if ((field_id == 4LL) && (type == PARQUET_THRIFT_BINARY))
         {
             name = parquet_binary_read(cursor, &name_bytes);
         }
-        else if ((field_id == 5ll) && (type == PARQUET_THRIFT_I32))
+        else if ((field_id == 5LL) && (type == PARQUET_THRIFT_I32))
         {
             children = parquet_nonnegative_read(cursor);
         }
@@ -69,31 +69,31 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
         stack[0].children_left = children;
         stack[0].definition_max = 0u;
         stack[0].repetition_max = 0u;
-        stack[0].path_bytes = 0ull;
+        stack[0].path_bytes = 0ULL;
         *depth = 1u;
-        return children != 0ull;
+        return children != 0ULL;
     }
     ParquetSchemaFrame *const parent = &stack[*depth - 1u];
-    if (parent->children_left == 0ull)
+    if (parent->children_left == 0ULL)
     {
         return 0;
     }
-    parent->children_left -= 1ull;
+    parent->children_left -= 1ULL;
     const unsigned int definition = parent->definition_max + ((repetition_type != PARQUET_REQUIRED) ? 1u : 0u);
     const unsigned int repetition = parent->repetition_max + ((repetition_type == PARQUET_REPEATED) ? 1u : 0u);
-    const unsigned long long separator = (parent->path_bytes == 0ull) ? 0ull : 1ull;
+    const unsigned long long separator = (parent->path_bytes == 0ULL) ? 0ULL : 1ULL;
     const unsigned long long path_bytes = parent->path_bytes + separator + name_bytes;
     if ((name == NULL) || (path_bytes >= PARQUET_PATH_BYTES))
     {
         return 0;
     }
-    if (separator != 0ull)
+    if (separator != 0ULL)
     {
         path[parent->path_bytes] = '.';
     }
     memcpy(path + parent->path_bytes + separator, name, (size_t)name_bytes);
     path[path_bytes] = '\0';
-    if (children == 0ull)
+    if (children == 0ULL)
     {
         // a physical type is 0 through 7 and a fixed width a few bytes, both stored as i32, and an unknown type is
         // refused where its column is read; a width past an unsigned int is refused here
@@ -121,7 +121,7 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
         stack[*depth].path_bytes = path_bytes;
         *depth += 1u;
     }
-    while ((*depth > 1u) && (stack[*depth - 1u].children_left == 0ull))
+    while ((*depth > 1u) && (stack[*depth - 1u].children_left == 0ULL))
     {
         *depth -= 1u;
     }
@@ -140,7 +140,7 @@ static int parquet_schema_read(ParquetCursor *cursor, ParquetFooter *footer)
     ParquetSchemaFrame stack[PARQUET_SCHEMA_DEPTH_MAX];
     char path[PARQUET_PATH_BYTES];
     unsigned int depth = 0u;
-    for (unsigned long long element = 0ull; element < count; element += 1ull)
+    for (unsigned long long element = 0ULL; element < count; element += 1ULL)
     {
         if (!parquet_schema_element_read(cursor, footer, stack, &depth, path))
         {
@@ -159,16 +159,16 @@ static int parquet_path_match(ParquetCursor *cursor, const char *leaf_path)
     {
         return 0;
     }
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     int matches = 1;
-    for (unsigned long long part = 0ull; part < parts; part += 1ull)
+    for (unsigned long long part = 0ULL; part < parts; part += 1ULL)
     {
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         const unsigned char *const name = parquet_binary_read(cursor, &length);
-        if (part != 0ull)
+        if (part != 0ULL)
         {
             matches = matches && (at < PARQUET_PATH_BYTES) && (leaf_path[at] == '.');
-            at += 1ull;
+            at += 1ULL;
         }
         matches =
             matches && ((at + length) < PARQUET_PATH_BYTES) && (memcmp(leaf_path + at, name, (size_t)length) == 0);
@@ -180,14 +180,14 @@ static int parquet_path_match(ParquetCursor *cursor, const char *leaf_path)
 // one ColumnMetaData: the codec, the counts, the sizes and the chunk's first byte
 static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf *leaf, ParquetChunk *chunk)
 {
-    long long field_id = 0ll;
-    unsigned long long data_page_offset = 0ull;
-    unsigned long long dictionary_page_offset = 0ull;
+    long long field_id = 0LL;
+    unsigned long long data_page_offset = 0ULL;
+    unsigned long long dictionary_page_offset = 0ULL;
     int path_seen = 0;
     for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
          type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 3ll) && (type == PARQUET_THRIFT_LIST))
+        if ((field_id == 3LL) && (type == PARQUET_THRIFT_LIST))
         {
             if (!parquet_path_match(cursor, leaf->path))
             {
@@ -195,30 +195,30 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
             }
             path_seen = 1;
         }
-        else if ((field_id == 4ll) && (type == PARQUET_THRIFT_I32))
+        else if ((field_id == 4LL) && (type == PARQUET_THRIFT_I32))
         {
             const unsigned long long codec = parquet_nonnegative_read(cursor);
             // a codec is 0 through 7, stored as i32. One past it is stored as the last unknown one, and an unknown
             // codec is refused where a page is decoded
-            chunk->codec = (ParquetCodec)((codec <= (unsigned long long)PARQUET_LZ4_RAW) ? codec : 0xFFull);
+            chunk->codec = (ParquetCodec)((codec <= (unsigned long long)PARQUET_LZ4_RAW) ? codec : 0xFFULL);
         }
-        else if ((field_id == 5ll) && (type == PARQUET_THRIFT_I64))
+        else if ((field_id == 5LL) && (type == PARQUET_THRIFT_I64))
         {
             chunk->level_count = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 6ll) && (type == PARQUET_THRIFT_I64))
+        else if ((field_id == 6LL) && (type == PARQUET_THRIFT_I64))
         {
             chunk->uncompressed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 7ll) && (type == PARQUET_THRIFT_I64))
+        else if ((field_id == 7LL) && (type == PARQUET_THRIFT_I64))
         {
             chunk->compressed_bytes = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 9ll) && (type == PARQUET_THRIFT_I64))
+        else if ((field_id == 9LL) && (type == PARQUET_THRIFT_I64))
         {
             data_page_offset = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 11ll) && (type == PARQUET_THRIFT_I64))
+        else if ((field_id == 11LL) && (type == PARQUET_THRIFT_I64))
         {
             dictionary_page_offset = parquet_nonnegative_read(cursor);
         }
@@ -233,7 +233,7 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
     }
     // a writer that stores no dictionary may still write the field as zero: a dictionary offset counts only where it
     // is nonzero and ahead of the first data page
-    const int has_dictionary = (dictionary_page_offset != 0ull) && (dictionary_page_offset < data_page_offset);
+    const int has_dictionary = (dictionary_page_offset != 0ULL) && (dictionary_page_offset < data_page_offset);
     chunk->first_byte = has_dictionary ? dictionary_page_offset : data_page_offset;
     return path_seen;
 }
@@ -241,12 +241,12 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
 // one ColumnChunk, which carries its ColumnMetaData
 static int parquet_column_chunk_read(ParquetCursor *cursor, const ParquetLeaf *leaf, ParquetChunk *chunk)
 {
-    long long field_id = 0ll;
+    long long field_id = 0LL;
     int metadata_seen = 0;
     for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
          type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 3ll) && (type == PARQUET_THRIFT_STRUCT))
+        if ((field_id == 3LL) && (type == PARQUET_THRIFT_STRUCT))
         {
             if (!parquet_column_metadata_read(cursor, leaf, chunk))
             {
@@ -269,12 +269,12 @@ static int parquet_column_chunk_read(ParquetCursor *cursor, const ParquetLeaf *l
 // one RowGroup: its row count and one chunk a leaf, in leaf order
 static int parquet_row_group_read(ParquetCursor *cursor, const ParquetFooter *footer, ParquetRowGroup *row_group)
 {
-    long long field_id = 0ll;
+    long long field_id = 0LL;
     int columns_seen = 0;
     for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
          type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 1ll) && (type == PARQUET_THRIFT_LIST))
+        if ((field_id == 1LL) && (type == PARQUET_THRIFT_LIST))
         {
             unsigned int element_type = 0u;
             const unsigned long long count = parquet_list_header_read(cursor, &element_type);
@@ -291,7 +291,7 @@ static int parquet_row_group_read(ParquetCursor *cursor, const ParquetFooter *fo
             }
             columns_seen = 1;
         }
-        else if ((field_id == 3ll) && (type == PARQUET_THRIFT_I64))
+        else if ((field_id == 3LL) && (type == PARQUET_THRIFT_I64))
         {
             row_group->rows = parquet_nonnegative_read(cursor);
         }
@@ -310,12 +310,12 @@ static int parquet_row_group_read(ParquetCursor *cursor, const ParquetFooter *fo
 // the FileMetaData: the schema first, then the row count and the row groups
 static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *footer)
 {
-    long long field_id = 0ll;
+    long long field_id = 0LL;
     int schema_seen = 0;
     for (unsigned int type = parquet_field_read(cursor, &field_id); type != PARQUET_THRIFT_STOP;
          type = parquet_field_read(cursor, &field_id))
     {
-        if ((field_id == 2ll) && (type == PARQUET_THRIFT_LIST))
+        if ((field_id == 2LL) && (type == PARQUET_THRIFT_LIST))
         {
             if (!parquet_schema_read(cursor, footer))
             {
@@ -323,11 +323,11 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
             }
             schema_seen = 1;
         }
-        else if ((field_id == 3ll) && (type == PARQUET_THRIFT_I64))
+        else if ((field_id == 3LL) && (type == PARQUET_THRIFT_I64))
         {
             footer->rows = parquet_nonnegative_read(cursor);
         }
-        else if ((field_id == 4ll) && (type == PARQUET_THRIFT_LIST) && schema_seen)
+        else if ((field_id == 4LL) && (type == PARQUET_THRIFT_LIST) && schema_seen)
         {
             unsigned int element_type = 0u;
             const unsigned long long count = parquet_list_header_read(cursor, &element_type);
@@ -335,7 +335,7 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
             {
                 return 0;
             }
-            for (unsigned long long group = 0ull; group < count; group += 1ull)
+            for (unsigned long long group = 0ULL; group < count; group += 1ULL)
             {
                 if (!parquet_row_group_read(cursor, footer, &footer->row_group[group]))
                 {
@@ -401,7 +401,7 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     range.offset = file_size - PARQUET_TRAILER_BYTES - footer_bytes;
     range.bytes = footer_bytes;
     range.out = text;
-    ParquetCursor cursor = {text, footer_bytes, 0ull, 0u};
+    ParquetCursor cursor = {text, footer_bytes, 0ULL, 0u};
     // the footer's bytes are limited to 16 MiB above, and the count converts exactly
     const int read = (tools->read(&range) == (long long)footer_bytes);
     const int decoded = read && parquet_file_metadata_read(&cursor, footer) && (cursor.broken == 0u);

@@ -6,40 +6,40 @@
 // the tower's own floor shift, toward minus infinity, as tower_*.cu takes it
 static long long match_floor_shift(long long value, unsigned int shift)
 {
-    return (value >= 0ll) ? (value >> shift) : -(((-value) + (1ll << shift) - 1ll) >> shift);
+    return (value >= 0LL) ? (value >> shift) : -(((-value) + (1LL << shift) - 1LL) >> shift);
 }
 
 // the high d_j of one line, as tower_*.cu's forward kernel reads it: the edge repeats its left neighbor
 static long long match_high(const long long *from, unsigned long long line, unsigned long long stride,
                             unsigned long long length, unsigned long long j)
 {
-    const long long left = from[line + (2ull * j * stride)];
-    const long long right = ((2ull * j) + 2ull < length) ? from[line + (((2ull * j) + 2ull) * stride)] : left;
-    return from[line + (((2ull * j) + 1ull) * stride)] - match_floor_shift(left + right, 1u);
+    const long long left = from[line + (2ULL * j * stride)];
+    const long long right = ((2ULL * j) + 2ULL < length) ? from[line + (((2ULL * j) + 2ULL) * stride)] : left;
+    return from[line + (((2ULL * j) + 1ULL) * stride)] - match_floor_shift(left + right, 1u);
 }
 
 // one coefficient of one line after the lifting along it: the lows first, then the highs
 static long long match_lifted(const long long *from, unsigned long long line, unsigned long long stride,
                               unsigned long long length, unsigned long long along)
 {
-    const unsigned long long lows = (length + 1ull) / 2ull;
-    const unsigned long long highs = length / 2ull;
+    const unsigned long long lows = (length + 1ULL) / 2ULL;
+    const unsigned long long highs = length / 2ULL;
     if (along >= lows)
     {
         return match_high(from, line, stride, length, along - lows);
     }
-    const long long before = (along > 0ull) ? match_high(from, line, stride, length, along - 1ull)
-                                            : match_high(from, line, stride, length, 0ull);
+    const long long before = (along > 0ULL) ? match_high(from, line, stride, length, along - 1ULL)
+                                            : match_high(from, line, stride, length, 0ULL);
     const long long after = (along < highs) ? match_high(from, line, stride, length, along) : before;
-    return from[line + (2ull * along * stride)] + match_floor_shift(before + after + 2ll, 2u);
+    return from[line + (2ULL * along * stride)] + match_floor_shift(before + after + 2LL, 2u);
 }
 
 // the host's floor 2: two levels of the 5/3 lifting, each along z, then y, then x over the active corner, every
 // axis pass reading the coefficients as they was before it, as the engine's kernels do
 void match_floor_host(const unsigned short *lanes, long long *work, long long *before, long long *floor_values)
 {
-    const unsigned long long stride[SIM_AXES] = {MATCH_SIDE * MATCH_SIDE, MATCH_SIDE, 1ull};
-    for (unsigned long long sample = 0ull; sample < MATCH_SAMPLES; sample += 1ull)
+    const unsigned long long stride[SIM_AXES] = {MATCH_SIDE * MATCH_SIDE, MATCH_SIDE, 1ULL};
+    for (unsigned long long sample = 0ULL; sample < MATCH_SAMPLES; sample += 1ULL)
     {
         work[sample] = (long long)lanes[sample];
     }
@@ -49,11 +49,11 @@ void match_floor_host(const unsigned short *lanes, long long *work, long long *b
         for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
         {
             memcpy(before, work, (size_t)MATCH_SAMPLES * sizeof(long long));
-            for (unsigned long long z = 0ull; z < active; z += 1ull)
+            for (unsigned long long z = 0ULL; z < active; z += 1ULL)
             {
-                for (unsigned long long y = 0ull; y < active; y += 1ull)
+                for (unsigned long long y = 0ULL; y < active; y += 1ULL)
                 {
-                    for (unsigned long long x = 0ull; x < active; x += 1ull)
+                    for (unsigned long long x = 0ULL; x < active; x += 1ULL)
                     {
                         const unsigned long long place[SIM_AXES] = {z, y, x};
                         const unsigned long long along = place[axis];
@@ -64,11 +64,11 @@ void match_floor_host(const unsigned short *lanes, long long *work, long long *b
             }
         }
     }
-    for (unsigned long long z = 0ull; z < MATCH_FLOOR_SIDE; z += 1ull)
+    for (unsigned long long z = 0ULL; z < MATCH_FLOOR_SIDE; z += 1ULL)
     {
-        for (unsigned long long y = 0ull; y < MATCH_FLOOR_SIDE; y += 1ull)
+        for (unsigned long long y = 0ULL; y < MATCH_FLOOR_SIDE; y += 1ULL)
         {
-            for (unsigned long long x = 0ull; x < MATCH_FLOOR_SIDE; x += 1ull)
+            for (unsigned long long x = 0ULL; x < MATCH_FLOOR_SIDE; x += 1ULL)
             {
                 floor_values[(((z * MATCH_FLOOR_SIDE) + y) * MATCH_FLOOR_SIDE) + x] =
                     work[(z * stride[0]) + (y * stride[1]) + x];
@@ -90,7 +90,7 @@ int match_floor_engine(SimResults *results, const unsigned short *device_lanes, 
     TowerLiftRequest lift;
     memset(&lift, 0, sizeof(lift));
     lift.device_lanes = device_lanes;
-    lift.extent[0] = 1ull;
+    lift.extent[0] = 1ULL;
     lift.extent[1] = MATCH_SIDE;
     lift.extent[2] = MATCH_SIDE;
     lift.extent[3] = MATCH_SIDE;
@@ -104,25 +104,25 @@ int match_floor_engine(SimResults *results, const unsigned short *device_lanes, 
          sim_status_check(
              results, cudaMemcpy(crystal, coefficients, (size_t)MATCH_SAMPLES * sizeof(int), cudaMemcpyDeviceToHost),
              "crystal read");
-    for (unsigned long long z = 0ull; ok && (z < MATCH_FLOOR_SIDE); z += 1ull)
+    for (unsigned long long z = 0ULL; ok && (z < MATCH_FLOOR_SIDE); z += 1ULL)
     {
-        for (unsigned long long y = 0ull; y < MATCH_FLOOR_SIDE; y += 1ull)
+        for (unsigned long long y = 0ULL; y < MATCH_FLOOR_SIDE; y += 1ULL)
         {
-            for (unsigned long long x = 0ull; x < MATCH_FLOOR_SIDE; x += 1ull)
+            for (unsigned long long x = 0ULL; x < MATCH_FLOOR_SIDE; x += 1ULL)
             {
                 corner[(((z * MATCH_FLOOR_SIDE) + y) * MATCH_FLOOR_SIDE) + x] =
                     crystal[(((z * MATCH_SIDE) + y) * MATCH_SIDE) + x];
             }
         }
     }
-    const unsigned long long floor_extent[4] = {1ull, MATCH_FLOOR_SIDE, MATCH_FLOOR_SIDE, MATCH_FLOOR_SIDE};
+    const unsigned long long floor_extent[4] = {1ULL, MATCH_FLOOR_SIDE, MATCH_FLOOR_SIDE, MATCH_FLOOR_SIDE};
     int *device_buffer = NULL;
     ok = ok && (tower_capacity(floor_extent, &device_buffer, &error) == 0L) &&
          sim_status_check(
              results,
              cudaMemcpy(device_buffer, corner, (size_t)MATCH_FLOOR_VALUES * sizeof(int), cudaMemcpyHostToDevice),
              "corner write");
-    unsigned long long mismatches = 0ull;
+    unsigned long long mismatches = 0ULL;
     const unsigned short *device_rebuilt = NULL;
     TowerLowerRequest lower;
     memset(&lower, 0, sizeof(lower));

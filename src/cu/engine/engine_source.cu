@@ -22,15 +22,15 @@ static int entry_zip_names(const char *path, const char *member)
     EngineError probe;
     memset(&probe, 0, sizeof(probe));
     const ZipArchive *const archive = zip_archive_cached(entry_ingest_tools(), path, &probe);
-    unsigned long long first = 0ull;
-    unsigned long long count = 0ull;
-    if ((archive == NULL) || (zip_folder_find(archive, member, &first, &count) && (count != 0ull)))
+    unsigned long long first = 0ULL;
+    unsigned long long count = 0ULL;
+    if ((archive == NULL) || (zip_folder_find(archive, member, &first, &count) && (count != 0ULL)))
     {
         return archive != NULL;
     }
     const size_t length = strlen(member);
     int named = 0;
-    for (unsigned long long at = 0ull; (named == 0) && (at < archive->entries); at += 1ull)
+    for (unsigned long long at = 0ULL; (named == 0) && (at < archive->entries); at += 1ULL)
     {
         ZipEntry entry;
         if (!zip_entry_at(archive, at, &entry, &probe))
@@ -50,7 +50,7 @@ static EntrySourceKind entry_source_type(const char *path, const char *member)
     static const char *const MARKS[4] = {"zarr.json", ".zarray", ".zgroup", "attributes.json"};
     for (unsigned int mark = 0u; mark < 4u; mark += 1u)
     {
-        if (entry_joined(probe, sizeof(probe), path, MARKS[mark]) && (stack_file_size(probe) >= 0ll))
+        if (entry_joined(probe, sizeof(probe), path, MARKS[mark]) && (stack_file_size(probe) >= 0LL))
         {
             return ENTRY_SOURCE_ZARR;
         }
@@ -63,11 +63,11 @@ static EntrySourceKind entry_source_type(const char *path, const char *member)
     // reads its head once
     static char cached_path[ENTRY_PATH_CAPACITY];
     static unsigned char cached_head[352];
-    static long long cached_read = -1ll;
+    static long long cached_read = -1LL;
     unsigned char head[352];
     memset(head, 0, sizeof(head));
-    long long bytes_read = -1ll;
-    if ((cached_read >= 0ll) && (strcmp(cached_path, path) == 0))
+    long long bytes_read = -1LL;
+    if ((cached_read >= 0LL) && (strcmp(cached_path, path) == 0))
     {
         memcpy(head, cached_head, sizeof(head));
         bytes_read = cached_read;
@@ -76,19 +76,19 @@ static EntrySourceKind entry_source_type(const char *path, const char *member)
     {
         EngineFileRange range;
         range.path = path;
-        range.offset = 0ull;
+        range.offset = 0ULL;
         range.bytes = sizeof(head);
         range.out = head;
         bytes_read = stack_file_read(&range);
-        const int cacheable = (bytes_read >= 0ll) && (strlen(path) < sizeof(cached_path));
-        cached_read = cacheable ? bytes_read : -1ll;
+        const int cacheable = (bytes_read >= 0LL) && (strlen(path) < sizeof(cached_path));
+        cached_read = cacheable ? bytes_read : -1LL;
         if (cacheable)
         {
             memcpy(cached_path, path, strlen(path) + 1u);
             memcpy(cached_head, head, sizeof(head));
         }
     }
-    if (bytes_read < 8ll)
+    if (bytes_read < 8LL)
     {
         return ENTRY_SOURCE_NONE;
     }
@@ -204,7 +204,7 @@ static long long entry_source_bytes(const EntrySource *source, unsigned char *ou
     read.member = source->member;
     read.tools = tools;
     read.extent = &source->extent;
-    read.first = 0ull;
+    read.first = 0ULL;
     read.end = source->extent.sizes[0];
     read.out = out;
     read.out_capacity = capacity;
@@ -217,7 +217,7 @@ static long long entry_source_bytes(const EntrySource *source, unsigned char *ou
         zarr.root = source->path;
         zarr.layout = &source->layout;
         zarr.tools = tools;
-        zarr.first = 0ull;
+        zarr.first = 0ULL;
         zarr.end = source->extent.sizes[0];
         zarr.out = out;
         zarr.out_capacity = capacity;
@@ -238,9 +238,9 @@ static long long entry_source_bytes(const EntrySource *source, unsigned char *ou
     case ENTRY_SOURCE_PARQUET:
         return parquet_read(&read);
     case ENTRY_SOURCE_STACK:
-        return stack_read_uncached(source->path, capacity / 2ull, (unsigned short *)out) ? (long long)capacity : -1ll;
+        return stack_read_uncached(source->path, capacity / 2ULL, (unsigned short *)out) ? (long long)capacity : -1LL;
     default:
-        return -1ll;
+        return -1LL;
     }
 }
 
@@ -284,7 +284,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
         free(source);
         return ENGINE_ERROR;
     }
-    const int one_channel = (channel_axis < 0) || (array_extent->sizes[channel_axis] == 1ull);
+    const int one_channel = (channel_axis < 0) || (array_extent->sizes[channel_axis] == 1ULL);
     if ((array_extent->element_type == ENGINE_ELEMENT_FLOAT) ||
         ((array_extent->element_bytes != 1u) && (array_extent->element_bytes != 2u)))
     {
@@ -298,7 +298,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     }
     int placed[4] = {-1, -1, -1, -1};
     unsigned long long stride[ENGINE_ARRAY_RANK];
-    unsigned long long elements = 1ull;
+    unsigned long long elements = 1ULL;
     for (unsigned int axis = rank; axis > 0u; axis -= 1u)
     {
         stride[axis - 1u] = elements;
@@ -311,7 +311,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
             ok = ok && !((axes[axis] == "tzyx"[target]) && (placed[target] >= 0));
             placed[target] = (axes[axis] == "tzyx"[target]) ? (int)axis : placed[target];
         }
-        extent[target] = (placed[target] >= 0) ? array_extent->sizes[placed[target]] : 1ull;
+        extent[target] = (placed[target] >= 0) ? array_extent->sizes[placed[target]] : 1ULL;
     }
     int ordered = ok;
     int last = -1;
@@ -339,7 +339,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     if (ordered && one_channel && (array_extent->element_bytes == 2u))
     {
         unsigned short *const words = (unsigned short *)raw;
-        for (unsigned long long word = 0ull; signed_lanes && (word < elements); word += 1ull)
+        for (unsigned long long word = 0ULL; signed_lanes && (word < elements); word += 1ULL)
         {
             // a two's complement word plus 2^15 is the word with its top bit flipped, exactly, and stays 16 bits
             words[word] = (unsigned short)(words[word] ^ 0x8000u);
@@ -355,26 +355,26 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
         free(source);
         return ENGINE_ERROR;
     }
-    unsigned long long at = 0ull;
-    for (unsigned long long time = 0ull; time < extent[0]; time += 1ull)
+    unsigned long long at = 0ULL;
+    for (unsigned long long time = 0ULL; time < extent[0]; time += 1ULL)
     {
-        for (unsigned long long depth = 0ull; depth < extent[1]; depth += 1ull)
+        for (unsigned long long depth = 0ULL; depth < extent[1]; depth += 1ULL)
         {
-            for (unsigned long long row = 0ull; row < extent[2]; row += 1ull)
+            for (unsigned long long row = 0ULL; row < extent[2]; row += 1ULL)
             {
-                for (unsigned long long column = 0ull; column < extent[3]; column += 1ull)
+                for (unsigned long long column = 0ULL; column < extent[3]; column += 1ULL)
                 {
                     const unsigned long long where[4] = {time, depth, row, column};
                     unsigned long long from =
-                        (channel_axis >= 0) ? ((unsigned long long)request->channel * stride[channel_axis]) : 0ull;
+                        (channel_axis >= 0) ? ((unsigned long long)request->channel * stride[channel_axis]) : 0ULL;
                     for (unsigned int target = 0u; target < 4u; target += 1u)
                     {
-                        from += (placed[target] >= 0) ? (where[target] * stride[placed[target]]) : 0ull;
+                        from += (placed[target] >= 0) ? (where[target] * stride[placed[target]]) : 0ULL;
                     }
                     const unsigned int word =
                         (array_extent->element_bytes == 1u)
                             ? (unsigned int)raw[from]
-                            : ((unsigned int)raw[2ull * from] | ((unsigned int)raw[(2ull * from) + 1ull] << 8u));
+                            : ((unsigned int)raw[2ULL * from] | ((unsigned int)raw[(2ULL * from) + 1ULL] << 8u));
                     const unsigned int sign_bit = (array_extent->element_bytes == 1u) ? 0x80u : 0x8000u;
                     const unsigned int value_span = (array_extent->element_bytes == 1u) ? 0x100u : 0x10000u;
                     const unsigned int shifted =
@@ -382,7 +382,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
                     // an unsigned word, or a signed one plus 2^15, lies in 0 to 65535 and fits in an unsigned
                     // short
                     lanes[at] = (unsigned short)(signed_lanes ? shifted : word);
-                    at += 1ull;
+                    at += 1ULL;
                 }
             }
         }
@@ -418,7 +418,7 @@ extern "C" long engine_source_lanes(const char *source, const char *sample, unsi
     {
         return ENGINE_ERROR;
     }
-    *lanes = 0ull;
+    *lanes = 0ULL;
     char path[ENTRY_PATH_CAPACITY];
     const int archived = (source != NULL) && entry_is_file(source);
     const int placed = (source != NULL) && (sample != NULL) &&
@@ -428,14 +428,14 @@ extern "C" long engine_source_lanes(const char *source, const char *sample, unsi
     int ok = ENGINE_CHECK(placed != 0, sample, error, ENGINE_ERROR_REQUEST) &&
              ENGINE_CHECK(described != NULL, &described, error, ENGINE_ERROR_RESOURCE) &&
              entry_source_describe(path, archived ? sample : NULL, described, error);
-    unsigned long long elements = ok ? 1ull : 0ull;
+    unsigned long long elements = ok ? 1ULL : 0ULL;
     for (unsigned int axis = 0u; ok && (axis < described->extent.rank); axis += 1u)
     {
         const unsigned long long extent = described->extent.sizes[axis];
-        ok = (extent != 0ull) && (elements <= (~0ull / extent));
-        elements = ok ? (elements * extent) : 0ull;
+        ok = (extent != 0ULL) && (elements <= (~0ULL / extent));
+        elements = ok ? (elements * extent) : 0ULL;
     }
     free(described);
     *lanes = elements;
-    return (ok && (elements != 0ull)) ? 0L : ENGINE_ERROR;
+    return (ok && (elements != 0ULL)) ? 0L : ENGINE_ERROR;
 }

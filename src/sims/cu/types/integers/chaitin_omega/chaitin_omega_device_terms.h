@@ -11,7 +11,7 @@ static inline __device__ unsigned long long omega_device_count(const unsigned lo
 {
     if (length < 2u)
     {
-        return 0ull;
+        return 0ULL;
     }
     return __ldg(&counts[(length * (OMEGA_LENGTH_MAX + 2u)) + ((depth < (length - 1u)) ? depth : (length - 1u))]);
 }
@@ -40,13 +40,13 @@ static __device__ unsigned int omega_device_unrank(const unsigned long long *__r
         {
             if ((part - 1u) <= depth)
             {
-                if (rank == 0ull)
+                if (rank == 0ULL)
                 {
                     term[size] = (Token)(part - 1u);
                     size += 1u;
                     break;
                 }
-                rank -= 1ull;
+                rank -= 1ULL;
             }
             const unsigned long long bodies = omega_device_count(counts, part - 2u, depth + 1u);
             if (rank < bodies)

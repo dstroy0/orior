@@ -313,13 +313,13 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(gui_themes_owner.free, GuiThemesOwnerCfg, .themes = &window->themes);
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->editor.frame});
-    g_cli_guard->persistent_buf_release((void *)window->editor.names, g_cli_view_owner);
-    cli_view_map_release(&(CliViewAtCfg){.map = (CliDocumentMap *)window->minimap.lines});
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->terminal.frame[0]});
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->terminal.frame[1]});
-    g_cli_guard->persistent_buf_release((void *)window->terminal.names[0], g_cli_view_owner);
-    g_cli_guard->persistent_buf_release((void *)window->terminal.names[1], g_cli_view_owner);
+    cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
+    g_cli_guard->persistent_buf_release(window->editor.names, g_cli_view_owner);
+    cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
+    cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[0]});
+    cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[1]});
+    g_cli_guard->persistent_buf_release(window->terminal.names[0], g_cli_view_owner);
+    g_cli_guard->persistent_buf_release(window->terminal.names[1], g_cli_view_owner);
     window->editor.frame = NULL;
     window->editor.names = NULL;
     window->minimap.lines = NULL;
@@ -521,9 +521,9 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
     {
         const int displayed = cli_terminal_tabs_view(&(CliTerminalTabsCfg){.view = view, .out = &terminal->view[view]});
         const char *const key = displayed ? terminal->view[view].key : NULL;
-        cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)terminal->frame[view]});
+        cli_view_frame_release(&(CliViewAtCfg){.frame = terminal->frame[view]});
         terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
-        g_cli_guard->persistent_buf_release((void *)terminal->names[view], g_cli_view_owner);
+        g_cli_guard->persistent_buf_release(terminal->names[view], g_cli_view_owner);
         terminal->names[view] = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
                                                            .key = key, .owner = g_cli_view_owner)
                                               : NULL;
@@ -741,15 +741,15 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
                              .err_msg = &err_msg);
         }
     }
-    cli_view_frame_release(&(CliViewAtCfg){.frame = (CliViewFrame *)window->editor.frame});
+    cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
     window->editor.frame = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
-    g_cli_guard->persistent_buf_release((void *)window->editor.names, g_cli_view_owner);
+    g_cli_guard->persistent_buf_release(window->editor.names, g_cli_view_owner);
     window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = key,
                                                       .owner = g_cli_view_owner)
                                          : NULL;
     if (args->edited || (window->minimap.lines == NULL) || (key == NULL))
     {
-        cli_view_map_release(&(CliViewAtCfg){.map = (CliDocumentMap *)window->minimap.lines});
+        cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
         window->minimap.lines =
             ((key != NULL) && window->map_known)
                 ? cli_view_map_alloc(&(CliViewAtCfg){.key = key, .first = window->map_first, .last = window->map_last})
@@ -820,7 +820,8 @@ EMBED_INLINE void window_scroll_to(const GuiWindowCtx *args)
     const unsigned long long widest = (frame != NULL) ? frame->widest : 0ULL;
     const double max_across = (widest > window->columns) ? ((double)(widest - window->columns) * (double)cell) : 0.0;
     window->scroll_down_to = args->down;
-    window->scroll_across_to = (args->across < 0.0) ? 0.0 : ((args->across > max_across) ? max_across : args->across);
+    const double below_max = (args->across > max_across) ? max_across : args->across;
+    window->scroll_across_to = (args->across < 0.0) ? 0.0 : below_max;
     if (!args->on)
     {
         window->scroll_down = window->scroll_down_to;
@@ -1033,7 +1034,7 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     window->map_first = first;
     window->map_last = last;
     const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
-    cli_view_map_release(&(CliViewAtCfg){.map = (CliDocumentMap *)window->minimap.lines});
+    cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
     window->minimap.lines =
         (key != NULL) ? cli_view_map_alloc(&(CliViewAtCfg){.key = key, .first = first, .last = last}) : NULL;
     window->pending = 1;
@@ -2396,9 +2397,8 @@ EMBED_INLINE void window_preference_row_remove(const GuiWindowCtx *args)
     }
     preferences->first = preferences->section_first[preferences->section];
     preferences->rows = preferences->section_rows[preferences->section];
-    preferences->marked = (preferences->marked < preferences->rows)
-                              ? preferences->marked
-                              : ((preferences->rows != 0u) ? preferences->rows - 1u : 0u);
+    const unsigned int last_row = (preferences->rows != 0u) ? preferences->rows - 1u : 0u;
+    preferences->marked = (preferences->marked < preferences->rows) ? preferences->marked : last_row;
 }
 
 // A button pressed: its row's command run, with the row's note as its word where the note holds one. A type of notice
@@ -3255,9 +3255,9 @@ EMBED_INLINE unsigned int window_tool_named(const GuiWindowCtx *args)
 // the switch's next state from its word and where it is `on`
 EMBED_INLINE int window_switch_next(const GuiWindowCtx *args)
 {
-    const char *const word = (args->count != 0u) ? args->words[0] : "";
-    const int turn_on = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "on");
-    const int turn_off = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "off");
+    const char *const first_word = (args->count != 0u) ? args->words[0] : "";
+    const int turn_on = EMBED_CALL(window_is, GuiWindowCtx, .name = first_word, .key = "on");
+    const int turn_off = EMBED_CALL(window_is, GuiWindowCtx, .name = first_word, .key = "off");
     return turn_on || (!turn_off && !args->on);
 }
 
@@ -3672,10 +3672,10 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
         const char *retained_name = NULL;
         for (unsigned int at = 0u; at < args->count; at += 1u)
         {
-            const char *const word = args->words[at];
-            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_PATH_MAX_LEN});
+            const char *const given = args->words[at];
+            const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = given, .cap = CLI_PATH_MAX_LEN});
             unsigned long long end = 0ULL;
-            const unsigned long long number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = word,
+            const unsigned long long number = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = given,
                                                          .at = 0ULL, .size = size, .end = &end);
             if ((size != 0ULL) && (end == size))
             {
@@ -3683,7 +3683,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
             }
             else
             {
-                retained_name = word;
+                retained_name = given;
             }
         }
         CliStateEntries entries = {NULL, g_cli_view_owner, 0u};
@@ -5033,9 +5033,9 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
     {
         unsigned long long from = 0ULL;
         unsigned long long to = 0ULL;
-        char word[CLI_NAME_MAX_LEN];
+        char word_found[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = cursor.line,
-                        .col_value = cursor.col, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word)))
+                        .col_value = cursor.col, .from = &from, .to = &to, .word_text = word_found, .capacity = sizeof(word_found)))
         {
             cli_notice_post(&(CliNoticesCfg){.text = "The cursor is on no name.", .failed = 1});
             return 0;
@@ -5048,7 +5048,7 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
                                                                 .path = path,
                                                                 .key = key,
                                                                 .line = (unsigned int)cursor.line,
-                                                                .name = word,
+                                                                .name = word_found,
                                                                 .path_out = found,
                                                                 .line_out = &line,
                                                                 .col_out = &col}))
@@ -5189,9 +5189,9 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_REDUCE_KEY))
     {
         // on or off by its word, else turned from what shows, the saved setting or the system's wish
-        const char *const word = (args->count != 0u) ? args->words[0] : "";
-        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "on");
-        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "off");
+        const char *const first_word = (args->count != 0u) ? args->words[0] : "";
+        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = first_word, .key = "on");
+        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = first_word, .key = "off");
         window->motion_saved = on || (!off && !(window->motion_saved || window->motion_system));
         EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_REDUCE_KEY,
                    .value = window->motion_saved ? "true" : "false");
@@ -5200,9 +5200,9 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
     else if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = GUI_WINDOW_AUTHORS_KEY))
     {
         // on or off by its word, else turned from what the Git pane shows
-        const char *const word = (args->count != 0u) ? args->words[0] : "";
-        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "on");
-        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = word, .key = "off");
+        const char *const first_word = (args->count != 0u) ? args->words[0] : "";
+        const int on = EMBED_CALL(window_is, GuiWindowCtx, .name = first_word, .key = "on");
+        const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = first_word, .key = "off");
         EMBED_CALL(cli_git_log.authors_set, CliGitLogCfg,
                    .on = on || (!off && !EMBED_CALL(cli_git_log.authors, CliGitLogCfg, .at = 0u)),
                    .now_ms = cli_clock_milliseconds());
@@ -5672,8 +5672,11 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
     {
         last = (window->driven[at - 1u].hand == hand) ? &window->driven[at - 1u] : NULL;
     }
-    const int x = (last != NULL) ? last->x : ((hand == 0u) ? window->pointer.x : window->hands[hand - 1u].x);
-    const int y = (last != NULL) ? last->y : ((hand == 0u) ? window->pointer.y : window->hands[hand - 1u].y);
+    // the place a hand is at where nothing drove it yet: the pointer's for the first hand, the hand's own for the rest
+    const int resting_x = (hand == 0u) ? window->pointer.x : window->hands[hand - 1u].x;
+    const int resting_y = (hand == 0u) ? window->pointer.y : window->hands[hand - 1u].y;
+    const int x = (last != NULL) ? last->x : resting_x;
+    const int y = (last != NULL) ? last->y : resting_y;
     const char *const verb = words[0];
     const char *const named = (count > 1u) ? words[1] : NULL;
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "to"))
@@ -5930,8 +5933,14 @@ static int window_command_named(const char *command, const char *const *words, u
         const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "off");
         const int lock = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "lock");
         const int free_word = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "free");
-        window->raw_wanted = on ? 1 : (off ? 0 : window->raw_wanted);
-        window->lock_wanted = lock ? 1 : (free_word ? 0 : window->lock_wanted);
+        if (on || off)
+        {
+            window->raw_wanted = on ? 1 : 0;
+        }
+        if (lock || free_word)
+        {
+            window->lock_wanted = lock ? 1 : 0;
+        }
         return on || off || lock || free_word;
     }
     // The sessions on other hosts, reached as text: a host joined or left, the hosts listed, and a command of a menu
@@ -6060,10 +6069,10 @@ EMBED_INLINE void window_menu_chosen(const GuiWindowCtx *args)
     if (args->on)
     {
         // a part's own row runs with the word its args carry
-        const char *const word = cli_menus_own_word(&(CliMenusCfg){.item_args = args->item->args});
-        const char *const words[1] = {word};
+        const char *const own_word = cli_menus_own_word(&(CliMenusCfg){.item_args = args->item->args});
+        const char *const words[1] = {own_word};
         (void)EMBED_CALL(window_command_run, GuiWindowCtx, .window = args->window, .name = args->item->command,
-                         .value = args->item->keys, .words = words, .count = (word != NULL) ? 1u : 0u);
+                         .value = args->item->keys, .words = words, .count = (own_word != NULL) ? 1u : 0u);
     }
 }
 
@@ -8083,7 +8092,8 @@ EMBED_INLINE void window_tabs_slide(const GuiWindowCtx *args)
                .displayed_out = &width, .first_out = &left);
     // the side_menu and the row are pixels on the screen, and each fits in an int
     const long long max = (whole > width) ? (long long)(whole - width) : 0LL;
-    const long long wanted = (args->pixels < 0LL) ? 0LL : ((args->pixels > max) ? max : args->pixels);
+    const long long below_max = (args->pixels > max) ? max : args->pixels;
+    const long long wanted = (args->pixels < 0LL) ? 0LL : below_max;
     if (wanted != (long long)left)
     {
         window->frame.tabs_left = (int)wanted;

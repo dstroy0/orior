@@ -12,7 +12,7 @@ static void knf_print_share(VerbaLinea *line, const OriorExactInteger *part, con
     VerbaLinea cell;
     cell.out = text_buffer;
     cell.capacity = sizeof(text_buffer);
-    cell.at = 0ull;
+    cell.at = 0ULL;
     sim_ratio_print(&cell, part, whole, 3u);
     mmgr_line_finish(&cell);
     mmgr_line_put_columns(line, text_buffer, 9u);
@@ -22,7 +22,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
                          const SimScene *scene, const KnfBox *box, unsigned long long tag, unsigned int *map,
                          unsigned int *cells, const char *name)
 {
-    static const unsigned long long s_knf_tiles[KNF_SCALES] = {1ull, 2ull, 4ull, 8ull, 16ull, 32ull, 64ull};
+    static const unsigned long long s_knf_tiles[KNF_SCALES] = {1ULL, 2ULL, 4ULL, 8ULL, 16ULL, 32ULL, 64ULL};
     const unsigned long long side = record->side;
     KnfEntangled whole;
     knf_entangle(record, NULL, side, boxes, &whole);
@@ -33,8 +33,8 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
     int inside_identified[KNF_SCALES];
     int between_identified[KNF_SCALES];
     OriorExactInteger free_sum;
-    unsigned long long split_matches = 0ull;
-    unsigned long long stored_count = 0ull;
+    unsigned long long split_matches = 0ULL;
+    unsigned long long stored_count = 0ULL;
     for (unsigned int scale = 0u; scale < KNF_SCALES; scale += 1u)
     {
         const unsigned long long tile = s_knf_tiles[scale];
@@ -42,7 +42,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         knf_entangle(record, NULL, tile, NULL, &split);
         OriorExactInteger split_total;
         knf_exact_total(&split, &split_total);
-        split_matches += (orior_exact_compare(&split_total, &truth) == 0) ? 1ull : 0ull;
+        split_matches += (orior_exact_compare(&split_total, &truth) == 0) ? 1ULL : 0ULL;
         OriorExactInteger inside_sum;
         OriorExactInteger between_sum;
         OriorExactInteger body_sum[KNF_BODIES];
@@ -56,7 +56,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         between_identified[scale] = 1;
         for (unsigned int draw = 0u; draw < KNF_DRAWS; draw += 1u)
         {
-            const unsigned long long counter = (((((tag * KNF_SCALES) + scale) * 2ull) * KNF_DRAWS) + draw);
+            const unsigned long long counter = (((((tag * KNF_SCALES) + scale) * 2ULL) * KNF_DRAWS) + draw);
             KnfEntangled drawn;
             OriorExactInteger total;
             OriorExactInteger running;
@@ -75,7 +75,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
             }
             knf_between_draw(map, cells, side, tile, sim_draw(KNF_KEY ^ KNF_NULL_PURPOSE, counter + KNF_DRAWS));
             knf_entangle(record, map, tile, NULL, &drawn);
-            stored_count += knf_wide_equal(&drawn.inside, &split.inside) ? 1ull : 0ull;
+            stored_count += knf_wide_equal(&drawn.inside, &split.inside) ? 1ULL : 0ULL;
             knf_exact_total(&drawn, &total);
             between_identified[scale] = between_identified[scale] && (orior_exact_compare(&total, &truth) < 0);
             sim_exact_sum(&between_sum, &total, &running);
@@ -142,7 +142,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         mmgr_line_put(line, "    ");
         mmgr_line_decimal_columns(line, index, 6u);
         mmgr_line_ch(line, ' ');
-        if (body->parent < 0ll)
+        if (body->parent < 0LL)
         {
             mmgr_line_put(line, "     -");
         }
@@ -154,9 +154,9 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         mmgr_line_decimal_columns(line, body->born, 6u);
         mmgr_line_decimal_columns(line, body->ended, 6u);
         mmgr_line_ch(line, ' ');
-        mmgr_line_put(line, (body->velocity[1] < 0ll) ? " " : "  ");
+        mmgr_line_put(line, (body->velocity[1] < 0LL) ? " " : "  ");
         mmgr_line_decimal_signed(line, body->velocity[1]);
-        mmgr_line_put(line, (body->velocity[2] < 0ll) ? " " : "  ");
+        mmgr_line_put(line, (body->velocity[2] < 0LL) ? " " : "  ");
         mmgr_line_decimal_signed(line, body->velocity[2]);
         mmgr_line_put(line, "  ");
         if (box[index].filled == 0)
@@ -193,19 +193,19 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
     {
         scene.extent[axis] = KNF_CONTROL_SIDE;
     }
-    scene.background = 180ull;
+    scene.background = 180ULL;
     const unsigned long long voxels = sim_scene_voxels(&scene);
     const unsigned long long lanes_count = scene.frames * voxels;
     record->side = KNF_CONTROL_SIDE;
     record->voxels = voxels;
-    unsigned long long projected = 0ull;
-    unsigned long long identified = 0ull;
+    unsigned long long projected = 0ULL;
+    unsigned long long identified = 0ULL;
     for (unsigned int control = 0u; control < KNF_CONTROLS; control += 1u)
     {
         SimCamera camera;
-        knf_camera(&camera, sim_draw(KNF_KEY ^ KNF_CONTROL_PURPOSE, control), 0ull);
-        unsigned long long clipped = 0ull;
-        int ok = sim_render(results, &scene, &camera, device_lanes, NULL, NULL, &clipped) && (clipped == 0ull);
+        knf_camera(&camera, sim_draw(KNF_KEY ^ KNF_CONTROL_PURPOSE, control), 0ULL);
+        unsigned long long clipped = 0ULL;
+        int ok = sim_render(results, &scene, &camera, device_lanes, NULL, NULL, &clipped) && (clipped == 0ULL);
         ok = ok &&
              sim_status_check(
                  results, cudaMemcpy(lanes, device_lanes, lanes_count * sizeof(unsigned short), cudaMemcpyDeviceToHost),
@@ -215,11 +215,11 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
         {
             continue;
         }
-        projected += 1ull;
+        projected += 1ULL;
         identified +=
             (knf_identified(record, map, cells, sim_draw(KNF_KEY ^ KNF_CONTROL_PURPOSE, KNF_CONTROLS + control)) != 0)
-                ? 1ull
-                : 0ull;
+                ? 1ULL
+                : 0ULL;
     }
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  the null's own rate: ");
@@ -233,10 +233,10 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
     mmgr_line_put(line, " identified, where exchangeability bounds the rate by 1/");
     mmgr_line_decimal(line, KNF_DRAWS + 1u, 1u);
     mmgr_line_ch(line, '\n');
-    const unsigned long long scaled = (KNF_DRAWS + 1ull) * identified;
-    const unsigned long long excess = (scaled > KNF_CONTROLS) ? (scaled - KNF_CONTROLS) : 0ull;
+    const unsigned long long scaled = (KNF_DRAWS + 1ULL) * identified;
+    const unsigned long long excess = (scaled > KNF_CONTROLS) ? (scaled - KNF_CONTROLS) : 0ULL;
     sim_check(results, projected == KNF_CONTROLS, "every control volume renders and projects");
-    sim_check(results, (excess * excess) <= (KNF_RANGE_SQUARED * KNF_CONTROLS * (KNF_DRAWS + 1ull)),
+    sim_check(results, (excess * excess) <= (KNF_RANGE_SQUARED * KNF_CONTROLS * (KNF_DRAWS + 1ULL)),
               "alike voxels are identified in at max n/(draws + 1) + 5 sqrt(n p) of the n controls");
 }
 
@@ -250,7 +250,7 @@ int main(int count, char **arguments)
     SimScene scene;
     knf_scene(&scene, body, 1);
     SimCamera camera;
-    knf_camera(&camera, KNF_KEY, 8ull);
+    knf_camera(&camera, KNF_KEY, 8ULL);
     const unsigned long long voxels = sim_scene_voxels(&scene);
     const unsigned long long lanes_count = scene.frames * voxels;
     const unsigned long long history_words = KNF_WINDOWS * voxels;
@@ -278,8 +278,8 @@ int main(int count, char **arguments)
              (moved_record.history != NULL) && (moved_record.cloud != NULL) && (moved_record.centerd != NULL);
     sim_check(&results, ok, "host buffers");
     ok = ok && sim_job_submit(&results, "knf_identity", count, arguments,
-                              (4ull * lanes_count * sizeof(unsigned short)) +
-                                  ((history_words + cloud_words + 1ull) * sizeof(unsigned long long)));
+                              (4ULL * lanes_count * sizeof(unsigned short)) +
+                                  ((history_words + cloud_words + 1ULL) * sizeof(unsigned long long)));
     ok = ok &&
          sim_status_check(&results, cudaMalloc((void **)&device_lanes, lanes_count * sizeof(unsigned short)), "lanes");
 
@@ -294,13 +294,13 @@ int main(int count, char **arguments)
     mmgr_line_put(line, " transitions; a section is one voxel's windows, E couples each with its xyz neighbors\n");
     sim_flush(&results);
 
-    unsigned long long clipped = 0ull;
+    unsigned long long clipped = 0ULL;
     ok = ok && sim_render(&results, &scene, &camera, device_lanes, NULL, NULL, &clipped);
     ok = ok &&
          sim_status_check(&results,
                           cudaMemcpy(lanes, device_lanes, lanes_count * sizeof(unsigned short), cudaMemcpyDeviceToHost),
                           "lanes read");
-    ok = ok && (clipped == 0ull);
+    ok = ok && (clipped == 0ULL);
     sim_check(&results, ok, "the lattice renders, no lane clipped");
     KnfBox box[KNF_BODIES];
     memset(box, 0, sizeof(box));
@@ -316,7 +316,7 @@ int main(int count, char **arguments)
         sim_flush(&results);
         knf_motions(&results, lanes, moved, &record, &moved_record, map);
         sim_flush(&results);
-        const int identified = knf_departure(&results, &record, boxes, &scene, box, 0ull, map, cells, "the lattice");
+        const int identified = knf_departure(&results, &record, boxes, &scene, box, 0ULL, map, cells, "the lattice");
         sim_check(&results, identified, "the lattice's knf is identified past every free spatial draw");
     }
 
@@ -327,11 +327,11 @@ int main(int count, char **arguments)
          sim_status_check(&results,
                           cudaMemcpy(lanes, device_lanes, lanes_count * sizeof(unsigned short), cudaMemcpyDeviceToHost),
                           "empty lanes read");
-    ok = ok && (clipped == 0ull) && knf_project(&results, lanes, &record);
+    ok = ok && (clipped == 0ULL) && knf_project(&results, lanes, &record);
     sim_check(&results, ok, "the same scene with no bodies renders and projects");
     if (ok)
     {
-        knf_departure(&results, &record, NULL, &empty, NULL, 1ull, map, cells, "the same camera and ramp, no bodies");
+        knf_departure(&results, &record, NULL, &empty, NULL, 1ULL, map, cells, "the same camera and ramp, no bodies");
         knf_controls(&results, device_lanes, lanes, &record, map, cells);
     }
 

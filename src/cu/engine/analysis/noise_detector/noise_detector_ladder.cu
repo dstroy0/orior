@@ -13,48 +13,48 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
     const unsigned long long blocks = frames / NOISE_MOMENT_BLOCK;
     const unsigned long long square = NOISE_MOMENT_RANGE * NOISE_MOMENT_RANGE;
     const unsigned long long fourth = square * square;
-    const unsigned long long spread = ((voxels != 0ull) && (frames <= (~0ull / voxels))) ? (frames * voxels) : ~0ull;
+    const unsigned long long spread = ((voxels != 0ULL) && (frames <= (~0ULL / voxels))) ? (frames * voxels) : ~0ULL;
     // the moment pass's bounds, and two whole blocks so every block has another to set its level
-    const int bounded = (blocks >= 2ull) && (frames <= 65536ull) && (voxels != 0ull) && (spread != ~0ull) &&
+    const int bounded = (blocks >= 2ULL) && (frames <= 65536ULL) && (voxels != 0ULL) && (spread != ~0ULL) &&
                         (spread <= (NOISE_SIGNED_TOP / fourth)) && (spread <= (NOISE_SIGNED_TOP / NOISE_LANE_TOP));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
     }
     memset(sums, 0, sizeof(*sums));
-    *left_out = 0ull;
-    unsigned long long ceiling = 0ull;
+    *left_out = 0ULL;
+    unsigned long long ceiling = 0ULL;
     unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
              NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 1u, mask, &ceiling) != 0, mask, error,
                                   ENGINE_ERROR_RESOURCE);
-    unsigned long long members = 0ull;
-    for (unsigned long long voxel = 0ull; ok && (voxel < voxels); voxel += 1ull)
+    unsigned long long members = 0ULL;
+    for (unsigned long long voxel = 0ULL; ok && (voxel < voxels); voxel += 1ULL)
     {
         members += mask[voxel];
     }
     // one more than the members. A sample with none still allocates
     unsigned long long *const places =
-        (unsigned long long *)malloc((size_t)(members + 1ull) * sizeof(unsigned long long));
+        (unsigned long long *)malloc((size_t)(members + 1ULL) * sizeof(unsigned long long));
     unsigned long long *const totals =
-        (unsigned long long *)calloc((size_t)(members + 1ull), sizeof(unsigned long long));
+        (unsigned long long *)calloc((size_t)(members + 1ULL), sizeof(unsigned long long));
     ok = ok && NOISE_DETECTOR_CHECK((places != NULL) && (totals != NULL), &places, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
-        unsigned long long member = 0ull;
-        for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+        unsigned long long member = 0ULL;
+        for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
         {
             if (mask[voxel] != 0u)
             {
                 places[member] = voxel;
-                member += 1ull;
+                member += 1ULL;
             }
         }
         // each voxel's frames over its whole blocks: at max 65536 lanes, below 2^32
-        for (unsigned long long frame = 0ull; frame < (blocks * NOISE_MOMENT_BLOCK); frame += 1ull)
+        for (unsigned long long frame = 0ULL; frame < (blocks * NOISE_MOMENT_BLOCK); frame += 1ULL)
         {
             const unsigned short *const lanes = &volume[frame * voxels];
-            for (unsigned long long each = 0ull; each < members; each += 1ull)
+            for (unsigned long long each = 0ULL; each < members; each += 1ULL)
             {
                 totals[each] += lanes[places[each]];
             }
@@ -62,22 +62,22 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
     }
     const long long range = (long long)NOISE_MOMENT_RANGE;
     const long long n = (long long)NOISE_MOMENT_BLOCK;
-    for (unsigned long long block = 0ull; ok && (block < blocks); block += 1ull)
+    for (unsigned long long block = 0ULL; ok && (block < blocks); block += 1ULL)
     {
         const unsigned short *const first = &volume[block * NOISE_MOMENT_BLOCK * voxels];
-        for (unsigned long long each = 0ull; each < members; each += 1ull)
+        for (unsigned long long each = 0ULL; each < members; each += 1ULL)
         {
             const unsigned short *const lane = &first[places[each]];
-            unsigned long long total = 0ull;
-            for (unsigned long long frame = 0ull; frame < NOISE_MOMENT_BLOCK; frame += 1ull)
+            unsigned long long total = 0ULL;
+            for (unsigned long long frame = 0ULL; frame < NOISE_MOMENT_BLOCK; frame += 1ULL)
             {
                 total += lane[frame * voxels];
             }
             // a mean of lanes rounded to the nearest is itself a lane
-            const long long center = (long long)((total + (NOISE_MOMENT_BLOCK / 2ull)) / NOISE_MOMENT_BLOCK);
-            long long power[NOISE_MOMENT_POWERS] = {0ll, 0ll, 0ll, 0ll};
+            const long long center = (long long)((total + (NOISE_MOMENT_BLOCK / 2ULL)) / NOISE_MOMENT_BLOCK);
+            long long power[NOISE_MOMENT_POWERS] = {0LL, 0LL, 0LL, 0LL};
             int within = 1;
-            for (unsigned long long frame = 0ull; within && (frame < NOISE_MOMENT_BLOCK); frame += 1ull)
+            for (unsigned long long frame = 0ULL; within && (frame < NOISE_MOMENT_BLOCK); frame += 1ULL)
             {
                 const long long apart = (long long)lane[frame * voxels] - center;
                 within = (apart <= range) && (apart >= -range);
@@ -92,7 +92,7 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
             }
             if (within == 0)
             {
-                *left_out += 1ull;
+                *left_out += 1ULL;
                 continue;
             }
             // the block's own frames are part of its voxel's total. The rest is never negative
@@ -104,15 +104,15 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
             // |S1| is at max n / 2, S2 at max n reach^2, |S3| at max n reach^3 and S4 at max n reach^4. Each
             // term below is under 2^44 and each numerator under 2^46
             const long long readings[NOISE_LADDER_ORDERS] = {
-                (n * s2) - (s1 * s1), (2ll * s1 * s1 * s1) - (3ll * n * s1 * s2) + (n * n * s3),
-                (n * n * (n + 1ll) * s4) - (4ll * n * (n + 1ll) * s1 * s3) - (3ll * n * (n - 1ll) * s2 * s2) +
-                    (12ll * n * s1 * s1 * s2) - (6ll * s1 * s1 * s1 * s1)};
-            sums->blocks += 1ull;
-            noise_wide_add(&sums->along, place, 0ull);
+                (n * s2) - (s1 * s1), (2LL * s1 * s1 * s1) - (3LL * n * s1 * s2) + (n * n * s3),
+                (n * n * (n + 1LL) * s4) - (4LL * n * (n + 1LL) * s1 * s3) - (3LL * n * (n - 1LL) * s2 * s2) +
+                    (12LL * n * s1 * s1 * s2) - (6LL * s1 * s1 * s1 * s1)};
+            sums->blocks += 1ULL;
+            noise_wide_add(&sums->along, place, 0ULL);
             noise_wide_add_square(&sums->along_square, place);
             for (unsigned int order = 0u; order < NOISE_LADDER_ORDERS; order += 1u)
             {
-                noise_signed_wide_add(&sums->measured[order], 1ull, readings[order]);
+                noise_signed_wide_add(&sums->measured[order], 1ULL, readings[order]);
                 noise_signed_wide_add(&sums->cross[order], place, readings[order]);
             }
         }
@@ -136,11 +136,11 @@ extern "C" long noise_ladder_volume(const unsigned short *volume, const unsigned
         return NOISE_DETECTOR_ERROR;
     }
     NoiseLadderSums *const sums = (NoiseLadderSums *)malloc(sizeof(NoiseLadderSums));
-    unsigned long long left_out = 0ull;
+    unsigned long long left_out = 0ULL;
     int ok = NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE) &&
              (noise_ladder_sample(volume, extent, sums, &left_out, error) == 0L);
     // a block's level is its voxel's frames over the other blocks. The level scale is those frames' count
-    const unsigned long long other_frames = ((extent[0] / NOISE_MOMENT_BLOCK) - 1ull) * NOISE_MOMENT_BLOCK;
+    const unsigned long long other_frames = ((extent[0] / NOISE_MOMENT_BLOCK) - 1ULL) * NOISE_MOMENT_BLOCK;
     NoiseLadderMeasurement read;
     memset(&read, 0, sizeof(read));
     unsigned long long falling = NOISE_MOMENT_BLOCK;
@@ -158,7 +158,7 @@ extern "C" long noise_ladder_volume(const unsigned short *volume, const unsigned
                                   sums, error, ENGINE_ERROR_RESOURCE) &&
              (noise_line_fit(&line, other_frames, falling, &read.cumulant[order], error) == 0L);
     }
-    read.blocks = (sums != NULL) ? sums->blocks : 0ull;
+    read.blocks = (sums != NULL) ? sums->blocks : 0ULL;
     read.left_out = left_out;
     free(sums);
     const NoiseLine *const second = &read.cumulant[0];

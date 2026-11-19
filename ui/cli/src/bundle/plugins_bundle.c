@@ -305,7 +305,7 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
     char *const text = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_bundle_owner);
     if (text == NULL)
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_bundle_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
         return 0;
     }
     VerbaLinea out = {text, text_bytes, 0ULL};
@@ -325,7 +325,7 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
     mmgr_line_put(&out, "ull;\n");
     const int appended = EMBED_CALL(cli_appended, PluginsBundleCtx, .out = &out, .written = args->written, .fresh = 0);
     g_cli_guard->persistent_buf_release(text, g_cli_bundle_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_bundle_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
     return appended;
 }
 
@@ -359,7 +359,7 @@ EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
         done = EMBED_CALL(cli_code_bundle, PluginsBundleCtx, .plugins = args->plugins, .at = args->at,
                           .plugin = &plugin, .text = bytes, .size = size, .written = args->written);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_bundle_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
     plugin.bundled = done;
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_plugins_cell, .offset = (embed_word)args->at * sizeof(CliBundlePlugin), .src = &plugin, .bytes = sizeof(CliBundlePlugin)});
@@ -409,11 +409,11 @@ EMBED_INLINE int cli_table_appended(const PluginsBundleCtx *args)
         }
         else
         {
-            mmgr_line_put(&out, "ull, NULL, 0ull},\n");
+            mmgr_line_put(&out, "ull, NULL, 0ULL},\n");
         }
         bundled += 1u;
     }
-    mmgr_line_put(&out, (bundled == 0u) ? "    {\"\", NULL, 0ull, NULL, 0ull}};\n\n" : "};\n\n");
+    mmgr_line_put(&out, (bundled == 0u) ? "    {\"\", NULL, 0ULL, NULL, 0ULL}};\n\n" : "};\n\n");
     mmgr_line_put(&out, "const unsigned int g_cli_bundled_count = ");
     mmgr_line_decimal(&out, bundled, 1u);
     mmgr_line_put(&out, "u;\n\n");

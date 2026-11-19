@@ -15,12 +15,12 @@ static std::string ruleset_part_folder(void)
 int ruleset_bytes_read(const std::string &path, std::string *text)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     if (!qry_member_file_blob(path.c_str(), &bytes, &size))
     {
         return 0;
     }
-    const unsigned long long room = (text->size() < RULESET_FILE_MAX) ? (RULESET_FILE_MAX - text->size()) : 0ull;
+    const unsigned long long room = (text->size() < RULESET_FILE_MAX) ? (RULESET_FILE_MAX - text->size()) : 0ULL;
     // a ruleset the reader accepts is below RULESET_FILE_MAX characters, which a size_t counts; one past it is cut there
     // and refused by the caller
     text->append((const char *)bytes, (size_t)((size < room) ? size : room));

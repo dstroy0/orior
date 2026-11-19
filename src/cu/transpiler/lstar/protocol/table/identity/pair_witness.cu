@@ -202,14 +202,14 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                 sides[side].cases = t_question->cases;
                 memcpy(sides[side].word, t_question->word, (size_t)t_question->cases * sizeof(t_question->word[0]));
             }
-            queries += 2ull;
+            queries += 2ULL;
             queries_carried(sides_put, dangerous, 2u);
             for (unsigned int side = 0u; side < 2u; side += 1u)
             {
                 if ((sides[side].outcome != RUN_ANSWERED) && (sides[side].registers != 255u))
                 {
                     sides[side].registers = 255u;
-                    queries += 1ull;
+                    queries += 1ULL;
                     queries_carried(&sides_put[side], &dangerous[side], 1u);
                 }
             }

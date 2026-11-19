@@ -9,7 +9,7 @@ unsigned long long omega_count(const OmegaCounts *counts, unsigned int length, u
 {
     if (length < 2u)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned int range = (depth < (length - 1u)) ? depth : (length - 1u);
     return counts->count[length][range];
@@ -22,7 +22,7 @@ void omega_count_all(OmegaCounts *counts)
     {
         for (unsigned int depth = 0u; depth < length; depth += 1u)
         {
-            unsigned long long total = ((length - 1u) <= depth) ? 1ull : 0ull;
+            unsigned long long total = ((length - 1u) <= depth) ? 1ULL : 0ULL;
             total += omega_count(counts, length - 2u, depth + 1u);
             for (unsigned int left = 2u; (left + 4u) <= length; left += 1u)
             {
@@ -40,12 +40,12 @@ void omega_unrank(const OmegaCounts *counts, unsigned int length, unsigned int d
 {
     if ((length - 1u) <= depth)
     {
-        if (index == 0ull)
+        if (index == 0ULL)
         {
             term.push_back((int)(length - 1u));
             return;
         }
-        index -= 1ull;
+        index -= 1ULL;
     }
     const unsigned long long bodies = omega_count(counts, length - 2u, depth + 1u);
     if (index < bodies)
@@ -86,10 +86,10 @@ size_t omega_end(const int *term, size_t at)
 // the length of a term's code: two bits a lambda or an application, k + 1 a variable k
 unsigned long long omega_code_bits(const std::vector<int> &term)
 {
-    unsigned long long bits = 0ull;
+    unsigned long long bits = 0ULL;
     for (size_t at = 0u; at < term.size(); at += 1u)
     {
-        bits += (term[at] <= 0) ? 2ull : ((unsigned long long)term[at] + 1ull);
+        bits += (term[at] <= 0) ? 2ULL : ((unsigned long long)term[at] + 1ULL);
     }
     return bits;
 }

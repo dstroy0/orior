@@ -22,12 +22,12 @@ typedef struct
 } CliOver;
 // how often a file brought into the tree reports how far along its copy is, in milliseconds; and how much of a file
 // goes into one write here, or over the link in one part
-#define CLI_FETCH_PROGRESS_EVERY 100ull
-#define CLI_PART_BYTES (1ull << 20u)
+#define CLI_FETCH_PROGRESS_EVERY 100ULL
+#define CLI_PART_BYTES (1ULL << 20u)
 
 // the bytes a call's arguments and an answer of the tree's side are written in
-#define CLI_OVER_ARGUMENTS_CAPACITY (64ull << 20u)
-#define CLI_OVER_ANSWER_CAPACITY (64ull << 20u)
+#define CLI_OVER_ARGUMENTS_CAPACITY (64ULL << 20u)
+#define CLI_OVER_ANSWER_CAPACITY (64ULL << 20u)
 
 // What a bring copies: the tree, the path it was requested, which a failure names, and who is notified how far it is
 typedef struct

@@ -128,7 +128,7 @@ int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long 
 // How long a launch's stop event is read for on the host's clock, in nanoseconds: twice the delay Windows gives a
 // launch before it resets the part (TdrDelay, 2 s where the system sets none), so that a reset at that delay comes back
 // as CUDA_ERROR_LAUNCH_TIMEOUT inside the bound
-#define CUBIN_SAFE_LAUNCH_BOUND 4000000000ull
+#define CUBIN_SAFE_LAUNCH_BOUND 4000000000ULL
 
 // The verdict on one launch carried under rule 7: `status` the driver's last word on its stop event, 0 where the part
 // reached it, and `waited` the nanoseconds the host read it for. CUBIN_SAFE_LAUNCH_TIMEOUT where the driver gave

@@ -20,26 +20,26 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
     __shared__ unsigned long long cells[NOISE_STRUCTURE_CELLS];
     for (unsigned int entry = threadIdx.x; entry < NOISE_STRUCTURE_CELLS; entry += blockDim.x)
     {
-        cells[entry] = 0ull;
+        cells[entry] = 0ULL;
     }
     __syncthreads();
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
     for (unsigned long long voxel = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; voxel < voxels;
          voxel += jump)
     {
-        if (((voxel % width) + 1ull) >= width)
+        if (((voxel % width) + 1ULL) >= width)
         {
             continue;
         }
-        unsigned long long own = 0ull;
-        unsigned long long beside = 0ull;
-        for (unsigned long long frame = 0ull; frame < frames; frame += 1ull)
+        unsigned long long own = 0ULL;
+        unsigned long long beside = 0ULL;
+        for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)
         {
             own += lanes[(frame * voxels) + voxel];
-            beside += lanes[(frame * voxels) + voxel + 1ull];
+            beside += lanes[(frame * voxels) + voxel + 1ULL];
         }
         // the pair's mean level is (own + beside) / (2 T), and its bin that over 8
-        const unsigned long long level_bin = (own + beside) / (16ull * frames);
+        const unsigned long long level_bin = (own + beside) / (16ULL * frames);
         if ((level_bin < NOISE_SUMMARY_FIRST_BIN) || (level_bin > NOISE_SUMMARY_LAST_BIN))
         {
             continue;
@@ -54,19 +54,19 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
         const unsigned long long level_along[2] = {level * along, __umul64hi(level, along)};
         for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
         {
-            const unsigned long long later = (1ull << lag) * voxels;
-            unsigned long long count = 0ull;
-            unsigned long long measured = 0ull;
-            for (unsigned long long frame = 0ull; (frame + (1ull << lag)) < frames; frame += 1ull)
+            const unsigned long long later = (1ULL << lag) * voxels;
+            unsigned long long count = 0ULL;
+            unsigned long long measured = 0ULL;
+            for (unsigned long long frame = 0ULL; (frame + (1ULL << lag)) < frames; frame += 1ULL)
             {
                 const unsigned long long early = (frame * voxels) + voxel;
                 const long long moved = ((long long)lanes[early + later] - (long long)lanes[early]) -
-                                        ((long long)lanes[early + later + 1ull] - (long long)lanes[early + 1ull]);
-                count += 1ull;
+                                        ((long long)lanes[early + later + 1ULL] - (long long)lanes[early + 1ULL]);
+                count += 1ULL;
                 // a square is never negative. It re-signs to unsigned long long exactly
                 measured += (unsigned long long)(moved * moved);
             }
-            if (count == 0ull)
+            if (count == 0ULL)
             {
                 continue;
             }
@@ -83,7 +83,7 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
             noise_wide_atomic_add(&cell[NOISE_STRUCTURE_ALONG_SQUARE], scaled[0], scaled[1]);
             noise_wide_scaled(level_along[0], level_along[1], count, scaled);
             noise_wide_atomic_add(&cell[NOISE_STRUCTURE_LEVEL_ALONG], scaled[0], scaled[1]);
-            noise_wide_atomic_add(&cell[NOISE_STRUCTURE_MEASURED], measured, 0ull);
+            noise_wide_atomic_add(&cell[NOISE_STRUCTURE_MEASURED], measured, 0ULL);
             noise_wide_atomic_add(&cell[NOISE_STRUCTURE_LEVEL_MEASURED], level * measured, __umul64hi(level, measured));
             noise_wide_atomic_add(&cell[NOISE_STRUCTURE_CROSS], along * measured, __umul64hi(along, measured));
         }
@@ -93,7 +93,7 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
     {
         const unsigned long long *const cell = &cells[entry * NOISE_STRUCTURE_WORDS];
         unsigned long long *const sum = &sums[entry * NOISE_STRUCTURE_WORDS];
-        if (cell[NOISE_STRUCTURE_PAIRS] == 0ull)
+        if (cell[NOISE_STRUCTURE_PAIRS] == 0ULL)
         {
             continue;
         }
@@ -141,13 +141,13 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
     const unsigned long long width = extent[3];
     int bounded =
-        (frames >= 2ull) && (frames <= 65536ull) && (width >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels));
+        (frames >= 2ULL) && (frames <= 65536ULL) && (width >= 2ULL) && (voxels != 0ULL) && (frames <= (~0ULL / voxels));
     // every sum is at max the frame pairs times the widest q^2, (65535 T)^4, which must stay below 2^128. The
     // widest q y, (65535 T)^2 131070^2, is no wider for T of 2 or more
     OriorExactInteger bound;
     OriorExactInteger factor;
     noise_exact_word(&bound, frames * voxels);
-    noise_exact_word(&factor, 65535ull * frames);
+    noise_exact_word(&factor, 65535ULL * frames);
     for (unsigned int power = 0u; bounded && (power < 4u); power += 1u)
     {
         bounded = orior_exact_multiply(&bound, &factor, &bound) == ORIOR_EXACT_OK;
@@ -173,8 +173,8 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
                                          device_lanes, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ull) / NOISE_DETECTOR_THREADS;
-        const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+        const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
+        const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_structure_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, voxels, width, device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
              NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, sum_bytes, cudaMemcpyDeviceToHost), sums, error);
@@ -216,7 +216,7 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     noise_exact_word(&scale, frames * frames);
     for (unsigned int lag = 0u; formed && (lag < NOISE_FLICKER_LAGS); lag += 1u)
     {
-        unsigned long long pairs = 0ull;
+        unsigned long long pairs = 0ULL;
         for (unsigned int entry = 0u; entry < NOISE_STRUCTURE_CENTERD; entry += 1u)
         {
             orior_exact_zero(&centerd[entry]);

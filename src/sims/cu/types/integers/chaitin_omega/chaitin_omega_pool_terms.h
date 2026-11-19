@@ -10,7 +10,7 @@ static inline __device__ unsigned long long omega_pool_end(const OmegaToken *ter
     while (need > 0)
     {
         const OmegaToken token = term[at];
-        at += 1ull;
+        at += 1ULL;
         need += (token == OMEGA_APPLY) ? 1 : ((token == OMEGA_LAMBDA) ? 0 : -1);
     }
     return at;
@@ -20,34 +20,34 @@ static inline __device__ unsigned long long omega_pool_end(const OmegaToken *ter
 static inline __device__ unsigned long long omega_pool_spine(const OmegaToken *term, unsigned long long size,
                                                              unsigned long long *ends)
 {
-    unsigned long long range = 0ull;
+    unsigned long long range = 0ULL;
     while ((range < size) && (term[range] == OMEGA_APPLY))
     {
-        range += 1ull;
+        range += 1ULL;
     }
     unsigned long long end = omega_pool_end(term, range);
     ends[range] = end;
-    for (unsigned long long position = range; position > 0ull; position -= 1ull)
+    for (unsigned long long position = range; position > 0ULL; position -= 1ULL)
     {
         end = omega_pool_end(term, end);
-        ends[position - 1ull] = end;
+        ends[position - 1ULL] = end;
     }
     return range;
 }
 
 static inline __device__ unsigned long long omega_pool_head(const OmegaToken *term, unsigned long long size)
 {
-    unsigned long long range = 0ull;
+    unsigned long long range = 0ULL;
     while ((range < size) && (term[range] == OMEGA_APPLY))
     {
-        range += 1ull;
+        range += 1ULL;
     }
-    return ((range > 0ull) && (range < size) && (term[range] == OMEGA_LAMBDA)) ? (range - 1ull) : OMEGA_ENGINE_NONE;
+    return ((range > 0ULL) && (range < size) && (term[range] == OMEGA_LAMBDA)) ? (range - 1ULL) : OMEGA_ENGINE_NONE;
 }
 
 static inline __device__ int omega_pool_same(const OmegaToken *one, const OmegaToken *other, unsigned long long size)
 {
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
         if (one[at] != other[at])
         {
@@ -65,10 +65,10 @@ static inline __device__ int omega_pool_grows(const OmegaToken *stored, const un
 {
     const unsigned long long range = omega_pool_spine(term, size, ends);
     const unsigned long long deepest = (least < stored_range) ? least : stored_range;
-    for (unsigned long long from = 0ull; from <= deepest; from += 1ull)
+    for (unsigned long long from = 0ULL; from <= deepest; from += 1ULL)
     {
         const unsigned long long part = stored_ends[from] - from;
-        for (unsigned long long to = from + 1ull; to <= range; to += 1ull)
+        for (unsigned long long to = from + 1ULL; to <= range; to += 1ULL)
         {
             if (((ends[to] - to) == part) && (omega_pool_same(&stored[from], &term[to], part) != 0))
             {
@@ -91,37 +91,37 @@ typedef struct
 
 static inline __device__ void omega_walk_open(OmegaWalk *walk, OmegaToken token)
 {
-    if (walk->top > 0ull)
+    if (walk->top > 0ULL)
     {
-        walk->frames[walk->top - 1ull] -= 1u;
+        walk->frames[walk->top - 1ULL] -= 1u;
     }
     if (token == OMEGA_LAMBDA)
     {
         walk->frames[walk->top] = (unsigned char)(OMEGA_FRAME_LAMBDA | 1u);
-        walk->top += 1ull;
-        walk->depth += 1ull;
+        walk->top += 1ULL;
+        walk->depth += 1ULL;
     }
     else if (token == OMEGA_APPLY)
     {
         walk->frames[walk->top] = 2u;
-        walk->top += 1ull;
+        walk->top += 1ULL;
     }
 }
 
 // after a variable: every frame whose children have all started is ended
 static inline __device__ void omega_walk_close(OmegaWalk *walk)
 {
-    while ((walk->top > 0ull) && ((walk->frames[walk->top - 1ull] & 3u) == 0u))
+    while ((walk->top > 0ULL) && ((walk->frames[walk->top - 1ULL] & 3u) == 0u))
     {
-        walk->depth -= ((walk->frames[walk->top - 1ull] & OMEGA_FRAME_LAMBDA) != 0u) ? 1ull : 0ull;
-        walk->top -= 1ull;
+        walk->depth -= ((walk->frames[walk->top - 1ULL] & OMEGA_FRAME_LAMBDA) != 0u) ? 1ULL : 0ULL;
+        walk->top -= 1ULL;
     }
 }
 
 static inline unsigned int omega_engine_bits_of(unsigned long long value)
 {
     unsigned int bits = 1u;
-    while ((bits < 64u) && ((value >> bits) != 0ull))
+    while ((bits < 64u) && ((value >> bits) != 0ULL))
     {
         bits += 1u;
     }
@@ -135,7 +135,7 @@ static inline __device__ void omega_pool_put(unsigned int *record, unsigned int 
     const unsigned long long word = (unsigned long long)value;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
-        const unsigned int bit_value = (bit < 64u) ? (unsigned int)((word >> bit) & 1ull) : ((value < 0) ? 1u : 0u);
+        const unsigned int bit_value = (bit < 64u) ? (unsigned int)((word >> bit) & 1ULL) : ((value < 0) ? 1u : 0u);
         const unsigned int to = offset + bit;
         record[to / 32u] |= bit_value << (to % 32u);
     }
@@ -147,7 +147,7 @@ static inline __device__ int omega_pool_take(const unsigned int *record, unsigne
 {
     const unsigned int top = offset + bits - 1u;
     const unsigned int sign = (record[top / 32u] >> (top % 32u)) & 1u;
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
@@ -163,7 +163,7 @@ static inline __device__ int omega_pool_take(const unsigned int *record, unsigne
     }
     if ((bits < 64u) && (sign != 0u))
     {
-        word |= ~0ull << bits;
+        word |= ~0ULL << bits;
     }
     *value = (OmegaToken)word;
     return 1;

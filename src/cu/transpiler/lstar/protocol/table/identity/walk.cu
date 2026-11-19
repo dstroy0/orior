@@ -76,10 +76,10 @@ static int identity_last(const char *engine, const char *answers, const char *ks
                          const std::vector<StallField> &group, const char *answer, const char *blob,
                          const char *mode, char token)
 {
-    const unsigned long long longest = (1ull << stall.bits) - 1ull;
-    const unsigned long long highest = (1ull << group[0].bits) - 1ull;
+    const unsigned long long longest = (1ULL << stall.bits) - 1ULL;
+    const unsigned long long highest = (1ULL << group[0].bits) - 1ULL;
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -89,7 +89,7 @@ static int identity_last(const char *engine, const char *answers, const char *ks
     s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     // the probes the walk is put over at max, each from a chain of its own
     const size_t max = 3u;
     std::vector<RegisterProbe> probes;
@@ -121,10 +121,10 @@ static int identity_last(const char *engine, const char *answers, const char *ks
                 probe.named.insert(stall_bits(code, index, field));
             }
         }
-        unsigned long long lowest = 0ull;
+        unsigned long long lowest = 0ULL;
         while ((lowest < highest) && (probe.named.count(lowest) != 0u))
         {
-            lowest += 1ull;
+            lowest += 1ULL;
         }
         // the values the chain writes in the group's first field and reads after in another, in the order it writes
         // them, each tried until one renamed to the lowest number the chain does not use still answers alike: a value
@@ -263,10 +263,10 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
     }
     const StallField stall = fields["stall"];
     const std::vector<StallField> registers = {fields["rd"], fields["ra"], fields["rb"]};
-    const unsigned long long longest = (1ull << stall.bits) - 1ull;
-    const unsigned int highest = (unsigned int)((1ull << fields["rd"].bits) - 1ull);
+    const unsigned long long longest = (1ULL << stall.bits) - 1ULL;
+    const unsigned int highest = (unsigned int)((1ULL << fields["rd"].bits) - 1ULL);
     std::map<std::string, std::vector<std::string>> host = host_answers_read(answers);
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -277,7 +277,7 @@ int identity_past(const char *engine, const char *answers, const char *ksc, cons
     s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     const size_t max = 3u;
     size_t tried = 0u;
     long long past = -1;

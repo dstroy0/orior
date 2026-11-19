@@ -31,7 +31,7 @@ typedef struct CliGradleSizeWordCtx CliGradleSizeWordCtx;
 #define CLI_GRADLE_TEXT (1u << 24u)
 #define CLI_GRADLE_BLOCKS 65536u
 #define CLI_GRADLE_DECLARED 4096u
-#define CLI_GRADLE_NONE 0xffffffffull
+#define CLI_GRADLE_NONE 0xffffffffULL
 
 // A block of a script: the name before its brace, and where it opens and closes, CLI_GRADLE_NONE where it does not
 typedef struct

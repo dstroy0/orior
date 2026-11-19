@@ -139,7 +139,7 @@ int main(int count, char **words)
     for (unsigned int number = 0u; number < s_listing.count; number += 1u)
     {
         const SassInstruction *const instruction = &s_listing.instructions[number];
-        if ((instruction->low == 0ull) && (instruction->high == 0ull))
+        if ((instruction->low == 0ULL) && (instruction->high == 0ULL))
         {
             continue;
         }

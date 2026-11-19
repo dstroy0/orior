@@ -204,7 +204,7 @@ static void cli_index_read(void *context)
         }
         index->lines = lines;
         stop = index->cancel || (chunk == NULL) || (len == 0ULL);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)chunk, (g_cli_editor_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)chunk, g_cli_editor_owner);
         offset += CLI_PAGE_CHUNK;
     }
     index->lines = lines;
@@ -224,7 +224,7 @@ EMBED_INLINE const char *cli_eol_get(const PagesCtx *args)
     const unsigned char *const newline =
         (bytes != NULL) ? memor.chr(&(MemoriaCfg){.src = bytes, .val = '\n', .bytes = size}) : NULL;
     const int crlf = (newline != NULL) && (newline > bytes) && (newline[-1] == '\r');
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     return crlf ? "\r\n" : "\n";
 }
 
@@ -531,7 +531,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
             break;
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     while (((lines->count - first) < (args->to - from)) && !lines->full)
     {
         EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_append, CliPagesLinesBytesCtx, .lines = lines, .bytes = "",
@@ -553,7 +553,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         .count_u64 = args->piece->to - args->piece->from, .size_pointer = &size, .owner = g_cli_editor_owner);
     if ((bytes == NULL) || (size < (args->piece->to - args->piece->from)))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_editor_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
         mmgr_line_put(args->err_msg, args->one_read->shadow);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
@@ -572,7 +572,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         }
         at = (end < size) ? (end + 1ULL) : size;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     return 1;
 }
 

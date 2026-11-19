@@ -22,12 +22,12 @@
 // MmMapIoSpaceEx returned, NULL until it is mapped
 static PDEVICE_OBJECT s_device = NULL;
 static PVOID s_bar0 = NULL;
-static ULONG64 s_base = 0ull;
-static ULONG64 s_size = 0ull;
+static ULONG64 s_base = 0ULL;
+static ULONG64 s_size = 0ULL;
 
 // the max the aperture may be, a wrong service value mapping nothing absurd: BAR0 is 16 MiB on this part, and no
 // register aperture of the family is near this
-#define BAR0_SIZE_MAX 0x10000000ull
+#define BAR0_SIZE_MAX 0x10000000ULL
 #define BAR0_POOL_TAG '0RAB'
 
 // One named value under the opened `key` read as an unsigned number into `out`, a 32-bit or a 64-bit value taken as
@@ -37,7 +37,7 @@ static NTSTATUS bar0_param(HANDLE key, PCWSTR name, ULONG64 *out)
     UNICODE_STRING value_name;
     RtlInitUnicodeString(&value_name, name);
     UCHAR buffer[sizeof(KEY_VALUE_PARTIAL_INFORMATION) + sizeof(ULONG64)];
-    ULONG got = 0ul;
+    ULONG got = 0UL;
     const NTSTATUS status =
         ZwQueryValueKey(key, &value_name, KeyValuePartialInformation, buffer, sizeof(buffer), &got);
     if (!NT_SUCCESS(status))
@@ -51,7 +51,7 @@ static NTSTATUS bar0_param(HANDLE key, PCWSTR name, ULONG64 *out)
     }
     else if (info->DataLength == sizeof(ULONG))
     {
-        ULONG narrow = 0ul;
+        ULONG narrow = 0UL;
         RtlCopyMemory(&narrow, info->Data, sizeof(ULONG));
         *out = narrow;
     }
@@ -102,7 +102,7 @@ static NTSTATUS bar0_open(PDEVICE_OBJECT device, PIRP irp)
 {
     UNREFERENCED_PARAMETER(device);
     irp->IoStatus.Status = STATUS_SUCCESS;
-    irp->IoStatus.Information = 0ull;
+    irp->IoStatus.Information = 0ULL;
     IoCompleteRequest(irp, IO_NO_INCREMENT);
     return STATUS_SUCCESS;
 }
@@ -119,7 +119,7 @@ static NTSTATUS bar0_control(PDEVICE_OBJECT device, PIRP irp)
     const ULONG out_length = stack->Parameters.DeviceIoControl.OutputBufferLength;
     PVOID const buffer = irp->AssociatedIrp.SystemBuffer;
     NTSTATUS status = STATUS_INVALID_DEVICE_REQUEST;
-    ULONG_PTR information = 0ull;
+    ULONG_PTR information = 0ULL;
     if (code == MMIO_IOCTL_EXTENT)
     {
         if (out_length < sizeof(MmioExtent))
@@ -170,7 +170,7 @@ static NTSTATUS bar0_control(PDEVICE_OBJECT device, PIRP irp)
             {
                 PULONG const out = (PULONG)buffer;
                 PUCHAR const at = (PUCHAR)s_bar0 + request.offset;
-                for (ULONG word = 0ul; word < request.words; word += 1ul)
+                for (ULONG word = 0UL; word < request.words; word += 1UL)
                 {
                     out[word] = READ_REGISTER_ULONG((PULONG)(at + (word * sizeof(ULONG))));
                 }
@@ -214,7 +214,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT driver, PUNICODE_STRING registry_path)
     {
         return status;
     }
-    if ((s_size == 0ull) || (s_size > BAR0_SIZE_MAX))
+    if ((s_size == 0ULL) || (s_size > BAR0_SIZE_MAX))
     {
         return STATUS_INVALID_PARAMETER;
     }

@@ -11,36 +11,36 @@
 #include "../../../../../cu/engine/analysis/noise_detector/noise_detector.h"
 #include "../../../../../cu/engine/analysis/tower/tower.h"
 
-#define ROOT_KEY 0x524F4F544E4Full
+#define ROOT_KEY 0x524F4F544E4FULL
 
-#define ROOT_PIXEL_PURPOSE 0x504958454Cull
+#define ROOT_PIXEL_PURPOSE 0x504958454CULL
 
-#define ROOT_STACK_PURPOSE 0x535441434Bull
+#define ROOT_STACK_PURPOSE 0x535441434BULL
 
 // 16 frames of 16 x 64 x 64
-#define ROOT_FRAMES 16ull
+#define ROOT_FRAMES 16ULL
 
-#define ROOT_DEPTH 16ull
+#define ROOT_DEPTH 16ULL
 
-#define ROOT_HEIGHT 64ull
+#define ROOT_HEIGHT 64ULL
 
-#define ROOT_WIDTH 64ull
+#define ROOT_WIDTH 64ULL
 
 // an offset of 300 and 100 electrons at gain 1 with a read variance of 4: a background voxel's independent variance is
 // 104 and a body voxel's 404, and the offset confines the strongest planted term to the lane
-#define ROOT_OFFSET 300ull
+#define ROOT_OFFSET 300ULL
 
-#define ROOT_BACKGROUND 100ull
+#define ROOT_BACKGROUND 100ULL
 
-#define ROOT_READ_SQUARE 4ull
+#define ROOT_READ_SQUARE 4ULL
 
 // each term's planted variances, the strongest last, where the noise terms sim plants 4
 #define ROOT_STRENGTHS 3u
 
-static const unsigned long long ROOT_SQUARES[ROOT_STRENGTHS] = {64ull, 256ull, 1024ull};
+static const unsigned long long ROOT_SQUARES[ROOT_STRENGTHS] = {64ULL, 256ULL, 1024ULL};
 
 // the object: one body located at the view's middle, 300 electrons over the radii 3, 7 and 7
-#define ROOT_BRIGHTNESS 300ull
+#define ROOT_BRIGHTNESS 300ULL
 
 // the null, then each term planted alone at each strength
 #define ROOT_RUNS ((NOISE_ROOT_TERMS * ROOT_STRENGTHS) + 1u)
@@ -48,9 +48,9 @@ static const unsigned long long ROOT_SQUARES[ROOT_STRENGTHS] = {64ull, 256ull, 1
 static const unsigned long long ROOT_EXTENT[4] = {ROOT_FRAMES, ROOT_DEPTH, ROOT_HEIGHT, ROOT_WIDTH};
 
 // the object's box: every frame, z 2 to 13, y and x 16 to 47
-static const unsigned long long ROOT_LOW[4] = {0ull, 2ull, 16ull, 16ull};
+static const unsigned long long ROOT_LOW[4] = {0ULL, 2ULL, 16ULL, 16ULL};
 
-static const unsigned long long ROOT_HIGH[4] = {ROOT_FRAMES, 14ull, 48ull, 48ull};
+static const unsigned long long ROOT_HIGH[4] = {ROOT_FRAMES, 14ULL, 48ULL, 48ULL};
 
 // the terms by NOISE_ROOT_*, then none
 static const char *const ROOT_NAMES[NOISE_ROOT_TERMS + 1u] = {"rows", "columns", "planes", "pixels", "stacks", "none"};
@@ -81,7 +81,7 @@ static long root_cost(const int *values, const unsigned long long extent[4], uns
     }
     if (ok)
     {
-        unsigned long long chunks = 0ull;
+        unsigned long long chunks = 0ULL;
         const unsigned long long *offsets = NULL;
         const unsigned int *stream = NULL;
         CompressionEncodeRequest code;
@@ -105,12 +105,12 @@ static void root_camera(SimCamera *camera, unsigned int planted, unsigned long l
     memset(camera, 0, sizeof(*camera));
     camera->key = ROOT_KEY;
     camera->offset = ROOT_OFFSET;
-    camera->gain = 1ull;
+    camera->gain = 1ULL;
     camera->read_square = ROOT_READ_SQUARE;
     camera->shot = SIM_SHOT_POISSON;
-    camera->row_square = (planted == NOISE_ROOT_ROWS) ? square : 0ull;
-    camera->column_square = (planted == NOISE_ROOT_COLUMNS) ? square : 0ull;
-    camera->plane_square = (planted == NOISE_ROOT_PLANES) ? square : 0ull;
+    camera->row_square = (planted == NOISE_ROOT_ROWS) ? square : 0ULL;
+    camera->column_square = (planted == NOISE_ROOT_COLUMNS) ? square : 0ULL;
+    camera->plane_square = (planted == NOISE_ROOT_PLANES) ? square : 0ULL;
 }
 
 // The terms the camera law does not draw, added on the host: a value for each camera pixel, (y, x), shared by every
@@ -120,21 +120,21 @@ static unsigned long long root_plant(unsigned short *lanes, unsigned int planted
 {
     const unsigned long long plane = ROOT_HEIGHT * ROOT_WIDTH;
     const unsigned long long purpose = (planted == NOISE_ROOT_PIXELS) ? ROOT_PIXEL_PURPOSE : ROOT_STACK_PURPOSE;
-    unsigned long long clipped = 0ull;
-    unsigned long long at = 0ull;
-    for (unsigned long long frame = 0ull; frame < ROOT_FRAMES; frame += 1ull)
+    unsigned long long clipped = 0ULL;
+    unsigned long long at = 0ULL;
+    for (unsigned long long frame = 0ULL; frame < ROOT_FRAMES; frame += 1ULL)
     {
-        for (unsigned long long z = 0ull; z < ROOT_DEPTH; z += 1ull)
+        for (unsigned long long z = 0ULL; z < ROOT_DEPTH; z += 1ULL)
         {
-            for (unsigned long long pixel = 0ull; pixel < plane; pixel += 1ull)
+            for (unsigned long long pixel = 0ULL; pixel < plane; pixel += 1ULL)
             {
                 const unsigned long long counter = (planted == NOISE_ROOT_PIXELS) ? pixel : ((frame * plane) + pixel);
                 const long long value = (long long)lanes[at] + sim_centerd(ROOT_KEY ^ purpose, counter, square);
-                clipped += ((value < 0ll) || (value > SIM_LANE_MAX)) ? 1ull : 0ull;
-                const long long clamped = (value < 0ll) ? 0ll : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
+                clipped += ((value < 0LL) || (value > SIM_LANE_MAX)) ? 1ULL : 0ULL;
+                const long long clamped = (value < 0LL) ? 0LL : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
                 // the value is clamped to the u16 lane's range just above
                 lanes[at] = (unsigned short)clamped;
-                at += 1ull;
+                at += 1ULL;
             }
         }
     }
@@ -144,17 +144,17 @@ static unsigned long long root_plant(unsigned short *lanes, unsigned int planted
 // the box's voxels read from the scene into ints, frames, z, y and x, as the detector reads them
 static void root_box_take(const unsigned short *lanes, int *values)
 {
-    unsigned long long at = 0ull;
-    for (unsigned long long frame = ROOT_LOW[0]; frame < ROOT_HIGH[0]; frame += 1ull)
+    unsigned long long at = 0ULL;
+    for (unsigned long long frame = ROOT_LOW[0]; frame < ROOT_HIGH[0]; frame += 1ULL)
     {
-        for (unsigned long long z = ROOT_LOW[1]; z < ROOT_HIGH[1]; z += 1ull)
+        for (unsigned long long z = ROOT_LOW[1]; z < ROOT_HIGH[1]; z += 1ULL)
         {
-            for (unsigned long long y = ROOT_LOW[2]; y < ROOT_HIGH[2]; y += 1ull)
+            for (unsigned long long y = ROOT_LOW[2]; y < ROOT_HIGH[2]; y += 1ULL)
             {
-                for (unsigned long long x = ROOT_LOW[3]; x < ROOT_HIGH[3]; x += 1ull)
+                for (unsigned long long x = ROOT_LOW[3]; x < ROOT_HIGH[3]; x += 1ULL)
                 {
                     values[at] = lanes[(((((frame * ROOT_DEPTH) + z) * ROOT_HEIGHT) + y) * ROOT_WIDTH) + x];
-                    at += 1ull;
+                    at += 1ULL;
                 }
             }
         }
@@ -165,11 +165,11 @@ static void root_box_take(const unsigned short *lanes, int *values)
 static void root_signed_columns(VerbaLinea *line, long long value, unsigned int columns)
 {
     // the magnitude of a negative value is its two's complement negation, taken unsigned
-    unsigned long long magnitude = (value < 0ll) ? (0ull - (unsigned long long)value) : (unsigned long long)value;
-    unsigned int width = (value < 0ll) ? 2u : 1u;
-    while (magnitude >= 10ull)
+    unsigned long long magnitude = (value < 0LL) ? (0ULL - (unsigned long long)value) : (unsigned long long)value;
+    unsigned int width = (value < 0LL) ? 2u : 1u;
+    while (magnitude >= 10ULL)
     {
-        magnitude /= 10ull;
+        magnitude /= 10ULL;
         width += 1u;
     }
     for (unsigned int pad = width; pad < columns; pad += 1u)
@@ -209,15 +209,15 @@ int main(void)
 
     SimBody body;
     memset(&body, 0, sizeof(body));
-    body.center[0] = 8ll;
-    body.center[1] = 32ll;
-    body.center[2] = 32ll;
-    body.range[0] = 3ll;
-    body.range[1] = 7ll;
-    body.range[2] = 7ll;
+    body.center[0] = 8LL;
+    body.center[1] = 32LL;
+    body.center[2] = 32LL;
+    body.range[0] = 3LL;
+    body.range[1] = 7LL;
+    body.range[2] = 7LL;
     body.brightness = ROOT_BRIGHTNESS;
     body.ended = ROOT_FRAMES;
-    body.parent = -1ll;
+    body.parent = -1LL;
     SimScene scene;
     memset(&scene, 0, sizeof(scene));
     scene.frames = ROOT_FRAMES;
@@ -243,10 +243,10 @@ int main(void)
     {
         const unsigned int planted = (run == 0u) ? NOISE_ROOT_TERMS : ((run - 1u) / ROOT_STRENGTHS);
         const unsigned int strength = (run == 0u) ? 0u : ((run - 1u) % ROOT_STRENGTHS);
-        const unsigned long long square = (run == 0u) ? 0ull : ROOT_SQUARES[strength];
+        const unsigned long long square = (run == 0u) ? 0ULL : ROOT_SQUARES[strength];
         SimCamera camera;
         root_camera(&camera, planted, square);
-        unsigned long long clipped = 0ull;
+        unsigned long long clipped = 0ULL;
         ok = sim_render(&results, &scene, &camera, device_lanes, NULL, NULL, &clipped) &&
              sim_status_check(&results, cudaMemcpy(lanes, device_lanes, (size_t)lane_bytes, cudaMemcpyDeviceToHost),
                               "lanes read");
@@ -254,7 +254,7 @@ int main(void)
         {
             clipped += root_plant(lanes, planted, square);
         }
-        sim_check(&results, ok && (clipped == 0ull), "the scene rendered with no lane clipped");
+        sim_check(&results, ok && (clipped == 0ULL), "the scene rendered with no lane clipped");
         if (ok == 0)
         {
             break;
@@ -312,8 +312,8 @@ int main(void)
         // convert to long long exactly and 1000 times the saving is far below 2^63
         const long long per_mille =
             (measurement.root < NOISE_ROOT_TERMS)
-                ? ((1000ll * measurement.saved[measurement.root]) / (long long)measurement.box_bits)
-                : 0ll;
+                ? ((1000LL * measurement.saved[measurement.root]) / (long long)measurement.box_bits)
+                : 0LL;
         root_signed_columns(line, per_mille, 11u);
         mmgr_line_put(line, (exact != 0) ? "  exact\n" : "  differs\n");
         sim_flush(&results);

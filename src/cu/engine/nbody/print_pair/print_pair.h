@@ -18,7 +18,7 @@ extern "C"
 
 #define PRINT_PAIR_OUTPUTS 1u
 
-#define PRINT_PAIR_CEILING ((PRINT_PAIR_BANDS * 2ull * ((unsigned long long)ENGINE_GOLDEN_RUNGS - 1ull)) + 1ull)
+#define PRINT_PAIR_CEILING ((PRINT_PAIR_BANDS * 2ULL * ((unsigned long long)ENGINE_GOLDEN_RUNGS - 1ULL)) + 1ULL)
 
     long print_pair_program(EngineRecordStep program[PRINT_PAIR_STEPS], unsigned int outputs[PRINT_PAIR_OUTPUTS]);
 

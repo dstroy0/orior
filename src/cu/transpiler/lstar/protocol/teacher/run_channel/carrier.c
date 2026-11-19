@@ -23,7 +23,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
         if (*count >= RUN_CARRIER_WORDS)
         {
             char message[128];
-            VerbaLinea line = {message, sizeof(message), 0ull};
+            VerbaLinea line = {message, sizeof(message), 0ULL};
             mmgr_line_put(&line, "run_channel: a carrier, its pop and its cross are each from 1 to ");
             mmgr_line_decimal(&line, RUN_CARRIER_WORDS, 0u);
             mmgr_line_put(&line, " words\n");
@@ -31,7 +31,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
             run_channel_trace_line(message);
             return 0;
         }
-        VerbaLinea word = {part[*count], RUN_PATH_MAX_LEN, 0ull};
+        VerbaLinea word = {part[*count], RUN_PATH_MAX_LEN, 0ULL};
         mmgr_line_put_max(&word, carrier[at], RUN_PATH_MAX_LEN - 1u);
         mmgr_line_finish(&word);
         *count += 1u;
@@ -40,7 +40,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     if ((words == 0u) || ((s_channel.pop_words == 0u) != (s_channel.cross_words == 0u)))
     {
         char message[128];
-        VerbaLinea line = {message, sizeof(message), 0ull};
+        VerbaLinea line = {message, sizeof(message), 0ULL};
         mmgr_line_put(&line, "run_channel: a carrier is from 1 to ");
         mmgr_line_decimal(&line, RUN_CARRIER_WORDS, 0u);
         mmgr_line_put(&line, " words, and an airlock both a pop and a cross\n");
@@ -53,7 +53,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     {
         if (strcmp(s_channel.word[at], "--gated") == 0)
         {
-            VerbaLinea gated_line = {s_channel.gated_list, sizeof(s_channel.gated_list), 0ull};
+            VerbaLinea gated_line = {s_channel.gated_list, sizeof(s_channel.gated_list), 0ULL};
             mmgr_line_put_max(&gated_line, s_channel.word[at + 1u], sizeof(s_channel.gated_list) - 1u);
             mmgr_line_finish(&gated_line);
             s_channel.gated_given = 1;
@@ -103,7 +103,7 @@ int run_channel_write(const RunQuestion *question, const char *code_name, const 
         return 0;
     }
     // the text is sized for every case at its longest
-    VerbaLinea cases = {s_cases_text, sizeof(s_cases_text), 0ull};
+    VerbaLinea cases = {s_cases_text, sizeof(s_cases_text), 0ULL};
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         for (unsigned int at = 0u; at < RUN_IN_WORDS; at += 1u)
@@ -126,19 +126,19 @@ int run_channel_write(const RunQuestion *question, const char *code_name, const 
 void run_channel_read(RunQuestion *question, const char *answers_name, unsigned long long after)
 {
     question->outcome = RUN_NOTHING;
-    question->nanoseconds = 0ull;
-    question->least = 0ull;
-    question->max = 0ull;
+    question->nanoseconds = 0ULL;
+    question->least = 0ULL;
+    question->max = 0ULL;
     question->clock_address = 0u;
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long sequence = 0ull;
-    if (!qry_member_blob(answers_name, &bytes, &size, &sequence) || (sequence < after) || (size == 0ull))
+    unsigned long long size = 0ULL;
+    unsigned long long sequence = 0ULL;
+    if (!qry_member_blob(answers_name, &bytes, &size, &sequence) || (sequence < after) || (size == 0ULL))
     {
         // a question the carrier ended the round before, after a launch that faulted the part or hung: carried by no
         // one, stored nowhere, and put again once the conference ruled
         question->outcome = RUN_NO_CHANNEL;
-        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
         mmgr_line_put(&refused, "the carrier wrote no answer: it ended the round before it");
         mmgr_line_finish(&refused);
         return;
@@ -151,7 +151,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     memcpy(s_answer_line, bytes, copied);
     s_answer_line[copied] = '\0';
     char timed_line[128] = "";
-    unsigned long long line_at = (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
+    unsigned long long line_at = (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ULL : size;
     while (line_at < size)
     {
         char line[128];
@@ -161,7 +161,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         }
         if (strncmp(line, "timed ", 6u) == 0)
         {
-            VerbaLinea timed_text = {timed_line, sizeof(timed_line), 0ull};
+            VerbaLinea timed_text = {timed_line, sizeof(timed_line), 0ULL};
             mmgr_line_put_max(&timed_text, line, sizeof(timed_line) - 1u);
             mmgr_line_finish(&timed_text);
         }
@@ -186,19 +186,19 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     {
         question->outcome =
             (strncmp(s_answer_line, "skipped", 7u) == 0) ? (unsigned int)RUN_GATED : (unsigned int)RUN_ILLEGAL;
-        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
-        mmgr_line_put_max(&refused, s_answer_line, 120ull);
+        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
+        mmgr_line_put_max(&refused, s_answer_line, 120ULL);
         mmgr_line_finish(&refused);
         // a refusal calls a conference, the carrier's accounts after the refusal's line passed with the teacher's
         if (question->outcome == RUN_ILLEGAL)
         {
             char how[160];
-            VerbaLinea how_line = {how, sizeof(how), 0ull};
+            VerbaLinea how_line = {how, sizeof(how), 0ULL};
             mmgr_line_put(&how_line, "the part refused it, ");
-            mmgr_line_put_max(&how_line, s_answer_line, 120ull);
+            mmgr_line_put_max(&how_line, s_answer_line, 120ULL);
             mmgr_line_finish(&how_line);
             const unsigned long long output_at =
-                (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
+                (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ULL : size;
             run_channel_conference_called(question, how, bytes + output_at, size - output_at);
             run_channel_line_ruled(question);
         }
@@ -211,7 +211,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         question->answered[place] = strtoull(at, &after_word, 16);
         if (after_word == at)
         {
-            VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+            VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
             mmgr_line_put(&refused, "the carrier answered ");
             mmgr_line_decimal(&refused, place, 0u);
             mmgr_line_put(&refused, " of ");
@@ -224,7 +224,7 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     }
     if ((question->launches != 0u) && !timed)
     {
-        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
         mmgr_line_put(&refused, "the carrier gave no time for ");
         mmgr_line_decimal(&refused, question->launches, 0u);
         mmgr_line_put(&refused, " launches");
@@ -249,7 +249,7 @@ void run_channel_dry_written(RunQuestion *question)
     const int written = run_channel_write(question, code_name, cases_name) && (line_length != 0u) &&
                         run_channel_listed(line, line_length);
     question->outcome = written ? (unsigned int)RUN_GATED : (unsigned int)RUN_NO_CHANNEL;
-    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
     mmgr_line_put(&refused, written ? "dry: written, carried by nothing" : "dry: the question could not be written");
     mmgr_line_finish(&refused);
 }
@@ -266,7 +266,7 @@ void run_channel_close(void)
     if (s_record.changed && (s_record_path[0] != '\0') && !kqr_write(&s_record, s_record_path))
     {
         char message[RUN_PATH_MAX_LEN + 64u];
-        VerbaLinea line = {message, sizeof(message), 0ull};
+        VerbaLinea line = {message, sizeof(message), 0ULL};
         mmgr_line_put(&line, "record: ");
         mmgr_line_put(&line, s_record_path);
         mmgr_line_put(&line, " could not be written\n");

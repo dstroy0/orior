@@ -93,7 +93,7 @@ int cli_bridge_words(const CliCommandLineWordCtx *args);
 void cli_help(const CliCommandLineOutErrMsgShellCtx *args);
 // the width the help's lines are wrapped to; and `text` broken at spaces into lines of at max `width` characters, each
 // after the first indented `indent` more, each passed to `each`, a word wider than the width alone on its line
-#define CLI_HELP_WIDTH 100ull
+#define CLI_HELP_WIDTH 100ULL
 void cli_help_wrap(const CliCommandLineTextEachCtx *args);
 void cli_keys(void);
 void cli_next_words(const CliCommandLineNamedCtx *args);

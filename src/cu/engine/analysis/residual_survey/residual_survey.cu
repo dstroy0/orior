@@ -12,19 +12,19 @@
 
 unsigned int g_survey = 0u;
 
-static unsigned long long s_survey_frames = 0ull;
+static unsigned long long s_survey_frames = 0ULL;
 
-static unsigned long long s_survey_positive = 0ull;
+static unsigned long long s_survey_positive = 0ULL;
 
-static unsigned long long s_survey_voxels = 0ull;
+static unsigned long long s_survey_voxels = 0ULL;
 
 static unsigned int s_survey_reached = 0u;
 
-static unsigned long long s_survey_distinct_sum = 0ull;
+static unsigned long long s_survey_distinct_sum = 0ULL;
 
-static unsigned long long s_survey_distinct_least = 0xFFFFFFFFFFFFFFFFull;
+static unsigned long long s_survey_distinct_least = 0xFFFFFFFFFFFFFFFFULL;
 
-static unsigned long long s_survey_distinct_max = 0ull;
+static unsigned long long s_survey_distinct_max = 0ULL;
 
 static unsigned long long s_survey_rungs[DAMP_BANDS];
 
@@ -42,7 +42,7 @@ void survey_residual(const unsigned int *residual, size_t voxels)
             reached = ((limbs[limb] != 0u) && ((limb + 1u) > reached)) ? (limb + 1u) : reached;
         }
     }
-    s_survey_frames += 1ull;
+    s_survey_frames += 1ULL;
     s_survey_voxels += (unsigned long long)voxels;
     s_survey_positive += (unsigned long long)positive;
     s_survey_reached = (reached > s_survey_reached) ? reached : s_survey_reached;
@@ -69,7 +69,7 @@ void survey_residual(const unsigned int *residual, size_t voxels)
         key_count += 1u;
     }
     radix_sort_keys(keys, key_count);
-    unsigned long long distinct = (key_count != 0u) ? 1ull : 0ull;
+    unsigned long long distinct = (key_count != 0u) ? 1ULL : 0ULL;
     for (size_t at = 1u; at < key_count; at += 1u)
     {
         distinct += (unsigned long long)(keys[at] != keys[at - 1u]);
@@ -79,21 +79,21 @@ void survey_residual(const unsigned int *residual, size_t voxels)
     s_survey_distinct_max = (distinct > s_survey_distinct_max) ? distinct : s_survey_distinct_max;
     for (size_t at = 0u; at < key_count; at += 1u)
     {
-        s_survey_rungs[band_of(keys[at])] += 1ull;
+        s_survey_rungs[band_of(keys[at])] += 1ULL;
     }
     free(keys);
 }
 
 void survey_report(void)
 {
-    if (s_survey_frames == 0ull)
+    if (s_survey_frames == 0ULL)
     {
         return;
     }
     printf("\n  RESIDUAL SURVEY over %llu frames, %llu voxels:\n", s_survey_frames, s_survey_voxels);
-    const unsigned long long positive_tenths = (1000ull * s_survey_positive) / s_survey_voxels;
-    printf("    positive voxels               %llu  (%llu.%llu%% of all)\n", s_survey_positive, positive_tenths / 10ull,
-           positive_tenths % 10ull);
+    const unsigned long long positive_tenths = (1000ULL * s_survey_positive) / s_survey_voxels;
+    printf("    positive voxels               %llu  (%llu.%llu%% of all)\n", s_survey_positive, positive_tenths / 10ULL,
+           positive_tenths % 10ULL);
     printf("    limbs the residual reaches    %u of %u  (%u bits of 288)\n", s_survey_reached, ENGINE_RESIDUAL_LIMBS,
            s_survey_reached * 32u);
     printf("    distinct levels a frame contains least %llu, max %llu, mean %llu\n", s_survey_distinct_least,
@@ -101,18 +101,18 @@ void survey_report(void)
     unsigned int occupied = 0u;
     for (unsigned int band = 0u; band < DAMP_BANDS; band += 1u)
     {
-        occupied += (unsigned int)(s_survey_rungs[band] != 0ull);
+        occupied += (unsigned int)(s_survey_rungs[band] != 0ULL);
     }
     printf("    golden rungs occupied         %u\n", occupied);
     printf("    voxels by rung, where a count banded flood would step:\n");
     for (unsigned int band = 0u; band < DAMP_BANDS; band += 1u)
     {
-        if (s_survey_rungs[band] == 0ull)
+        if (s_survey_rungs[band] == 0ULL)
         {
             continue;
         }
-        const unsigned long long hundredths = (10000ull * s_survey_rungs[band]) / s_survey_positive;
-        printf("      rung %-3u from %-12llu %12llu voxels  %3llu.%02llu%%\n", band, band_floor(band),
-               s_survey_rungs[band], hundredths / 100ull, hundredths % 100ull);
+        const unsigned long long hundredths = (10000ULL * s_survey_rungs[band]) / s_survey_positive;
+        printf("      rung %-3u from %-12LLU %12LLU voxels  %3LLU.%02LLU%%\n", band, band_floor(band),
+               s_survey_rungs[band], hundredths / 100ULL, hundredths % 100ULL);
     }
 }

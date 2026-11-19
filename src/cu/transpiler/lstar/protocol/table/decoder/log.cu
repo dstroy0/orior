@@ -7,7 +7,7 @@
 #include "../../../../../../../includes/file_defs/qry/qry_read.h"
 
 // the log, every record of it joined in the writer's order
-static unsigned char s_log[QRY_WRITER_RING_BYTES / 2ull];
+static unsigned char s_log[QRY_WRITER_RING_BYTES / 2ULL];
 
 // `record` joined to the log where it is a record of the log and fits: 1, or 0 where it does not fit
 static int log_record_joined(const QryRecord *record, unsigned long long *size)
@@ -30,8 +30,8 @@ static int log_record_joined(const QryRecord *record, unsigned long long *size)
 // bytes, or QRY_MEMBER_UNREAD where it could not be read whole
 static unsigned long long log_joined(const char *qry)
 {
-    unsigned long long size = 0ull;
-    unsigned long long at = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     int whole = 1;
     if (qry_member_run() != NULL)
@@ -42,7 +42,7 @@ static unsigned long long log_joined(const char *qry)
         }
         return whole ? size : QRY_MEMBER_UNREAD;
     }
-    unsigned long long mapped = 0ull;
+    unsigned long long mapped = 0ULL;
     const unsigned char *const bytes = qry_member_file_mapped(qry, &mapped);
     while (whole && (bytes != NULL) && qry_record_read(bytes, mapped, &at, &record))
     {
@@ -83,13 +83,13 @@ int Decoding::log_read(const char *qry)
         if (line.rfind("choice ", 0u) == 0u)
         {
             const unsigned long long word = std::stoull(line.substr(7u), nullptr, 16);
-            if (((word & lower_flag) != 0ull) && ((word & answer_flags) != 0ull))
+            if (((word & lower_flag) != 0ULL) && ((word & answer_flags) != 0ULL))
             {
                 witnessed.insert(choosing);
             }
             for (const auto &flag : trace.named)
             {
-                if ((word & flag.first) != 0ull)
+                if ((word & flag.first) != 0ULL)
                 {
                     choices[choosing][flag.first] += 1u;
                     chosen[flag.first] += 1u;

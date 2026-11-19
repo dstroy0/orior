@@ -19,7 +19,7 @@
 
 // the record, written into s_record_bytes and passed whole to the run's writer, `s_record_at` bytes so far, the room
 // once a write did not fit
-static char s_record_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_record_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_record_at;
 
 // `text` written after what the record contains

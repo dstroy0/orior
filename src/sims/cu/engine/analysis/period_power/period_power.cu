@@ -4,11 +4,11 @@
 
 #include "../../../../../cu/engine/analysis/period/period.h"
 
-#define POWER_KEY 0x504F574552ull
+#define POWER_KEY 0x504F574552ULL
 
 #define POWER_VOLUMES 32u
 
-#define POWER_PERIOD 5ull
+#define POWER_PERIOD 5ULL
 
 #define POWER_AMPLITUDES 9u
 
@@ -16,7 +16,7 @@
 
 // a count of false periods over n chances at 1/(draws + 1) each may exceed n p by 5 sqrt(n p), this squared over n p:
 // the binomial's spread is sqrt(n p (1 - p)). The tolerance is 5.30 of it at 8 draws and 5.13 at 19
-#define POWER_RANGE_SQUARED 25ull
+#define POWER_RANGE_SQUARED 25ULL
 
 typedef struct
 {
@@ -47,8 +47,8 @@ static int power_read(SimResults *results, const unsigned short *lanes, const un
     request.measurement = measurement;
     request.error = &error;
     const long long status = period_read(&request);
-    sim_check(results, (status == 0ll) && (error.type == ENGINE_ERROR_NONE), "period_read accepted the volume");
-    return status == 0ll;
+    sim_check(results, (status == 0LL) && (error.type == ENGINE_ERROR_NONE), "period_read accepted the volume");
+    return status == 0LL;
 }
 
 int main(void)
@@ -56,30 +56,30 @@ int main(void)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    const unsigned long long amplitude[POWER_AMPLITUDES] = {0ull,  2ull,   8ull,   16ull,  32ull,
-                                                            64ull, 128ull, 256ull, 1024ull};
-    const unsigned long long draw_count[POWER_DRAW_COUNTS] = {8ull, 19ull};
+    const unsigned long long amplitude[POWER_AMPLITUDES] = {0ULL,  2ULL,   8ULL,   16ULL,  32ULL,
+                                                            64ULL, 128ULL, 256ULL, 1024ULL};
+    const unsigned long long draw_count[POWER_DRAW_COUNTS] = {8ULL, 19ULL};
 
     SimScene scene;
     memset(&scene, 0, sizeof(scene));
-    scene.frames = 1ull;
-    scene.extent[0] = 32ull;
-    scene.extent[1] = 64ull;
-    scene.extent[2] = 64ull;
-    scene.background = 200ull;
+    scene.frames = 1ULL;
+    scene.extent[0] = 32ULL;
+    scene.extent[1] = 64ULL;
+    scene.extent[2] = 64ULL;
+    scene.background = 200ULL;
     scene.plant_axis = 2u;
     scene.plant_period = POWER_PERIOD;
     SimCamera camera;
     memset(&camera, 0, sizeof(camera));
-    camera.offset = 100ull;
-    camera.gain = 1ull;
-    camera.read_square = 3ull;
-    camera.pattern_range = 8ull;
-    camera.shot = 1ull;
+    camera.offset = 100ULL;
+    camera.gain = 1ULL;
+    camera.read_square = 3ULL;
+    camera.pattern_range = 8ULL;
+    camera.shot = 1ULL;
 
     const unsigned long long voxels = sim_scene_voxels(&scene);
     unsigned short *const lanes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
-    PeriodMargin band[19ull * SIM_AXES];
+    PeriodMargin band[19ULL * SIM_AXES];
     unsigned short *device_lanes = NULL;
     int ok = lanes != NULL;
     ok = ok && sim_job_submit(&results, "period_power", 0, NULL, voxels * sizeof(unsigned short));
@@ -106,10 +106,10 @@ int main(void)
             for (unsigned int volume = 0u; ok && (volume < POWER_VOLUMES); volume += 1u)
             {
                 camera.key = sim_draw(POWER_KEY, (((counts * POWER_AMPLITUDES) + level) * POWER_VOLUMES) + volume);
-                scene.plant_key = camera.key ^ 0x504C414E54ull;
-                unsigned long long clipped = 0ull;
+                scene.plant_key = camera.key ^ 0x504C414E54ULL;
+                unsigned long long clipped = 0ULL;
                 ok = sim_render(&results, &scene, &camera, device_lanes, NULL, NULL, &clipped);
-                ok = ok && (clipped == 0ull);
+                ok = ok && (clipped == 0ULL);
                 ok = ok && sim_status_check(
                                &results,
                                cudaMemcpy(lanes, device_lanes, voxels * sizeof(unsigned short), cudaMemcpyDeviceToHost),
@@ -119,12 +119,12 @@ int main(void)
                 if (ok)
                 {
                     const unsigned long long read_x = measurement.axis[2].period;
-                    const int multiple = (read_x > POWER_PERIOD) && ((read_x % POWER_PERIOD) == 0ull);
-                    result.found += (read_x == POWER_PERIOD) ? 1ull : 0ull;
-                    result.found_multiple += multiple ? 1ull : 0ull;
-                    result.found_elsewhere += ((read_x != 0ull) && (read_x % POWER_PERIOD) != 0ull) ? 1ull : 0ull;
-                    result.false_other_axes += (measurement.axis[0].period != 0ull) ? 1ull : 0ull;
-                    result.false_other_axes += (measurement.axis[1].period != 0ull) ? 1ull : 0ull;
+                    const int multiple = (read_x > POWER_PERIOD) && ((read_x % POWER_PERIOD) == 0ULL);
+                    result.found += (read_x == POWER_PERIOD) ? 1ULL : 0ULL;
+                    result.found_multiple += multiple ? 1ULL : 0ULL;
+                    result.found_elsewhere += ((read_x != 0ULL) && (read_x % POWER_PERIOD) != 0ULL) ? 1ULL : 0ULL;
+                    result.false_other_axes += (measurement.axis[0].period != 0ULL) ? 1ULL : 0ULL;
+                    result.false_other_axes += (measurement.axis[1].period != 0ULL) ? 1ULL : 0ULL;
                 }
             }
             mmgr_line_decimal_columns(line, draws, 7u);
@@ -135,17 +135,17 @@ int main(void)
             mmgr_line_decimal_columns(line, result.false_other_axes, 18u);
             mmgr_line_ch(line, '\n');
             sim_flush(&results);
-            const unsigned long long axes = 2ull * POWER_VOLUMES;
-            const unsigned long long scaled = (draws + 1ull) * result.false_other_axes;
-            const unsigned long long excess = (scaled > axes) ? (scaled - axes) : 0ull;
-            sim_check(&results, (excess * excess) <= (POWER_RANGE_SQUARED * axes * (draws + 1ull)),
+            const unsigned long long axes = 2ULL * POWER_VOLUMES;
+            const unsigned long long scaled = (draws + 1ULL) * result.false_other_axes;
+            const unsigned long long excess = (scaled > axes) ? (scaled - axes) : 0ULL;
+            sim_check(&results, (excess * excess) <= (POWER_RANGE_SQUARED * axes * (draws + 1ULL)),
                       "the unplanted axes' false periods exceed n/(draws + 1) by at max 5 sqrt(n p)");
-            if (amplitude[level] == 0ull)
+            if (amplitude[level] == 0ULL)
             {
                 const unsigned long long scaled_x =
-                    (draws + 1ull) * (result.found + result.found_multiple + result.found_elsewhere);
-                const unsigned long long excess_x = (scaled_x > POWER_VOLUMES) ? (scaled_x - POWER_VOLUMES) : 0ull;
-                sim_check(&results, (excess_x * excess_x) <= (POWER_RANGE_SQUARED * POWER_VOLUMES * (draws + 1ull)),
+                    (draws + 1ULL) * (result.found + result.found_multiple + result.found_elsewhere);
+                const unsigned long long excess_x = (scaled_x > POWER_VOLUMES) ? (scaled_x - POWER_VOLUMES) : 0ULL;
+                sim_check(&results, (excess_x * excess_x) <= (POWER_RANGE_SQUARED * POWER_VOLUMES * (draws + 1ULL)),
                           "with nothing planted, x's false periods exceed n/(draws + 1) by at max 5 sqrt(n p)");
             }
             if (level + 1u == POWER_AMPLITUDES)

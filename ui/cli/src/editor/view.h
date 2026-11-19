@@ -66,9 +66,9 @@ typedef struct CliViewSaveCfg CliViewSaveCfg;
 #define CLI_VIEW_POINTER_MOVED 1u
 #define CLI_VIEW_POINTER_UP 2u
 #define CLI_VIEW_TAB 4u
-#define CLI_VIEW_JOINED 1200ull
+#define CLI_VIEW_JOINED 1200ULL
 // the lines either side of the cursor the file's own words are taken from for a completion
-#define CLI_VIEW_WORD_LINES 3000ull
+#define CLI_VIEW_WORD_LINES 3000ULL
 
 // One input: its type; a key's name; `length` bytes of text typed; the pointer's event, its row from the view's top and
 // its column in cells, how many presses in a row it is and whether Shift is down; a scroll's top line, and the furthest

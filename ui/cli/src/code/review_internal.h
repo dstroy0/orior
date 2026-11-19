@@ -19,7 +19,7 @@ typedef struct CliReviewTextLengthTypeCtx CliReviewTextLengthTypeCtx;
 #define CLI_REVIEW_TEXT (1u << 25u)
 #define CLI_REVIEW_PIECES 8192u
 #define CLI_REVIEW_TEXTS_MAX (1u << 25u)
-#define CLI_REVIEW_TEXT_CAPACITY (16ull << 20u)
+#define CLI_REVIEW_TEXT_CAPACITY (16ULL << 20u)
 #define CLI_REVIEW_CALLS (1u << 18u)
 
 // the max lines of a text the review reads

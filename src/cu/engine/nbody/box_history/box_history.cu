@@ -38,7 +38,7 @@ __global__ static void box_history_row_kernel(const unsigned long long *window_c
     unsigned int running = 0u;
     for (unsigned int width_place = 0u; width_place < box_extent.width; width_place += 1u)
     {
-        running += (unsigned int)((window_counts[first + width_place] >> (4u * bit)) & 0xFull);
+        running += (unsigned int)((window_counts[first + width_place] >> (4u * bit)) & 0xFULL);
         key[box_history_key_cell(&box_extent, depth_place + 1u, height_place + 1u, width_place + 1u)] = running;
     }
 }
@@ -121,7 +121,7 @@ __global__ static void box_history_walk_kernel(const unsigned long long *window_
                 const unsigned long long word = window_counts[first + width_place];
                 for (unsigned int bit = 0u; bit < ENGINE_HISTORY_BITS; bit += 1u)
                 {
-                    walked_counts[bit] += (unsigned int)((word >> (4u * bit)) & 0xFull);
+                    walked_counts[bit] += (unsigned int)((word >> (4u * bit)) & 0xFULL);
                 }
             }
         }
@@ -143,15 +143,15 @@ extern "C" long box_history_gather(const BoxHistoryRequest *request)
 {
     if ((request == NULL) || (request->history == NULL) || (request->history->history == NULL) ||
         (request->extents == NULL) || (request->counts == NULL) || (request->disagreements == NULL) ||
-        (request->microseconds == NULL) || (request->history->extent[1] > 0xFFFFFull) ||
-        (request->history->extent[2] > 0xFFFFFull) || (request->history->extent[3] > 0xFFFFFull))
+        (request->microseconds == NULL) || (request->history->extent[1] > 0xFFFFFULL) ||
+        (request->history->extent[2] > 0xFFFFFULL) || (request->history->extent[3] > 0xFFFFFULL))
     {
         return BOX_HISTORY_ERROR;
     }
     const unsigned long long start_microseconds = engine_clock_microseconds();
     const unsigned long long voxels =
         request->history->extent[1] * request->history->extent[2] * request->history->extent[3];
-    if (voxels > (0xFFFFFFFFull / 15ull))
+    if (voxels > (0xFFFFFFFFULL / 15ULL))
     {
         return BOX_HISTORY_ERROR;
     }
@@ -213,7 +213,7 @@ extern "C" long box_history_gather(const BoxHistoryRequest *request)
             steps_succeeded = (cudaGetLastError() == cudaSuccess);
         }
     }
-    unsigned long long host_disagreements = 0ull;
+    unsigned long long host_disagreements = 0ULL;
     steps_succeeded = steps_succeeded && (cudaDeviceSynchronize() == cudaSuccess) &&
                       (cudaMemcpy(&host_disagreements, device_disagreements, sizeof(unsigned long long),
                                   cudaMemcpyDeviceToHost) == cudaSuccess) &&

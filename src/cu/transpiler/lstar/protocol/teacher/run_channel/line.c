@@ -31,7 +31,7 @@ void run_channel_trace_line(const char *message)
 // `message` written as the refusal of `question`, cut at the room the refusal has
 void run_channel_refused(RunQuestion *question, const char *message)
 {
-    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
     mmgr_line_put_max(&refused, message, sizeof(question->refused) - 1u);
     mmgr_line_finish(&refused);
 }
@@ -39,9 +39,9 @@ void run_channel_refused(RunQuestion *question, const char *message)
 // `the carrier <its first word> was not started`, the word cut at 96 bytes, written as the refusal of `question`
 void run_channel_started_refused(RunQuestion *question)
 {
-    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
     mmgr_line_put(&refused, "the carrier ");
-    mmgr_line_put_max(&refused, s_channel.word[0], 96ull);
+    mmgr_line_put_max(&refused, s_channel.word[0], 96ULL);
     mmgr_line_put(&refused, " was not started");
     mmgr_line_finish(&refused);
 }
@@ -49,7 +49,7 @@ void run_channel_started_refused(RunQuestion *question)
 // how the carrier ended and its code, `the carrier <ending>, code <hex>`, written as the refusal of `question`
 void run_channel_ending_refused(RunQuestion *question, const InterfaceAnswer *answer)
 {
-    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
     mmgr_line_put(&refused, "the carrier ");
     mmgr_line_put(&refused, interface_ending_name(answer->ending));
     mmgr_line_put(&refused, ", code ");
@@ -60,20 +60,20 @@ void run_channel_ending_refused(RunQuestion *question, const InterfaceAnswer *an
 // `count` in decimal written into `text`, which has room for `room`
 void run_channel_counted(char *text, size_t room, unsigned long long count)
 {
-    VerbaLinea counted = {text, room, 0ull};
+    VerbaLinea counted = {text, room, 0ULL};
     mmgr_line_decimal(&counted, count, 0u);
     mmgr_line_finish(&counted);
 }
 
 // the panic the teacher passed its account of: it reports once for each
-static unsigned long long s_panic_answered = 0ull;
+static unsigned long long s_panic_answered = 0ULL;
 
 // the sequence of the panic whose ruling stopped the run, 0 while no panic has been ruled on
-static unsigned long long s_stopped_on = 0ull;
+static unsigned long long s_stopped_on = 0ULL;
 
 int run_channel_panic_ruled(void)
 {
-    return s_stopped_on != 0ull;
+    return s_stopped_on != 0ULL;
 }
 
 // The conference a question the part refused calls (QRY_CONFERENCE_CALL, overseer.h): the teacher's account of it, the
@@ -87,7 +87,7 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
     char name[160];
     run_channel_identity(question, &numbered);
     kqr_identity_text(&numbered, identity, sizeof(identity));
-    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    VerbaLinea name_line = {name, sizeof(name), 0ULL};
     mmgr_line_put(&name_line, QRY_CONFERENCE_CALL);
     mmgr_line_ch(&name_line, '_');
     mmgr_line_put(&name_line, identity);
@@ -100,8 +100,8 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
     const unsigned long long panic = qry_member_panicked();
     // the account and what the carrier reported after it, a record at max half a ring, what the carrier reported cut
     // to it
-    static char s_conference[QRY_WRITER_RING_BYTES / 2ull];
-    VerbaLinea whole = {s_conference, sizeof(s_conference), 0ull};
+    static char s_conference[QRY_WRITER_RING_BYTES / 2ULL];
+    VerbaLinea whole = {s_conference, sizeof(s_conference), 0ULL};
     mmgr_line_put(&whole, "teacher: the question of ");
     mmgr_line_decimal(&whole, question->code_size, 0u);
     mmgr_line_put(&whole, " bytes of code, ");
@@ -115,13 +115,13 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
     mmgr_line_put(&whole, " launches, over ");
     mmgr_line_decimal(&whole, question->cases, 0u);
     mmgr_line_put(&whole, " cases, ");
-    mmgr_line_put_max(&whole, how, 256ull);
+    mmgr_line_put_max(&whole, how, 256ULL);
     mmgr_line_put(&whole, "; ");
-    mmgr_line_put(&whole, (panic != 0ull) ? "a panic is on the line" : "the line is quiet");
+    mmgr_line_put(&whole, (panic != 0ULL) ? "a panic is on the line" : "the line is quiet");
     mmgr_line_ch(&whole, '\n');
-    if (output_size != 0ull)
+    if (output_size != 0ULL)
     {
-        const unsigned long long room = mmgr_line_ok(&whole) ? (whole.capacity - whole.at - 1ull) : 0ull;
+        const unsigned long long room = mmgr_line_ok(&whole) ? (whole.capacity - whole.at - 1ULL) : 0ULL;
         mmgr_line_put_n(&whole, (const char *)output, (output_size < room) ? output_size : room);
     }
     qry_member_append(name, whole.out, whole.at, QRY_ORDINARY);
@@ -144,7 +144,7 @@ unsigned long long run_channel_on_line(void)
 void run_channel_line_ruled(const RunQuestion *question)
 {
     const unsigned long long panic = run_channel_on_line();
-    if (panic == 0ull)
+    if (panic == 0ULL)
     {
         return;
     }
@@ -154,7 +154,7 @@ void run_channel_line_ruled(const RunQuestion *question)
     kqr_identity_text(&numbered, identity, sizeof(identity));
     OverseerRuling ruling;
     char message[OVERSEER_RULING_MAX_LEN + 128u];
-    VerbaLinea message_line = {message, sizeof(message), 0ull};
+    VerbaLinea message_line = {message, sizeof(message), 0ULL};
     const int convened = overseer_convened(s_channel.buffer, identity, 0, &ruling);
     const int clean_refusal = convened && ruling.own && (ruling.cause == (unsigned int)OVERSEER_CAUSE_INSTRUCTION) &&
                               (s_channel.carrier_clean != 0);
@@ -195,8 +195,8 @@ void run_channel_halted(RunQuestion *const *questions, unsigned int first, unsig
     for (unsigned int at = first; at < count; at += 1u)
     {
         questions[at]->outcome = RUN_NO_CHANNEL;
-        VerbaLinea refused = {questions[at]->refused, sizeof(questions[at]->refused), 0ull};
-        if (s_stopped_on != 0ull)
+        VerbaLinea refused = {questions[at]->refused, sizeof(questions[at]->refused), 0ULL};
+        if (s_stopped_on != 0ULL)
         {
             mmgr_line_put(&refused, "the run stopped: the panic at sequence ");
             mmgr_line_decimal(&refused, s_stopped_on, 0u);
@@ -218,13 +218,13 @@ void run_channel_panic_written(unsigned int questions, unsigned long long round,
                                unsigned int answered, const char *carrying)
 {
     const unsigned long long panic = run_channel_on_line();
-    if ((panic == 0ull) || (panic == s_panic_answered))
+    if ((panic == 0ULL) || (panic == s_panic_answered))
     {
         return;
     }
     s_panic_answered = panic;
     char message[RUN_CARRIER_ENDING + RUN_LINE_MAX_LEN + 256u];
-    VerbaLinea line = {message, sizeof(message), 0ull};
+    VerbaLinea line = {message, sizeof(message), 0ULL};
     mmgr_line_put(&line, "teacher: the round questions.txt of ");
     mmgr_line_decimal(&line, questions, 0u);
     mmgr_line_put(&line, " questions, passed at sequence ");

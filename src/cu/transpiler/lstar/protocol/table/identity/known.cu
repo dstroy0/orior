@@ -209,8 +209,8 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
     }
     std::unordered_map<unsigned long long, Permuted> permuted;
     std::vector<unsigned long long> permuted_order;
-    unsigned long long known = 0ull;
-    unsigned long long put = 0ull;
+    unsigned long long known = 0ULL;
+    unsigned long long put = 0ULL;
     for (unsigned int question = 0u; question < questions.size(); question += 1u)
     {
         const std::vector<Link> &chain = questions[question].chain;
@@ -238,12 +238,12 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
                 const unsigned int length = (unsigned int)window.chain.size();
                 const unsigned long long identity = window_identities(window, 0u).back();
                 const std::string rendered = window_render(window, 0u, length);
-                put += 1ull;
+                put += 1ULL;
                 const auto found = windows.find(identity);
                 if ((found != windows.end()) &&
                     (window_render(questions[found->second.question], found->second.link, length) == rendered))
                 {
-                    known += 1ull;
+                    known += 1ULL;
                     continue;
                 }
                 const auto inserted = permuted.insert(

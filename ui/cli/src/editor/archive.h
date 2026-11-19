@@ -42,7 +42,7 @@ enum
 
 // the max bytes a capacity of the archives a path runs through is given; the max members of one archive; the max
 // bytes of their names; and the max children a folder within one lists
-#define CLI_ARCHIVE_MAX (1ull << 28u)
+#define CLI_ARCHIVE_MAX (1ULL << 28u)
 
 #define CLI_ARCHIVE_MEMBERS 16384u
 

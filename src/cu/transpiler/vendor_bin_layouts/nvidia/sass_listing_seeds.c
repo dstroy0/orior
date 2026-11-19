@@ -53,10 +53,10 @@ static int seed_seen(unsigned long long key, unsigned long long modifiers)
 // there was no memory for it
 static int seed_accepted(unsigned long long low, unsigned long long high, int modifiers)
 {
-    const unsigned long long key = low & ((1ull << SEED_KEY_BITS) - 1ull);
+    const unsigned long long key = low & ((1ULL << SEED_KEY_BITS) - 1ULL);
     const unsigned long long masked =
-        modifiers ? ((high >> SEED_MODIFIER_FIRST) & ((1ull << (SEED_MODIFIER_LAST - SEED_MODIFIER_FIRST + 1u)) - 1ull))
-                  : 0ull;
+        modifiers ? ((high >> SEED_MODIFIER_FIRST) & ((1ULL << (SEED_MODIFIER_LAST - SEED_MODIFIER_FIRST + 1u)) - 1ULL))
+                  : 0ULL;
     if (seed_seen(key, masked))
     {
         return 1;
@@ -93,7 +93,7 @@ int main(int count, char **word)
     }
     // each instruction's words come as a pair of `/* 0x<16 hex digits> */`, the low word first
     char line[4096];
-    unsigned long long words[2] = {0ull, 0ull};
+    unsigned long long words[2] = {0ULL, 0ULL};
     unsigned int helds = 0u;
     int accepted = 1;
     while (accepted && (fgets(line, sizeof(line), listing) != NULL))

@@ -16,24 +16,24 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
                        TrackSetting settings[TRACK_PATCHES][TRACK_DELTAS], unsigned int deltas)
 {
     const unsigned long long frames = scene->frames;
-    unsigned long long clipped = 0ull;
+    unsigned long long clipped = 0ULL;
     int ok = sim_render(results, scene, camera, device->lanes, NULL, NULL, &clipped);
-    sim_check(results, ok && (clipped == 0ull), "the scene's frames render with nothing clipped");
+    sim_check(results, ok && (clipped == 0ULL), "the scene's frames render with nothing clipped");
     const size_t frame_bytes = (size_t)(frames * TRACK_SAMPLES) * sizeof(unsigned short);
-    ok = ok && (clipped == 0ull) &&
+    ok = ok && (clipped == 0ULL) &&
          sim_status_check(results, cudaMemcpy(host->lanes, device->lanes, frame_bytes, cudaMemcpyDeviceToHost),
                           "frames read");
     int lowered = ok;
-    unsigned long long equal = 0ull;
-    for (unsigned long long frame = 0ull; ok && (frame < frames); frame += 1ull)
+    unsigned long long equal = 0ULL;
+    for (unsigned long long frame = 0ULL; ok && (frame < frames); frame += 1ULL)
     {
         unsigned short *const floor_values = &host->floors[frame * TRACK_FLOOR_VALUES];
         lowered = lowered &&
                   track_floor_engine(&device->lanes[frame * TRACK_SAMPLES], host->crystal, host->corner, floor_values);
         track_floor_host(&host->lanes[frame * TRACK_SAMPLES], host->work, host->before, host->floor_host);
-        for (unsigned long long at = 0ull; lowered && (at < TRACK_FLOOR_VALUES); at += 1ull)
+        for (unsigned long long at = 0ULL; lowered && (at < TRACK_FLOOR_VALUES); at += 1ULL)
         {
-            equal += (host->floor_host[at] == (long long)floor_values[at]) ? 1ull : 0ull;
+            equal += (host->floor_host[at] == (long long)floor_values[at]) ? 1ULL : 0ULL;
         }
     }
     sim_check(results, ok && lowered, "the engine's tower lifts every frame and its corner lowers inside the lane");
@@ -47,7 +47,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
                                            (size_t)(frames * TRACK_FLOOR_VALUES) * sizeof(unsigned short),
                                            cudaMemcpyHostToDevice),
                                 "floors write");
-    for (unsigned long long frame = 0ull; ok && (frame < frames); frame += 1ull)
+    for (unsigned long long frame = 0ULL; ok && (frame < frames); frame += 1ULL)
     {
         // floor 2's values fill whole blocks, far fewer than 2^31
         track_planes_kernel<<<(unsigned int)(TRACK_FLOOR_VALUES / TRACK_THREADS), (unsigned int)TRACK_THREADS>>>(
@@ -60,17 +60,17 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
                                      (size_t)(frames * TRACK_BITS * TRACK_WORDS) * sizeof(unsigned int),
                                      cudaMemcpyDeviceToHost),
                           "planes read");
-    unsigned long long bits_matched = 0ull;
-    for (unsigned long long frame = 0ull; ok && (frame < frames); frame += 1ull)
+    unsigned long long bits_matched = 0ULL;
+    for (unsigned long long frame = 0ULL; ok && (frame < frames); frame += 1ULL)
     {
-        for (unsigned long long at = 0ull; at < TRACK_FLOOR_VALUES; at += 1ull)
+        for (unsigned long long at = 0ULL; at < TRACK_FLOOR_VALUES; at += 1ULL)
         {
             const unsigned int value = host->floors[(frame * TRACK_FLOOR_VALUES) + at];
             for (unsigned int bit = 0u; bit < TRACK_BITS; bit += 1u)
             {
                 const unsigned long long word = (((frame * TRACK_BITS) + bit) * TRACK_WORDS) + (at / TRACK_WORD_BITS);
                 const unsigned int plane_bit = (host->planes[word] >> (at % TRACK_WORD_BITS)) & 1u;
-                bits_matched += (plane_bit == ((value >> bit) & 1u)) ? 1ull : 0ull;
+                bits_matched += (plane_bit == ((value >> bit) & 1u)) ? 1ULL : 0ULL;
             }
         }
     }
@@ -82,7 +82,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
     for (unsigned int index = 0u; ok && (index < scene->bodies); index += 1u)
     {
         const SimBody *const body = &scene->body[index];
-        for (unsigned long long frame = 0ull; (frame + stride) < frames; frame += 1ull)
+        for (unsigned long long frame = 0ULL; (frame + stride) < frames; frame += 1ULL)
         {
             const unsigned long long from = track_body_cell(body, frame);
             const unsigned long long truth = track_body_cell(body, frame + stride);
@@ -108,8 +108,8 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
                                                     (int)(order % 3u) - 1};
                         const long long at[SIM_AXES] = {center[0] + step[0], center[1] + step[1], center[2] + step[2]};
                         const long long side = (long long)TRACK_FLOOR_SIDE;
-                        const int inside = (at[0] >= 0ll) && (at[0] < side) && (at[1] >= 0ll) && (at[1] < side) &&
-                                           (at[2] >= 0ll) && (at[2] < side);
+                        const int inside = (at[0] >= 0LL) && (at[0] < side) && (at[1] >= 0LL) && (at[1] < side) &&
+                                           (at[2] >= 0LL) && (at[2] < side);
                         if ((inside == 0) || (query->count >= s_track_patch_cells[patch]))
                         {
                             continue;
@@ -156,7 +156,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
     }
 
     // every candidate set against the host's scan, then graded by the body's path
-    unsigned long long scanned = 0ull;
+    unsigned long long scanned = 0ULL;
     for (unsigned int index = 0u; ok && (index < count); index += 1u)
     {
         const TrackQuery *const query = &host->queries[index];
@@ -165,10 +165,10 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
         track_scan(query, &host->floors[(unsigned long long)query->frame * TRACK_FLOOR_VALUES], host->expected);
         const unsigned int *const found = &host->candidates[(unsigned long long)index * TRACK_WORDS];
         int same = 1;
-        unsigned long long candidates = 0ull;
-        unsigned long long gated = 0ull;
-        unsigned long long taken = 0ull;
-        for (unsigned long long word = 0ull; word < TRACK_WORDS; word += 1ull)
+        unsigned long long candidates = 0ULL;
+        unsigned long long gated = 0ULL;
+        unsigned long long taken = 0ULL;
+        for (unsigned long long word = 0ULL; word < TRACK_WORDS; word += 1ULL)
         {
             same = same && (found[word] == host->expected[word]);
             candidates += sim_bits_set((unsigned long long)found[word]);
@@ -177,22 +177,22 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
             {
                 if (((found[word] >> bit) & 1u) != 0u)
                 {
-                    gated += (track_gated(truth->from, (word * TRACK_WORD_BITS) + bit) != 0) ? 1ull : 0ull;
+                    gated += (track_gated(truth->from, (word * TRACK_WORD_BITS) + bit) != 0) ? 1ULL : 0ULL;
                 }
             }
         }
         const int hit = ((found[truth->truth / TRACK_WORD_BITS] >> (truth->truth % TRACK_WORD_BITS)) & 1u) != 0u;
-        scanned += (same != 0) ? 1ull : 0ull;
-        setting->queries += 1ull;
-        setting->hits += (hit != 0) ? 1ull : 0ull;
+        scanned += (same != 0) ? 1ULL : 0ULL;
+        setting->queries += 1ULL;
+        setting->hits += (hit != 0) ? 1ULL : 0ULL;
         setting->candidates += candidates;
         setting->candidates_max = (candidates > setting->candidates_max) ? candidates : setting->candidates_max;
         setting->gated += gated;
-        setting->alone += ((hit != 0) && (gated == 1ull)) ? 1ull : 0ull;
+        setting->alone += ((hit != 0) && (gated == 1ULL)) ? 1ULL : 0ULL;
         setting->reads += taken;
         setting->reads_max = (taken > setting->reads_max) ? taken : setting->reads_max;
-        setting->clear += (truth->clear != 0) ? 1ull : 0ull;
-        setting->clear_hits += ((truth->clear != 0) && (hit != 0)) ? 1ull : 0ull;
+        setting->clear += (truth->clear != 0) ? 1ULL : 0ULL;
+        setting->clear_hits += ((truth->clear != 0) && (hit != 0)) ? 1ULL : 0ULL;
     }
     sim_check(results, ok && (scanned == count),
               "every candidate set equals the host's scan of the later frame's floor 2");
@@ -209,7 +209,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
     mmgr_line_put(line, ", ");
     mmgr_line_decimal(line, count, 1u);
     mmgr_line_put(line, " queries; half of a frame is ");
-    mmgr_line_decimal(line, TRACK_SAMPLES / 2ull, 1u);
+    mmgr_line_decimal(line, TRACK_SAMPLES / 2ULL, 1u);
     mmgr_line_put(line, " samples, ");
     mmgr_line_decimal(line, TRACK_SAMPLES, 1u);
     mmgr_line_put(line, " bytes\n");
@@ -243,7 +243,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
             mmgr_line_put(line, " (max ");
             mmgr_line_decimal(line, setting->reads_max, 1u);
             mmgr_line_put(line, ", ");
-            mmgr_line_decimal(line, 4ull * setting->reads_max, 1u);
+            mmgr_line_decimal(line, 4ULL * setting->reads_max, 1u);
             mmgr_line_put(line, " bytes)\n");
         }
     }
@@ -311,18 +311,18 @@ int main(int count, char **arguments)
     control.extent[0] = TRACK_SIDE;
     control.extent[1] = TRACK_SIDE;
     control.extent[2] = TRACK_SIDE;
-    control.background = 200ull;
+    control.background = 200ULL;
     control.bodies = TRACK_CONTROL_BODIES;
     track_control_bodies(control_body, TRACK_CONTROL_FRAMES);
     control.body = control_body;
     SimCamera still;
     memset(&still, 0, sizeof(still));
     still.key = TRACK_KEY;
-    still.offset = 100ull;
-    still.gain = 1ull;
+    still.offset = 100ULL;
+    still.gain = 1ULL;
     TrackSetting control_settings[TRACK_PATCHES][TRACK_DELTAS];
     memset(control_settings, 0, sizeof(control_settings));
-    ok = ok && track_scene(&results, "control, a cell a frame, no noise", &control, &still, 1ull, &host, &device,
+    ok = ok && track_scene(&results, "control, a cell a frame, no noise", &control, &still, 1ULL, &host, &device,
                            control_settings, 1u);
     sim_check(&results,
               ok && (control_settings[0][0].hits == control_settings[0][0].queries) &&
@@ -337,25 +337,25 @@ int main(int count, char **arguments)
     scene.extent[0] = TRACK_SIDE;
     scene.extent[1] = TRACK_SIDE;
     scene.extent[2] = TRACK_SIDE;
-    scene.background = 200ull;
-    scene.ramp = 1ull;
+    scene.background = 200ULL;
+    scene.ramp = 1ULL;
     scene.bodies = TRACK_CAMERA_BODIES;
     SimDraws draws;
     draws.key = TRACK_KEY ^ TRACK_FOUNDER_PURPOSE;
-    draws.counter = 0ull;
+    draws.counter = 0ULL;
     sim_founders_draw(&draws, &scene, camera_body, TRACK_CAMERA_BODIES);
     scene.body = camera_body;
     SimCamera camera;
     memset(&camera, 0, sizeof(camera));
     camera.key = TRACK_KEY;
-    camera.offset = 100ull;
-    camera.gain = 1ull;
-    camera.read_square = 3ull;
-    camera.pattern_range = 8ull;
-    camera.shot = 1ull;
+    camera.offset = 100ULL;
+    camera.gain = 1ULL;
+    camera.read_square = 3ULL;
+    camera.pattern_range = 8ULL;
+    camera.shot = 1ULL;
     TrackSetting camera_settings[TRACK_PATCHES][TRACK_DELTAS];
     memset(camera_settings, 0, sizeof(camera_settings));
-    ok = ok && track_scene(&results, "camera law, a voxel a frame", &scene, &camera, 1ull, &host, &device,
+    ok = ok && track_scene(&results, "camera law, a voxel a frame", &scene, &camera, 1ULL, &host, &device,
                            camera_settings, TRACK_DELTAS);
     // the floor's own time step: over 2^2 frames a body moving a whole voxel a frame moves whole floor-2 cells
     TrackSetting floor_step_settings[TRACK_PATCHES][TRACK_DELTAS];
@@ -364,7 +364,7 @@ int main(int count, char **arguments)
                            &host, &device, floor_step_settings, TRACK_DELTAS);
     // the same bodies without noise, ramp or pattern: what the floor's time step leaves once the noise is gone
     SimScene quiet = scene;
-    quiet.ramp = 0ull;
+    quiet.ramp = 0ULL;
     TrackSetting quiet_settings[TRACK_PATCHES][TRACK_DELTAS];
     memset(quiet_settings, 0, sizeof(quiet_settings));
     ok = ok && track_scene(&results, "the camera law's bodies, no noise", &quiet, &still,
@@ -386,7 +386,7 @@ int main(int count, char **arguments)
     ok = ok && track_scene(&results, "three bodies apart, camera law", &sparse, &camera, (unsigned long long)TRACK_CELL,
                            &host, &device, sparse_settings, TRACK_DELTAS);
     SimScene sparse_quiet = sparse;
-    sparse_quiet.ramp = 0ull;
+    sparse_quiet.ramp = 0ULL;
     TrackSetting sparse_quiet_settings[TRACK_PATCHES][TRACK_DELTAS];
     memset(sparse_quiet_settings, 0, sizeof(sparse_quiet_settings));
     ok = ok && track_scene(&results, "three bodies apart, no noise", &sparse_quiet, &still,
@@ -397,11 +397,11 @@ int main(int count, char **arguments)
     mmgr_line_decimal(&results.line, sparse_quiet_settings[1][0].queries, 1u);
     mmgr_line_put(&results.line, "\n");
     sim_check(&results,
-              ok && (sparse_quiet_settings[1][0].clear != 0ull) &&
+              ok && (sparse_quiet_settings[1][0].clear != 0ULL) &&
                   (sparse_quiet_settings[0][0].clear_hits == sparse_quiet_settings[0][0].clear) &&
                   (sparse_quiet_settings[1][0].clear_hits == sparse_quiet_settings[1][0].clear),
               "at floor 2's time step every clear step is found at d = 0, by its own cell and by its 27");
-    unsigned long long max = 0ull;
+    unsigned long long max = 0ULL;
     for (unsigned int patch = 0u; patch < TRACK_PATCHES; patch += 1u)
     {
         for (unsigned int delta = 0u; delta < TRACK_DELTAS; delta += 1u)
@@ -423,12 +423,12 @@ int main(int count, char **arguments)
     mmgr_line_put(&results.line, "  the max plane words any query read: ");
     mmgr_line_decimal(&results.line, max, 1u);
     mmgr_line_put(&results.line, ", ");
-    mmgr_line_decimal(&results.line, 4ull * max, 1u);
+    mmgr_line_decimal(&results.line, 4ULL * max, 1u);
     mmgr_line_put(&results.line, " bytes, against half of a frame, ");
     mmgr_line_decimal(&results.line, TRACK_SAMPLES, 1u);
     mmgr_line_put(&results.line, " bytes\n");
     // a plane word is 4 bytes and a sample 2. Half of a frame's samples is TRACK_SAMPLES bytes
-    sim_check(&results, ok && ((4ull * max) < TRACK_SAMPLES),
+    sim_check(&results, ok && ((4ULL * max) < TRACK_SAMPLES),
               "no query reads as many bytes of planes as half of a frame contains");
 
     cudaFree(device.reads);

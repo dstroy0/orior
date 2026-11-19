@@ -100,7 +100,7 @@ EMBED_INLINE int rows_key_order(const DebugPaneRowsCtx *args)
 {
     CliDebugPaneStore *const flipped = &g_cli_debug_pane.flipped;
     CliDebugPaneEntry entry;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (flipped)->entry,
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
                                                             .dst = &entry,
                                                             .bytes = sizeof(CliDebugPaneEntry)});
@@ -189,7 +189,7 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
                 continue;
             }
             CliDebugPaneEntry entry;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (flipped)->entry,
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
                                                                     .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
                                                                     .dst = &entry,
                                                                     .bytes = sizeof(CliDebugPaneEntry)});
@@ -220,11 +220,11 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
     for (unsigned int at = last; at > place; at -= 1u)
     {
         CliDebugPaneEntry moved;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (flipped)->entry,
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(at - 1u),
                                                                 .dst = &moved,
                                                                 .bytes = sizeof(CliDebugPaneEntry)});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (flipped)->entry,
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = flipped->entry,
                                                                  .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
                                                                  .src = &moved,
                                                                  .bytes = sizeof(CliDebugPaneEntry)});
@@ -232,7 +232,7 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
     CliDebugPaneEntry entry = {0};
     entry.text = text;
     entry.text_length = args->length;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (flipped)->entry,
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = flipped->entry,
                                                              .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
                                                              .src = &entry,
                                                              .bytes = sizeof(CliDebugPaneEntry)});
@@ -486,7 +486,7 @@ void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
     if (framed)
     {
         (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = (frames)->entry,
+            &(CarcerMovableCfg){.cell = frames->entry,
                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(g_cli_debug_pane.frame_at),
                                 .dst = &chosen,
                                 .bytes = sizeof(CliDebugPaneEntry)});
@@ -496,7 +496,7 @@ void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
     for (unsigned int at = 0u; at < watches->count; at += 1u)
     {
         CliDebugPaneEntry watch;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (watches)->entry,
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = watches->entry,
                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
                                                                 .dst = &watch,
                                                                 .bytes = sizeof(CliDebugPaneEntry)});
@@ -613,7 +613,7 @@ void cli_debug_pane_frames_read(const CliDebugPaneCtx *args)
                                      .length = path_length);
             entry.third_length = path_length;
         }
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (frames)->entry,
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = frames->entry,
                                                                  .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
                                                                  .src = &entry,
                                                                  .bytes = sizeof(CliDebugPaneEntry)});
@@ -890,7 +890,7 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
         return 0;
     }
     CliDebugPaneEntry entry;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (variables)->entry,
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = variables->entry,
                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
                                                             .dst = &entry,
                                                             .bytes = sizeof(CliDebugPaneEntry)});
@@ -906,7 +906,7 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
                 continue;
             }
             CliDebugPaneEntry watch;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (watches)->entry,
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = watches->entry,
                                                                     .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
                                                                     .dst = &watch,
                                                                     .bytes = sizeof(CliDebugPaneEntry)});
@@ -947,7 +947,7 @@ int cli_debug_pane_press(const CliDebugPaneViewCfg *args)
     g_cli_debug_pane.frame_at = args->at;
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
     CliDebugPaneEntry entry;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (frames)->entry,
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frames->entry,
                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
                                                             .dst = &entry,
                                                             .bytes = sizeof(CliDebugPaneEntry)});

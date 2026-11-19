@@ -22,7 +22,7 @@
 typedef struct CliLatexCfg CliLatexCfg;
 
 // how long an engine or pdftocairo may take before it is stopped, in milliseconds, and the max errors a make gives
-#define CLI_LATEX_PATIENCE 120000ull
+#define CLI_LATEX_PATIENCE 120000ULL
 #define CLI_LATEX_ERRORS 20u
 
 // the engine `length` bytes of LaTeX text are made with: the one a `% !TEX program = ...` line before the text's first

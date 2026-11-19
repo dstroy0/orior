@@ -570,6 +570,6 @@ void cli_tests_find(const CliTestingRootCfg *args)
         piece = next;
     }
     g_cli_guard->persistent_buf_release(s_work_state->cargo.found, g_cli_cargo_owner);
-    *(&s_work_state->cargo) = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
+    s_work_state->cargo = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     s_work_state = NULL;
 }

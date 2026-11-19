@@ -855,7 +855,7 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
 static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *outside)
 {
     // the lines joined, each ended by a newline, and where each starts
-    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t length = 0u;
     size_t *const starts = (size_t *)lng_allocated(calloc((size_t)file->lines + 1u, sizeof(size_t)));
     for (unsigned int at = 0u; at < file->lines; at += 1u)
@@ -885,9 +885,9 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     {
         const size_t start = starts[at];
         const size_t end = start + strlen(file->line[at]);
-        static char s_in_bytes[QRY_WRITER_RING_BYTES / 2ull];
+        static char s_in_bytes[QRY_WRITER_RING_BYTES / 2ULL];
         size_t in = 0u;
-        static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ull];
+        static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ULL];
         size_t out = 0u;
         size_t cursor = start;
         for (unsigned int one = 0u; one < blocks; one += 1u)

@@ -26,7 +26,7 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 static_assert(ENGINE_HISTORY_WINDOW <= 15u, "entropy_history: a window's count must fit a nibble");
 static_assert((ENGINE_HISTORY_BITS * 4u) == 64u, "entropy_history: a window's counts must fill one 64 bit word");
 
-#define ENTROPY_HISTORY_DENSITY_MAX ((unsigned long long)ENGINE_HISTORY_WINDOW * 65535ull)
+#define ENTROPY_HISTORY_DENSITY_MAX ((unsigned long long)ENGINE_HISTORY_WINDOW * 65535ULL)
 
 __global__ static void entropy_history_kernel(const unsigned short *lanes, unsigned long long frames,
                                               unsigned long long voxels, unsigned int windows,
@@ -36,11 +36,11 @@ __global__ static void entropy_history_kernel(const unsigned short *lanes, unsig
     __shared__ unsigned long long overlap[ENGINE_HISTORY_WINDOWS_MAX * ENGINE_HISTORY_WINDOWS_MAX];
     for (unsigned int entry = threadIdx.x; entry < (windows * windows); entry += blockDim.x)
     {
-        overlap[entry] = 0ull;
+        overlap[entry] = 0ULL;
     }
     __syncthreads();
     const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    unsigned long long breaks = 0ull;
+    unsigned long long breaks = 0ULL;
     for (unsigned long long voxel = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; voxel < voxels;
          voxel += jump)
     {
@@ -55,9 +55,9 @@ __global__ static void entropy_history_kernel(const unsigned short *lanes, unsig
         }
         const unsigned int first = lanes[voxel];
         unsigned int before = first;
-        unsigned long long window = 0ull;
+        unsigned long long window = 0ULL;
         unsigned int in_window = 0u;
-        for (unsigned long long frame = 1ull; frame < frames; frame += 1ull)
+        for (unsigned long long frame = 1ULL; frame < frames; frame += 1ULL)
         {
             const unsigned int now = lanes[(frame * voxels) + voxel];
             const unsigned int flipped = now ^ before;
@@ -69,9 +69,9 @@ __global__ static void entropy_history_kernel(const unsigned short *lanes, unsig
                 totals[bit] += (flipped >> bit) & 1u;
             }
             in_window += 1u;
-            if ((in_window == ENGINE_HISTORY_WINDOW) || (frame == (frames - 1ull)))
+            if ((in_window == ENGINE_HISTORY_WINDOW) || (frame == (frames - 1ULL)))
             {
-                unsigned long long packed = 0ull;
+                unsigned long long packed = 0ULL;
                 unsigned int changed = 0u;
 #pragma unroll
                 for (unsigned int bit = 0u; bit < ENGINE_HISTORY_BITS; bit += 1u)
@@ -82,7 +82,7 @@ __global__ static void entropy_history_kernel(const unsigned short *lanes, unsig
                 }
                 history[(window * voxels) + voxel] = packed;
                 density[window] = changed;
-                window += 1ull;
+                window += 1ULL;
                 in_window = 0u;
             }
         }
@@ -93,7 +93,7 @@ __global__ static void entropy_history_kernel(const unsigned short *lanes, unsig
         {
             parity_ok &= (unsigned int)((totals[bit] & 1u) == ((net >> bit) & 1u));
         }
-        breaks += (parity_ok != 0u) ? 0ull : 1ull;
+        breaks += (parity_ok != 0u) ? 0ULL : 1ULL;
         for (unsigned int one = 0u; one < windows; one += 1u)
         {
             for (unsigned int other = one; other < windows; other += 1u)
@@ -102,14 +102,14 @@ __global__ static void entropy_history_kernel(const unsigned short *lanes, unsig
             }
         }
     }
-    if (breaks != 0ull)
+    if (breaks != 0ULL)
     {
         atomicAdd(broken, breaks);
     }
     __syncthreads();
     for (unsigned int entry = threadIdx.x; entry < (windows * windows); entry += blockDim.x)
     {
-        if (overlap[entry] != 0ull)
+        if (overlap[entry] != 0ULL)
         {
             atomicAdd(&cloud[entry], overlap[entry]);
         }
@@ -128,14 +128,14 @@ extern "C" long entropy_history_windows(const unsigned long long extent[4], Engi
     }
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
-    if (!ENTROPY_HISTORY_CHECK(frames >= 2ull, &extent[0], error, ENGINE_ERROR_REQUEST))
+    if (!ENTROPY_HISTORY_CHECK(frames >= 2ULL, &extent[0], error, ENGINE_ERROR_REQUEST))
     {
         return ENTROPY_HISTORY_ERROR;
     }
-    const unsigned long long windows = ((frames - 1ull) + ENGINE_HISTORY_WINDOW - 1ull) / ENGINE_HISTORY_WINDOW;
+    const unsigned long long windows = ((frames - 1ULL) + ENGINE_HISTORY_WINDOW - 1ULL) / ENGINE_HISTORY_WINDOW;
     const int bounded =
         (windows <= ENGINE_HISTORY_WINDOWS_MAX) &&
-        (voxels <= (0xFFFFFFFFFFFFFFFFull / (ENTROPY_HISTORY_DENSITY_MAX * ENTROPY_HISTORY_DENSITY_MAX)));
+        (voxels <= (0xFFFFFFFFFFFFFFFFULL / (ENTROPY_HISTORY_DENSITY_MAX * ENTROPY_HISTORY_DENSITY_MAX)));
     return ENTROPY_HISTORY_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST) ? (long)windows : ENTROPY_HISTORY_ERROR;
 }
 
@@ -167,7 +167,7 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
     unsigned long long *device_history = NULL;
     unsigned long long *device_broken = NULL;
     unsigned long long *device_cloud = NULL;
-    *broken = 1ull;
+    *broken = 1ULL;
     int ok =
         ENTROPY_HISTORY_STATUS_CHECK(
             cudaMalloc((void **)&device_lanes, (size_t)(frames * voxels) * sizeof(unsigned short)), &device_lanes,
@@ -187,8 +187,8 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
                                      device_lanes, error);
     if (ok != 0)
     {
-        const unsigned long long needed = (voxels + ENTROPY_HISTORY_THREADS - 1ull) / ENTROPY_HISTORY_THREADS;
-        const unsigned int blocks = (unsigned int)((needed < 65536ull) ? needed : 65536ull);
+        const unsigned long long needed = (voxels + ENTROPY_HISTORY_THREADS - 1ULL) / ENTROPY_HISTORY_THREADS;
+        const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         entropy_history_kernel<<<blocks, ENTROPY_HISTORY_THREADS>>>(device_lanes, frames, voxels, (unsigned int)windows,
                                                                     device_history, device_broken, device_cloud);
         ok = ENTROPY_HISTORY_STATUS_CHECK(cudaGetLastError(), device_history, error);
@@ -206,13 +206,13 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
     cudaFree(device_history);
     cudaFree(device_broken);
     cudaFree(device_cloud);
-    if ((ok == 0) || !ENTROPY_HISTORY_CHECK(*broken == 0ull, broken, error, ENGINE_ERROR_LOGIC))
+    if ((ok == 0) || !ENTROPY_HISTORY_CHECK(*broken == 0ULL, broken, error, ENGINE_ERROR_LOGIC))
     {
         return ENTROPY_HISTORY_ERROR;
     }
-    for (unsigned long long one = 0ull; one < windows; one += 1ull)
+    for (unsigned long long one = 0ULL; one < windows; one += 1ULL)
     {
-        for (unsigned long long other = 0ull; other < one; other += 1ull)
+        for (unsigned long long other = 0ULL; other < one; other += 1ULL)
         {
             history->cloud[(size_t)((one * windows) + other)] = history->cloud[(size_t)((other * windows) + one)];
         }
@@ -229,21 +229,21 @@ static void entropy_history_report_cloud(const EngineHistory *history)
 {
     const unsigned long long windows = history->windows;
     printf("    the cloud: each floor's quietest partner, the first floor its nulls are drawn from:\n      floor");
-    for (unsigned long long floor = 0ull; floor < windows; floor += 1ull)
+    for (unsigned long long floor = 0ULL; floor < windows; floor += 1ULL)
     {
-        printf(" %2llu", floor);
+        printf(" %2LLU", floor);
     }
     printf("\n      quiet");
-    for (unsigned long long floor = 0ull; floor < windows; floor += 1ull)
+    for (unsigned long long floor = 0ULL; floor < windows; floor += 1ULL)
     {
-        unsigned long long quietest = (floor == 0ull) ? 1ull : 0ull;
-        for (unsigned long long other = 0ull; other < windows; other += 1ull)
+        unsigned long long quietest = (floor == 0ULL) ? 1ULL : 0ULL;
+        for (unsigned long long other = 0ULL; other < windows; other += 1ULL)
         {
             const int better = (other != floor) && (history->cloud[(size_t)((floor * windows) + other)] <
                                                     history->cloud[(size_t)((floor * windows) + quietest)]);
             quietest = better ? other : quietest;
         }
-        printf(" %2llu", quietest);
+        printf(" %2LLU", quietest);
     }
     printf("\n");
 }
@@ -254,28 +254,28 @@ extern "C" void entropy_history_report(const EngineHistory *history)
     const unsigned long long voxels = history->extent[1] * history->extent[2] * history->extent[3];
     const unsigned long long windows = history->windows;
     printf("    flips per thousand transitions, bit by window:\n      bit");
-    for (unsigned long long window = 0ull; window < windows; window += 1ull)
+    for (unsigned long long window = 0ULL; window < windows; window += 1ULL)
     {
-        printf(" %5llu", window);
+        printf(" %5LLU", window);
     }
     printf("\n");
     for (unsigned int bit = ENGINE_HISTORY_BITS; bit > 0u; bit -= 1u)
     {
         printf("      %3u", bit - 1u);
-        for (unsigned long long window = 0ull; window < windows; window += 1ull)
+        for (unsigned long long window = 0ULL; window < windows; window += 1ULL)
         {
-            const unsigned long long first = (window * ENGINE_HISTORY_WINDOW) + 1ull;
-            const unsigned long long last = ((first + ENGINE_HISTORY_WINDOW - 1ull) < frames)
-                                                ? (first + ENGINE_HISTORY_WINDOW - 1ull)
-                                                : (frames - 1ull);
-            const unsigned long long taken = last - first + 1ull;
-            unsigned long long flips = 0ull;
+            const unsigned long long first = (window * ENGINE_HISTORY_WINDOW) + 1ULL;
+            const unsigned long long last = ((first + ENGINE_HISTORY_WINDOW - 1ULL) < frames)
+                                                ? (first + ENGINE_HISTORY_WINDOW - 1ULL)
+                                                : (frames - 1ULL);
+            const unsigned long long taken = last - first + 1ULL;
+            unsigned long long flips = 0ULL;
             const unsigned long long *const row = &history->history[(size_t)(window * voxels)];
-            for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+            for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
             {
-                flips += (row[voxel] >> (4u * (bit - 1u))) & 0xFull;
+                flips += (row[voxel] >> (4u * (bit - 1u))) & 0xFULL;
             }
-            printf(" %5llu", (1000ull * flips) / (taken * voxels));
+            printf(" %5LLU", (1000ULL * flips) / (taken * voxels));
         }
         printf("\n");
     }

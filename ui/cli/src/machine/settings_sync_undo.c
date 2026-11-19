@@ -103,7 +103,7 @@ static int cli_allocating_read(const SettingsSyncUndoCtx *args)
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                          .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_machine_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
     const char *const id =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -312,7 +312,7 @@ int cli_settings_sync_undo(const CliSettingsSyncHomeOutCfg *args)
             const int back =
                 (bytes != NULL) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                               .path = path, .bytes = bytes, .size = size);
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_machine_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
             if (!back)
             {
                 mmgr_line_put(args->err_msg, (bytes == NULL) ? saved : path);

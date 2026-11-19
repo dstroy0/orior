@@ -181,13 +181,13 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *kernel_place, unsigned lo
     static unsigned long long s_answered[RUN_CASES_MAX];
     unsigned int place_of[SCHEDULER_ROUND_MAX];
     const unsigned int probed_case[1][2] = {{3u, 5u}};
-    *nanoseconds = 0ull;
+    *nanoseconds = 0ULL;
     *kernel_place = s_kernel_places;
     s_unreached_low = khw_word_read(&s_kernel_text[(s_kernel_places - 1u) * KHW_INSTRUCTION], 0u);
     s_unreached_high = khw_word_read(&s_kernel_text[(s_kernel_places - 1u) * KHW_INSTRUCTION], 8u);
     khw_union_written();
     s_pooled = 0u;
-    const unsigned int kernel_at = khw_pooled(s_kernel_places, 0ull, 0ull, s_union_word, s_union_cases);
+    const unsigned int kernel_at = khw_pooled(s_kernel_places, 0ULL, 0ULL, s_union_word, s_union_cases);
     // the places are put only where the kernel listing names no probe place: a place put with the unreached encoding
     // runs the kernel without that place, and a place the addresses depend on faults the part
     for (unsigned int place = 0u; (s_kernel_probe_place >= s_kernel_places) && (place < s_kernel_places); place += 1u)
@@ -224,6 +224,6 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *kernel_place, unsigned lo
     s_launches = KHW_LAUNCHES;
     const int timed = khw_question_put(s_word, count, s_probe_place, s_answered);
     s_launches = 0u;
-    *nanoseconds = timed ? s_question.nanoseconds : 0ull;
+    *nanoseconds = timed ? s_question.nanoseconds : 0ULL;
     return 1;
 }

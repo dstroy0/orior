@@ -10,11 +10,11 @@ _Static_assert(sizeof(unsigned long long) == 8u, "shift_agreement: unsigned long
 
 static unsigned int agreement_power(unsigned int base, unsigned long long exponent)
 {
-    unsigned long long result = 1ull;
+    unsigned long long result = 1ULL;
     unsigned long long square = (unsigned long long)base;
-    while (exponent != 0ull)
+    while (exponent != 0ULL)
     {
-        if ((exponent & 1ull) != 0ull)
+        if ((exponent & 1ULL) != 0ULL)
         {
             result = (result * square) % SHIFT_AGREEMENT_PRIME;
         }
@@ -26,7 +26,7 @@ static unsigned int agreement_power(unsigned int base, unsigned long long expone
 
 static unsigned int agreement_power_of_two(unsigned long long value)
 {
-    unsigned long long power = 1ull;
+    unsigned long long power = 1ULL;
     while (power < value)
     {
         power <<= 1u;
@@ -77,7 +77,7 @@ static void agreement_transform_axis(unsigned int *values, size_t total, unsigne
             const unsigned int half = size / 2u;
             for (unsigned int start = 0u; start < length; start += size)
             {
-                unsigned long long factor = 1ull;
+                unsigned long long factor = 1ULL;
                 for (unsigned int offset = 0u; offset < half; offset += 1u)
                 {
                     const size_t near = line + ((size_t)(start + offset) * stride);
@@ -109,8 +109,8 @@ long shift_agreement_host(ShiftAgreementRequest *args)
     {
         return SHIFT_AGREEMENT_ERROR;
     }
-    unsigned long long voxels = 1ull;
-    unsigned long long padded_total = 1ull;
+    unsigned long long voxels = 1ULL;
+    unsigned long long padded_total = 1ULL;
     unsigned int padded[SHIFT_AGREEMENT_AXES];
     for (unsigned int axis = 0u; axis < args->axes; axis += 1u)
     {
@@ -119,9 +119,9 @@ long shift_agreement_host(ShiftAgreementRequest *args)
             return SHIFT_AGREEMENT_ERROR;
         }
         voxels *= (unsigned long long)args->extents[axis];
-        padded[axis] = agreement_power_of_two((2ull * (unsigned long long)args->extents[axis]) - 1ull);
+        padded[axis] = agreement_power_of_two((2ULL * (unsigned long long)args->extents[axis]) - 1ULL);
         padded_total *= (unsigned long long)padded[axis];
-        if ((voxels >= (unsigned long long)SHIFT_AGREEMENT_PRIME) || (padded_total > 0x7FFFFFFFull))
+        if ((voxels >= (unsigned long long)SHIFT_AGREEMENT_PRIME) || (padded_total > 0x7FFFFFFFULL))
         {
             return SHIFT_AGREEMENT_ERROR;
         }
@@ -139,9 +139,9 @@ long shift_agreement_host(ShiftAgreementRequest *args)
 
     for (size_t position = 0u; position < count; position += 1u)
     {
-        const unsigned long long bit = 1ull << (position % 64u);
-        const int in_before = (args->before[position / 64u] & bit) != 0ull;
-        const int in_after = (args->after[position / 64u] & bit) != 0ull;
+        const unsigned long long bit = 1ULL << (position % 64u);
+        const int in_before = (args->before[position / 64u] & bit) != 0ULL;
+        const int in_after = (args->after[position / 64u] & bit) != 0ULL;
         if ((in_before == 0) && (in_after == 0))
         {
             continue;
@@ -191,7 +191,7 @@ long shift_agreement_host(ShiftAgreementRequest *args)
     }
 
     size_t best = 0u;
-    unsigned long long best_length = 0xFFFFFFFFFFFFFFFFull;
+    unsigned long long best_length = 0xFFFFFFFFFFFFFFFFULL;
     for (size_t at = 0u; at < total; at += 1u)
     {
         if (reflected[at] < reflected[best])
@@ -199,7 +199,7 @@ long shift_agreement_host(ShiftAgreementRequest *args)
             continue;
         }
         size_t rest = at;
-        unsigned long long length = 0ull;
+        unsigned long long length = 0ULL;
         for (unsigned int axis = args->axes; axis > 0u; axis -= 1u)
         {
             const long long coordinate = (long long)(rest % padded[axis - 1u]);

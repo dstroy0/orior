@@ -6,7 +6,7 @@
 __device__ static unsigned long long lag_length(unsigned int index, const AgreementLayout *layout)
 {
     unsigned int rest = index;
-    unsigned long long length = 0ull;
+    unsigned long long length = 0ULL;
     for (unsigned int axis = layout->axes; axis > 0u; axis -= 1u)
     {
         const long long coordinate = (long long)(rest % layout->padded[axis - 1u]);
@@ -62,7 +62,7 @@ __global__ void tournament_kernel(const unsigned int *counts, unsigned int *choi
     }
 }
 
-#define SHIFT_AGREEMENT_BARRETT (4611686018427387904ull / (unsigned long long)SHIFT_AGREEMENT_PRIME)
+#define SHIFT_AGREEMENT_BARRETT (4611686018427387904ULL / (unsigned long long)SHIFT_AGREEMENT_PRIME)
 
 __device__ static unsigned int reduce_product(unsigned long long product)
 {
@@ -87,9 +87,9 @@ __global__ void scatter_kernel(const unsigned long long *before, const unsigned 
     {
         return;
     }
-    const unsigned long long bit = 1ull << (position % 64u);
-    const int in_before = (reflect != 0u) && ((before[position / 64u] & bit) != 0ull);
-    const int in_after = (after[position / 64u] & bit) != 0ull;
+    const unsigned long long bit = 1ULL << (position % 64u);
+    const int in_before = (reflect != 0u) && ((before[position / 64u] & bit) != 0ULL);
+    const int in_after = (after[position / 64u] & bit) != 0ULL;
     if ((in_before == 0) && (in_after == 0))
     {
         return;
@@ -250,11 +250,11 @@ __global__ void multiply_kernel(unsigned int *values, const unsigned int *other,
 
 unsigned int device_agreement_power(unsigned int base, unsigned long long exponent)
 {
-    unsigned long long result = 1ull;
+    unsigned long long result = 1ULL;
     unsigned long long square = (unsigned long long)base;
-    while (exponent != 0ull)
+    while (exponent != 0ULL)
     {
-        if ((exponent & 1ull) != 0ull)
+        if ((exponent & 1ULL) != 0ULL)
         {
             result = (result * square) % SHIFT_AGREEMENT_PRIME;
         }

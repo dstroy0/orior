@@ -155,19 +155,19 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     {
         // the latest blob of `forms` read where the run stores it, one row a form (forms_blob.h)
         const unsigned char *rows = NULL;
-        unsigned long long rows_size = 0ull;
+        unsigned long long rows_size = 0ULL;
         if (!qry_member_blob(forms, &rows, &rows_size, NULL))
         {
             rows = NULL;
         }
-        for (unsigned long long row_at = 0ull; (rows != NULL) && (row_at < (rows_size / sizeof(FormsBlobRow)));
-             row_at += 1ull)
+        for (unsigned long long row_at = 0ULL; (rows != NULL) && (row_at < (rows_size / sizeof(FormsBlobRow)));
+             row_at += 1ULL)
         {
             FormsBlobRow row;
             memcpy(&row, rows + (row_at * sizeof(FormsBlobRow)), sizeof(row));
             row.relation[sizeof(row.relation) - 1u] = '\0';
             row.text[sizeof(row.text) - 1u] = '\0';
-            CostForm form = {row.relation, row.low, row.high, row.text, ULLONG_MAX, 0ull, std::string()};
+            CostForm form = {row.relation, row.low, row.high, row.text, ULLONG_MAX, 0ULL, std::string()};
             const int two_words = (form.placed.find("{0}") != std::string::npos) &&
                                   (form.placed.find("{1}") != std::string::npos) &&
                                   (form.placed.find("{2}") != std::string::npos) &&
@@ -176,7 +176,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             costed_forms.push_back(form);
         }
     }
-    if (!run_channel_open(carrier, 60000000ull))
+    if (!run_channel_open(carrier, 60000000ULL))
     {
         return 1;
     }
@@ -188,7 +188,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     question->place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(question.get(), &places);
-    unsigned long long queries = 0ull;
+    unsigned long long queries = 0ULL;
     const auto assembled = [machine_path](const std::string &text) -> std::vector<unsigned char> {
         return text.empty() ? std::vector<unsigned char>() : vendor_assembled(machine_path, text);
     };
@@ -389,7 +389,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             }
             for (unsigned int place = 0u; place < question->cases; place += 1u)
             {
-                const unsigned long long read = answer.answered[place] & 0xffffffffull;
+                const unsigned long long read = answer.answered[place] & 0xffffffffULL;
                 form.least = std::min(form.least, read);
                 form.max = std::max(form.max, read);
             }
@@ -420,7 +420,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         unsigned long long least = ULLONG_MAX;
         for (unsigned int place = 0u; place < question->cases; place += 1u)
         {
-            least = std::min(least, answer.answered[place] & 0xffffffffull);
+            least = std::min(least, answer.answered[place] & 0xffffffffULL);
         }
         unsigned long long &smallest =
             (each.row < rows.size()) ? rows[each.row].least : clock_least[each.row - rows.size()];
@@ -466,7 +466,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             run_print(&table, "  %s: %s\n", form.placed.c_str(), form.verdict.empty() ? "untimed" : form.verdict.c_str());
             continue;
         }
-        const unsigned long long least = (form.least > clock_alone) ? (form.least - clock_alone) : 0ull;
+        const unsigned long long least = (form.least > clock_alone) ? (form.least - clock_alone) : 0ULL;
         const unsigned long long spread = form.max - form.least;
         char row[192];
         snprintf(row, sizeof(row), "run answers %016llx cost %016llx %016llx %016llx", least, form.low, form.high,
@@ -607,7 +607,7 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
                 {
                     stall_bits_write(&written, index, stall, longest);
                 }
-                for (unsigned long long step = 0ull; step <= longest; step += 1ull)
+                for (unsigned long long step = 0ULL; step <= longest; step += 1ULL)
                 {
                     std::vector<unsigned char> turned = written;
                     stall_bits_write(&turned, ahead + node - 1u, stall, step);

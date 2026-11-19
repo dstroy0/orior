@@ -899,10 +899,10 @@ void gui_system_act(const GuiSystemCfg *args)
         {
             XISetMask(bits, XI_RawMotion);
         }
-        XIEventMask mask = {XIAllMasterDevices, (int)sizeof(bits), bits};
+        XIEventMask event_mask = {XIAllMasterDevices, (int)sizeof(bits), bits};
         if (ready)
         {
-            XISelectEvents(args->system->display, RootWindow(args->system->display, args->system->screen), &mask, 1);
+            XISelectEvents(args->system->display, RootWindow(args->system->display, args->system->screen), &event_mask, 1);
         }
         args->system->raw = on && ready;
     }

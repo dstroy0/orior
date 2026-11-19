@@ -37,16 +37,16 @@ static long long overlap_moved(const BodyOverlapRequest *args, unsigned int posi
 {
     const int *const lag = overlap_lag_of(args, args->labels_before[position]);
     unsigned int rest = position;
-    long long moved = 0ll;
-    long long stride = 1ll;
+    long long moved = 0LL;
+    long long stride = 1LL;
     for (unsigned int axis = args->axes; axis > 0u; axis -= 1u)
     {
         const long long extent = (long long)args->extents[axis - 1u];
         const long long coordinate = (long long)(rest % args->extents[axis - 1u]) + (long long)lag[axis - 1u];
         rest /= args->extents[axis - 1u];
-        if ((coordinate < 0ll) || (coordinate >= extent))
+        if ((coordinate < 0LL) || (coordinate >= extent))
         {
-            return -1ll;
+            return -1LL;
         }
         moved += coordinate * stride;
         stride *= extent;
@@ -65,7 +65,7 @@ long body_overlap_host(const BodyOverlapRequest *args)
     {
         return BODY_OVERLAP_ERROR;
     }
-    unsigned long long product = 1ull;
+    unsigned long long product = 1ULL;
     for (unsigned int axis = 0u; axis < args->axes; axis += 1u)
     {
         product *= (unsigned long long)args->extents[axis];
@@ -84,18 +84,18 @@ long body_overlap_host(const BodyOverlapRequest *args)
     size_t total = 0u;
     for (size_t voxel = 0u; voxel < voxels; voxel += 1u)
     {
-        const unsigned long long bit = 1ull << (voxel % 64u);
-        if ((args->positive_before[voxel / 64u] & bit) == 0ull)
+        const unsigned long long bit = 1ULL << (voxel % 64u);
+        if ((args->positive_before[voxel / 64u] & bit) == 0ULL)
         {
             continue;
         }
         const long long moved = overlap_moved(args, (unsigned int)voxel);
-        if (moved < 0ll)
+        if (moved < 0LL)
         {
             continue;
         }
         const size_t there = (size_t)moved;
-        if ((args->positive_after[there / 64u] & (1ull << (there % 64u))) == 0ull)
+        if ((args->positive_after[there / 64u] & (1ULL << (there % 64u))) == 0ULL)
         {
             continue;
         }
@@ -131,7 +131,7 @@ long body_overlap_host(const BodyOverlapRequest *args)
                     continue;
                 }
                 args->peaks_before[at] = (unsigned int)(pairs[pair] >> 32u);
-                args->peaks_after[at] = (unsigned int)(pairs[pair] & 0xFFFFFFFFull);
+                args->peaks_after[at] = (unsigned int)(pairs[pair] & 0xFFFFFFFFULL);
                 args->counts[at] = 1u;
                 at += 1u;
             }

@@ -5,27 +5,27 @@
 
 unsigned long long cycle_reflect(long long position, long long length)
 {
-    if ((position >= 0ll) && (position < length))
+    if ((position >= 0LL) && (position < length))
     {
         return (unsigned long long)position;
     }
-    if ((position < 0ll) && (position >= -length))
+    if ((position < 0LL) && (position >= -length))
     {
-        return (unsigned long long)(-1ll - position);
+        return (unsigned long long)(-1LL - position);
     }
-    if ((position >= length) && (position < (2ll * length)))
+    if ((position >= length) && (position < (2LL * length)))
     {
-        return (unsigned long long)((2ll * length) - 1ll - position);
+        return (unsigned long long)((2LL * length) - 1LL - position);
     }
-    const long long period = 2ll * length;
+    const long long period = 2LL * length;
     long long folded = position % period;
-    if (folded < 0ll)
+    if (folded < 0LL)
     {
         folded += period;
     }
     if (folded >= length)
     {
-        folded = period - 1ll - folded;
+        folded = period - 1LL - folded;
     }
     return (unsigned long long)folded;
 }

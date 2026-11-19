@@ -20,16 +20,16 @@ extern "C" int engine_ingest_print(const EngineIngestRequest *request, FILE *fil
     VerbaLinea line;
     line.capacity = entry_report_capacity(request->samples, report->reached, request->source, request->set);
     line.out = (char *)malloc((size_t)line.capacity);
-    line.at = 0ull;
+    line.at = 0ULL;
     if (line.out == NULL)
     {
         return 0;
     }
-    for (unsigned long long sample = 0ull; sample < report->reached; sample += 1ull)
+    for (unsigned long long sample = 0ULL; sample < report->reached; sample += 1ULL)
     {
         const EngineSampleRecord *const record = &report->samples[sample];
         mmgr_line_put(&line, "  ");
-        if (record->sealed != 0ull)
+        if (record->sealed != 0ULL)
         {
             mmgr_line_put_columns(&line, request->samples[sample], 24u);
             mmgr_line_ch(&line, ' ');
@@ -43,7 +43,7 @@ extern "C" int engine_ingest_print(const EngineIngestRequest *request, FILE *fil
             mmgr_line_put(&line, ", sealed ");
             entry_signum_text(&line, &record->root);
         }
-        else if (record->placed == 0ull)
+        else if (record->placed == 0ULL)
         {
             mmgr_line_put(&line, request->samples[sample]);
             mmgr_line_put(&line, ": no source for it under ");
@@ -52,14 +52,14 @@ extern "C" int engine_ingest_print(const EngineIngestRequest *request, FILE *fil
             mmgr_line_put(&line, request->set);
             mmgr_line_put(&line, " could not be made");
         }
-        else if (record->source_read == 0ull)
+        else if (record->source_read == 0ULL)
         {
             mmgr_line_put(&line, request->samples[sample]);
             mmgr_line_put(&line, ": its source under ");
             mmgr_line_put(&line, request->source);
             mmgr_line_put(&line, " could not be read; nothing retained");
         }
-        else if (record->crystal_written == 0ull)
+        else if (record->crystal_written == 0ULL)
         {
             mmgr_line_put(&line, request->samples[sample]);
             mmgr_line_put(&line, ": its " ENTRY_CRYSTAL_SUFFIX " could not be written; nothing retained");
@@ -91,16 +91,16 @@ extern "C" int engine_prove_print(const EngineSetRequest *request, FILE *file)
     VerbaLinea line;
     line.capacity = entry_report_capacity(request->samples, report->reached, "", request->set);
     line.out = (char *)malloc((size_t)line.capacity);
-    line.at = 0ull;
+    line.at = 0ULL;
     if (line.out == NULL)
     {
         return 0;
     }
-    for (unsigned long long sample = 0ull; sample < report->reached; sample += 1ull)
+    for (unsigned long long sample = 0ULL; sample < report->reached; sample += 1ULL)
     {
         const EngineSampleRecord *const record = &report->samples[sample];
         mmgr_line_put(&line, "  ");
-        if (record->sealed != 0ull)
+        if (record->sealed != 0ULL)
         {
             mmgr_line_put_columns(&line, request->samples[sample], 24u);
             mmgr_line_put(&line, " decoded from the file alone, every node of its seal verifies, root ");
@@ -153,7 +153,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         EngineSampleRecord discarded;
         EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &discarded;
         memset(record, 0, sizeof(*record));
-        report->reached = sample + 1ull;
+        report->reached = sample + 1ULL;
         char source_path[ENTRY_PATH_CAPACITY];
         char iapx_path[ENTRY_PATH_CAPACITY];
         const int archived = entry_is_file(request->source);
@@ -171,10 +171,10 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
             entry_directories_remove(iapx_path, 0, made);
             break;
         }
-        record->placed = 1ull;
+        record->placed = 1ULL;
         EngineSideSection section;
         memset(&section, 0, sizeof(section));
-        unsigned long long lane_offset = 0ull;
+        unsigned long long lane_offset = 0ULL;
         EngineSourceRequest source;
         source.path = source_path;
         source.member = archived ? request->samples[sample] : NULL;
@@ -183,17 +183,17 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         source.side = &section.side;
         source.lane_offset = &lane_offset;
         source.error = error;
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *host_lanes = NULL;
         ok = ENGINE_CHECK(engine_source_read(&source, extent, &host_lanes) == 0L, source_path, error,
                           ENGINE_ERROR_REQUEST) &&
              entry_side_pack(&section, error);
         section.side.lane_offset = lane_offset;
         source.side = NULL;
-        record->source_read = ok ? 1ull : 0ull;
-        const unsigned long long lanes = ok ? entry_lanes(extent) : 0ull;
+        record->source_read = ok ? 1ULL : 0ULL;
+        const unsigned long long lanes = ok ? entry_lanes(extent) : 0ULL;
         unsigned short *device_lanes = NULL;
-        ok = ok && ENGINE_CHECK(lanes != 0ull, extent, error, ENGINE_ERROR_REQUEST) &&
+        ok = ok && ENGINE_CHECK(lanes != 0ULL, extent, error, ENGINE_ERROR_REQUEST) &&
              ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_lanes, (size_t)lanes * sizeof(unsigned short)),
                                  &device_lanes, error) &&
              ENGINE_STATUS_CHECK(
@@ -210,7 +210,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         ok = ok && entry_seal_make(device_lanes, &written, &section, &seal, error);
         const KrepCrystalRequest write = {iapx_path, &written, &section, &seal, error};
         ok = ok && (krep_crystal_write(&write) != 0);
-        record->crystal_written = ok ? 1ull : 0ull;
+        record->crystal_written = ok ? 1ULL : 0ULL;
 
         EngineStream file;
         memset(&file, 0, sizeof(file));
@@ -218,7 +218,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         memset(&back, 0, sizeof(back));
         EngineSeal back_seal;
         memset(&back_seal, 0, sizeof(back_seal));
-        unsigned long long pixels_differ = 0ull;
+        unsigned long long pixels_differ = 0ULL;
         std::vector<unsigned short> rebuilt(ok ? (size_t)lanes : 0u);
         const KrepCrystalRequest read = {iapx_path, &file, &back, &back_seal, error};
         ok = ok && krep_crystal_read(&read) &&
@@ -238,14 +238,14 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         {
             for (size_t pixel = 0u; pixel < (size_t)lanes; pixel += 1u)
             {
-                pixels_differ += (host_lanes[pixel] != rebuilt[pixel]) ? 1ull : 0ull;
+                pixels_differ += (host_lanes[pixel] != rebuilt[pixel]) ? 1ULL : 0ULL;
             }
         }
-        ok = ok && ENGINE_CHECK(pixels_differ == 0ull, &pixels_differ, error, ENGINE_ERROR_LOGIC);
+        ok = ok && ENGINE_CHECK(pixels_differ == 0ULL, &pixels_differ, error, ENGINE_ERROR_LOGIC);
         free(host_lanes);
         record->floors = floors;
         record->crystal_bytes = krep_crystal_bytes(&written, &section, &seal);
-        record->raw_bytes = lanes * 2ull;
+        record->raw_bytes = lanes * 2ULL;
         record->root = seal.roots[ENGINE_SEAL_SAMPLE];
         record->pixels_differ = pixels_differ;
         krep_side_release(&section);
@@ -256,9 +256,9 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
             entry_directories_remove(iapx_path, 0, made);
             break;
         }
-        record->sealed = 1ull;
+        record->sealed = 1ULL;
         sample_roots[report->sealed] = record->root;
-        report->sealed += 1ull;
+        report->sealed += 1ULL;
         report->raw_bytes += record->raw_bytes;
         report->crystal_bytes += record->crystal_bytes;
         report->voxels += lanes;
@@ -303,7 +303,7 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
         EngineSampleRecord discarded;
         EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &discarded;
         memset(record, 0, sizeof(*record));
-        report->reached = sample + 1ull;
+        report->reached = sample + 1ULL;
         char iapx_path[ENTRY_PATH_CAPACITY];
         EngineStream file;
         memset(&file, 0, sizeof(file));
@@ -318,9 +318,9 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
                        krep_crystal_read(&read) &&
                        entry_crystal_verify(&file, &section, &seal, NULL, NULL, record, error);
         const unsigned long long lanes = entry_lanes(file.extent);
-        record->placed = 1ull;
+        record->placed = 1ULL;
         record->crystal_bytes = krep_crystal_bytes(&file, &section, &seal);
-        record->raw_bytes = lanes * 2ull;
+        record->raw_bytes = lanes * 2ULL;
         krep_crystal_release(&file);
         krep_side_release(&section);
         krep_seal_release(&seal);
@@ -328,9 +328,9 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
         {
             continue;
         }
-        record->sealed = 1ull;
+        record->sealed = 1ULL;
         sample_roots[report->sealed] = record->root;
-        report->sealed += 1ull;
+        report->sealed += 1ULL;
         report->raw_bytes += record->raw_bytes;
         report->crystal_bytes += record->crystal_bytes;
         report->voxels += lanes;
@@ -384,7 +384,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
     int ok = ENGINE_CHECK(engine_sample_path(iapx_path, sizeof(iapx_path), set, sample, ENTRY_CRYSTAL_SUFFIX) != 0,
                           sample, error, ENGINE_ERROR_REQUEST) &&
              krep_crystal_read(&read);
-    const unsigned long long lanes = ok ? entry_lanes(file.extent) : 0ull;
+    const unsigned long long lanes = ok ? entry_lanes(file.extent) : 0ULL;
     unsigned short *const rebuilt = ok ? (unsigned short *)malloc((size_t)lanes * sizeof(unsigned short)) : NULL;
     ok = ok && ENGINE_CHECK(rebuilt != NULL, &rebuilt, error, ENGINE_ERROR_RESOURCE) &&
          entry_crystal_verify(&file, &section, &seal, NULL, rebuilt, &record, error);
@@ -397,7 +397,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
         VerbaLinea line;
         line.capacity = ENTRY_ROW_TEXT + strnlen(sample, ENTRY_PATH_CAPACITY);
         line.out = (char *)malloc((size_t)line.capacity);
-        line.at = 0ull;
+        line.at = 0ULL;
         if (line.out != NULL)
         {
             mmgr_line_put(&line, "  ");

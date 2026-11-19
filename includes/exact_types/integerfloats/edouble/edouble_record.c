@@ -29,18 +29,18 @@ EdoubleRecord edouble_record_product(ExactRecordProgram *program, EdoubleRecord 
 static void edouble_record_line_up(ExactRecordProgram *program, unsigned int a_exponent, unsigned int b_exponent,
                                    unsigned int spread_bits, unsigned int *lift, unsigned int *a_larger, int *known_side)
 {
-    long long a_known = 0ll;
-    long long b_known = 0ll;
+    long long a_known = 0LL;
+    long long b_known = 0LL;
     if (exact_record_known(program, a_exponent, &a_known) && exact_record_known(program, b_exponent, &b_known))
     {
         const long long spread = a_known - b_known;
-        *lift = exact_record_power_two(program, (unsigned int)((spread < 0ll) ? -spread : spread));
-        *a_larger = exact_record_constant(program, (spread >= 0ll) ? 1ull : 0ull);
-        *known_side = (spread >= 0ll) ? 1 : 0;
+        *lift = exact_record_power_two(program, (unsigned int)((spread < 0LL) ? -spread : spread));
+        *a_larger = exact_record_constant(program, (spread >= 0LL) ? 1ULL : 0ULL);
+        *known_side = (spread >= 0LL) ? 1 : 0;
         return;
     }
     const unsigned int spread = exact_record_difference(program, a_exponent, b_exponent);
-    *a_larger = exact_record_difference(program, exact_record_constant(program, 1ull),
+    *a_larger = exact_record_difference(program, exact_record_constant(program, 1ULL),
                                         exact_record_above(program, b_exponent, a_exponent));
     *lift = exact_record_two_to(program, exact_record_absolute(program, spread), spread_bits);
     *known_side = -1;
@@ -82,7 +82,7 @@ EdoubleRecord edouble_record_difference(ExactRecordProgram *program, EdoubleReco
 unsigned int edouble_record_above(ExactRecordProgram *program, EdoubleRecord a, EdoubleRecord b, unsigned int spread_bits)
 {
     const EdoubleRecord apart = edouble_record_difference(program, a, b, spread_bits);
-    return exact_record_above(program, apart.mantissa, exact_record_constant(program, 0ull));
+    return exact_record_above(program, apart.mantissa, exact_record_constant(program, 0ULL));
 }
 
 void edouble_record_floor_ceiling(ExactRecordProgram *program, unsigned int n, unsigned int d, unsigned int *floor,
@@ -91,7 +91,7 @@ void edouble_record_floor_ceiling(ExactRecordProgram *program, unsigned int n, u
     const unsigned int quotient = exact_record_quotient(program, n, d);
     const unsigned int remainder = exact_record_remainder(program, n, d);
     // the sign of the remainder over d, -1, 0 or 1: the part the quotient dropped toward zero
-    const unsigned int zero = exact_record_constant(program, 0ull);
+    const unsigned int zero = exact_record_constant(program, 0ULL);
     const unsigned int dropped =
         exact_record_product(program, exact_record_step(program, ENGINE_RECORD_COMPARE, remainder, zero, 0u),
                              exact_record_step(program, ENGINE_RECORD_COMPARE, d, zero, 0u));
@@ -105,8 +105,8 @@ static void edouble_record_shift(ExactRecordProgram *program, unsigned int magni
                                  unsigned int range_bits, unsigned int *shift, unsigned int *power)
 {
     const unsigned int half = exact_record_power_two(program, width - 1u);
-    const unsigned int one = exact_record_constant(program, 1ull);
-    *shift = exact_record_constant(program, 0ull);
+    const unsigned int one = exact_record_constant(program, 1ULL);
+    *shift = exact_record_constant(program, 0ULL);
     *power = one;
     for (unsigned int bit = range_bits; bit > 0u; bit -= 1u)
     {
@@ -244,12 +244,12 @@ EdoubleRecordInterval edouble_record_interval_at(ExactRecordProgram *program, Ed
     unsigned int down = 0u;
     unsigned int up = 0u;
     unsigned int unused = 0u;
-    long long known = 0ll;
+    long long known = 0LL;
     if (exact_record_known(program, value.exponent, &known))
     {
         const long long spread = known - exponent;
-        const unsigned int power = exact_record_power_two(program, (unsigned int)((spread < 0ll) ? -spread : spread));
-        if (spread >= 0ll)
+        const unsigned int power = exact_record_power_two(program, (unsigned int)((spread < 0LL) ? -spread : spread));
+        if (spread >= 0LL)
         {
             down = exact_record_product(program, value.down, power);
             up = exact_record_product(program, value.up, power);
@@ -264,7 +264,7 @@ EdoubleRecordInterval edouble_record_interval_at(ExactRecordProgram *program, Ed
     {
         // the lane's own spread: the ends lifted where it is 0 or more, and their floor and ceiling below it
         const unsigned int spread = exact_record_difference(program, value.exponent, target);
-        const unsigned int lifting = exact_record_difference(program, exact_record_constant(program, 1ull),
+        const unsigned int lifting = exact_record_difference(program, exact_record_constant(program, 1ULL),
                                                              exact_record_above(program, target, value.exponent));
         const unsigned int power = exact_record_two_to(program, exact_record_absolute(program, spread), range_bits);
         unsigned int floor = 0u;
@@ -301,7 +301,7 @@ EdoubleRecordBall edouble_record_ball_of(EdoubleRecord center, EdoubleRecord rad
 
 EdoubleRecordBall edouble_record_ball_exact(ExactRecordProgram *program, EdoubleRecord value)
 {
-    return edouble_record_ball_of(value, edouble_record_of(exact_record_constant(program, 0ull), value.exponent));
+    return edouble_record_ball_of(value, edouble_record_of(exact_record_constant(program, 0ULL), value.exponent));
 }
 
 EdoubleRecordBall edouble_record_ball_negate(ExactRecordProgram *program, EdoubleRecordBall value)
@@ -352,15 +352,15 @@ EdoubleRecordBall edouble_record_ball_times_two_to(ExactRecordProgram *program, 
 static unsigned int edouble_record_read_at(ExactRecordProgram *program, EdoubleRecord value, long long exponent,
                                            unsigned int range_bits, int ceiling, unsigned int *cut)
 {
-    long long known = 0ll;
+    long long known = 0LL;
     unsigned int unused = 0u;
     unsigned int up = 0u;
     if (exact_record_known(program, value.exponent, &known))
     {
         const long long spread = known - exponent;
-        const unsigned int power = exact_record_power_two(program, (unsigned int)((spread < 0ll) ? -spread : spread));
-        *cut = exact_record_constant(program, (spread < 0ll) ? 1ull : 0ull);
-        if (spread >= 0ll)
+        const unsigned int power = exact_record_power_two(program, (unsigned int)((spread < 0LL) ? -spread : spread));
+        *cut = exact_record_constant(program, (spread < 0LL) ? 1ULL : 0ULL);
+        if (spread >= 0LL)
         {
             return exact_record_product(program, value.mantissa, power);
         }
@@ -372,11 +372,11 @@ static unsigned int edouble_record_read_at(ExactRecordProgram *program, EdoubleR
         return up;
     }
     const unsigned int target = exact_record_signed(program, exponent);
-    const unsigned int lifting = exact_record_difference(program, exact_record_constant(program, 1ull),
+    const unsigned int lifting = exact_record_difference(program, exact_record_constant(program, 1ULL),
                                                          exact_record_above(program, target, value.exponent));
     const unsigned int power = exact_record_two_to(
         program, exact_record_absolute(program, exact_record_difference(program, value.exponent, target)), range_bits);
-    *cut = exact_record_difference(program, exact_record_constant(program, 1ull), lifting);
+    *cut = exact_record_difference(program, exact_record_constant(program, 1ULL), lifting);
     unsigned int divided = 0u;
     if (!ceiling)
     {
@@ -398,9 +398,9 @@ static EdoubleRecordBall edouble_record_ball_close(ExactRecordProgram *program, 
 {
     const unsigned int unit = (exponent >= radius_exponent)
                                   ? exact_record_power_two(program, (unsigned int)(exponent - radius_exponent))
-                                  : exact_record_constant(program, 1ull);
+                                  : exact_record_constant(program, 1ULL);
     const unsigned int widened = exact_record_sum(program, radius, exact_record_product(program, cut, unit));
-    const unsigned int one = exact_record_constant(program, 1ull);
+    const unsigned int one = exact_record_constant(program, 1ULL);
     const unsigned int center_fits = exact_record_difference(
         program, one,
         exact_record_above(program, exact_record_absolute(program, center), exact_record_mask(program, bits - 1u)));
@@ -427,17 +427,17 @@ EdoubleRecordBall edouble_record_ball_at(ExactRecordProgram *program, EdoubleRec
 static unsigned int edouble_record_ratio_at(ExactRecordProgram *program, EdoubleRecord n, EdoubleRecord d,
                                             long long exponent, int ceiling)
 {
-    long long e_n = 0ll;
-    long long e_d = 0ll;
+    long long e_n = 0LL;
+    long long e_d = 0LL;
     if (!exact_record_known(program, n.exponent, &e_n) || !exact_record_known(program, d.exponent, &e_d))
     {
         program->failed = 1;
         return 0u;
     }
     const long long shift = e_n - e_d - exponent;
-    const unsigned int power = exact_record_power_two(program, (unsigned int)((shift < 0ll) ? -shift : shift));
-    const unsigned int top = (shift >= 0ll) ? exact_record_product(program, n.mantissa, power) : n.mantissa;
-    const unsigned int bottom = (shift >= 0ll) ? d.mantissa : exact_record_product(program, d.mantissa, power);
+    const unsigned int power = exact_record_power_two(program, (unsigned int)((shift < 0LL) ? -shift : shift));
+    const unsigned int top = (shift >= 0LL) ? exact_record_product(program, n.mantissa, power) : n.mantissa;
+    const unsigned int bottom = (shift >= 0LL) ? d.mantissa : exact_record_product(program, d.mantissa, power);
     if (!ceiling)
     {
         return exact_record_quotient(program, top, bottom);
@@ -457,8 +457,8 @@ EdoubleRecordBall edouble_record_ball_quotient(ExactRecordProgram *program, Edou
     const EdoubleRecord size_b = edouble_record_size(program, b.center);
     const EdoubleRecord margin = edouble_record_difference(program, size_b, b.radius, 1u);
     // b's ball contains no 0 where |c_b| - r_b is above 0; where it contains 0 every divisor is 1 and the flag is 0
-    const unsigned int clear = exact_record_above(program, margin.mantissa, exact_record_constant(program, 0ull));
-    const unsigned int one = exact_record_constant(program, 1ull);
+    const unsigned int clear = exact_record_above(program, margin.mantissa, exact_record_constant(program, 0ULL));
+    const unsigned int one = exact_record_constant(program, 1ULL);
     const EdoubleRecord divisor = edouble_record_of(exact_record_select(program, clear, b.center.mantissa, one), b.center.exponent);
     const EdoubleRecord numerator = edouble_record_sum(program, edouble_record_product(program, size_b, a.radius),
                                                        edouble_record_product(program, size_a, b.radius), 1u);

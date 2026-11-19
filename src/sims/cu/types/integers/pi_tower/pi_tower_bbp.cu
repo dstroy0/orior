@@ -15,7 +15,7 @@ int pi_tower_bbp_sum(SimResults *results, PiTowerBbp *bbp, int report, PiTowerBb
     unsigned int *index = NULL;
     unsigned int *total = NULL;
     const size_t sum_bytes = bbp->out_limbs * sizeof(unsigned int);
-    const unsigned long long capacity_bytes = (bbp->lanes + 1ull) * sum_bytes;
+    const unsigned long long capacity_bytes = (bbp->lanes + 1ULL) * sum_bytes;
     int ok = (cycle_record_load(&bbp->term.layout, &bbp->term.record, &error) != CYCLE_ERROR) &&
              (cycle_record_load(&bbp->tail.layout, &bbp->tail.record, &error) != CYCLE_ERROR) &&
              (cycle_record_load(&bbp->pair.layout, &bbp->pair.record, &error) != CYCLE_ERROR);
@@ -25,16 +25,16 @@ int pi_tower_bbp_sum(SimResults *results, PiTowerBbp *bbp, int report, PiTowerBb
                           "engine: the lanes' inputs") &&
          sim_status_check(results, cudaMalloc((void **)&buffers[0], capacity_bytes), "engine: the sums") &&
          sim_status_check(results, cudaMalloc((void **)&buffers[1], capacity_bytes), "engine: the sums") &&
-         sim_status_check(results, cudaMalloc((void **)&index, (bbp->lanes + 1ull) * sizeof(unsigned int)),
+         sim_status_check(results, cudaMalloc((void **)&index, (bbp->lanes + 1ULL) * sizeof(unsigned int)),
                           "engine: the index") &&
          sim_status_check(results, cudaMalloc((void **)&total, sum_bytes), "engine: the total") &&
-         pi_tower_bbp_counted(results, index, bbp->lanes + 1ull, 1u, 0ull) &&
-         pi_tower_bbp_counted(results, inputs, bbp->tail_terms, 1u, 1ull);
+         pi_tower_bbp_counted(results, index, bbp->lanes + 1ULL, 1u, 0ULL) &&
+         pi_tower_bbp_counted(results, inputs, bbp->tail_terms, 1u, 1ULL);
     if (ok != 0)
     {
         const CycleRecordRunRequest tail = {bbp->tail.record,
                                             {inputs, NULL, NULL},
-                                            {bbp->tail_terms, 0ull, 0ull},
+                                            {bbp->tail_terms, 0ULL, 0ULL},
                                             NULL,
                                             bbp->tail_terms,
                                             buffers[0],
@@ -55,7 +55,7 @@ int pi_tower_bbp_sum(SimResults *results, PiTowerBbp *bbp, int report, PiTowerBb
             (pi_tower_compare(left, pi_tower_unsigned(bbp->lanes)) > 0) ? bbp->lanes : pi_tower_word(left);
         ok = pi_tower_bbp_counted(results, inputs, sweep, bbp->in_limbs, run->done);
         const CycleRecordRunRequest terms = {
-            bbp->term.record, {inputs, NULL, NULL}, {sweep, 0ull, 0ull}, NULL, sweep, buffers[0], &error};
+            bbp->term.record, {inputs, NULL, NULL}, {sweep, 0ULL, 0ULL}, NULL, sweep, buffers[0], &error};
         if ((ok != 0) && (cycle_record_run(&terms) == CYCLE_ERROR))
         {
             sim_check(results, 0, "engine: the term program runs a sweep");
@@ -65,12 +65,12 @@ int pi_tower_bbp_sum(SimResults *results, PiTowerBbp *bbp, int report, PiTowerBb
              sim_status_check(
                  results, cudaMemcpy(&buffers[0][sweep * bbp->out_limbs], total, sum_bytes, cudaMemcpyDeviceToDevice),
                  "engine: the total carried in");
-        landed = (ok != 0) ? pi_tower_bbp_reduce(results, bbp, buffers, index, sweep + 1ull, &error) : NULL;
+        landed = (ok != 0) ? pi_tower_bbp_reduce(results, bbp, buffers, index, sweep + 1ULL, &error) : NULL;
         ok = (landed != NULL) &&
              sim_status_check(results, cudaMemcpy(total, landed, sum_bytes, cudaMemcpyDeviceToDevice),
                               "engine: the total");
-        run->done += (ok != 0) ? sweep : 0ull;
-        run->sweeps += (ok != 0) ? 1ull : 0ull;
+        run->done += (ok != 0) ? sweep : 0ULL;
+        run->sweeps += (ok != 0) ? 1ULL : 0ULL;
         run->seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
         if ((report != 0) && (run->seconds >= next_report))
         {
@@ -122,7 +122,7 @@ std::string pi_tower_bbp_hex(const PiTowerBbp *bbp, const PiWide &sum, unsigned 
     for (unsigned int digit = 0u; digit < digits; digit += 1u)
     {
         const PiWide shifted = pi_tower_quotient(sum, pi_tower_power_two(bbp->fraction_bits - (4u * (digit + 1u))));
-        hex.push_back("0123456789ABCDEF"[pi_tower_word(shifted) & 15ull]);
+        hex.push_back("0123456789ABCDEF"[pi_tower_word(shifted) & 15ULL]);
     }
     return hex;
 }
@@ -148,7 +148,7 @@ void pi_tower_bbp_print(SimResults *results, const PiTowerBbp *bbp, const PiTowe
     mmgr_line_decimal(&results->line, bbp->lanes, 1u);
     mmgr_line_put(&results->line, " lanes in ");
     // a run's seconds are non-negative and far below 2^64 microseconds. The floor fits the word
-    sim_fraction_print(&results->line, (unsigned long long)(run->seconds * 1000000.0), 1000000ull, 3u);
+    sim_fraction_print(&results->line, (unsigned long long)(run->seconds * 1000000.0), 1000000ULL, 3u);
     mmgr_line_put(&results->line, " s");
     if (run->finished != 0)
     {
@@ -168,7 +168,7 @@ unsigned long long pi_tower_bbp_lanes(void)
     cudaDeviceProp properties;
     if ((cudaGetDevice(&device) != cudaSuccess) || (cudaGetDeviceProperties(&properties, device) != cudaSuccess))
     {
-        return 0ull;
+        return 0ULL;
     }
     // both counts are positive device properties
     return (unsigned long long)properties.multiProcessorCount *
@@ -180,17 +180,17 @@ unsigned long long pi_tower_bbp_lanes(void)
 // contains within its first 67
 PiWide pi_tower_depth_position(const PiWide &depth, unsigned int *window)
 {
-    const PiWide range = pi_tower_unsigned(64ull);
+    const PiWide range = pi_tower_unsigned(64ULL);
     if (pi_tower_compare(depth, range) <= 0)
     {
         // at max 64
         *window = (unsigned int)pi_tower_word(depth);
-        return pi_tower_unsigned(0ull);
+        return pi_tower_unsigned(0ULL);
     }
-    const PiWide position = pi_tower_quotient(pi_tower_difference(depth, range), pi_tower_unsigned(4ull));
+    const PiWide position = pi_tower_quotient(pi_tower_difference(depth, range), pi_tower_unsigned(4ULL));
     // depth - 4 d is 64 to 67
     *window =
-        (unsigned int)pi_tower_word(pi_tower_difference(depth, pi_tower_product(position, pi_tower_unsigned(4ull))));
+        (unsigned int)pi_tower_word(pi_tower_difference(depth, pi_tower_product(position, pi_tower_unsigned(4ULL))));
     return position;
 }
 
@@ -271,7 +271,7 @@ static void pi_tower_segment_print(SimResults *results, const PiWide &position, 
     {
         mmgr_line_put(&results->line, "    ");
         pi_tower_print_decimal(&results->line,
-                               pi_tower_sum(position, pi_tower_unsigned((unsigned long long)at + 1ull)));
+                               pi_tower_sum(position, pi_tower_unsigned((unsigned long long)at + 1ULL)));
         mmgr_line_put(&results->line, "  ");
         mmgr_line_put(&results->line, segment.substr(at, 64u).c_str());
         mmgr_line_ch(&results->line, '\n');
@@ -287,8 +287,8 @@ void pi_tower_segment_request(SimResults *results, int count, char **arguments, 
     EngineError error;
     memset(&error, 0, sizeof(error));
     const unsigned long long lanes = pi_tower_bbp_lanes();
-    unsigned long long declared = 0ull;
-    const int planned = (lanes != 0ull) && pi_tower_segment_declared(position, digits, lanes, &declared, &error);
+    unsigned long long declared = 0ULL;
+    const int planned = (lanes != 0ULL) && pi_tower_segment_declared(position, digits, lanes, &declared, &error);
     sim_check(results, planned, "engine: keymath encodes and the scheduler arranges the term, tail and pair programs");
     if ((planned == 0) || !sim_job_submit(results, "pi_tower", count, arguments, declared))
     {
@@ -297,7 +297,7 @@ void pi_tower_segment_request(SimResults *results, int count, char **arguments, 
     mmgr_line_put(&results->line, "  a segment on the engine: ");
     mmgr_line_decimal(&results->line, digits, 1u);
     mmgr_line_put(&results->line, " hex digits from position ");
-    pi_tower_print_decimal(&results->line, pi_tower_sum(position, pi_tower_unsigned(1ull)));
+    pi_tower_print_decimal(&results->line, pi_tower_sum(position, pi_tower_unsigned(1ULL)));
     mmgr_line_put(&results->line, ", a window every ");
     mmgr_line_decimal(&results->line, PI_TOWER_SEGMENT_STEP, 1u);
     mmgr_line_ch(&results->line, '\n');
@@ -318,7 +318,7 @@ void pi_tower_segment_request(SimResults *results, int count, char **arguments, 
     for (size_t at = 0u; at < PI_TOWER_PUBLISHED_COUNT; at += 1u)
     {
         const std::string expected = s_pi_tower_published[at].digits;
-        if ((pi_tower_compare(pi_tower_unsigned(s_pi_tower_published[at].position - 1ull), position) == 0) &&
+        if ((pi_tower_compare(pi_tower_unsigned(s_pi_tower_published[at].position - 1ULL), position) == 0) &&
             (segment.size() >= expected.size()))
         {
             mmgr_line_put(&results->line, "    Bailey's at position ");

@@ -8,7 +8,7 @@
 #include <string.h>
 
 // the offset a label carries before the instruction it is before is read
-#define CUBIN_LABEL_UNSET (~0ull)
+#define CUBIN_LABEL_UNSET (~0ULL)
 
 // one line of a code section the cut retains: where it lies in the listing, and the offset the vendor printed for it
 typedef struct
@@ -90,7 +90,7 @@ static int cubin_instruction_line(const char *listing, size_t begin, size_t end,
         return 0;
     }
     at += 2u;
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     size_t digits = 0u;
     while ((at < end) && (cubin_hex(listing[at]) < 16u))
     {
@@ -181,7 +181,7 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
 {
     // a label after the last instruction is at the end of the code
     const unsigned long long end_offset =
-        (section->line_count != 0u) ? (section->lines[section->line_count - 1u].offset + 16ull) : 0ull;
+        (section->line_count != 0u) ? (section->lines[section->line_count - 1u].offset + 16ULL) : 0ULL;
     for (size_t at = 0u; at < section->label_count; at += 1u)
     {
         section->labels[at].offset =
@@ -296,7 +296,7 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
         end = ((end > at) && (listing[end - 1u] == '\r')) ? (end - 1u) : end;
         size_t name = 0u;
         size_t name_length = 0u;
-        unsigned long long offset = 0ull;
+        unsigned long long offset = 0ULL;
         if (cubin_code_section(listing, at, end, &name, &name_length))
         {
             // a section opened: the section the cut was in written as its kernel's

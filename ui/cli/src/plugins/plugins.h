@@ -69,7 +69,7 @@ typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
 #define CLI_USER_PLUGINS 1024u
 
 // the bytes a plugin's text and its sample are written in, as a plugin is written
-#define CLI_PLUGIN_TEXT_CAPACITY (1ull << 20u)
+#define CLI_PLUGIN_TEXT_CAPACITY (1ULL << 20u)
 
 // A plugin that comes with orior: its id, the text of its plugin.json, `size` bytes, and the code it runs as a script
 // plugin, `code_size` bytes, NULL for one that runs none

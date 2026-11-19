@@ -62,8 +62,8 @@ unsigned int krs_frame_read(const char *path)
     }
     s_rows = 0u;
     const unsigned char *file_bytes = NULL;
-    unsigned long long file_size = 0ull;
-    unsigned long long file_at = 0ull;
+    unsigned long long file_size = 0ULL;
+    unsigned long long file_at = 0ULL;
     if (!qry_member_file_blob(path, &file_bytes, &file_size))
     {
         return 0u;
@@ -98,8 +98,8 @@ unsigned int krs_frame_read(const char *path)
         snprintf(row->form, sizeof(row->form), "%.*s", (int)(sizeof(row->form) - 1u), form + 1);
         row->places = 0u;
         const char *rest = (places != NULL) ? (places + 1) : "";
-        unsigned long long place = 0ull;
-        while ((row->places < KRS_FRAME_PLACES) && line_number(&rest, 0, &place) && (place <= 0xffffffffull))
+        unsigned long long place = 0ULL;
+        while ((row->places < KRS_FRAME_PLACES) && line_number(&rest, 0, &place) && (place <= 0xffffffffULL))
         {
             // A place is a small number that an unsigned int represents.
             row->place[row->places] = (unsigned int)place;
@@ -245,8 +245,8 @@ int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *l
 static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
 {
     const unsigned char *file_bytes = NULL;
-    unsigned long long file_size = 0ull;
-    unsigned long long file_at = 0ull;
+    unsigned long long file_size = 0ULL;
+    unsigned long long file_at = 0ULL;
     unsigned int count = 0u;
     if ((krs_path == NULL) || !qry_member_file_blob(krs_path, &file_bytes, &file_size))
     {

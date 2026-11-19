@@ -69,7 +69,7 @@ static unsigned long long fermat_ladder_cost(size_t limbs)
     {
         return (unsigned long long)limbs * limbs;
     }
-    return (3ull * fermat_ladder_cost((limbs + 1u) / 2u)) + (8ull * limbs);
+    return (3ULL * fermat_ladder_cost((limbs + 1u) / 2u)) + (8ULL * limbs);
 }
 
 static unsigned long long fermat_cost(size_t limbs, unsigned int *depth);
@@ -83,11 +83,11 @@ static unsigned long long fermat_cost_at(size_t limbs, unsigned int depth)
     const size_t inner = fermat_inner_bits((limbs / parts) * LIMB_BITS, depth) / LIMB_BITS;
     if (inner >= limbs)
     {
-        return ~0ull;
+        return ~0ULL;
     }
     unsigned int inner_depth = 0u;
     const unsigned long long point = fermat_cost(inner, &inner_depth);
-    return (6ull * parts * depth * (inner + 1u)) + (4ull * parts * (inner + 1u)) + (parts * point);
+    return (6ULL * parts * depth * (inner + 1u)) + (4ULL * parts * (inner + 1u)) + (parts * point);
 }
 
 // the cheapest way to multiply in the ring of the given limbs: the depth of the transform, or 0 for the ladder
@@ -95,7 +95,7 @@ static unsigned long long fermat_cost_at(size_t limbs, unsigned int depth)
 // the model's own recursion is therefore a few levels deep
 static unsigned long long fermat_cost(size_t limbs, unsigned int *depth)
 {
-    unsigned long long best = fermat_ladder_cost(limbs) + (2ull * limbs);
+    unsigned long long best = fermat_ladder_cost(limbs) + (2ULL * limbs);
     *depth = 0u;
     if (limbs <= (size_t)TRANSFORM_BASE_LIMBS)
     {

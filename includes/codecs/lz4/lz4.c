@@ -55,32 +55,32 @@ static unsigned int lz4_xxh32_round(unsigned int accumulator, unsigned int lane)
 
 static unsigned int lz4_xxh32(const unsigned char *bytes, unsigned long long count)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     unsigned int hash = LZ4_PRIME_FIFTH;
-    if (count >= 16ull)
+    if (count >= 16ULL)
     {
         unsigned int lanes[4u] = {LZ4_PRIME_FIRST + LZ4_PRIME_SECOND, LZ4_PRIME_SECOND, 0u, 0u - LZ4_PRIME_FIRST};
-        while ((count - at) >= 16ull)
+        while ((count - at) >= 16ULL)
         {
             for (unsigned int lane = 0u; lane < 4u; lane += 1u)
             {
                 lanes[lane] = lz4_xxh32_round(lanes[lane], lz4_little_32(bytes + at + (4u * lane)));
             }
-            at += 16ull;
+            at += 16ULL;
         }
         hash = lz4_rotate(lanes[0u], 1u) + lz4_rotate(lanes[1u], 7u) + lz4_rotate(lanes[2u], 12u) +
                lz4_rotate(lanes[3u], 18u);
     }
-    hash += (unsigned int)(count & 0xFFFFFFFFull);
-    while ((count - at) >= 4ull)
+    hash += (unsigned int)(count & 0xFFFFFFFFULL);
+    while ((count - at) >= 4ULL)
     {
         hash = lz4_rotate(hash + (lz4_little_32(bytes + at) * LZ4_PRIME_THIRD), 17u) * LZ4_PRIME_FOURTH;
-        at += 4ull;
+        at += 4ULL;
     }
     while (at < count)
     {
         hash = lz4_rotate(hash + ((unsigned int)bytes[at] * LZ4_PRIME_FIFTH), 11u) * LZ4_PRIME_FIRST;
-        at += 1ull;
+        at += 1ULL;
     }
     hash ^= hash >> 15u;
     hash *= LZ4_PRIME_SECOND;
@@ -104,7 +104,7 @@ static int lz4_extend(const Lz4Walk *walk, unsigned long long *at, unsigned long
             return 0;
         }
         byte = walk->in[*at];
-        *at += 1ull;
+        *at += 1ULL;
         *length += byte;
     }
     return 1;
@@ -112,7 +112,7 @@ static int lz4_extend(const Lz4Walk *walk, unsigned long long *at, unsigned long
 
 static int lz4_block(Lz4Walk *walk)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     for (;;)
     {
         if (at == walk->in_bytes)
@@ -120,7 +120,7 @@ static int lz4_block(Lz4Walk *walk)
             return 0;
         }
         const unsigned int token = walk->in[at];
-        at += 1ull;
+        at += 1ULL;
         unsigned long long literal_length = token >> 4u;
         if (!lz4_extend(walk, &at, &literal_length))
         {
@@ -130,7 +130,7 @@ static int lz4_block(Lz4Walk *walk)
         {
             return 0;
         }
-        if (literal_length != 0ull)
+        if (literal_length != 0ULL)
         {
             memcpy(walk->out + walk->written, walk->in + at, (size_t)literal_length);
         }
@@ -140,14 +140,14 @@ static int lz4_block(Lz4Walk *walk)
         {
             return 1;
         }
-        if ((walk->in_bytes - at) < 2ull)
+        if ((walk->in_bytes - at) < 2ULL)
         {
             return 0;
         }
         const unsigned long long offset =
-            (unsigned long long)walk->in[at] | ((unsigned long long)walk->in[at + 1ull] << 8u);
-        at += 2ull;
-        if ((offset == 0ull) || (offset > (walk->written - walk->history_start)))
+            (unsigned long long)walk->in[at] | ((unsigned long long)walk->in[at + 1ULL] << 8u);
+        at += 2ULL;
+        if ((offset == 0ULL) || (offset > (walk->written - walk->history_start)))
         {
             return 0;
         }
@@ -169,7 +169,7 @@ static int lz4_block(Lz4Walk *walk)
         }
         else
         {
-            for (unsigned long long copied = 0ull; copied < match_length; copied += 1ull)
+            for (unsigned long long copied = 0ULL; copied < match_length; copied += 1ULL)
             {
                 target[copied] = source[copied];
             }
@@ -180,7 +180,7 @@ static int lz4_block(Lz4Walk *walk)
 
 static long long lz4_error(const EngineBytesRequest *request, unsigned long long touched)
 {
-    if (touched != 0ull)
+    if (touched != 0ULL)
     {
         memset(request->out, 0, (size_t)touched);
     }
@@ -192,26 +192,26 @@ static int lz4_frame(Lz4Frames *frames)
     const EngineBytesRequest *const request = frames->request;
     const unsigned char *const frame = request->in + frames->at;
     const unsigned long long available = request->in_bytes - frames->at;
-    if (available < 4ull)
+    if (available < 4ULL)
     {
         return 0;
     }
     const unsigned int magic = lz4_little_32(frame);
     if ((magic & LZ4_SKIPPABLE_MASK) == LZ4_SKIPPABLE_MAGIC)
     {
-        if (available < 8ull)
+        if (available < 8ULL)
         {
             return 0;
         }
         const unsigned long long skipped = lz4_little_32(frame + 4u);
-        if ((available - 8ull) < skipped)
+        if ((available - 8ULL) < skipped)
         {
             return 0;
         }
-        frames->at += 8ull + skipped;
+        frames->at += 8ULL + skipped;
         return 1;
     }
-    if ((magic != LZ4_FRAME_MAGIC) || (available < 7ull))
+    if ((magic != LZ4_FRAME_MAGIC) || (available < 7ULL))
     {
         return 0;
     }
@@ -222,13 +222,13 @@ static int lz4_frame(Lz4Frames *frames)
     {
         return 0;
     }
-    const unsigned long long block_max = 1ull << (8u + (2u * block_code));
+    const unsigned long long block_max = 1ULL << (8u + (2u * block_code));
     const int independent = (flags & 0x20u) != 0u;
-    const unsigned long long block_checksum = ((flags & 0x10u) != 0u) ? 4ull : 0ull;
+    const unsigned long long block_checksum = ((flags & 0x10u) != 0u) ? 4ULL : 0ULL;
     const int sized = (flags & 8u) != 0u;
     const int content_checksum = (flags & 4u) != 0u;
-    const unsigned long long descriptor_length = sized ? 10ull : 2ull;
-    if ((available - 4ull) < (descriptor_length + 1ull))
+    const unsigned long long descriptor_length = sized ? 10ULL : 2ULL;
+    if ((available - 4ULL) < (descriptor_length + 1ULL))
     {
         return 0;
     }
@@ -236,7 +236,7 @@ static int lz4_frame(Lz4Frames *frames)
     {
         return 0;
     }
-    unsigned long long content_size = 0ull;
+    unsigned long long content_size = 0ULL;
     for (unsigned int byte = 0u; sized && (byte < 8u); byte += 1u)
     {
         content_size |= (unsigned long long)frame[6u + byte] << (8u * byte);
@@ -245,16 +245,16 @@ static int lz4_frame(Lz4Frames *frames)
     {
         return 0;
     }
-    unsigned long long cursor = 5ull + descriptor_length;
+    unsigned long long cursor = 5ULL + descriptor_length;
     const unsigned long long frame_start = frames->written;
     for (;;)
     {
-        if ((available - cursor) < 4ull)
+        if ((available - cursor) < 4ULL)
         {
             return 0;
         }
         const unsigned int block_word = lz4_little_32(frame + cursor);
-        cursor += 4ull;
+        cursor += 4ULL;
         if (block_word == 0u)
         {
             break;
@@ -265,7 +265,7 @@ static int lz4_frame(Lz4Frames *frames)
             return 0;
         }
         const unsigned char *const block = frame + cursor;
-        if ((block_checksum != 0ull) && (lz4_little_32(block + block_size) != lz4_xxh32(block, block_size)))
+        if ((block_checksum != 0ULL) && (lz4_little_32(block + block_size) != lz4_xxh32(block, block_size)))
         {
             return 0;
         }
@@ -275,7 +275,7 @@ static int lz4_frame(Lz4Frames *frames)
             {
                 return 0;
             }
-            if (block_size != 0ull)
+            if (block_size != 0ULL)
             {
                 memcpy(request->out + frames->written, block, (size_t)block_size);
             }
@@ -301,7 +301,7 @@ static int lz4_frame(Lz4Frames *frames)
     const unsigned long long produced = frames->written - frame_start;
     if (content_checksum)
     {
-        if ((available - cursor) < 4ull)
+        if ((available - cursor) < 4ULL)
         {
             return 0;
         }
@@ -309,7 +309,7 @@ static int lz4_frame(Lz4Frames *frames)
         {
             return 0;
         }
-        cursor += 4ull;
+        cursor += 4ULL;
     }
     if (sized && (content_size != produced))
     {
@@ -321,7 +321,7 @@ static int lz4_frame(Lz4Frames *frames)
 
 long long lz4_block_decode(const EngineBytesRequest *request)
 {
-    Lz4Walk walk = {request->in, request->in_bytes, request->out, request->out_capacity, 0ull, 0ull};
+    Lz4Walk walk = {request->in, request->in_bytes, request->out, request->out_capacity, 0ULL, 0ULL};
     if (!lz4_block(&walk))
     {
         return lz4_error(request, walk.written);
@@ -331,8 +331,8 @@ long long lz4_block_decode(const EngineBytesRequest *request)
 
 long long lz4_frame_decode(const EngineBytesRequest *request)
 {
-    Lz4Frames frames = {request, 0ull, 0ull};
-    int ok = (request->in_bytes != 0ull);
+    Lz4Frames frames = {request, 0ULL, 0ULL};
+    int ok = (request->in_bytes != 0ULL);
     while (ok && (frames.at < request->in_bytes))
     {
         ok = lz4_frame(&frames);
@@ -346,7 +346,7 @@ long long lz4_frame_decode(const EngineBytesRequest *request)
 
 long long lz4_numcodecs_decode(const EngineBytesRequest *request)
 {
-    if (request->in_bytes < 4ull)
+    if (request->in_bytes < 4ULL)
     {
         return ENGINE_BYTES_ERROR;
     }
@@ -355,7 +355,7 @@ long long lz4_numcodecs_decode(const EngineBytesRequest *request)
     {
         return ENGINE_BYTES_ERROR;
     }
-    Lz4Walk walk = {request->in + 4u, request->in_bytes - 4ull, request->out, declared, 0ull, 0ull};
+    Lz4Walk walk = {request->in + 4u, request->in_bytes - 4ULL, request->out, declared, 0ULL, 0ULL};
     if (!lz4_block(&walk) || (walk.written != declared))
     {
         return lz4_error(request, walk.written);

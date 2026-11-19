@@ -23,10 +23,10 @@ typedef struct CliPagesOneCtx CliPagesOneCtx;
 // of a file of long lines starts near the lines it reads; the max starts it records; how many lines find and a save
 // read at a time; the max pieces of a text; the max lines and bytes one reading gives; and the max bytes of text
 // find searches at a time, its units and its search each taking cells of several times that
-#define CLI_PAGE_STEP 1024ull
-#define CLI_PAGE_SPAN (64ull * 1024ull)
+#define CLI_PAGE_STEP 1024ULL
+#define CLI_PAGE_SPAN (64ULL * 1024ULL)
 #define CLI_PAGE_STARTS (1u << 18u)
-#define CLI_PAGE_BLOCK 16384ull
+#define CLI_PAGE_BLOCK 16384ULL
 #define CLI_PAGE_PIECES 16384u
 #define CLI_PAGE_READ_LINES (1u << 15u)
 #define CLI_PAGE_READ_TEXT (1u << 24u)
@@ -40,13 +40,13 @@ typedef struct CliPagesOneCtx CliPagesOneCtx;
 // reads; the lines about a resting view's rows and the minimap's it saves; the bytes of whole lines a step toward those
 // reads, 16 lines at the least; the max lines it saves; and the milliseconds within which a report follows the last
 // for the view to be moving at the step between them
-#define CLI_PAGE_EDGE 8ull
-#define CLI_PAGE_SPREAD 4ull
-#define CLI_PAGE_ADJACENT 100ull
-#define CLI_PAGE_REMAINDER_BYTES (128ull * 1024ull)
-#define CLI_PAGE_REMAINDER_MIN 16ull
-#define CLI_PAGE_SAVED 2000ull
-#define CLI_PAGE_STILL 100ull
+#define CLI_PAGE_EDGE 8ULL
+#define CLI_PAGE_SPREAD 4ULL
+#define CLI_PAGE_ADJACENT 100ULL
+#define CLI_PAGE_REMAINDER_BYTES (128ULL * 1024ULL)
+#define CLI_PAGE_REMAINDER_MIN 16ULL
+#define CLI_PAGE_SAVED 2000ULL
+#define CLI_PAGE_STILL 100ULL
 
 // The index of a file's lines as far as it has been read: the byte a line starts at, recorded CLI_PAGE_STEP lines or
 // CLI_PAGE_SPAN bytes after the one recorded before, whichever comes first, and the line each is, in order, each a

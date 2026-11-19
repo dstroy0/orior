@@ -6,11 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NIFTI_ONE_HEADER 348ull
-#define NIFTI_TWO_HEADER 540ull
+#define NIFTI_ONE_HEADER 348ULL
+#define NIFTI_TWO_HEADER 540ULL
 #define NIFTI_DIMENSIONS 7u
-#define NIFTI_BYTES_LIMIT 9223372036854775807ull
-#define NIFTI_GZIP_SMALLEST 18ull
+#define NIFTI_BYTES_LIMIT 9223372036854775807ULL
+#define NIFTI_GZIP_SMALLEST 18ULL
 
 typedef struct
 {
@@ -38,11 +38,11 @@ typedef struct
     EngineElementKind element_type;
 } NiftiType;
 
-static const NiftiType nifti_types[] = {{2ull, 1u, ENGINE_ELEMENT_UNSIGNED},   {4ull, 2u, ENGINE_ELEMENT_SIGNED},
-                                        {8ull, 4u, ENGINE_ELEMENT_SIGNED},     {16ull, 4u, ENGINE_ELEMENT_FLOAT},
-                                        {64ull, 8u, ENGINE_ELEMENT_FLOAT},     {256ull, 1u, ENGINE_ELEMENT_SIGNED},
-                                        {512ull, 2u, ENGINE_ELEMENT_UNSIGNED}, {768ull, 4u, ENGINE_ELEMENT_UNSIGNED},
-                                        {1024ull, 8u, ENGINE_ELEMENT_SIGNED},  {1280ull, 8u, ENGINE_ELEMENT_UNSIGNED}};
+static const NiftiType nifti_types[] = {{2ULL, 1u, ENGINE_ELEMENT_UNSIGNED},   {4ULL, 2u, ENGINE_ELEMENT_SIGNED},
+                                        {8ULL, 4u, ENGINE_ELEMENT_SIGNED},     {16ULL, 4u, ENGINE_ELEMENT_FLOAT},
+                                        {64ULL, 8u, ENGINE_ELEMENT_FLOAT},     {256ULL, 1u, ENGINE_ELEMENT_SIGNED},
+                                        {512ULL, 2u, ENGINE_ELEMENT_UNSIGNED}, {768ULL, 4u, ENGINE_ELEMENT_UNSIGNED},
+                                        {1024ULL, 8u, ENGINE_ELEMENT_SIGNED},  {1280ULL, 8u, ENGINE_ELEMENT_UNSIGNED}};
 
 static const unsigned char nifti_one_single[4u] = {'n', '+', '1', 0x00u};
 
@@ -52,14 +52,14 @@ static const unsigned char nifti_two_single[8u] = {'n', '+', '2', 0x00u, 0x0Du, 
 
 static const unsigned char nifti_two_paired[8u] = {'n', 'i', '2', 0x00u, 0x0Du, 0x0Au, 0x1Au, 0x0Au};
 
-static const NiftiSource nifti_empty_source = {NULL, NULL, 0ull, NULL};
+static const NiftiSource nifti_empty_source = {NULL, NULL, 0ULL, NULL};
 
 static const NiftiLayout nifti_empty_layout = {
-    {0u, {0ull}, {'\0'}, 0u, ENGINE_ELEMENT_UNSIGNED}, 0u, 0u, 0u, 0ull, 0ull, 0ull};
+    {0u, {0ULL}, {'\0'}, 0u, ENGINE_ELEMENT_UNSIGNED}, 0u, 0u, 0u, 0ULL, 0ULL, 0ULL};
 
 static unsigned long long nifti_load(const unsigned char *bytes, unsigned int count, unsigned int big_endian)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
         const unsigned int at = (big_endian != 0u) ? place : (count - 1u - place);
@@ -75,7 +75,7 @@ static unsigned int nifti_fits_memory(unsigned long long bytes)
 
 static unsigned int nifti_multiply(unsigned long long left, unsigned long long right, unsigned long long *product)
 {
-    if ((left != 0ull) && (right > (NIFTI_BYTES_LIMIT / left)))
+    if ((left != 0ULL) && (right > (NIFTI_BYTES_LIMIT / left)))
     {
         return 0u;
     }
@@ -86,7 +86,7 @@ static unsigned int nifti_multiply(unsigned long long left, unsigned long long r
 static unsigned int nifti_file_fetch(const EngineIngestTools *tools, const char *path, unsigned long long offset,
                                      unsigned long long bytes, unsigned char *out)
 {
-    if (bytes == 0ull)
+    if (bytes == 0ULL)
     {
         return 1u;
     }
@@ -102,7 +102,7 @@ static unsigned int nifti_fetch(const NiftiSource *source, unsigned long long of
     {
         return 0u;
     }
-    if ((source->memory != NULL) && (bytes != 0ull))
+    if ((source->memory != NULL) && (bytes != 0ULL))
     {
         memcpy(out, source->memory + offset, (size_t)bytes);
         return 1u;
@@ -112,7 +112,7 @@ static unsigned int nifti_fetch(const NiftiSource *source, unsigned long long of
 
 static void nifti_swap(unsigned char *bytes, unsigned long long total, unsigned int element_bytes)
 {
-    for (unsigned long long start = 0ull; start < total; start += element_bytes)
+    for (unsigned long long start = 0ULL; start < total; start += element_bytes)
     {
         for (unsigned int low = 0u; low < (element_bytes / 2u); low += 1u)
         {
@@ -126,24 +126,24 @@ static void nifti_swap(unsigned char *bytes, unsigned long long total, unsigned 
 
 static unsigned int nifti_integer(unsigned long long bits, unsigned long long *value)
 {
-    const unsigned long long exponent = (bits >> 23u) & 0xFFull;
-    const unsigned long long mantissa = (bits & 0x7FFFFFull) | 0x800000ull;
-    if ((bits & 0x7FFFFFFFull) == 0ull)
+    const unsigned long long exponent = (bits >> 23u) & 0xFFULL;
+    const unsigned long long mantissa = (bits & 0x7FFFFFULL) | 0x800000ULL;
+    if ((bits & 0x7FFFFFFFULL) == 0ULL)
     {
-        *value = 0ull;
+        *value = 0ULL;
         return 1u;
     }
-    if (((bits >> 31u) != 0ull) || (exponent < 127ull) || (exponent > 189ull))
+    if (((bits >> 31u) != 0ULL) || (exponent < 127ULL) || (exponent > 189ULL))
     {
         return 0u;
     }
-    if (exponent >= 150ull)
+    if (exponent >= 150ULL)
     {
-        *value = mantissa << (exponent - 150ull);
+        *value = mantissa << (exponent - 150ULL);
         return 1u;
     }
-    const unsigned long long shift = 150ull - exponent;
-    if ((mantissa & ((1ull << shift) - 1ull)) != 0ull)
+    const unsigned long long shift = 150ULL - exponent;
+    if ((mantissa & ((1ULL << shift) - 1ULL)) != 0ULL)
     {
         return 0u;
     }
@@ -155,7 +155,7 @@ static unsigned int nifti_open(const EngineIngestTools *tools, const char *path,
 {
     const long long size = tools->size(path);
     unsigned char opening[2u];
-    if ((size < 2LL) || !nifti_file_fetch(tools, path, 0ull, 2ull, opening))
+    if ((size < 2LL) || !nifti_file_fetch(tools, path, 0ULL, 2ULL, opening))
     {
         return 0u;
     }
@@ -169,18 +169,18 @@ static unsigned int nifti_open(const EngineIngestTools *tools, const char *path,
     const EngineBytesDecode decode = tools->decode[ENGINE_CODEC_GZIP];
     unsigned char trailer[4u];
     if ((decode == NULL) || (file_bytes < NIFTI_GZIP_SMALLEST) || !nifti_fits_memory(file_bytes) ||
-        !nifti_file_fetch(tools, path, file_bytes - 4ull, 4ull, trailer))
+        !nifti_file_fetch(tools, path, file_bytes - 4ULL, 4ULL, trailer))
     {
         return 0u;
     }
     const unsigned long long expected = nifti_load(trailer, 4u, 0u);
-    if ((expected == 0ull) || !nifti_fits_memory(expected))
+    if ((expected == 0ULL) || !nifti_fits_memory(expected))
     {
         return 0u;
     }
     unsigned char *const packed = malloc((size_t)file_bytes);
     unsigned char *const unpacked = malloc((size_t)expected);
-    int ok = (packed != NULL) && (unpacked != NULL) && nifti_file_fetch(tools, path, 0ull, file_bytes, packed);
+    int ok = (packed != NULL) && (unpacked != NULL) && nifti_file_fetch(tools, path, 0ULL, file_bytes, packed);
     if (ok)
     {
         const EngineBytesRequest request = {packed, file_bytes, unpacked, expected};
@@ -221,7 +221,7 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
         return 0u;
     }
     const unsigned int dimension_bytes = second ? 8u : 2u;
-    const unsigned long long negative = second ? 0x8000000000000000ull : 0x8000ull;
+    const unsigned long long negative = second ? 0x8000000000000000ULL : 0x8000ULL;
     const unsigned char *const dimensions_at = bytes + (second ? 16u : 40u);
     unsigned long long dimensions[NIFTI_DIMENSIONS + 1u];
     for (unsigned int at = 0u; at <= NIFTI_DIMENSIONS; at += 1u)
@@ -229,7 +229,7 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
         dimensions[at] = nifti_load(dimensions_at + (at * dimension_bytes), dimension_bytes, big_endian);
     }
     const unsigned long long rank = dimensions[0u];
-    if ((rank < 1ull) || (rank > NIFTI_DIMENSIONS))
+    if ((rank < 1ULL) || (rank > NIFTI_DIMENSIONS))
     {
         return 0u;
     }
@@ -246,7 +246,7 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
             typed = 1u;
         }
     }
-    if ((typed == 0u) || (bitpix != (8ull * built.extent.element_bytes)))
+    if ((typed == 0u) || (bitpix != (8ULL * built.extent.element_bytes)))
     {
         fprintf(stderr, "nifti: datatype %llu with bitpix %llu errors\n", datatype, bitpix);
         return 0u;
@@ -257,7 +257,7 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
     {
         const unsigned int at = built.extent.rank - axis;
         const unsigned long long extent = dimensions[at];
-        if ((extent == 0ull) || (extent >= negative) || !nifti_multiply(data_bytes, extent, &data_bytes))
+        if ((extent == 0ULL) || (extent >= negative) || !nifti_multiply(data_bytes, extent, &data_bytes))
         {
             return 0u;
         }
@@ -274,9 +274,9 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
     }
     const unsigned long long slope =
         second ? nifti_load(bytes + 176u, 8u, big_endian) : nifti_load(bytes + 112u, 4u, big_endian);
-    const unsigned long long magnitude = slope & (second ? 0x7FFFFFFFFFFFFFFFull : 0x7FFFFFFFull);
-    const unsigned long long one = second ? 0x3FF0000000000000ull : 0x3F800000ull;
-    built.scaled = ((magnitude != 0ull) && (slope != one)) ? 1u : 0u;
+    const unsigned long long magnitude = slope & (second ? 0x7FFFFFFFFFFFFFFFULL : 0x7FFFFFFFULL);
+    const unsigned long long one = second ? 0x3FF0000000000000ULL : 0x3F800000ULL;
+    built.scaled = ((magnitude != 0ULL) && (slope != one)) ? 1u : 0u;
     built.big_endian = ((big_endian != 0u) && (built.extent.element_bytes > 1u)) ? 1u : 0u;
     built.paired = paired ? 1u : 0u;
     built.header_bytes = header_bytes;
@@ -349,7 +349,7 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
     NiftiLayout built = nifti_empty_layout;
     const int parsed =
         nifti_open(tools, header_path, &header) &&
-        nifti_fetch(&header, 0ull, (header.length < NIFTI_TWO_HEADER) ? header.length : NIFTI_TWO_HEADER, bytes) &&
+        nifti_fetch(&header, 0ULL, (header.length < NIFTI_TWO_HEADER) ? header.length : NIFTI_TWO_HEADER, bytes) &&
         nifti_header(bytes, (header.length < NIFTI_TWO_HEADER) ? header.length : NIFTI_TWO_HEADER, &built);
     if (!parsed || ((built.paired == 0u) && (header_owned != NULL)))
     {
@@ -432,7 +432,7 @@ long long nifti_read(const EngineArrayRead *request)
     const unsigned long long row_bytes = layout.data_bytes / layout.extent.sizes[0u];
     const int agrees = nifti_same_extent(&layout.extent, request->extent) && (request->first <= request->end) &&
                        (request->end <= layout.extent.sizes[0u]);
-    const unsigned long long wanted = agrees ? ((request->end - request->first) * row_bytes) : 0ull;
+    const unsigned long long wanted = agrees ? ((request->end - request->first) * row_bytes) : 0ULL;
     const int copied = agrees && (wanted <= request->out_capacity) &&
                        nifti_fetch(&data, layout.data_offset + (request->first * row_bytes), wanted, request->out);
     free(data.memory);

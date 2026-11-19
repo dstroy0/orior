@@ -100,12 +100,12 @@ unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned
 // writes is in the instruction, and a constant it computes does not
 static int khw_encoding_matches(unsigned long long low, unsigned long long high, unsigned long long value)
 {
-    if ((value == 0ull) || (value > 0xffffffffull))
+    if ((value == 0ULL) || (value > 0xffffffffULL))
     {
         return 0;
     }
     unsigned int bits = 0u;
-    for (unsigned long long rest = value; rest != 0ull; rest >>= 1u)
+    for (unsigned long long rest = value; rest != 0ULL; rest >>= 1u)
     {
         bits += 1u;
     }
@@ -168,8 +168,8 @@ void khw_frame_stalled(unsigned long long *low, unsigned long long *high)
     {
         return;
     }
-    khw_run_write(low, high, s_first, s_first + s_bits - 1u, (1ull << s_bits) - 1ull);
-    khw_run_write(low, high, s_first + s_bits, s_first + s_bits, 0ull);
+    khw_run_write(low, high, s_first, s_first + s_bits - 1u, (1ULL << s_bits) - 1ULL);
+    khw_run_write(low, high, s_first + s_bits, s_first + s_bits, 0ULL);
 }
 
 // The question of the frame added to the round being written: the kernel with `low` and `high` at the probe point,
@@ -231,7 +231,7 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
         FRAME_LANE, FRAME_BLOCK, FRAME_LOAD, FRAME_LOAD, FRAME_STORE, FRAME_EXIT, FRAME_NUMBER, FRAME_DIM,
         FRAME_PARAMETER};
     const unsigned long long reading[KHW_FRAME_CANDIDATES] = {
-        0ull, 0ull, 0ull, 1ull, 1ull, 0ull, question->answered[0], 0ull, (unsigned long long)RUN_COUNT_PLACE};
+        0ULL, 0ULL, 0ULL, 1ULL, 1ULL, 0ULL, question->answered[0], 0ULL, (unsigned long long)RUN_COUNT_PLACE};
     khw_frame_cases_written();
     // a number is in the field the .ksc names `immediate`, where a number operand lies: a place containing its
     // constant there is a number, and one containing the block size there is a number and names no dim. A bit run
@@ -243,9 +243,9 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
     unsigned int immediate_bits = 0u;
     const int immediate = khw_field_read("immediate", &immediate_first, &immediate_bits);
     const unsigned long long in_immediate =
-        immediate ? khw_run_read(form->low, form->high, immediate_first, immediate_first + immediate_bits - 1u) : 0ull;
+        immediate ? khw_run_read(form->low, form->high, immediate_first, immediate_first + immediate_bits - 1u) : 0ULL;
     const int dim_in_immediate = immediate && (in_immediate == (unsigned long long)RUN_THREADS_A_BLOCK);
-    const int number_matches = (question->answered[0] != 0ull) &&
+    const int number_matches = (question->answered[0] != 0ULL) &&
                                (immediate ? (in_immediate == question->answered[0])
                                           : khw_encoding_matches(form->low, form->high, question->answered[0]));
     for (unsigned int candidate = 0u; candidate < KHW_FRAME_CANDIDATES; candidate += 1u)
@@ -258,7 +258,7 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
         for (unsigned int read = 0u; read < GATE_CASES; read += 1u)
         {
             const unsigned int thread = khw_frame_thread(read);
-            unsigned long long host = 0ull;
+            unsigned long long host = 0ULL;
             frame_answer(s_relation[candidate], thread, s_frame_word[thread], reading[candidate], &host);
             const AnswerBracket bracket = {1, host, host};
             s_fails[candidate][read] =

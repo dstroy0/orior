@@ -10,9 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NRRD_BYTES_LIMIT 9223372036854775807ull
+#define NRRD_BYTES_LIMIT 9223372036854775807ULL
 #define NRRD_SKIP_CHUNK 4096u
-#define NRRD_GZIP_SMALLEST 18ull
+#define NRRD_GZIP_SMALLEST 18ULL
 
 typedef enum
 {

@@ -6,7 +6,7 @@
 #if !defined(_WIN32)
 static int tessera_self_report(TesseraClient *client)
 {
-    unsigned long long used = 0ull;
+    unsigned long long used = 0ULL;
     if (!tessera_self_measure(client->luid, &used))
     {
         return 0;
@@ -27,11 +27,11 @@ static void *tessera_self_run(void *argument)
         struct timespec until;
         clock_gettime(CLOCK_REALTIME, &until);
         const unsigned long long nanoseconds =
-            ((unsigned long long)until.tv_nsec) + (client->sweep_microseconds * 1000ull);
+            ((unsigned long long)until.tv_nsec) + (client->sweep_microseconds * 1000ULL);
         // whole seconds of a sweep fit a time_t, and the remainder is below a billion nanoseconds
-        until.tv_sec += (time_t)(nanoseconds / 1000000000ull);
+        until.tv_sec += (time_t)(nanoseconds / 1000000000ULL);
         // the remainder is below a billion, which a long represents
-        until.tv_nsec = (long)(nanoseconds % 1000000000ull);
+        until.tv_nsec = (long)(nanoseconds % 1000000000ULL);
         pthread_mutex_lock(&client->watch);
         int waited = 0;
         while (!client->stopping && (waited == 0))
@@ -132,7 +132,7 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
             ticket->granted = frame.bytes;
             // the admission names the whole declaration: the bytes the process allocated as it requested, then the
             // job's own
-            ticket->located = (frame.declared > client->declared) ? (frame.declared - client->declared) : 0ull;
+            ticket->located = (frame.declared > client->declared) ? (frame.declared - client->declared) : 0ULL;
             return 0L;
         }
         if (frame.type == TESSERA_NOTICE_OVER_BUDGET)
@@ -157,7 +157,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
 {
     *client = NULL;
     memset(ticket, 0, sizeof(*ticket));
-    if (!TESSERA_CHECK((submit->declared != 0ull) && (submit->sweep_microseconds != 0ull) &&
+    if (!TESSERA_CHECK((submit->declared != 0ULL) && (submit->sweep_microseconds != 0ULL) &&
                            (submit->override_budget <= 1u),
                        submit, submit->error, ENGINE_ERROR_REQUEST))
     {
@@ -206,7 +206,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     frame.idle_microseconds = submit->idle_microseconds;
     // where no pid is measured from outside, the process reports the bytes it already allocated as it requests; a
     // host job is on nothing, since the processors it uses are counted only once it runs
-    unsigned long long located = 0ull;
+    unsigned long long located = 0ULL;
     if (!tessera_device_names_host(submit->device) && tessera_self_paravirtual() &&
         tessera_self_measure(submit->luid, &located))
     {
@@ -214,7 +214,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     }
     const unsigned long long submitted_at = tessera_client_now();
     const unsigned long long deadline =
-        (submit->waiting_microseconds != 0ull) ? (submitted_at + submit->waiting_microseconds) : 0ull;
+        (submit->waiting_microseconds != 0ULL) ? (submitted_at + submit->waiting_microseconds) : 0ULL;
     const int sent = TESSERA_CHECK(tessera_send(made, &frame), made, submit->error, ENGINE_ERROR_RESOURCE);
     const long decided = sent ? tessera_decided(made, ticket, deadline, submit->error) : TESSERA_ERROR;
     ticket->waited = tessera_client_now() - submitted_at;
@@ -241,7 +241,7 @@ long tessera_job_override(TesseraClient *client, TesseraTicket *ticket, EngineEr
     {
         return TESSERA_ERROR;
     }
-    const long decided = tessera_decided(client, ticket, 0ull, error);
+    const long decided = tessera_decided(client, ticket, 0ULL, error);
     if (decided == 0L)
     {
         tessera_self_begin(client, ticket);
@@ -255,7 +255,7 @@ long tessera_job_wait(TesseraClient *client, TesseraTicket *ticket, EngineError 
     {
         return TESSERA_ERROR;
     }
-    const long decided = tessera_decided(client, ticket, 0ull, error);
+    const long decided = tessera_decided(client, ticket, 0ULL, error);
     if (decided == 0L)
     {
         tessera_self_begin(client, ticket);

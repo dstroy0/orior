@@ -276,7 +276,7 @@ char *cli_catalog_script_alloc(const CliCatalogPathOutCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (embed_word)size});
         text[size] = '\0';
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_catalog_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
     return text;
 }
 

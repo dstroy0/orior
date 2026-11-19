@@ -171,7 +171,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text, .text_bytes = bytes,
                        .length = mapped);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
     }
     else
     {
@@ -242,7 +242,7 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
             EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = theirs, .old_size = theirs_size,
                        .new_text = (const char *)ours_index, .new_size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)ours_index, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)ours_index, g_cli_deploy_owner);
         break;
     }
     g_cli_guard->persistent_buf_release(theirs, g_cli_deploy_owner);

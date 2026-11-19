@@ -21,6 +21,7 @@ typedef struct
     unsigned long long length;
     GuiColor color;
     unsigned long long bytes;
+    VerbaLinea *line;
 } RunsCtx;
 
 static const char *runs_title(const GuiPaneCfg *args)
@@ -35,11 +36,11 @@ static unsigned int runs_rows(const GuiPaneCfg *args)
     return EMBED_CALL(cli_runs_pane.rows, CliRunsPaneCfg, .at = 0u);
 }
 
-// `bytes` written into the line at `text`: under 1024 in bytes, under a mebibyte in kibibytes to a tenth, else in
-// mebibytes to a tenth
+// `bytes` written into `line`: under 1024 in bytes, under a mebibyte in kibibytes to a tenth, else in mebibytes to a
+// tenth
 EMBED_INLINE void runs_size_write(const RunsCtx *args)
 {
-    VerbaLinea *const line = (VerbaLinea *)args->text;
+    VerbaLinea *const line = args->line;
     if (args->bytes < 1024ULL)
     {
         mmgr_line_decimal(line, args->bytes, 1u);
@@ -135,7 +136,7 @@ static void runs_row_draw(const GuiPaneCfg *args)
         }
         else
         {
-            EMBED_CALL(runs_size_write, RunsCtx, .text = (const char *)&line, .bytes = row.size);
+            EMBED_CALL(runs_size_write, RunsCtx, .line = &line, .bytes = row.size);
             right_x =
                 EMBED_CALL(runs_text_draw_right, RunsCtx, .pane = args, .face = GUI_FACE_CODE,
                            .size = GUI_RUNS_SMALL_SIZE, .text = digits, .length = line.at, .color = palette->text_3);
@@ -199,7 +200,7 @@ static void runs_row_draw(const GuiPaneCfg *args)
                          .color = palette->text_3);
         break;
     case CLI_RUNS_ROW_BLOB: {
-        EMBED_CALL(runs_size_write, RunsCtx, .text = (const char *)&line, .bytes = row.size);
+        EMBED_CALL(runs_size_write, RunsCtx, .line = &line, .bytes = row.size);
         const float right_x =
             EMBED_CALL(runs_text_draw_right, RunsCtx, .pane = args, .face = GUI_FACE_CODE, .size = GUI_RUNS_SMALL_SIZE,
                        .text = digits, .length = line.at, .color = palette->text_3);

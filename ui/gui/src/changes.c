@@ -595,9 +595,8 @@ static void changes_row_draw(const GuiPaneCfg *args)
 EMBED_INLINE int changes_box_end(const ChangesCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
-    const unsigned int depth = (args->row->type == CLI_CHANGES_ROW_FILE)   ? 0u
-                               : (args->row->type == CLI_CHANGES_ROW_HUNK) ? 1u
-                                                                           : 2u;
+    const unsigned int below_file = (args->row->type == CLI_CHANGES_ROW_HUNK) ? 1u : 2u;
+    const unsigned int depth = (args->row->type == CLI_CHANGES_ROW_FILE) ? 0u : below_file;
     // the depth is at max two guides, far inside an int
     return EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_PAD_LEFT) +
            ((int)depth * EMBED_CALL(gui_pane_part.scaled, GuiPanePartCfg, .pane = pane, .x = GUI_PANE_GUIDE)) +

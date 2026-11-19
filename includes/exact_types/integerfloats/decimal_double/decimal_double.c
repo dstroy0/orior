@@ -10,17 +10,17 @@
     engine_error_check((condition_), (type_), ENGINE_MODULE_DECIMAL_DOUBLE, (unsigned int)__LINE__,                    \
                        (const void *)(evacaddr_), (error_))
 
-#define DECIMAL_DOUBLE_LIMB_BITS 32ull
+#define DECIMAL_DOUBLE_LIMB_BITS 32ULL
 
-#define DECIMAL_DOUBLE_DIGIT_BITS 4ull
+#define DECIMAL_DOUBLE_DIGIT_BITS 4ULL
 
-#define DECIMAL_DOUBLE_FIVE_BITS 3ull
+#define DECIMAL_DOUBLE_FIVE_BITS 3ULL
 
-#define DECIMAL_DOUBLE_SLACK_LIMBS 3ull
+#define DECIMAL_DOUBLE_SLACK_LIMBS 3ULL
 
 _Static_assert(sizeof(uint32_t) * 8u == DECIMAL_DOUBLE_LIMB_BITS, "a work limb is the 32 bits an exact limb contains");
-_Static_assert(10ull <= (1ull << DECIMAL_DOUBLE_DIGIT_BITS), "a decimal digit multiplies a value by at max 2^4");
-_Static_assert(5ull < (1ull << DECIMAL_DOUBLE_FIVE_BITS), "a five multiplies a value by less than 2^3");
+_Static_assert(10ULL <= (1ULL << DECIMAL_DOUBLE_DIGIT_BITS), "a decimal digit multiplies a value by at max 2^4");
+_Static_assert(5ULL < (1ULL << DECIMAL_DOUBLE_FIVE_BITS), "a five multiplies a value by less than 2^3");
 
 typedef struct
 {
@@ -37,11 +37,11 @@ typedef struct
 
 static inline DecimalDoubleFive decimal_double_five_widest(void)
 {
-    DecimalDoubleFive five = {.factor = 1u, .power = 0ull};
+    DecimalDoubleFive five = {.factor = 1u, .power = 0ULL};
     while (five.factor <= (UINT32_MAX / 5u))
     {
         five.factor *= 5u;
-        five.power += 1ull;
+        five.power += 1ULL;
     }
     return five;
 }
@@ -49,7 +49,7 @@ static inline DecimalDoubleFive decimal_double_five_widest(void)
 static inline uint32_t decimal_double_five_power(unsigned long long power)
 {
     uint32_t factor = 1u;
-    for (unsigned long long step = 0ull; step < power; step += 1ull)
+    for (unsigned long long step = 0ULL; step < power; step += 1ULL)
     {
         factor *= 5u;
     }
@@ -117,14 +117,14 @@ static inline unsigned long long decimal_double_bits(const DecimalDoubleWork *wo
 {
     if (work->used == 0u)
     {
-        return 0ull;
+        return 0ULL;
     }
     uint32_t top = work->limb[work->used - 1u];
     // the used limb count widens to the unsigned long long the bit count is stored in
     unsigned long long bits = (unsigned long long)(work->used - 1u) * DECIMAL_DOUBLE_LIMB_BITS;
     while (top != 0u)
     {
-        bits += 1ull;
+        bits += 1ULL;
         top >>= 1u;
     }
     return bits;
@@ -142,7 +142,7 @@ static inline unsigned long long decimal_double_trailing_zeros(const DecimalDoub
     unsigned long long zeros = (unsigned long long)index * DECIMAL_DOUBLE_LIMB_BITS;
     while ((low & 1u) == 0u)
     {
-        zeros += 1ull;
+        zeros += 1ULL;
         low >>= 1u;
     }
     return zeros;
@@ -233,7 +233,7 @@ static inline void decimal_double_divide_five(DecimalDoubleWork *work, const Dec
 static inline unsigned long long decimal_double_strip_five(DecimalDoubleWork *work, const DecimalDoubleFive *five,
                                                            unsigned long long max)
 {
-    unsigned long long stripped = 0ull;
+    unsigned long long stripped = 0ULL;
     while (((max - stripped) >= five->power) && (decimal_double_remainder(work, five->factor) == 0u))
     {
         decimal_double_divide(work, five->factor);
@@ -242,7 +242,7 @@ static inline unsigned long long decimal_double_strip_five(DecimalDoubleWork *wo
     while ((stripped < max) && (decimal_double_remainder(work, 5u) == 0u))
     {
         decimal_double_divide(work, 5u);
-        stripped += 1ull;
+        stripped += 1ULL;
     }
     return stripped;
 }
@@ -266,7 +266,7 @@ static int decimal_double_expand_work(const DecimalDoubleRequest *request, Decim
         }
     }
 
-    DecimalDoubleResult conversion = {.e2 = 0, .fits = 1, .terminates = 1, .needed_bits = 0ull};
+    DecimalDoubleResult conversion = {.e2 = 0, .fits = 1, .terminates = 1, .needed_bits = 0ULL};
     if (work->used != 0u)
     {
         const DecimalDoubleFive five = decimal_double_five_widest();
@@ -286,9 +286,9 @@ static int decimal_double_expand_work(const DecimalDoubleRequest *request, Decim
             const unsigned long long places = (unsigned long long)(-(long long)request->ex);
             const unsigned long long left = places - decimal_double_strip_five(work, &five, places);
             conversion.e2 = request->ex;
-            if (left != 0ull)
+            if (left != 0ULL)
             {
-                const unsigned long long shift = ORIOR_EXACT_BITS + 1ull + (DECIMAL_DOUBLE_FIVE_BITS * left);
+                const unsigned long long shift = ORIOR_EXACT_BITS + 1ULL + (DECIMAL_DOUBLE_FIVE_BITS * left);
                 if (!DECIMAL_DOUBLE_CHECK(decimal_double_shift_left(work, shift), work->limb, error,
                                           ENGINE_ERROR_LOGIC))
                 {
@@ -346,7 +346,7 @@ int decimal_double_expand(const DecimalDoubleRequest *request)
     }
     // the exponent's magnitude in long long represents INT_MIN's. It widens to unsigned long long exactly
     const unsigned long long places = (unsigned long long)((request->ex < 0) ? -(long long)request->ex : request->ex);
-    const unsigned long long tail_bits = (DECIMAL_DOUBLE_FIVE_BITS * places) + ORIOR_EXACT_BITS + 1ull +
+    const unsigned long long tail_bits = (DECIMAL_DOUBLE_FIVE_BITS * places) + ORIOR_EXACT_BITS + 1ULL +
                                          (DECIMAL_DOUBLE_SLACK_LIMBS * DECIMAL_DOUBLE_LIMB_BITS);
     if (!DECIMAL_DOUBLE_CHECK(request->digit_count <= ((ULLONG_MAX - tail_bits) / DECIMAL_DOUBLE_DIGIT_BITS),
                               request->digits, error, ENGINE_ERROR_REQUEST))

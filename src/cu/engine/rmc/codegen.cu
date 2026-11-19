@@ -17,7 +17,7 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
     }
     same = same && (memcmp(left->step_table, right->step_table, (size_t)left->steps * sizeof(DeviceRecordStep)) == 0);
     return same &&
-           ((left->table_word_count == 0ull) || (memcmp(left->table_values, right->table_values,
+           ((left->table_word_count == 0ULL) || (memcmp(left->table_values, right->table_values,
                                                         (size_t)left->table_word_count * sizeof(unsigned int)) == 0));
 }
 
@@ -151,7 +151,7 @@ __global__ void codegen_device_write(IrProgram program, const unsigned int *loop
 // reads the tables, and the loops the steps wrote
 __global__ void codegen_device_left(const unsigned int *summary, unsigned int loops, MachineFunction *lane_out)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }
@@ -179,7 +179,7 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
                                           unsigned int first, unsigned int last, int scheduled, unsigned int states,
                                           CodegenParts *parts, MachineInstr *items)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }
@@ -191,8 +191,8 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
     {
         const unsigned int part = order[decided];
         lane.items = (items != NULL) ? &items[parts->at[part]] : NULL;
-        lane.capacity = (items != NULL) ? parts->count[part] : 0ull;
-        lane.count = 0ull;
+        lane.capacity = (items != NULL) ? parts->count[part] : 0ULL;
+        lane.count = 0ULL;
         if (part == CODEGEN_NOTE)
         {
             codegen_note(&lane);
@@ -245,8 +245,8 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
         summary[CODEGEN_BROKEN] |= lane.broken;
         lane.program = NULL;
         lane.items = NULL;
-        lane.capacity = 0ull;
-        lane.count = 0ull;
+        lane.capacity = 0ULL;
+        lane.count = 0ULL;
         *lane_out = lane;
     }
 }
@@ -260,17 +260,17 @@ __global__ void codegen_schedule(IrProgram program, unsigned int *summary, Machi
                                  unsigned long long body_count, unsigned long long capacity, MachineInstr *items,
                                  ScheduleEnd *ended)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }
     MachineFunction lane = *lane_out;
     lane.program = &program;
     lane.items = items;
-    lane.capacity = (items != NULL) ? capacity : 0ull;
-    lane.count = 0ull;
+    lane.capacity = (items != NULL) ? capacity : 0ULL;
+    lane.count = 0ULL;
     codegen_schedule_open(&lane, &schedule, writes, ports);
-    for (unsigned long long at = 0ull; at < body_count; at += 1ull)
+    for (unsigned long long at = 0ULL; at < body_count; at += 1ULL)
     {
         codegen_schedule_instr(&lane, &schedule, &body[at]);
     }
@@ -284,8 +284,8 @@ __global__ void codegen_schedule(IrProgram program, unsigned int *summary, Machi
         summary[CODEGEN_BROKEN] |= lane.broken;
         lane.program = NULL;
         lane.items = NULL;
-        lane.capacity = 0ull;
-        lane.count = 0ull;
+        lane.capacity = 0ULL;
+        lane.count = 0ULL;
         *lane_out = lane;
     }
 }
@@ -306,7 +306,7 @@ __global__ void codegen_device_record_counts(AsmPrinterLists forms, const Machin
     {
         atomicOr(&summary[CODEGEN_BROKEN], 1u);
     }
-    record_counts[at] = (formed != 0) ? asm_printer_record_count(&forms, &items[at]) : 1ull;
+    record_counts[at] = (formed != 0) ? asm_printer_record_count(&forms, &items[at]) : 1ULL;
 }
 
 // each item's records arranged, a thread an item (asm_printer_records)
@@ -332,7 +332,7 @@ __global__ void codegen_device_index(unsigned int *records, unsigned long long r
         return;
     }
     asm_printer_first(records, record, lane_first[record]);
-    for (unsigned long long lane = 0ull; lane < record_lanes[record]; lane += 1ull)
+    for (unsigned long long lane = 0ULL; lane < record_lanes[record]; lane += 1ULL)
     {
         // a record's number is below 2^31, as the host bounds the records
         index[lane_first[record] + lane] = (unsigned int)record;
@@ -354,7 +354,7 @@ __global__ void codegen_device_bytes(const unsigned int *out, unsigned long long
 // keymath's encoding of the program, in one thread (keymath_core_record_encode)
 __global__ void codegen_device_encode(KeymathCoreEncode encoding, LayoutEnd *ended)
 {
-    if (codegen_device_thread() != 0ull)
+    if (codegen_device_thread() != 0ULL)
     {
         return;
     }

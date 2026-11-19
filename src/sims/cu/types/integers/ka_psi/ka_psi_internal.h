@@ -27,9 +27,9 @@
 #define PSI_EXHAUSTIVE 5u
 
 // the widest relative exponent the sign test expands into an exact power
-#define PSI_EXPAND_MAX 1024ull
+#define PSI_EXPAND_MAX 1024ULL
 
-#define PSI_KEY 0x505349ull
+#define PSI_KEY 0x505349ULL
 
 typedef struct
 {

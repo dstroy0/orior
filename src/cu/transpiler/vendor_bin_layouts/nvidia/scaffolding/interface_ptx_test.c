@@ -12,7 +12,7 @@
 
 #define INTERFACE_PTX_CAPACITY 65536u
 // a question's limit: the membership queries assemble and run a kernel for each question
-#define INTERFACE_PTX_LIMIT 600000000ull
+#define INTERFACE_PTX_LIMIT 600000000ULL
 
 typedef struct
 {
@@ -50,9 +50,9 @@ static int interface_ptx_probe(InterfacePtxTest *test, const char *question, Int
                error.status);
         return 0;
     }
-    printf("  %s: %s, code %llu (0x%llx), fault %s, %llu bytes of output, %llu.%06llu s\n", question,
+    printf("  %s: %s, code %llu (0x%llx), fault %s, %llu bytes of output, %llu.%06LLU s\n", question,
            interface_ending_name(answer->ending), answer->code, answer->code, interface_fault_name(answer->fault),
-           answer->output_bytes, answer->microseconds / 1000000ull, answer->microseconds % 1000000ull);
+           answer->output_bytes, answer->microseconds / 1000000ULL, answer->microseconds % 1000000ULL);
     printf("%s", s_interface_ptx_output);
     return 1;
 }
@@ -65,7 +65,7 @@ static void interface_ptx_alive(InterfacePtxTest *test, const char *after)
     const int result = interface_ptx_probe(test, "alive", &answer);
     snprintf(what, sizeof(what), "a fresh probe after %s: the device answers 6 + 7 = 0x0000000d", after);
     interface_ptx_check(test,
-                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
+                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
                             (strstr(s_interface_ptx_output, "answered 0000000d") != NULL),
                         what);
 }
@@ -78,7 +78,7 @@ static void interface_ptx_error(InterfacePtxTest *test, const char *question, co
     const int result = interface_ptx_probe(test, question, &answer);
     const int named =
         (error == NULL) ? (strstr(s_interface_ptx_output, "error ") != NULL) : (strstr(s_interface_ptx_output, error) != NULL);
-    interface_ptx_check(test, result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ull) && named,
+    interface_ptx_check(test, result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ULL) && named,
                         what);
 }
 
@@ -96,7 +96,7 @@ int main(int count, char **arguments)
 
     int result = interface_ptx_probe(&test, "membership", &answer);
     interface_ptx_check(&test,
-                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
+                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
                             (strstr(s_interface_ptx_output, " questions, 0 with a case that differs") != NULL),
                         "membership: every defined answer of every form agrees with the host's integers");
 
@@ -111,7 +111,7 @@ int main(int count, char **arguments)
 
     result = interface_ptx_probe(&test, "lacking", &answer);
     interface_ptx_check(&test,
-                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 4ull) &&
+                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 4ULL) &&
                             (strstr(s_interface_ptx_output, "errored") != NULL),
                         "elect.sync, which PTX gives sm_90 and later, errors in the toolchain for this device");
     interface_ptx_alive(&test, "an instruction the part lacks");

@@ -28,12 +28,12 @@ static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Curso
             return hdf5_walk_error(file, "a malformed compact layout message");
         }
         object->data_bytes = size;
-        object->compact = (size > 0ull) ? (unsigned char *)malloc((size_t)size) : NULL;
-        if ((size > 0ull) && (object->compact == NULL))
+        object->compact = (size > 0ULL) ? (unsigned char *)malloc((size_t)size) : NULL;
+        if ((size > 0ULL) && (object->compact == NULL))
         {
             return hdf5_walk_error(file, "no memory for compact data");
         }
-        if (size > 0ull)
+        if (size > 0ULL)
         {
             memcpy(object->compact, data, (size_t)size);
         }
@@ -75,10 +75,10 @@ static Hdf5Walk hdf5_object_pipeline(Hdf5File *file, Hdf5Object *object, Hdf5Cur
         Hdf5Filter *const filter = &object->filters[place];
         filter->identifier = (unsigned int)hdf5_take(cursor, 2u);
         const unsigned long long name_length =
-            ((version == 1u) || (filter->identifier >= 256u)) ? hdf5_take(cursor, 2u) : 0ull;
+            ((version == 1u) || (filter->identifier >= 256u)) ? hdf5_take(cursor, 2u) : 0ULL;
         filter->flags = (unsigned int)hdf5_take(cursor, 2u);
         const unsigned int values = (unsigned int)hdf5_take(cursor, 2u);
-        (void)hdf5_span(cursor, (version == 1u) ? ((name_length + 7ull) & ~7ull) : name_length);
+        (void)hdf5_span(cursor, (version == 1u) ? ((name_length + 7ULL) & ~7ULL) : name_length);
         filter->value_count = values;
         for (unsigned int value = 0u; value < values; value += 1u)
         {
@@ -177,8 +177,8 @@ Hdf5Walk hdf5_link_decode(Hdf5File *file, const unsigned char *body, size_t size
     (void)hdf5_span(&cursor, ((flags & 0x10u) != 0u) ? 1u : 0u);
     const unsigned long long name_length = hdf5_take(&cursor, 1u << (flags & 3u));
     const unsigned char *const name = hdf5_span(&cursor, name_length);
-    const unsigned long long address = (link_type == 0u) ? hdf5_take(&cursor, file->offset_bytes) : 0ull;
-    if (cursor.broken || (name == NULL) || (name_length == 0ull))
+    const unsigned long long address = (link_type == 0u) ? hdf5_take(&cursor, file->offset_bytes) : 0ULL;
+    if (cursor.broken || (name == NULL) || (name_length == 0ULL))
     {
         return hdf5_walk_error(file, "a malformed link message");
     }
@@ -262,7 +262,7 @@ static Hdf5Walk hdf5_table_symbols(Hdf5File *file, Hdf5GroupWalk *walk, const un
         walk->last_name = ordered ? name : walk->last_name;
         walk->last_length = ordered ? length : walk->last_length;
         step = !ordered ? hdf5_walk_error(file, "a symbol whose name lies outside the local heap or out of order")
-                        : walk->visit(file, walk->state, name, length, (cache == 2ull) ? 1u : 0u, object);
+                        : walk->visit(file, walk->state, name, length, (cache == 2ULL) ? 1u : 0u, object);
     }
     free(node);
     return step;

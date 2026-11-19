@@ -17,17 +17,17 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
     s_opened = 1;
     question->code = code.data();
     question->code_size = code.size();
-    *queries += 1ull;
+    *queries += 1ULL;
     // the query's key in the record, and what the record contains of it
-    unsigned long long hosted = 0xcbf29ce484222325ull;
+    unsigned long long hosted = 0xcbf29ce484222325ULL;
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         hosted = record_hash(host[places[place]].c_str(), host[places[place]].size() + 1u, hosted);
     }
     char keyed[160];
     snprintf(keyed, sizeof(keyed), "%016llx %u %u %u %016llx %016llx",
-             record_hash(code.data(), code.size(), 0xcbf29ce484222325ull), question->registers, question->threads,
-             question->blocks, record_hash(question->word, sizeof(question->word[0]) * question->cases, 0xcbf29ce484222325ull),
+             record_hash(code.data(), code.size(), 0xcbf29ce484222325ULL), question->registers, question->threads,
+             question->blocks, record_hash(question->word, sizeof(question->word[0]) * question->cases, 0xcbf29ce484222325ULL),
              hosted);
     const std::string key = keyed;
     // R stores a query's verdict and its first case apart, and the query record and the log what came back of every
@@ -87,10 +87,10 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
     {
         // the places this thread's log last wrote as its cases, by a hash of them and their count, a count past every
         // question's where it wrote none
-        static thread_local unsigned long long t_logged_hash = 0ull;
+        static thread_local unsigned long long t_logged_hash = 0ULL;
         static thread_local unsigned int t_logged_count = 0xffffffffu;
         const unsigned long long query_hash =
-            record_hash(places.data(), sizeof(places[0]) * question->cases, 0xcbf29ce484222325ull);
+            record_hash(places.data(), sizeof(places[0]) * question->cases, 0xcbf29ce484222325ULL);
         if ((query_hash != t_logged_hash) || (question->cases != t_logged_count))
         {
             query_log_print(s_query_log, "cases");
@@ -151,7 +151,7 @@ int question_read(const std::vector<unsigned char> &code, RunQuestion *question,
     query_logs_opened();
     question->code = code.data();
     question->code_size = code.size();
-    *queries += 1ull;
+    *queries += 1ULL;
     if (s_trace_log != NULL)
     {
         query_log_print(s_trace_log,
@@ -378,8 +378,8 @@ int host_questions_write(const std::string &path, const std::string &stick, cons
     run_print(&file, "                for (unsigned int right = 0u; right < %uu; right += 1u)\n                {\n",
               (unsigned int)IDENTITY_VALUES);
     run_print(&file,
-              "                    const unsigned long long in[4] = {s_values[left], s_values[right], third, 0ull};\n");
-    run_print(&file, "                    unsigned long long out[2] = {0ull, 0ull};\n");
+              "                    const unsigned long long in[4] = {s_values[left], s_values[right], third, 0ULL};\n");
+    run_print(&file, "                    unsigned long long out[2] = {0ULL, 0ULL};\n");
     run_print(&file, "                    if (s_questions[at].refused(in))\n                    {\n");
     run_print(&file,
               "                        printf(\" -\");\n                        continue;\n                    }\n");

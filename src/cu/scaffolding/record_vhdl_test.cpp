@@ -58,12 +58,12 @@ static int vhdl_construction(const char *path, VhdlPlace *place)
         return 0;
     }
     std::string names;
-    for (unsigned long long at = 0ull; at < (8ull * table.name_words); at += 1ull)
+    for (unsigned long long at = 0ULL; at < (8ULL * table.name_words); at += 1ULL)
     {
-        names.push_back((char)((table.words[table.forms + (at / 8ull)] >> (8ull * (at % 8ull))) & 0xFFull));
+        names.push_back((char)((table.words[table.forms + (at / 8ULL)] >> (8ULL * (at % 8ULL))) & 0xFFULL));
     }
     size_t start = 0u;
-    for (unsigned long long form = 0ull; form < table.forms; form += 1ull)
+    for (unsigned long long form = 0ULL; form < table.forms; form += 1ULL)
     {
         const size_t end = names.find('\0', start);
         // a form's cost is a path's length in cells, far under 2^32
@@ -105,14 +105,14 @@ static unsigned long long vhdl_after(const std::string &path, const char *label)
     FILE *const file = fopen(path.c_str(), "rb");
     if (file == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     char line[1024];
-    unsigned long long found = 0ull;
-    while ((found == 0ull) && (fgets(line, sizeof(line), file) != NULL))
+    unsigned long long found = 0ULL;
+    while ((found == 0ULL) && (fgets(line, sizeof(line), file) != NULL))
     {
         const char *const at = strstr(line, label);
-        found = (at != NULL) ? strtoull(at + strlen(label), NULL, 10) : 0ull;
+        found = (at != NULL) ? strtoull(at + strlen(label), NULL, 10) : 0ULL;
     }
     fclose(file);
     return found;
@@ -124,13 +124,13 @@ static unsigned long long vhdl_lines(const std::string &path, const char *label)
     FILE *const file = fopen(path.c_str(), "rb");
     if (file == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     char line[1024];
-    unsigned long long found = 0ull;
+    unsigned long long found = 0ULL;
     while (fgets(line, sizeof(line), file) != NULL)
     {
-        found += (strstr(line, label) != NULL) ? 1ull : 0ull;
+        found += (strstr(line, label) != NULL) ? 1ULL : 0ULL;
     }
     fclose(file);
     return found;
@@ -172,14 +172,14 @@ static void vhdl_synthesize(const VhdlPlace *place, VhdlTrial *trial)
     trial->registered = vhdl_lines(place->work + "/yosys.log", "merging output FF");
     trial->cells = vhdl_after(place->work + "/yosys.log", "Number of cells:");
     trial->path = vhdl_after(place->work + "/yosys.log", "(length=");
-    trial->synthesized = (status == 0) && (trial->cells != 0ull);
+    trial->synthesized = (status == 0) && (trial->cells != 0ULL);
 }
 
 // `text` written as the work folder's program.vhd, run by GHDL under the bench over `image`, and where the place
 // requires, synthesized
 static void vhdl_try(const VhdlPlace *place, const std::string &text, const RecordImage *image, VhdlTrial *trial)
 {
-    *trial = VhdlTrial{0, 0u, {}, 0ull, 0, 0ull, 0ull, 0ull, 0ull, 0ull};
+    *trial = VhdlTrial{0, 0u, {}, 0ULL, 0, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
     const std::string records_path = place->work + "/records.txt";
     remove(records_path.c_str());
     const int written = !text.empty() && vhdl_write(place->work + "/program.vhd", text) &&
@@ -201,7 +201,7 @@ static void vhdl_try(const VhdlPlace *place, const std::string &text, const Reco
     {
         vhdl_synthesize(place, trial);
     }
-    trial->cost = trial->clocks * (trial->synthesized ? trial->path : 1ull);
+    trial->cost = trial->clocks * (trial->synthesized ? trial->path : 1ULL);
 }
 
 // the lines and checks of one schedule: its run checked against the host's (an error where the host errors on the run),
@@ -268,7 +268,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
         inputs ^= host_digest(atoms[member], bodies[member] * layout->in_limbs[member]);
     }
     VhdlTarget &generator = vhdl_target();
-    const TargetInfo target = {0ull, 0, 0, 0, 0, ""};
+    const TargetInfo target = {0ULL, 0, 0, 0, 0, ""};
     unsigned int places = 0u;
     unsigned int live = 0u;
     const std::string text = (generator.ruleset(1) != NULL)
@@ -284,13 +284,13 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     }
     const RecordImage image = record_image(layout, atoms, bodies, index);
     const int host_ran = ran == (long)HOST_TEST_LANES;
-    const unsigned long long host_records_digest = host_ran ? host_digest(host_records.data(), record_words) : 0ull;
+    const unsigned long long host_records_digest = host_ran ? host_digest(host_records.data(), record_words) : 0ULL;
 
     // the lane split at the two ends of what a construction set can require: only where the lane must be split, and
     // every form alone in a state of its own
     const ScheduleModel ends[2] = {{{}, 0u, SCHEDULE_UNBOUNDED, SCHEDULE_UNBOUNDED}, {{}, 1u, 1u, SCHEDULE_UNBOUNDED}};
     const char *const end_names[2] = {"split where it must be", "every form alone"};
-    unsigned long long end_costs[2] = {0ull, 0ull};
+    unsigned long long end_costs[2] = {0ULL, 0ULL};
     for (unsigned int end = 0u; end < 2u; end += 1u)
     {
         ScheduleReport report = {0u, 0u, 0u};
@@ -307,8 +307,8 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
                "%016llx on the host, %u lanes errored as VHDL\n",
                what.c_str(), layout->steps, layout->out_limbs,
                (size_t)std::count(scheduled_text.begin(), scheduled_text.end(), '\n'), report.states, inputs,
-               trial.read ? host_digest(trial.records.data(), record_words) : 0ull, host_records_digest, trial.error);
-        end_costs[end] = vhdl_report(results, place, what, &trial, errors, host_ran, host_records) ? trial.cost : 0ull;
+               trial.read ? host_digest(trial.records.data(), record_words) : 0ULL, host_records_digest, trial.error);
+        end_costs[end] = vhdl_report(results, place, what, &trial, errors, host_ran, host_records) ? trial.cost : 0ULL;
     }
 
     // the refinement loop (engine_table M23), where a construction set was given: the generator is the schedule, its
@@ -322,7 +322,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
         return;
     }
     std::vector<std::string> tried;
-    unsigned long long best_cost = 0ull;
+    unsigned long long best_cost = 0ULL;
     unsigned int best_budget = 0u;
     unsigned int rounds = 0u;
     for (unsigned int budget = 1u; budget <= (4u * place->budget); budget *= 2u)
@@ -343,7 +343,7 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
         printf("  %s: %u states (the max cost one chains %u, %u forms alone past the budget), records %016llx as "
                "VHDL\n",
                what.c_str(), report.states, report.max, report.over,
-               trial.read ? host_digest(trial.records.data(), record_words) : 0ull);
+               trial.read ? host_digest(trial.records.data(), record_words) : 0ULL);
         const int reported = vhdl_report(results, place, what, &trial, errors, host_ran, host_records);
         if (reported && ((best_budget == 0u) || (trial.cost < best_cost)))
         {

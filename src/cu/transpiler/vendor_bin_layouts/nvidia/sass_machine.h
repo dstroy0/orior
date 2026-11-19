@@ -180,7 +180,7 @@ unsigned long long sass_exit_encoding(const SassMachine *machine);
 #define SASS_STALL_MAX_LEN 15u
 #define SASS_WAIT_EVERY 0x3fu
 // the bits of the low word that name an operation and its operands' types, its operation key
-#define SASS_OPERATION_MASK 0xfffull
+#define SASS_OPERATION_MASK 0xfffULL
 
 // 1 where `operation` transfers control or waits, which run on the part can loop or stall it: a branch, a call, a
 // return, a barrier, a sleep and a trap. A straight instruction falls through to the next and cannot loop by itself

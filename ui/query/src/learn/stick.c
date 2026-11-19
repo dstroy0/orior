@@ -356,7 +356,7 @@ int query_listings_read(const QueryLoopsContextFolderCfg *args)
                                 .pattern = args->pattern, .prefix = args->prefix, .architecture = args->architecture,
                                 .codes = &codes, .err_msg = args->err_msg);
     g_cli_guard->persistent_buf_release(codes.path, g_query_owner);
-    *(&codes) = (QueryPaths){NULL, 0u, 0u};
+    codes = (QueryPaths){NULL, 0u, 0u};
     return read;
 }
 

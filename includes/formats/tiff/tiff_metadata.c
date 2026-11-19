@@ -18,15 +18,15 @@ int tiff_page_rows(TiffFile *file, const TiffPage *page, TiffScratch *scratch, u
     }
     const unsigned long long element_bytes = page->element_bytes;
     const unsigned long long down_first = row_first / page->chunk_height;
-    const unsigned long long down_end = ((row_end - 1ull) / page->chunk_height) + 1ull;
-    for (unsigned long long down = down_first; (file->reason == NULL) && (down < down_end); down += 1ull)
+    const unsigned long long down_end = ((row_end - 1ULL) / page->chunk_height) + 1ULL;
+    for (unsigned long long down = down_first; (file->reason == NULL) && (down < down_end); down += 1ULL)
     {
         const unsigned long long top = down * page->chunk_height;
         const unsigned long long rows_left = page->height - top;
         const unsigned long long rows = (rows_left < page->chunk_height) ? rows_left : page->chunk_height;
         const unsigned long long copy_first = (row_first > top) ? row_first : top;
         const unsigned long long copy_end = (row_end < (top + rows)) ? row_end : (top + rows);
-        for (unsigned long long across = 0ull; (file->reason == NULL) && (across < page->chunks_across); across += 1ull)
+        for (unsigned long long across = 0ULL; (file->reason == NULL) && (across < page->chunks_across); across += 1ULL)
         {
             const unsigned long long chunk = (down * page->chunks_across) + across;
             if (!tiff_chunk_decode(file, page, scratch, offsets[chunk], counts[chunk], rows))
@@ -36,7 +36,7 @@ int tiff_page_rows(TiffFile *file, const TiffPage *page, TiffScratch *scratch, u
             const unsigned long long left = across * page->chunk_width;
             const unsigned long long columns_left = page->width - left;
             const unsigned long long columns = (columns_left < page->chunk_width) ? columns_left : page->chunk_width;
-            for (unsigned long long row = copy_first; row < copy_end; row += 1ull)
+            for (unsigned long long row = copy_first; row < copy_end; row += 1ULL)
             {
                 const unsigned char *const source = &scratch->chunk[(row - top) * page->chunk_width * element_bytes];
                 unsigned char *const target = &out[(((row - row_first) * page->width) + left) * element_bytes];
@@ -55,7 +55,7 @@ int tiff_chain_add(TiffFile *file, TiffChain *chain, unsigned long long offset)
     {
         return file->reason == NULL;
     }
-    for (unsigned long long seen = 0ull; (offset <= chain->highest) && (seen < chain->count); seen += 1ull)
+    for (unsigned long long seen = 0ULL; (offset <= chain->highest) && (seen < chain->count); seen += 1ULL)
     {
         if (chain->offsets[seen] == offset)
         {
@@ -68,7 +68,7 @@ int tiff_chain_add(TiffFile *file, TiffChain *chain, unsigned long long offset)
     }
     if (chain->count == chain->capacity)
     {
-        const unsigned long long capacity = (chain->capacity == 0ull) ? 64ull : (chain->capacity * 2ull);
+        const unsigned long long capacity = (chain->capacity == 0ULL) ? 64ULL : (chain->capacity * 2ULL);
         const unsigned long long bytes = capacity * sizeof(unsigned long long);
         if ((unsigned long long)(size_t)bytes != bytes)
         {
@@ -83,7 +83,7 @@ int tiff_chain_add(TiffFile *file, TiffChain *chain, unsigned long long offset)
         chain->capacity = capacity;
     }
     chain->offsets[chain->count] = offset;
-    chain->count += 1ull;
+    chain->count += 1ULL;
     chain->highest = (offset > chain->highest) ? offset : chain->highest;
     return file->reason == NULL;
 }
@@ -99,12 +99,12 @@ char *tiff_description(TiffFile *file, const TiffEntry *entry)
         tiff_fail_number(file, "an ImageDescription of type", entry->type, "rather than text");
         return NULL;
     }
-    if ((entry->count == 0ull) || (entry->count > file->file_bytes))
+    if ((entry->count == 0ULL) || (entry->count > file->file_bytes))
     {
         tiff_fail(file, "an ImageDescription longer than the file");
         return NULL;
     }
-    char *const text = (char *)malloc((size_t)(entry->count + 1ull));
+    char *const text = (char *)malloc((size_t)(entry->count + 1ULL));
     if (text == NULL)
     {
         tiff_fail(file, "out of memory");
@@ -121,14 +121,14 @@ char *tiff_description(TiffFile *file, const TiffEntry *entry)
 
 static int tiff_digits(const char *text, size_t length, unsigned long long *value)
 {
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     int fits = (length > 0u);
     for (size_t at = 0u; fits && (at < length); at += 1u)
     {
         const int digit = (text[at] >= '0') && (text[at] <= '9');
-        const unsigned long long place = digit ? (unsigned long long)(text[at] - '0') : 0ull;
-        fits = digit && (total <= ((~0ull - place) / 10ull));
-        total = (total * 10ull) + place;
+        const unsigned long long place = digit ? (unsigned long long)(text[at] - '0') : 0ULL;
+        fits = digit && (total <= ((~0ULL - place) / 10ULL));
+        total = (total * 10ULL) + place;
     }
     *value = total;
     return fits;
@@ -165,10 +165,10 @@ void tiff_layout_axis(TiffLayout *layout, char axis, unsigned long long extent, 
 int tiff_imagej(TiffFile *file, const char *text, unsigned long long pages, unsigned int pages_known,
                 TiffLayout *layout)
 {
-    unsigned long long images = 1ull;
-    unsigned long long channels = 1ull;
-    unsigned long long slices = 1ull;
-    unsigned long long frames = 1ull;
+    unsigned long long images = 1ULL;
+    unsigned long long channels = 1ULL;
+    unsigned long long slices = 1ULL;
+    unsigned long long frames = 1ULL;
     unsigned int images_present = 0u;
     unsigned int channels_present = 0u;
     unsigned int slices_present = 0u;
@@ -181,12 +181,12 @@ int tiff_imagej(TiffFile *file, const char *text, unsigned long long pages, unsi
     {
         return file->reason == NULL;
     }
-    if ((images == 0ull) || (channels == 0ull) || (slices == 0ull) || (frames == 0ull))
+    if ((images == 0ULL) || (channels == 0ULL) || (slices == 0ULL) || (frames == 0ULL))
     {
         return tiff_fail(file, "an ImageJ description with a count of 0");
     }
-    unsigned long long frames_by_slices = 0ull;
-    unsigned long long product = 0ull;
+    unsigned long long frames_by_slices = 0ULL;
+    unsigned long long product = 0ULL;
     tiff_multiply(file, frames, slices, &frames_by_slices);
     tiff_multiply(file, frames_by_slices, channels, &product);
     images = images_present ? images : product;
@@ -206,13 +206,13 @@ int tiff_imagej(TiffFile *file, const char *text, unsigned long long pages, unsi
     {
         tiff_layout_axis(layout, 'z', slices, channels);
     }
-    if (channels > 1ull)
+    if (channels > 1ULL)
     {
-        tiff_layout_axis(layout, 'c', channels, 1ull);
+        tiff_layout_axis(layout, 'c', channels, 1ULL);
     }
-    if ((layout->leading == 0u) && (images > 1ull))
+    if ((layout->leading == 0u) && (images > 1ULL))
     {
-        tiff_layout_axis(layout, '\0', images, 1ull);
+        tiff_layout_axis(layout, '\0', images, 1ULL);
     }
     return file->reason == NULL;
 }
@@ -268,7 +268,7 @@ static int tiff_xml_unsigned(TiffFile *file, const char *tag, const char *tag_en
 {
     size_t length = 0u;
     const char *const text = tiff_xml_attribute(tag, tag_end, name, &length);
-    *value = 0ull;
+    *value = 0ULL;
     if ((text == NULL) && !required)
     {
         return file->reason == NULL;
@@ -295,14 +295,14 @@ static void tiff_ome_candidates(TiffFile *file, const char *text)
         size_t id_length = 0u;
         const char *const id = tiff_xml_attribute(pixels, tag_end, "ID", &id_length);
         const char *const names[5u] = {"SizeT", "SizeZ", "SizeC", "SizeY", "SizeX"};
-        unsigned long long sizes[5u] = {0ull, 0ull, 0ull, 0ull, 0ull};
+        unsigned long long sizes[5u] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
         for (unsigned int axis = 0u; axis < 5u; axis += 1u)
         {
             size_t length = 0u;
             const char *const value = tiff_xml_attribute(pixels, tag_end, names[axis], &length);
             if ((value == NULL) || !tiff_digits(value, length, &sizes[axis]))
             {
-                sizes[axis] = 0ull;
+                sizes[axis] = 0ULL;
             }
         }
         const char *const displayed = (id != NULL) ? id : "?";
@@ -330,11 +330,11 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     {
         return tiff_fail(file, "OME-XML that ends inside the Pixels element");
     }
-    unsigned long long extent_x = 0ull;
-    unsigned long long extent_y = 0ull;
-    unsigned long long extent_z = 0ull;
-    unsigned long long extent_c = 0ull;
-    unsigned long long extent_t = 0ull;
+    unsigned long long extent_x = 0ULL;
+    unsigned long long extent_y = 0ULL;
+    unsigned long long extent_z = 0ULL;
+    unsigned long long extent_c = 0ULL;
+    unsigned long long extent_t = 0ULL;
     tiff_xml_unsigned(file, pixels, pixels_end, "SizeX", 1u, &extent_x);
     tiff_xml_unsigned(file, pixels, pixels_end, "SizeY", 1u, &extent_y);
     tiff_xml_unsigned(file, pixels, pixels_end, "SizeZ", 1u, &extent_z);
@@ -346,7 +346,7 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     {
         return file->reason == NULL;
     }
-    if (extent_c != 1ull)
+    if (extent_c != 1ULL)
     {
         return tiff_fail_number(file, "an OME SizeC of", extent_c, "is not supported; only 1 is");
     }
@@ -354,7 +354,7 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     {
         return tiff_fail(file, "the OME SizeX and SizeY are not the page width and height");
     }
-    if ((extent_z == 0ull) || (extent_t == 0ull))
+    if ((extent_z == 0ULL) || (extent_t == 0ULL))
     {
         return tiff_fail(file, "an OME SizeZ or SizeT of 0");
     }
@@ -365,9 +365,9 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     }
     const size_t z_place = (size_t)((const char *)memchr(order, 'Z', 5u) - order);
     const size_t t_place = (size_t)((const char *)memchr(order, 'T', 5u) - order);
-    const unsigned long long z_stride = (z_place < t_place) ? 1ull : extent_t;
-    const unsigned long long t_stride = (z_place < t_place) ? extent_z : 1ull;
-    unsigned long long planes = 0ull;
+    const unsigned long long z_stride = (z_place < t_place) ? 1ULL : extent_t;
+    const unsigned long long t_stride = (z_place < t_place) ? extent_z : 1ULL;
+    unsigned long long planes = 0ULL;
     tiff_multiply(file, extent_z, extent_t, &planes);
     if ((file->reason == NULL) && pages_known && (planes != pages))
     {
@@ -384,15 +384,15 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
         {
             return tiff_fail(file, "OME-XML that ends inside a TiffData element");
         }
-        unsigned long long ifd = 0ull;
-        unsigned long long first_z = 0ull;
-        unsigned long long first_t = 0ull;
-        unsigned long long first_c = 0ull;
+        unsigned long long ifd = 0ULL;
+        unsigned long long first_z = 0ULL;
+        unsigned long long first_t = 0ULL;
+        unsigned long long first_c = 0ULL;
         tiff_xml_unsigned(file, data, data_end, "IFD", 0u, &ifd);
         tiff_xml_unsigned(file, data, data_end, "FirstZ", 0u, &first_z);
         tiff_xml_unsigned(file, data, data_end, "FirstT", 0u, &first_t);
         tiff_xml_unsigned(file, data, data_end, "FirstC", 0u, &first_c);
-        if ((file->reason == NULL) && ((first_z >= extent_z) || (first_t >= extent_t) || (first_c != 0ull) ||
+        if ((file->reason == NULL) && ((first_z >= extent_z) || (first_t >= extent_t) || (first_c != 0ULL) ||
                                        (ifd != ((first_z * z_stride) + (first_t * t_stride)))))
         {
             return tiff_fail(file, "an OME TiffData that maps planes out of DimensionOrder");

@@ -35,7 +35,7 @@ static int engine_residual_key(const EngineResidualRequest *request, unsigned in
     const long bits = engine_key_encode(program, RESIDUAL_STEPS, &key, error);
     // bits is checked non-negative before it re-signs to unsigned long
     const int imprinted = ENGINE_CHECK(bits >= 0L, program, error, ENGINE_ERROR_REQUEST) &&
-                          ENGINE_CHECK((unsigned long)bits <= (32ul * limbs), request->background_orders, error,
+                          ENGINE_CHECK((unsigned long)bits <= (32UL * limbs), request->background_orders, error,
                                        ENGINE_ERROR_REQUEST);
     if (imprinted == 0)
     {
@@ -117,7 +117,7 @@ extern "C" unsigned long long engine_residual_limbs(const EngineResidualRequest 
 {
     UnitSweepRequest sweep;
     engine_residual_sweep_of(request, &sweep);
-    return (unit_sweep_bits(&sweep) + 31ull) / 32ull;
+    return (unit_sweep_bits(&sweep) + 31ULL) / 32ULL;
 }
 
 extern "C" unsigned long long engine_residual_bytes(const EngineResidualRequest *request)
@@ -125,15 +125,15 @@ extern "C" unsigned long long engine_residual_bytes(const EngineResidualRequest 
     const unsigned long long voxels = (unsigned long long)request->depth * request->height * request->width;
     const unsigned long long limbs = (request->limbs != 0u) ? request->limbs : ENGINE_RESIDUAL_LIMBS;
     // each allocation is mapped in whole pages
-    const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ull;
+    const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ULL;
     const unsigned long long lanes = ((voxels * sizeof(unsigned short)) + page) & ~page;
     const unsigned long long residual = ((voxels * limbs * sizeof(unsigned int)) + page) & ~page;
     UnitSweepRequest sweep;
     engine_residual_sweep_of(request, &sweep);
     const int proving = (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? 1 : 0;
     const int sweep_runs = (request->unit_sweep != ENGINE_RESIDUAL_BY_KEY) ? 1 : 0;
-    return lanes + residual + ((proving != 0) ? residual : 0ull) +
-           ((sweep_runs != 0) ? unit_sweep_bytes(&sweep) : 0ull);
+    return lanes + residual + ((proving != 0) ? residual : 0ULL) +
+           ((sweep_runs != 0) ? unit_sweep_bytes(&sweep) : 0ULL);
 }
 
 extern "C" void engine_resident_release(void)
@@ -165,10 +165,10 @@ static unsigned int engine_residual_half(const unsigned int smooth_orders[ENGINE
 // the bits a comb adds on its axis, bit_length(n - 1); 0 and 1 add none
 static unsigned long long engine_residual_comb_bits(unsigned int length)
 {
-    unsigned long long bits = 0ull;
+    unsigned long long bits = 0ULL;
     for (unsigned int value = (length >= 2u) ? (length - 1u) : 0u; value != 0u; value >>= 1u)
     {
-        bits += 1ull;
+        bits += 1ULL;
     }
     return bits;
 }
@@ -218,10 +218,10 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
         return ENGINE_ERROR;
     }
     const unsigned long long plane_voxels = (unsigned long long)request->height * request->width;
-    const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFull) ? (plane_voxels * request->depth) : 0ull;
+    const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFULL) ? (plane_voxels * request->depth) : 0ULL;
     const unsigned int limbs = (request->limbs != 0u) ? request->limbs : ENGINE_RESIDUAL_LIMBS;
     const int proving = (request->unit_sweep == ENGINE_RESIDUAL_BOTH_PROVED) ? 1 : 0;
-    const int sized = ENGINE_CHECK((voxels != 0ull) && (voxels <= (0xFFFFFFFFull / ENGINE_RESIDUAL_LIMBS)),
+    const int sized = ENGINE_CHECK((voxels != 0ULL) && (voxels <= (0xFFFFFFFFULL / ENGINE_RESIDUAL_LIMBS)),
                                    &request->depth, error, ENGINE_ERROR_REQUEST) &&
                       ENGINE_CHECK(limbs <= ENGINE_RESIDUAL_LIMBS, &request->limbs, error, ENGINE_ERROR_REQUEST) &&
                       engine_residual_key(request, limbs);
@@ -245,7 +245,7 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     memset(&cycle_request, 0, sizeof(cycle_request));
     cycle_request.key = resident->key;
     cycle_request.atoms = &atom;
-    cycle_request.count = 1ull;
+    cycle_request.count = 1ULL;
     cycle_request.limbs = limbs;
     cycle_request.device_out = resident->residual;
     cycle_request.error = error;
@@ -270,26 +270,26 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
                                             ENGINE_ERROR_RESOURCE) &&
                                ENGINE_STATUS_CHECK(cudaDeviceSynchronize(), sweep_request.device_out, error)));
     const unsigned long long sweep_finished = engine_clock_microseconds();
-    unsigned long long differing_lanes = 0ull;
+    unsigned long long differing_lanes = 0ULL;
     const UnitSweepComparison comparison = {resident->residual, resident->check, voxels, limbs, &differing_lanes, error};
     steps_succeeded =
         steps_succeeded && ((proving == 0) || ENGINE_CHECK(unit_sweep_lanes_compare(&comparison) == 0L, resident->check,
                                                            error, ENGINE_ERROR_RESOURCE));
     if (steps_succeeded && (proving != 0))
     {
-        s_residual_results.proved_frames += 1ull;
-        s_residual_results.differing_frames += (differing_lanes != 0ull) ? 1ull : 0ull;
+        s_residual_results.proved_frames += 1ULL;
+        s_residual_results.differing_frames += (differing_lanes != 0ULL) ? 1ULL : 0ULL;
         s_residual_results.differing_lanes += differing_lanes;
-        steps_succeeded = ENGINE_CHECK(differing_lanes == 0ull, resident->check, error, ENGINE_ERROR_LOGIC);
+        steps_succeeded = ENGINE_CHECK(differing_lanes == 0ULL, resident->check, error, ENGINE_ERROR_LOGIC);
     }
     if (steps_succeeded == 0)
     {
         engine_residual_free();
         return ENGINE_ERROR;
     }
-    s_residual_results.frames += 1ull;
-    s_residual_results.key_microseconds += (key_runs != 0) ? (sweep_started - key_started) : 0ull;
-    s_residual_results.sweep_microseconds += (sweep_runs != 0) ? (sweep_finished - sweep_started) : 0ull;
+    s_residual_results.frames += 1ULL;
+    s_residual_results.key_microseconds += (key_runs != 0) ? (sweep_started - key_started) : 0ULL;
+    s_residual_results.sweep_microseconds += (sweep_runs != 0) ? (sweep_finished - sweep_started) : 0ULL;
     engine_residual_offset(request->smooth_orders, request->comb, request->offset_halves);
     *device_residual = resident->residual;
     return 0L;
@@ -323,26 +323,26 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     }
     *device_residual = NULL;
     *limbs = 0u;
-    unsigned long long residual_bits = (unsigned long long)request->input_bits + 1ull;
+    unsigned long long residual_bits = (unsigned long long)request->input_bits + 1ULL;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         residual_bits += (unsigned long long)request->smooth_orders[axis] + request->background_orders[axis] +
                          engine_residual_comb_bits(request->comb[axis]);
         for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
         {
-            residual_bits += 2ull * ((unsigned long long)request->smooth_spaced[axis][spacing] +
+            residual_bits += 2ULL * ((unsigned long long)request->smooth_spaced[axis][spacing] +
                                      request->background_spaced[axis][spacing]);
         }
     }
     const unsigned long long plane_voxels = (unsigned long long)request->height * request->width;
-    const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFull) ? (plane_voxels * request->depth) : 0ull;
-    const unsigned long long residual_limbs = (residual_bits + 31ull) / 32ull;
-    const unsigned long long input_limbs = ((unsigned long long)request->input_bits + 31ull) / 32ull;
+    const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFULL) ? (plane_voxels * request->depth) : 0ULL;
+    const unsigned long long residual_limbs = (residual_bits + 31ULL) / 32ULL;
+    const unsigned long long input_limbs = ((unsigned long long)request->input_bits + 31ULL) / 32ULL;
     const int valid =
         ENGINE_CHECK(request->planes != NULL, &request->planes, error, ENGINE_ERROR_REQUEST) &&
         ENGINE_CHECK(request->input_bits != 0u, &request->input_bits, error, ENGINE_ERROR_REQUEST) &&
-        ENGINE_CHECK((voxels != 0ull) && (voxels <= 0xFFFFFFFFull), &request->depth, error, ENGINE_ERROR_REQUEST) &&
-        ENGINE_CHECK(residual_limbs <= (0xFFFFFFFFull / 32ull), request->background_orders, error,
+        ENGINE_CHECK((voxels != 0ULL) && (voxels <= 0xFFFFFFFFULL), &request->depth, error, ENGINE_ERROR_REQUEST) &&
+        ENGINE_CHECK(residual_limbs <= (0xFFFFFFFFULL / 32ULL), request->background_orders, error,
                      ENGINE_ERROR_REQUEST) &&
         engine_residual_placed(request->smooth_orders, request->comb, &request->offset_halves, error);
     EngineResidualPlanesResident *const resident = &s_residual_planes_resident;
@@ -379,7 +379,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     {
         return ENGINE_ERROR;
     }
-    s_residual_results.frames += 1ull;
+    s_residual_results.frames += 1ULL;
     s_residual_results.sweep_microseconds += engine_clock_microseconds() - sweep_started;
     engine_residual_offset(request->smooth_orders, request->comb, request->offset_halves);
     *device_residual = resident->residual;
@@ -438,7 +438,7 @@ extern "C" long engine_frame_bodies(const EngineBodiesRequest *request, EngineLe
         engine_error_latch(error);
         return ENGINE_ERROR;
     }
-    s_bodies_results.frames += 1ull;
+    s_bodies_results.frames += 1ULL;
     s_bodies_results.proven += (unsigned long long)proven;
     s_bodies_results.bodies += (unsigned long long)count;
     s_bodies_results.levels += (unsigned long long)level_code;

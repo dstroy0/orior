@@ -25,12 +25,12 @@ static ExactLimbs exact_sum(const ExactLimbs &left, const ExactLimbs &right)
 {
     const size_t wider = (left.size() > right.size()) ? left.size() : right.size();
     ExactLimbs sum(wider + 1u, 0u);
-    unsigned long long carry = 0ull;
+    unsigned long long carry = 0ULL;
     for (size_t limb = 0u; limb < wider; limb += 1u)
     {
         const unsigned long long total =
             carry + ((limb < left.size()) ? left[limb] : 0u) + ((limb < right.size()) ? right[limb] : 0u);
-        sum[limb] = (unsigned int)(total & 0xFFFFFFFFull);
+        sum[limb] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
     }
     sum[wider] = (unsigned int)carry;
@@ -48,16 +48,16 @@ static unsigned long long exact_bit_length(const ExactLimbs &value)
         unsigned int top = value[limb - 1u];
         if (top != 0u)
         {
-            unsigned long long bits = (unsigned long long)(limb - 1u) * 32ull;
+            unsigned long long bits = (unsigned long long)(limb - 1u) * 32ULL;
             while (top != 0u)
             {
-                bits += 1ull;
+                bits += 1ULL;
                 top >>= 1u;
             }
             return bits;
         }
     }
-    return 0ull;
+    return 0ULL;
 }
 
 static ExactLimbs exact_less_one(ExactLimbs value)
@@ -110,13 +110,13 @@ static void encode_comb(std::vector<ExactLimbs> &row, unsigned int length)
 static void encode_spaced_pair(std::vector<ExactLimbs> &row, unsigned long long spacing)
 {
     const ExactLimbs zero(1u, 0u);
-    std::vector<ExactLimbs> paired(row.size() + (size_t)(2ull * spacing), zero);
+    std::vector<ExactLimbs> paired(row.size() + (size_t)(2ULL * spacing), zero);
     for (size_t tap = 0u; tap < row.size(); tap += 1u)
     {
         const ExactLimbs twice = exact_sum(row[tap], row[tap]);
         paired[tap] = exact_sum(paired[tap], row[tap]);
         paired[tap + (size_t)spacing] = exact_sum(paired[tap + (size_t)spacing], twice);
-        paired[tap + (size_t)(2ull * spacing)] = exact_sum(paired[tap + (size_t)(2ull * spacing)], row[tap]);
+        paired[tap + (size_t)(2ULL * spacing)] = exact_sum(paired[tap + (size_t)(2ULL * spacing)], row[tap]);
     }
     row.swap(paired);
 }
@@ -137,7 +137,7 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
 
     std::vector<EncodeTerm> running(1u);
     running[0].negative = 0u;
-    running[0].shift = 0ull;
+    running[0].shift = 0ULL;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         running[0].rows[axis].assign(1u, ExactLimbs(1u, 1u));
@@ -195,7 +195,7 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
                 {
                     for (unsigned int pair = 0u; pair < doing.orders[axis]; pair += 1u)
                     {
-                        encode_spaced_pair(term.rows[axis], 1ull << doing.shift);
+                        encode_spaced_pair(term.rows[axis], 1ULL << doing.shift);
                     }
                 }
             }
@@ -333,7 +333,7 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
         encoding.arena.terms = arena.data();
         encoding.arena.capacity = capacity;
         ok = keymath_core_record_encode(&encoding);
-        capacity *= 2ull;
+        capacity *= 2ULL;
     } while ((ok == 0) && (encoding.end == KEYMATH_CORE_FULL));
     if (ok == 0)
     {
@@ -372,7 +372,7 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
         {
             const EngineRecordTable &source = request->tables[table];
             // index_bits is at max 32, and the entry count at max 2^32, which an unsigned long long represents
-            const unsigned long long entries = 1ull << source.index_bits;
+            const unsigned long long entries = 1ULL << source.index_bits;
             const unsigned int out_limbs = (source.out_bits + 31u) / 32u;
             key->table[table].index_bits = source.index_bits;
             key->table[table].out_bits = source.out_bits;

@@ -110,7 +110,7 @@ __global__ static void unit_sweep_axis_kernel(unsigned int *planes, UnitSweepExt
     const unsigned long long line = blockIdx.x;
     const unsigned long long plane = (unsigned long long)extent.extent[1] * extent.extent[2];
     const unsigned long long stride =
-        (axis == 0u) ? plane : ((axis == 1u) ? (unsigned long long)extent.extent[2] : 1ull);
+        (axis == 0u) ? plane : ((axis == 1u) ? (unsigned long long)extent.extent[2] : 1ULL);
     const unsigned long long base =
         (axis == 0u) ? line
                      : ((axis == 1u) ? (((line / extent.extent[2]) * plane) + (line % extent.extent[2]))
@@ -137,14 +137,14 @@ __global__ static void unit_sweep_axis_kernel(unsigned int *planes, UnitSweepExt
         {
             const unsigned int left = (place == 0u) ? place : (place - 1u);
             const unsigned int right = ((place + 1u) == length) ? place : (place + 1u);
-            unsigned long long carry = 0ull;
+            unsigned long long carry = 0ULL;
             for (unsigned int limb = 0u; limb < live_limbs; limb += 1u)
             {
                 const unsigned int *const row = &front[limb * length];
                 const unsigned long long total = (unsigned long long)row[left] +
-                                                 (2ull * (unsigned long long)row[place]) +
+                                                 (2ULL * (unsigned long long)row[place]) +
                                                  (unsigned long long)row[right] + carry;
-                back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFull);
+                back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFULL);
                 carry = total >> 32u;
             }
         }
@@ -160,13 +160,13 @@ __global__ static void unit_sweep_axis_kernel(unsigned int *planes, UnitSweepExt
         for (unsigned int place = threadIdx.x; place < length; place += blockDim.x)
         {
             const unsigned int before = (place == 0u) ? place : (place - 1u);
-            unsigned long long carry = 0ull;
+            unsigned long long carry = 0ULL;
             for (unsigned int limb = 0u; limb < live_limbs; limb += 1u)
             {
                 const unsigned int *const row = &front[limb * length];
                 const unsigned long long total =
                     (unsigned long long)row[before] + (unsigned long long)row[place] + carry;
-                back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFull);
+                back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFULL);
                 carry = total >> 32u;
             }
         }
@@ -191,10 +191,10 @@ __global__ static void unit_sweep_axis_kernel(unsigned int *planes, UnitSweepExt
 // table reflects it
 __device__ static unsigned int unit_sweep_reflect(long long position, long long length)
 {
-    const long long period = 2ll * length;
+    const long long period = 2LL * length;
     long long folded = position % period;
-    folded += (folded < 0ll) ? period : 0ll;
-    folded = (folded >= length) ? (period - 1ll - folded) : folded;
+    folded += (folded < 0LL) ? period : 0LL;
+    folded = (folded >= length) ? (period - 1LL - folded) : folded;
     // folded lies in [0, length), and length is an extent of 32 bits
     return (unsigned int)folded;
 }
@@ -211,7 +211,7 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
     const unsigned long long line = blockIdx.x;
     const unsigned long long plane = (unsigned long long)extent.extent[1] * extent.extent[2];
     const unsigned long long stride =
-        (axis == 0u) ? plane : ((axis == 1u) ? (unsigned long long)extent.extent[2] : 1ull);
+        (axis == 0u) ? plane : ((axis == 1u) ? (unsigned long long)extent.extent[2] : 1ULL);
     const unsigned long long base =
         (axis == 0u) ? line
                      : ((axis == 1u) ? (((line / extent.extent[2]) * plane) + (line % extent.extent[2]))
@@ -235,7 +235,7 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
     const long long first = -(long long)(((taps - 1u) * spacing) / 2u);
     for (unsigned int place = threadIdx.x; place < length; place += blockDim.x)
     {
-        unsigned long long carry = 0ull;
+        unsigned long long carry = 0ULL;
         for (unsigned int limb = 0u; limb < live_limbs; limb += 1u)
         {
             const unsigned int *const row = &front[limb * length];
@@ -245,7 +245,7 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
                 const long long position = (long long)place + first + ((long long)tap * (long long)spacing);
                 total += (unsigned long long)row[unit_sweep_reflect(position, (long long)length)];
             }
-            back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFull);
+            back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFULL);
             carry = total >> 32u;
         }
         for (unsigned int limb = live_limbs; limb < limbs; limb += 1u)
@@ -275,7 +275,7 @@ __global__ static void unit_sweep_spaced_kernel(unsigned int *planes, UnitSweepE
     const unsigned long long line = blockIdx.x;
     const unsigned long long plane = (unsigned long long)extent.extent[1] * extent.extent[2];
     const unsigned long long stride =
-        (axis == 0u) ? plane : ((axis == 1u) ? (unsigned long long)extent.extent[2] : 1ull);
+        (axis == 0u) ? plane : ((axis == 1u) ? (unsigned long long)extent.extent[2] : 1ULL);
     const unsigned long long base =
         (axis == 0u) ? line
                      : ((axis == 1u) ? (((line / extent.extent[2]) * plane) + (line % extent.extent[2]))
@@ -302,14 +302,14 @@ __global__ static void unit_sweep_spaced_kernel(unsigned int *planes, UnitSweepE
         {
             const unsigned int left = unit_sweep_reflect((long long)place - (long long)spacing, (long long)length);
             const unsigned int right = unit_sweep_reflect((long long)place + (long long)spacing, (long long)length);
-            unsigned long long carry = 0ull;
+            unsigned long long carry = 0ULL;
             for (unsigned int limb = 0u; limb < live_limbs; limb += 1u)
             {
                 const unsigned int *const row = &front[limb * length];
                 const unsigned long long total = (unsigned long long)row[left] +
-                                                 (2ull * (unsigned long long)row[place]) +
+                                                 (2ULL * (unsigned long long)row[place]) +
                                                  (unsigned long long)row[right] + carry;
-                back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFull);
+                back[(limb * length) + place] = (unsigned int)(total & 0xFFFFFFFFULL);
                 carry = total >> 32u;
             }
         }
@@ -342,7 +342,7 @@ __global__ static void unit_sweep_residual_kernel(const unsigned int *narrow_pla
     }
     const unsigned int gain_limbs = gain / 32u;
     const unsigned int gain_bits = gain % 32u;
-    unsigned long long borrow = 0ull;
+    unsigned long long borrow = 0ULL;
     for (unsigned int limb = 0u; limb < limbs; limb += 1u)
     {
         unsigned int shifted_limb = 0u;
@@ -361,9 +361,9 @@ __global__ static void unit_sweep_residual_kernel(const unsigned int *narrow_pla
         const unsigned int wide_limb =
             (limb < wide_limbs) ? wide_planes[((unsigned long long)limb * voxels) + voxel] : 0u;
         const unsigned long long difference =
-            (1ull << 32u) + (unsigned long long)shifted_limb - (unsigned long long)wide_limb - borrow;
-        residual_lanes[(voxel * limbs) + limb] = (unsigned int)(difference & 0xFFFFFFFFull);
-        borrow = (difference < (1ull << 32u)) ? 1ull : 0ull;
+            (1ULL << 32u) + (unsigned long long)shifted_limb - (unsigned long long)wide_limb - borrow;
+        residual_lanes[(voxel * limbs) + limb] = (unsigned int)(difference & 0xFFFFFFFFULL);
+        borrow = (difference < (1ULL << 32u)) ? 1ULL : 0ULL;
     }
 }
 
@@ -383,7 +383,7 @@ __global__ static void unit_sweep_compare_kernel(const unsigned int *left, const
     }
     if (difference_bits != 0u)
     {
-        atomicAdd(disagreements, 1ull);
+        atomicAdd(disagreements, 1ULL);
     }
 }
 
@@ -441,7 +441,7 @@ static int unit_sweep_combs(unsigned int *planes, const UnitSweepExtent *extent,
         }
         const unsigned long long lines = extent->voxels / extent->extent[axis];
         const size_t shared_bytes = 2u * (size_t)extent->extent[axis] * limbs * sizeof(unsigned int);
-        ok = UNIT_SWEEP_CHECK(lines <= 0x7FFFFFFFull, &extent->extent[axis], error, ENGINE_ERROR_REQUEST) &&
+        ok = UNIT_SWEEP_CHECK(lines <= 0x7FFFFFFFULL, &extent->extent[axis], error, ENGINE_ERROR_REQUEST) &&
              UNIT_SWEEP_CHECK(shared_bytes <= UNIT_SWEEP_SHARED_BYTES_MAX, &extent->extent[axis], error,
                               ENGINE_ERROR_REQUEST);
         if (ok != 0)
@@ -475,7 +475,7 @@ static int unit_sweep_axes(unsigned int *planes, const UnitSweepExtent *extent, 
         }
         const unsigned long long lines = extent->voxels / extent->extent[axis];
         const size_t shared_bytes = 2u * (size_t)extent->extent[axis] * limbs * sizeof(unsigned int);
-        ok = UNIT_SWEEP_CHECK(lines <= 0x7FFFFFFFull, &extent->extent[axis], error, ENGINE_ERROR_REQUEST) &&
+        ok = UNIT_SWEEP_CHECK(lines <= 0x7FFFFFFFULL, &extent->extent[axis], error, ENGINE_ERROR_REQUEST) &&
              UNIT_SWEEP_CHECK(shared_bytes <= UNIT_SWEEP_SHARED_BYTES_MAX, &extent->extent[axis], error,
                               ENGINE_ERROR_REQUEST);
         if (ok != 0)
@@ -509,7 +509,7 @@ static int unit_sweep_spaced(unsigned int *planes, const UnitSweepExtent *extent
             }
             const unsigned long long lines = extent->voxels / extent->extent[axis];
             const size_t shared_bytes = 2u * (size_t)extent->extent[axis] * limbs * sizeof(unsigned int);
-            ok = UNIT_SWEEP_CHECK(lines <= 0x7FFFFFFFull, &extent->extent[axis], error, ENGINE_ERROR_REQUEST) &&
+            ok = UNIT_SWEEP_CHECK(lines <= 0x7FFFFFFFULL, &extent->extent[axis], error, ENGINE_ERROR_REQUEST) &&
                  UNIT_SWEEP_CHECK(shared_bytes <= UNIT_SWEEP_SHARED_BYTES_MAX, &extent->extent[axis], error,
                                   ENGINE_ERROR_REQUEST);
             if (ok != 0)
@@ -552,14 +552,14 @@ static int unit_sweep_planes_load(const UnitSweepRequest *request, const UnitSwe
 
 extern "C" unsigned long long unit_sweep_bits(const UnitSweepRequest *request)
 {
-    unsigned long long bits = ((request->device_planes != NULL) ? request->input_bits : UNIT_SWEEP_INPUT_BITS) + 1ull;
+    unsigned long long bits = ((request->device_planes != NULL) ? request->input_bits : UNIT_SWEEP_INPUT_BITS) + 1ULL;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         bits += (unsigned long long)request->smooth_orders[axis] + request->background_orders[axis] +
                 unit_sweep_comb_growth(request->comb[axis]);
         for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
         {
-            bits += 2ull * ((unsigned long long)request->smooth_spaced[axis][spacing] +
+            bits += 2ULL * ((unsigned long long)request->smooth_spaced[axis][spacing] +
                             request->background_spaced[axis][spacing]);
         }
     }
@@ -575,15 +575,15 @@ extern "C" unsigned long long unit_sweep_bytes(const UnitSweepRequest *request)
         narrow_bits += (unsigned long long)request->smooth_orders[axis] + unit_sweep_comb_growth(request->comb[axis]);
         for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
         {
-            narrow_bits += 2ull * request->smooth_spaced[axis][spacing];
+            narrow_bits += 2ULL * request->smooth_spaced[axis][spacing];
         }
     }
-    const unsigned long long wide_bits = unit_sweep_bits(request) - 1ull;
-    const unsigned long long narrow = voxels * ((narrow_bits + 31ull) / 32ull) * sizeof(unsigned int);
-    const unsigned long long wide = voxels * ((wide_bits + 31ull) / 32ull) * sizeof(unsigned int);
+    const unsigned long long wide_bits = unit_sweep_bits(request) - 1ULL;
+    const unsigned long long narrow = voxels * ((narrow_bits + 31ULL) / 32ULL) * sizeof(unsigned int);
+    const unsigned long long wide = voxels * ((wide_bits + 31ULL) / 32ULL) * sizeof(unsigned int);
     // each allocation is mapped in whole pages: the two planes, and a page for each counter
-    const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ull;
-    return ((narrow + page) & ~page) + ((wide + page) & ~page) + (2ull * DEVICE_POOL_PAGE_BYTES);
+    const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ULL;
+    return ((narrow + page) & ~page) + ((wide + page) & ~page) + (2ULL * DEVICE_POOL_PAGE_BYTES);
 }
 
 extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
@@ -608,17 +608,17 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     }
     const unsigned int input_bits = (planes_given != 0) ? request->input_bits : UNIT_SWEEP_INPUT_BITS;
     // the spaced pairs' bits, 2 a pair: both terms take the smooth's, and the background's term its own as well
-    unsigned long long smooth_spaced_bits = 0ull;
-    unsigned long long background_spaced_bits = 0ull;
+    unsigned long long smooth_spaced_bits = 0ULL;
+    unsigned long long background_spaced_bits = 0ULL;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
         {
-            smooth_spaced_bits += 2ull * request->smooth_spaced[axis][spacing];
-            background_spaced_bits += 2ull * request->background_spaced[axis][spacing];
+            smooth_spaced_bits += 2ULL * request->smooth_spaced[axis][spacing];
+            background_spaced_bits += 2ULL * request->background_spaced[axis][spacing];
         }
     }
-    if (!UNIT_SWEEP_CHECK((smooth_spaced_bits + background_spaced_bits) <= (32ull * request->limbs),
+    if (!UNIT_SWEEP_CHECK((smooth_spaced_bits + background_spaced_bits) <= (32ULL * request->limbs),
                           request->smooth_spaced, error, ENGINE_ERROR_REQUEST))
     {
         return UNIT_SWEEP_ERROR;
@@ -727,7 +727,7 @@ extern "C" long unit_sweep_lanes_compare(const UnitSweepComparison *comparison)
                                      &buffers->disagreements, error);
     ok = ok && UNIT_SWEEP_STATUS_CHECK(cudaMemset(buffers->disagreements, 0, sizeof(unsigned long long)),
                                        buffers->disagreements, error);
-    if ((ok != 0) && (comparison->lanes != 0ull))
+    if ((ok != 0) && (comparison->lanes != 0ULL))
     {
         // the lanes are voxels, bounded below 2^32 by the caller: the block count fits unsigned int
         unit_sweep_compare_kernel<<<(unsigned int)((comparison->lanes + UNIT_SWEEP_THREADS - 1u) / UNIT_SWEEP_THREADS),

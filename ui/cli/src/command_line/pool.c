@@ -89,11 +89,11 @@ static _Thread_local embed_u32 t_pool_place_plus_one;
 static embed_u32 pool_place_popped(void)
 {
     embed_u64 head = embed_atomic_u64_load(&s_pool_place_free);
-    while ((head & 0xffffffffull) != 0ull)
+    while ((head & 0xffffffffULL) != 0ULL)
     {
-        const embed_u32 top = (embed_u32)(head & 0xffffffffull);
+        const embed_u32 top = (embed_u32)(head & 0xffffffffULL);
         const embed_u32 next = embed_atomic_u32_load(&s_pool_place_next[top - 1u]);
-        const embed_u64 after = (((head >> 32u) + 1ull) << 32u) | (embed_u64)next;
+        const embed_u64 after = (((head >> 32u) + 1ULL) << 32u) | (embed_u64)next;
         if (embed_atomic_u64_swap_if(&s_pool_place_free, &head, after))
         {
             return top;
@@ -126,8 +126,8 @@ void cli_thread_place_released(void)
     embed_u64 head = embed_atomic_u64_load(&s_pool_place_free);
     for (;;)
     {
-        embed_atomic_u32_store(&s_pool_place_next[plus_one - 1u], (embed_u32)(head & 0xffffffffull));
-        const embed_u64 after = (((head >> 32u) + 1ull) << 32u) | (embed_u64)plus_one;
+        embed_atomic_u32_store(&s_pool_place_next[plus_one - 1u], (embed_u32)(head & 0xffffffffULL));
+        const embed_u64 after = (((head >> 32u) + 1ULL) << 32u) | (embed_u64)plus_one;
         if (embed_atomic_u64_swap_if(&s_pool_place_free, &head, after))
         {
             return;
@@ -391,7 +391,7 @@ static int grown_flush(void *context, const char *bytes, size_t size)
 
 // the bytes a grown line begins with: a cell of this size stays on its thread's stack, and the flush doubles it toward
 // its max as the text asks
-#define POOL_GROWN_FIRST (64ull << 10u)
+#define POOL_GROWN_FIRST (64ULL << 10u)
 
 void cli_grown_begin(CliGrownLine *grown, unsigned long long max, const CellOwner *owner)
 {
@@ -430,8 +430,8 @@ void cli_grown_end(CliGrownLine *grown)
 }
 
 // the bytes of a page, and the least an idle span holds in whole pages before its pages go back
-#define POOL_PAGE_BYTES 4096ull
-#define POOL_IDLE_RELEASED (64ull << 10u)
+#define POOL_PAGE_BYTES 4096ULL
+#define POOL_IDLE_RELEASED (64ULL << 10u)
 
 // one idle span of the cellblock cut to the whole pages inside it, those given back where they hold
 // POOL_IDLE_RELEASED bytes or more
@@ -440,8 +440,8 @@ static void pool_idle_each(void *context, void *at, size_t bytes)
     (void)context;
     // Explicit casts read the span's bounds as integers for the page arithmetic, and the first page back as its address
     const unsigned long long first =
-        ((unsigned long long)(uintptr_t)at + POOL_PAGE_BYTES - 1ull) & ~(POOL_PAGE_BYTES - 1ull);
-    const unsigned long long end = ((unsigned long long)(uintptr_t)at + bytes) & ~(POOL_PAGE_BYTES - 1ull);
+        ((unsigned long long)(uintptr_t)at + POOL_PAGE_BYTES - 1ULL) & ~(POOL_PAGE_BYTES - 1ULL);
+    const unsigned long long end = ((unsigned long long)(uintptr_t)at + bytes) & ~(POOL_PAGE_BYTES - 1ULL);
     if ((end > first) && ((end - first) >= POOL_IDLE_RELEASED))
     {
         cli_pages_released((void *)(uintptr_t)first, end - first);

@@ -37,7 +37,7 @@ typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
 // the max bytes of content a request impero makes carries, and how long a kernel's readers are waited for as it is
 // let go, in milliseconds
 #define CLI_KERNEL_CONTENT (1u << 20u)
-#define CLI_KERNEL_READERS_WAIT 5000ull
+#define CLI_KERNEL_READERS_WAIT 5000ULL
 
 // the readers a kernel has: what it publishes, its replies on the shell and the control sockets, and the lines its
 // process writes to its output and its errors

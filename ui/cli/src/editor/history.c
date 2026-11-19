@@ -100,7 +100,7 @@ EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
     const int same =
         (snapshot_bytes != NULL) && (read == size) &&
         (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = args->text, .bytes = (embed_word)size}) == 0);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)snapshot_bytes, (g_cli_editor_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)snapshot_bytes, g_cli_editor_owner);
     return same;
 }
 

@@ -22,28 +22,28 @@
 
 #include "../../../../../cu/engine/analysis/tower/tower.h"
 
-#define TRACK_KEY 0x545241434Bull
+#define TRACK_KEY 0x545241434BULL
 
-#define TRACK_CONTROL_PURPOSE 0x434F4E54ull
+#define TRACK_CONTROL_PURPOSE 0x434F4E54ULL
 
-#define TRACK_FOUNDER_PURPOSE 0x464F554Eull
+#define TRACK_FOUNDER_PURPOSE 0x464F554EULL
 
-#define TRACK_SIDE 64ull
+#define TRACK_SIDE 64ULL
 
 #define TRACK_FLOOR 2u
 
 #define TRACK_FLOOR_SIDE (TRACK_SIDE >> TRACK_FLOOR)
 
 // a floor-2 cell covers this many samples along each axis
-#define TRACK_CELL (1ll << TRACK_FLOOR)
+#define TRACK_CELL (1LL << TRACK_FLOOR)
 
 // a floor-2 value reads the samples within 6 of its center: two levels of the 5/3 lowpass, 2 + 2 * 2
-#define TRACK_SUPPORT 6ll
+#define TRACK_SUPPORT 6LL
 
 // the patch centers whose 27 cells, along one axis, every lifting formula takes in its interior form
-#define TRACK_CLEAR_FIRST 3ll
+#define TRACK_CLEAR_FIRST 3LL
 
-#define TRACK_CLEAR_LAST 13ll
+#define TRACK_CLEAR_LAST 13LL
 
 #define TRACK_SAMPLES (TRACK_SIDE * TRACK_SIDE * TRACK_SIDE)
 
@@ -51,7 +51,7 @@
 
 #define TRACK_BITS 16u
 
-#define TRACK_WORD_BITS 32ull
+#define TRACK_WORD_BITS 32ULL
 
 #define TRACK_WORDS (TRACK_FLOOR_VALUES / TRACK_WORD_BITS)
 
@@ -63,9 +63,9 @@
 
 #define TRACK_DELTAS 6u
 
-#define TRACK_CONTROL_FRAMES 3ull
+#define TRACK_CONTROL_FRAMES 3ULL
 
-#define TRACK_CAMERA_FRAMES 9ull
+#define TRACK_CAMERA_FRAMES 9ULL
 
 #define TRACK_FRAMES_MAX TRACK_CAMERA_FRAMES
 
@@ -79,17 +79,17 @@
 // reach toward each other is 13 + 3
 #define TRACK_SPARSE_BODIES 3u
 
-#define TRACK_SPARSE_FIRST_Z 10ll
+#define TRACK_SPARSE_FIRST_Z 10LL
 
-#define TRACK_SPARSE_Z_STEP 22ll
+#define TRACK_SPARSE_Z_STEP 22LL
 
-#define TRACK_QUERIES_MAX (TRACK_BODIES_MAX * (TRACK_FRAMES_MAX - 1ull) * TRACK_PATCHES * TRACK_DELTAS)
+#define TRACK_QUERIES_MAX (TRACK_BODIES_MAX * (TRACK_FRAMES_MAX - 1ULL) * TRACK_PATCHES * TRACK_DELTAS)
 
-#define TRACK_THREADS 256ull
+#define TRACK_THREADS 256ULL
 
-static_assert(TRACK_WORDS <= 1024ull, "one block handles a query, one thread a word");
+static_assert(TRACK_WORDS <= 1024ULL, "one block handles a query, one thread a word");
 
-static_assert((TRACK_FLOOR_VALUES % TRACK_THREADS) == 0ull, "the plane kernel's blocks are whole warps");
+static_assert((TRACK_FLOOR_VALUES % TRACK_THREADS) == 0ULL, "the plane kernel's blocks are whole warps");
 
 // one query: the frame searched, and each patch cell's step from the center and its range of values
 typedef struct
@@ -159,10 +159,10 @@ typedef struct
 // what the sim puts on the device at once: the longest scene's frames, the tower's two retained coefficient arrays,
 // floor 2 and its planes for every frame, the queries, and each query's candidate word and reads for every word
 #define TRACK_DECLARED                                                                                                 \
-    ((TRACK_FRAMES_MAX * TRACK_SAMPLES * sizeof(unsigned short)) + (2ull * TRACK_SAMPLES * sizeof(int)) +              \
+    ((TRACK_FRAMES_MAX * TRACK_SAMPLES * sizeof(unsigned short)) + (2ULL * TRACK_SAMPLES * sizeof(int)) +              \
      (TRACK_FRAMES_MAX * TRACK_FLOOR_VALUES * sizeof(unsigned short)) +                                                \
      (TRACK_FRAMES_MAX * TRACK_BITS * TRACK_WORDS * sizeof(unsigned int)) + (TRACK_QUERIES_MAX * sizeof(TrackQuery)) + \
-     (2ull * TRACK_QUERIES_MAX * TRACK_WORDS * sizeof(unsigned int)))
+     (2ULL * TRACK_QUERIES_MAX * TRACK_WORDS * sizeof(unsigned int)))
 
 void track_floor_host(const unsigned short *lanes, long long *work, long long *before, long long *floor_values);
 

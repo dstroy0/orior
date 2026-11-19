@@ -212,7 +212,7 @@ EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (embed_word)size});
         text[size] = '\0';
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_trust_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_trust_owner);
     return text;
 }
 
@@ -429,7 +429,7 @@ int cli_trust_block(const CliTrustTreeWordsCfg *args)
         !EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code) ||
         (code.count != 0u);
     g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
-    *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
+    code = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
 
@@ -452,7 +452,7 @@ int cli_trust_prettier_block(const CliTrustTreeWordsCfg *args)
         path += length + 1u;
     }
     g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
-    *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
+    code = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
 

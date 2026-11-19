@@ -524,7 +524,7 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
                                   .by = library->name);
                 queued += room ? 1u : 0u;
             }
-            g_cli_guard->persistent_buf_release((void *)(embed_word)more, (g_cli_programs_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)more, g_cli_programs_owner);
         }
         next += 1u;
     }
@@ -581,6 +581,6 @@ int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, " is no program impero reads");
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_programs_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_programs_owner);
     return read;
 }

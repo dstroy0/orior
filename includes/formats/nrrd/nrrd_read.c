@@ -12,24 +12,24 @@ static const char *const nrrd_ignored[] = {
 static const NrrdFields nrrd_empty_fields = {0u,         0u,
                                              0u,         ENGINE_ELEMENT_UNSIGNED,
                                              NRRD_UNSET, NRRD_ENCODING_UNSET,
-                                             0u,         {0ull},
+                                             0u,         {0ULL},
                                              0u,         {NRRD_KIND_OTHER},
                                              0u,         {0u},
                                              0u,         0u,
-                                             0ull,       0ull,
-                                             0u,         {NULL, 0ull},
-                                             0u,         0ull};
+                                             0ULL,       0ULL,
+                                             0u,         {NULL, 0ULL},
+                                             0u,         0ULL};
 
 static const NrrdLayout nrrd_empty_layout = {
-    {0u, {0ull}, {'\0'}, 0u, ENGINE_ELEMENT_UNSIGNED}, 0u, 0u, NULL, 0ull, 0ull, 0ull, 0ull};
+    {0u, {0ULL}, {'\0'}, 0u, ENGINE_ELEMENT_UNSIGNED}, 0u, 0u, NULL, 0ULL, 0ULL, 0ULL, 0ULL};
 
 static unsigned int nrrd_data_file(NrrdSpan value, NrrdFields *fields)
 {
     NrrdSpan rest = value;
-    NrrdSpan token = {NULL, 0ull};
+    NrrdSpan token = {NULL, 0ULL};
     const int listed = nrrd_token(&rest, &token) && nrrd_equals(token, "LIST");
     const int formatted = (memchr(value.text, '%', (size_t)value.length) != NULL);
-    if ((value.length == 0ull) || listed || formatted)
+    if ((value.length == 0ULL) || listed || formatted)
     {
         fprintf(stderr, "nrrd: a multi-file data file errors\n");
         return 0u;
@@ -46,17 +46,17 @@ static unsigned int nrrd_field(NrrdSpan line, NrrdFields *fields)
         return 0u;
     }
     const unsigned long long key_length = (unsigned long long)(colon - line.text);
-    if (((key_length + 1ull) < line.length) && (colon[1u] == '='))
+    if (((key_length + 1ULL) < line.length) && (colon[1u] == '='))
     {
         return 1u;
     }
     const NrrdSpan key = {line.text, key_length};
-    const NrrdSpan raw_value = {colon + 1u, line.length - key_length - 1ull};
+    const NrrdSpan raw_value = {colon + 1u, line.length - key_length - 1ULL};
     const NrrdSpan value = nrrd_trim(raw_value);
-    unsigned long long number = 0ull;
+    unsigned long long number = 0ULL;
     if (nrrd_equals(key, "dimension"))
     {
-        const int ok = (fields->dimension == 0u) && nrrd_single(value, &number) && (number >= 1ull) &&
+        const int ok = (fields->dimension == 0u) && nrrd_single(value, &number) && (number >= 1ULL) &&
                        (number <= ENGINE_ARRAY_RANK);
         fields->dimension = ok ? (unsigned int)number : 0u;
         return ok ? 1u : 0u;
@@ -92,7 +92,7 @@ static unsigned int nrrd_field(NrrdSpan line, NrrdFields *fields)
     }
     if (nrrd_equals(key, "space dimension"))
     {
-        fields->spaced = (nrrd_single(value, &number) && (number >= 1ull)) ? 1u : 0u;
+        fields->spaced = (nrrd_single(value, &number) && (number >= 1ULL)) ? 1u : 0u;
         return fields->spaced;
     }
     if (nrrd_equals(key, "line skip") || nrrd_equals(key, "lineskip"))
@@ -119,32 +119,32 @@ static unsigned int nrrd_field(NrrdSpan line, NrrdFields *fields)
 static unsigned int nrrd_fields(const char *header, unsigned long long length, unsigned int complete,
                                 NrrdFields *fields)
 {
-    unsigned long long at = 0ull;
-    unsigned long long line_number = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long line_number = 0ULL;
     while (at < length)
     {
         unsigned long long stop = at;
         while ((stop < length) && (header[stop] != '\n'))
         {
-            stop += 1ull;
+            stop += 1ULL;
         }
         if ((stop == length) && !complete)
         {
             return 0u;
         }
-        const unsigned long long next = (stop < length) ? (stop + 1ull) : stop;
-        const unsigned long long line_end = ((stop > at) && (header[stop - 1ull] == '\r')) ? (stop - 1ull) : stop;
+        const unsigned long long next = (stop < length) ? (stop + 1ULL) : stop;
+        const unsigned long long line_end = ((stop > at) && (header[stop - 1ULL] == '\r')) ? (stop - 1ULL) : stop;
         const NrrdSpan line = {header + at, line_end - at};
-        if (line_number == 0ull)
+        if (line_number == 0ULL)
         {
-            const int magic = (line.length == 8ull) && (memcmp(line.text, "NRRD000", 7u) == 0) &&
+            const int magic = (line.length == 8ULL) && (memcmp(line.text, "NRRD000", 7u) == 0) &&
                               (line.text[7u] >= '1') && (line.text[7u] <= '5');
             if (!magic)
             {
                 return 0u;
             }
         }
-        else if (line.length == 0ull)
+        else if (line.length == 0ULL)
         {
             fields->ended = 1u;
             fields->header_end = next;
@@ -154,10 +154,10 @@ static unsigned int nrrd_fields(const char *header, unsigned long long length, u
         {
             return 0u;
         }
-        line_number += 1ull;
+        line_number += 1ULL;
         at = next;
     }
-    return (line_number > 0ull) ? 1u : 0u;
+    return (line_number > 0ULL) ? 1u : 0u;
 }
 
 static unsigned int nrrd_extent(const NrrdFields *fields, EngineArrayExtent *extent)
@@ -205,7 +205,7 @@ static unsigned int nrrd_extent(const NrrdFields *fields, EngineArrayExtent *ext
 static char *nrrd_join(const char *header_path, NrrdSpan name)
 {
     const int absolute =
-        (name.text[0u] == '/') || (name.text[0u] == '\\') || ((name.length > 1ull) && (name.text[1u] == ':'));
+        (name.text[0u] == '/') || (name.text[0u] == '\\') || ((name.length > 1ULL) && (name.text[1u] == ':'));
     size_t directory_length = 0u;
     for (size_t at = 0u; !absolute && (header_path[at] != '\0'); at += 1u)
     {
@@ -228,7 +228,7 @@ static unsigned int nrrd_skip_lines(const EngineIngestTools *tools, const char *
     unsigned char chunk[NRRD_SKIP_CHUNK];
     unsigned long long at = *position;
     unsigned long long remaining = lines;
-    while (remaining > 0ull)
+    while (remaining > 0ULL)
     {
         if (at >= file_bytes)
         {
@@ -239,11 +239,11 @@ static unsigned int nrrd_skip_lines(const EngineIngestTools *tools, const char *
         {
             return 0u;
         }
-        unsigned long long used = 0ull;
-        while ((used < want) && (remaining > 0ull))
+        unsigned long long used = 0ULL;
+        while ((used < want) && (remaining > 0ULL))
         {
-            remaining -= (chunk[used] == '\n') ? 1ull : 0ull;
-            used += 1ull;
+            remaining -= (chunk[used] == '\n') ? 1ULL : 0ULL;
+            used += 1ULL;
         }
         at += used;
     }
@@ -281,8 +281,8 @@ static unsigned int nrrd_locate(const EngineIngestTools *tools, const NrrdFields
     const int framed = (tools->decode[ENGINE_CODEC_GZIP] != NULL) && !fields->skip_to_end &&
                        (fields->byte_skip <= NRRD_BYTES_LIMIT - layout->data_bytes) &&
                        ((file_bytes - base) >= NRRD_GZIP_SMALLEST) &&
-                       nrrd_fetch(tools, data_path, base, 2ull, opening) &&
-                       nrrd_fetch(tools, data_path, file_bytes - 4ull, 4ull, trailer) && (opening[0u] == 0x1Fu) &&
+                       nrrd_fetch(tools, data_path, base, 2ULL, opening) &&
+                       nrrd_fetch(tools, data_path, file_bytes - 4ULL, 4ULL, trailer) && (opening[0u] == 0x1Fu) &&
                        (opening[1u] == 0x8Bu);
     if (!framed)
     {
@@ -294,7 +294,7 @@ static unsigned int nrrd_locate(const EngineIngestTools *tools, const NrrdFields
     layout->data_offset = base;
     layout->byte_skip = fields->byte_skip;
     layout->gzip = 1u;
-    return (recorded == (expected & 0xFFFFFFFFull)) ? 1u : 0u;
+    return (recorded == (expected & 0xFFFFFFFFULL)) ? 1u : 0u;
 }
 
 static unsigned int nrrd_layout(const char *path, const char *member, const EngineIngestTools *tools,
@@ -315,7 +315,7 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
     NrrdLayout built = nrrd_empty_layout;
     int parsed = 0;
     char *header = NULL;
-    unsigned long long header_bytes = 1ull;
+    unsigned long long header_bytes = 1ULL;
     for (;;)
     {
         header_bytes = (header_bytes < file_bytes) ? header_bytes : file_bytes;
@@ -327,14 +327,14 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
         }
         fields = nrrd_empty_fields;
         built = nrrd_empty_layout;
-        parsed = nrrd_fetch(tools, path, 0ull, header_bytes, (unsigned char *)header) &&
+        parsed = nrrd_fetch(tools, path, 0ULL, header_bytes, (unsigned char *)header) &&
                  nrrd_fields(header, header_bytes, (header_bytes == file_bytes) ? 1u : 0u, &fields) &&
-                 nrrd_extent(&fields, &built.extent) && ((fields.data_file.length != 0ull) || (fields.ended != 0u));
+                 nrrd_extent(&fields, &built.extent) && ((fields.data_file.length != 0ULL) || (fields.ended != 0u));
         if (parsed || (header_bytes == file_bytes))
         {
             break;
         }
-        header_bytes *= 2ull;
+        header_bytes *= 2ULL;
     }
     built.data_bytes = built.extent.element_bytes;
     int ok = parsed;
@@ -342,14 +342,14 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
     {
         ok = nrrd_multiply(built.data_bytes, built.extent.sizes[axis], &built.data_bytes);
     }
-    if (ok && (fields.data_file.length != 0ull))
+    if (ok && (fields.data_file.length != 0ULL))
     {
         built.data_path = nrrd_join(path, fields.data_file);
         ok = (built.data_path != NULL);
     }
     free(header);
     const char *const data_path = (built.data_path != NULL) ? built.data_path : path;
-    const unsigned long long start = (built.data_path != NULL) ? 0ull : fields.header_end;
+    const unsigned long long start = (built.data_path != NULL) ? 0ULL : fields.header_end;
     ok = ok && nrrd_locate(tools, &fields, data_path, start, &built);
     if (!ok)
     {
@@ -378,7 +378,7 @@ static unsigned int nrrd_inflate(const EngineIngestTools *tools, const char *dat
     const EngineBytesDecode decode = tools->decode[ENGINE_CODEC_GZIP];
     const unsigned long long compressed = layout->file_bytes - layout->data_offset;
     const unsigned long long expected = layout->byte_skip + layout->data_bytes;
-    if ((decode == NULL) || !nrrd_fits_memory(compressed) || !nrrd_fits_memory(expected) || (expected == 0ull))
+    if ((decode == NULL) || !nrrd_fits_memory(compressed) || !nrrd_fits_memory(expected) || (expected == 0ULL))
     {
         return 0u;
     }
@@ -423,8 +423,8 @@ long long nrrd_read(const EngineArrayRead *request)
     const unsigned long long row_bytes = layout.data_bytes / layout.extent.sizes[0u];
     const int agrees = nrrd_same_extent(&layout.extent, request->extent) && (request->first <= request->end) &&
                        (request->end <= layout.extent.sizes[0u]);
-    const unsigned long long offset = agrees ? (request->first * row_bytes) : 0ull;
-    const unsigned long long wanted = agrees ? ((request->end - request->first) * row_bytes) : 0ull;
+    const unsigned long long offset = agrees ? (request->first * row_bytes) : 0ULL;
+    const unsigned long long wanted = agrees ? ((request->end - request->first) * row_bytes) : 0ULL;
     if (!agrees || (wanted > request->out_capacity) || !nrrd_fits_memory(wanted))
     {
         free(layout.data_path);
@@ -432,7 +432,7 @@ long long nrrd_read(const EngineArrayRead *request)
     }
     const char *const data_path = (layout.data_path != NULL) ? layout.data_path : request->path;
     const unsigned int copied =
-        (wanted == 0ull) ? 1u
+        (wanted == 0ULL) ? 1u
         : (layout.gzip != 0u)
             ? nrrd_inflate(request->tools, data_path, &layout, offset, wanted, request->out)
             : nrrd_fetch(request->tools, data_path, layout.data_offset + offset, wanted, request->out);

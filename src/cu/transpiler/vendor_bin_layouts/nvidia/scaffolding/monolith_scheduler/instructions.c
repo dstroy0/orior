@@ -14,7 +14,7 @@ unsigned int s_cubins;
 
 unsigned long long scheduler_word(const unsigned char *bytes, unsigned int width)
 {
-    unsigned long long word = 0ull;
+    unsigned long long word = 0ULL;
     for (unsigned int at = 0u; at < width; at += 1u)
     {
         word |= (unsigned long long)bytes[at] << (8u * at);
@@ -25,7 +25,7 @@ unsigned long long scheduler_word(const unsigned char *bytes, unsigned int width
 // the scheduler's field beginning at `first`, `bits` wide, of the high word `high`
 static unsigned int scheduler_field(unsigned long long high, unsigned int first, unsigned int bits)
 {
-    return (unsigned int)((high >> (first - 64u)) & ((1ull << bits) - 1ull));
+    return (unsigned int)((high >> (first - 64u)) & ((1ULL << bits) - 1ULL));
 }
 
 // the operation named `name`, stored in s_operation where it is not yet: its number, or SCHEDULER_OPERATIONS where the
@@ -143,22 +143,22 @@ void scheduler_instruction(const unsigned char *bytes, unsigned long long addres
     }
     else
     {
-        snprintf(name, sizeof(name), "no form, key 0x%03llx", low & 0xfffull);
-        s_unread += 1ull;
+        snprintf(name, sizeof(name), "no form, key 0x%03llx", low & 0xfffULL);
+        s_unread += 1ULL;
     }
-    s_instructions += 1ull;
+    s_instructions += 1ULL;
     instruction->operation = scheduler_operation(name);
     if (instruction->operation == SCHEDULER_OPERATIONS)
     {
         return;
     }
     SchedulerOperation *const operation = &s_operation[instruction->operation];
-    operation->count += 1ull;
-    operation->stalls[instruction->stall] += 1ull;
+    operation->count += 1ULL;
+    operation->stalls[instruction->stall] += 1ULL;
     operation->yields += (unsigned long long)scheduler_field(high, SASS_YIELD_FIRST, 1u);
-    operation->write_barriers += (instruction->write_barrier != SASS_BARRIER_NONE) ? 1ull : 0ull;
-    operation->read_barriers += (instruction->read_barrier != SASS_BARRIER_NONE) ? 1ull : 0ull;
-    operation->waits += (instruction->wait != 0u) ? 1ull : 0ull;
+    operation->write_barriers += (instruction->write_barrier != SASS_BARRIER_NONE) ? 1ULL : 0ULL;
+    operation->read_barriers += (instruction->read_barrier != SASS_BARRIER_NONE) ? 1ULL : 0ULL;
+    operation->waits += (instruction->wait != 0u) ? 1ULL : 0ULL;
     if (!read)
     {
         return;
@@ -166,9 +166,9 @@ void scheduler_instruction(const unsigned char *bytes, unsigned long long addres
     const SassForm *const form = sass_machine_form(&s_machine, &parts);
     if (form != NULL)
     {
-        operation->machine_formed += 1ull;
-        operation->machine_barriers += sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST) ? 1ull : 0ull;
-        operation->machine_read_barriers += sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST) ? 1ull : 0ull;
+        operation->machine_formed += 1ULL;
+        operation->machine_barriers += sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST) ? 1ULL : 0ULL;
+        operation->machine_read_barriers += sass_barrier_set(form->high, SASS_READ_BARRIER_FIRST) ? 1ULL : 0ULL;
     }
     instruction->control = (unsigned int)scheduler_control(parts.operation);
     // the outputs lead: any predicates first, then the register written, where the operation writes one. A compare or

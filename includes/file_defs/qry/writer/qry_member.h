@@ -11,7 +11,7 @@
 
 // the bytes of a member's ring, a power of two: a record takes at max half of it. And the members a run allocates a
 // ring for at max, its region positioned with fewer where its request is smaller
-#define QRY_WRITER_RING_BYTES (64ull << 20u)
+#define QRY_WRITER_RING_BYTES (64ULL << 20u)
 #define QRY_WRITER_MEMBERS QRY_WRITER_MEMBERS_MAX
 
 // the longest path of the top of the tree, and of a run's .qry
@@ -28,7 +28,7 @@ extern "C"
 #endif
 
 // a file's size where it could not be read whole
-#define QRY_MEMBER_UNREAD 0xffffffffffffffffull
+#define QRY_MEMBER_UNREAD 0xffffffffffffffffULL
 
 // the environment variable that names the .qry a run's writer has open, which every member of the run joins
 #define QRY_ENVIRONMENT "QRY"

@@ -13,7 +13,7 @@ OverseerTally s_conference_tally;
 
 void overseer_conference_named(const char *identity, char *name)
 {
-    VerbaLinea line = {name, OVERSEER_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {name, OVERSEER_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, QRY_CONFERENCE_CALL);
     mmgr_line_ch(&line, '_');
     mmgr_line_put_max(&line, identity, OVERSEER_NAME_MAX_LEN - sizeof(QRY_CONFERENCE_CALL) - 1u);
@@ -30,7 +30,7 @@ int overseer_account(QryShared *run, const char *identity, const char *expert, c
     char name[OVERSEER_NAME_MAX_LEN];
     char account[OVERSEER_ACCOUNT_MAX_LEN];
     overseer_conference_named(identity, name);
-    VerbaLinea line = {account, sizeof(account), 0ull};
+    VerbaLinea line = {account, sizeof(account), 0ULL};
     mmgr_line_put_max(&line, expert, OVERSEER_EXPERT_MAX_LEN);
     mmgr_line_put(&line, ": ");
     // an account longer than its room is cut, its line ended
@@ -201,9 +201,9 @@ static void overseer_account_read(OverseerTally *tally, const char *line, const 
     }
     // the cause the account reads, the last of its cause clauses where it gives one
     unsigned long long row[2u + 4] = {
-        0ull,       0ull,
+        0ULL,       0ULL,
         account[0], account[1],
-        account[2], (tally->vote_count != votes_before) ? tally->votes[tally->vote_count - 1u].cause : 0ull};
+        account[2], (tally->vote_count != votes_before) ? tally->votes[tally->vote_count - 1u].cause : 0ULL};
     who_words(WHO_HERE, row);
     qry_member_append(OVERSEER_ACCOUNTS_TABLE, row, sizeof(row), QRY_ORDINARY);
 }
@@ -215,7 +215,7 @@ void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, un
                             const unsigned char *before, unsigned long long before_size, QryShared *run,
                             unsigned long long conference)
 {
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     while (at < size)
     {
         const unsigned char *const line = bytes + at;
@@ -223,9 +223,9 @@ void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, un
         const unsigned char *const end = (found != NULL) ? found : (bytes + size);
         // the line's length, and where it ends, are within the bytes
         const size_t length = (size_t)(end - line);
-        at += (unsigned long long)length + 1ull;
+        at += (unsigned long long)length + 1ULL;
         int seen_before = 0;
-        unsigned long long seen = 0ull;
+        unsigned long long seen = 0ULL;
         while (!seen_before && (seen < before_size))
         {
             const unsigned char *const other = before + seen;
@@ -234,7 +234,7 @@ void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, un
             const size_t other_length =
                 (size_t)(((other_found != NULL) ? other_found : (before + before_size)) - other);
             seen_before = (other_length == length) && (memcmp(other, line, length) == 0);
-            seen += (unsigned long long)other_length + 1ull;
+            seen += (unsigned long long)other_length + 1ULL;
         }
         if (!seen_before && (length != 0u))
         {

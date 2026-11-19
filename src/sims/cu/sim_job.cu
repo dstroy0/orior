@@ -13,9 +13,9 @@
 #include <unistd.h>
 #endif
 
-#define SIM_JOB_RUNNING_MICROSECONDS 2000000ull
-#define SIM_JOB_SWEEP_MICROSECONDS 20000ull
-#define SIM_JOB_IDLE_MICROSECONDS 5000000ull
+#define SIM_JOB_RUNNING_MICROSECONDS 2000000ULL
+#define SIM_JOB_SWEEP_MICROSECONDS 20000ULL
+#define SIM_JOB_IDLE_MICROSECONDS 5000000ULL
 
 static int sim_job_daemon(char *path, size_t capacity)
 {
@@ -61,26 +61,26 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     TesseraJobSubmit submit;
     memset(&submit, 0, sizeof(submit));
     // the request is the sim's name and every argument, each ended by a zero byte
-    unsigned long long bytes = strlen(name) + 1ull;
+    unsigned long long bytes = strlen(name) + 1ULL;
     for (int at = 1; at < count; at += 1)
     {
-        bytes += strlen(arguments[at]) + 1ull;
+        bytes += strlen(arguments[at]) + 1ULL;
     }
     unsigned char *const request = (unsigned char *)malloc((size_t)bytes);
     // the context is made before the job requests: the daemon measures it with the process and counts it beside the
     // declaration
-    int ok = (request != NULL) && (declared != 0ull) && sim_job_daemon(daemon, sizeof(daemon)) &&
+    int ok = (request != NULL) && (declared != 0ULL) && sim_job_daemon(daemon, sizeof(daemon)) &&
              (cudaGetDevice(&device) == cudaSuccess) && (cudaGetDeviceProperties(&properties, device) == cudaSuccess) &&
              (cudaFree(0) == cudaSuccess);
     if (ok)
     {
-        unsigned long long at_byte = 0ull;
+        unsigned long long at_byte = 0ULL;
         memcpy(request, name, strlen(name) + 1u);
-        at_byte += strlen(name) + 1ull;
+        at_byte += strlen(name) + 1ULL;
         for (int at = 1; at < count; at += 1)
         {
             memcpy(request + at_byte, arguments[at], strlen(arguments[at]) + 1u);
-            at_byte += strlen(arguments[at]) + 1ull;
+            at_byte += strlen(arguments[at]) + 1ULL;
         }
         const ObsignatioSignumRequest signum = {
             request, bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};

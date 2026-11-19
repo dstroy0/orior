@@ -34,7 +34,7 @@ static void interface_pause(unsigned long long microseconds)
     // whole seconds of a pause fit a time_t
     pause.tv_sec = (time_t)(microseconds / INTERFACE_MILLION);
     // the remainder is below a billion nanoseconds, which a long represents
-    pause.tv_nsec = (long)((microseconds % INTERFACE_MILLION) * 1000ull);
+    pause.tv_nsec = (long)((microseconds % INTERFACE_MILLION) * 1000ULL);
     nanosleep(&pause, NULL);
 }
 
@@ -140,7 +140,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         interface_launch_given();
         return -1L;
     }
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     const int input = open("/dev/null", O_RDONLY | O_CLOEXEC);
     int pipe_fds[2] = {-1, -1};
     const int piped = pipe(pipe_fds) == 0;
@@ -217,7 +217,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         interface_pause(INTERFACE_POLL_MICROSECONDS);
         reaped = waitpid(made, &status, WNOHANG);
         out_of_time =
-            (reaped == 0) && (probe->limit_microseconds != 0ull) && ((interface_now() - began) >= probe->limit_microseconds);
+            (reaped == 0) && (probe->limit_microseconds != 0ULL) && ((interface_now() - began) >= probe->limit_microseconds);
     }
     if (out_of_time)
     {
@@ -279,7 +279,7 @@ long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *an
         return -1L;
     }
     char piece[INTERFACE_READ_BYTES];
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     ssize_t got = read(file, piece, sizeof(piece));
     while (got > 0)
     {

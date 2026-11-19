@@ -165,7 +165,7 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         }
     }
     g_cli_guard->persistent_buf_release(s_batch->known.pair, g_cli_plugins_owner);
-    *(&s_batch->known) = (CliLanguages){NULL, 0u, 0u};
+    s_batch->known = (CliLanguages){NULL, 0u, 0u};
     const unsigned int queued = EMBED_CALL(cli_servers_count_internal.check_queue, CliServersCountCtx, .paths = paths,
                                            .waiting = waiting_on, .count = waiting, .sink = args->sink);
     g_cli_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);

@@ -75,7 +75,7 @@ typedef struct
     unsigned int flags;
 } ObsignatioNode;
 
-#define OBSIGNATIO_LENGTH_BYTES 8ull
+#define OBSIGNATIO_LENGTH_BYTES 8ULL
 
 typedef struct
 {
@@ -168,22 +168,22 @@ OBSIGNATIO_SHARED static inline unsigned int obsignatio_source_byte(const Obsign
     if (at < OBSIGNATIO_LENGTH_BYTES)
     {
         // one byte of the bit length, shifted down and masked, fits an unsigned int
-        return (unsigned int)((source->bits >> (8ull * at)) & 0xFFull);
+        return (unsigned int)((source->bits >> (8ULL * at)) & 0xFFULL);
     }
-    const unsigned long long first = (at - OBSIGNATIO_LENGTH_BYTES) * 8ull;
+    const unsigned long long first = (at - OBSIGNATIO_LENGTH_BYTES) * 8ULL;
     const unsigned long long remain = source->bits - first;
     // the take is at max one byte's 8 bits. It fits an unsigned int
-    const unsigned int take = (remain < 8ull) ? (unsigned int)remain : 8u;
+    const unsigned int take = (remain < 8ULL) ? (unsigned int)remain : 8u;
     const unsigned long long place = source->first_bit + first;
     // a place taken modulo 32 fits an unsigned int
-    const unsigned int shift = (unsigned int)(place % 32ull);
-    unsigned long long pair = source->limbs[place / 32ull];
+    const unsigned int shift = (unsigned int)(place % 32ULL);
+    unsigned long long pair = source->limbs[place / 32ULL];
     if ((shift + take) > 32u)
     {
-        pair |= (unsigned long long)source->limbs[(place / 32ull) + 1ull] << 32u;
+        pair |= (unsigned long long)source->limbs[(place / 32ULL) + 1ULL] << 32u;
     }
     // the value is masked to at max 8 bits. It fits an unsigned int
-    return (unsigned int)((pair >> shift) & ((1ull << take) - 1ull));
+    return (unsigned int)((pair >> shift) & ((1ULL << take) - 1ULL));
 }
 
 OBSIGNATIO_SHARED static inline void obsignatio_block_load(const ObsignatioSource *source, unsigned long long start,
@@ -240,7 +240,7 @@ OBSIGNATIO_SHARED static inline void obsignatio_parent(const unsigned int *key, 
         node->block[word] = left[word];
         node->block[word + OBSIGNATIO_CHAINING_WORDS] = right[word];
     }
-    node->counter = 0ull;
+    node->counter = 0ULL;
     node->block_bytes = OBSIGNATIO_BLOCK_BYTES;
     node->flags = mode | OBSIGNATIO_PARENT;
 }
@@ -258,7 +258,7 @@ OBSIGNATIO_SHARED static inline void obsignatio_chaining(const ObsignatioNode *n
 OBSIGNATIO_SHARED static inline void obsignatio_root(const ObsignatioNode *node, unsigned char *out,
                                                      unsigned long long out_bytes)
 {
-    for (unsigned long long start = 0ull; start < out_bytes; start += OBSIGNATIO_BLOCK_BYTES)
+    for (unsigned long long start = 0ULL; start < out_bytes; start += OBSIGNATIO_BLOCK_BYTES)
     {
         unsigned int words[OBSIGNATIO_BLOCK_WORDS];
         obsignatio_compress(node->chaining, node->block, start / OBSIGNATIO_BLOCK_BYTES, node->block_bytes,
@@ -279,24 +279,24 @@ OBSIGNATIO_SHARED static inline void obsignatio_digest(const unsigned int *key, 
                                                        unsigned long long out_bytes)
 {
     const unsigned long long chunks =
-        (source->count == 0ull) ? 1ull : ((source->count + OBSIGNATIO_CHUNK_BYTES - 1ull) >> OBSIGNATIO_CHUNK_SHIFT);
+        (source->count == 0ULL) ? 1ULL : ((source->count + OBSIGNATIO_CHUNK_BYTES - 1ULL) >> OBSIGNATIO_CHUNK_SHIFT);
     unsigned int stack[OBSIGNATIO_DEPTH][OBSIGNATIO_CHAINING_WORDS];
     unsigned int depth = 0u;
     ObsignatioNode node;
-    for (unsigned long long chunk = 0ull; chunk < chunks; chunk += 1ull)
+    for (unsigned long long chunk = 0ULL; chunk < chunks; chunk += 1ULL)
     {
         const unsigned long long start = chunk << OBSIGNATIO_CHUNK_SHIFT;
         const unsigned long long remain = source->count - start;
         // the take is at max one chunk's 1024 bytes. It fits an unsigned int
         const unsigned int take = (remain < OBSIGNATIO_CHUNK_BYTES) ? (unsigned int)remain : OBSIGNATIO_CHUNK_BYTES;
         obsignatio_chunk(key, mode, source, start, take, chunk, &node);
-        if ((chunk + 1ull) == chunks)
+        if ((chunk + 1ULL) == chunks)
         {
             break;
         }
         unsigned int chaining[OBSIGNATIO_CHAINING_WORDS];
         obsignatio_chaining(&node, chaining);
-        for (unsigned long long total = chunk + 1ull; (total & 1ull) == 0ull; total >>= 1u)
+        for (unsigned long long total = chunk + 1ULL; (total & 1ULL) == 0ULL; total >>= 1u)
         {
             depth -= 1u;
             ObsignatioNode parent;
@@ -361,7 +361,7 @@ static inline void obsignatio_host_digest(const unsigned char *key, unsigned int
                                           unsigned long long count, unsigned char *out, unsigned long long out_bytes)
 {
     const ObsignatioKey loaded = obsignatio_key_load(key);
-    const ObsignatioSource source = {bytes, NULL, 0ull, 0ull, count};
+    const ObsignatioSource source = {bytes, NULL, 0ULL, 0ULL, count};
     obsignatio_digest(loaded.words, mode, &source, out, out_bytes);
 }
 

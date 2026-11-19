@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BLOSC_HEADER_BYTES 16ull
-#define BLOSC_START_BYTES 4ull
+#define BLOSC_HEADER_BYTES 16ULL
+#define BLOSC_START_BYTES 4ULL
 #define BLOSC_FORMAT_VERSION 2u
 #define BLOSC_FORMAT_BLOSC2_FIRST 3u
 #define BLOSC_FORMAT_BLOSC2_LAST 6u
@@ -19,17 +19,17 @@
 #define BLOSC_FLAG_UNSPLIT 0x10u
 #define BLOSC_CODEC_SHIFT 5u
 #define BLOSC_CODEC_COUNT 5u
-#define BLOSC_SPLIT_ELEMENT_BYTES_MAX 16ull
-#define BLOSC_SPLIT_ELEMENTS_MIN 128ull
-#define BLOSC_BUFFER_MAX (2147483647ull - BLOSC_HEADER_BYTES)
-#define BLOSC_BLOCK_MAX ((2147483647ull - (255ull * BLOSC_START_BYTES)) / 3ull)
-#define BLOSC_BIT_GROUP 8ull
+#define BLOSC_SPLIT_ELEMENT_BYTES_MAX 16ULL
+#define BLOSC_SPLIT_ELEMENTS_MIN 128ULL
+#define BLOSC_BUFFER_MAX (2147483647ULL - BLOSC_HEADER_BYTES)
+#define BLOSC_BLOCK_MAX ((2147483647ULL - (255ULL * BLOSC_START_BYTES)) / 3ULL)
+#define BLOSC_BIT_GROUP 8ULL
 #define BLOSCLZ_FIELD_MASK 0x1Fu
 #define BLOSCLZ_MATCH_SHIFT 5u
-#define BLOSCLZ_LENGTH_EXTENDED 6ull
-#define BLOSCLZ_LENGTH_MINIMUM 3ull
+#define BLOSCLZ_LENGTH_EXTENDED 6ULL
+#define BLOSCLZ_LENGTH_MINIMUM 3ULL
 #define BLOSCLZ_EXTENSION_MORE 255u
-#define BLOSCLZ_FAR_BASE 8191ull
+#define BLOSCLZ_FAR_BASE 8191ULL
 
 typedef struct
 {
@@ -56,11 +56,11 @@ static unsigned long long blosc_word(const unsigned char *at)
 
 static unsigned long long blosc_transpose(unsigned long long word)
 {
-    const unsigned long long first = (word ^ (word >> 7u)) & 0x00AA00AA00AA00AAull;
+    const unsigned long long first = (word ^ (word >> 7u)) & 0x00AA00AA00AA00AAULL;
     const unsigned long long paired = word ^ first ^ (first << 7u);
-    const unsigned long long second = (paired ^ (paired >> 14u)) & 0x0000CCCC0000CCCCull;
+    const unsigned long long second = (paired ^ (paired >> 14u)) & 0x0000CCCC0000CCCCULL;
     const unsigned long long quartered = paired ^ second ^ (second << 14u);
-    const unsigned long long third = (quartered ^ (quartered >> 28u)) & 0x00000000F0F0F0F0ull;
+    const unsigned long long third = (quartered ^ (quartered >> 28u)) & 0x00000000F0F0F0F0ULL;
     return quartered ^ third ^ (third << 28u);
 }
 
@@ -68,10 +68,10 @@ static void blosc_byte_unshuffle(const unsigned char *shuffled, unsigned char *o
                                  unsigned long long element_bytes)
 {
     const unsigned long long elements = bytes / element_bytes;
-    for (unsigned long long lane = 0ull; lane < element_bytes; lane += 1ull)
+    for (unsigned long long lane = 0ULL; lane < element_bytes; lane += 1ULL)
     {
         const unsigned char *const plane = shuffled + (lane * elements);
-        for (unsigned long long element = 0ull; element < elements; element += 1ull)
+        for (unsigned long long element = 0ULL; element < elements; element += 1ULL)
         {
             out[(element * element_bytes) + lane] = plane[element];
         }
@@ -84,27 +84,27 @@ static void blosc_bit_unshuffle(const unsigned char *shuffled, unsigned char *ou
                                 unsigned long long element_bytes)
 {
     const unsigned long long elements = bytes / element_bytes;
-    if ((elements % BLOSC_BIT_GROUP) != 0ull)
+    if ((elements % BLOSC_BIT_GROUP) != 0ULL)
     {
         memcpy(out, shuffled, (size_t)bytes);
         return;
     }
     const unsigned long long row_bytes = elements / BLOSC_BIT_GROUP;
-    for (unsigned long long lane = 0ull; lane < element_bytes; lane += 1ull)
+    for (unsigned long long lane = 0ULL; lane < element_bytes; lane += 1ULL)
     {
         const unsigned char *const rows = shuffled + (lane * BLOSC_BIT_GROUP * row_bytes);
-        for (unsigned long long group = 0ull; group < row_bytes; group += 1ull)
+        for (unsigned long long group = 0ULL; group < row_bytes; group += 1ULL)
         {
-            unsigned long long gathered = 0ull;
-            for (unsigned long long bit = 0ull; bit < BLOSC_BIT_GROUP; bit += 1ull)
+            unsigned long long gathered = 0ULL;
+            for (unsigned long long bit = 0ULL; bit < BLOSC_BIT_GROUP; bit += 1ULL)
             {
-                gathered |= (unsigned long long)rows[(bit * row_bytes) + group] << (bit * 8ull);
+                gathered |= (unsigned long long)rows[(bit * row_bytes) + group] << (bit * 8ULL);
             }
             const unsigned long long transposed = blosc_transpose(gathered);
             unsigned char *const lanes = out + (group * BLOSC_BIT_GROUP * element_bytes) + lane;
-            for (unsigned long long element = 0ull; element < BLOSC_BIT_GROUP; element += 1ull)
+            for (unsigned long long element = 0ULL; element < BLOSC_BIT_GROUP; element += 1ULL)
             {
-                lanes[element * element_bytes] = (unsigned char)((transposed >> (element * 8ull)) & 0xFFull);
+                lanes[element * element_bytes] = (unsigned char)((transposed >> (element * 8ULL)) & 0xFFULL);
             }
         }
     }
@@ -147,20 +147,20 @@ static int blosc_block(const BloscChunk *chunk, unsigned long long block)
     const int partial = remaining < chunk->block_bytes;
     const unsigned long long bytes = partial ? remaining : chunk->block_bytes;
     const unsigned long long element_bytes = chunk->element_bytes;
-    const int byte_shuffled = ((chunk->flags & BLOSC_FLAG_SHUFFLE) != 0u) && (element_bytes > 1ull);
+    const int byte_shuffled = ((chunk->flags & BLOSC_FLAG_SHUFFLE) != 0u) && (element_bytes > 1ULL);
     const int bit_shuffled = ((chunk->flags & BLOSC_FLAG_BIT_SHUFFLE) != 0u) && (bytes >= element_bytes);
     unsigned char *const destination = chunk->out + offset;
     unsigned char *const target = (byte_shuffled || bit_shuffled) ? chunk->shuffled : destination;
     const int split = ((chunk->flags & BLOSC_FLAG_UNSPLIT) == 0u) && (element_bytes <= BLOSC_SPLIT_ELEMENT_BYTES_MAX) &&
                       ((bytes / element_bytes) >= BLOSC_SPLIT_ELEMENTS_MIN) && !partial;
-    if (split && ((bytes % element_bytes) != 0ull))
+    if (split && ((bytes % element_bytes) != 0ULL))
     {
         return 0;
     }
-    const unsigned long long streams = split ? element_bytes : 1ull;
+    const unsigned long long streams = split ? element_bytes : 1ULL;
     const unsigned long long stream_bytes = bytes / streams;
     unsigned long long at = start;
-    for (unsigned long long stream = 0ull; stream < streams; stream += 1ull)
+    for (unsigned long long stream = 0ULL; stream < streams; stream += 1ULL)
     {
         if (!blosc_stream(chunk, &at, target + (stream * stream_bytes), stream_bytes))
         {
@@ -203,15 +203,15 @@ long long blosc_decode(const BloscDecodeRequest *request)
     const unsigned int both_shuffles = BLOSC_FLAG_SHUFFLE | BLOSC_FLAG_BIT_SHUFFLE;
     if ((version != BLOSC_FORMAT_VERSION) || (chunk_bytes != bytes->in_bytes) ||
         ((flags & BLOSC_FLAG_RESERVED) != 0u) || ((flags & both_shuffles) == both_shuffles) ||
-        (element_bytes == 0ull) || (total_bytes > BLOSC_BUFFER_MAX))
+        (element_bytes == 0ULL) || (total_bytes > BLOSC_BUFFER_MAX))
     {
         return ENGINE_BYTES_ERROR;
     }
-    if (total_bytes == 0ull)
+    if (total_bytes == 0ULL)
     {
-        return (chunk_bytes == BLOSC_HEADER_BYTES) ? 0ll : ENGINE_BYTES_ERROR;
+        return (chunk_bytes == BLOSC_HEADER_BYTES) ? 0LL : ENGINE_BYTES_ERROR;
     }
-    if ((total_bytes > bytes->out_capacity) || (block_bytes == 0ull) || (block_bytes > total_bytes) ||
+    if ((total_bytes > bytes->out_capacity) || (block_bytes == 0ULL) || (block_bytes > total_bytes) ||
         (block_bytes > BLOSC_BLOCK_MAX))
     {
         return ENGINE_BYTES_ERROR;
@@ -231,7 +231,7 @@ long long blosc_decode(const BloscDecodeRequest *request)
         return ENGINE_BYTES_ERROR;
     }
     const EngineBytesDecode stream_decode = request->decode[blosc_engine_codecs[codec]];
-    const unsigned long long block_count = (total_bytes + block_bytes - 1ull) / block_bytes;
+    const unsigned long long block_count = (total_bytes + block_bytes - 1ULL) / block_bytes;
     if ((stream_decode == NULL) || (block_count > ((chunk_bytes - BLOSC_HEADER_BYTES) / BLOSC_START_BYTES)))
     {
         return ENGINE_BYTES_ERROR;
@@ -247,7 +247,7 @@ long long blosc_decode(const BloscDecodeRequest *request)
         block_bytes,   element_bytes, flags,      BLOSC_HEADER_BYTES + (block_count * BLOSC_START_BYTES),
         stream_decode, scratch};
     int decoded = 1;
-    for (unsigned long long block = 0ull; decoded && (block < block_count); block += 1ull)
+    for (unsigned long long block = 0ULL; decoded && (block < block_count); block += 1ULL)
     {
         decoded = blosc_block(&chunk, block);
     }
@@ -270,7 +270,7 @@ static void blosc_match_copy(unsigned char *out, unsigned long long written, uns
         memcpy(to, from, (size_t)length);
         return;
     }
-    for (unsigned long long step = 0ull; step < length; step += 1ull)
+    for (unsigned long long step = 0ULL; step < length; step += 1ULL)
     {
         to[step] = from[step];
     }
@@ -282,18 +282,18 @@ long long blosclz_decode(const EngineBytesRequest *request)
     const unsigned long long in_bytes = request->in_bytes;
     unsigned char *const out = request->out;
     const unsigned long long capacity = request->out_capacity;
-    if (in_bytes == 0ull)
+    if (in_bytes == 0ULL)
     {
-        return 0ll;
+        return 0LL;
     }
-    unsigned long long at = 1ull;
-    unsigned long long written = 0ull;
+    unsigned long long at = 1ULL;
+    unsigned long long written = 0ULL;
     unsigned int control = in[0u] & BLOSCLZ_FIELD_MASK;
     for (;;)
     {
         if (control <= BLOSCLZ_FIELD_MASK)
         {
-            const unsigned long long literal = (unsigned long long)control + 1ull;
+            const unsigned long long literal = (unsigned long long)control + 1ULL;
             if ((literal > (capacity - written)) || (literal > (in_bytes - at)))
             {
                 return ENGINE_BYTES_ERROR;
@@ -306,48 +306,48 @@ long long blosclz_decode(const EngineBytesRequest *request)
                 return (long long)written;
             }
             control = in[at];
-            at += 1ull;
+            at += 1ULL;
             continue;
         }
-        unsigned long long length = (unsigned long long)(control >> BLOSCLZ_MATCH_SHIFT) - 1ull;
+        unsigned long long length = (unsigned long long)(control >> BLOSCLZ_MATCH_SHIFT) - 1ULL;
         const unsigned int near_high = control & BLOSCLZ_FIELD_MASK;
         if (length == BLOSCLZ_LENGTH_EXTENDED)
         {
             unsigned int extension = BLOSCLZ_EXTENSION_MORE;
             while (extension == BLOSCLZ_EXTENSION_MORE)
             {
-                if ((at + 1ull) >= in_bytes)
+                if ((at + 1ULL) >= in_bytes)
                 {
                     return ENGINE_BYTES_ERROR;
                 }
                 extension = in[at];
-                at += 1ull;
+                at += 1ULL;
                 length += extension;
             }
         }
-        else if ((at + 1ull) >= in_bytes)
+        else if ((at + 1ULL) >= in_bytes)
         {
             return ENGINE_BYTES_ERROR;
         }
         const unsigned int code = in[at];
-        at += 1ull;
+        at += 1ULL;
         length += BLOSCLZ_LENGTH_MINIMUM;
-        unsigned long long distance = ((unsigned long long)near_high << 8u) + code + 1ull;
+        unsigned long long distance = ((unsigned long long)near_high << 8u) + code + 1ULL;
         if ((code == BLOSCLZ_EXTENSION_MORE) && (near_high == BLOSCLZ_FIELD_MASK))
         {
-            if ((at + 1ull) >= in_bytes)
+            if ((at + 1ULL) >= in_bytes)
             {
                 return ENGINE_BYTES_ERROR;
             }
-            distance = ((unsigned long long)in[at] << 8u) + (unsigned long long)in[at + 1ull] + BLOSCLZ_FAR_BASE + 1ull;
-            at += 2ull;
+            distance = ((unsigned long long)in[at] << 8u) + (unsigned long long)in[at + 1ULL] + BLOSCLZ_FAR_BASE + 1ULL;
+            at += 2ULL;
         }
         if ((length > (capacity - written)) || (distance > written) || (at >= in_bytes))
         {
             return ENGINE_BYTES_ERROR;
         }
         control = in[at];
-        at += 1ull;
+        at += 1ULL;
         blosc_match_copy(out, written, distance, length);
         written += length;
     }

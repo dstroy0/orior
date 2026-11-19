@@ -50,7 +50,7 @@ typedef struct
     GuiColor ground;
     unsigned int edge;
     unsigned int corners;
-    GuiMask *mask;
+    GuiMask *disc;
     unsigned char *cover;
     char *name_out;
     unsigned int *top_pointer;
@@ -453,18 +453,18 @@ EMBED_INLINE void preferences_mark_in_view(const PreferencesCtx *args)
     }
 }
 
-// The mask `mask` made a disc of the side `at`, no more than GUI_SCROLLBAR_SIDE_MAX, its coverage in `cover`. Each
+// The mask `disc` made a disc of the side `at`, no more than GUI_SCROLLBAR_SIDE_MAX, its coverage in `cover`. Each
 // pixel's coverage is counted from 4 by 4 points inside it
 EMBED_INLINE void preferences_disc_make(const PreferencesCtx *args)
 {
-    GuiMask *const mask = args->mask;
+    GuiMask *const disc = args->disc;
     const unsigned int side = args->at;
     const double reach = (double)side / 2.0;
-    mask->width = side;
-    mask->height = side;
-    mask->left = 0;
-    mask->top = 0;
-    mask->cover = args->cover;
+    disc->width = side;
+    disc->height = side;
+    disc->left = 0;
+    disc->top = 0;
+    disc->cover = args->cover;
     for (unsigned int y = 0u; y < side; y += 1u)
     {
         for (unsigned int x = 0u; x < side; x += 1u)
@@ -477,7 +477,7 @@ EMBED_INLINE void preferences_disc_make(const PreferencesCtx *args)
                 inside += (((across * across) + (down * down)) <= (reach * reach)) ? 1u : 0u;
             }
             // the samples inside of sixteen, a share of 255
-            mask->cover[(y * side) + x] = (unsigned char)((inside * 255u) / 16u);
+            disc->cover[(y * side) + x] = (unsigned char)((inside * 255u) / 16u);
         }
     }
 }
@@ -515,9 +515,9 @@ EMBED_INLINE void preferences_pixels_scale(const PreferencesCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_THUMB_RING, .scale = scale);
     const int max_side = (int)GUI_SCROLLBAR_SIDE_MAX;
     const int ring_side = (pixels->thumb + (2 * ring) > max_side) ? max_side : pixels->thumb + (2 * ring);
-    EMBED_CALL(preferences_disc_make, PreferencesCtx, .mask = &preferences->thumb, .cover = preferences->thumb_cover,
+    EMBED_CALL(preferences_disc_make, PreferencesCtx, .disc = &preferences->thumb, .cover = preferences->thumb_cover,
                .at = (unsigned int)pixels->thumb);
-    EMBED_CALL(preferences_disc_make, PreferencesCtx, .mask = &preferences->thumb_ring,
+    EMBED_CALL(preferences_disc_make, PreferencesCtx, .disc = &preferences->thumb_ring,
                .cover = preferences->thumb_ring_cover, .at = (unsigned int)ring_side);
     // The corners made as masks, in pairs: the outer edge's at a rounding and the inner edge's one pixel less. The
     // roundings: a box's, half a box's and half the track's thickness. Each pixel of a corner's square is covered by
@@ -529,17 +529,18 @@ EMBED_INLINE void preferences_pixels_scale(const PreferencesCtx *args)
     {
         const int reach_out = roundings[edge / 2u] - (int)(edge % 2u);
         const int max = (int)GUI_PREFERENCES_CORNER_MAX;
-        const int corner_side = (reach_out < 0) ? 0 : ((reach_out > max) ? max : reach_out);
+        const int below_max = (reach_out > max) ? max : reach_out;
+        const int corner_side = (reach_out < 0) ? 0 : below_max;
         const double reach_sq = (double)corner_side * (double)corner_side;
         for (unsigned int corner = 0u; corner < 4u; corner += 1u)
         {
-            GuiMask *const mask = &preferences->corner[edge][corner];
+            GuiMask *const corner_mask = &preferences->corner[edge][corner];
             // a corner's side is no more than GUI_PREFERENCES_CORNER_MAX
-            mask->width = (unsigned int)corner_side;
-            mask->height = (unsigned int)corner_side;
-            mask->left = 0;
-            mask->top = 0;
-            mask->cover = preferences->corner_cover[edge][corner];
+            corner_mask->width = (unsigned int)corner_side;
+            corner_mask->height = (unsigned int)corner_side;
+            corner_mask->left = 0;
+            corner_mask->top = 0;
+            corner_mask->cover = preferences->corner_cover[edge][corner];
             // the circle's middle: the square's inner corner, the one the rectangle's middle is toward
             const double middle_x =
                 ((corner == GUI_PREFERENCES_TOP_LEFT) || (corner == GUI_PREFERENCES_BOTTOM_LEFT)) ? corner_side : 0;
@@ -557,7 +558,7 @@ EMBED_INLINE void preferences_pixels_scale(const PreferencesCtx *args)
                         inside += (((across * across) + (down * down)) <= reach_sq) ? 1u : 0u;
                     }
                     // the samples inside of sixteen, a share of 255
-                    mask->cover[((unsigned int)y * (unsigned int)corner_side) + (unsigned int)x] =
+                    corner_mask->cover[((unsigned int)y * (unsigned int)corner_side) + (unsigned int)x] =
                         (unsigned char)((inside * 255u) / 16u);
                 }
             }
@@ -1028,7 +1029,7 @@ int gui_preferences_slide(const GuiPreferencesPaletteChangeCfg *args)
     GuiPreferences *const preferences = args->preferences;
     if (preferences->scrolling)
     {
-        unsigned long long first = 0ull;
+        unsigned long long first = 0ULL;
         gui_scrollbar.first_at(&(GuiScrollbarCfg){
             .bar_read = &preferences->scrollbar,
             .total = EMBED_CALL(preferences_scroll_total, PreferencesCtx, .preferences = preferences,
@@ -1049,7 +1050,8 @@ int gui_preferences_slide(const GuiPreferencesPaletteChangeCfg *args)
     const GuiRect track =
         EMBED_CALL(preferences_track, PreferencesCtx, .preferences = preferences, .row = preferences->marked);
     const int along = args->x - track.x;
-    const int clamped = (along < 0) ? 0 : ((along > track.width) ? track.width : along);
+    const int below_width = (along > track.width) ? track.width : along;
+    const int clamped = (along < 0) ? 0 : below_width;
     args->change->type = GUI_PREFERENCE_SLID;
     args->change->at = preferences->first + preferences->marked;
     // the share in thousandths, the track's width far inside what an unsigned int counts

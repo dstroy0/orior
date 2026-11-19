@@ -22,7 +22,7 @@ static std::vector<PiWide> pi_tower_partial_quotients(const PiWide &numerator, c
 // the steps at which the turn is lower (or higher) than at every step since 1, to 2^turn.range
 std::vector<PiTowerRecord> pi_tower_records(const PiTowerTurn &turn, int lowest)
 {
-    const PiWide one = pi_tower_unsigned(1ull);
+    const PiWide one = pi_tower_unsigned(1ULL);
     const PiWide bound = pi_tower_power_two(turn.range);
     std::vector<PiTowerRecord> records;
     PiTowerRecord record;
@@ -79,8 +79,8 @@ int pi_tower_covered(const PiTowerTurn &turn, const PiWide &cell, const PiWide &
     }
     const PiTowerRecord &lowest = pi_tower_record_before(turn.lowest, count);
     const PiTowerRecord &highest = pi_tower_record_before(turn.highest, count);
-    const PiWide zero = pi_tower_unsigned(0ull);
-    const PiWide one = pi_tower_unsigned(1ull);
+    const PiWide zero = pi_tower_unsigned(0ULL);
+    const PiWide one = pi_tower_unsigned(1ULL);
     const PiWide two_cells = pi_tower_sum(cell, cell);
     const PiWide multiplier = pi_tower_remainder(turn.multiplier, cell);
     const PiWide rising = lowest.place;
@@ -110,7 +110,7 @@ int pi_tower_covered(const PiTowerTurn &turn, const PiWide &cell, const PiWide &
 
 void pi_tower_print_decimal(VerbaLinea *line, PiWide value)
 {
-    const PiWide chunk = pi_tower_unsigned(1000000000000000000ull);
+    const PiWide chunk = pi_tower_unsigned(1000000000000000000ULL);
     std::vector<unsigned long long> parts;
     do
     {
@@ -132,23 +132,23 @@ void pi_tower_print_exponent(VerbaLinea *line, PiWide numerator, PiWide denomina
         mmgr_line_ch(line, '0');
         return;
     }
-    const PiWide ten = pi_tower_unsigned(10ull);
-    long long exponent = 0ll;
+    const PiWide ten = pi_tower_unsigned(10ULL);
+    long long exponent = 0LL;
     while (pi_tower_compare(numerator, pi_tower_product(denominator, ten)) >= 0)
     {
         denominator = pi_tower_product(denominator, ten);
-        exponent += 1ll;
+        exponent += 1LL;
     }
     while (pi_tower_compare(numerator, denominator) < 0)
     {
         numerator = pi_tower_product(numerator, ten);
-        exponent -= 1ll;
+        exponent -= 1LL;
     }
     const unsigned long long digits =
-        pi_tower_word(pi_tower_quotient(pi_tower_product(numerator, pi_tower_unsigned(1000ull)), denominator));
-    mmgr_line_decimal(line, digits / 1000ull, 1u);
+        pi_tower_word(pi_tower_quotient(pi_tower_product(numerator, pi_tower_unsigned(1000ULL)), denominator));
+    mmgr_line_decimal(line, digits / 1000ULL, 1u);
     mmgr_line_ch(line, '.');
-    mmgr_line_decimal(line, digits % 1000ull, 3u);
+    mmgr_line_decimal(line, digits % 1000ULL, 3u);
     mmgr_line_ch(line, 'e');
     mmgr_line_decimal_signed(line, exponent);
 }
@@ -158,20 +158,20 @@ void pi_tower_print_exponent(VerbaLinea *line, PiWide numerator, PiWide denomina
 static int pi_tower_machin(unsigned int precision, PiWide *alpha, PiWide *low, PiWide *high, unsigned long long *terms)
 {
     const unsigned int bits = precision + PI_TOWER_GUARD;
-    unsigned long long fifth_terms = 0ull;
-    unsigned long long far_terms = 0ull;
-    const PiWide fifth = pi_tower_arctan(5ull, bits, &fifth_terms);
-    const PiWide far = pi_tower_arctan(239ull, bits, &far_terms);
-    const PiWide middle = pi_tower_difference(pi_tower_product(fifth, pi_tower_unsigned(16ull)),
-                                              pi_tower_product(far, pi_tower_unsigned(4ull)));
-    const PiWide spread = pi_tower_unsigned((16ull * (fifth_terms + 1ull)) + (4ull * (far_terms + 1ull)));
+    unsigned long long fifth_terms = 0ULL;
+    unsigned long long far_terms = 0ULL;
+    const PiWide fifth = pi_tower_arctan(5ULL, bits, &fifth_terms);
+    const PiWide far = pi_tower_arctan(239ULL, bits, &far_terms);
+    const PiWide middle = pi_tower_difference(pi_tower_product(fifth, pi_tower_unsigned(16ULL)),
+                                              pi_tower_product(far, pi_tower_unsigned(4ULL)));
+    const PiWide spread = pi_tower_unsigned((16ULL * (fifth_terms + 1ULL)) + (4ULL * (far_terms + 1ULL)));
     *low = pi_tower_difference(middle, spread);
     *high = pi_tower_sum(middle, spread);
     *terms = fifth_terms + far_terms;
     const PiWide guard = pi_tower_power_two(PI_TOWER_GUARD);
     const PiWide below = pi_tower_quotient(*low, guard);
     const PiWide above = pi_tower_quotient(*high, guard);
-    *alpha = pi_tower_difference(below, pi_tower_product(pi_tower_unsigned(3ull), pi_tower_power_two(precision)));
+    *alpha = pi_tower_difference(below, pi_tower_product(pi_tower_unsigned(3ULL), pi_tower_power_two(precision)));
     return pi_tower_compare(below, above) == 0;
 }
 
@@ -179,7 +179,7 @@ static int pi_tower_machin(unsigned int precision, PiWide *alpha, PiWide *low, P
 int pi_tower_bracket(SimResults *results, unsigned int precision, PiWide *alpha, PiWide *low, PiWide *high)
 {
     const unsigned int bits = precision + PI_TOWER_GUARD;
-    unsigned long long terms = 0ull;
+    unsigned long long terms = 0ULL;
     const int agree = pi_tower_machin(precision, alpha, low, high, &terms);
     const unsigned long long leading = pi_tower_word(pi_tower_quotient(*alpha, pi_tower_power_two(precision - 64u)));
     mmgr_line_put(&results->line, "  pi by Machin's formula at ");
@@ -189,7 +189,7 @@ int pi_tower_bracket(SimResults *results, unsigned int precision, PiWide *alpha,
     mmgr_line_put(&results->line, " terms; after the point it begins 0x");
     for (unsigned int nibble = 16u; nibble > 0u; nibble -= 1u)
     {
-        mmgr_line_ch(&results->line, "0123456789ABCDEF"[(leading >> (4u * (nibble - 1u))) & 15ull]);
+        mmgr_line_ch(&results->line, "0123456789ABCDEF"[(leading >> (4u * (nibble - 1u))) & 15ULL]);
     }
     mmgr_line_ch(&results->line, '\n');
     sim_check(results, agree,
@@ -202,10 +202,10 @@ int pi_tower_bracket(SimResults *results, unsigned int precision, PiWide *alpha,
 void pi_tower_floors(SimResults *results, const PiTowerTurn &turn, std::vector<PiWide> *denominators,
                      std::vector<PiWide> *floors)
 {
-    const unsigned long long published[PI_TOWER_PUBLISHED_FLOORS] = {7ull, 15ull, 1ull, 292ull, 1ull,  1ull, 1ull,
-                                                                     2ull, 1ull,  3ull, 1ull,   14ull, 2ull, 1ull,
-                                                                     1ull, 2ull,  2ull, 2ull,   2ull,  1ull, 84ull};
-    const PiWide one = pi_tower_unsigned(1ull);
+    const unsigned long long published[PI_TOWER_PUBLISHED_FLOORS] = {7ULL, 15ULL, 1ULL, 292ULL, 1ULL,  1ULL, 1ULL,
+                                                                     2ULL, 1ULL,  3ULL, 1ULL,   14ULL, 2ULL, 1ULL,
+                                                                     1ULL, 2ULL,  2ULL, 2ULL,   2ULL,  1ULL, 84ULL};
+    const PiWide one = pi_tower_unsigned(1ULL);
     const std::vector<PiWide> lower = pi_tower_partial_quotients(turn.multiplier, turn.modulus);
     const std::vector<PiWide> upper = pi_tower_partial_quotients(pi_tower_sum(turn.multiplier, one), turn.modulus);
     size_t common = 0u;
@@ -220,10 +220,10 @@ void pi_tower_floors(SimResults *results, const PiTowerTurn &turn, std::vector<P
     {
         agree = agree && (pi_tower_compare(lower[at], pi_tower_unsigned(published[at])) == 0);
     }
-    PiWide before = pi_tower_unsigned(0ull);
+    PiWide before = pi_tower_unsigned(0ULL);
     PiWide denominator = one;
     denominators->push_back(denominator);
-    floors->push_back(pi_tower_unsigned(0ull));
+    floors->push_back(pi_tower_unsigned(0ULL));
     for (size_t at = 0u; at < certified; at += 1u)
     {
         const PiWide next = pi_tower_sum(pi_tower_product(lower[at], denominator), before);

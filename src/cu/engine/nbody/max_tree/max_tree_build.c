@@ -17,7 +17,7 @@ static void max_tree_exact_of(const unsigned int *residual, unsigned int voxel, 
     for (unsigned int limb = 0u; limb < ENGINE_RESIDUAL_LIMBS; limb += 1u)
     {
         const unsigned long long total = (unsigned long long)(limbs[limb] ^ flip) + carry;
-        value->limb[limb] = (unsigned int)(total & 0xFFFFFFFFull);
+        value->limb[limb] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32u;
         any |= value->limb[limb];
     }

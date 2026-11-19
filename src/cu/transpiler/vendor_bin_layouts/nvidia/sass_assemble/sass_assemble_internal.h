@@ -40,7 +40,7 @@ typedef struct
 #define SASS_DESCRIPTOR_DISPLAYED 101u
 
 // the field's value for URZ, every bit of it set
-#define SASS_DESCRIPTOR_ZERO 63ull
+#define SASS_DESCRIPTOR_ZERO 63ULL
 
 #define SASS_REGISTER_FIELDS (sizeof(s_register_fields) / sizeof(s_register_fields[0]))
 

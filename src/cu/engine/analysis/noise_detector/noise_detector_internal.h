@@ -37,7 +37,7 @@ static_assert((NOISE_FLICKER_CELLS * sizeof(unsigned long long)) <= 49152u,
               "noise_detector: the flicker sums fit one block's shared memory");
 
 // the widest squared difference less its neighbor's: each frame difference lies in [-65535, 65535]
-#define NOISE_WIDEST_SQUARE (131070ull * 131070ull)
+#define NOISE_WIDEST_SQUARE (131070ULL * 131070ULL)
 
 // the lane's top: a value past it was clamped there
 #define NOISE_LANE_TOP 65535u
@@ -231,14 +231,14 @@ int noise_table_open(const char *set, const char *file, const char *header, char
 // that moves over the frames then adds to a block only what it moves within one: the set's static level moves at max
 // about one lane unit a frame, which adds about 2 lane units squared to a block's variance, under 2% of the shot's
 // there, and nothing to its third cumulant.
-#define NOISE_MOMENT_BLOCK 5ull
+#define NOISE_MOMENT_BLOCK 5ULL
 
 // a block's values stay within this many lane units of its rounded mean, or the block is left out and counted
-#define NOISE_MOMENT_RANGE 255ull
+#define NOISE_MOMENT_RANGE 255ULL
 
 #define NOISE_MOMENT_POWERS 4u
 
-#define NOISE_SIGNED_TOP 0x7FFFFFFFFFFFFFFFull
+#define NOISE_SIGNED_TOP 0x7FFFFFFFFFFFFFFFULL
 
 // One level bin of the moment pass, over its blocks: their count, their values summed, and S1, S1^2, S1^3, S1^4, S2,
 // S1 S2, S1^2 S2, S3, S1 S3 and S4 summed, S2^2 summed 128 bits wide, S1 to S4 being a block's values less its mean
@@ -341,8 +341,8 @@ __device__ static inline void noise_wide_atomic_add(unsigned long long *cell, un
                                                     unsigned long long high)
 {
     const unsigned long long before = atomicAdd(&cell[0], low);
-    const unsigned long long carried = high + (((before + low) < before) ? 1ull : 0ull);
-    if (carried != 0ull)
+    const unsigned long long carried = high + (((before + low) < before) ? 1ULL : 0ULL);
+    if (carried != 0ULL)
     {
         atomicAdd(&cell[1], carried);
     }
@@ -360,10 +360,10 @@ void noise_exact_words(OriorExactInteger *value, const unsigned long long *words
 #define NOISE_HALVES_SUMS 4u
 
 // a box contains at max 2^31 voxels. A pattern value's sum of at max that many lanes fits a word
-#define NOISE_ROOT_VOXELS_MAX (1ull << 31u)
+#define NOISE_ROOT_VOXELS_MAX (1ULL << 31u)
 
 // a price past 2^61 bits errors. The box's less a residual's and a pattern's is a long long
-#define NOISE_ROOT_BITS_MAX (1ull << 61u)
+#define NOISE_ROOT_BITS_MAX (1ULL << 61u)
 
 extern "C" void noise_root_extent(unsigned int term, const unsigned long long box[4], unsigned long long pattern[4]);
 

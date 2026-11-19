@@ -25,7 +25,7 @@ typedef struct CliTransferSizeCfg CliTransferSizeCfg;
 // the least body, in bytes, that goes through the transfer layer, a smaller one going in its frame; and the max a
 // region contains
 #define CLI_TRANSFER_SMALL (64u << 10u)
-#define CLI_TRANSFER_MAX (1ull << 30u)
+#define CLI_TRANSFER_MAX (1ULL << 30u)
 
 // A region of memory shared with another process: its section's handle on Windows, its descriptor elsewhere, this
 // process's view of it, its length, and whether it contains one

@@ -436,11 +436,11 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     // and a run measured from outside shows what a kernel costs whatever the part will name. The run above is not
     // counted, since it carries the library load and the first launch
     const char *const repeats = getenv("PROBE_REPEATS");
-    const unsigned long runs = (repeats != NULL) ? strtoul(repeats, NULL, 10) : 0ul;
-    if (runs != 0ul)
+    const unsigned long runs = (repeats != NULL) ? strtoul(repeats, NULL, 10) : 0UL;
+    if (runs != 0UL)
     {
         const std::chrono::steady_clock::time_point opened = std::chrono::steady_clock::now();
-        for (unsigned long run = 0ul; run < runs; run += 1ul)
+        for (unsigned long run = 0UL; run < runs; run += 1UL)
         {
             probe_run(kernel, in, out, 1u);
         }

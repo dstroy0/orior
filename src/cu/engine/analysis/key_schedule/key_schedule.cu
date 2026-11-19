@@ -16,11 +16,11 @@ static const unsigned int KEY_SCHEDULE_SWEEP_AXES[ENGINE_AXES] = {0u, 2u, 1u};
 
 static unsigned long long key_schedule_count_growth_bits(unsigned long long count)
 {
-    unsigned long long less = count - 1ull;
-    unsigned long long bits = 0ull;
-    while (less != 0ull)
+    unsigned long long less = count - 1ULL;
+    unsigned long long bits = 0ULL;
+    while (less != 0ULL)
     {
-        bits += 1ull;
+        bits += 1ULL;
         less >>= 1u;
     }
     return bits;
@@ -42,17 +42,17 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
     const unsigned int count = key->terms;
     std::vector<DeviceTerm> terms(count);
     std::vector<unsigned int> weights;
-    unsigned long long widest = 0ull;
+    unsigned long long widest = 0ULL;
     unsigned int columns = 0u;
     unsigned int planes = 0u;
-    unsigned long long range[3] = {0ull, 0ull, 0ull};
+    unsigned long long range[3] = {0ULL, 0ULL, 0ULL};
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const EngineKeyTerm &term = key->term[index];
         DeviceTerm &device = terms[index];
         memset(&device, 0, sizeof(device));
         device.negative = term.negative;
-        unsigned long long bits = 16ull;
+        unsigned long long bits = 16ULL;
         unsigned int in_limbs = 1u;
         unsigned int in_plane = ENGINE_FROM_ATOM;
         for (unsigned int sweep = 0u; sweep < ENGINE_AXES; sweep += 1u)
@@ -60,7 +60,7 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
             const unsigned int axis = KEY_SCHEDULE_SWEEP_AXES[sweep];
             const EngineKeyRow &row = term.row[axis];
             bits += row.growth_bits;
-            if (!KEY_SCHEDULE_CHECK((row.taps * row.limbs) < (1ull << 30u), &row, error, ENGINE_ERROR_REQUEST))
+            if (!KEY_SCHEDULE_CHECK((row.taps * row.limbs) < (1ULL << 30u), &row, error, ENGINE_ERROR_REQUEST))
             {
                 return KEY_SCHEDULE_ERROR;
             }
@@ -69,7 +69,7 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
             out.taps = (unsigned int)row.taps;
             out.row_limbs = (unsigned int)row.limbs;
             out.in_limbs = in_limbs;
-            out.out_limbs = (unsigned int)((bits + 31ull) / 32ull);
+            out.out_limbs = (unsigned int)((bits + 31ULL) / 32ULL);
             out.in_plane = in_plane;
             out.out_plane = ENGINE_FROM_ATOM;
             out.weights = (unsigned long long)weights.size();
@@ -86,15 +86,15 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
             in_limbs = out.out_limbs;
             in_plane = out.out_plane;
         }
-        if (!KEY_SCHEDULE_CHECK(term.shift <= 0x7FFFFFFFull, &term.shift, error, ENGINE_ERROR_REQUEST))
+        if (!KEY_SCHEDULE_CHECK(term.shift <= 0x7FFFFFFFULL, &term.shift, error, ENGINE_ERROR_REQUEST))
         {
             return KEY_SCHEDULE_ERROR;
         }
         device.shift = (unsigned int)term.shift;
         widest = ((bits + term.shift) > widest) ? (bits + term.shift) : widest;
     }
-    const unsigned long long lane_bits = widest + key_schedule_count_growth_bits((unsigned long long)count) + 1ull;
-    if (!KEY_SCHEDULE_CHECK(lane_bits <= 0x7FFFFFFFull, key, error, ENGINE_ERROR_REQUEST))
+    const unsigned long long lane_bits = widest + key_schedule_count_growth_bits((unsigned long long)count) + 1ULL;
+    if (!KEY_SCHEDULE_CHECK(lane_bits <= 0x7FFFFFFFULL, key, error, ENGINE_ERROR_REQUEST))
     {
         return KEY_SCHEDULE_ERROR;
     }
@@ -163,7 +163,7 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
     std::vector<unsigned int> ending_first((size_t)key->steps + 1u);
     std::vector<unsigned int> ending(key->steps);
     std::vector<KeyScheduleBlock> freed((size_t)key->steps + 1u);
-    std::vector<unsigned long long> table_offset((size_t)key->tables + 1u, 0ull);
+    std::vector<unsigned long long> table_offset((size_t)key->tables + 1u, 0ULL);
     KeyScheduleCoreLayout core_layout{};
     core_layout.terms = key->term;
     core_layout.step_count = key->steps;
@@ -197,7 +197,7 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
         return KEY_SCHEDULE_ERROR;
     }
     memcpy(layout->step_table, steps.data(), steps.size() * sizeof(DeviceRecordStep));
-    if (table_offset[key->tables] != 0ull)
+    if (table_offset[key->tables] != 0ULL)
     {
         layout->table_values = (unsigned int *)malloc((size_t)(key->table_word_count + 1u) * sizeof(unsigned int));
         if (!KEY_SCHEDULE_CHECK(layout->table_values != NULL, layout, error, ENGINE_ERROR_RESOURCE))
@@ -217,7 +217,7 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
         layout->in_limbs[member] = request->in_limbs[member];
     }
     layout->out_bits = (unsigned int)core_layout.out_bits;
-    layout->out_limbs = (unsigned int)((core_layout.out_bits + 31ull) / 32ull);
+    layout->out_limbs = (unsigned int)((core_layout.out_bits + 31ULL) / 32ULL);
     return (long)layout->file_limbs;
 }
 

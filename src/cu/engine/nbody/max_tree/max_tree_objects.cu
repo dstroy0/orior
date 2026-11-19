@@ -58,7 +58,7 @@ __global__ void max_tree_roots_kernel(const unsigned char *ranges, const unsigne
 
 __device__ static unsigned int max_tree_peak_of(const unsigned long long *best, unsigned int root)
 {
-    return ~(unsigned int)(best[root] & 0xFFFFFFFFull);
+    return ~(unsigned int)(best[root] & 0xFFFFFFFFULL);
 }
 
 __global__ void max_tree_peak_kernel(const unsigned int *code, const unsigned char *ranges, const unsigned int *label,
@@ -151,9 +151,9 @@ __global__ void max_tree_object_census_kernel(const unsigned char *ranges, const
     atomicAdd(&body->moments[3], z * y);
     atomicAdd(&body->moments[4], z * x);
     atomicAdd(&body->moments[5], y * x);
-    const unsigned int faces = (unsigned int)(z == 0ull) | ((unsigned int)(z + 1ull == depth) << 1u) |
-                               ((unsigned int)(y == 0ull) << 2u) | ((unsigned int)(y + 1ull == height) << 3u) |
-                               ((unsigned int)(x == 0ull) << 4u) | ((unsigned int)(x + 1ull == width) << 5u);
+    const unsigned int faces = (unsigned int)(z == 0ULL) | ((unsigned int)(z + 1ULL == depth) << 1u) |
+                               ((unsigned int)(y == 0ULL) << 2u) | ((unsigned int)(y + 1ULL == height) << 3u) |
+                               ((unsigned int)(x == 0ULL) << 4u) | ((unsigned int)(x + 1ULL == width) << 5u);
     if (faces != 0u)
     {
         atomicOr(&body->touches, faces);
@@ -170,7 +170,7 @@ __global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int 
     }
     const unsigned int first = word * 64u;
     const unsigned int end = ((voxels - first) < 64u) ? voxels : (first + 64u);
-    unsigned long long bits = 0ull;
+    unsigned long long bits = 0ULL;
     for (unsigned int voxel = first; voxel < end; voxel += 1u)
     {
         bits |= (unsigned long long)max_tree_selected(residual, voxel, limb_count) << (voxel - first);
@@ -341,7 +341,7 @@ extern "C" void max_tree_resident_release(void)
 // an allocation's device bytes: the driver maps it in whole pages
 static unsigned long long max_tree_paged(unsigned long long bytes)
 {
-    return (bytes + (DEVICE_POOL_PAGE_BYTES - 1ull)) & ~(DEVICE_POOL_PAGE_BYTES - 1ull);
+    return (bytes + (DEVICE_POOL_PAGE_BYTES - 1ULL)) & ~(DEVICE_POOL_PAGE_BYTES - 1ULL);
 }
 
 extern "C" unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodies)
@@ -361,21 +361,21 @@ extern "C" unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodie
         (cub::DeviceReduce::Max(NULL, max_bytes, (const int *)NULL, (int *)NULL, items) == cudaSuccess);
     if ((sized == 0) || (voxels == 0u))
     {
-        return 0ull;
+        return 0ULL;
     }
     size_t scratch = (sort_bytes > scan_bytes) ? sort_bytes : scan_bytes;
     scratch = (max_bytes > scratch) ? max_bytes : scratch;
     const unsigned long long lanes = (unsigned long long)voxels;
     const unsigned long long words4 = lanes * sizeof(unsigned int);
     // max_tree_reserve's buffers in its order, then the bodies max_tree_grow_bodies allocates for `bodies`
-    unsigned long long bytes = max_tree_paged(words4) + (4ull * max_tree_paged(words4)) + max_tree_paged(scratch) +
+    unsigned long long bytes = max_tree_paged(words4) + (4ULL * max_tree_paged(words4)) + max_tree_paged(scratch) +
                                max_tree_paged(lanes) + max_tree_paged(words4) +
                                max_tree_paged(lanes * sizeof(unsigned long long)) + max_tree_paged(words4) +
-                               max_tree_paged(lanes * 3ull) + max_tree_paged(lanes) + max_tree_paged(words4) +
-                               (2ull * max_tree_paged((lanes + 2ull) * sizeof(int))) + (4ull * DEVICE_POOL_PAGE_BYTES) +
+                               max_tree_paged(lanes * 3ULL) + max_tree_paged(lanes) + max_tree_paged(words4) +
+                               (2ULL * max_tree_paged((lanes + 2ULL) * sizeof(int))) + (4ULL * DEVICE_POOL_PAGE_BYTES) +
                                max_tree_paged((unsigned long long)chunks * sizeof(unsigned int)) +
                                max_tree_paged((unsigned long long)words * sizeof(unsigned long long));
-    const unsigned long long capacity = ((unsigned long long)bodies + 1ull) + (((unsigned long long)bodies + 1ull) / 2ull);
+    const unsigned long long capacity = ((unsigned long long)bodies + 1ULL) + (((unsigned long long)bodies + 1ULL) / 2ULL);
     bytes += max_tree_paged(capacity * sizeof(EngineBody));
     return bytes;
 }
@@ -418,6 +418,6 @@ extern "C" void max_tree_profile_report(void)
 {
     for (unsigned int stage = 0u; (g_max_tree_profile > 0) && (stage < MAX_TREE_STAGES); stage += 1u)
     {
-        printf("    %-10s %8llu ms\n", MAX_TREE_STAGE_NAMES[stage], s_max_tree_stage_us[stage] / 1000ull);
+        printf("    %-10s %8LLU ms\n", MAX_TREE_STAGE_NAMES[stage], s_max_tree_stage_us[stage] / 1000ULL);
     }
 }

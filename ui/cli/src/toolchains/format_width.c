@@ -130,7 +130,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
                 g_cli_format.settings[size] = '\0';
             }
             g_cli_format.settings_size = text ? size : 0ULL;
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_toolchains_owner));
+            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_toolchains_owner);
             if (text)
             {
                 return 1;

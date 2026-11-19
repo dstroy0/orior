@@ -16,8 +16,8 @@
     engine_error_check((condition_), (type_), ENGINE_MODULE_NPY, (unsigned int)__LINE__, (const void *)(evacaddr_),    \
                        (error_))
 
-#define NPY_FORTRAN_BLOCK 16777216ull
-#define NPY_BYTES_LIMIT 9223372036854775807ull
+#define NPY_FORTRAN_BLOCK 16777216ULL
+#define NPY_BYTES_LIMIT 9223372036854775807ULL
 
 typedef struct
 {

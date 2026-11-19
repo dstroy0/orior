@@ -12,7 +12,7 @@
 // the bytes each instance of the pipe buffers one way, and how long a process joining waits while every instance is
 // taken, in milliseconds
 #define CLI_IPC_PIPE_CAPACITY 65536u
-#define CLI_IPC_BUSY_WAIT 5000ull
+#define CLI_IPC_BUSY_WAIT 5000ULL
 
 typedef struct
 {
@@ -125,7 +125,7 @@ int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
         mmgr_line_put(args->err_msg, "the system gave no secret");
         return 0;
     }
-    VerbaLinea named = {args->address, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea named = {args->address, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put(&named, "\\\\.\\pipe\\orior-comms-");
     mmgr_line_decimal(&named, cli_process_own(), 1u);
     mmgr_line_ch(&named, '-');
@@ -212,12 +212,12 @@ int cli_ipc_connect(const CliIpcCtx *args)
 int cli_ipc_read(const CliIpcEndBytesCtx *args)
 {
     unsigned char *const into = (unsigned char *)args->bytes;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         DWORD moved = 0u;
         const unsigned long long left = args->size - at;
         // a piece is at max what a DWORD counts
-        const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
+        const DWORD piece = (left > 0x7fffffffULL) ? 0x7fffffffu : (DWORD)left;
         if (!EMBED_CALL(ipc_overlap, WindowsInterfaceCtx, .handle = (HANDLE)(embed_word)args->end->handle,
                         .shut = (HANDLE)(embed_word)args->end->shut, .type = 0, .bytes = into + at, .size = piece,
                         .moved = &moved) ||
@@ -234,11 +234,11 @@ int cli_ipc_write(const CliIpcEndSizeCtx *args)
 {
     // the region's handle is in the frame already: the pipe carries the frame alone
     const unsigned char *const from = (const unsigned char *)args->bytes_read;
-    for (unsigned long long at = 0ull; at < args->size;)
+    for (unsigned long long at = 0ULL; at < args->size;)
     {
         DWORD moved = 0u;
         const unsigned long long left = args->size - at;
-        const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
+        const DWORD piece = (left > 0x7fffffffULL) ? 0x7fffffffu : (DWORD)left;
         // the bytes are only read, as WriteFile takes them
         if (!EMBED_CALL(ipc_overlap, WindowsInterfaceCtx, .handle = (HANDLE)(embed_word)args->end->handle,
                         .shut = (HANDLE)(embed_word)args->end->shut, .type = 1,
@@ -275,7 +275,7 @@ void cli_ipc_close(const CliIpcCtx *args)
         CloseHandle((HANDLE)(embed_word)args->end->shut);
     }
     args->end->open = 0;
-    args->end->handle = 0ull;
-    args->end->shut = 0ull;
+    args->end->handle = 0ULL;
+    args->end->shut = 0ULL;
 }
 #endif

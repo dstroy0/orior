@@ -1048,7 +1048,7 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
     const int copied = EMBED_CALL(stored_copy_enter, DocumentStoreCtx, .stored_read = &one->head, .lines = &then) &&
                        EMBED_CALL(stored_copy_enter, DocumentStoreCtx, .stored_read = &one->lines, .lines = &now);
     // the lines of both texts are far below 2^32
-    const unsigned int max = copied ? (unsigned int)(then.lines + now.lines) : 0u;
+    const unsigned int max = copied ? (then.lines + now.lines) : 0u;
     unsigned int *const word =
         (max != 0u) ? g_cli_guard->temporary_buf_alloc(
                           (unsigned long long)max * CLI_DOC_HUNK_WORDS * sizeof(unsigned int), g_cli_editor_owner)

@@ -16,7 +16,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
 {
     DeviceArena &memory = *device_arena;
     MachineInstr *items = NULL;
-    unsigned long long item_count = 0ull;
+    unsigned long long item_count = 0ULL;
     ScheduleReport report{};
     if (codegen_device_decide(device_arena, layout, device_steps, text_rules->scratch.data(),
                               text_rules->scratch.size(), places, costs, &report, &items, &item_count,
@@ -67,7 +67,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
         codegen_device_launched(&memory);
     }
     const unsigned long long lanes = codegen_device_scan(&memory, record_lanes, lane_first, record_count);
-    if ((memory.ok != 0) && ((lanes >= ASM_PRINTER_LANES_MAX) || (lanes == 0ull)))
+    if ((memory.ok != 0) && ((lanes >= ASM_PRINTER_LANES_MAX) || (lanes == 0ULL)))
     {
         *error_message = "the text contains more lanes than the assembly printer supports";
         return 0;
@@ -120,7 +120,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     // the bytes that are not 0 gathered in lane order
     unsigned char *const bytes = codegen_device_take<unsigned char>(&memory, lanes);
     unsigned char *const gathered = codegen_device_take<unsigned char>(&memory, lanes);
-    int *const gathered_count = codegen_device_take<int>(&memory, 1ull);
+    int *const gathered_count = codegen_device_take<int>(&memory, 1ULL);
     if (memory.ok != 0)
     {
         codegen_device_bytes<<<codegen_device_blocks(lanes), CODEGEN_THREADS>>>(out, lanes, out_limbs, output_offset,
@@ -134,7 +134,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     memory.ok = (memory.ok != 0) && (cub::DeviceSelect::If(select_temporary, select_bytes, bytes, gathered,
                                                            gathered_count, (int)lanes, NonzeroByte()) == cudaSuccess);
     int length = 0;
-    codegen_device_read(&memory, &length, gathered_count, 1ull);
+    codegen_device_read(&memory, &length, gathered_count, 1ULL);
     std::string written((size_t)((length > 0) ? length : 0), '\0');
     codegen_device_read(&memory, &written[0], (const char *)gathered, written.size());
     if (memory.ok == 0)
@@ -197,7 +197,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     std::vector<EngineRecordTable> tables(request->table_count);
     std::vector<unsigned long long> table_first(request->table_count);
     std::vector<unsigned long long> table_words(request->table_count);
-    unsigned long long words = 0ull;
+    unsigned long long words = 0ULL;
     for (unsigned int table = 0u; table < request->table_count; table += 1u)
     {
         tables[table] = request->tables[table];
@@ -209,7 +209,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         }
         table_first[table] = words;
         // index_bits is at max 32, and the entry count at max 2^32
-        const unsigned long long entries = 1ull << tables[table].index_bits;
+        const unsigned long long entries = 1ULL << tables[table].index_bits;
         table_words[table] = entries * (unsigned long long)((tables[table].out_bits + 31u) / 32u);
         words += table_words[table];
     }
@@ -217,7 +217,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     for (unsigned int table = 0u; (memory->ok != 0) && (table < request->table_count); table += 1u)
     {
         tables[table].values = &values[table_first[table]];
-        if (table_words[table] != 0ull)
+        if (table_words[table] != 0ULL)
         {
             memory->ok =
                 cudaMemcpy(&values[table_first[table]], request->tables[table].values,
@@ -234,7 +234,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     const unsigned int *const outputs = codegen_device_copy(memory, request->outputs, request->output_count);
     const EngineRecordTable *const device_tables =
         (request->tables != NULL) ? codegen_device_copy(memory, tables.data(), request->table_count) : NULL;
-    LayoutEnd *const device_ended = codegen_device_take<LayoutEnd>(memory, 1ull);
+    LayoutEnd *const device_ended = codegen_device_take<LayoutEnd>(memory, 1ULL);
     LayoutEnd ended{};
     // keymath's encoding: each step's term, never-negative mark and form. An arena that filled stays taken until the
     // memory is freed, and the arenas taken are under twice the last
@@ -265,8 +265,8 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
             codegen_device_encode<<<1u, 1u>>>(encoding, device_ended);
             codegen_device_launched(memory);
         }
-        codegen_device_read(memory, &ended, device_ended, 1ull);
-        capacity *= 2ull;
+        codegen_device_read(memory, &ended, device_ended, 1ULL);
+        capacity *= 2ULL;
     } while ((memory->ok != 0) && (ended.ok == 0) && (ended.end == KEYMATH_CORE_FULL));
     if ((memory->ok != 0) && (ended.ok == 0))
     {
@@ -288,18 +288,18 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     core_layout.reuse = request->reuse;
     core_layout.steps = record_steps;
     core_layout.last_use = codegen_device_take<unsigned int>(memory, count);
-    core_layout.ending_first = codegen_device_take<unsigned int>(memory, (unsigned long long)count + 1ull);
+    core_layout.ending_first = codegen_device_take<unsigned int>(memory, (unsigned long long)count + 1ULL);
     core_layout.ending = codegen_device_take<unsigned int>(memory, count);
-    core_layout.freed = codegen_device_take<KeyScheduleBlock>(memory, (unsigned long long)count + 1ull);
+    core_layout.freed = codegen_device_take<KeyScheduleBlock>(memory, (unsigned long long)count + 1ULL);
     core_layout.table_offset =
-        codegen_device_take<unsigned long long>(memory, (unsigned long long)request->table_count + 1ull);
+        codegen_device_take<unsigned long long>(memory, (unsigned long long)request->table_count + 1ULL);
     ended = LayoutEnd{};
     if (memory->ok != 0)
     {
         codegen_layout<<<1u, 1u>>>(core_layout, device_ended);
         codegen_device_launched(memory);
     }
-    codegen_device_read(memory, &ended, device_ended, 1ull);
+    codegen_device_read(memory, &ended, device_ended, 1ULL);
     if (memory->ok == 0)
     {
         *error = "the device errored on a call";
@@ -321,7 +321,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         layout->in_limbs[member] = request->in_limbs[member];
     }
     layout->out_bits = (unsigned int)ended.out_bits;
-    layout->out_limbs = (unsigned int)((ended.out_bits + 31ull) / 32ull);
+    layout->out_limbs = (unsigned int)((ended.out_bits + 31ULL) / 32ULL);
     *device_steps = record_steps;
     *device_values = values;
     *value_count = words;
@@ -343,7 +343,7 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
     DeviceArena memory = {std::vector<void *>(), 1};
     DeviceRecordStep *device_steps = NULL;
     unsigned int *device_values = NULL;
-    unsigned long long value_count = 0ull;
+    unsigned long long value_count = 0ULL;
     EngineRecordLayout device_layout{};
     int ok = layout_steps(&memory, request, &device_layout, &device_steps, &device_values, &value_count, error);
     // the step table and the tables' values read back, arranged as key_schedule_record_layout positions them out
@@ -351,9 +351,9 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
     {
         device_layout.step_table = (DeviceRecordStep *)malloc((size_t)device_layout.steps * sizeof(DeviceRecordStep));
         device_layout.table_values =
-            (value_count != 0ull) ? (unsigned int *)malloc((size_t)(value_count + 1ull) * sizeof(unsigned int)) : NULL;
+            (value_count != 0ULL) ? (unsigned int *)malloc((size_t)(value_count + 1ULL) * sizeof(unsigned int)) : NULL;
         device_layout.table_word_count = value_count;
-        ok = (device_layout.step_table != NULL) && ((value_count == 0ull) || (device_layout.table_values != NULL));
+        ok = (device_layout.step_table != NULL) && ((value_count == 0ULL) || (device_layout.table_values != NULL));
         if (ok != 0)
         {
             codegen_device_read(&memory, device_layout.step_table, device_steps, device_layout.steps);
@@ -380,7 +380,7 @@ int codegen_device_steps(const LayoutRequest *request, const AsmPrinterRuleset *
     DeviceArena memory = {std::vector<void *>(), 1};
     DeviceRecordStep *device_steps = NULL;
     unsigned int *device_values = NULL;
-    unsigned long long value_count = 0ull;
+    unsigned long long value_count = 0ULL;
     EngineRecordLayout device_layout{};
     const int written =
         (layout_steps(&memory, request, &device_layout, &device_steps, &device_values, &value_count, error) != 0) &&
@@ -396,7 +396,7 @@ int codegen_device_instrs(const EngineRecordLayout *layout, const std::vector<un
     DeviceArena memory = {std::vector<void *>(), 1};
     const DeviceRecordStep *const device_steps = codegen_device_copy(&memory, layout->step_table, layout->steps);
     MachineInstr *decided = NULL;
-    unsigned long long item_count = 0ull;
+    unsigned long long item_count = 0ULL;
     int ok = codegen_device_decide(&memory, layout, device_steps, scratch.data(), scratch.size(), places, costs, report,
                                    &decided, &item_count, error);
     if (ok != 0)

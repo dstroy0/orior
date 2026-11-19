@@ -84,9 +84,9 @@ EMBED_INLINE int query_run_writer(const RunCtx *args)
 int query_run_joining(const QueryErrMsgRootCtx *args)
 {
     g_cli_guard->persistent_buf_release(args->run->read.path, g_query_owner);
-    *(&args->run->read) = (QueryPaths){NULL, 0u, 0u};
+    args->run->read = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
-    *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
+    args->run->left = (QueryPaths){NULL, 0u, 0u};
     if (!EMBED_CALL(query_run_writer, RunCtx, .run = args->run, .root = args->root, .qry = args->qry,
                     .programs = args->programs, .err_msg = args->err_msg))
     {
@@ -109,9 +109,9 @@ int query_run_start(const QueryFolderContextCtx *args)
 {
     QueryRun *run = args->run;
     g_cli_guard->persistent_buf_release(run->read.path, g_query_owner);
-    *(&run->read) = (QueryPaths){NULL, 0u, 0u};
+    run->read = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(run->left.path, g_query_owner);
-    *(&run->left) = (QueryPaths){NULL, 0u, 0u};
+    run->left = (QueryPaths){NULL, 0u, 0u};
     char qry_path[QUERY_PATH_MAX_LEN];
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "QRY", .value_out = qry_path,
                    .capacity = sizeof(qry_path)))
@@ -295,10 +295,10 @@ int query_run_files_add(const QueryCountFolderCtx *args)
     g_cli_guard->persistent_buf_release(transferred_from, g_query_owner);
     g_cli_guard->persistent_buf_release(course_runs.number, g_query_owner);
     g_cli_guard->persistent_buf_release(course_runs.path, g_query_owner);
-    *(&course_runs) = (QueryRuns){NULL, NULL, 0u};
+    course_runs = (QueryRuns){NULL, NULL, 0u};
     g_cli_guard->persistent_buf_release(folder_runs.number, g_query_owner);
     g_cli_guard->persistent_buf_release(folder_runs.path, g_query_owner);
-    *(&folder_runs) = (QueryRuns){NULL, NULL, 0u};
+    folder_runs = (QueryRuns){NULL, NULL, 0u};
     for (unsigned int file = 0u; file < args->count; file += 1u)
     {
         const unsigned char *bytes = NULL;
@@ -393,9 +393,9 @@ void query_run_leave(const QueryCountErrMsgCtx *args)
 int query_run_stop(const QueryContextErrMsgRunCtx *args)
 {
     g_cli_guard->persistent_buf_release(args->run->read.path, g_query_owner);
-    *(&args->run->read) = (QueryPaths){NULL, 0u, 0u};
+    args->run->read = (QueryPaths){NULL, 0u, 0u};
     g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
-    *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
+    args->run->left = (QueryPaths){NULL, 0u, 0u};
     // this process is a member of the run no more before the writer is requested to stop
     const unsigned long long process = args->run->process;
     args->run->process = 0ULL;
@@ -429,15 +429,15 @@ int query_run_end(const QueryContextErrMsgRunCtx *args)
         }
     }
     g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
-    *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
+    args->run->left = (QueryPaths){NULL, 0u, 0u};
     if (!EMBED_CALL(query_context_err_msg_internal.leaves_settle, QueryContextErrMsgCtx, .run_read = args->run,
                     .leave = args->leave, .prompter = args->prompter, .context = args->context,
                     .err_msg = args->err_msg))
     {
         g_cli_guard->persistent_buf_release(args->run->read.path, g_query_owner);
-        *(&args->run->read) = (QueryPaths){NULL, 0u, 0u};
+        args->run->read = (QueryPaths){NULL, 0u, 0u};
         g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
-        *(&args->run->left) = (QueryPaths){NULL, 0u, 0u};
+        args->run->left = (QueryPaths){NULL, 0u, 0u};
         return 0;
     }
     return query_context_err_msg_run_internal.run_stop(args);

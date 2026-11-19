@@ -54,9 +54,9 @@
 
 // The part's ruleset and the language's head. This writer builds each here, and each then goes to the run's writer
 // as its file. Each holds the bytes it contains so far, and the room after a write did not fit.
-static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_forms_at;
-static char s_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
+static char s_head_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_head_at;
 
 // Write `text` after what the part's ruleset contains.
@@ -153,8 +153,8 @@ int main(int count, char **word)
     }
     qry_member_rings_settled();
     const unsigned char *forms = NULL;
-    unsigned long long forms_size = 0ull;
-    unsigned long long place = 0ull;
+    unsigned long long forms_size = 0ULL;
+    unsigned long long place = 0ULL;
     if (!qry_member_blob(FORMS_BLOB_NAME, &forms, &forms_size, &place) || (place < before))
     {
         return 1;

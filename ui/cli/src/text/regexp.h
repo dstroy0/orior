@@ -41,7 +41,7 @@ typedef struct CliRegexpWorkStateCfg CliRegexpWorkStateCfg;
 
 // the max steps one attempt at a match takes before it is given up, and the max bytes of the stack a match's passes
 // take before it is given up: well inside the stack any thread of the window is given
-#define CLI_REGEXP_STEPS 200000ull
+#define CLI_REGEXP_STEPS 200000ULL
 
 #define CLI_REGEXP_STACK_MAX (512u * 1024u)
 

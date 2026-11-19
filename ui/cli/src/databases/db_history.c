@@ -104,7 +104,7 @@ void cli_db_remembered(const CliDbStatementCtx *args)
                                  .size = 1ULL, .fresh = 0);
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)history, (g_cli_db_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)history, g_cli_db_owner);
     written = written && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = next,
                                     .bytes = entry.out, .size = entry.at, .fresh = 0);
     if (written)
@@ -139,7 +139,7 @@ void cli_db_history(const CliDbOutCountCfg *args)
         }
         end = (start > 0u) ? start - 1u : 0u;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_db_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_db_owner);
     mmgr_line_ch(args->out, ']');
 }
 

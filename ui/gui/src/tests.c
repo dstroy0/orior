@@ -36,6 +36,7 @@ typedef struct
     int y;
     GuiColor ground;
     const char *text;
+    VerbaLinea *line;
 } TestsCtx;
 
 static const char *tests_title(const GuiPaneCfg *args)
@@ -292,10 +293,10 @@ EMBED_INLINE GuiColor tests_outcome_color(const TestsCtx *args)
     return (args->outcome == CLI_TESTS_PASSED) ? palette->mark[1] : palette->text_3;
 }
 
-// a time written: under a second in milliseconds, else in seconds to a tenth
+// a time written into `line`: under a second in milliseconds, else in seconds to a tenth
 EMBED_INLINE void tests_time_write(const TestsCtx *args)
 {
-    VerbaLinea *const line = (VerbaLinea *)args->text;
+    VerbaLinea *const line = args->line;
     const unsigned int milliseconds = args->which;
     if (milliseconds < 1000u)
     {
@@ -404,7 +405,7 @@ static void tests_row_draw(const GuiPaneCfg *args)
         {
             char digits[24];
             VerbaLinea time = {digits, sizeof(digits), 0ULL};
-            EMBED_CALL(tests_time_write, TestsCtx, .which = row.milliseconds, .text = (const char *)&time);
+            EMBED_CALL(tests_time_write, TestsCtx, .which = row.milliseconds, .line = &time);
             const float width =
                 EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                            .face = GUI_FACE_HEAD, .size = where_size, .text = digits, .length = time.at);

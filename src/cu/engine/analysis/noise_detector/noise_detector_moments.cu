@@ -16,62 +16,62 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     const unsigned long long blocks = frames / NOISE_MOMENT_BLOCK;
     const unsigned long long square = NOISE_MOMENT_RANGE * NOISE_MOMENT_RANGE;
     const unsigned long long fourth = square * square;
-    const unsigned long long spread = ((voxels != 0ull) && (frames <= (~0ull / voxels))) ? (frames * voxels) : ~0ull;
+    const unsigned long long spread = ((voxels != 0ULL) && (frames <= (~0ULL / voxels))) ? (frames * voxels) : ~0ULL;
     // a block's |S1| is at max half its frames and each power at max its frames times the range to that power:
     // S4 bounds every product the cells sum but S2^2, which they sum wide; sumS4 is at max the sample's voxel-frames
     // times the range to the fourth, and the values at max the voxel-frames times the lane's top; the quiet mask
     // stores to 65536 frames
-    const int bounded = (blocks != 0ull) && (frames <= 65536ull) && (voxels != 0ull) && (spread != ~0ull) &&
+    const int bounded = (blocks != 0ULL) && (frames <= 65536ULL) && (voxels != 0ULL) && (spread != ~0ULL) &&
                         (spread <= (NOISE_SIGNED_TOP / fourth)) && (spread <= (NOISE_SIGNED_TOP / NOISE_LANE_TOP));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
     }
     memset(cells, 0, (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
-    *sampled = 0ull;
-    *left_out = 0ull;
+    *sampled = 0ULL;
+    *left_out = 0ULL;
     unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
              NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 1u, mask, ceiling) != 0, mask, error,
                                   ENGINE_ERROR_RESOURCE);
-    unsigned long long members = 0ull;
-    for (unsigned long long voxel = 0ull; ok && (voxel < voxels); voxel += 1ull)
+    unsigned long long members = 0ULL;
+    for (unsigned long long voxel = 0ULL; ok && (voxel < voxels); voxel += 1ULL)
     {
         members += mask[voxel];
     }
     // one more than the members. A sample with none still allocates
     unsigned long long *const places =
-        (unsigned long long *)malloc((size_t)(members + 1ull) * sizeof(unsigned long long));
+        (unsigned long long *)malloc((size_t)(members + 1ULL) * sizeof(unsigned long long));
     ok = ok && NOISE_DETECTOR_CHECK(places != NULL, &places, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
-        unsigned long long member = 0ull;
-        for (unsigned long long voxel = 0ull; voxel < voxels; voxel += 1ull)
+        unsigned long long member = 0ULL;
+        for (unsigned long long voxel = 0ULL; voxel < voxels; voxel += 1ULL)
         {
             if (mask[voxel] != 0u)
             {
                 places[member] = voxel;
-                member += 1ull;
+                member += 1ULL;
             }
         }
     }
     const long long range = (long long)NOISE_MOMENT_RANGE;
-    for (unsigned long long block = 0ull; ok && (block < blocks); block += 1ull)
+    for (unsigned long long block = 0ULL; ok && (block < blocks); block += 1ULL)
     {
         const unsigned short *const first = &volume[block * NOISE_MOMENT_BLOCK * voxels];
-        for (unsigned long long each = 0ull; each < members; each += 1ull)
+        for (unsigned long long each = 0ULL; each < members; each += 1ULL)
         {
             const unsigned short *const lane = &first[places[each]];
-            unsigned long long total = 0ull;
-            for (unsigned long long frame = 0ull; frame < NOISE_MOMENT_BLOCK; frame += 1ull)
+            unsigned long long total = 0ULL;
+            for (unsigned long long frame = 0ULL; frame < NOISE_MOMENT_BLOCK; frame += 1ULL)
             {
                 total += lane[frame * voxels];
             }
             // a mean of lanes rounded to the nearest is itself a lane
-            const long long center = (long long)((total + (NOISE_MOMENT_BLOCK / 2ull)) / NOISE_MOMENT_BLOCK);
-            long long power[NOISE_MOMENT_POWERS] = {0ll, 0ll, 0ll, 0ll};
+            const long long center = (long long)((total + (NOISE_MOMENT_BLOCK / 2ULL)) / NOISE_MOMENT_BLOCK);
+            long long power[NOISE_MOMENT_POWERS] = {0LL, 0LL, 0LL, 0LL};
             int within = 1;
-            for (unsigned long long frame = 0ull; within && (frame < NOISE_MOMENT_BLOCK); frame += 1ull)
+            for (unsigned long long frame = 0ULL; within && (frame < NOISE_MOMENT_BLOCK); frame += 1ULL)
             {
                 const long long apart = (long long)lane[frame * voxels] - center;
                 within = (apart <= range) && (apart >= -range);
@@ -86,10 +86,10 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
             }
             if (within == 0)
             {
-                *left_out += 1ull;
+                *left_out += 1ULL;
                 continue;
             }
-            *sampled += 1ull;
+            *sampled += 1ULL;
             // the center is a lane. It re-signs to unsigned int exactly
             const unsigned int summed_bin = (unsigned int)center >> (NOISE_LEVEL_BIN_SHIFT - 1u);
             NoiseMomentCell *const cell =
@@ -98,7 +98,7 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
             // S2 and S4 are sums of squares, never negative. They re-sign to unsigned long long exactly
             const unsigned long long s2 = (unsigned long long)power[1];
             const unsigned long long s1_squared = (unsigned long long)(s1 * s1);
-            cell->blocks += 1ull;
+            cell->blocks += 1ULL;
             cell->values += total;
             cell->s1 += s1;
             cell->s1_squared += s1_squared;
@@ -126,7 +126,7 @@ static int noise_moments_rows(FILE *table, const char *name, const NoiseMomentCe
     for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
     {
         const NoiseMomentCell *const cell = &cells[level_bin];
-        if (cell->blocks == 0ull)
+        if (cell->blocks == 0ULL)
         {
             continue;
         }
@@ -166,11 +166,11 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
         const char *const name = request->samples[sample];
-        unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
+        unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
-        unsigned long long ceiling = 0ull;
-        unsigned long long sampled = 0ull;
-        unsigned long long left_out = 0ull;
+        unsigned long long ceiling = 0ULL;
+        unsigned long long sampled = 0ULL;
+        unsigned long long left_out = 0ULL;
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
              (noise_moments_sample(volume, extent, cells, &ceiling, &sampled, &left_out, error) == 0L);
@@ -191,7 +191,7 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
     if (ok != 0)
     {
         printf("  moments: %u samples in %llu ms; every bin's sums are in %s\n", request->count,
-               (engine_clock_microseconds() - began) / 1000ull, path);
+               (engine_clock_microseconds() - began) / 1000ULL, path);
     }
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
@@ -199,9 +199,9 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
 static void noise_exact_signed(OriorExactInteger *value, long long word)
 {
     // the magnitude of a negative word is its two's complement negation, taken unsigned
-    const unsigned long long magnitude = (word < 0ll) ? (0ull - (unsigned long long)word) : (unsigned long long)word;
+    const unsigned long long magnitude = (word < 0LL) ? (0ULL - (unsigned long long)word) : (unsigned long long)word;
     noise_exact_word(value, magnitude);
-    if (word < 0ll)
+    if (word < 0LL)
     {
         value->sign = -1;
     }
@@ -229,7 +229,7 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
     OriorExactInteger remainder;
     orior_exact_zero(&numerator);
     // the denominator: the blocks times n (n - 1) down to n - order + 1
-    long long falling = 1ll;
+    long long falling = 1LL;
     for (unsigned int step = 0u; step < order; step += 1u)
     {
         falling *= frames - (long long)step;
@@ -243,31 +243,31 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
         noise_exact_word(&term, cell->s2);
         ok = ok && noise_exact_add_scaled(&numerator, frames, &term);
         noise_exact_word(&term, cell->s1_squared);
-        ok = ok && noise_exact_add_scaled(&numerator, -1ll, &term);
+        ok = ok && noise_exact_add_scaled(&numerator, -1LL, &term);
     }
     else if (order == 3u)
     {
         noise_exact_signed(&term, cell->s1_cubed);
-        ok = ok && noise_exact_add_scaled(&numerator, 2ll, &term);
+        ok = ok && noise_exact_add_scaled(&numerator, 2LL, &term);
         noise_exact_signed(&term, cell->s1_s2);
-        ok = ok && noise_exact_add_scaled(&numerator, -3ll * frames, &term);
+        ok = ok && noise_exact_add_scaled(&numerator, -3LL * frames, &term);
         noise_exact_signed(&term, cell->s3);
         ok = ok && noise_exact_add_scaled(&numerator, frames * frames, &term);
     }
     else
     {
         noise_exact_word(&term, cell->s4);
-        ok = ok && noise_exact_add_scaled(&numerator, frames * frames * (frames + 1ll), &term);
+        ok = ok && noise_exact_add_scaled(&numerator, frames * frames * (frames + 1LL), &term);
         noise_exact_signed(&term, cell->s1_s3);
-        ok = ok && noise_exact_add_scaled(&numerator, -4ll * frames * (frames + 1ll), &term);
+        ok = ok && noise_exact_add_scaled(&numerator, -4LL * frames * (frames + 1LL), &term);
         noise_exact_wide(&term, &cell->s2_squared);
-        ok = ok && noise_exact_add_scaled(&numerator, -3ll * frames * (frames - 1ll), &term);
+        ok = ok && noise_exact_add_scaled(&numerator, -3LL * frames * (frames - 1LL), &term);
         noise_exact_word(&term, cell->s1_squared_s2);
-        ok = ok && noise_exact_add_scaled(&numerator, 12ll * frames, &term);
+        ok = ok && noise_exact_add_scaled(&numerator, 12LL * frames, &term);
         noise_exact_word(&term, cell->s1_fourth);
-        ok = ok && noise_exact_add_scaled(&numerator, -6ll, &term);
+        ok = ok && noise_exact_add_scaled(&numerator, -6LL, &term);
     }
-    noise_exact_word(&term, 1000ull);
+    noise_exact_word(&term, 1000ULL);
     ok = ok && (orior_exact_multiply(&numerator, &term, &numerator) == ORIOR_EXACT_OK) &&
          (orior_exact_divide(&numerator, &denominator, &quotient, &remainder) == ORIOR_EXACT_OK);
     for (unsigned int limb = 2u; ok && (limb < ORIOR_EXACT_LIMBS); limb += 1u)
@@ -278,7 +278,7 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
     // the magnitude is below 2^63 by the test above; the sign is stored apart
     *thousandths =
         ok ? ((long long)(((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) * (long long)quotient.sign)
-           : 0ll;
+           : 0LL;
     return ok;
 }
 
@@ -290,9 +290,9 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
         return NOISE_DETECTOR_ERROR;
     }
     NoiseMomentCell *const cells = (NoiseMomentCell *)malloc((size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
-    unsigned long long ceiling = 0ull;
-    unsigned long long sampled = 0ull;
-    unsigned long long left_out = 0ull;
+    unsigned long long ceiling = 0ULL;
+    unsigned long long sampled = 0ULL;
+    unsigned long long left_out = 0ULL;
     int ok = NOISE_DETECTOR_CHECK((volume != NULL) && (extent != NULL) && (cumulants != NULL), volume, error,
                                   ENGINE_ERROR_REQUEST) &&
              NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE) &&
@@ -319,8 +319,8 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
     }
     for (unsigned int order = 0u; ok && (order < NOISE_MOMENT_CUMULANTS); order += 1u)
     {
-        cumulants[order] = 0ll;
-        if (pooled.blocks != 0ull)
+        cumulants[order] = 0LL;
+        if (pooled.blocks != 0ULL)
         {
             ok = NOISE_DETECTOR_CHECK(noise_moments_cumulant(&pooled, order + 2u, &cumulants[order]) != 0, &pooled,
                                       error, ENGINE_ERROR_RESOURCE);
@@ -385,7 +385,7 @@ extern "C" long noise_line_fit(const NoiseLineSums *sums, unsigned long long lev
     {
         return NOISE_DETECTOR_ERROR;
     }
-    if (!NOISE_DETECTOR_CHECK((sums != NULL) && (line != NULL) && (level_scale != 0ull) && (measurement_scale != 0ull),
+    if (!NOISE_DETECTOR_CHECK((sums != NULL) && (line != NULL) && (level_scale != 0ULL) && (measurement_scale != 0ULL),
                               sums, error, ENGINE_ERROR_REQUEST))
     {
         return NOISE_DETECTOR_ERROR;
@@ -422,9 +422,9 @@ extern "C" long noise_line_fit(const NoiseLineSums *sums, unsigned long long lev
 static void noise_wide_add_product(NoiseWide *sum, unsigned long long left, unsigned long long right)
 {
     const unsigned long long left_upper = left >> 32u;
-    const unsigned long long left_lower = left & 0xFFFFFFFFull;
+    const unsigned long long left_lower = left & 0xFFFFFFFFULL;
     const unsigned long long right_upper = right >> 32u;
-    const unsigned long long right_lower = right & 0xFFFFFFFFull;
+    const unsigned long long right_lower = right & 0xFFFFFFFFULL;
     const unsigned long long first = left_upper * right_lower;
     const unsigned long long second = left_lower * right_upper;
     noise_wide_add(sum, left_lower * right_lower, left_upper * right_upper);
@@ -437,8 +437,8 @@ void noise_signed_wide_add(NoiseSignedWide *sum, unsigned long long place, long 
 {
     // the magnitude of a negative word is its two's complement negation, taken unsigned
     const unsigned long long magnitude =
-        (measurement < 0ll) ? (0ull - (unsigned long long)measurement) : (unsigned long long)measurement;
-    noise_wide_add_product((measurement < 0ll) ? &sum->lowered : &sum->raised, place, magnitude);
+        (measurement < 0LL) ? (0ULL - (unsigned long long)measurement) : (unsigned long long)measurement;
+    noise_wide_add_product((measurement < 0LL) ? &sum->lowered : &sum->raised, place, magnitude);
 }
 
 int noise_exact_signed_wide(OriorExactInteger *value, const NoiseSignedWide *wide)

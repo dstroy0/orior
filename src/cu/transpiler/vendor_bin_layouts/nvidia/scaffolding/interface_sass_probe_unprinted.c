@@ -31,7 +31,7 @@ int main(int count, char **words)
     const unsigned long long kernel_text_size =
         unprinted_file_read(words[3], (unsigned char *)s_kernel_text, sizeof(s_kernel_text) - 1u);
     s_kernel_text[kernel_text_size] = '\0';
-    if ((s_pattern_size == 0ull) || (kernel_text_size == 0ull) || !unprinted_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
+    if ((s_pattern_size == 0ULL) || (kernel_text_size == 0ULL) || !unprinted_kernel(s_kernel_text, s_kernel, sizeof(s_kernel)))
     {
         fprintf(stderr, "the pattern cubin %s or the kernel %s did not read\n", words[2], words[3]);
         return 2;

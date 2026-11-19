@@ -10,10 +10,10 @@ unsigned long long run_channel_now(void)
     struct timespec now;
     if (timespec_get(&now, TIME_UTC) != TIME_UTC)
     {
-        return 0ull;
+        return 0ULL;
     }
     // a clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * 1000000000ull) + (unsigned long long)now.tv_nsec;
+    return ((unsigned long long)now.tv_sec * 1000000000ULL) + (unsigned long long)now.tv_nsec;
 }
 
 void run_channel_clocks(unsigned long long *airlock, unsigned long long *pop, unsigned long long *cross,
@@ -45,7 +45,7 @@ int run_channel_carried(RunQuestion *question)
         run_channel_refused(question, "the channel is not open");
         return 0;
     }
-    if (run_channel_on_line() != 0ull)
+    if (run_channel_on_line() != 0ULL)
     {
         RunQuestion *const one[1] = {question};
         run_channel_halted(one, 0u, 1u);
@@ -85,8 +85,8 @@ int run_channel_carried(RunQuestion *question)
     // the count of registers the check left the question, which the carrier is passed
     run_channel_list_line(0u, line);
     run_channel_counted(registers, sizeof(registers), question->registers);
-    const unsigned long long after = listed ? run_channel_round_passed() : 0ull;
-    if (after == 0ull)
+    const unsigned long long after = listed ? run_channel_round_passed() : 0ULL;
+    if (after == 0ULL)
     {
         question->outcome = RUN_NO_CHANNEL;
         run_channel_refused(question, "the round could not be put on disk, and it is not carried");
@@ -141,16 +141,16 @@ int run_channel_carried(RunQuestion *question)
         run_channel_started_refused(question);
         return 0;
     }
-    if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
+    if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL))
     {
         // a carrier that did not end clean wrote no answer worth reading: its ending is the answer, and where it was
         // ended, or a panic is on the line, it ended carrying this question, which calls a conference
         question->outcome =
             (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
         run_channel_ending_refused(question, &answer);
-        if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ull))
+        if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ULL))
         {
-            run_channel_conference_called(question, question->refused, NULL, 0ull);
+            run_channel_conference_called(question, question->refused, NULL, 0ULL);
         }
         return 0;
     }
@@ -229,7 +229,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
     while (first < count)
     {
         // a panic on the line, or one ruled on inside this round: the questions left are blocked, and no process after
-        if ((run_channel_on_line() != 0ull) || run_channel_panic_ruled())
+        if ((run_channel_on_line() != 0ULL) || run_channel_panic_ruled())
         {
             run_channel_halted(questions, first, count);
             return answered;
@@ -276,8 +276,8 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             return answered;
         }
         // the round passed critical, on disk before its carrier starts
-        const unsigned long long after = written ? run_channel_round_passed() : 0ull;
-        if (after == 0ull)
+        const unsigned long long after = written ? run_channel_round_passed() : 0ULL;
+        if (after == 0ULL)
         {
             for (unsigned int at = first; at < count; at += 1u)
             {
@@ -330,20 +330,20 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             char cases_name[RUN_NAME_MAX_LEN];
             run_channel_named(at, 0, code_name, cases_name, answers_name);
             const unsigned char *bytes = NULL;
-            unsigned long long size = 0ull;
-            unsigned long long sequence = 0ull;
+            unsigned long long size = 0ULL;
+            unsigned long long sequence = 0ULL;
             if (!qry_member_blob(answers_name, &bytes, &size, &sequence) || (sequence < after))
             {
                 break;
             }
-            s_channel.carrier_clean = (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull);
+            s_channel.carrier_clean = (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL);
             run_channel_read(questions[at], answers_name, after);
             answered += (questions[at]->outcome == RUN_ANSWERED) ? 1u : 0u;
         }
         // the first question left unanswered by a process that did not end clean ended it, and its ending is its
         // answer; one left by a process that ended clean was left for a refusal before it, and is
         // carried again
-        const int clean = (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull);
+        const int clean = (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL);
         const unsigned int unanswered = at;
         if ((at < count) && !clean)
         {
@@ -351,16 +351,16 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
                 (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
             run_channel_ending_refused(questions[at], &answer);
             // a carrier ended, or one that left a panic on the line, ended carrying this question: a conference
-            if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ull))
+            if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ULL))
             {
-                run_channel_conference_called(questions[at], questions[at]->refused, NULL, 0ull);
+                run_channel_conference_called(questions[at], questions[at]->refused, NULL, 0ULL);
             }
             at += 1u;
         }
         // a panic on the line, or one ruled on as the answers were read: the teacher's account passed where the line is
         // open, the question the carrier was carrying the one its ending answered or, where it ended clean, the last
         // it answered, its refusal; and no question is put after it
-        if ((run_channel_on_line() != 0ull) || run_channel_panic_ruled())
+        if ((run_channel_on_line() != 0ULL) || run_channel_panic_ruled())
         {
             const unsigned int carrying = (!clean || (unanswered == first)) ? unanswered : (unanswered - 1u);
             char line[RUN_LINE_MAX_LEN];

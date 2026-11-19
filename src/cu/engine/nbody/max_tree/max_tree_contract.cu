@@ -42,7 +42,7 @@ __global__ static void max_tree_start_kernel(unsigned int voxels, unsigned int *
     belongs[voxel] = voxel;
     for (unsigned int word = 0u; word < MAX_TREE_KEY_WORDS; word += 1u)
     {
-        strongest[((size_t)voxel * MAX_TREE_KEY_WORDS) + word] = 0ull;
+        strongest[((size_t)voxel * MAX_TREE_KEY_WORDS) + word] = 0ULL;
     }
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
@@ -123,13 +123,13 @@ __global__ static void max_tree_partner_kernel(const unsigned long long *stronge
         return;
     }
     const unsigned long long low = strongest[(size_t)voxel * MAX_TREE_KEY_WORDS];
-    const unsigned int chose = (unsigned int)((belongs[voxel] == voxel) && (low != 0ull));
+    const unsigned int chose = (unsigned int)((belongs[voxel] == voxel) && (low != 0ULL));
     if (chose == 0u)
     {
         partner[voxel] = voxel;
         return;
     }
-    const unsigned int name = ~(unsigned int)(low & 0xFFFFFFFFull);
+    const unsigned int name = ~(unsigned int)(low & 0xFFFFFFFFULL);
     const unsigned int lower = name / 3u;
     const unsigned int axis = name % 3u;
     const unsigned int plane = height * width;
@@ -151,7 +151,7 @@ __global__ static void max_tree_hook_kernel(unsigned long long *strongest, const
     const unsigned long long low = strongest[(size_t)voxel * MAX_TREE_KEY_WORDS];
     for (unsigned int word = 0u; word < MAX_TREE_KEY_WORDS; word += 1u)
     {
-        strongest[((size_t)voxel * MAX_TREE_KEY_WORDS) + word] = 0ull;
+        strongest[((size_t)voxel * MAX_TREE_KEY_WORDS) + word] = 0ULL;
     }
     const unsigned int other = partner[voxel];
     const unsigned int mutual = (unsigned int)(partner[other] == voxel);
@@ -161,7 +161,7 @@ __global__ static void max_tree_hook_kernel(unsigned long long *strongest, const
         return;
     }
     belongs[voxel] = other;
-    bound[~(unsigned int)(low & 0xFFFFFFFFull)] = 1u;
+    bound[~(unsigned int)(low & 0xFFFFFFFFULL)] = 1u;
     moved[0] = 1u;
     last[0] = tick + 1u;
 }

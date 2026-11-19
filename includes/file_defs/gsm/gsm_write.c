@@ -54,15 +54,15 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
 {
     char line[1024];
     unsigned int read = 0u;
-    unsigned long long next = 0ull;
+    unsigned long long next = 0ULL;
     while (next < size)
     {
         const unsigned char *const end = (const unsigned char *)memchr(bytes + next, '\n', (size_t)(size - next));
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
         snprintf(line, sizeof(line), "%.*s", (int)length, (const char *)(bytes + next));
-        next += (unsigned long long)length + 1ull;
+        next += (unsigned long long)length + 1ULL;
         char relation[256];
-        unsigned long long signed_read = 0ull;
+        unsigned long long signed_read = 0ULL;
         const char *at = line;
         if (!line_word(&at, relation, sizeof(relation)) || !line_number(&at, 0, &signed_read))
         {
@@ -113,13 +113,13 @@ int main(int count, char **word)
     }
     // the forms the vendor's writer passes, distinguished from any passed before them by their sequence
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ull;
-    unsigned long long before = 0ull;
+    unsigned long long size = 0ULL;
+    unsigned long long before = 0ULL;
     if (!qry_member_blob(GSM_FORMS_NAME, &bytes, &size, &before))
     {
-        before = 0ull;
+        before = 0ULL;
     }
-    unsigned long long sequence = 0ull;
+    unsigned long long sequence = 0ULL;
     if (!gsm_vendor_run(word))
     {
         return 1;
@@ -134,7 +134,7 @@ int main(int count, char **word)
     gsm_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];
     snprintf(path, sizeof(path), "%s/%s.gsm", rulesets, part);
-    static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ull];
+    static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     const size_t room = sizeof(s_out_bytes);
     size_t out = 0u;
     unsigned int relations = 0u;

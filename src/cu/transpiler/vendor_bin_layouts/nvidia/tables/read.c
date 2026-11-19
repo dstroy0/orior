@@ -64,7 +64,7 @@ static int tables_opcode_read(const char *line, unsigned long long *opcode)
     {
         return 0;
     }
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (const char *bit = at + 2; (*bit == '0') || (*bit == '1'); bit += 1)
     {
         value = (value << 1u) | (unsigned long long)(*bit - '0');
@@ -100,7 +100,7 @@ static int tables_field_line(const char *line, TablesField *field)
         }
         char *low_end = NULL;
         const unsigned long low = strtoul(high_end + 1, &low_end, 10);
-        if ((low_end == high_end + 1) || (*low_end != '_') || (low > high) || (high > 127ul))
+        if ((low_end == high_end + 1) || (*low_end != '_') || (low > high) || (high > 127UL))
         {
             break;
         }
@@ -109,7 +109,7 @@ static int tables_field_line(const char *line, TablesField *field)
             // the bits are below 128, which an unsigned int stores
             field->run[field->runs].first = (unsigned int)low;
             field->run[field->runs].last = (unsigned int)high;
-            field->width += (unsigned int)(high - low + 1ul);
+            field->width += (unsigned int)(high - low + 1UL);
             field->runs += 1u;
         }
         at = low_end + 1;
@@ -306,7 +306,7 @@ unsigned long long tables_class_offset(const TablesClass *class_, unsigned long 
         (class_->offset[0] != '\0') ? tables_field_by_operand(class_, class_->offset) : NULL;
     if (offset == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned int magnitude = (class_->offset_bits != 0u) ? (class_->offset_bits - 1u) : offset->width;
     const unsigned int dropped = (magnitude > offset->width) ? (magnitude - offset->width) : 0u;
@@ -379,7 +379,7 @@ static void tables_constant_read(const char *line, TablesClass *class_)
 int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
 {
     char line[1024];
-    unsigned long long at = 0ull;
+    unsigned long long at = 0ULL;
     TablesClass *class_ = NULL;
     enum
     {
@@ -475,7 +475,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         }
         else if (part == OPCODES)
         {
-            unsigned long long opcode = 0ull;
+            unsigned long long opcode = 0ULL;
             if (tables_opcode_read(line, &opcode))
             {
                 class_->opcode = opcode;
@@ -525,7 +525,7 @@ static unsigned long long tables_bits_read(unsigned long long low, unsigned long
                                            unsigned int last)
 {
     const unsigned int width = last - first + 1u;
-    const unsigned long long mask = (width >= 64u) ? ~0ull : ((1ull << width) - 1ull);
+    const unsigned long long mask = (width >= 64u) ? ~0ULL : ((1ULL << width) - 1ULL);
     if (last < 64u)
     {
         return (low >> first) & mask;
@@ -544,21 +544,21 @@ static void tables_bits_write(unsigned long long *low, unsigned long long *high,
 {
     for (unsigned int bit = first; bit <= last; bit += 1u)
     {
-        const unsigned long long one = (value >> (bit - first)) & 1ull;
+        const unsigned long long one = (value >> (bit - first)) & 1ULL;
         if (bit < 64u)
         {
-            *low = (*low & ~(1ull << bit)) | (one << bit);
+            *low = (*low & ~(1ULL << bit)) | (one << bit);
         }
         else
         {
-            *high = (*high & ~(1ull << (bit - 64u))) | (one << (bit - 64u));
+            *high = (*high & ~(1ULL << (bit - 64u))) | (one << (bit - 64u));
         }
     }
 }
 
 unsigned long long tables_field_read(const TablesField *field, unsigned long long low, unsigned long long high)
 {
-    unsigned long long value = 0ull;
+    unsigned long long value = 0ULL;
     for (unsigned int run = 0u; run < field->runs; run += 1u)
     {
         const unsigned int width = field->run[run].last - field->run[run].first + 1u;
@@ -576,7 +576,7 @@ void tables_field_write(const TablesField *field, unsigned long long *low, unsig
     {
         run -= 1u;
         const unsigned int width = field->run[run].last - field->run[run].first + 1u;
-        const unsigned long long mask = (width >= 64u) ? ~0ull : ((1ull << width) - 1ull);
+        const unsigned long long mask = (width >= 64u) ? ~0ULL : ((1ULL << width) - 1ULL);
         tables_bits_write(low, high, field->run[run].first, field->run[run].last, value & mask);
         value >>= width;
     }
@@ -594,11 +594,11 @@ typedef struct
 } TablesCondition;
 
 // the registers' own constants, as a condition names them after the backquote: RZ, R<n>, URZ, UR<n>, PT and UPT
-#define TABLES_REGISTER_ZERO 255ll
-#define TABLES_UNIFORM_ZERO 63ll
-#define TABLES_PREDICATE_TRUE 7ll
-#define TABLES_REGISTER_COUNT 256ll
-#define TABLES_UNIFORM_COUNT 64ll
+#define TABLES_REGISTER_ZERO 255LL
+#define TABLES_UNIFORM_ZERO 63LL
+#define TABLES_PREDICATE_TRUE 7LL
+#define TABLES_REGISTER_COUNT 256LL
+#define TABLES_UNIFORM_COUNT 64LL
 
 static void tables_condition_spaces(TablesCondition *condition)
 {
@@ -644,7 +644,7 @@ static long long tables_condition_constant(TablesCondition *condition)
     if (*condition->at != '@')
     {
         condition->unjudged = 1;
-        return 0ll;
+        return 0LL;
     }
     condition->at += 1;
     const int quoted = (*condition->at == '"');
@@ -692,7 +692,7 @@ static long long tables_condition_constant(TablesCondition *condition)
         // the choice's place in the list, counted from the first underscore past the list's prefix: the size field
         // stores that place
         const char *choice = strchr(list, '_');
-        long long place = 0ll;
+        long long place = 0LL;
         while (choice != NULL)
         {
             choice += 1;
@@ -702,12 +702,12 @@ static long long tables_condition_constant(TablesCondition *condition)
             {
                 return place;
             }
-            place += 1ll;
+            place += 1LL;
             choice = end;
         }
     }
     condition->unjudged = 1;
-    return 0ll;
+    return 0LL;
 }
 
 static long long tables_condition_implies(TablesCondition *condition);
@@ -760,7 +760,7 @@ static long long tables_condition_primary(TablesCondition *condition)
             condition->at += 1;
         }
         condition->unjudged = 1;
-        return 0ll;
+        return 0LL;
     }
     char operand[TABLES_NAME];
     size_t length = 0u;
@@ -777,7 +777,7 @@ static long long tables_condition_primary(TablesCondition *condition)
         // a name no field of the class is written from, or no name at all where one was due
         condition->at += (length == 0u && *condition->at != '\0') ? 1 : 0;
         condition->unjudged = 1;
-        return 0ll;
+        return 0LL;
     }
     // a field stores at max 64 bits, read as the number it stores
     return (long long)tables_field_read(field, condition->low, condition->high);
@@ -789,7 +789,7 @@ static long long tables_condition_unary(TablesCondition *condition)
     if ((*condition->at == '!') && (condition->at[1] != '='))
     {
         condition->at += 1;
-        return (tables_condition_unary(condition) == 0ll) ? 1ll : 0ll;
+        return (tables_condition_unary(condition) == 0LL) ? 1LL : 0LL;
     }
     if (*condition->at == '-')
     {
@@ -814,15 +814,15 @@ static long long tables_condition_product(TablesCondition *condition)
         {
             condition->at += 1;
             const long long divisor = tables_condition_unary(condition);
-            value = (divisor != 0ll) ? (value % divisor) : 0ll;
-            condition->unjudged = condition->unjudged || (divisor == 0ll);
+            value = (divisor != 0LL) ? (value % divisor) : 0LL;
+            condition->unjudged = condition->unjudged || (divisor == 0LL);
         }
         else if (*condition->at == '/')
         {
             condition->at += 1;
             const long long divisor = tables_condition_unary(condition);
-            value = (divisor != 0ll) ? (value / divisor) : 0ll;
-            condition->unjudged = condition->unjudged || (divisor == 0ll);
+            value = (divisor != 0LL) ? (value / divisor) : 0LL;
+            condition->unjudged = condition->unjudged || (divisor == 0LL);
         }
         else
         {
@@ -860,29 +860,29 @@ static long long tables_condition_compared(TablesCondition *condition)
     tables_condition_spaces(condition);
     if (tables_condition_word(condition, "=="))
     {
-        return (left == tables_condition_sum(condition)) ? 1ll : 0ll;
+        return (left == tables_condition_sum(condition)) ? 1LL : 0LL;
     }
     if (tables_condition_word(condition, "!="))
     {
-        return (left != tables_condition_sum(condition)) ? 1ll : 0ll;
+        return (left != tables_condition_sum(condition)) ? 1LL : 0LL;
     }
     if (tables_condition_word(condition, "<="))
     {
-        return (left <= tables_condition_sum(condition)) ? 1ll : 0ll;
+        return (left <= tables_condition_sum(condition)) ? 1LL : 0LL;
     }
     if (tables_condition_word(condition, ">="))
     {
-        return (left >= tables_condition_sum(condition)) ? 1ll : 0ll;
+        return (left >= tables_condition_sum(condition)) ? 1LL : 0LL;
     }
     if ((*condition->at == '<') && (condition->at[1] != '<'))
     {
         condition->at += 1;
-        return (left < tables_condition_sum(condition)) ? 1ll : 0ll;
+        return (left < tables_condition_sum(condition)) ? 1LL : 0LL;
     }
     if ((*condition->at == '>') && (condition->at[1] != '>'))
     {
         condition->at += 1;
-        return (left > tables_condition_sum(condition)) ? 1ll : 0ll;
+        return (left > tables_condition_sum(condition)) ? 1LL : 0LL;
     }
     return left;
 }
@@ -893,7 +893,7 @@ static long long tables_condition_both(TablesCondition *condition)
     while (tables_condition_word(condition, "&&"))
     {
         const long long right = tables_condition_compared(condition);
-        value = ((value != 0ll) && (right != 0ll)) ? 1ll : 0ll;
+        value = ((value != 0LL) && (right != 0LL)) ? 1LL : 0LL;
     }
     return value;
 }
@@ -904,7 +904,7 @@ static long long tables_condition_either(TablesCondition *condition)
     while (tables_condition_word(condition, "||"))
     {
         const long long right = tables_condition_both(condition);
-        value = ((value != 0ll) || (right != 0ll)) ? 1ll : 0ll;
+        value = ((value != 0LL) || (right != 0LL)) ? 1LL : 0LL;
     }
     return value;
 }
@@ -916,7 +916,7 @@ static long long tables_condition_implies(TablesCondition *condition)
     if (tables_condition_word(condition, "->"))
     {
         const long long right = tables_condition_implies(condition);
-        return ((left == 0ll) || (right != 0ll)) ? 1ll : 0ll;
+        return ((left == 0LL) || (right != 0LL)) ? 1LL : 0LL;
     }
     return left;
 }
@@ -934,7 +934,7 @@ int tables_class_legal(const TablesClass *class_, unsigned long long low, unsign
         {
             condition.unjudged = 1;
         }
-        if (!condition.unjudged && (implied == 0ll))
+        if (!condition.unjudged && (implied == 0LL))
         {
             if (failed != NULL)
             {

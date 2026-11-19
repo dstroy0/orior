@@ -9,16 +9,16 @@ int psi_case_open(PsiCase *psi_case, unsigned long long dimension, unsigned long
     psi_case->dimension = dimension;
     psi_case->base = base;
     psi_case->depth = depth;
-    psi_case->weight[0] = 0ull;
-    unsigned long long power = 1ull;
+    psi_case->weight[0] = 0ULL;
+    unsigned long long power = 1ULL;
     for (unsigned int level = 1u; level <= depth; level += 1u)
     {
-        if ((psi_case->weight[level - 1u] > (0xFFFFFFFFFFFFFFFFull - power)) || (level > PSI_LEVELS_MAX))
+        if ((psi_case->weight[level - 1u] > (0xFFFFFFFFFFFFFFFFULL - power)) || (level > PSI_LEVELS_MAX))
         {
             return 0;
         }
         psi_case->weight[level] = psi_case->weight[level - 1u] + power;
-        if ((level < depth) && (power > (0xFFFFFFFFFFFFFFFFull / dimension)))
+        if ((level < depth) && (power > (0xFFFFFFFFFFFFFFFFULL / dimension)))
         {
             return 0;
         }
@@ -128,7 +128,7 @@ static int psi_dominates(SimRational head, SimRational tail, unsigned long long 
     // tail / |head| < 2^(top - bottom + 2), and base^gap >= 2^gap
     const unsigned long long top = sim_exact_bits(&tail.numerator) + sim_exact_bits(&head.denominator);
     const unsigned long long bottom = sim_exact_bits(&tail.denominator) + sim_exact_bits(&head.numerator);
-    const unsigned long long need = (top > bottom) ? ((top - bottom) + 2ull) : 2ull;
+    const unsigned long long need = (top > bottom) ? ((top - bottom) + 2ULL) : 2ULL;
     if (gap >= need)
     {
         return 1;
@@ -157,7 +157,7 @@ int psi_value_sign(const PsiValue *value, unsigned long long base)
     {
         SimRational head = value->coefficient[lead];
         const unsigned long long origin = value->exponent[lead];
-        SimRational tail = sim_rational(0ll, 1ll);
+        SimRational tail = sim_rational(0LL, 1LL);
         for (unsigned int at = lead + 1u; at < value->count; at += 1u)
         {
             tail = sim_rational_sum(tail, sim_rational_absolute(value->coefficient[at]));
@@ -184,7 +184,7 @@ int psi_value_sign(const PsiValue *value, unsigned long long base)
             OriorExactInteger power;
             OriorExactInteger one;
             sim_rational_status_check(sim_exact_power(base, gap, &power));
-            sim_exact_unsigned(&one, 1ull);
+            sim_exact_unsigned(&one, 1ULL);
             const SimRational shrink = psi_rational_exact(&one, &power);
             head = sim_rational_sum(head, sim_rational_product(value->coefficient[next], shrink));
             tail = sim_rational_difference(tail, sim_rational_absolute(value->coefficient[next]));
@@ -203,20 +203,20 @@ int psi_value_compare(const PsiValue *left, const PsiValue *right, unsigned long
 {
     static PsiValue difference;
     difference = *left;
-    psi_value_add(&difference, right, sim_rational(-1ll, 1ll));
+    psi_value_add(&difference, right, sim_rational(-1LL, 1LL));
     return psi_value_sign(&difference, base);
 }
 
 // the exact rational a sparse value is for, when every exponent is small enough to expand
 SimRational psi_value_expand(const PsiValue *value, unsigned long long base)
 {
-    SimRational total = sim_rational(0ll, 1ll);
+    SimRational total = sim_rational(0LL, 1LL);
     for (unsigned int at = 0u; at < value->count; at += 1u)
     {
         OriorExactInteger power;
         OriorExactInteger one;
         sim_rational_status_check(sim_exact_power(base, value->exponent[at], &power));
-        sim_exact_unsigned(&one, 1ull);
+        sim_exact_unsigned(&one, 1ULL);
         total = sim_rational_sum(total, sim_rational_product(value->coefficient[at], psi_rational_exact(&one, &power)));
     }
     return total;
@@ -247,29 +247,29 @@ void psi_value_print(VerbaLinea *line, const PsiValue *value)
 void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit, OriorExactInteger *numerator)
 {
     const unsigned long long base = psi_case->base;
-    sim_exact_unsigned(numerator, 0ull);
+    sim_exact_unsigned(numerator, 0ULL);
     for (unsigned int level = 1u; level <= PSI_EXHAUSTIVE; level += 1u)
     {
         const unsigned long long place = digit[level - 1u];
-        const unsigned long long carried = ((level >= 2u) && (place == (base - 1ull))) ? 1ull : 0ull;
+        const unsigned long long carried = ((level >= 2u) && (place == (base - 1ULL))) ? 1ULL : 0ULL;
         // tilde i_r = i_r - (gamma - 2) <i_r>
-        const unsigned long long reduced = place - ((base - 2ull) * carried);
-        if (reduced == 0ull)
+        const unsigned long long reduced = place - ((base - 2ULL) * carried);
+        if (reduced == 0ULL)
         {
             continue;
         }
         // m_r = <i_r> (1 + sum over s < r of [i_s] ... [i_(r-1)])
-        unsigned long long shifts = 0ull;
-        if (carried != 0ull)
+        unsigned long long shifts = 0ULL;
+        if (carried != 0ULL)
         {
-            shifts = 1ull;
+            shifts = 1ULL;
             for (unsigned int start = 1u; start < level; start += 1u)
             {
-                unsigned long long run = 1ull;
+                unsigned long long run = 1ULL;
                 for (unsigned int at = start; at < level; at += 1u)
                 {
                     const unsigned long long step = digit[at - 1u];
-                    run *= ((at >= 2u) && (step >= (base - 2ull))) ? 1ull : 0ull;
+                    run *= ((at >= 2u) && (step >= (base - 2ULL))) ? 1ULL : 0ULL;
                 }
                 shifts += run;
             }
@@ -280,7 +280,7 @@ void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit,
         sim_rational_status_check(
             sim_exact_power(base, psi_case->weight[PSI_EXHAUSTIVE] - psi_case->weight[level - shifts], &power));
         // the level's term, over 2^5 . gamma^beta(5): reduced . 2^(5 - m_r) . gamma^(beta(5) - beta(r - m_r))
-        psi_times_integer(&power, reduced * (1ull << (PSI_EXHAUSTIVE - shifts)), &term);
+        psi_times_integer(&power, reduced * (1ULL << (PSI_EXHAUSTIVE - shifts)), &term);
         psi_add(numerator, &term, &total);
         *numerator = total;
     }

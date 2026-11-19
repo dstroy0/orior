@@ -69,7 +69,7 @@ static __device__ __forceinline__ void monolith_write(unsigned int *out, unsigne
 // the part's clock, read where it is: it clobbers memory, and no access is moved across the read
 static __device__ __forceinline__ unsigned long long monolith_clock(void)
 {
-    unsigned long long counted = 0ull;
+    unsigned long long counted = 0ULL;
     asm volatile("mov.u64 %0, %%clock64;" : "=l"(counted)::"memory");
     return counted;
 }
@@ -189,7 +189,7 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
 
     const unsigned long long spent = monolith_clock() - began;
     // the count split into its two words, the low word first
-    monolith_write(out, PRECEPT_COUNT, (unsigned int)(spent & 0xffffffffull));
+    monolith_write(out, PRECEPT_COUNT, (unsigned int)(spent & 0xffffffffULL));
     monolith_write(out, PRECEPT_COUNT + 1u, (unsigned int)(spent >> 32u));
 }
 

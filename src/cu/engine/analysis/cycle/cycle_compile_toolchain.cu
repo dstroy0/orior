@@ -175,11 +175,11 @@ std::string cycle_cache_folder(void)
 // a source's FNV-1a
 unsigned long long cycle_source_hash(const std::string &source)
 {
-    unsigned long long hash = 0xCBF29CE484222325ull;
+    unsigned long long hash = 0xCBF29CE484222325ULL;
     for (size_t at = 0u; at < source.size(); at += 1u)
     {
         // a source byte is read as its unsigned value
-        hash = (hash ^ (unsigned long long)(unsigned char)source[at]) * 0x100000001B3ull;
+        hash = (hash ^ (unsigned long long)(unsigned char)source[at]) * 0x100000001B3ULL;
     }
     return hash;
 }

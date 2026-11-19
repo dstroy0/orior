@@ -8,7 +8,7 @@ static Hdf5Walk hdf5_group_links(Hdf5File *file, unsigned long long header, Hdf5
 {
     const uint32_t hash = (name != NULL) ? hdf5_lookup3((const unsigned char *)name, name_length) : 0u;
     Hdf5GroupWalk walk = {
-        visit,      state, 0, 0ull, 0ull, 0, 0ull, 0ull, name != NULL, hash, NULL, 0u, (const unsigned char *)name,
+        visit,      state, 0, 0ULL, 0ULL, 0, 0ULL, 0ULL, name != NULL, hash, NULL, 0u, (const unsigned char *)name,
         name_length};
     const Hdf5Walk messages = hdf5_header_walk(file, header, hdf5_group_message, &walk);
     if (messages != HDF5_WALK_ON)
@@ -132,7 +132,7 @@ static int hdf5_survey_pass(Hdf5File *file, Hdf5Survey *survey, int printing)
 {
     survey->printing = printing;
     survey->candidates = 0u;
-    survey->chosen = 0ull;
+    survey->chosen = 0ULL;
     survey->depth = 0u;
     survey->path_length = 0u;
     survey->path[0u] = '\0';
@@ -187,7 +187,7 @@ int hdf5_locate(Hdf5File *file, const char *member, unsigned long long *address)
         {
             end += 1u;
         }
-        Hdf5Find find = {&member[at], end - at, 0, 0u, 0ull};
+        Hdf5Find find = {&member[at], end - at, 0, 0u, 0ULL};
         if (hdf5_group_links(file, current, hdf5_find_link, &find, find.name, find.length) == HDF5_WALK_FAILED)
         {
             return 0;
@@ -237,27 +237,27 @@ static int hdf5_chunking_check(Hdf5File *file, const Hdf5Object *object)
     {
         return hdf5_error(file, "a chunk element size that does not match the datatype");
     }
-    unsigned long long chunk_bytes = 0ull;
-    if (!hdf5_product(object->chunk, rank + 1u, 1ull, &chunk_bytes) || (chunk_bytes == 0ull) ||
+    unsigned long long chunk_bytes = 0ULL;
+    if (!hdf5_product(object->chunk, rank + 1u, 1ULL, &chunk_bytes) || (chunk_bytes == 0ULL) ||
         ((unsigned long long)(size_t)chunk_bytes != chunk_bytes) || (chunk_bytes > HDF5_LARGEST_CHUNK))
     {
         return hdf5_error(file, "a chunk of zero size or larger than 4 GiB");
     }
-    unsigned long long range = 1ull;
+    unsigned long long range = 1ULL;
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
     {
         const int bounded = (object->max[axis] != hdf5_all_ones(file->length_bytes)) &&
                             (object->max[axis] >= object->extent[axis]);
         const unsigned long long cells = bounded
                                              ? ((object->max[axis] / object->chunk[axis]) +
-                                                (((object->max[axis] % object->chunk[axis]) != 0ull) ? 1ull : 0ull))
-                                             : 1ull;
+                                                (((object->max[axis] % object->chunk[axis]) != 0ULL) ? 1ULL : 0ULL))
+                                             : 1ULL;
         if (((object->chunk_index == HDF5_INDEX_FIXED) || (object->chunk_index == HDF5_INDEX_IMPLICIT)) &&
-            (!bounded || ((cells != 0ull) && (range > (~0ull / cells)))))
+            (!bounded || ((cells != 0ULL) && (range > (~0ULL / cells)))))
         {
             return hdf5_error(file, "an unlimited or impossible dimension on a fixed-size chunk index");
         }
-        range *= (cells != 0ull) ? cells : 1ull;
+        range *= (cells != 0ULL) ? cells : 1ULL;
         if ((object->chunk_index == HDF5_INDEX_SINGLE) && (object->chunk[axis] < object->extent[axis]))
         {
             return hdf5_error(file, "a single-chunk index whose chunk is smaller than the dataset");
@@ -306,11 +306,11 @@ int hdf5_dataset_check(Hdf5File *file, const Hdf5Object *object)
         return hdf5_error(file, "a scalar or null dataspace; there is no axis 0");
     }
     const unsigned long long fill_bytes = object->has_fill ? object->fill_bytes : object->old_fill_bytes;
-    if ((fill_bytes != 0ull) && (fill_bytes != object->element_bytes))
+    if ((fill_bytes != 0ULL) && (fill_bytes != object->element_bytes))
     {
         return hdf5_error(file, "a fill value whose size is not the element size");
     }
-    unsigned long long total = 0ull;
+    unsigned long long total = 0ULL;
     if (!hdf5_product(object->extent, object->rank, object->element_bytes, &total))
     {
         return hdf5_error(file, "a dataset whose byte size overflows");

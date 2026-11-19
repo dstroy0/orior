@@ -38,15 +38,15 @@ static int cycle_record_share(CycleRecord *record, size_t kernel_bytes)
         return 0;
     }
     const unsigned long long thread_bytes =
-        (record->places != 0u) ? ((4ull * record->places) + record->file_limbs) : 0ull;
+        (record->places != 0u) ? ((4ULL * record->places) + record->file_limbs) : 0ULL;
     // a device's shared memory a thread block is never negative
     const unsigned long long capacity =
-        ((unsigned long long)max > kernel_bytes) ? ((unsigned long long)max - kernel_bytes) : 0ull;
-    const unsigned long long fit = (thread_bytes != 0ull) ? (capacity / thread_bytes) : CYCLE_BLOCK;
+        ((unsigned long long)max > kernel_bytes) ? ((unsigned long long)max - kernel_bytes) : 0ULL;
+    const unsigned long long fit = (thread_bytes != 0ULL) ? (capacity / thread_bytes) : CYCLE_BLOCK;
     const unsigned long long block_threads = (fit < CYCLE_BLOCK) ? fit : CYCLE_BLOCK;
     const unsigned long long threads =
-        (block_threads >= 32ull) ? (block_threads - (block_threads % 32ull)) : block_threads;
-    if (threads == 0ull)
+        (block_threads >= 32ULL) ? (block_threads - (block_threads % 32ULL)) : block_threads;
+    if (threads == 0ULL)
     {
         return 0;
     }
@@ -67,7 +67,7 @@ static int cycle_record_share(CycleRecord *record, size_t kernel_bytes)
                                                        (size_t)record->register_bytes) == cudaSuccess) &&
         (blocks > 0);
     // a count of thread blocks and of processors are positive where the runtime gave them
-    record->resident = (ok != 0) ? ((unsigned long long)blocks * (unsigned long long)processors) : 0ull;
+    record->resident = (ok != 0) ? ((unsigned long long)blocks * (unsigned long long)processors) : 0ULL;
     return ok;
 }
 
@@ -101,7 +101,7 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(record->device_steps, layout->step_table,
                                              (size_t)layout->steps * sizeof(DeviceRecordStep), cudaMemcpyHostToDevice),
                                   record->device_steps, error);
-    if ((ok != 0) && (layout->table_word_count != 0ull))
+    if ((ok != 0) && (layout->table_word_count != 0ULL))
     {
         ok = CYCLE_STATUS_CHECK(
                  cudaMalloc((void **)&record->device_tables, (size_t)layout->table_word_count * sizeof(unsigned int)),
@@ -131,7 +131,7 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     // a word's bytes are read as bytes, as the signum takes them
     const unsigned char *const extent_bytes = (const unsigned char *)extent;
     program.insert(program.end(), extent_bytes, extent_bytes + sizeof(extent));
-    if (layout->table_word_count != 0ull)
+    if (layout->table_word_count != 0ULL)
     {
         // a table's words are read as bytes, as the signum takes them
         const unsigned char *const table_bytes = (const unsigned char *)layout->table_values;

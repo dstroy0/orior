@@ -24,7 +24,7 @@ void terms_camera(SimCamera *camera)
     memset(camera, 0, sizeof(*camera));
     camera->key = TERMS_KEY;
     camera->offset = TERMS_OFFSET;
-    camera->gain = 1ull;
+    camera->gain = 1ULL;
     camera->read_square = TERMS_READ_SQUARE;
     camera->pattern_range = TERMS_PATTERN_RANGE;
     camera->shot = SIM_SHOT_POISSON;
@@ -33,13 +33,13 @@ void terms_camera(SimCamera *camera)
 int terms_render(SimResults *results, const SimScene *scene, const SimCamera *camera, unsigned short *device_lanes,
                  unsigned short *lanes, unsigned long long count)
 {
-    unsigned long long clipped = 0ull;
+    unsigned long long clipped = 0ULL;
     const int ok = sim_render(results, scene, camera, device_lanes, NULL, NULL, &clipped) &&
                    sim_status_check(
                        results, cudaMemcpy(lanes, device_lanes, count * sizeof(unsigned short), cudaMemcpyDeviceToHost),
                        "lanes read");
-    sim_check(results, ok && (clipped == 0ull), "the scene rendered with no lane clipped");
-    return ok && (clipped == 0ull);
+    sim_check(results, ok && (clipped == 0ULL), "the scene rendered with no lane clipped");
+    return ok && (clipped == 0ULL);
 }
 
 // The lines' eight measurements against what the planted row, column and plane variances predict. Each offset of
@@ -59,25 +59,25 @@ void terms_lines(SimResults *results, const unsigned short *lanes, unsigned long
     }
     // every product below is far under 2^63 at these sizes
     const long long square = (long long)TERMS_VALUE_SQUARE;
-    const long long rows = 1000ll + ((1000ll * (long long)(TERMS_WIDTH * row_square)) / square);
-    const long long columns = 1000ll + ((1000ll * (long long)(TERMS_HEIGHT * column_square)) / square);
-    const long long plane = 1000ll + ((1000ll * (long long)(TERMS_HEIGHT * TERMS_WIDTH * plane_square)) / square);
+    const long long rows = 1000LL + ((1000LL * (long long)(TERMS_WIDTH * row_square)) / square);
+    const long long columns = 1000LL + ((1000LL * (long long)(TERMS_HEIGHT * column_square)) / square);
+    const long long plane = 1000LL + ((1000LL * (long long)(TERMS_HEIGHT * TERMS_WIDTH * plane_square)) / square);
     const long long expected[NOISE_PLANE_READINGS] = {rows,
                                                       columns,
                                                       plane,
-                                                      2ll * square,
-                                                      (1000ll * (long long)row_square) / square,
-                                                      (1000ll * (long long)column_square) / square,
-                                                      (1000ll * (long long)plane_square) / square,
-                                                      2000ll * square};
-    const long long tolerance[NOISE_PLANE_READINGS] = {10ll + ((rows * TERMS_LINE_PARTS) / 1000ll),
-                                                       10ll + ((columns * TERMS_LINE_PARTS) / 1000ll),
-                                                       30ll + ((plane * TERMS_PLANE_PARTS) / 1000ll),
-                                                       2ll,
-                                                       3ll,
-                                                       3ll,
-                                                       6ll,
-                                                       1000ll};
+                                                      2LL * square,
+                                                      (1000LL * (long long)row_square) / square,
+                                                      (1000LL * (long long)column_square) / square,
+                                                      (1000LL * (long long)plane_square) / square,
+                                                      2000LL * square};
+    const long long tolerance[NOISE_PLANE_READINGS] = {10LL + ((rows * TERMS_LINE_PARTS) / 1000LL),
+                                                       10LL + ((columns * TERMS_LINE_PARTS) / 1000LL),
+                                                       30LL + ((plane * TERMS_PLANE_PARTS) / 1000LL),
+                                                       2LL,
+                                                       3LL,
+                                                       3LL,
+                                                       6LL,
+                                                       1000LL};
     const char *const labels[NOISE_PLANE_READINGS] = {
         "whole planes, rows per mille",       "whole planes, columns per mille", "whole planes, the plane per mille",
         "whole planes, the independent part", "static, var_row / s per mille",   "static, var_col / s per mille",
@@ -92,10 +92,10 @@ void terms_lines(SimResults *results, const unsigned short *lanes, unsigned long
 // pairs t in [0, frames - lag) whose octave's block, t >> octave, differs from that of t + lag
 static unsigned long long terms_crossings(unsigned long long lag, unsigned int octave)
 {
-    unsigned long long crossed = 0ull;
-    for (unsigned long long frame = 0ull; (frame + lag) < TERMS_FRAMES; frame += 1ull)
+    unsigned long long crossed = 0ULL;
+    for (unsigned long long frame = 0ULL; (frame + lag) < TERMS_FRAMES; frame += 1ULL)
     {
-        crossed += ((frame >> octave) != ((frame + lag) >> octave)) ? 1ull : 0ull;
+        crossed += ((frame >> octave) != ((frame + lag) >> octave)) ? 1ULL : 0ULL;
     }
     return crossed;
 }
@@ -120,24 +120,24 @@ void terms_flicker(SimResults *results, const unsigned short *lanes, unsigned lo
     unsigned long long pairs[NOISE_FLICKER_LAGS];
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {
-        pairs[lag] = TERMS_FRAMES - (1ull << lag);
+        pairs[lag] = TERMS_FRAMES - (1ULL << lag);
         weight[lag] = TERMS_VALUE_SQUARE * pairs[lag];
         for (unsigned int octave = 0u; octave < octaves; octave += 1u)
         {
-            weight[lag] += flicker_square * terms_crossings(1ull << lag, octave);
+            weight[lag] += flicker_square * terms_crossings(1ULL << lag, octave);
         }
     }
     const char *const labels[NOISE_FLICKER_LAGS] = {"lag 1", "lag 2", "lag 4", "lag 8", "lag 16", "lag 32", "lag 64"};
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {
         // each factor is below 2^20 here. The product is far under 2^63
-        const long long expected = (long long)((1000ull * weight[lag] * pairs[0]) / (weight[0] * pairs[lag]));
+        const long long expected = (long long)((1000ULL * weight[lag] * pairs[0]) / (weight[0] * pairs[lag]));
         mmgr_line_put(&results->line, "    ");
         mmgr_line_put(&results->line, labels[lag]);
         mmgr_line_ch(&results->line, '\n');
         // a mean square per mille is far below 2^63
-        terms_within(results, "  the frame difference", (long long)per_mille[lag], expected, 10ll);
-        terms_within(results, "  less its x neighbor's", (long long)neighbor_per_mille[lag], expected, 10ll);
+        terms_within(results, "  the frame difference", (long long)per_mille[lag], expected, 10LL);
+        terms_within(results, "  less its x neighbor's", (long long)neighbor_per_mille[lag], expected, 10LL);
     }
 }
 
@@ -154,15 +154,15 @@ void terms_neighbors(SimResults *results, const unsigned short *lanes, long long
     {
         return;
     }
-    terms_within(results, "z neighbor, per mille", per_mille[0], expected_z, 6ll);
-    terms_within(results, "y neighbor, per mille", per_mille[1], 0ll, 5ll);
-    terms_within(results, "x neighbor, per mille", per_mille[2], 0ll, 5ll);
+    terms_within(results, "z neighbor, per mille", per_mille[0], expected_z, 6LL);
+    terms_within(results, "y neighbor, per mille", per_mille[1], 0LL, 5LL);
+    terms_within(results, "x neighbor, per mille", per_mille[2], 0LL, 5LL);
     const char *const labels[NOISE_NEIGHBOR_RADII - ENGINE_AXES] = {
         "2 planes on along z, per mille", "4 planes on along z, per mille", "8 planes on along z, per mille",
         "16 planes on along z, per mille", "32 planes on along z, per mille"};
     for (unsigned int radius = ENGINE_AXES; radius < NOISE_NEIGHBOR_RADII; radius += 1u)
     {
-        terms_within(results, labels[radius - ENGINE_AXES], per_mille[radius], 0ll, 5ll);
+        terms_within(results, labels[radius - ENGINE_AXES], per_mille[radius], 0LL, 5LL);
     }
 }
 
@@ -185,10 +185,10 @@ void terms_shot_law(SimResults *results, const unsigned short *lanes, unsigned l
     const long long shot = (long long)TERMS_SHOT_BACKGROUND;
     const long long read = (long long)TERMS_READ_SQUARE;
     const int poisson = law == SIM_SHOT_POISSON;
-    const long long expected[NOISE_MOMENT_CUMULANTS] = {1000ll * (shot + read), poisson ? (1000ll * shot) : 0ll,
-                                                        poisson ? ((1000ll * shot) - (500ll * read))
-                                                                : ((-500ll * shot) - (500ll * read))};
-    const long long range[NOISE_MOMENT_CUMULANTS] = {100ll, 500ll, 7000ll};
+    const long long expected[NOISE_MOMENT_CUMULANTS] = {1000LL * (shot + read), poisson ? (1000LL * shot) : 0LL,
+                                                        poisson ? ((1000LL * shot) - (500LL * read))
+                                                                : ((-500LL * shot) - (500LL * read))};
+    const long long range[NOISE_MOMENT_CUMULANTS] = {100LL, 500LL, 7000LL};
     const char *const labels[NOISE_MOMENT_CUMULANTS] = {
         "the second cumulant, thousandths", "the third cumulant, thousandths", "the fourth cumulant, thousandths"};
     for (unsigned int order = 0u; order < NOISE_MOMENT_CUMULANTS; order += 1u)
@@ -213,25 +213,25 @@ void terms_ratio_within(SimResults *results, const char *what, const OriorExactI
     mmgr_line_put(line, ", the plant predicts ");
     // printed in lowest terms: a magnitude below 2^63 re-signs exactly
     unsigned long long common =
-        (expected_numerator < 0ll) ? (unsigned long long)(-expected_numerator) : (unsigned long long)expected_numerator;
+        (expected_numerator < 0LL) ? (unsigned long long)(-expected_numerator) : (unsigned long long)expected_numerator;
     unsigned long long other = expected_denominator;
-    while (other != 0ull)
+    while (other != 0ULL)
     {
         const unsigned long long rest = common % other;
         common = other;
         other = rest;
     }
-    common = (common == 0ull) ? 1ull : common;
+    common = (common == 0ULL) ? 1ULL : common;
     // the common factor divides the numerator's magnitude. The quotient preserves its sign and range
     mmgr_line_decimal_signed(line, expected_numerator / (long long)common);
-    if ((expected_denominator / common) != 1ull)
+    if ((expected_denominator / common) != 1ULL)
     {
         mmgr_line_ch(line, '/');
         mmgr_line_decimal(line, expected_denominator / common, 1u);
     }
     mmgr_line_put(line, " within ");
     mmgr_line_decimal(line, range_numerator, 1u);
-    if (range_denominator != 1ull)
+    if (range_denominator != 1ULL)
     {
         mmgr_line_ch(line, '/');
         mmgr_line_decimal(line, range_denominator, 1u);

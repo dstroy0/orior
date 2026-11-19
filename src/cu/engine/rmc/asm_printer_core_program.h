@@ -300,7 +300,7 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
     for (unsigned int digit = 0u; digit < ASM_PRINTER_HASH_DIGITS; digit += 1u)
     {
         const unsigned int nibble =
-            (unsigned int)((rules->block_hash >> (4u * (ASM_PRINTER_HASH_DIGITS - 1u - digit))) & 0xFull);
+            (unsigned int)((rules->block_hash >> (4u * (ASM_PRINTER_HASH_DIGITS - 1u - digit))) & 0xFULL);
         block[digit] = (unsigned char)((nibble < 10u) ? ('0' + nibble) : ('a' + (nibble - 10u)));
     }
     const unsigned char minus = (unsigned char)'-';
@@ -328,7 +328,7 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
         build->part_lanes[part] = lanes;
     }
     if ((build->characters >= (1u << ASM_PRINTER_TABLE_BITS_MAX)) || (build->words > (1u << ASM_PRINTER_TABLE_BITS_MAX)) ||
-        (((unsigned long long)build->parts * ASM_PRINTER_PART_ROWS) > (1ull << ASM_PRINTER_TABLE_BITS_MAX)))
+        (((unsigned long long)build->parts * ASM_PRINTER_PART_ROWS) > (1ULL << ASM_PRINTER_TABLE_BITS_MAX)))
     {
         return asm_printer_core_ended(build, ASM_PRINTER_CORE_TABLES);
     }

@@ -10,13 +10,13 @@ static void value_put(unsigned char *bytes, unsigned int width, unsigned long lo
 {
     for (unsigned int at = 0u; at < width; at += 1u)
     {
-        bytes[at] = (unsigned char)((value >> (8u * at)) & 0xffull);
+        bytes[at] = (unsigned char)((value >> (8u * at)) & 0xffULL);
     }
 }
 
 static unsigned long long rounded(unsigned long long at, unsigned long long align)
 {
-    return ((align > 1ull) && ((at % align) != 0ull)) ? (at + (align - (at % align))) : at;
+    return ((align > 1ULL) && ((at % align) != 0ULL)) ? (at + (align - (at % align))) : at;
 }
 
 // The part's attributes written with the endings this code carries, into `written`; its size, or 0 where the section
@@ -25,7 +25,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
                                              const unsigned int *exits, unsigned int exit_count, unsigned char *written,
                                              unsigned long long room)
 {
-    unsigned long long value_size = 0ull;
+    unsigned long long value_size = 0ULL;
     const unsigned char *const found =
         container_attribute_of(places, bytes, size, places->attribute_exits, &value_size);
     if (found == NULL)
@@ -35,33 +35,33 @@ static unsigned long long attributes_written(const Places *places, const unsigne
         // Carrying the section over untouched is right for that and only for that
         if (exit_count != 0u)
         {
-            return 0ull;
+            return 0ULL;
         }
         if (size > room)
         {
             printf("  container_write: the attributes take %llu bytes where the room is %llu\n", size, room);
-            return 0ull;
+            return 0ULL;
         }
         memcpy(written, bytes, size);
         return size;
     }
     const unsigned long long before = (unsigned long long)(found - bytes);
     const unsigned long long after = before + places->attribute_header + value_size;
-    const unsigned long long whole = before + places->attribute_header + (4ull * exit_count) + (size - after);
+    const unsigned long long whole = before + places->attribute_header + (4ULL * exit_count) + (size - after);
     if (whole > room)
     {
         printf("  container_write: the attributes take %llu bytes where the room is %llu\n", whole, room);
-        return 0ull;
+        return 0ULL;
     }
     memcpy(written, bytes, before);
     written[before] = (unsigned char)places->attribute_format_value;
     written[before + 1u] = (unsigned char)places->attribute_exits;
-    value_put(&written[before + 2u], 2u, 4ull * exit_count);
+    value_put(&written[before + 2u], 2u, 4ULL * exit_count);
     for (unsigned int number = 0u; number < exit_count; number += 1u)
     {
-        value_put(&written[before + places->attribute_header + (4ull * number)], 4u, exits[number]);
+        value_put(&written[before + places->attribute_header + (4ULL * number)], 4u, exits[number]);
     }
-    memcpy(&written[before + places->attribute_header + (4ull * exit_count)], &bytes[after], size - after);
+    memcpy(&written[before + places->attribute_header + (4ULL * exit_count)], &bytes[after], size - after);
     return whole;
 }
 
@@ -69,13 +69,13 @@ static unsigned long long attributes_written(const Places *places, const unsigne
 static void registers_set(const Places *places, unsigned char *bytes, unsigned long long size, unsigned int symbol,
                           unsigned int registers)
 {
-    unsigned long long value_size = 0ull;
+    unsigned long long value_size = 0ULL;
     const unsigned char *const found =
         container_attribute_of(places, bytes, size, places->attribute_registers, &value_size);
-    if ((found != NULL) && (value_size == 8ull) &&
+    if ((found != NULL) && (value_size == 8ULL) &&
         (container_value_read(&found[places->attribute_header], 4u) == (unsigned long long)symbol))
     {
-        value_put(&bytes[(unsigned long long)(found - bytes) + places->attribute_header + 4ull], 4u, registers);
+        value_put(&bytes[(unsigned long long)(found - bytes) + places->attribute_header + 4ULL], 4u, registers);
     }
 }
 
@@ -104,8 +104,8 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         return 0;
     }
     unsigned int sections = 0u;
-    unsigned long long strings = 0ull;
-    unsigned long long section_entry = 0ull;
+    unsigned long long strings = 0ULL;
+    unsigned long long section_entry = 0ULL;
     const unsigned long long section_table =
         container_sections_of(&places, pattern, &sections, &strings, &section_entry);
     const unsigned long long segment_table =
@@ -128,7 +128,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         const int takes_bytes = container_section_takes_bytes(&places, pattern, at, index);
         section_list[index].bytes = takes_bytes ? &pattern[section_list[index].goes_at] : pattern;
         section_list[index].size =
-            takes_bytes ? container_value_read(&pattern[at + places.section_size], places.section_size_width) : 0ull;
+            takes_bytes ? container_value_read(&pattern[at + places.section_size], places.section_size_width) : 0ULL;
         section_list[index].align =
             container_value_read(&pattern[at + places.section_align], places.section_align_width);
     }
@@ -155,7 +155,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         printf("  container_write: no memory for the places of %u parts\n", args->part_count);
         return 0;
     }
-    unsigned long long attribute_room = 0ull;
+    unsigned long long attribute_room = 0ULL;
     int found = 1;
     for (unsigned int part = 0u; found && (part < args->part_count); part += 1u)
     {
@@ -190,11 +190,11 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
                    place[part].symbol, one->part, section_list[symbols].size);
             break;
         }
-        attribute_room += section_list[place[part].part_info].size + (4ull * one->exit_count);
+        attribute_room += section_list[place[part].part_info].size + (4ULL * one->exit_count);
     }
     // one block of memory for the program's attributes and every part's own, each part's after the last
     unsigned char *const block =
-        found ? (unsigned char *)malloc((size_t)(section_list[all_info].size + attribute_room + 1ull)) : NULL;
+        found ? (unsigned char *)malloc((size_t)(section_list[all_info].size + attribute_room + 1ULL)) : NULL;
     if (block == NULL)
     {
         printf("  container_write: no room was had for the attributes of %u parts\n", args->part_count);
@@ -208,11 +208,11 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     for (unsigned int part = 0u; found && (part < args->part_count); part += 1u)
     {
         const ContainerPart *const one = &args->parts[part];
-        const unsigned long long part_room = section_list[place[part].part_info].size + (4ull * one->exit_count);
+        const unsigned long long part_room = section_list[place[part].part_info].size + (4ULL * one->exit_count);
         const unsigned long long part_size = attributes_written(&places, section_list[place[part].part_info].bytes,
                                                                 section_list[place[part].part_info].size, one->exits,
                                                                 one->exit_count, block + used, part_room);
-        found = (part_size != 0ull);
+        found = (part_size != 0ULL);
         if (!found)
         {
             printf("  container_write: %s contains no endings to write\n", one->part);
@@ -300,7 +300,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         }
         // a segment covers a run of sections, and covers the same run where they lie now
         unsigned long long first = whole;
-        unsigned long long last = 0ull;
+        unsigned long long last = 0ULL;
         for (unsigned int index_at = 1u; index_at < sections; index_at += 1u)
         {
             const unsigned long long was_section = container_value_read(

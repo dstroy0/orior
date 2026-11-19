@@ -261,7 +261,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     if ((bytes == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
+        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
         return 1;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -270,7 +270,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &read_err_msg, .owner = g_cli_deploy_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, (g_cli_deploy_owner));
+    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
     const CliJson *const json = &args->tree->json;
     if (top == CLI_JSON_NONE)
     {

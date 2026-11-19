@@ -764,12 +764,12 @@ void cli_vim_command_run(const CliVimCtx *args)
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_vim_state.view,
             .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_anchor),
-            .src = &(CliPosition){(head).line, (head).col},
+            .src = &(CliPosition){head.line, head.col},
             .bytes = sizeof(CliPosition)});
         (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_vim_state.view,
             .offset = ((unsigned long long)(args->at) * sizeof(CliVimView)) + offsetof(CliVimView, visual_head),
-            .src = &(CliPosition){(head).line, (head).col},
+            .src = &(CliPosition){head.line, head.col},
             .bytes = sizeof(CliPosition)});
         EMBED_CALL(cli_vim_internal.mode_set, CliVimCtx, .at = args->at,
                    .mode = (name == 'v') ? CLI_VIM_VISUAL : CLI_VIM_LINE);
