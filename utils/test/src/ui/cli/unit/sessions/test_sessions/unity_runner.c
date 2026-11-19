@@ -10,7 +10,8 @@ extern void tearDown(void);
 extern void test_no_session_lists_as_none(void);
 extern void test_a_send_with_no_session_is_refused(void);
 extern void test_leaving_a_host_with_no_session_is_refused(void);
-extern void test_a_relay_with_no_window_answers_that_none_is_open(void);
+extern void test_a_far_end_with_no_window_runs_the_command_as_impero(void);
+extern void test_a_command_the_far_end_cannot_run_is_refused_with_its_errors(void);
 extern void test_every_host_answers_on_a_line_of_its_own(void);
 extern void test_a_host_left_answers_no_more(void);
 extern void test_a_second_command_while_one_gathers_is_refused(void);
@@ -76,14 +77,15 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\sessions\\test_sessions\\test_sessions.c");
-  run_test(test_no_session_lists_as_none, "test_no_session_lists_as_none", 81);
-  run_test(test_a_send_with_no_session_is_refused, "test_a_send_with_no_session_is_refused", 87);
-  run_test(test_leaving_a_host_with_no_session_is_refused, "test_leaving_a_host_with_no_session_is_refused", 93);
-  run_test(test_a_relay_with_no_window_answers_that_none_is_open, "test_a_relay_with_no_window_answers_that_none_is_open", 99);
-  run_test(test_every_host_answers_on_a_line_of_its_own, "test_every_host_answers_on_a_line_of_its_own", 110);
-  run_test(test_a_host_left_answers_no_more, "test_a_host_left_answers_no_more", 123);
-  run_test(test_a_second_command_while_one_gathers_is_refused, "test_a_second_command_while_one_gathers_is_refused", 139);
-  run_test(test_a_relay_that_ended_gives_no_answer, "test_a_relay_that_ended_gives_no_answer", 150);
+  run_test(test_no_session_lists_as_none, "test_no_session_lists_as_none", 82);
+  run_test(test_a_send_with_no_session_is_refused, "test_a_send_with_no_session_is_refused", 88);
+  run_test(test_leaving_a_host_with_no_session_is_refused, "test_leaving_a_host_with_no_session_is_refused", 94);
+  run_test(test_a_far_end_with_no_window_runs_the_command_as_impero, "test_a_far_end_with_no_window_runs_the_command_as_impero", 100);
+  run_test(test_a_command_the_far_end_cannot_run_is_refused_with_its_errors, "test_a_command_the_far_end_cannot_run_is_refused_with_its_errors", 111);
+  run_test(test_every_host_answers_on_a_line_of_its_own, "test_every_host_answers_on_a_line_of_its_own", 123);
+  run_test(test_a_host_left_answers_no_more, "test_a_host_left_answers_no_more", 138);
+  run_test(test_a_second_command_while_one_gathers_is_refused, "test_a_second_command_while_one_gathers_is_refused", 155);
+  run_test(test_a_relay_that_ended_gives_no_answer, "test_a_relay_that_ended_gives_no_answer", 166);
 
   return UNITY_END();
 }

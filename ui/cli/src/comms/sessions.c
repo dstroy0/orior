@@ -47,6 +47,7 @@ typedef struct
     const unsigned char *bytes_read;
     unsigned long long size;
     const char *root;
+    VerbaLinea *out;
     int done;
 } SessionsOpCtx;
 
@@ -514,53 +515,108 @@ void cli_sessions_close(void)
     s_sessions.sending = 0;
 }
 
-// one request answered: its fields cut at their 0s, the command sent to the window on `root`, and the answer's body
-// written as a frame to `pipe_handle`
+// `size` bytes of `bytes_read` put on the reply `out`, trimmed of the white at both ends, and cut to what fits
+EMBED_INLINE void relay_text_put(const SessionsOpCtx *args)
+{
+    const char *const text = (const char *)args->bytes_read;
+    unsigned long long from = 0ULL;
+    unsigned long long to = args->size;
+    while ((from < to) &&
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\n\r", .cap = CLI_POOL_BYTES, .byte = text[from]}) != NULL))
+    {
+        from += 1ULL;
+    }
+    while ((to > from) &&
+           (cellul.chr(&(CatenaFinitaCfg){.src = " \t\n\r", .cap = CLI_POOL_BYTES, .byte = text[to - 1ULL]}) != NULL))
+    {
+        to -= 1ULL;
+    }
+    VerbaLinea *const out = args->out;
+    const unsigned long long fits = (out->capacity > out->at + 1ULL) ? out->capacity - out->at - 1ULL : 0ULL;
+    mmgr_line_put_n(out, text + from, ((to - from) < fits) ? (to - from) : fits);
+}
+
+// One request answered: its fields cut at their 0s, and the command run as this program runs one from the command
+// line, `imp [--root tree] <menu> <command> [words]`, in a process of its own. Where a window is open on the host that
+// process sends the command through its door; where none is, impero runs it here as the terminal can, or opens the
+// window to run it. The answer's mark is the exit code's, its text what the process printed, cut to what a frame of
+// the answer's carries, and written as a frame to `pipe_handle`
 EMBED_INLINE void relay_answered(const SessionsOpCtx *args)
 {
     const char *const body = (const char *)args->bytes_read;
-    static const char *s_field[CLI_WORDS_MAX + CLI_REACH_HEAD_FIELDS];
+    // the program's own path, a root word and its folder, the fields, and the NULL a run ends at
+    static const char *s_word[CLI_WORDS_MAX + CLI_REACH_HEAD_FIELDS + 4u];
+    static char s_program[CLI_PATH_MAX_LEN];
     unsigned int fields = 0u;
     unsigned long long at = 0ULL;
+    const char *id = "0";
+    unsigned int words = 0u;
+    s_word[words] = s_program;
+    words += 1u;
+    if (args->root != NULL)
+    {
+        s_word[words] = "--root";
+        s_word[words + 1u] = args->root;
+        words += 2u;
+    }
     while ((fields < CLI_WORDS_MAX + CLI_REACH_HEAD_FIELDS) && (at < args->size))
     {
-        s_field[fields] = body + at;
+        if (fields == 0u)
+        {
+            id = body + at;
+        }
+        else
+        {
+            s_word[words] = body + at;
+            words += 1u;
+        }
         fields += 1u;
         at += cellul.len(&(CatenaFinitaCfg){.src = body + at, .cap = args->size - at}) + 1ULL;
     }
-    static CliReachAnswer s_answer;
+    s_word[words] = NULL;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    int requested = 0;
-    s_answer.done = 0;
-    s_answer.text[0] = '\0';
     const int framed = (fields >= CLI_REACH_HEAD_FIELDS) && (at <= args->size) && (body[args->size - 1ULL] == '\0');
-    if (framed)
-    {
-        requested = EMBED_CALL(cli_reach_menu.request, CliReachMenuCfg, .root = args->root, .menu = s_field[1],
-                               .command = s_field[2], .request = s_field + CLI_REACH_HEAD_FIELDS,
-                               .count = fields - CLI_REACH_HEAD_FIELDS, .answer = &s_answer, .err_msg = &err_msg);
-    }
-    else
+    CliRunResult *run_result = NULL;
+    int ran = 0;
+    if (!framed)
     {
         mmgr_line_put(&err_msg, "the request's fields are not whole");
     }
-    static char s_reply[SESSIONS_ANSWER];
-    VerbaLinea reply = {s_reply, sizeof(s_reply), 0ULL};
-    mmgr_line_put(&reply, framed ? s_field[0] : "0");
-    mmgr_line_ch(&reply, '\0');
-    mmgr_line_ch(&reply, ((requested > 0) && s_answer.done) ? CLI_REACH_DONE : CLI_REACH_REFUSED);
-    if (requested > 0)
+    else if (!EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = s_program,
+                         .capacity_bytes = sizeof(s_program)))
     {
-        mmgr_line_put(&reply, s_answer.text);
-    }
-    else if (requested < 0)
-    {
-        mmgr_line_put(&reply, "no window is open on this host");
+        mmgr_line_put(&err_msg, "impero finds no path of its own to run");
     }
     else
     {
-        mmgr_line_put_n(&reply, why, err_msg.at);
+        run_result = cli_run_result_alloc();
+        ran = (run_result != NULL) &&
+              EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_word, .folder = NULL, .settings = NULL,
+                         .count = 0u, .run_result = run_result, .err_msg = &err_msg);
+    }
+    const int done = ran && (run_result->code == 0LL);
+    static char s_reply[SESSIONS_ANSWER];
+    VerbaLinea reply = {s_reply, sizeof(s_reply), 0ULL};
+    mmgr_line_put(&reply, id);
+    mmgr_line_ch(&reply, '\0');
+    mmgr_line_ch(&reply, done ? CLI_REACH_DONE : CLI_REACH_REFUSED);
+    if (ran)
+    {
+        // what it printed: its output where it ran well, else its errors, or its output where the errors are empty
+        const int errors = !done && (run_result->err_size != 0ULL);
+        EMBED_CALL(relay_text_put, SessionsOpCtx, .out = &reply,
+                   .bytes_read = (const unsigned char *)(errors ? run_result->err : run_result->out),
+                   .size = errors ? run_result->err_size : run_result->out_size);
+    }
+    else
+    {
+        EMBED_CALL(relay_text_put, SessionsOpCtx, .out = &reply, .bytes_read = (const unsigned char *)why,
+                   .size = err_msg.at);
+    }
+    if (run_result != NULL)
+    {
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     }
     (void)EMBED_CALL(sessions_frame_write, SessionsOpCtx, .pipe_handle = args->pipe_handle,
                      .bytes_read = (const unsigned char *)s_reply, .size = mmgr_line_ok(&reply) ? reply.at : 0ULL);

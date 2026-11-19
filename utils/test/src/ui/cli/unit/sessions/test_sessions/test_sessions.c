@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_sessions.c: the sessions one window holds: none lists as none, a send or a leave with none is refused with why,
-// a far end of impero's joined as a host answers under its name, every host answers on a line of its own, a host left
-// answers no more, a second command while one gathers is refused, and a far end that ended is reported
+// a far end of impero's joined as a host runs the command as impero and answers under its name, a command impero
+// cannot run is refused with its errors, every host answers on a line of its own, a host left answers no more, a
+// second command while one gathers is refused, and a far end that ended is reported
 #include "ui/cli/src/comms/sessions.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -96,15 +97,27 @@ void test_leaving_a_host_with_no_session_is_refused(void)
     CLI_TEST_ASSERT_CONTAINS("no session is open on nobody", s_error);
 }
 
-void test_a_relay_with_no_window_answers_that_none_is_open(void)
+void test_a_far_end_with_no_window_runs_the_command_as_impero(void)
 {
     imp_needed();
     relay_joined("one");
     TEST_ASSERT_TRUE_MESSAGE(about_sent(), s_error);
+    int done = 0;
+    TEST_ASSERT_TRUE(stepped(&done));
+    TEST_ASSERT_TRUE_MESSAGE(done, s_text);
+    CLI_TEST_ASSERT_CONTAINS("one: imp ", s_text);
+}
+
+void test_a_command_the_far_end_cannot_run_is_refused_with_its_errors(void)
+{
+    imp_needed();
+    relay_joined("one");
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_sessions.send, CliSessionsCfg, .menu = "nowhere", .command = "nothing", .request = NULL, .count = 0u, .err_msg = &s_err_msg), s_error);
     int done = 1;
     TEST_ASSERT_TRUE(stepped(&done));
     TEST_ASSERT_FALSE(done);
-    TEST_ASSERT_EQUAL_STRING("one refused: no window is open on this host", s_text);
+    CLI_TEST_ASSERT_CONTAINS("one refused: ", s_text);
+    CLI_TEST_ASSERT_CONTAINS("nowhere", s_text);
 }
 
 void test_every_host_answers_on_a_line_of_its_own(void)
@@ -115,9 +128,11 @@ void test_every_host_answers_on_a_line_of_its_own(void)
     listed();
     TEST_ASSERT_EQUAL_STRING("one\ntwo", s_text);
     TEST_ASSERT_TRUE_MESSAGE(about_sent(), s_error);
-    int done = 1;
+    int done = 0;
     TEST_ASSERT_TRUE(stepped(&done));
-    TEST_ASSERT_EQUAL_STRING("one refused: no window is open on this host\ntwo refused: no window is open on this host", s_text);
+    TEST_ASSERT_TRUE_MESSAGE(done, s_text);
+    CLI_TEST_ASSERT_CONTAINS("one: imp ", s_text);
+    CLI_TEST_ASSERT_CONTAINS("\ntwo: imp ", s_text);
 }
 
 void test_a_host_left_answers_no_more(void)
@@ -133,7 +148,8 @@ void test_a_host_left_answers_no_more(void)
     TEST_ASSERT_EQUAL_STRING("two", s_text);
     TEST_ASSERT_TRUE_MESSAGE(about_sent(), s_error);
     TEST_ASSERT_TRUE(stepped(&done));
-    TEST_ASSERT_EQUAL_STRING("two refused: no window is open on this host", s_text);
+    CLI_TEST_ASSERT_CONTAINS("two: imp ", s_text);
+    CLI_TEST_ASSERT_NOT_CONTAINS("one", s_text);
 }
 
 void test_a_second_command_while_one_gathers_is_refused(void)

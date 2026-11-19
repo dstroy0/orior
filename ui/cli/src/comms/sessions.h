@@ -43,8 +43,8 @@ int cli_sessions_step(const CliSessionsCfg *args);
 void cli_sessions_refused(const CliSessionsCfg *args);
 // every session ended and forgotten
 void cli_sessions_close(void);
-// The far end: requests read from this process's input until it ends, each sent to the window open on `root`, or on
-// the one tree open where `root` is NULL, its answer written to the output. The exit code, 0
+// The far end: requests read from this process's input until it ends, each run as impero runs a command line, on the
+// tree `root` where one is named, its answer written to the output. The exit code, 0
 int cli_sessions_relay(const CliSessionsCfg *args);
 
 struct CliSessionsCfg

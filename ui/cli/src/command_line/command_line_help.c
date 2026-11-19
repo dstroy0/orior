@@ -241,11 +241,31 @@ void cli_help(const CliCommandLineOutErrMsgShellCtx *args)
                   "orior: the window, and every job it runs, from one program. A menu's title and one of its\n"
                   "commands are the words for it here. A command marked * acts in the window, which it opens.\n\n");
     EMBED_CALL(help_rows, CommandLineHelpCtx, .made = &made);
-    mmgr_line_put(out, "\n  --root <folder>  the orior tree to work on; else ORIOR_ROOT, else the tree the working\n"
-                       "                   folder or the program sits in\n\n"
-                       "A job is named by its id, by the end of its id after a slash, or by its title, where that\n"
-                       "names only one. A run exits with the code of its last step. A key given twice gives two "
-                       "values.\n");
+    mmgr_line_put(out,
+                  "\n  --root <folder>  the orior tree to work on; else ORIOR_ROOT, else the tree the working\n"
+                  "                   folder or the program sits in\n\n"
+                  "Driving the window from here: a command marked * goes through the window's door to the window\n"
+                  "open on the tree, which runs it as its menu does and answers; with no window open, impero runs\n"
+                  "it here where the terminal can, else opens the window. `imp <menu>` lists a menu's commands.\n"
+                  "  imp help pointer <x> <y>               the window's own pointer moved to a place\n"
+                  "  imp help pointer press|release|click [left|middle|right]\n"
+                  "  imp help pointer drag <x> <y> [<x> <y>...]    the left button down, each place, up at the last\n"
+                  "  imp help pointer wheel up|down [notches]\n"
+                  "  imp help pointer off                   the pointer given back to the system\n"
+                  "  imp edit macro-record, macro-play [times] [name], macro-retain [name]\n"
+                  "                                         the window's keys recorded, played back and kept\n"
+                  "Over ssh, as text: a session is `imp sessions relay` started on the host, and one window holds\n"
+                  "any number of them. The far end is impero: where a window is open on the host the command goes\n"
+                  "to it, else impero runs it there.\n"
+                  "  imp sessions session-join user@host[:tree]       a host joined, the tree its window is on\n"
+                  "  imp sessions session-send <menu> <command> [words]\n"
+                  "                                         one command sent to every host, each answering on a\n"
+                  "                                         line under its address\n"
+                  "  imp sessions sessions                  the hosts joined\n"
+                  "  imp sessions session-leave <address>   a host left\n\n"
+                  "A job is named by its id, by the end of its id after a slash, or by its title, where that\n"
+                  "names only one. A run exits with the code of its last step. A key given twice gives two "
+                  "values.\n");
 }
 
 void cli_keys(void)

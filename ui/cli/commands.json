@@ -689,7 +689,7 @@
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },
         { "label": "Ask…", "command": "ask", "args": "[--error] <title> <body> <button> [<button>...]", "hidden": true },
-        { "label": "Pointer…", "command": "pointer", "args": "[<x> <y>|off]", "hidden": true },
+        { "label": "Pointer…", "command": "pointer", "args": "<x> <y>|press|release|click [left|middle|right]|drag <x> <y> [<x> <y>...]|wheel up|down [notches]|off", "hidden": true },
         { "label": "Telemetry…", "command": "telemetry", "args": "on|off", "hidden": true },
         "-",
         { "label": "Report a Bug…", "command": "report", "args": "[library|cli|ui|unknown] [title]", "console": true },
