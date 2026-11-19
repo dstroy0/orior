@@ -655,6 +655,14 @@ typedef struct
 // not say (platform/windows_processes.c, platform/posix_processes.c)
 int cli_process_memory(const CliPidCtx *args);
 int cli_process_by_name(const CliCapacityPidCtx *args);
+// the whole pages from `at` for `bytes` given back to the system, their contents dropped: the next read of one
+// gets a page the system gives afresh. The window's thread calls it for the cellblock's idle spans
+// (platform/windows_processes.c, platform/posix_processes.c)
+void cli_pages_released(void *at, unsigned long long bytes);
+// `bytes` of memory the system gives, whole pages, readable and writable and zero, outside the program's image, for
+// the pool to be placed on: their first byte, or NULL where the system refuses; held for the process's life
+// (platform/windows_processes.c, platform/posix_processes.c)
+void *cli_pages_mapped(unsigned long long bytes);
 void cli_temp_folder(const CliFolderCtx *args);
 unsigned long long cli_event_inheritable(void);
 int cli_event_set(const CliEventCtx *args);

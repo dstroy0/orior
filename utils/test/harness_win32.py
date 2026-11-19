@@ -34,6 +34,8 @@ SW_SHOWMAXIMIZED = 3
 SWP_NOSIZE = 0x0001
 SWP_NOZORDER = 0x0004
 GW_OWNER = 4
+GWL_EXSTYLE = -20
+WS_EX_TOOLWINDOW = 0x00000080
 SRCCOPY = 0x00CC0020
 BI_RGB = 0
 DIB_RGB_COLORS = 0
@@ -277,6 +279,27 @@ def memory(process_id):
     return private_pages * PAGE_BYTES, counters.WorkingSetSize, counters.PrivateUsage
 
 
+def resident_pages(process_id):
+    """The virtual addresses of every page of a process's working set, as the system lists them; empty where the
+    process cannot be asked."""
+    handle = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, process_id)
+    if not handle:
+        return []
+    entries = 4096
+    pages = []
+    while True:
+        block = (ctypes.c_size_t * (entries + 1))()
+        if kernel32.K32QueryWorkingSet(handle, ctypes.byref(block), ctypes.sizeof(block)):
+            # each entry carries the page's flags in its low twelve bits and its address above them
+            pages = [page & ~(PAGE_BYTES - 1) for page in block[1 : block[0] + 1]]
+            break
+        if entries > 1 << 24:
+            break
+        entries *= 4
+    kernel32.CloseHandle(handle)
+    return pages
+
+
 class FileTime(ctypes.Structure):
     _fields_ = [("low", wintypes.DWORD), ("high", wintypes.DWORD)]
 
@@ -419,13 +442,15 @@ def job_processor_seconds(job):
 
 
 def main_window(process_id):
-    """(handle, title) of a process's main window, the visible unowned one, or (0, "") where it has none yet."""
+    """(handle, title) of a process's main window, the visible unowned one that is no tool window, or (0, "") where
+    it has none yet. The pointer's surface is a tool window, so it is never the main window."""
     found = []
 
     def seen(handle, _):
         owner = wintypes.DWORD()
         user32.GetWindowThreadProcessId(handle, ctypes.byref(owner))
-        if owner.value == process_id and user32.IsWindowVisible(handle) and not user32.GetWindow(handle, GW_OWNER):
+        if (owner.value == process_id and user32.IsWindowVisible(handle) and not user32.GetWindow(handle, GW_OWNER)
+                and not user32.GetWindowLongPtrW(handle, GWL_EXSTYLE) & WS_EX_TOOLWINDOW):
             title = ctypes.create_unicode_buffer(512)
             user32.GetWindowTextW(handle, title, 512)
             found.append((handle, title.value))

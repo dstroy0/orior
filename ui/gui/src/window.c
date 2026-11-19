@@ -5992,6 +5992,9 @@ void gui_window_step(const GuiWindowCfg *args)
         {
             cli_pool_telemetry_log();
         }
+        // the pages of the cellblock no cell holds go back to the system each tick, so the working set reads the
+        // live cells and not every page a take has touched since the window started
+        cli_pool_idle_released();
         window->memory_due_ms = now_ms + GUI_MEMORY_MS;
         window->pending = 1;
     }

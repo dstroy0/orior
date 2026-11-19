@@ -5,8 +5,9 @@
 // out; elsewhere as ps lists them, each line its number, its name and the line it was started with; and a process's
 // memory and its program's name, on Linux from /proc and on macOS as libproc gives them
 #if !defined(_WIN32)
-// O_CLOEXEC is POSIX, outside strict C11
+// O_CLOEXEC is POSIX, outside strict C11; madvise is BSD, outside POSIX
 #define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
 #include "../command_line/callback_cfg.h"
@@ -15,10 +16,27 @@
 
 #if !defined(_WIN32)
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <libproc.h>
 #endif
+
+void *cli_pages_mapped(unsigned long long bytes)
+{
+    void *const at = mmap(NULL, (size_t)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    return (at == MAP_FAILED) ? NULL : at;
+}
+
+void cli_pages_released(void *at, unsigned long long bytes)
+{
+    // Linux drops the pages at once; macOS marks them free and reclaims them as it needs the memory
+#if defined(__APPLE__)
+    (void)madvise(at, (size_t)bytes, MADV_FREE);
+#else
+    (void)madvise(at, (size_t)bytes, MADV_DONTNEED);
+#endif
+}
 
 typedef struct
 {

@@ -140,6 +140,35 @@ int cli_process_running(const CliPidCtx *args)
     return (read != 0) && (code == STILL_ACTIVE);
 }
 
+void *cli_pages_mapped(unsigned long long bytes)
+{
+    return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+}
+
+typedef DWORD(WINAPI *CliPagesDiscard)(PVOID at, SIZE_T bytes);
+
+void cli_pages_released(void *at, unsigned long long bytes)
+{
+    // the system's discard, which takes the pages out of the working set at once, where the system has it; else
+    // the pages marked unneeded, which the system takes as it trims. The window's thread alone calls this
+    static CliPagesDiscard s_discard;
+    static int s_sought;
+    if (!s_sought)
+    {
+        // Explicit cast takes the procedure's address to the call's type
+        s_discard = (CliPagesDiscard)(void *)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "DiscardVirtualMemory");
+        s_sought = 1;
+    }
+    if (s_discard != NULL)
+    {
+        (void)s_discard(at, (SIZE_T)bytes);
+    }
+    else
+    {
+        (void)VirtualAlloc(at, (SIZE_T)bytes, MEM_RESET, PAGE_READWRITE);
+    }
+}
+
 int cli_process_memory(const CliPidCtx *args)
 {
     const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)args->pid);

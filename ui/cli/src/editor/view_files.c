@@ -25,6 +25,8 @@ typedef struct
     unsigned long long length;
     unsigned int rows;
     CliPosition *place;
+    const char *id;
+    const VerbaLinea *why;
 } ViewFilesCtx;
 
 // the line and the column the `length` bytes at `path` end in, each a colon and digits counted from 1, as a place
@@ -99,6 +101,23 @@ EMBED_INLINE int view_files_by_path(const ViewFilesCtx *args)
     return -1;
 }
 
+// The grammar of the language `id` did not store for the file at `path`. The error stream gets one line that
+// names the file, the language and the reason, so the window's log shows why the file has no colors
+EMBED_INLINE void view_files_uncolored(const ViewFilesCtx *args)
+{
+    char text[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    mmgr_line_put(&line, "grammar ");
+    mmgr_line_put(&line, args->id);
+    mmgr_line_put(&line, " not stored for ");
+    mmgr_line_put(&line, args->path);
+    mmgr_line_put(&line, ": ");
+    mmgr_line_put_n(&line, args->why->out, args->why->at);
+    mmgr_line_ch(&line, '\n');
+    EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
+               .length = mmgr_line_finish(&line));
+}
+
 // the text under `key` set to color by the grammar of the language its path is of
 EMBED_INLINE void view_files_colored(const ViewFilesCtx *args)
 {
@@ -117,6 +136,7 @@ EMBED_INLINE void view_files_colored(const ViewFilesCtx *args)
                              .err_msg = &err_msg))
     {
         grammar[0] = '\0';
+        EMBED_CALL(view_files_uncolored, ViewFilesCtx, .path = args->path, .id = id, .why = &err_msg);
     }
     (void)EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = args->key,
                      .grammar = grammar, .named = 0);

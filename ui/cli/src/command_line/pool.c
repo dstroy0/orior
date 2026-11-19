@@ -10,12 +10,13 @@
 
 #include "cli_internal.h"
 
-// The pool: bytes of the program's own image, declared at CLI_POOL_BYTES, the cellblock's record beside them, both
-// settled by the linker; emptied for a program's request while no cell is allocated. Minimum security: a cell is left
-// as it is when released and passed out unzeroed, so that a release costs no bytes it did not use and no page it did
-// not touch; a capacity writes what it reads
-ParsMemoriaeInternae(cli_pool, CLI_POOL_BYTES);
-LocusCarcerum(cli_pool_site, MMGR_MINIMUM_SECURITY(cli_pool));
+// The pool: CLI_POOL_BYTES the system gives once, as the pool is first made, outside the program's image so that the
+// pages no cell holds can go back to the system; the cellblock's record settled by the linker and placed over those
+// bytes; emptied for a program's request while no cell is allocated. Minimum security: a cell is left as it is when
+// released and passed out unzeroed, so that a release costs no bytes it did not use and no page it did not touch; a
+// capacity writes what it reads
+ParsMemoriaeHospes(cli_pool);
+LocusCarcerum(cli_pool_site, MMGR_MINIMUM_SECURITY_HOSPES(cli_pool));
 
 // the program's owners, the table and each owner's pointer into it
 MMGR_OWNERS(CLI_OWNERS)
@@ -322,6 +323,16 @@ int cli_pool_made(unsigned long long bytes)
     (void)g_cli_guard->buf_available();
     const int idle = mmgr_series_cellularum_idle(record);
     const int fits = bytes <= CLI_POOL_BYTES;
+    // the pool's bytes come from the system the first time the pool is made, and the cellblock is placed over them
+    if (idle && fits && (record->base == NULL))
+    {
+        // Explicit cast takes the pages the system gave as the bytes the cellblock is placed on
+        uint8_t *const storage = (uint8_t *)cli_pages_mapped(CLI_POOL_BYTES);
+        if (!mmgr_series_cellularum_placed(record, storage, CLI_POOL_BYTES))
+        {
+            return 0;
+        }
+    }
     if (idle && fits)
     {
         mmgr_series_cellularum_emptied(record);
@@ -404,6 +415,29 @@ void cli_grown_end(CliGrownLine *grown)
     grown->cell = NULL;
     grown->capacity = 0ULL;
     grown->line = mmgr_line_over(NULL, 0u);
+}
+
+// the bytes of a page, and the least an idle span holds in whole pages before its pages go back
+#define POOL_PAGE_BYTES 4096ull
+#define POOL_IDLE_RELEASED (64ull << 10u)
+
+// one idle span of the cellblock cut to the whole pages inside it, those given back where they hold
+// POOL_IDLE_RELEASED bytes or more
+static void pool_idle_each(void *context, void *at, size_t bytes)
+{
+    (void)context;
+    // Explicit casts read the span's bounds as integers for the page arithmetic, and the first page back as its address
+    const unsigned long long first = ((unsigned long long)(uintptr_t)at + POOL_PAGE_BYTES - 1ull) & ~(POOL_PAGE_BYTES - 1ull);
+    const unsigned long long end = ((unsigned long long)(uintptr_t)at + bytes) & ~(POOL_PAGE_BYTES - 1ull);
+    if ((end > first) && ((end - first) >= POOL_IDLE_RELEASED))
+    {
+        cli_pages_released((void *)(uintptr_t)first, end - first);
+    }
+}
+
+void cli_pool_idle_released(void)
+{
+    mmgr_series_cellularum_idle_each(&cli_pool_site_cli_pool_ctx, pool_idle_each, NULL);
 }
 
 void cli_pool_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary)

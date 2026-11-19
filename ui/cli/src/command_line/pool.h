@@ -16,7 +16,7 @@ extern "C"
 #endif
 
 // the pool every program is on: the max bytes its two ends occupy at once, as the cellblock's own peaks read
-// them, rounded up to the next 32 MiB
+// them, rounded up to the next 32 MiB; the system gives the bytes as the pool is first made
 #define CLI_POOL_BYTES ((256ull << 20u) + (32ull << 20u))
 
 // the max movable cells the pool names at once
@@ -83,6 +83,10 @@ extern "C"
     // in-use count moved since the last line gets `cells owner <name> <in use> <peak>`, and each owner whose passes
     // through the turnstiles moved gets `cells touches <name> <passes>`
     void cli_pool_telemetry_log(void);
+    // the pages of the cellblock no cell holds given back to the system, the gap between the tiers and each region's
+    // room above its depth, cut to whole pages and only where a span holds 64 KiB or more: the working set then reads
+    // the live cells, not every page a take touched. The window's main thread calls it on its memory tick
+    void cli_pool_idle_released(void);
 
 #ifdef __cplusplus
 }

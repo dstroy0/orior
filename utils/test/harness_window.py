@@ -1344,6 +1344,65 @@ def cmd_regions(a):
     return 0
 
 
+POOL_RECORD = re.compile(r"^[0-9a-f`]+\s+([0-9a-f]{8})`([0-9a-f]{8}) ([0-9a-f]{8})`([0-9a-f]{8})\s*$", re.M)
+REGION_WORD = re.compile(r"-DMMGR_CARCER_(REGIONS|REGION_BYTES|LARGE_REGION_BYTES)=(\d+)u")
+
+
+def pool_record(process_id):
+    """(base, size) of the window's cellblock, read off its record through the debugger without stopping the
+    process; None where the record cannot be read."""
+    words = [CDB, "-pv", "-p", str(process_id), "-y", os.path.dirname(program()), "-c",
+             ".reload /f %s; dq %s!cli_pool_site_cli_pool_ctx L2; q" % (gui_name() + ".exe", gui_name())]
+    answered = subprocess.run(words, cwd=ROOT, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    found = POOL_RECORD.search(answered.stdout)
+    if not found:
+        return None
+    return int(found.group(1) + found.group(2), 16), int(found.group(3) + found.group(4), 16)
+
+
+def region_knobs():
+    """(regions, region bytes, large region bytes) as the window's build declares them."""
+    with open(os.path.join(ROOT, "ui", "cli", "build.sh"), encoding="utf-8") as handle:
+        knobs = {name: int(value) for name, value in REGION_WORD.findall(handle.read())}
+    return knobs.get("REGIONS", 0), knobs.get("REGION_BYTES", 0), knobs.get("LARGE_REGION_BYTES", 0)
+
+
+def cmd_pool(a):
+    """The pages of the window's cellblock the process has resident, by area: the persistent tier and the gap under
+    the regions, each thread's region and the large region. A region's resident pages are what its takes have
+    touched since the window started: the pages stay resident after the cells go back."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    found = window_of(a.id)
+    if not found:
+        return 1
+    process_id = found[0]
+    record = pool_record(process_id)
+    if record is None:
+        print("the cellblock's record could not be read")
+        return 1
+    base, size = record
+    regions, region_bytes, large_bytes = region_knobs()
+    pages = sorted(page for page in win.resident_pages(process_id) if base <= page < base + size)
+
+    def resident(low, high):
+        return sum(1 for page in pages if low <= page < high) * win.PAGE_BYTES
+
+    area = regions * region_bytes + large_bytes
+    rows = [("tiers and gap", base, base + size - area)]
+    for region in range(regions):
+        end = base + size - large_bytes - region * region_bytes
+        rows.append(("region %d" % region, end - region_bytes, end))
+    if large_bytes:
+        rows.append(("large region", base + size - large_bytes, base + size))
+    print("process %d cellblock %d MiB at 0x%x: resident %.1f MiB" % (process_id, size >> 20, base, len(pages) * win.PAGE_BYTES / MIB))
+    for name, low, high in rows:
+        print("  %-14s %7.1f MiB of %7.1f MiB" % (name, resident(low, high) / MIB, (high - low) / MIB))
+    return 0
+
+
 def types_on_port(port):
     """The window behind a debugging port and its web view's processes by type, as the browser names them: the
     window's process id, and each process id's type, the window's own named window."""
@@ -2072,6 +2131,10 @@ def register(sub):
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.add_argument("--count", type=int, default=12, help="how many of the largest allocations are listed")
     p.set_defaults(fn=cmd_regions)
+
+    p = window.add_parser("pool", help="the pages of the window's cellblock the process has resident, by area: the tiers and the gap, each thread's region and the large region")
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
+    p.set_defaults(fn=cmd_pool)
 
     p = window.add_parser("luminance", help="the dark palette's colors and the grammar plugins' tokens by CIE lightness, from --floor down, the chrome off the ladder marked")
     p.add_argument("--floor", type=float, default=78.0, help="the lightness below which colors are left out")

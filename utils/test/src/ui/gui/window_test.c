@@ -544,6 +544,122 @@ static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsig
     return runs;
 }
 
+// A C file opens while the thread holds a temporary cell of 1.5 MiB. The grammar's store takes more than the
+// thread's region has left. The walk colors the file's lines all the same
+static void grammar_held_checked(void)
+{
+    const unsigned long long held_bytes = 1536ULL << 10u;
+    void *const held = g_cli_guard->temporary_buf_alloc(held_bytes, g_checks_owner);
+    cli_check(held != NULL, "a cell of 1.5 MiB is taken on the thread");
+    tabs_closed("held.c", "int one(void)\n{\n    return 1;\n}\n", NULL, NULL);
+    cli_check(tab_opened("held.c"), "a C file opens beside the held cell");
+    cli_check(row_runs_waited(2u, 3000ULL) > 0u, "the walk colors the file's lines while the thread holds a cell");
+    g_cli_guard->persistent_buf_release(held, g_checks_owner);
+    (void)asked("close-all", NULL);
+}
+
+static unsigned long long cells_settled(unsigned long long *owners);
+
+// A C file of seven thousand lines opens and takes its first edit. The first edit gives the branch its own cells.
+// Ten more edits of one character leave the cells in use within 64 KiB of the first edit's count. Each owner that
+// moved over the ten is written beside the check
+static void edits_cells_checked(void)
+{
+    const unsigned long long capacity = 512ULL << 10u;
+    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_checks_owner);
+    cli_check(text != NULL, "a cell for the large text is taken");
+    if (text == NULL)
+    {
+        return;
+    }
+    VerbaLinea line = {text, capacity, 0ULL};
+    for (unsigned int at = 0u; at < 7000u; at += 1u)
+    {
+        mmgr_line_put(&line, "static const unsigned int value_");
+        mmgr_line_decimal(&line, at, 1u);
+        mmgr_line_put(&line, " = ");
+        mmgr_line_decimal(&line, at, 1u);
+        mmgr_line_put(&line, "u; // one line of the large text\n");
+    }
+    (void)mmgr_line_finish(&line);
+    tabs_closed("large.c", text, NULL, NULL);
+    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    cli_check(tab_opened("large.c"), "the large C file opens");
+    cli_check(row_runs_waited(2u, 5000ULL) > 0u, "the walk colors it");
+    cursor_put(10ULL, 0ULL);
+    typed("x");
+    unsigned long long owners_first[MMGR_CARCER_OWNERS];
+    const unsigned long long first = cells_settled(owners_first);
+    for (unsigned int edit = 0u; edit < 10u; edit += 1u)
+    {
+        typed("x");
+        (void)cells_settled(NULL);
+    }
+    unsigned long long owners_last[MMGR_CARCER_OWNERS];
+    const unsigned long long last = cells_settled(owners_last);
+    for (size_t at = 0u; (at < mmgr_owner_table_count) && (at < MMGR_CARCER_OWNERS); at += 1u)
+    {
+        if (owners_last[at] != owners_first[at])
+        {
+            (void)fprintf(stderr, "  owner %s %llu -> %llu\n", mmgr_owner_table[at].name, owners_first[at],
+                          owners_last[at]);
+        }
+    }
+    (void)fprintf(stderr, "  cells after the first edit %llu, after ten more %llu\n", first, last);
+    cli_check(last <= first + (64ULL << 10u), "ten edits after the first leave the cells within 64 KiB");
+    (void)asked("close-all", NULL);
+}
+
+// the private working set of this process, in bytes, 0 where the system does not say
+static unsigned long long working_set(void)
+{
+    CliProcessMemory measured;
+    return EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
+               ? measured.working
+               : 0ULL;
+}
+
+// A large C file opens and takes five edits, which the walk colors on its threads. The file closes. The idle pages
+// of the cellblock given back lower the working set by a megabyte or more: the pages the walk's threads touched
+// are no longer resident
+static void idle_pages_checked(void)
+{
+    const unsigned long long capacity = 512ULL << 10u;
+    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_checks_owner);
+    cli_check(text != NULL, "a cell for the large text is taken");
+    if (text == NULL)
+    {
+        return;
+    }
+    VerbaLinea line = {text, capacity, 0ULL};
+    for (unsigned int at = 0u; at < 7000u; at += 1u)
+    {
+        mmgr_line_put(&line, "static const unsigned int value_");
+        mmgr_line_decimal(&line, at, 1u);
+        mmgr_line_put(&line, " = ");
+        mmgr_line_decimal(&line, at, 1u);
+        mmgr_line_put(&line, "u; // one line of the large text\n");
+    }
+    (void)mmgr_line_finish(&line);
+    tabs_closed("large.c", text, NULL, NULL);
+    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    cli_check(tab_opened("large.c"), "the large C file opens");
+    cli_check(row_runs_waited(2u, 5000ULL) > 0u, "the walk colors it");
+    for (unsigned int edit = 0u; edit < 5u; edit += 1u)
+    {
+        cursor_put(10ULL + (edit * 100ULL), 0ULL);
+        typed("x");
+        (void)cells_settled(NULL);
+    }
+    (void)asked("close-all", NULL);
+    (void)cells_settled(NULL);
+    const unsigned long long before = working_set();
+    cli_pool_idle_released();
+    const unsigned long long after = working_set();
+    (void)fprintf(stderr, "  working set %llu before the idle pages go back, %llu after\n", before, after);
+    cli_check((before != 0ULL) && (after + (1ULL << 20u) <= before), "the idle pages given back lower the working set by a megabyte or more");
+}
+
 // a C file with an include opened, the include's closing quote erased and typed back: the line's runs are as they
 // were before, the string colored as a string
 static void retyped_colored_checked(void)
@@ -2173,6 +2289,9 @@ static const WindowCheck s_checks[] = {{"saves", saves_checked},
                                          {"failed_save", failed_save_checked},
                                          {"cells_rounds", cells_rounds_checked},
                                          {"typed_colored", typed_colored_checked},
+                                         {"grammar_held", grammar_held_checked},
+                                         {"edits_cells", edits_cells_checked},
+                                         {"idle_pages", idle_pages_checked},
                                          {"retyped_colored", retyped_colored_checked},
                                          {"languages_colored", languages_colored_checked},
                                          {"reduce_motion", reduce_motion_checked},
