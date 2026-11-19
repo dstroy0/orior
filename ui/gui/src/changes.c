@@ -655,7 +655,40 @@ static int changes_menu(const GuiPaneCfg *args)
     return EMBED_CALL(cli_changes.menu, CliGitChangesCfg, .at = args->row);
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *changes_row_text(const GuiPaneCfg *args)
+{
+    static CliChangedRow s_named;
+    if (!EMBED_CALL(cli_changes.row, CliGitChangesCfg, .at = args->row, .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = cellul.len(&(CatenaFinitaCfg){.src = s_named.name, .cap = CLI_PATH_MAX_LEN});
+    return s_named.name;
+}
+
+// the head's action named `name`: the message's field, Commit, or Commit and Push
+static unsigned int changes_action_named(const GuiPaneCfg *args)
+{
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "field", .cap = 32ULL}))
+    {
+        return CLI_CHANGES_FIELD;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = CHANGES_COMMIT, .cap = 32ULL}))
+    {
+        return CLI_CHANGES_COMMIT;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = CHANGES_COMMIT_PUSH, .cap = 32ULL}))
+    {
+        return CLI_CHANGES_COMMIT_PUSH;
+    }
+    return 0u;
+}
+
 const GuiPaneTable gui_changes_table = {
+    .row_text = changes_row_text,
+    .action_named = changes_action_named,
     .tool = "commit",
     .title = changes_title,
     .rows = changes_rows,

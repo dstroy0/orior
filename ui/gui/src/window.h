@@ -69,6 +69,10 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 // each
 #define GUI_WINDOW_HANDS 8u
 #define GUI_WINDOW_HAND_NAME 64u
+// a glide's speed in the client's pixels a second where the pointer command gives none, and the longest a frame counts
+// toward it: a stall carries the pointer no further than that
+#define GUI_GLIDE_SPEED 1600u
+#define GUI_GLIDE_STALL_MS 100ULL
 _Static_assert(GUI_WINDOW_HANDS <= GUI_MARKS, "each hand has a mark color of the palette's ring");
 
 // A hand: its name, whether it is in use, where its hot point is in the client's pixels, its shape, whether it is on
@@ -83,6 +87,19 @@ typedef struct
     int shown;
     GuiColor picture[GUI_POINTER_PICTURE_MAX];
 } GuiHand;
+
+// A glide: a pointer's move to a control at a speed. Whether one is under way, the client's pixel it goes to, its speed
+// in pixels a second, the moment of its last step, and where the pointer has reached
+typedef struct
+{
+    int active;
+    int to_x;
+    int to_y;
+    unsigned int speed;
+    unsigned long long last_ms;
+    float x;
+    float y;
+} GuiGlide;
 
 // The editor's scroll: the rows one notch of the wheel moves; the milliseconds in which an eased scroll covers all but
 // a share of 1/e of its way; the max milliseconds one step counts, so that a late frame does not jump; and the part
@@ -314,6 +331,9 @@ typedef struct GuiWindow
     // system's leaves are not read while it is
     int pointer_own;
     GuiHand hands[GUI_WINDOW_HANDS];
+    // the glide of the window's own pointer at 0 and of each hand after it: a move to a control at a speed, stepped a
+    // frame at a time
+    GuiGlide glide[GUI_WINDOW_HANDS + 1u];
     // the inputs the window's own pointer and the hands drive, in their order, that the view's thread takes as the
     // system's
     GuiInput driven[GUI_WINDOW_DRIVEN];
@@ -594,9 +614,9 @@ EMBED_TABLE_STORAGE CliWindowIconNs cli_window_icon EMBED_UNUSED = {
 };
 
 // The dialog's system window (window_dialog.c), modal over the surface that owns it. A caller asks it with the texts
-// and the surface that owns it. Where `held` is set, the interface's held command takes the answer, the pressed
+// and the surface that owns it. Where `held` is set, the interface's command kept open takes the answer, the pressed
 // button's label or nothing for a close. Else `dialog_answer` retains the answer for the caller. The dialog shows only
-// one ask at a time, so a second ask while one shows is refused
+// one ask at a time, and a second ask while one shows is refused
 typedef struct GuiWindowDialogAskCfg GuiWindowDialogAskCfg;
 typedef struct GuiWindowDialogWantCfg GuiWindowDialogWantCfg;
 int gui_window_dialog_ask(const GuiWindowDialogAskCfg *args);

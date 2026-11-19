@@ -1524,6 +1524,76 @@ static void pointer_checked(void)
               "words the pointer command does not know queue nothing");
     cli_check(asked("pointer", "off") && !s_window.pointer_own, "off gives the pointer back to the system");
 
+    // a move to a control by its name, at once where the speed is 0: the strip's Run tool, a control of the window, a
+    // menu by its title and a tab by its name, each at the middle of its rectangle; a kind not known is refused
+    unsigned int run_tool = g_gui_tools_count;
+    for (unsigned int at = 0u; at < g_gui_tools_count; at += 1u)
+    {
+        run_tool = same(g_gui_tools[at].name, "run") ? at : run_tool;
+    }
+    const GuiRect run_button =
+        EMBED_CALL(gui_side_menu.button, GuiSideMenuCfg, .frame = &s_window.frame, .at = run_tool);
+    s_window.driven_count = 0u;
+    const char *const to_tool[5] = {"to", "tool", "run", "--speed", "0"};
+    cli_check(asked_words("pointer", to_tool, 5u) && (s_window.driven_count == 1u) &&
+                  (s_window.driven[0].type == GUI_INPUT_MOVED) &&
+                  (s_window.driven[0].x == run_button.x + (run_button.width / 2)) &&
+                  (s_window.driven[0].y == run_button.y + (run_button.height / 2)),
+              "to tool run queues a move to the middle of the Run tool's button");
+    const GuiRect close_box =
+        EMBED_CALL(gui_controls.rect, GuiControlsCfg, .frame = &s_window.frame, .which = GUI_CONTROL_CLOSE);
+    s_window.driven_count = 0u;
+    const char *const to_control[5] = {"to", "control", "close", "--speed", "0"};
+    cli_check(asked_words("pointer", to_control, 5u) && (s_window.driven_count == 1u) &&
+                  (s_window.driven[0].x == close_box.x + (close_box.width / 2)) &&
+                  (s_window.driven[0].y == close_box.y + (close_box.height / 2)),
+              "to control close queues a move to the middle of the close control");
+    const GuiRect file_title = s_window.menubar.title[0].rect;
+    s_window.driven_count = 0u;
+    const char *const to_menu[5] = {"to", "menu", "File", "--speed", "0"};
+    cli_check(asked_words("pointer", to_menu, 5u) && (s_window.driven_count == 1u) &&
+                  EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = file_title,
+                             .x = s_window.driven[0].x, .y = s_window.driven[0].y),
+              "to menu File queues a move inside the File title");
+    s_window.driven_count = 0u;
+    const char *const to_tab[5] = {"to", "tab", "pointed.txt", "--speed", "0"};
+    cli_check(asked_words("pointer", to_tab, 5u) && (s_window.driven_count == 1u) &&
+                  EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = s_window.frame.tabs,
+                             .x = s_window.driven[0].x, .y = s_window.driven[0].y),
+              "to tab pointed.txt queues a move inside the tabs row");
+    s_window.driven_count = 0u;
+    const char *const to_nowhere[3] = {"to", "nowhere", "x"};
+    cli_check(!asked_words("pointer", to_nowhere, 3u) && (s_window.driven_count == 0u),
+              "a kind the window does not know is refused");
+
+    // at a speed, the pointer is carried a frame at a time: a move each step no further than the speed covers, the
+    // glide ended at the control's middle
+    const char *const far_place[2] = {"1000", "800"};
+    (void)asked_words("pointer", far_place, 2u);
+    driven_taken();
+    const char *const to_slow[5] = {"to", "tool", "run", "--speed", "400"};
+    cli_check(asked_words("pointer", to_slow, 5u) && s_window.glide[0].active && (s_window.glide[0].speed == 400u),
+              "to tool run at a speed starts a glide at that speed");
+    stepped_for(50ULL);
+    const int first_x = (s_window.driven_count != 0u) ? s_window.driven[0].x : 0;
+    cli_check((s_window.driven_count != 0u) && (first_x < 1000) && (first_x > run_button.x + run_button.width),
+              "the first step moves the pointer part of the way");
+    driven_taken();
+    for (unsigned int frame = 0u; (frame < 400u) && s_window.glide[0].active; frame += 1u)
+    {
+        stepped_for(10ULL);
+        driven_taken();
+    }
+    // the step that ends the glide queues its last move after the inputs before it are taken
+    driven_taken();
+    cli_check(!s_window.glide[0].active && (s_window.pointer.x == run_button.x + (run_button.width / 2)) &&
+                  (s_window.pointer.y == run_button.y + (run_button.height / 2)),
+              "the glide ends with the pointer at the middle of the Run tool's button");
+    // the pointer put back where the hands' checks expect it, and given back to the system
+    (void)asked_words("pointer", place, 2u);
+    driven_taken();
+    (void)asked("pointer", "off");
+
     // the hands: pointers beside the window's own, each named through --as
     const char *const named[4] = {"--as", "robot", "120", "80"};
     cli_check(asked_words("pointer", named, 4u) && (s_window.driven_count == 1u) && (s_window.driven[0].hand == 1u) &&
@@ -2010,6 +2080,24 @@ static void run_keys_checked(void)
     EMBED_CALL(cli_job_runs_root.read, CliJobRunsRootCfg, .root = NULL, .catalog = &s_run_catalog);
     EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &s_window);
     cli_check(EMBED_CALL(cli_job_runs_row.rows, CliJobRunsRowCfg, .row_at = 0u) == 1u, "the one group is listed");
+    // a row by its text and a head action by its label, each found in the foot's pane
+    const GuiRect group_row = EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = &gui_run_table,
+                                         .pane_read = &s_window.panes[(unsigned int)s_window.side_menu.foot],
+                                         .frame = &s_window.frame, .row = 0u);
+    s_window.driven_count = 0u;
+    const char *const to_row[5] = {"to", "row", "build", "--speed", "0"};
+    cli_check(asked_words("pointer", to_row, 5u) && (s_window.driven_count == 1u) &&
+                  EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = group_row, .x = s_window.driven[0].x,
+                             .y = s_window.driven[0].y),
+              "to row build queues a move inside the group's row");
+    const int rows_top = EMBED_CALL(gui_pane.rows_top, GuiPaneCfg, .table = &gui_run_table, .frame = &s_window.frame);
+    s_window.driven_count = 0u;
+    const char *const to_start[5] = {"to", "action", "Start", "--speed", "0"};
+    cli_check(asked_words("pointer", to_start, 5u) && (s_window.driven_count == 1u) &&
+                  (s_window.driven[0].y < rows_top) && (s_window.driven[0].y > s_window.frame.terminal.y) &&
+                  (s_window.driven[0].x < s_window.frame.terminal.x + (s_window.frame.terminal.width / 2)),
+              "to action Start queues a move onto Start in the pane's head");
+    s_window.driven_count = 0u;
     // the group's row at 0 pressed opens it and puts the job's at 1; the job's pressed puts its file's row at 2 and its
     // param's at 3
     // the foot is a tool among the tools

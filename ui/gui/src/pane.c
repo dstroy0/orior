@@ -21,9 +21,9 @@
 
 // the tables, one a tool that has a pane
 static const GuiPaneTable *const s_tables[] = {
-    &gui_explorer_table, &gui_search_table, &gui_references_table, &gui_problems_table,
-    &gui_structure_table, &gui_changes_table, &gui_tests_table,    &gui_git_table,
-    &gui_runs_table,     &gui_run_table,    &gui_debug_table,      &gui_comms_table,
+    &gui_explorer_table,  &gui_search_table,  &gui_references_table, &gui_problems_table,
+    &gui_structure_table, &gui_changes_table, &gui_tests_table,      &gui_git_table,
+    &gui_runs_table,      &gui_run_table,     &gui_debug_table,      &gui_comms_table,
 };
 
 void gui_pane_init(const GuiPaneCfg *args)
@@ -184,6 +184,66 @@ unsigned int gui_pane_head_hit(const GuiPaneCfg *args)
     GuiPaneCfg hit = *args;
     hit.rect = head;
     return args->table->head_hit(&hit);
+}
+
+const char *gui_pane_row_text(const GuiPaneCfg *args)
+{
+    if ((args->table == NULL) || (args->table->row_text == NULL))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    return args->table->row_text(args);
+}
+
+unsigned int gui_pane_action_named(const GuiPaneCfg *args)
+{
+    return ((args->table != NULL) && (args->table->action_named != NULL)) ? args->table->action_named(args) : 0u;
+}
+
+// the head's pixels asked every GUI_PANE_ACTION_STEP across and down which action they are on: the bounds of those on
+// `which`
+#define GUI_PANE_ACTION_STEP 2
+GuiRect gui_pane_action_rect(const GuiPaneCfg *args)
+{
+    GuiRect found = {0, 0, 0, 0};
+    if ((args->table == NULL) || (args->table->head == NULL) || (args->table->head_hit == NULL))
+    {
+        return found;
+    }
+    const GuiRect head = EMBED_CALL(pane_head_rect, GuiPaneCfg, .table = args->table, .frame = args->frame);
+    GuiPaneCfg hit = *args;
+    hit.rect = head;
+    int right = 0;
+    int bottom = 0;
+    for (int y = head.y; y < head.y + head.height; y += GUI_PANE_ACTION_STEP)
+    {
+        for (int x = head.x; x < head.x + head.width; x += GUI_PANE_ACTION_STEP)
+        {
+            hit.x = x;
+            hit.y = y;
+            if (args->table->head_hit(&hit) != args->which)
+            {
+                continue;
+            }
+            if (found.width == 0)
+            {
+                found = (GuiRect){x, y, 1, 1};
+                right = x;
+                bottom = y;
+            }
+            found.x = (x < found.x) ? x : found.x;
+            found.y = (y < found.y) ? y : found.y;
+            right = (x > right) ? x : right;
+            bottom = (y > bottom) ? y : bottom;
+        }
+    }
+    if (found.width != 0)
+    {
+        found.width = right - found.x + 1;
+        found.height = bottom - found.y + 1;
+    }
+    return found;
 }
 
 int gui_pane_move(const GuiPaneCfg *args)

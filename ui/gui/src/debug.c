@@ -37,7 +37,8 @@ EMBED_INLINE GuiRect debug_field_rect(const DebugCtx *args)
     return EMBED_CALL(gui_pane_field.field_rect, GuiPaneFieldCfg, .pane = args->pane, .y = views.y + views.height);
 }
 
-// the box of the bar's step `at`, after the boxes of the steps displayed before it; an empty box for a step not displayed
+// the box of the bar's step `at`, after the boxes of the steps displayed before it; an empty box for a step not
+// displayed
 EMBED_INLINE GuiRect debug_step_rect(const DebugCtx *args)
 {
     const GuiPaneCfg *const pane = args->pane;
@@ -118,8 +119,8 @@ EMBED_INLINE void debug_step_draw(const DebugCtx *args)
                      .text = item.label, .length = item.label_length, .color = color, .clip = box);
 }
 
-// the head drawn: the bar's steps, the status line after the last displayed, the views' choices with the one displayed lit,
-// and the field of the view displayed with its text or its placeholder
+// the head drawn: the bar's steps, the status line after the last displayed, the views' choices with the one displayed
+// lit, and the field of the view displayed with its text or its placeholder
 static void debug_head_draw(const GuiPaneCfg *args)
 {
     const GuiPalette *const palette = args->palette;
@@ -416,7 +417,23 @@ static int debug_key(const GuiPaneCfg *args)
     return EMBED_CALL(cli_debug_pane_input.key, CliDebugPaneInputCfg, .name = args->name, .root = args->root);
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *debug_row_text(const GuiPaneCfg *args)
+{
+    static CliDebugPaneRow s_named;
+    if (!EMBED_CALL(cli_debug_pane_view.row, CliDebugPaneViewCfg,
+                    .view = EMBED_CALL(cli_debug_pane_view.view, CliDebugPaneViewCfg, .at = 0u), .at = args->row,
+                    .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = s_named.text_length;
+    return s_named.text;
+}
+
 const GuiPaneTable gui_debug_table = {
+    .row_text = debug_row_text,
     .tool = "debug",
     .foot = 1,
     .rows = debug_rows,

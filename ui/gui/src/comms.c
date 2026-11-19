@@ -259,7 +259,38 @@ static void comms_read(const GuiPaneCfg *args)
     }
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *comms_row_text(const GuiPaneCfg *args)
+{
+    static CliCommsRow s_named;
+    if (!EMBED_CALL(cli_comms_pane.row, CliCommsPaneCfg, .at = args->row, .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = s_named.name_length;
+    return s_named.name;
+}
+
+// the head's action named `name`: the view whose label it is
+static unsigned int comms_action_named(const GuiPaneCfg *args)
+{
+    for (unsigned int at = 0u; at < CLI_COMMS_VIEWS; at += 1u)
+    {
+        unsigned long long length = 0ULL;
+        const char *const label =
+            EMBED_CALL(cli_comms_pane.label, CliCommsPaneCfg, .at = CLI_COMMS_CHOOSE + at, .length_out = &length);
+        if ((label != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = label, .cap = 32ULL}))
+        {
+            return CLI_COMMS_CHOOSE + at;
+        }
+    }
+    return 0u;
+}
+
 const GuiPaneTable gui_comms_table = {
+    .row_text = comms_row_text,
+    .action_named = comms_action_named,
     .tool = "comms",
     .foot = 1,
     .rows = comms_rows,

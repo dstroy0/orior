@@ -531,7 +531,21 @@ static void tests_read(const GuiPaneCfg *args)
     }
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *tests_row_text(const GuiPaneCfg *args)
+{
+    static CliTestsRow s_named;
+    if (!EMBED_CALL(cli_tests_pane.row, CliTestsPaneCfg, .at = args->row, .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = s_named.name_length;
+    return s_named.name;
+}
+
 const GuiPaneTable gui_tests_table = {
+    .row_text = tests_row_text,
     .tool = "tests",
     .title = tests_title,
     .rows = tests_rows,

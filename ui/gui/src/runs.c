@@ -266,7 +266,21 @@ static void runs_read(const GuiPaneCfg *args)
     }
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *runs_row_text(const GuiPaneCfg *args)
+{
+    static CliRunsRow s_named;
+    if (!EMBED_CALL(cli_runs_pane.row, CliRunsPaneCfg, .at = args->row, .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = s_named.text_length;
+    return s_named.text;
+}
+
 const GuiPaneTable gui_runs_table = {
+    .row_text = runs_row_text,
     .tool = "runs",
     .title = runs_title,
     .rows = runs_rows,

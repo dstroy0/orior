@@ -201,6 +201,10 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     args->window->sessions_held = 0;
     args->window->macro_held = 0;
     args->window->driven_count = 0u;
+    for (unsigned int hand = 0u; hand <= GUI_WINDOW_HANDS; hand += 1u)
+    {
+        args->window->glide[hand].active = 0;
+    }
     EMBED_CALL(gui_hover.init, GuiHoverCfg, .hover = &args->window->hover);
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
     EMBED_CALL(gui_tip.init, GuiTipCfg, .tip = &args->window->tip);
@@ -281,6 +285,7 @@ typedef struct
     const GuiInput *input;
     unsigned int hand;
     int make;
+    GuiRect *rect_out;
 } GuiWindowCtx;
 
 EMBED_INLINE unsigned int window_pointer_shape(const GuiWindowCtx *args);
@@ -5433,6 +5438,218 @@ EMBED_INLINE void window_hand_track(const GuiWindowCtx *args)
     window->pending = 1;
 }
 
+// the row of the table `table_read` in the pane `at` whose text is `name`: 1 with its rectangle into `rect_out`, the
+// pane scrolled to put the row in view where it was not; 0 where no row has that text
+EMBED_INLINE int window_pane_row_named(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const GuiPaneTable *const table = args->table_read;
+    GuiPane *const pane = &window->panes[args->at];
+    const GuiPaneCfg shape = {.table = table,
+                              .pane_read = pane,
+                              .frame = &window->frame,
+                              .glyphs = (GuiGlyphs *)&window->glyphs,
+                              .root = cli_command_line_root()};
+    const unsigned int count = (table->rows != NULL) ? table->rows(&shape) : 0u;
+    const unsigned long long wanted = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_PATH_MAX_LEN});
+    for (unsigned int row = 0u; row < count; row += 1u)
+    {
+        unsigned long long length = 0ULL;
+        GuiPaneCfg each = shape;
+        each.row = row;
+        each.length_out = &length;
+        const char *const text = gui_pane.row_text(&each);
+        if ((text == NULL) || (length != wanted) ||
+            (memor.cmp(&(MemoriaCfg){.src = text, .other = args->name, .bytes = length}) != 0))
+        {
+            continue;
+        }
+        const GuiRect region = gui_pane.region(&shape);
+        const int top = gui_pane.rows_top(&shape);
+        GuiRect rect = gui_pane.row_rect(&each);
+        if ((rect.y < top) || (rect.y + rect.height > region.y + region.height))
+        {
+            pane->scroll = row;
+            rect = gui_pane.row_rect(&each);
+            window->pending = 1;
+        }
+        *args->rect_out = rect;
+        return 1;
+    }
+    return 0;
+}
+
+// the rectangle of the control of the kind `key` named `name`, as the pointer command's `to` names one: 1 with it into
+// `rect_out`, 0 where the window has no such control. A strip tool by its name; a bar tool by its name; a menu by its
+// title; a tab by its name; a control of the window, minimize, maximize or close; the foot panel's grip, its top line;
+// a row of the side's or the foot's pane by its text; or an action of a pane's head by its label
+EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const GuiFrame *const frame = &window->frame;
+    const char *const kind = args->key;
+    const char *const name = args->name;
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "tool"))
+    {
+        const unsigned int at = EMBED_CALL(window_tool_named, GuiWindowCtx, .name = name);
+        if (at == g_gui_tools_count)
+        {
+            return 0;
+        }
+        *args->rect_out = EMBED_CALL(gui_side_menu.button, GuiSideMenuCfg, .frame = frame, .at = at);
+        return 1;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "bar"))
+    {
+        for (unsigned int which = 0u; which < GUI_TOP_MENU_TOOL_NONE; which += 1u)
+        {
+            if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = g_gui_top_menu_tools[which].name))
+            {
+                *args->rect_out = EMBED_CALL(gui_top_menu.tool_rect, GuiTopMenuCfg, .frame = frame, .which = which);
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "menu"))
+    {
+        for (unsigned int at = 0u; at < window->menubar.titles; at += 1u)
+        {
+            const char *const title = cli_menu_title_text(
+                &(CliMenusCfg){.menu = cli_menu_title_menu(&(CliMenusCfg){.at = window->menubar.title[at].menu})});
+            if ((title != NULL) && EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = title))
+            {
+                *args->rect_out = window->menubar.title[at].rect;
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "tab"))
+    {
+        for (unsigned int at = 0u; at < cli_view_count(); at += 1u)
+        {
+            unsigned long long length = 0ULL;
+            const char *const tab = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .at = at, .length = &length);
+            if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = tab))
+            {
+                *args->rect_out = EMBED_CALL(gui_tabs_glyphs.tab_rect, GuiTabsGlyphsCfg, .glyphs = &window->glyphs,
+                                             .frame = frame, .at = at);
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "control"))
+    {
+        static const char *const s_controls[GUI_CONTROL_NONE] = {
+            [GUI_CONTROL_MINIMIZE] = "minimize", [GUI_CONTROL_MAXIMIZE] = "maximize", [GUI_CONTROL_CLOSE] = "close"};
+        for (unsigned int which = 0u; which < GUI_CONTROL_NONE; which += 1u)
+        {
+            if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = s_controls[which]))
+            {
+                *args->rect_out = EMBED_CALL(gui_controls.rect, GuiControlsCfg, .frame = frame, .which = which);
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "grip"))
+    {
+        if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->terminal))
+        {
+            return 0;
+        }
+        *args->rect_out = (GuiRect){frame->terminal.x, frame->terminal.y, frame->terminal.width, 1};
+        return 1;
+    }
+    const int row = EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "row");
+    if (!row && !EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "action"))
+    {
+        return 0;
+    }
+    // the side's pane first, then the foot's
+    for (unsigned int foot = 0u; foot < 2u; foot += 1u)
+    {
+        const GuiPaneTable *const table = foot ? EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = window)
+                                               : EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = window);
+        const int index = foot ? window->side_menu.foot : window->side_menu.displayed;
+        if ((table == NULL) || (index < 0))
+        {
+            continue;
+        }
+        // the tool shown is among the tools
+        const unsigned int at = (unsigned int)index;
+        if (row)
+        {
+            if (EMBED_CALL(window_pane_row_named, GuiWindowCtx, .window = window, .table_read = table, .at = at,
+                           .name = name, .rect_out = args->rect_out))
+            {
+                return 1;
+            }
+            continue;
+        }
+        const unsigned int which = EMBED_CALL(gui_pane.action_named, GuiPaneCfg, .table = table, .name = name);
+        if (which == 0u)
+        {
+            continue;
+        }
+        const GuiRect rect = EMBED_CALL(
+            gui_pane.action_rect, GuiPaneCfg, .table = table, .pane_read = &window->panes[at], .frame = frame,
+            .glyphs = (GuiGlyphs *)&window->glyphs, .which = which, .root = cli_command_line_root());
+        if (rect.width != 0)
+        {
+            *args->rect_out = rect;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// each glide under way stepped: its pointer carried toward its control by what its speed covers since the last step,
+// a move queued at the place reached, and the glide ended on arrival
+EMBED_INLINE void window_glide_step(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    for (unsigned int hand = 0u; hand <= GUI_WINDOW_HANDS; hand += 1u)
+    {
+        GuiGlide *const glide = &window->glide[hand];
+        if (!glide->active)
+        {
+            continue;
+        }
+        const unsigned long long since_ms = (now_ms > glide->last_ms) ? (now_ms - glide->last_ms) : 0ULL;
+        // a frame's milliseconds and a speed in pixels a second are both small whole numbers
+        const float covered =
+            ((float)glide->speed * (float)((since_ms < GUI_GLIDE_STALL_MS) ? since_ms : GUI_GLIDE_STALL_MS)) / 1000.0f;
+        glide->last_ms = now_ms;
+        window->pending = 1;
+        if (covered <= 0.0f)
+        {
+            continue;
+        }
+        const float across = (float)glide->to_x - glide->x;
+        const float down = (float)glide->to_y - glide->y;
+        const float left = arith_hypot_f32(across, down);
+        if (left <= covered)
+        {
+            glide->x = (float)glide->to_x;
+            glide->y = (float)glide->to_y;
+            glide->active = 0;
+        }
+        else
+        {
+            glide->x += (across * covered) / left;
+            glide->y += (down * covered) / left;
+        }
+        // the place reached rounded to the client's pixel
+        (void)EMBED_CALL(
+            window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
+            .input = &(GuiInput){.type = GUI_INPUT_MOVED, .x = (int)(glide->x + 0.5f), .y = (int)(glide->y + 0.5f)});
+    }
+}
+
 // The window's own pointer, or a hand, driven by the words of the interface's `pointer` command. `--as` and a name
 // first drive the hand of that name, made where there is none; without them the words drive the window's own
 // pointer. Each input goes on the queue the view's thread takes as the system's own, in the order the words give. The
@@ -5443,6 +5660,11 @@ EMBED_INLINE void window_hand_track(const GuiWindowCtx *args)
 // - drag and places, x y each: the left button pressed where the pointer is, a move to each place, and the button let
 //   go at the last place.
 // - wheel, down or up, and a count: the wheel turned that many notches where the pointer is, one where no count is.
+// - to, a kind and a name, then --speed and pixels a second where the glide's own speed is not wanted: a move to the
+//   middle of the control the name finds, the pointer carried there a frame at a time, at once where the speed is 0.
+//   The kinds: a strip `tool` by its name, a `bar` tool by its name, a `menu` by its title, a `tab` by its name, a
+//   `control` of the window (minimize, maximize or close), the foot panel's `grip`, a `row` of the side's or the
+//   foot's pane by its text, scrolled into view, or an `action` of a pane's head by its label (Start, Stop, field).
 // - off: a hand taken away, its surface off the screen and its name free.
 // The result is 1, or 0 where the words are none of these, no hand is free for a new name, or the queue cannot take
 // all of the inputs
@@ -5487,6 +5709,50 @@ EMBED_INLINE int window_pointer_drive(const GuiWindowCtx *args)
     const int y = (last != NULL) ? last->y : ((hand == 0u) ? window->pointer.y : window->hands[hand - 1u].y);
     const char *const verb = words[0];
     const char *const named = (count > 1u) ? words[1] : NULL;
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "to"))
+    {
+        if (count < 2u)
+        {
+            return 0;
+        }
+        // the name's words up to --speed joined by spaces, and the speed after it
+        char name[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {name, sizeof(name), 0ULL};
+        unsigned int speed = GUI_GLIDE_SPEED;
+        for (unsigned int at = 2u; at < count; at += 1u)
+        {
+            if (EMBED_CALL(window_is, GuiWindowCtx, .name = words[at], .key = "--speed"))
+            {
+                // a speed is a small whole number of pixels a second
+                speed = (at + 1u < count)
+                            ? (unsigned int)EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[at + 1u])
+                            : speed;
+                break;
+            }
+            if (at > 2u)
+            {
+                mmgr_line_ch(&line, ' ');
+            }
+            mmgr_line_put(&line, words[at]);
+        }
+        (void)mmgr_line_finish(&line);
+        GuiRect rect = {0, 0, 0, 0};
+        if (!EMBED_CALL(window_control_rect, GuiWindowCtx, .window = window, .key = named, .name = name,
+                        .rect_out = &rect))
+        {
+            return 0;
+        }
+        const int to_x = rect.x + (rect.width / 2);
+        const int to_y = rect.y + (rect.height / 2);
+        if (speed == 0u)
+        {
+            return EMBED_CALL(window_driven_put, GuiWindowCtx, .window = window, .hand = hand,
+                              .input = &(GuiInput){.type = GUI_INPUT_MOVED, .x = to_x, .y = to_y});
+        }
+        window->glide[hand] = (GuiGlide){1, to_x, to_y, speed, cli_clock_milliseconds(), (float)x, (float)y};
+        window->pending = 1;
+        return 1;
+    }
     const int press = EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "press");
     const int release = EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "release");
     if (press || release || EMBED_CALL(window_is, GuiWindowCtx, .name = verb, .key = "click"))
@@ -6095,6 +6361,7 @@ void gui_window_step(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
     window->pending = cli_reach_take(&(CliReachCfg){.run = window_command_named}) || window->pending;
+    EMBED_CALL(window_glide_step, GuiWindowCtx, .window = window);
     // The door's read of the relative motion, kept as it came, answered with the counts added up since the last read
     // and the counts started again. A count of a mouse moved for years is far inside 20 digits
     if (window->relative_read_held)

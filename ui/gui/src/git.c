@@ -381,7 +381,36 @@ static int git_menu(const GuiPaneCfg *args)
     return EMBED_CALL(cli_git_log.menu, CliGitLogCfg, .at = args->row);
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *git_row_text(const GuiPaneCfg *args)
+{
+    static CliGitLogRow s_named;
+    if (!EMBED_CALL(cli_git_log.row, CliGitLogCfg, .at = args->row, .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = s_named.text_length;
+    return s_named.text;
+}
+
+// the head's action named `name`: the search's field, or the repository's choice
+static unsigned int git_action_named(const GuiPaneCfg *args)
+{
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "field", .cap = 16ULL}))
+    {
+        return CLI_GIT_LOG_FIELD;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "repo", .cap = 16ULL}))
+    {
+        return CLI_GIT_LOG_REPO;
+    }
+    return 0u;
+}
+
 const GuiPaneTable gui_git_table = {
+    .row_text = git_row_text,
+    .action_named = git_action_named,
     .tool = "git",
     .title = git_title,
     .rows = git_rows,

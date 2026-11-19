@@ -604,7 +604,7 @@ def cmd_pointer(a):
         return 1
     process_id = found[0]
     window_joined(process_id)
-    words = a.words
+    words = a.words + (["--speed", str(a.speed)] if a.speed is not None else [])
     numbers = [int(word) for word in words if word.lstrip("-").isdigit()]
     if not a.human:
         code = pointer_said(words)
@@ -2005,7 +2005,10 @@ def register(sub):
     p.set_defaults(fn=cmd_move)
     p = window.add_parser("pointer", help="the window's own pointer driven: a press, a release, a click, a drag or the wheel")
     p.add_argument("words", nargs="+", help="press|release|click [left|middle|right], drag x y [x y ...], wheel up|down [n], "
-                   "x y, or off")
+                   "x y, off, or to tool|bar|menu|tab|control|grip|row|action <name>, the pointer carried to the "
+                   "control's middle from wherever it is")
+    p.add_argument("--speed", type=int, default=None, help="the pixels a second a `to` move goes at, 0 for at once, "
+                   "the window's own glide speed where not given")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.add_argument("--human", action="store_true", help="a move and a drag along a person's path, at a hand's speed "
                    "with its shake and overshoot, and a click held as a hand holds it")

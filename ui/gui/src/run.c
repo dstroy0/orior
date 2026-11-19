@@ -244,7 +244,8 @@ EMBED_INLINE void run_box_draw(const RunCtx *args)
                .inside = lit ? palette->signal : palette->editor_background);
 }
 
-// the row drawn as its type, from its texts and flags: the chosen job and the run displayed on the idle selection's ground
+// the row drawn as its type, from its texts and flags: the chosen job and the run displayed on the idle selection's
+// ground
 static void run_row_draw(const GuiPaneCfg *args)
 {
     CliJobRunRow row;
@@ -392,7 +393,40 @@ void gui_run_follow(const GuiPaneCfg *args)
                                     .capacity = (unsigned int)capacity);
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *run_row_text(const GuiPaneCfg *args)
+{
+    static CliJobRunRow s_named;
+    if (!EMBED_CALL(cli_job_runs_row.row, CliJobRunsRowCfg, .row_at = args->row, .row_out = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = s_named.text_length;
+    return s_named.text;
+}
+
+// the head's action named `name`: the filter's field, Start or Stop
+static unsigned int run_action_named(const GuiPaneCfg *args)
+{
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "field", .cap = 16ULL}))
+    {
+        return GUI_RUN_FIELD;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = RUN_START, .cap = 16ULL}))
+    {
+        return GUI_RUN_START;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = RUN_STOP, .cap = 16ULL}))
+    {
+        return GUI_RUN_STOP;
+    }
+    return 0u;
+}
+
 const GuiPaneTable gui_run_table = {
+    .row_text = run_row_text,
+    .action_named = run_action_named,
     .tool = "run",
     .foot = 1,
     .title = run_title,

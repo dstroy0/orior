@@ -247,7 +247,21 @@ static int problems_press(const GuiPaneCfg *args)
     return 1;
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *problems_row_text(const GuiPaneCfg *args)
+{
+    static CliProblemRow s_named;
+    if (!cli_servers_problems_row(&(CliServersProblemsCfg){.at = args->row, .row = &s_named}))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = cellul.len(&(CatenaFinitaCfg){.src = s_named.name, .cap = CLI_PATH_MAX_LEN});
+    return s_named.name;
+}
+
 const GuiPaneTable gui_problems_table = {
+    .row_text = problems_row_text,
     .tool = "problems",
     .rows = problems_rows,
     .row_height = problems_row_height,
@@ -287,7 +301,7 @@ void gui_problems_underlined(const GuiProblemsPathRasterCfg *args)
             const unsigned long long to = (line == one->to_line) ? one->to_col : ~0ULL;
             GuiRect start;
             GuiRect end;
-            // the span's ends held at the text's edges where the view has slid past them
+            // the span's ends kept at the text's edges where the view has slid past them
             if (!EMBED_CALL(gui_editor_position_cell.position_rect, GuiEditorPositionCellCfg, .editor_read = editor,
                             .place = place, .cell = cell, .scale = scale, .line = line, .col = from, .rect = &start,
                             .clamped = 1) ||

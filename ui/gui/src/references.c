@@ -151,7 +151,21 @@ static int references_press(const GuiPaneCfg *args)
     return 1;
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *references_row_text(const GuiPaneCfg *args)
+{
+    static CliReferenceRow s_named;
+    if (!cli_references_row(&(CliReferencesAtRowCfg){.at = args->row, .row = &s_named}))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = (s_named.text_length != 0ULL) ? s_named.text_length : s_named.name_length;
+    return (s_named.text_length != 0ULL) ? s_named.text : s_named.name;
+}
+
 const GuiPaneTable gui_references_table = {
+    .row_text = references_row_text,
     .tool = "references",
     .title = references_title,
     .rows = references_rows,

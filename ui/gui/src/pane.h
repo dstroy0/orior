@@ -106,6 +106,8 @@ struct GuiPaneTable
     int (*text)(const GuiPaneCfg *args);
     int (*key)(const GuiPaneCfg *args);
     int (*menu)(const GuiPaneCfg *args);
+    const char *(*row_text)(const GuiPaneCfg *args);
+    unsigned int (*action_named)(const GuiPaneCfg *args);
 };
 
 // a pane pointing at no row and no action, scrolled to its top
@@ -123,6 +125,12 @@ GuiRect gui_pane_row_rect(const GuiPaneCfg *args);
 int gui_pane_hit(const GuiPaneCfg *args);
 // the head's action at x, y, 0 for none
 unsigned int gui_pane_head_hit(const GuiPaneCfg *args);
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the table names no rows; the head's action
+// named `name`, 0 where the table has none of that name; and the rectangle the action `which` takes in the head, empty
+// where the head has no pixel of it
+const char *gui_pane_row_text(const GuiPaneCfg *args);
+unsigned int gui_pane_action_named(const GuiPaneCfg *args);
+GuiRect gui_pane_action_rect(const GuiPaneCfg *args);
 // the pointer moved to x, y: the row and the action it is on marked: 1 where either changed
 int gui_pane_move(const GuiPaneCfg *args);
 // the wheel turned `rows` rows, down where positive: the rows scrolled, no further than the last fills the pane: 1
@@ -173,6 +181,7 @@ struct GuiPaneCfg
     unsigned long long cursor_line;
     unsigned int which;
     GuiPaneOpen *open_out;
+    unsigned long long *length_out;
     const char *root;
     const char *key;
     const char *path;
@@ -279,6 +288,9 @@ typedef struct
     GuiRect (*row_rect)(const GuiPaneCfg *args);
     int (*hit)(const GuiPaneCfg *args);
     unsigned int (*head_hit)(const GuiPaneCfg *args);
+    const char *(*row_text)(const GuiPaneCfg *args);
+    unsigned int (*action_named)(const GuiPaneCfg *args);
+    GuiRect (*action_rect)(const GuiPaneCfg *args);
     int (*move)(const GuiPaneCfg *args);
     int (*wheel)(const GuiPaneCfg *args);
     void (*draw)(const GuiPaneCfg *args);
@@ -292,8 +304,8 @@ typedef struct
     int (*menu)(const GuiPaneCfg *args);
     GuiRect (*region)(const GuiPaneCfg *args);
 } GuiPaneNs;
-EMBED_TABLE_LAYOUT(GuiPaneNs, init, table_of, rows_top, row_height, row_rect, hit, head_hit, move, wheel, draw, guides,
-                   arrow_draw, press, action, read, text, key, menu, region);
+EMBED_TABLE_LAYOUT(GuiPaneNs, init, table_of, rows_top, row_height, row_rect, hit, head_hit, row_text, action_named,
+                   action_rect, move, wheel, draw, guides, arrow_draw, press, action, read, text, key, menu, region);
 EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
     .init = gui_pane_init,
     .table_of = gui_pane_table_of,
@@ -302,6 +314,9 @@ EMBED_TABLE_STORAGE GuiPaneNs gui_pane EMBED_UNUSED = {
     .row_rect = gui_pane_row_rect,
     .hit = gui_pane_hit,
     .head_hit = gui_pane_head_hit,
+    .row_text = gui_pane_row_text,
+    .action_named = gui_pane_action_named,
+    .action_rect = gui_pane_action_rect,
     .move = gui_pane_move,
     .wheel = gui_pane_wheel,
     .draw = gui_pane_draw,

@@ -146,7 +146,21 @@ static void structure_read(const GuiPaneCfg *args)
     }
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *structure_row_text(const GuiPaneCfg *args)
+{
+    static CliOutlineRow s_named;
+    if (!EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = args->row, .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = s_named.length;
+    return s_named.name;
+}
+
 const GuiPaneTable gui_structure_table = {
+    .row_text = structure_row_text,
     .tool = "structure",
     .title = structure_title,
     .rows = structure_rows,

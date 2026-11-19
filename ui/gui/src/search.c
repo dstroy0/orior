@@ -327,7 +327,39 @@ static int search_press(const GuiPaneCfg *args)
     return 1;
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *search_row_text(const GuiPaneCfg *args)
+{
+    static CliSearchRow s_named;
+    if (!EMBED_CALL(cli_search_pane.row, CliSearchPaneCfg, .at = args->row, .row = &s_named))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = (s_named.text_length != 0ULL) ? s_named.text_length : s_named.name_length;
+    return (s_named.text_length != 0ULL) ? s_named.text : s_named.name;
+}
+
+// the head's action named `name`: the field, or an option by its mark
+static unsigned int search_action_named(const GuiPaneCfg *args)
+{
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "field", .cap = 16ULL}))
+    {
+        return CLI_SEARCH_FIELD;
+    }
+    for (unsigned int at = 0u; at < sizeof(s_options) / sizeof(s_options[0]); at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = s_options[at].label, .cap = 16ULL}))
+        {
+            return s_options[at].which;
+        }
+    }
+    return 0u;
+}
+
 const GuiPaneTable gui_search_table = {
+    .row_text = search_row_text,
+    .action_named = search_action_named,
     .tool = "search",
     .title = search_title,
     .rows = search_rows,

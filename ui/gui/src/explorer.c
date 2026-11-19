@@ -454,7 +454,21 @@ static int explorer_menu(const GuiPaneCfg *args)
     return cli_files_explorer_menu(&(CliFilesExplorerCfg){.at = args->row});
 }
 
+// the text of the row `row`, its bytes counted into `length_out`, NULL where the row is not
+static const char *explorer_row_text(const GuiPaneCfg *args)
+{
+    static CliExplorerRow s_named;
+    if (!cli_files_explorer_row(&(CliFilesExplorerCfg){.at = args->row, .row = &s_named}))
+    {
+        *args->length_out = 0ULL;
+        return NULL;
+    }
+    *args->length_out = cellul.len(&(CatenaFinitaCfg){.src = s_named.name, .cap = CLI_PATH_MAX_LEN});
+    return s_named.name;
+}
+
 const GuiPaneTable gui_explorer_table = {
+    .row_text = explorer_row_text,
     .tool = "explorer",
     .title = explorer_title,
     .rows = explorer_rows,
