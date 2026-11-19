@@ -19,7 +19,7 @@
      FILE_NOTIFY_CHANGE_LAST_WRITE)
 
 // The watch: the tree's folder, the events of the system's answer and of the stop, who is notified, the thread, whether
-// it has ended, and the buffer
+// it has ended, the query in flight and the buffer
 typedef struct
 {
     HANDLE folder;
@@ -31,6 +31,7 @@ typedef struct
     int running;
     int ended;
     CliWake wake;
+    OVERLAPPED overlapped;
     DWORD buffer[CLI_WATCH_BUFFER];
 } CliWatch;
 
@@ -90,31 +91,34 @@ EMBED_INLINE void cli_records_emit(const WindowsWatchCtx *args)
     }
 }
 
-// the system queried for the tree's changes again and again, each answer reported, until the stop is set
+// the system queried for the tree's changes, the query left in flight until the system answers it: 1, or 0 where the
+// system refused the query
+static int cli_watch_query(void)
+{
+    memor.set(&(MemoriaCfg){.dst = &s_watch.overlapped, .val = 0, .bytes = sizeof(s_watch.overlapped)});
+    s_watch.overlapped.hEvent = s_watch.answered;
+    ResetEvent(s_watch.answered);
+    return ReadDirectoryChangesW(s_watch.folder, s_watch.buffer, (DWORD)sizeof(s_watch.buffer), TRUE, CLI_WATCH_FILTER,
+                                 NULL, &s_watch.overlapped, NULL) != 0;
+}
+
+// Each answer of the system reported and the system queried again, until the stop is set. The first query is in
+// flight before the thread starts: a change made the moment the watch is started is in its answer
 static void cli_watch_read(void *context)
 {
     (void)context;
     for (;;)
     {
-        OVERLAPPED overlapped;
-        memor.set(&(MemoriaCfg){.dst = &overlapped, .val = 0, .bytes = sizeof(overlapped)});
-        overlapped.hEvent = s_watch.answered;
-        ResetEvent(s_watch.answered);
-        if (!ReadDirectoryChangesW(s_watch.folder, s_watch.buffer, (DWORD)sizeof(s_watch.buffer), TRUE,
-                                   CLI_WATCH_FILTER, NULL, &overlapped, NULL))
-        {
-            break;
-        }
         const HANDLE waits[2] = {s_watch.answered, s_watch.stopped};
         const DWORD waited = WaitForMultipleObjects(2u, waits, FALSE, INFINITE);
         DWORD written = 0u;
         if (waited != WAIT_OBJECT_0)
         {
-            CancelIoEx(s_watch.folder, &overlapped);
-            GetOverlappedResult(s_watch.folder, &overlapped, &written, TRUE);
+            CancelIoEx(s_watch.folder, &s_watch.overlapped);
+            GetOverlappedResult(s_watch.folder, &s_watch.overlapped, &written, TRUE);
             break;
         }
-        if (!GetOverlappedResult(s_watch.folder, &overlapped, &written, FALSE))
+        if (!GetOverlappedResult(s_watch.folder, &s_watch.overlapped, &written, FALSE))
         {
             break;
         }
@@ -126,6 +130,10 @@ static void cli_watch_read(void *context)
         else
         {
             EMBED_CALL(cli_records_emit, WindowsWatchCtx, .written = written);
+        }
+        if (!cli_watch_query())
+        {
+            break;
         }
     }
     CloseHandle(s_watch.folder);
@@ -172,9 +180,19 @@ int cli_watch_system_start(const CliRootContextCtx *args)
     s_watch.emit = emit;
     s_watch.context = context;
     s_watch.ended = 0;
+    if (!cli_watch_query())
+    {
+        CloseHandle(folder);
+        CloseHandle(answered);
+        CloseHandle(stopped);
+        return 0;
+    }
     s_watch.thread = (CliThread){cli_watch_read, NULL};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_watch.thread))
     {
+        DWORD written = 0u;
+        CancelIoEx(folder, &s_watch.overlapped);
+        GetOverlappedResult(folder, &s_watch.overlapped, &written, TRUE);
         CloseHandle(folder);
         CloseHandle(answered);
         CloseHandle(stopped);
