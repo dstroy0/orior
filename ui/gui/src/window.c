@@ -23,6 +23,7 @@
 #include "../../cli/src/command_line/command_line.h"
 #include "../../cli/src/command_line/pool.h"
 #include "../../cli/src/comms/comms.h"
+#include "../../cli/src/comms/macro.h"
 #include "../../cli/src/comms/sessions.h"
 #include "../../cli/src/debug/debug_pane.h"
 #include "../../cli/src/editor/document.h"
@@ -197,6 +198,8 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     args->window->relative_x = 0LL;
     args->window->relative_y = 0LL;
     args->window->relative_read_held = 0;
+    args->window->sessions_held = 0;
+    args->window->macro_held = 0;
     args->window->driven_count = 0u;
     EMBED_CALL(gui_hover.init, GuiHoverCfg, .hover = &args->window->hover);
     EMBED_CALL(gui_signature.init, GuiSignatureCfg, .signature = &args->window->signature);
@@ -295,6 +298,7 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_servers_panels_end();
     cli_files_explorer_end();
     cli_comms_pane_end();
+    cli_door_macro_close();
     cli_sessions_close();
     cli_comms_end();
     // the notices read the entries in place, so they let go before the entries do
@@ -5557,6 +5561,88 @@ static int window_command_named(const char *command, const char *const *words, u
     {
         return 0;
     }
+    // The door macros: a recording started under a name, ended, the macros listed, one forgotten, and one sent to
+    // every host as often as asked on the hand the sender's name gives. The door holds each until the window steps, and
+    // a send until every step is answered; a second while one waits is refused
+    const int door_record = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "door-record");
+    const int door_stop = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "door-stop");
+    const int door_macros = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "door-macros");
+    const int door_forget = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "door-forget");
+    const int door_send = EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "door-send");
+    if (door_record || door_stop || door_macros || door_forget || door_send)
+    {
+        if (cli_door_macro_pending() || window->macro_held)
+        {
+            return 0;
+        }
+        char text[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea line = {text, sizeof(text), 0ULL};
+        const char *const first = (count > 0u) ? words[0] : NULL;
+        int ok = 0;
+        if (door_macros)
+        {
+            EMBED_CALL(cli_door_macro.list, CliDoorMacroCfg, .out = NULL);
+            window->macro_held = 1;
+            return CLI_REACH_HOLD;
+        }
+        if (door_record)
+        {
+            ok = EMBED_CALL(cli_door_macro.record, CliDoorMacroCfg, .name = first, .err_msg = &line);
+            if (ok)
+            {
+                mmgr_line_put(&line, "recording ");
+                mmgr_line_put(&line, first);
+            }
+        }
+        else if (door_stop)
+        {
+            ok = EMBED_CALL(cli_door_macro.stop, CliDoorMacroCfg, .out = &line, .err_msg = &line);
+        }
+        else if (door_forget)
+        {
+            ok = EMBED_CALL(cli_door_macro.forget, CliDoorMacroCfg, .name = first, .err_msg = &line);
+            if (ok)
+            {
+                mmgr_line_put(&line, "forgot ");
+                mmgr_line_put(&line, first);
+            }
+        }
+        else
+        {
+            // the words after the name: a number is the times to replay, `--as` and a name the sender
+            unsigned long long times = 1ULL;
+            const char *sender = NULL;
+            for (unsigned int at = 1u; at < count; at += 1u)
+            {
+                if (EMBED_CALL(window_is, GuiWindowCtx, .name = words[at], .key = "--as") && (at + 1u < count))
+                {
+                    sender = words[at + 1u];
+                    at += 1u;
+                }
+                else
+                {
+                    // a count of rounds is far inside what an int represents
+                    times = (unsigned long long)EMBED_CALL(window_word_number, GuiWindowCtx, .name = words[at]);
+                }
+            }
+            ok = EMBED_CALL(cli_door_macro.send, CliDoorMacroCfg, .name = first, .times = times, .sender = sender,
+                            .err_msg = &line);
+            if (ok)
+            {
+                window->macro_held = 1;
+                return CLI_REACH_HOLD;
+            }
+        }
+        EMBED_CALL(cli_door_macro.answered, CliDoorMacroCfg, .out = &line, .ok = ok);
+        window->macro_held = 1;
+        return CLI_REACH_HOLD;
+    }
+    // every other command the door runs is a step of the door macro that records
+    if (cli_door_macro_recording())
+    {
+        (void)EMBED_CALL(cli_door_macro.recorded, CliDoorMacroCfg, .command = command, .request = words,
+                         .count = count);
+    }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "file"))
     {
         if (count != 0u)
@@ -6023,6 +6109,20 @@ void gui_window_step(const GuiWindowCfg *args)
         window->relative_y = 0LL;
         window->relative_read_held = 0;
         cli_reach_held_answer(&(CliReachCfg){.done = 1, .text = counts});
+    }
+    // a door macro command's answer, given once its steps are all answered or its text is ready
+    if (window->macro_held)
+    {
+        char text[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea line = {text, sizeof(text), 0ULL};
+        int done = 0;
+        if (EMBED_CALL(cli_door_macro.step, CliDoorMacroCfg, .out = &line, .done = &done))
+        {
+            (void)mmgr_line_finish(&line);
+            window->macro_held = 0;
+            cli_reach_held_answer(&(CliReachCfg){.done = done, .text = text});
+        }
+        window->pending = 1;
     }
     // a sessions command's answer, given once the module has every host's line
     if (window->sessions_held)

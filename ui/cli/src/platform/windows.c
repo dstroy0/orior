@@ -196,6 +196,18 @@ unsigned long long cli_standard_input(void)
     return windows_standard_handle(STD_INPUT_HANDLE);
 }
 
+int cli_machine_name(VerbaLinea *out)
+{
+    char own[MAX_COMPUTERNAME_LENGTH + 1u];
+    DWORD size = (DWORD)sizeof(own);
+    if (!GetComputerNameA(own, &size) || (size == 0u))
+    {
+        return 0;
+    }
+    mmgr_line_put(out, own);
+    return mmgr_line_ok(out);
+}
+
 unsigned long long cli_standard_output(void)
 {
     return windows_standard_handle(STD_OUTPUT_HANDLE);

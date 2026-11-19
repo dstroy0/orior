@@ -168,8 +168,10 @@ typedef struct GuiWindow
     long long relative_x;
     long long relative_y;
     int relative_read_held;
-    // a sessions command the door holds while the sessions module gathers its answer
+    // a sessions command the door holds while the sessions module gathers its answer, and a door macro command the door
+    // holds while a macro's steps go out
     int sessions_held;
+    int macro_held;
     GuiPointer preferences_pointer;
     GuiPointer dialog_pointer;
     GuiPreferences preferences;

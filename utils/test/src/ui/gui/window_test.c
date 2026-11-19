@@ -1595,6 +1595,41 @@ static void sessions_checked(void)
     cli_check(
         asked_words("session-send", sent, 3u) && answered_is("self: "),
         "a command sent to every host reaches this window through its own door and answers under the host's name");
+    // the door macros: steps recorded as the door runs them, replayed on the host through the sessions, each pointer
+    // step on a hand of the sender's name
+    cli_check(!asked("door-stop", NULL) && answered_is("no macro records"),
+              "stopping with no recording is refused with why");
+    cli_check(asked("door-record", "walk") && answered_is("recording walk"),
+              "a door macro starts recording under its name");
+    const char *const first[2] = {"130", "90"};
+    const char *const second[1] = {"click"};
+    cli_check(asked_words("pointer", first, 2u) && asked_words("pointer", second, 1u),
+              "door commands run as the macro records them");
+    cli_check(asked("door-stop", NULL) && answered_is("walk: 2 steps"), "the recording stops with its steps counted");
+    cli_check(asked("door-macros", NULL) && answered_is("walk: 2 steps"), "the list names the macro and its steps");
+    s_window.driven_count = 0u;
+    const char *const twice[2] = {"walk", "2"};
+    cli_check(asked_words("door-send", twice, 2u) && answered_is("4 steps on every host"),
+              "the macro replays twice on every host, each step answered before the next goes");
+    char machine[CLI_PATH_MAX_LEN];
+    VerbaLinea machine_line = {machine, sizeof(machine), 0ULL};
+    (void)cli_machine_name(&machine_line);
+    (void)mmgr_line_finish(&machine_line);
+    driven_taken();
+    int hand_found = 0;
+    for (unsigned int at = 0u; at < GUI_WINDOW_HANDS; at += 1u)
+    {
+        const GuiHand *const hand = &s_window.hands[at];
+        hand_found =
+            hand_found ||
+            (hand->used && cellul.eq(&(CatenaFinitaCfg){.src = hand->name, .other = machine, .cap = CLI_POOL_BYTES}) &&
+             (hand->x == 130) && (hand->y == 90));
+    }
+    cli_check(hand_found && (s_window.pointer.x != 130),
+              "the replayed pointer steps drive a hand named for the sender, not the window's own pointer");
+    cli_check(asked("door-forget", "walk") && answered_is("forgot walk") && asked("door-macros", NULL) &&
+                  answered_is("no macros"),
+              "a macro forgotten leaves the list empty");
     cli_check(asked("session-leave", "self") && answered_is("left self"), "the host left answers so");
     cli_check(asked("sessions", NULL) && answered_is("no sessions"), "the list is empty again");
 }

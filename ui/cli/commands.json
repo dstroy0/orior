@@ -505,6 +505,11 @@
         { "label": "Leave a Host", "command": "session-leave", "args": "<address>" },
         { "label": "List", "command": "sessions" },
         { "label": "Send to Every Host…", "command": "session-send", "args": "<menu> <command> [words]" },
+        { "label": "Record a Door Macro…", "command": "door-record", "args": "<name>" },
+        { "label": "Stop Recording the Door Macro", "command": "door-stop" },
+        { "label": "Door Macros", "command": "door-macros" },
+        { "label": "Forget a Door Macro…", "command": "door-forget", "args": "<name>" },
+        { "label": "Send a Door Macro to Every Host…", "command": "door-send", "args": "<name> [times] [--as <sender>]" },
         { "label": "Pull the Served Tree", "command": "pull", "args": "[ref]", "console": true },
         { "label": "Relay", "command": "relay", "args": "[tree] [--git <address>]", "console": true, "hidden": true }
       ]
@@ -690,7 +695,7 @@
       "items": [
         { "label": "Keyboard Shortcuts", "command": "keys", "console": true },
         { "label": "Ask…", "command": "ask", "args": "[--error] <title> <body> <button> [<button>...]", "hidden": true },
-        { "label": "Pointer…", "command": "pointer", "args": "[--as <name>] <x> <y>|press|release|click [left|middle|right]|drag <x> <y> [<x> <y>...]|wheel up|down [notches]|off", "hidden": true },
+        { "label": "Pointer…", "command": "pointer", "args": "[--as <name>] <x y|press|release|click [left|middle|right]|drag x y [x y ...]|wheel up|down [notches]|off>", "hidden": true },
         { "label": "Telemetry…", "command": "telemetry", "args": "on|off", "hidden": true },
         "-",
         { "label": "Report a Bug…", "command": "report", "args": "[library|cli|ui|unknown] [title]", "console": true },

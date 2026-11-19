@@ -258,6 +258,19 @@ unsigned long long cli_standard_input(void)
     return 1ULL;
 }
 
+int cli_machine_name(VerbaLinea *out)
+{
+    char own[256];
+    own[0] = '\0';
+    if (gethostname(own, sizeof(own) - 1u) != 0)
+    {
+        return 0;
+    }
+    own[sizeof(own) - 1u] = '\0';
+    mmgr_line_put(out, own);
+    return (own[0] != '\0') && mmgr_line_ok(out);
+}
+
 unsigned long long cli_standard_output(void)
 {
     return 2ULL;

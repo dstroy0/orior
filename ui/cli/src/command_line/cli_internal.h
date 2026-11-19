@@ -137,6 +137,9 @@ int cli_output_terminal(void);
 // gives none (platform/windows.c, platform/posix.c)
 unsigned long long cli_standard_input(void);
 unsigned long long cli_standard_output(void);
+// this machine's name, as the system names it, put on `out`: 1, or 0 where the system gives none (platform/windows.c,
+// platform/posix.c)
+int cli_machine_name(VerbaLinea *out);
 // the words this program was given after its name, at max `capacity` of them, into `words`, each UTF-8: on Windows as
 // the system stores them, wide, and elsewhere the `count` words of `supplied`, or as the system saves them where
 // `supplied` is NULL: their count
