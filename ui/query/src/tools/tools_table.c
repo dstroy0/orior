@@ -50,13 +50,8 @@ const char *const g_query_mmgr_link[] = {"-lsynchronization", NULL};
 const char *const g_query_mmgr_link[] = {NULL};
 #endif
 
-const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0",
-                                             "-DMMGR_ENABLE_EXTRAM=0",
-                                             "-DMMGR_ALIGN_BYTES=32",
-                                             "-DMMGR_MOVABLE_READ_MS=10u",
-                                             "-DMMGR_MOVABLE_QUIET_READINGS=2u",
-                                             "-DMMGR_CARCER_OWNERS=1024u",
-                                             NULL};
+const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32",
+                                             "-DMMGR_CARCER_OWNERS=1024u", NULL};
 
 // the folders the file definitions' headers are in beyond their sources' own
 const char *const g_query_file_defs_headers[] = {"includes/file_defs", "includes/parsers",

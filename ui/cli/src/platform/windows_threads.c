@@ -9,10 +9,6 @@
 #define NOMINMAX
 #include <windows.h>
 
-// the longest an untimed wait sleeps before its waiter tests again, which bounds a wake landing between the test and
-// the sleep
-#define CLI_WAKE_RECHECK_MS 10ul
-
 int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed_u64 nanoseconds)
 {
     embed_atomic_word_value was = seen;
@@ -25,8 +21,8 @@ int embed_word_wait(embed_atomic_word *word, embed_atomic_word_value seen, embed
     // waits that long
     const embed_u64 milliseconds = (nanoseconds / 1000000u) + (embed_u64)((nanoseconds % 1000000u) != 0u);
     const DWORD waited = (nanoseconds == EMBED_WAIT_INFINITE) ? INFINITE
-                         : (milliseconds < 0xfffffffeull)    ? (DWORD)milliseconds
-                                                             : (DWORD)0xfffffffeull;
+                         : (milliseconds < 0xfffffffeull)     ? (DWORD)milliseconds
+                                                              : (DWORD)0xfffffffeull;
     (void)WaitOnAddress(&word->value, &was, sizeof(was), waited);
     return embed_atomic_word_load(word) != seen;
 }
@@ -38,8 +34,10 @@ void embed_word_wake(embed_atomic_word *word)
 
 void cli_wake_wait(const CliWakeCtx *args)
 {
+    // The wait compares the word with seen before it sleeps, so a wake that lands first ends it at once. The sleep
+    // has no timer: it ends when the word moves
     embed_atomic_word_value seen = embed_atomic_word_load(&args->wake->generation);
-    (void)WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), CLI_WAKE_RECHECK_MS);
+    (void)WaitOnAddress(&args->wake->generation.value, &seen, sizeof(seen), INFINITE);
 }
 
 int cli_wake_wait_for(const CliWakeCtx *args)

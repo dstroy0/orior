@@ -30,9 +30,6 @@
 #include <pthread/qos.h>
 #endif
 
-// the longest an untimed wait sleeps before its waiter tests again, which bounds a wake landing between the test and
-// the sleep
-#define CLI_WAKE_RECHECK_MS 10ULL
 // the count of waiters a wake reaches so that none is left asleep, the largest int
 #define CLI_FUTEX_WAKE_ALL 0x7FFFFFFF
 
@@ -116,8 +113,10 @@ static int wake_sleep(const PosixThreadsCtx *args)
 
 void cli_wake_wait(const CliWakeCtx *args)
 {
+    // The word's wait compares the word with seen before it sleeps, so a wake that lands first ends it at once. The
+    // sleep has no timer: it ends when the word moves
     (void)EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake,
-                     .seen = embed_atomic_word_load(&args->wake->generation), .milliseconds = CLI_WAKE_RECHECK_MS);
+                     .seen = embed_atomic_word_load(&args->wake->generation), .milliseconds = EMBED_WAIT_INFINITE);
 }
 
 int cli_wake_wait_for(const CliWakeCtx *args)
@@ -139,10 +138,12 @@ unsigned int cli_wake_read(const CliWakeCtx *args)
 
 void cli_wake_wait_seen(const CliWakeCtx *args)
 {
+    // The word's wait compares the word with seen before it sleeps, so a wake that lands first ends it at once. No
+    // timed recheck is needed, and the sleep ends only when the word moves.
     while (!EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake, .seen = args->seen,
-                       .milliseconds = CLI_WAKE_RECHECK_MS))
+                       .milliseconds = EMBED_WAIT_INFINITE))
     {
-        // each pass sleeps on the wake and reads it again
+        // a sleep that ends with the word still at seen sleeps again
     }
 }
 

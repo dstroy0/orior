@@ -93,9 +93,6 @@ fi
 MMGR="$TOP/includes/mmgr"
 EMBEDDED_TYPES="$TOP/includes/embedded_types"
 MMGR_HIGH_WATER=-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
-# the mover's readings for the window: a reading every 10 ms, two quiet in a row before a sort, since the frame loop
-# leaves gaps of that order and none of 100 ms
-MMGR_MOVER_WORDS=(-DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u)
 # the temporary tier at the top of the pool: sixteen regions of 4 MiB, one for each thread's place, which no other
 # thread shares, and one large region of 65 MiB that a take over 4 MiB goes to, sized for the print page of 64 MiB.
 # A region's depth never passes its size. 159 MiB of the pool stay with the persistent tier
@@ -104,7 +101,7 @@ MMGR_REGION_WORDS=(-DMMGR_CARCER_REGIONS=16u -DMMGR_CARCER_REGION_BYTES=4194304u
 # can fold a read of a weak const object to the default's own value, and that fold refuses every take
 MMGR_OWNERS_WORD=-DMMGR_OWNERS_IN_THIS_UNIT=1
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$EMBEDDED_TYPES/include" -DMMGR_ENABLE_DMA=0
-    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER" "${MMGR_MOVER_WORDS[@]}"
+    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER"
     -DMMGR_CARCER_OWNERS=1024u "${MMGR_REGION_WORDS[@]}")
 # the window block's parts of the program's own, after the toolkit's: the tab beads, Preferences' tabs' and the
 # editor's tabs', a segment each

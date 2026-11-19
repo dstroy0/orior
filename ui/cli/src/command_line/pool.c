@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pool.c: the CLI's memory: MMgr's prison site, one cellblock over the pool declared here at CLI_POOL_BYTES, emptied
-// for a program's request while no cell is allocated; and the program's owner table, positioned here from owners.h as data,
-// each module's owner a const pointer into it. Every take and release goes through the cellblock's guard and carries
-// the owner. MMgr's report of a release carrying the wrong owner is logged. The reports read the cellblock's peaks and
-// the owner table off their atomic words, and are written at a command's end
+// for a program's request while no cell is allocated; and the program's owner table, positioned here from owners.h as
+// data, each module's owner a const pointer into it. Every take and release goes through the cellblock's guard and
+// carries the owner. MMgr's report of a release carrying the wrong owner is logged. The reports read the cellblock's
+// peaks and the owner table off their atomic words, and are written at a command's end
 #include "pool.h"
 #include "rings.h"
 
@@ -109,8 +109,7 @@ embed_u32 embed_thread_place(void)
     if (t_pool_place_plus_one == 0u)
     {
         const embed_u32 popped = pool_place_popped();
-        t_pool_place_plus_one =
-            (popped != 0u) ? popped : (embed_atomic_u32_fetch_add(&s_pool_places_given, 1u) + 1u);
+        t_pool_place_plus_one = (popped != 0u) ? popped : (embed_atomic_u32_fetch_add(&s_pool_places_given, 1u) + 1u);
     }
     return t_pool_place_plus_one - 1u;
 }
@@ -196,15 +195,22 @@ static embed_bool pool_mover_started(void (*run)(void *context), void *context)
     return (embed_bool)started;
 }
 
-static embed_bool pool_mover_waited(embed_u32 milliseconds)
+// The mover's sleep: until a give wakes it or the pool ends it. No timer ends the sleep.
+static embed_bool pool_mover_waited(void)
 {
+    const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_mover_wake);
     if (EMBED_ATOMIC_LOAD(&s_mover_ending) != 0u)
     {
         return EMBED_FALSE;
     }
-    (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_mover_wake,
-                     .milliseconds_u64 = milliseconds);
+    EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_mover_wake, .seen = seen);
     return (embed_bool)(EMBED_ATOMIC_LOAD(&s_mover_ending) == 0u);
+}
+
+// The mover's wake: MMgr calls it from a give that left the cellblock fragmented over the threshold.
+static void pool_mover_woken(void)
+{
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_mover_wake);
 }
 
 // the mover ended where it runs: asked to end, woken, and waited for
@@ -217,8 +223,13 @@ static void pool_mover_ended(void)
     EMBED_ATOMIC_STORE(&s_mover_ending, 1u);
     while (EMBED_ATOMIC_LOAD(&s_mover_ended) == 0u)
     {
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_mover_wake);
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_mover_wake);
-        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_mover_wake, .milliseconds_u64 = 1ULL);
+        if (EMBED_ATOMIC_LOAD(&s_mover_ended) == 0u)
+        {
+            // the mover's end wakes this wait; the wake above moved the word past seen, so the wait reads it again
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_mover_wake, .seen = seen + 1u);
+        }
     }
     s_mover_run = NULL;
 }
@@ -249,6 +260,7 @@ void cli_pool_movable_ready(void)
                                 .thread_started = pool_mover_started,
                                 .thread_id = pool_thread_id,
                                 .thread_wait = pool_mover_waited,
+                                .thread_wake = pool_mover_woken,
                                 .thread_yield = cli_thread_yield,
                                 .thread_moving = pool_mover_moving});
 }
@@ -427,7 +439,8 @@ static void pool_idle_each(void *context, void *at, size_t bytes)
 {
     (void)context;
     // Explicit casts read the span's bounds as integers for the page arithmetic, and the first page back as its address
-    const unsigned long long first = ((unsigned long long)(uintptr_t)at + POOL_PAGE_BYTES - 1ull) & ~(POOL_PAGE_BYTES - 1ull);
+    const unsigned long long first =
+        ((unsigned long long)(uintptr_t)at + POOL_PAGE_BYTES - 1ull) & ~(POOL_PAGE_BYTES - 1ull);
     const unsigned long long end = ((unsigned long long)(uintptr_t)at + bytes) & ~(POOL_PAGE_BYTES - 1ull);
     if ((end > first) && ((end - first) >= POOL_IDLE_RELEASED))
     {

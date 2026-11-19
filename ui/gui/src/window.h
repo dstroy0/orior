@@ -55,10 +55,10 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 
 // the resize border's width in the page's pixels; the rectangles a map of what a pixel is on holds, each title,
 // each menu open and the eye; the milliseconds of one refresh of a monitor before the system has sent its own; and the
-// milliseconds between readings of what orior takes in RAM
 #define GUI_BORDER 5
 #define GUI_WINDOW_HIT_CLIENTS (GUI_MENUBAR_TITLES + GUI_MENU_LEVELS + 1u + GUI_TOP_MENU_TOOLS)
 #define GUI_VIEW_FRAME_MS 17u
+// the least milliseconds between two readings of what orior takes in RAM, read on ticks that run for other reasons
 #define GUI_MEMORY_MS 2000ULL
 // the inputs the window's own pointer drives that wait for the view's thread at once: a drag's press, its places and
 // its release
@@ -130,9 +130,9 @@ typedef struct
 // frame is presented, the displayed one NULL before any; the base every frame starts from and the ground under it,
 // glyphs, icons, palette; the parts and the side pane's waits, the editor's frame, token table and map, the terminal's
 // panes and their frames, each taken of the module whose state it is and released by the window; the hover and the
-// completion as the panels last had them; when the caret's blink begins, each frame of the view putting it an input
-// rest later, the caret's ink in the last frame drawn, and whether its ink alone has changed, which the caret drawn
-// again over the frame pays with no frame whole; the busy circle, with whether its stage alone has changed; the pointer
+// completion as the panels last had them; the caret's ink in the last frame drawn, and whether its ink alone has
+// changed, which the caret drawn again over the frame pays with no frame whole; the busy circle, with whether its stage
+// alone has changed; the pointer
 // drawn on the main window, with whether its move alone is to be drawn, and the pointers drawn on Preferences' window
 // and the dialog's; Preferences, what its rows are at, the palette of the window's own they change, and the scale the
 // system gave, which the zoom positions the frame at a share of; the claim and whether its slides ran at the last tick;
@@ -172,7 +172,6 @@ typedef struct GuiWindow
     GuiTerminal terminal;
     CliHoverPanel hover_panel;
     CliCompletionPanel completion_panel;
-    unsigned long long caret_blink_start_ms;
     unsigned int caret_color;
     int caret_alone;
     GuiBusy busy;
@@ -350,13 +349,9 @@ typedef struct GuiWindow
     unsigned int pressed;
 } GuiWindow;
 
-// the double-click window, the pixels a press may move and still count, the caret's blink, displayed for the first half
-// of its period and hidden for the second, and the input rest the caret is displayed through after a key before its
-// blink begins
+// the double-click window and the pixels a press may move and still count
 #define GUI_DOUBLE_CLICK_MS 500ull
 #define GUI_CLICK_ADJACENT 4
-#define GUI_CARET_BLINK_PERIOD_MS 1060ull
-#define GUI_CARET_INPUT_REST_MS 300ull
 
 // the window begun: its glyphs read, its palette the dark scheme, its parts showing nothing: 1, or 0 with the reason
 // written; and ended, the session saved, the modules it began ended and every cell released
@@ -412,14 +407,14 @@ void gui_window_tick(const GuiWindowCfg *args);
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 // the deadlines the window waits on, each one's name for the telemetry, and the place of the one that set the last
 // wait, GUI_WINDOW_WAKES where none did
-#define GUI_WINDOW_WAKES 23u
+#define GUI_WINDOW_WAKES 21u
 extern const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES];
 unsigned int gui_window_timeout_source(void);
 // the frame positioned for the claim's movement at `time_ms`: while a slide runs the stage located then, the stages
 // made where a slide has been sent since they were; at rest the frame the slides rest at
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args);
 // the system's wish for less motion set, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
-// folder, stills the lattice, the claim's slides, the name's flight and the caret's blink
+// folder, stills the lattice, the claim's slides and the name's flight
 void gui_window_motion_wish(const GuiWindowReducedCfg *args);
 // the window gone off the screen, `displayed` 0, its ground's clock stationary, or back on it, 1, a frame owed
 void gui_window_show(const GuiWindowDisplayedCfg *args);

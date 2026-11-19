@@ -758,9 +758,6 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     // the map's lines follow the view: a frame that moved the map's first row takes the lines it now is for
     EMBED_CALL(window_map_span, GuiWindowCtx, .window = window);
     EMBED_CALL(window_scroll_adopt, GuiWindowCtx, .window = window);
-    // every frame the view answers shows the caret through the input rest, its blink beginning after it, and the caret
-    // is displayed while the keys go
-    window->caret_blink_start_ms = cli_clock_milliseconds() + GUI_CARET_INPUT_REST_MS;
     if (args->on)
     {
         EMBED_CALL(window_scroll_damage, GuiWindowCtx, .window = window);
@@ -1385,41 +1382,11 @@ void gui_window_show(const GuiWindowDisplayedCfg *args)
     args->window->pending = args->displayed || args->window->pending;
 }
 
-// the caret's ink, 0 or 255: hidden while the editor does not have the keys; else displayed through the input rest
-// before its blink begins, then displayed for the first half of each blink and hidden for the second; displayed while
-// no cursor is or less motion is asked for
+// the caret's ink, 0 or 255: hidden while the editor does not have the keys, displayed while it does. The caret does
+// not blink: a blink is a timer, and the window runs none
 EMBED_INLINE unsigned int window_caret_color(const GuiWindowCtx *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
-    if (!args->window_read->editing)
-    {
-        return 0u;
-    }
-    if (!(args->window_read->editor.frame != NULL) || args->window_read->motion_still || (now_ms < begun_ms))
-    {
-        return 255u;
-    }
-    return (((now_ms - begun_ms) % GUI_CARET_BLINK_PERIOD_MS) < (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) ? 255u : 0u;
-}
-
-// the deadline the caret's ink next changes at: the end of the first half of its blink while the input rest runs, else
-// the end of the half of the blink it is in; 0 where the editor does not have the keys, no cursor is or less
-// motion is asked for
-EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *args)
-{
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
-    const unsigned long long half_ms = GUI_CARET_BLINK_PERIOD_MS / 2ULL;
-    if (!args->window_read->editing || !(args->window_read->editor.frame != NULL) || args->window_read->motion_still)
-    {
-        return 0ULL;
-    }
-    if (now_ms < begun_ms)
-    {
-        return begun_ms + half_ms;
-    }
-    return now_ms + half_ms - ((now_ms - begun_ms) % half_ms);
+    return args->window_read->editing ? 255u : 0u;
 }
 
 void gui_window_tick(const GuiWindowCfg *args)
@@ -1594,8 +1561,8 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 static unsigned int s_timeout_source = GUI_WINDOW_WAKES;
 
 const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES] = {
-    "autohide", "scroll", "slide",   "ground",   "preferences", "dialog", "wordmark", "caret",
-    "sides",    "busy",   "panels",  "terminal", "notices",     "menus",  "memory",   "runs",
+    "autohide", "scroll", "slide",   "ground",   "preferences", "dialog", "wordmark",
+    "sides",    "busy",   "panels",  "terminal", "notices",     "menus",  "runs",
     "search",   "git",    "preview", "comms",    "debug",       "tip",    "bead",
 };
 
@@ -1630,7 +1597,6 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
             : 0ULL,
         EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark,
                    .now_ms = cli_clock_milliseconds()),
-        EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = window),
         EMBED_CALL(gui_sides.next_deadline_ms, GuiSidesCfg, .sides_read = &window->sides),
         // the circle's clock stops while the window is off screen, a wake from a module's thread waking it as any does
         window->off_screen ? 0ULL
@@ -1640,7 +1606,6 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
         cli_terminal_tabs_next_ms(),
         cli_notices_due_ms(),
         g_cli_menus_open.rest_due_ms,
-        window->memory_due_ms,
         EMBED_CALL(cli_runs_pane.deadline_ms, CliRunsPaneCfg, .root = cli_command_line_root(),
                    .displayed = EMBED_CALL(window_table_displayed, GuiWindowCtx, .window_read = window,
                                            .table_read = &gui_runs_table)),
@@ -6510,9 +6475,13 @@ void gui_window_step(const GuiWindowCfg *args)
                        .height_px = window->frame.preview.height, .scale = window->frame.scale) ||
             window->pending;
     }
+    // The RAM readout reads the working set on a tick that runs for another reason, no sooner than GUI_MEMORY_MS after
+    // the last reading. It sets no deadline of its own, so an idle window draws no frame for it. A reading that
+    // changed draws the readout
     if (now_ms >= window->memory_due_ms)
     {
         CliProcessMemory measured;
+        const unsigned long long was = window->memory_bytes;
         window->memory_bytes =
             EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
                 ? measured.working
@@ -6521,11 +6490,11 @@ void gui_window_step(const GuiWindowCfg *args)
         {
             cli_pool_telemetry_log();
         }
-        // the pages of the cellblock no cell holds go back to the system each tick, and the working set reads the
-        // live cells and not every page a take has touched since the window started
+        // the pages of the cellblock no cell holds go back to the system with each reading, and the working set reads
+        // the live cells and not every page a take has touched since the window started
         cli_pool_idle_released();
         window->memory_due_ms = now_ms + GUI_MEMORY_MS;
-        window->pending = 1;
+        window->pending = (window->memory_bytes != was) || window->pending;
     }
     EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &window->busy,
                .running = cli_servers_problems_checking(), .now_ms = cli_clock_milliseconds());
@@ -6958,8 +6927,8 @@ void gui_window_draw(const GuiWindowCfg *args)
     EMBED_CALL(gui_tip_raster.draw, GuiTipRasterCfg, .tip = &args->window->tip, .raster = raster,
                .glyphs = &args->window->glyphs, .palette = palette,
                .bounds = (GuiRect){0, 0, (int)frame->width, (int)frame->height}, .scale = frame->scale);
-    // the caret last, at the ink its blink is at, where no panel or menu lies over it: drawn over the frame
-    // whole, its blink's flips draw it again alone; none is while the view is not drawn
+    // the caret last, where no panel or menu lies over it: drawn over the frame whole, and drawn again alone where
+    // its ink alone changed; none is while the view is not drawn
     args->window->caret_color = EMBED_CALL(window_caret_color, GuiWindowCtx, .window_read = args->window);
     args->window->editor.caret_color = args->window->caret_color;
     const GuiRect caret =

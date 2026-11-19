@@ -49,7 +49,7 @@ BUILD = os.path.join(ROOT, "build")
 OUT = os.path.join(BUILD, "harness", "out")
 MMGR = os.path.join(ROOT, "includes", "mmgr")
 EMBEDDED_TYPES = os.path.join(ROOT, "includes", "embedded_types")
-MMGR_FLAGS = ["-I", os.path.join(MMGR, "include"), "-I", os.path.join(MMGR, "src"), "-I", os.path.join(EMBEDDED_TYPES, "include"), "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_MOVABLE_READ_MS=10u", "-DMMGR_MOVABLE_QUIET_READINGS=2u", "-DMMGR_CARCER_OWNERS=1024u",
+MMGR_FLAGS = ["-I", os.path.join(MMGR, "include"), "-I", os.path.join(MMGR, "src"), "-I", os.path.join(EMBEDDED_TYPES, "include"), "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_CARCER_OWNERS=1024u",
               "-DMMGR_CARCER_REGIONS=16u", "-DMMGR_CARCER_REGION_BYTES=4194304u", "-DMMGR_CARCER_LARGE_REGION_BYTES=68157440u"]
 RUBY = r"C:\tools\ruby34\bin"
 FRAME_LARGEST = 65536
@@ -133,7 +133,7 @@ def cmd_source_tidy(a):
     inside the Linux test image with the build's own words, their reports written under build/sonarqube for the
     SonarQube scan to import."""
     os.makedirs(os.path.join(BUILD, "sonarqube"), exist_ok=True)
-    words = "-std=c11 -I includes/mmgr/include -I includes/mmgr/src -I includes/embedded_types/include -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1 -DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u -DMMGR_CARCER_OWNERS=1024u -DMMGR_CARCER_REGIONS=16u -DMMGR_CARCER_REGION_BYTES=4194304u -DMMGR_CARCER_LARGE_REGION_BYTES=68157440u"
+    words = "-std=c11 -I includes/mmgr/include -I includes/mmgr/src -I includes/embedded_types/include -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1 -DMMGR_CARCER_OWNERS=1024u -DMMGR_CARCER_REGIONS=16u -DMMGR_CARCER_REGION_BYTES=4194304u -DMMGR_CARCER_LARGE_REGION_BYTES=68157440u"
     inside = (
         "find %s -name '*.c' -not -path '*/bundle/*' | sort > build/sonarqube/tidy_files.txt"
         " && xargs -a build/sonarqube/tidy_files.txt -P %d -I{} sh -c \"clang-tidy -quiet -checks='%s' {} -- %s 2>/dev/null\" > %s"

@@ -114,7 +114,7 @@ def compile_words(root):
     """The include roots and MMgr's configuration, matching what ui/cli/build.sh compiles the library with."""
     mmgr = os.path.join(root, "includes", "mmgr")
     return ["-I", root, "-I", os.path.join(mmgr, "include"), "-I", os.path.join(mmgr, "src"), "-I", os.path.join(root, "includes", "embedded_types", "include"),
-            "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", "-DMMGR_MOVABLE_READ_MS=10u", "-DMMGR_MOVABLE_QUIET_READINGS=2u", "-DMMGR_CARCER_OWNERS=1024u",
+            "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", "-DMMGR_CARCER_OWNERS=1024u",
             "-DMMGR_CARCER_REGIONS=16u", "-DMMGR_CARCER_REGION_BYTES=4194304u", "-DMMGR_CARCER_LARGE_REGION_BYTES=68157440u"]
 
 
