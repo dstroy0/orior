@@ -56,6 +56,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libssl-dev libx11-dev libxext-dev libxi-dev build-essential clang lld llvm cmake ninja-build ruby
 
+      # The CUDA compiler and headers from NVIDIA's repository. The scanner reads each .cu of src as clang reads CUDA,
+      # and clang finds the headers and libdevice under CUDA_PATH.
+      - name: CUDA toolkit
+        run: |
+          mkdir -p build/sonarqube
+          wget -q -O build/sonarqube/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i build/sonarqube/cuda-keyring.deb
+          sudo apt-get update
+          sudo apt-get install -y cuda-nvcc-12-6 cuda-cudart-dev-12-6 cuda-cccl-12-6
+          echo "CUDA_PATH=/usr/local/cuda-12.6" >> "$GITHUB_ENV"
+
       - name: Install gcovr
         run: pip install --upgrade gcovr
 
@@ -66,6 +77,11 @@ jobs:
         run: |
           mkdir -p build/sonarqube
           build-wrapper-linux-x86-64 --out-dir build/sonarqube/bw-output python utils/test/harness.py cli coverage build
+
+      # The build of this job does not compile most sources of src and includes. Each .c, .cu and .cpp of those folders
+      # that the build does not compile gets an entry as clang compiles it. MMgr and embedded_types get no entry.
+      - name: Sources of src and includes
+        run: python -I utils/maint/engine/clangd_database.py --under src --under includes --merge build/sonarqube/bw-output/compile_commands.json --out build/sonarqube/compile_commands.json
 
       # The suites write the .gcda. A failing test still lets the scan report, and fails this job at its last step.
       - name: Test

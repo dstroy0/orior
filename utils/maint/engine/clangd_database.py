@@ -8,6 +8,12 @@
 # example's own directories come before them for its sources; no two headers of the trees, or of one example, share a
 # name, which is checked, so the union resolves each include the one way the builds do. Run it again after a source or
 # header is added or moved.
+#
+# The scanner of the sonarcloud workflow reads the same entries. It gives --under src and --under includes, so that only
+# the sources of those folders get an entry. A folder in --under does not give an entry to MMgr or embedded_types,
+# because each one has its own repository and scan. The workflow also gives --merge with the database of the build
+# wrapper, and --out with the file that the scanner reads.
+import argparse
 import glob
 import json
 import os
@@ -43,7 +49,7 @@ def sources():
         for top, directories, files in os.walk(os.path.join(ROOT, tree)):
             directories[:] = sorted(name for name in directories if name not in SKIPPED)
             for name in sorted(files):
-                if name.endswith((".c", ".cu", ".h")):
+                if name.endswith((".c", ".cu", ".cpp", ".h")):
                     found.append(slashed(os.path.join(top, name)))
     return found
 
@@ -135,7 +141,29 @@ def toolchain():
     return cuda.replace("\\", "/"), "sm_" + (capability or "86"), host
 
 
+def arguments():
+    parser = argparse.ArgumentParser(description="The compilation database of the trees, for clangd or for a scanner.")
+    parser.add_argument("--out", default=OUT, help="the file that the database goes to")
+    parser.add_argument("--under", action="append", default=[],
+                        help="a folder from the top of the tree; only its sources get an entry")
+    parser.add_argument("--merge", default="",
+                        help="a database of a build; its entries stay, and a translation unit it does not have gets one")
+    return parser.parse_args()
+
+
+# The entries of the build's database, and each translation unit that it does not have from `entries`. A header gets
+# no entry, because the build's database has translation units only.
+def merged(path, entries):
+    with open(path, encoding="utf-8") as built:
+        kept = json.load(built)
+    have = {slashed(os.path.join(entry.get("directory", ""), entry["file"])) for entry in kept}
+    added = [entry for entry in entries if (not entry["file"].endswith(".h")) and (entry["file"] not in have)]
+    print("  %d entries of the build at %s, %d added" % (len(kept), slashed(path), len(added)))
+    return kept + added
+
+
 def main():
+    options = arguments()
     files = sources()
     by_name = {"": {}}
     for path in files:
@@ -159,23 +187,35 @@ def main():
     if cuda and os.path.isdir(cuda + "/include/cccl"):
         cuda_flags += ["-isystem", cuda + "/include/cccl"]
     c_flags = ["clang", "-xc", "-std=c11"]
+    # A .cpp source is host C++ and can use the CUDA driver's headers.
+    cxx_flags = ["clang++", "-xc++", "-std=c++17"] + (["-isystem", cuda + "/include"] if cuda else [])
+    flags_of = {"c": c_flags, "cuda": cuda_flags, "c++": cxx_flags}
+    bounds = [slashed(os.path.join(ROOT, folder)) + "/" for folder in options.under]
     entries = []
-    counts = {"cuda": 0, "c": 0}
+    counts = {"cuda": 0, "c": 0, "c++": 0}
     for path in files:
-        type = "c" if (path.endswith(".c") or (path in reached) or in_library(path)) else "cuda"
+        if bounds and (in_library(path) or not any(path.startswith(bound) for bound in bounds)):
+            continue
+        if path.endswith(".cpp"):
+            type = "c++"
+        elif path.endswith(".c") or (path in reached) or in_library(path):
+            type = "c"
+        else:
+            type = "cuda"
         counts[type] += 1
-        flags = c_flags if type == "c" else cuda_flags
         scoped = folders.get(scope_of(path), []) if scope_of(path) else []
         entries.append({"directory": slashed(ROOT), "file": path,
-                        "arguments": flags + host + scoped + includes + ["-c", path]})
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "w", encoding="ascii", newline="\n") as out:
+                        "arguments": flags_of[type] + host + scoped + includes + ["-c", path]})
+    print("  %d entries (%d as CUDA for %s, %d as C11, %d as C++17), %d include directories, CUDA at %s"
+          % (len(entries), counts["cuda"], architecture, counts["c"], counts["c++"],
+             sum(len(each) for each in folders.values()), cuda or "none found"))
+    if options.merge:
+        entries = merged(options.merge, entries)
+    os.makedirs(os.path.dirname(os.path.abspath(options.out)), exist_ok=True)
+    with open(options.out, "w", encoding="ascii", newline="\n") as out:
         json.dump(entries, out, indent=1)
         out.write("\n")
-    print("  %d entries (%d as CUDA for %s, %d as C11), %d include directories, CUDA at %s"
-          % (len(entries), counts["cuda"], architecture, counts["c"], sum(len(each) for each in folders.values()),
-             cuda or "none found"))
-    print("  written to %s" % slashed(OUT))
+    print("  written to %s" % slashed(options.out))
     return 0
 
 
