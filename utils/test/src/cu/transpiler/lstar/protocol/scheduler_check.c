@@ -7,14 +7,17 @@
 //              passed
 //   all        every question of a round is put, a round past SCHEDULER_ROUND_MAX to more than one process
 //   gated      a question nothing carried answers nothing, and the round counts none answered
+//   halted     a carrier that puts a panic on the line as it carries a round's first process ends that process, its
+//              ending the first question's answer; every question after is blocked with the line's reason, and no
+//              second process starts, the carrier having run once (overseer_carrier panic)
 //   stopped    a panic on the line ruled stops the run, and every question put after it is refused with that reason; a
 //              refusal the conference rules the instruction's own, the carrier ended clean, closes the line and
 //              stops nothing
 //
-//     scheduler_check <folder>
+//     scheduler_check <folder> [<overseer_carrier>]
 //
 // The dry channel appends every question to the run (qry_member.h); the check runs in a run of its own, QRY naming
-// it, and reads the round back from it
+// it, and reads the round back from it. The halted round is checked where the check's carrier is given
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h"
@@ -38,11 +41,24 @@ static void check_that(int passed, const char *what)
 
 #define CHECK_QUESTIONS 300u
 
+// the records `name` of the run counted: each is one line
+static unsigned int check_records_counted(const char *name)
+{
+    static unsigned char s_gathered[4096];
+    const unsigned long long size = qry_member_gathered(name, s_gathered, sizeof(s_gathered));
+    unsigned int counted = 0u;
+    for (unsigned long long at = 0ull; (size != QRY_MEMBER_UNREAD) && (at < size); at += 1ull)
+    {
+        counted += (s_gathered[at] == '\n') ? 1u : 0u;
+    }
+    return counted;
+}
+
 int main(int count, char **words)
 {
-    if (count != 2)
+    if ((count != 2) && (count != 3))
     {
-        printf("scheduler_check <folder>\n");
+        printf("scheduler_check <folder> [<overseer_carrier>]\n");
         return 2;
     }
     // the run the check runs in
@@ -130,6 +146,36 @@ int main(int count, char **words)
         }
     }
     check_that(ordered, "the max settling first, and the order passed between equals");
+
+    // the halt inside a round: the check's carrier puts a panic on the line as it carries the round's first process
+    // and ends with it. The questions from the third on are the round, so that the conferences of the first two stay
+    // for the stop below
+    if (count == 3)
+    {
+        const char *const panicking[] = {words[2], "panic", "--gated", "gated.txt", NULL};
+        check_that(run_channel_open(panicking, 1000000ull) == 1, "the panicking carrier's channel opens");
+        const unsigned int starts_before = check_records_counted("carrier_started");
+        const unsigned int carried = scheduler_round(question + 2, settles + 2, CHECK_QUESTIONS - 2u);
+        run_channel_close();
+        check_that((carried == 0u) && (run_channel_on_line() != 0ull),
+                   "a carrier that panics on its first question answers nothing, and its panic is on the line");
+        // the scheduler puts the max settling question first: whichever it was, the carrier's ending is its answer,
+        // and every other question of the round is blocked by the line
+        unsigned int ended = 0u;
+        unsigned int halted = 0u;
+        for (unsigned int at = 2u; at < CHECK_QUESTIONS; at += 1u)
+        {
+            const int no_channel = pool[at].outcome == RUN_NO_CHANNEL;
+            ended += (no_channel && (strstr(pool[at].refused, "the carrier exited") != NULL)) ? 1u : 0u;
+            halted += (no_channel && (strstr(pool[at].refused, "a panic is on the line") != NULL)) ? 1u : 0u;
+        }
+        check_that(ended == 1u, "the carrier's ending is the answer of the one question it was carrying");
+        check_that(halted == CHECK_QUESTIONS - 3u,
+                   "every other question of the round is blocked with the line's reason");
+        check_that(check_records_counted("carrier_started") == starts_before + 1u,
+                   "the carrier ran once: no second process starts after the panic");
+        check_that(!run_channel_panic_ruled(), "the halt is the line's, not a ruling's: nothing has stopped the run");
+    }
 
     // the stop: a panic on the line ruled, and every question of the round after it refused with the stop's reason, on
     // the dry channel as on a live one

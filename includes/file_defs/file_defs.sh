@@ -54,4 +54,12 @@ for FILE_DEFS_MODULE in "$FILE_DEFS_MMGR_TOP"/src/*/*.c; do
     esac
 done
 FILE_DEFS_MMGR+=("$FILE_DEFS_MMGR_TOP/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c")
+# the turnstiles' host hooks the prison's lock waits on, embed_word_wait, embed_word_wake and embed_clock_ns, which the
+# program links defines (embed_turnstile.h): a program of the formats alone takes embedded_types' host's
+FILE_DEFS_MMGR+=("$FILE_DEFS_SOURCE/../embedded_types/test/support/host_wait.c")
+# on Windows the host's address wait is the synchronization library's, linked after every source
+case "$(uname -s)" in
+MINGW* | MSYS* | CYGWIN*) FILE_DEFS_MMGR+=(-lsynchronization) ;;
+*) ;;
+esac
 FILE_DEFS+=("${FILE_DEFS_MMGR[@]}")

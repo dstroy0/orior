@@ -27,7 +27,7 @@
 #                    read at, and the channel's fill word and block to the carrier's own
 #   turning_check    holds a ladder form's turning case: the first case of its relation whose three readings in the
 #                    register pass are apart, the shift up's (3, 4) among them
-#   located_check   holds one form located for the encodings that answer as it does: a turn outside its operands
+#   standing_check  holds one form located for the encodings that answer as it does: a turn outside its operands
 #                    is its, a bit of an operand, the key or the scheduler's word is another's, and the set folded
 #                    retains the oldest
 #   tables_funnel_check  holds the vendor's tables read off a capture of its disassembler: the records, the
@@ -90,8 +90,8 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/sr
     "${FILE_DEFS_MMGR_FLAGS[@]}" "${FILE_DEFS_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/turning.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/located_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/located_check.c" \
-    "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/located.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/standing.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_funnel_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" "$TOP/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c" \
@@ -190,7 +190,7 @@ fi
 "$OUT/answer_read_check" || exit 1
 "$OUT/frame_relation_check" || exit 1
 "$OUT/turning_check" || exit 1
-"$OUT/located_check" || exit 1
+"$OUT/standing_check" || exit 1
 "$OUT/tables_funnel_check" || exit 1
 "$OUT/tables_read_check" || exit 1
 "$OUT/constant_check" || exit 1
@@ -229,7 +229,10 @@ bash "$TOP/utils/test/src/cu/types/file_defs/kdecode_check.sh" "$newest_run" || 
     qry_writer_built "$OUT"
     unset QRY
     run_started "$OUT/scheduler_runs"
-    "$OUT/scheduler_check" "$OUT/scheduler_check.dry"
+    SCHEDULER_CARRIER="$OUT/overseer_carrier"
+    [ -f "$SCHEDULER_CARRIER.exe" ] && SCHEDULER_CARRIER="$SCHEDULER_CARRIER.exe"
+    command -v cygpath > /dev/null && SCHEDULER_CARRIER="$(cygpath -m "$SCHEDULER_CARRIER")"
+    "$OUT/scheduler_check" "$OUT/scheduler_check.dry" "$SCHEDULER_CARRIER"
 ) || exit 1
 # the overseer's check in a run of its own, whose writer takes the round the teacher passes critical, ended with the
 # subshell

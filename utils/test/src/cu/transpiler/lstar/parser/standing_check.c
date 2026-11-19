@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// located_check.c: one form located for the encodings that answer as it does, so that the working set contains one
+// standing_check.c: one form located for the encodings that answer as it does, so that the working set contains one
 // form for each answer and the widening's turns of a form's bits outside its operands do not fill it
 //
 //   alike      two forms answer alike where their relation, read order, signedness and a frame's reading are one
@@ -10,7 +10,7 @@
 //   runs       two forms carrying the same runs and answering alike are one form; the same runs placed apart are two
 //   folded     the set folded retains the oldest of the forms one is for, in their order
 //
-//     located_check
+//     standing_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
 
 static unsigned int s_checks = 0u;
@@ -135,6 +135,6 @@ int main(void)
     take.anchor = (unsigned int)LADDER_TAKE;
     check_that(!khw_form_was_for(set, folded, &take), "folded: the set is for no take");
 
-    printf("located_check: %u checks, %u failed\n", s_checks, s_failed);
+    printf("standing_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

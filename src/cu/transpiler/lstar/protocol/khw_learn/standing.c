@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// located.c: one form located for the encodings that answer as it does: the working set contains one form for each
+// standing.c: one form located for the encodings that answer as it does: the working set contains one form for each
 // answer, and a turn of a form's bits outside its operands is that form
 #include "khw_learn_internal.h"
 

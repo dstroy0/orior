@@ -21,7 +21,7 @@
 #include "../../../../../../../includes/file_defs/khw/khw_machine_write/opening.h"
 #include "../../../../../../../includes/file_defs/krf/krf.h"
 #include "../../../../../../../includes/file_defs/krs/krs_write/fixed.h"
-#include "../../../../../../../includes/file_defs/krs/krs_write/frame.h"
+#include "../../../../../../../includes/file_defs/krs/krs_write/frame_forms.h"
 #include "../../../../../../../includes/file_defs/krs/krs_write/head.h"
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/fixed_read.h"

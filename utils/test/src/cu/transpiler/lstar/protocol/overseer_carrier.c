@@ -4,19 +4,22 @@
 // Given `refuse`, it passes the question it is passed the answer the carrier passes where the part refused a question
 // and stayed whole, with the accounts a refusal carries (cubin_run.c); given `hang`, it outlasts the time it is given
 // and answers nothing. A `--gated <name>` after either is the gated list a carrier reads, and is passed over. Given
-// `pop`, it pops nothing and ends clean. As the airlock's cross, the round's list put after its first word, it passes an
-// empty gated list given `cross`, ends as a cross that did not read given `unread`, and ends clean having passed
+// `pop`, it pops nothing and ends clean. As the airlock's cross, the round's list put after its first word, it passes
+// an empty gated list given `cross`, ends as a cross that did not read given `unread`, and ends clean having passed
 // nothing given `silent` (run_channel.h). Given `registers`, it passes an empty gated list and refuses each question of
 // fewer than OVERSEER_CARRIER_CLEARING registers for a register past its count, the refusals it passes the teacher
 // naming that count; given `illegal`, it refuses each question for an instruction no count clears. Either ends as the
-// cross does where it refuses some
+// cross does where it refuses some. Given `panic` and a round's list, it passes one record of its start, puts a panic
+// on the line in place of its first question's answer, and ends as a carrier that lost its mind, code 3: the check
+// that passes it a round holds that nothing is carried after it (scheduler_check)
 //
 //     overseer_carrier refuse|hang [--gated <name>] <code> <registers> <cases> <answers> <probe>
 //     overseer_carrier pop ... --list <list>
+//     overseer_carrier panic [--gated <name>] --list <list>
 //     overseer_carrier <list> cross|unread|silent|registers|illegal <gated> [<refusals> [<read>]]
 //
 // Exit 0 where it answered, popped, crossed or hung out its time, 1 where the answer could not be passed, 2 where the
-// words are none of the above or the cross did not read
+// words are none of the above or the cross did not read, 3 where it panicked as asked
 #if !defined(_POSIX_C_SOURCE) && !defined(_WIN32)
 // nanosleep is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
@@ -36,6 +39,11 @@
 #define OVERSEER_CARRIER_HANG_SECONDS 5u
 // the count of registers that clears a refusal the `registers` cross reports, R40 the register it reads
 #define OVERSEER_CARRIER_CLEARING 41u
+
+// the record each start of the panicking carrier passes, and the panic it puts on the line
+#define OVERSEER_CARRIER_STARTED "carrier_started"
+#define OVERSEER_CARRIER_PANIC                                                                                         \
+    "carrier: the part faulted on the first question of the list, and the carrier lost its mind\n"
 
 // the refusal and its accounts, as the carrier reports them after a launch the part refused
 static const char s_refused[] =
@@ -100,6 +108,19 @@ int main(int count, char **words)
     if ((count >= 2) && (strcmp(words[1], "pop") == 0))
     {
         return 0;
+    }
+    if ((count >= 2) && (strcmp(words[1], "panic") == 0))
+    {
+        // the gated list and the round's list are passed over: the panic answers the first question whatever it is
+        QryShared *const run = qry_member_run();
+        if ((run == NULL) || (qry_member_append(OVERSEER_CARRIER_STARTED, "started\n", 8ull, QRY_ORDINARY) == 0ull) ||
+            (qry_member_append(QRY_PANIC_CALL, OVERSEER_CARRIER_PANIC, sizeof(OVERSEER_CARRIER_PANIC) - 1u,
+                               QRY_PANIC) == 0ull))
+        {
+            fprintf(stderr, "overseer_carrier: the panic could not be passed to the run\n");
+            return 1;
+        }
+        return 3;
     }
     // the cross's words: the list, the mode, the gated list, and after them the refusals and the read list the airlock
     // names, which this cross passes over
