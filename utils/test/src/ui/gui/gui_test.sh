@@ -36,7 +36,8 @@ fi
 MMGR="$TOP/includes/mmgr"
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
     -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
-    -DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u -DMMGR_CARCER_OWNERS=1024u)
+    -DMMGR_MOVABLE_READ_MS=10u -DMMGR_MOVABLE_QUIET_READINGS=2u -DMMGR_CARCER_OWNERS=1024u
+    -DMMGR_CARCER_REGIONS=16u -DMMGR_CARCER_REGION_BYTES=4194304u -DMMGR_CARCER_LARGE_REGION_BYTES=68157440u)
 # the window block's parts of the program's own, as ui/cli/build.sh gives them: a check sees the block the library
 # was compiled to
 WINDOW_WORDS=('-DGUI_BLOCK_PARTS_OWN(part_)=part_(TAB_BEADS,2u)')

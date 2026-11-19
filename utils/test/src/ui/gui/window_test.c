@@ -418,6 +418,51 @@ static void branches_grown(const unsigned int *second, const unsigned int *sixth
     }
 }
 
+// the tiers' boundaries after a round, as their words hold them: the persistent end and each region's depth
+typedef struct
+{
+    unsigned long long persistent_end;
+    unsigned long long depth[MMGR_CARCER_REGION_COUNT];
+} RoundTiers;
+
+static void tiers_read(RoundTiers *tiers)
+{
+    const SeriesCellularum *const series = cli_pool_series_cellularum();
+    tiers->persistent_end = mmgr_series_cellularum_persistent_end(series);
+    for (size_t region = 0u; region < MMGR_CARCER_REGION_COUNT; region += 1u)
+    {
+        tiers->depth[region] = mmgr_series_cellularum_region_depth(series, region);
+    }
+}
+
+// each tier boundary that differs after the sixth round from after the second, with its value after each round,
+// beside the check that reads it. The persistent end names a persistent or movable cell. A region's depth names a
+// temporary cell on a thread whose place selects that region, the last region the large one
+static void tiers_moved(const RoundTiers *rounds)
+{
+    if (rounds[1].persistent_end != rounds[5].persistent_end)
+    {
+        (void)fprintf(stderr, "    persistent end");
+        for (unsigned int round = 0u; round < 6u; round += 1u)
+        {
+            (void)fprintf(stderr, " %llu", rounds[round].persistent_end);
+        }
+        (void)fprintf(stderr, "\n");
+    }
+    for (size_t region = 0u; region < MMGR_CARCER_REGION_COUNT; region += 1u)
+    {
+        if (rounds[1].depth[region] != rounds[5].depth[region])
+        {
+            (void)fprintf(stderr, "    region %zu depth", region);
+            for (unsigned int round = 0u; round < 6u; round += 1u)
+            {
+                (void)fprintf(stderr, " %llu", rounds[round].depth[region]);
+            }
+            (void)fprintf(stderr, "\n");
+        }
+    }
+}
+
 // a document of many lines opened, changed and closed over six rounds: the cells in use after the last round are no
 // more than after the second, which holds that a closed document gives its cells back. The first round fills the
 // tables sized to live data, the tree's records of the file among them, which the second round reads as they stand
@@ -434,6 +479,7 @@ static void cells_rounds_checked(void)
     (void)mmgr_line_finish(&lines);
     tabs_closed("rounds.txt", s_lines, NULL, NULL);
     static unsigned long long s_round_owners[6][MMGR_CARCER_OWNERS];
+    static RoundTiers s_round_tiers[6];
     static unsigned int s_second_branches[CLI_BRANCHES_MAX];
     static unsigned int s_sixth_branches[CLI_BRANCHES_MAX];
     unsigned long long after_first = 0ULL;
@@ -448,6 +494,7 @@ static void cells_rounds_checked(void)
             (void)asked("close-all", NULL);
         }
         after_last = cells_settled(s_round_owners[round]);
+        tiers_read(&s_round_tiers[round]);
         if (round == 1u)
         {
             after_first = after_last;
@@ -475,6 +522,7 @@ static void cells_rounds_checked(void)
             }
         }
         branches_grown(s_second_branches, s_sixth_branches);
+        tiers_moved(s_round_tiers);
     }
     cli_check(after_last <= after_first, "a closed document gives its cells back over six rounds");
 }
