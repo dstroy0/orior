@@ -151,6 +151,9 @@ def window_placed(process_id, display):
     return False
 
 
+WINDOW_ERRORS = os.path.join(HARNESS_BUILD, "window_errors.txt")
+
+
 def window_started(stdout=None, stderr=None):
     """The release window started alone, from the repository's top, its id retained. Its error stream, where the
     cells' log is written, goes to build/harness/window_errors.txt where the caller names none."""
