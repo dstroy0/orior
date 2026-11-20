@@ -75,10 +75,11 @@ static unsigned long long krep_hash(const char *bytes, unsigned long long length
     return hash;
 }
 
-// A row of `file`'s table of the key `key`, of the who two words `who` carry and of the change `change`: its `count`
-// numbers from `numbers`, then `size` bytes at `bytes` filled out to a whole word with zeros, passed at `priority`.
-// Its sequence where it is critical, 1 where it is ordinary, or 0 where it could not be passed, and the file then no
-// table's
+// A row of the table of `file` of the key `key`, of the who that two words `who` carry, and of the change `change`. It
+// holds its `count` numbers from `numbers`, then `size` bytes at `bytes` filled out to a whole word with zeros. It goes
+// at `priority`.
+// The result is its sequence where it is critical, and 1 where it is ordinary. It is 0 where the pass failed, and the
+// file then belongs to no table
 unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const unsigned long long *who,
                                    unsigned int change, const unsigned long long *numbers, unsigned int count,
                                    const void *bytes, unsigned long long size, unsigned int priority)
@@ -110,8 +111,8 @@ unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const
     return sequence;
 }
 
-// the two words of the who in force over the record at `at` of `file` into `words`: a who record's own, or the
-// nearest one's before it, zeros where none is
+// the two words of the who in force over the record at `at` of `file`, into `words`. They are the own words of a who
+// record, or those of the nearest one before it, zeros where none is
 void krep_who_words_at(const KrepFile *file, unsigned int at, unsigned long long *words)
 {
     words[0] = 0ULL;
@@ -150,8 +151,8 @@ void krep_text_row(KrepFile *file, unsigned int number)
                     file->text_length[number - 1u], QRY_ORDINARY);
 }
 
-// the bucket of the text of `length` bytes at `bytes` in `file`'s table: the one containing it, or the empty one it would
-// be put in
+// the bucket of the text of `length` bytes at `bytes` in the table of `file`: the one that holds it, or the empty one
+// where it goes
 unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned long long length)
 {
     unsigned int at = (unsigned int)(krep_hash(bytes, length) & (file->text_slots - 1u));
@@ -194,8 +195,8 @@ static int krep_text_slots_grown(KrepFile *file)
     return 1;
 }
 
-// the text of `length` bytes at `bytes` taken as the next number, whether `file` gives it one or not: the number, or 0
-// where there was no memory for it
+// the text of `length` bytes at `bytes`, taken as the next number, whether `file` gives it one or not. The result is
+// the number, or 0 where there was no memory for it
 unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned long long length)
 {
     if (!krep_text_slots_grown(file))
