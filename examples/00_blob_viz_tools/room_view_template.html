@@ -4520,8 +4520,8 @@
       var one = all[i];
       out[one.id] = one.type === "checkbox" ? one.checked : one.value;
     }
-    // Arm count is a pair of buttons and not an input. It is carried by name instead of being
-    // absent from a config that claims to be every control.
+    // The arm count is a pair of buttons, and not an input. The config carries it by name. It must not
+    // be absent from a config that claims to be each control.
     out.armCount = ARM_COUNT;
     return out;
   }
@@ -4554,8 +4554,8 @@
       } else {
         one.value = String(want[name]);
       }
-      // Both, because a range reports live on input and a select and a number box report on change,
-      // and dispatching the wrong one leaves the handler unrun with the control visibly moved.
+      // Both, because a range reports live on input, and a select and a number box report on change. A
+      // dispatch of the wrong one leaves the handler unrun, while the control visibly moved.
       one.dispatchEvent(new Event("input", { bubbles: true }));
       one.dispatchEvent(new Event("change", { bubbles: true }));
       set += 1;
@@ -4622,8 +4622,8 @@
   document.getElementById("configCopy").addEventListener("click", function () {
     var area = document.getElementById("configText");
     area.select();
-    // The clipboard write can be refused, and a button that silently does nothing is worse than one
-    // that says it could not. The selection is left in place either way, a manual copy still works.
+    // The browser can refuse the clipboard write. A button that silently does nothing is worse than one
+    // that says it could not. The selection stays in place either way, and a manual copy still works.
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(area.value).then(
         function () {
@@ -4660,17 +4660,19 @@
         configSay("could not read " + file.name, true);
       };
       reader.readAsText(file);
-      // Cleared so choosing the same file twice fires again, which it otherwise does not.
+      // Cleared, and a choice of the same file twice fires again. Without the clear, it does not.
       event.target.value = "";
     });
 
-  // The eight characters, read off the state showing now, beside the two transforms that name each arm.
+  // The eight characters, read off the state that shows now, beside the two transforms that name each
+  // arm.
   //
-  // The share is the character. The signs are the spatial transform, the reflection carrying the first
-  // octant onto this one. The determinant is the dimensional one: four arms are a rotation of the
-  // first and four are a rotation with a mirror in it, and no amount of turning takes one type into
-  // the other. That sign is the handedness torsion reports. The column and the phase reading agree
-  // by construction instead of by coincidence.
+  // The share is the character. The signs are the spatial transform, the reflection that carries the
+  // first octant onto this one. The determinant is the dimensional transform.
+  //
+  // Four arms are a rotation of the first, and four are a rotation with a mirror in it. No amount of
+  // turn takes one type into the other. That sign is the handedness that torsion reports. The column
+  // and the phase reading agree by construction, and not by chance.
   var armRows = null;
   function paintArms() {
     var box = document.getElementById("armBox");
@@ -4687,12 +4689,13 @@
       ? Math.max(0, Math.min(CLOCK.ticks - 1, Math.floor(state.tick)))
       : 0;
     var frame = CLOCK ? frameAt(whole) : null;
-    // A frame is a string of "0" and "1". The test is on the character code and never on the
-    // character. Every non-empty string is truthy in this language, "0" included, and a bare
-    // truthiness test here counts every clear bit as set without complaining about it.
-    // Read through the weight table, the product the record defines: the character of arm a is
-    // the sum of W[a][k] over the lit points. An indicator set gives the same answer a membership test
-    // would, and a graded set gives an answer a membership test cannot express at all.
+    // A frame is a string of "0" and "1". The test is on the character code, and never on the
+    // character. Each non-empty string is truthy in this language, "0" too. A bare truthiness test here
+    // counts each bit at 0 as 1, and does not complain.
+    //
+    // The read goes through the weight table, the product that the record defines. The character of arm
+    // a is the sum of W[a][k] over the lit points. An indicator set gives the same answer as a
+    // membership test. A graded set gives an answer that a membership test cannot express at all.
     buildArmWeights();
     var arms = armDirs.length;
     for (var k = 0; k < COUNT; k++) {
@@ -4716,11 +4719,11 @@
       var part = total > 0 ? (100 * share[o]) / total : 0;
       var name, hand;
       if (sign) {
-        // The spatial transform is the reflection diag(sx, sy, sz) carrying the first octant onto this
-        // one, and the dimensional transform is its determinant. Four arms come out a rotation of the
-        // first and four a rotation with a mirror in it, and no amount of turning takes one type into
-        // the other. That sign is the handedness torsion reports. The column and the phase reading
-        // agree by construction instead of by coincidence.
+        // The spatial transform is the reflection diag(sx, sy, sz) that carries the first octant onto
+        // this one. The dimensional transform is its determinant.
+        // Four arms come out a rotation of the first, and four a rotation with a mirror in it. No amount
+        // of turn takes one type into the other. That sign is the handedness that torsion reports. The
+        // column and the phase reading agree by construction, and not by chance.
         var det = sign[0] * sign[1] * sign[2];
         if (det > 0) {
           passes += 1;
@@ -4732,8 +4735,8 @@
         hand = det > 0 ? "+1" : "−1";
       } else {
         // A general arm has no sign triple, because it is not a reflection of anything. Its spatial
-        // transform is the rotation carrying the pole onto its direction. Its determinant is +1 for every
-        // one of them: a rotation never mirrors.
+        // transform is the rotation that carries the pole onto its direction. Its determinant is +1 for
+        // each of them, because a rotation never mirrors.
         var dir = armDirs[o];
         name =
           dir.x.toFixed(2) + " " + dir.y.toFixed(2) + " " + dir.z.toFixed(2);
@@ -4756,10 +4759,10 @@
     }
     armRows.innerHTML = html;
 
-    // What the set carries, said in the terms docs/arm-records.md asks a proposed arm set to report.
-    // The count is the ceiling on characters. The regions tile for any placement, since every direction
-    // on the sphere has a nearest arm. The shares total one and one degree of freedom is spent on
-    // that sum: a set of N arms leaves N-1 free numbers at fixed weight.
+    // What the set carries, in the terms that docs/arm-records.md asks a proposed arm set to report.
+    // The count is the ceiling on characters. The regions tile for any placement, because each
+    // direction on the sphere has a nearest arm. The shares total one, and that sum uses one degree of
+    // freedom. A set of N arms leaves N-1 free numbers at fixed weight.
     var note;
     if (count === 8 && armSigns[0]) {
       note =
@@ -4788,8 +4791,8 @@
 
   tie("chord", function (on) {
     state.chord = on;
-    // Redrawn at once on the state showing now. The switch reads as a change of path and never as
-    // a control that waits for the clock before it does anything.
+    // Drawn again at once on the state that shows now. The switch reads as a change of path, and never
+    // as a control that waits for the clock before it does anything.
     if (CLOCK) {
       wantTick();
     }
@@ -4800,8 +4803,8 @@
       return;
     }
     sticks.visible = on;
-    // Draw them at once on the state showing now, instead of waiting for the clock to advance.
-    // Turning the box on while the clock is paused is not a switch that appears to do nothing.
+    // Draw them at once on the state that shows now, and do not wait for the clock to advance. A box
+    // turned on during a clock pause then does not seem to do nothing.
     if (on && CLOCK) {
       updateSticks(
         frameAt(Math.max(0, Math.min(CLOCK.ticks - 1, Math.floor(state.tick)))),
@@ -4809,9 +4812,9 @@
     }
   });
 
-  // The colors, named. A body is orange when its bit is set and blue-gray when it is clear, and
-  // without the key those read as two populations and not two values of one. Built from the same
-  // numbers the bodies are tinted with. The swatch cannot drift away from what it is for.
+  // The colors, named. A body is orange when its bit is 1, and blue-gray when it is 0. Without the key,
+  // those read as two populations, and not two values of one. The key uses the same numbers as the
+  // tint of the bodies. The swatch cannot drift away from what it is for.
   function paintKeys() {
     if (!CLOCK) {
       return;
@@ -4841,8 +4844,8 @@
     }
     document.getElementById("keyList").innerHTML = html;
 
-    // The strip carries the same two colors the boundary is painted between, read off the place they
-    // are defined. The key cannot end up showing a ramp the surface is not using.
+    // The strip carries the same two colors as the paint of the boundary, read off their definition.
+    // The key then cannot show a ramp that the surface does not use.
     document.getElementById("rampStrip").style.background =
       "linear-gradient(90deg, " +
       COLD_SPOT.getStyle() +
@@ -4855,8 +4858,8 @@
     document.getElementById("rampMid").textContent = "mean";
     document.getElementById("rampHigh").textContent = "hot";
 
-    // Filled, and left for the menu to place and reveal. Same reason as the harmonic panels: a
-    // builder that shows its own box overrides the reader's choice on every rebuild.
+    // Filled, and left for the menu to place and show. The reason is the same as for the harmonic
+    // panels. A builder that shows its own box overrides the choice of the reader on each build.
   }
 
   bind(
@@ -4902,8 +4905,8 @@
     "lingerOut",
     function (raw) {
       state.linger = raw / 100;
-      // Painted at once on the state showing now. The slider reads as a change to the record and
-      // never as a control waiting on the clock.
+      // Painted at once on the state that shows now. The slider reads as a change to the record, and
+      // never as a control that waits on the clock.
       if (CLOCK) {
         wantTick();
       }
@@ -4934,8 +4937,9 @@
     "saturateOut",
     function (raw) {
       saturateK = (SATURATE_MAX * raw) / 100;
-      // The reading is unchanged. Only the color has to be rewritten. It rides the same cached field
-      // and the same bands; the cache's key does not name this, because nothing under it moved.
+      // The reading stays the same, and only the color needs a new write. It rides the same field in
+      // the cache, and the same bands. The key of the cache does not name this, because nothing under
+      // it moved.
       if (CLOCK) {
         wantTick();
       }
@@ -4950,12 +4954,12 @@
     "sheer",
     "sheerOut",
     function (raw) {
-      // The panels' own opacity, set on one custom property every box reads.
+      // The own opacity of the panels, set on one custom property that each box reads.
       //
-      // The boundary already has an opacity control and this is not a second one. This covers
-      // the panels sitting over the picture: eight boxes at nine tenths opaque cover a quarter of the
-      // scene. Stored as a variable instead of set on each box, a box added later is covered without
-      // being remembered.
+      // The boundary already has an opacity control, and this is not a second one. This covers the
+      // panels over the picture: eight boxes at nine tenths opaque cover a quarter of the scene.
+      // A variable holds it, and the code does not set it on each box. A later box then gets it with no
+      // extra step.
       document.documentElement.style.setProperty(
         "--box-sheer",
         String(raw / 100),
@@ -4971,9 +4975,9 @@
     "flat",
     "flatOut",
     function (raw) {
-      // Squashing the boundary squashes what it holds, and nothing is added or removed on the way. The
-      // shell meshes are scaled by the same number the wall test uses. What is drawn and what turns
-      // the lights around are one surface and cannot drift apart.
+      // A squash of the boundary squashes what it holds, and nothing comes in or goes out on the way.
+      // The same number that the wall test uses scales the shell meshes. What the view draws and what
+      // turns the lights round are one surface, and cannot drift apart.
       state.flat = raw / 100;
       for (var s = 0; s < shells.length; s++) {
         shells[s].mesh.scale.set(1, state.flat, 1);
@@ -4998,8 +5002,8 @@
     },
   );
 
-  // Dragged or run, and the same variable either way, a reader who scrubs to an operation and then
-  // lets it go carries on from where they stopped and not from where the run had got to.
+  // Dragged or run, and the same variable either way. A reader can scrub to an operation and then
+  // let it go. The run then carries on from where they stopped, and not from where the run got to.
   bind("clock", null, function (raw) {
     if (!CLOCK) {
       return raw;
@@ -5022,9 +5026,10 @@
     },
   );
 
-  // How far in the state sits. A setting and not a clock: the state is one size for the whole run.
-  // Nothing about the run may move this. Reading the same fixed state from deeper reaches the surface
-  // with fewer degrees, because depth enters the kernel as (r/R)^l and takes the fine structure first.
+  // How far in the state sits. A setting, and not a clock: the state is one size for the whole run.
+  // Nothing about the run can move this. A read of the same fixed state from deeper reaches the
+  // surface with fewer degrees. Depth enters the kernel as (r/R)^l, and takes the fine structure
+  // first.
   bind(
     "hold",
     "holdOut",
@@ -5041,9 +5046,8 @@
     },
   );
 
-  // The ceiling on the expansion. Dropping it does not blur the surface after the fact, it declines
-  // to sum the terms
-  // above it, as a boundary too coarse to hold them does on its own.
+  // The ceiling on the expansion. A drop of it does not blur the surface after the fact. It does not
+  // sum the terms above it, as a boundary too coarse to hold them does on its own.
   bind("degrees", "degreesOut", function (raw) {
     if (!CLOCK) {
       return raw;
@@ -5068,8 +5072,8 @@
     },
   );
 
-  // How much of the beam is summed into the boundary field. At nothing the field is the object alone,
-  // and turning it up puts the transport into the same reading, where it cannot be separated back out.
+  // How much of the beam goes into the sum of the boundary field. At nothing, the field is the object
+  // alone. A turn up puts the transport into the same reading, and nothing can separate it out again.
   bind(
     "beamField",
     "beamFieldOut",
@@ -5085,8 +5089,8 @@
     },
   );
 
-  // The light on the boundary, turned down and not switched off. The envelope can be read
-  // against a dim surface instead of against nothing.
+  // The light on the boundary, turned down and not switched off. The reader can read the envelope
+  // against a dim surface, and not against nothing.
   bind(
     "litUp",
     "litUpOut",
