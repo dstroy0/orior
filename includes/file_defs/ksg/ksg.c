@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ksg.c: files sealed, their seals approved, and both checked, as ksg.h and ksa.h position them out.
 //
-//     ksg seal <file>...                     each file's seal written beside it as <file>.ksg, through
-//                                            <file>.ksg.part made durable and put in its place whole
-//     ksg keys <scheme> <secret> <public>    an approver's key pair of the scheme made, the secret protected from every
-//                                            reader but its owner
-//     ksg approve <secret> <file>...         each file verified against its seal first, and the seal then approved with
-//     the
-//                                            secret, the approval put in the list beside it as <file>.ksa
-//     ksg check [--approver <public>]... <file>...
-//                                            each file sealed again and verified against its seal: every line whose
-//                                            leaf differs named, whether the root, the size and the count of leaves
-//                                            match, every approval in its list verified against the seal, and each
-//                                            approver named found among the approvals that are valid
+//   - ksg seal <file>...: the seal of each file, written beside it as <file>.ksg. The write goes through
+//     <file>.ksg.part, made durable and put in its place whole.
+//   - ksg keys <scheme> <secret> <public>: a key pair of an approver of the scheme. Only its owner can read the
+//     secret.
+//   - ksg approve <secret> <file>...: each file, verified against its seal first. The secret then approves the seal,
+//     and the approval goes in the list beside it as <file>.ksa.
+//   - ksg check [--approver <public>]... <file>...: each file, sealed again and verified against its seal. The check
+//     names each line whose leaf differs, and tells whether the root, the size and the count of leaves match. It
+//     verifies each approval in its list against the seal. It finds each named approver among the valid approvals.
 //
-// None changes a file it seals, approves or checks. Exit 0 where every seal, key and approval was written or verified,
-// 1 where one was not, 2 where the words are none of the above
+// None changes a file that it seals, approves or checks. The exit is 0 where each write or verify of a seal, key and
+// approval succeeded. It is 1 where one failed, and 2 where the words are none of the above
 #include "ksg_tool.h"
 
 #include "../qry/writer/qry_writer_internal.h"
@@ -57,7 +54,7 @@ void ksg_print(const char *text)
         verba_textus.put(&(VerbaTextusCfg){.out = s_output, .cap = sizeof(s_output), .at = s_output_at, .text = text});
     if (next == sizeof(s_output))
     {
-        // a text longer than the whole report is written as far as it fits
+        // the code writes a text longer than the whole report as far as it fits
         ksg_print_flush();
         next =
             verba_textus.put_clip(&(VerbaTextusCfg){.out = s_output, .cap = sizeof(s_output), .at = 0u, .text = text});
@@ -139,7 +136,8 @@ int ksg_trailer_read(const char *path, unsigned char *trailer)
     return 1;
 }
 
-// `path` sealed into the seal begun, its bytes read a piece at a time: 1, or 0 where it could not be read or sealed
+// `path`, sealed into the begun seal, with its bytes read a piece at a time. The result is 1, or 0 where the read or
+// the seal failed
 static int ksg_file_sealed(const char *path)
 {
     FILE *const file = fopen(path, "rb");
@@ -229,9 +227,10 @@ static int ksg_leaf_check(void *context, const unsigned char *leaf, unsigned lon
     return 1;
 }
 
-// `path` sealed again and verified against its seal, and its approvals verified against it with the `count` approvers
-// of `required` found among them: 1 where every leaf, the root, the size, the count and the approvals matched, why
-// reported
+// `path`, sealed again and verified against its seal. The call verifies its approvals against it, and finds the
+// `count` approvers of `required` among them.
+// The result is 1 where each leaf, the root, the size, the count and the approvals matched. The call reports the
+// reason
 static int ksg_checked(const char *path, const KsaApproval *required, unsigned int count)
 {
     unsigned char trailer[KSG_TRAILER_BYTES];
@@ -273,14 +272,14 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     }
     ksg_print("\n");
     ksg_print_flush();
-    // the approvals are verified against the seal as it is stored, and a seal written again over a changed file
+    // the call verifies the approvals against the seal as the file stores it. A seal written again over a changed file
     // validates none
     const int approved = ksg_approvals_checked(path, stored_trailer, required, count);
     return seal_matches && approved;
 }
 
-// `path` verified against its seal and the seal approved with the secret at `secret`: 1, or 0 where the file did not
-// match or the approval was not added, why reported
+// `path`, verified against its seal, and the seal approved with the secret at `secret`. The result is 1, or 0 where
+// the file did not match or the add of the approval failed. The call reports the reason
 static int ksg_approved(const char *secret, const char *path)
 {
     unsigned char trailer[KSG_TRAILER_BYTES];

@@ -503,7 +503,6 @@ includes/file_defs/ksc/ksc.c	3
 includes/file_defs/ksc/ksc.h	7
 includes/file_defs/ksg/ksa.c	1
 includes/file_defs/ksg/ksa.h	3
-includes/file_defs/ksg/ksg.c	9
 includes/file_defs/ksg/ksg_approvals.c	2
 includes/file_defs/ksg/ksg_tool.h	4
 includes/file_defs/ksg/ksg_writing.c	2
