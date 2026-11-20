@@ -27,6 +27,16 @@
 #include "highlight.h"
 #include "pages.h"
 
+// The words of a text in one cell of the temporary tier, for one call of cli_document_words_each: each one's start
+// among `text` and its length
+typedef struct
+{
+    unsigned int count;
+    unsigned long long *at;
+    unsigned int *length;
+    char *text;
+} CliDocumentWords;
+
 // A walker: a thread of its own walking one text at a time, what it runs, the line its steps' colors are written into,
 // taken once and emptied for each step, and whether it walks, under the lock
 typedef struct
@@ -3043,14 +3053,14 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
                .units_pointer = &units);
     CliDocumentWords *const words = g_cli_guard->temporary_buf_alloc(
         sizeof(*words) + (max * (sizeof(unsigned long long) + sizeof(unsigned int))) + (3ULL * units) + 1ULL,
-        args->owner);
+        g_cli_editor_owner);
     unsigned long long capacity = 16ULL;
     while (capacity < (2ULL * max))
     {
         capacity *= 2ULL;
     }
     unsigned int (*const table)[2] =
-        (words != NULL) ? g_cli_guard->temporary_buf_alloc(capacity * sizeof(*table), args->owner) : NULL;
+        (words != NULL) ? g_cli_guard->temporary_buf_alloc(capacity * sizeof(*table), g_cli_editor_owner) : NULL;
     if (words != NULL)
     {
         words->count = 0u;
@@ -3066,16 +3076,22 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
                    .cursor_col = args->cursor.col);
     }
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
-    g_cli_guard->persistent_buf_release(table, args->owner);
+    g_cli_guard->persistent_buf_release(table, g_cli_editor_owner);
     return words;
 }
 
-CliDocumentWords *cli_document_words_alloc(const CliDocumentWordsCfg *args)
+void cli_document_words_each(const CliDocumentWordsCfg *args)
 {
     cli_document_lock_take();
-    CliDocumentWords *const answer = words_alloc_locked(args);
+    CliDocumentWords *const words = words_alloc_locked(args);
     cli_document_lock_give();
-    return answer;
+    // the words go to the caller with the lock given back: the list is this call's own
+    for (unsigned int at = 0u; (words != NULL) && (at < words->count); at += 1u)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = words->text + words->at[at],
+                   .length = words->length[at]);
+    }
+    g_cli_guard->persistent_buf_release(words, g_cli_editor_owner);
 }
 
 void cli_document_walk(void)

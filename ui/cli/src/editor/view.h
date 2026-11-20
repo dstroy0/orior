@@ -186,7 +186,7 @@ typedef struct
 
 // the frame of the view under `key` in cells taken for it, sized to its rows and columns: the frame, or NULL where no
 // view is open under the key or the cells cannot meet it; and a frame's cells released
-// the views' table: the view `key`'s frame, its map over the lines `first` to `last` and its words, each taken and
+// the views' table: the view `key`'s frame and its map over the lines `first` to `last`, each taken and
 // released; the watcher; the view `at`, its key into `key_out` and its path into `path_out`, shown, its close
 // `closing`, its file closed; the sticky lines `on`; the fill `columns`; and the session saved for the tree `root`
 typedef struct
@@ -196,7 +196,6 @@ typedef struct
     unsigned long long first;
     unsigned long long last;
     CliDocumentMap *map;
-    CliDocumentWords *words;
     const CliViewWatcher *watcher;
     unsigned int at;
     char *key_out;
@@ -215,11 +214,16 @@ void cli_view_frame_release(const CliViewAtCfg *args);
 CliDocumentMap *cli_view_map_alloc(const CliViewAtCfg *args);
 void cli_view_map_release(const CliViewAtCfg *args);
 
-// the names the walk has found within CLI_VIEW_WORD_LINES of the cursor of the view under `key` in a cell of the views'
-// owner, as cli_document_words_alloc reads them: the cell, or NULL where no view is open under the key or the cells
-// cannot meet it; and that cell released
-CliDocumentWords *cli_view_words_alloc(const CliViewAtCfg *args);
-void cli_view_words_release(const CliViewAtCfg *args);
+// the names the walk has found within CLI_VIEW_WORD_LINES of the cursor of the view under `key`, each passed to `each`
+// with `context` as cli_document_words_each passes them, before the call returns. No view open under the key passes
+// none
+typedef struct
+{
+    const char *key;
+    void (*each)(const CliEachTextLengthCfg *args);
+    void *context;
+} CliViewWordsCfg;
+void cli_view_words_each(const CliViewWordsCfg *args);
 
 // a view opened on the text stored under `key`, its indentation the `.editorconfig` files above the file at `path`
 // give it, in place of a view open on the key: 1, or 0 where no text is stored under the key or the views table is

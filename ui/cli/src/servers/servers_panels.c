@@ -255,7 +255,6 @@ typedef struct
     unsigned long long insert_length;
     VerbaLinea *out;
     CliServerItems *server;
-    CliDocumentWords *words;
     unsigned long long line;
     unsigned long long from;
     int on_server;
@@ -1238,16 +1237,56 @@ EMBED_INLINE int panels_item_put(const PanelsCtx *args)
     return 1;
 }
 
-// The list positioned in the list's cell `list` from the server's items and the file's words, a word the server gave
-// left out, the labels lowered once and each snippet flattened once, every text copied into the cell. The items end
-// where the items or the text are full. The head is kept in this call's own record and written into the cell last
+// The words put into a completion list: the list's cell, its head in the caller's record, the items the server gave
+// before the words, and whether the cell has room for one more
+typedef struct
+{
+    const CarcerMovableEntry *list;
+    PanelsListHead *head;
+    unsigned int supplied;
+    int room;
+} PanelsWordsPut;
+
+// one word of the file put after the list's items, where the cell has room and the server gave no item of that label
+static void panels_word_put(const CliEachTextLengthCfg *args)
+{
+    PanelsWordsPut *const put = (PanelsWordsPut *)args->context;
+    const char *const label = args->text;
+    const unsigned long long label_length = args->length;
+    int supplied_already = !put->room;
+    for (unsigned int other = 0u; !supplied_already && (other < put->supplied); other += 1u)
+    {
+        PanelsItem given;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = put->list,
+                                                                .offset = offsetof(PanelsCompletion, item) +
+                                                                          ((unsigned long long)other * sizeof(given)),
+                                                                .dst = &given,
+                                                                .bytes = sizeof(given)});
+        supplied_already = (given.label_length == label_length) &&
+                           (g_cli_guard->movable_buf_compare(
+                                &(CarcerMovableCfg){.cell = put->list,
+                                                    .offset = offsetof(PanelsCompletion, text) + given.label,
+                                                    .src = label,
+                                                    .bytes = label_length}) == 0);
+    }
+    if (!supplied_already)
+    {
+        put->room = EMBED_CALL(panels_item_put, PanelsCtx, .list = put->list, .head = put->head, .text = label,
+                               .length = label_length, .type = "word", .detail = "", .insert = label,
+                               .insert_length = label_length);
+    }
+}
+
+// The list positioned in the list's cell `list` from the server's items and the words of the view `key`, a word the
+// server gave left out, the labels lowered once and each snippet flattened once, every text copied into the cell. The
+// items end where the items or the text are full. The head is kept in this call's own record and written into the cell
+// last
 EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
 {
     const CarcerMovableEntry *const list = args->list;
     PanelsListHead head_record;
     PanelsListHead *const head = &head_record;
     const unsigned int from_server = (args->server != NULL) ? args->server->count : 0u;
-    const unsigned int from_words = (args->words != NULL) ? args->words->count : 0u;
     memor.set(&(MemoriaCfg){.dst = head, .val = 0, .bytes = sizeof(*head)});
     head->line = args->line;
     head->from = args->from;
@@ -1287,33 +1326,10 @@ EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
                           .insert = flattened ? flat_text : (one->snippet ? one->label : insert),
                           .insert_length = flattened ? flat.at : (one->snippet ? label_length : inserted));
     }
-    const unsigned int supplied = head->items;
-    for (unsigned int at = 0u; room && (at < from_words); at += 1u)
+    PanelsWordsPut put = {list, head, head->items, room};
+    if (args->key != NULL)
     {
-        const char *const label = args->words->text + args->words->at[at];
-        const unsigned long long label_length = args->words->length[at];
-        int supplied_already = 0;
-        for (unsigned int other = 0u; !supplied_already && (other < supplied); other += 1u)
-        {
-            PanelsItem given;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = list,
-                .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)other * sizeof(given)),
-                .dst = &given,
-                .bytes = sizeof(given)});
-            supplied_already = (given.label_length == label_length) &&
-                               (g_cli_guard->movable_buf_compare(
-                                    &(CarcerMovableCfg){.cell = list,
-                                                        .offset = offsetof(PanelsCompletion, text) + given.label,
-                                                        .src = label,
-                                                        .bytes = label_length}) == 0);
-        }
-        if (supplied_already)
-        {
-            continue;
-        }
-        room = EMBED_CALL(panels_item_put, PanelsCtx, .list = list, .head = head, .text = label, .length = label_length,
-                          .type = "word", .detail = "", .insert = label, .insert_length = label_length);
+        cli_view_words_each(&(CliViewWordsCfg){.key = args->key, .each = panels_word_put, .context = &put});
     }
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list, .src = head, .bytes = sizeof(*head)});
 }
@@ -1449,11 +1465,9 @@ EMBED_INLINE void panels_completion_ask(const PanelsCtx *args)
     {
         return;
     }
-    CliDocumentWords *const words = cli_view_words_alloc(&(CliViewAtCfg){.key = key});
-    EMBED_CALL(panels_completion_positioned, PanelsCtx, .list = s_panels.completion_built, .server = NULL,
-               .words = words, .line = cursor.line, .from = from, .prefix = prefix,
+    EMBED_CALL(panels_completion_positioned, PanelsCtx, .list = s_panels.completion_built, .server = NULL, .key = key,
+               .line = cursor.line, .from = from, .prefix = prefix,
                .length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = sizeof(prefix)}));
-    cli_view_words_release(&(CliViewAtCfg){.words = words});
     EMBED_CALL(panels_completion_are, PanelsCtx, .at = 0u);
 }
 

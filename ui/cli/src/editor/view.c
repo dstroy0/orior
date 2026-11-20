@@ -6741,23 +6741,19 @@ int cli_view_prefix(const CliViewFromCfg *args)
 // empty entry, and its length
 #define CLI_VIEW_WORD_TABLE 8192ULL
 
-CliDocumentWords *cli_view_words_alloc(const CliViewAtCfg *args)
+void cli_view_words_each(const CliViewWordsCfg *args)
 {
     CliView copy;
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if (view == NULL)
     {
-        return NULL;
+        return;
     }
     const CliPosition cursor = view->cursor;
     const unsigned long long first = (cursor.line > CLI_VIEW_WORD_LINES) ? cursor.line - CLI_VIEW_WORD_LINES : 0ULL;
-    return EMBED_CALL(cli_document_words.words_alloc, CliDocumentWordsCfg, .key = args->key, .first = first,
-                      .last = cursor.line + CLI_VIEW_WORD_LINES, .cursor = cursor, .owner = g_cli_views_owner);
-}
-
-void cli_view_words_release(const CliViewAtCfg *args)
-{
-    g_cli_guard->persistent_buf_release(args->words, g_cli_views_owner);
+    EMBED_CALL(cli_document_words.words_each, CliDocumentWordsCfg, .key = args->key, .first = first,
+               .last = cursor.line + CLI_VIEW_WORD_LINES, .cursor = cursor, .each = args->each,
+               .context = args->context);
 }
 
 // the type of a step of edits the CLI answers while its edits are written, which joins them; the step is of no

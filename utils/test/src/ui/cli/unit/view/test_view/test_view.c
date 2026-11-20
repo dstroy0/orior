@@ -1920,15 +1920,28 @@ void test_sticky_rows_and_the_fill_width_are_switched_for_every_view(void)
     cli_view_fill_set(&(CliViewAtCfg){.columns = 0ull});
 }
 
+// the words a call passes, each put after the others with a space, and their count
+static char s_view_words[1024];
+static VerbaLinea s_view_words_line;
+static unsigned int s_view_words_count;
+
+static void view_word_noted(const CliEachTextLengthCfg *args)
+{
+    mmgr_line_put_n(&s_view_words_line, args->text, args->length);
+    mmgr_line_ch(&s_view_words_line, ' ');
+    s_view_words_count += 1u;
+}
+
 void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_walk(void)
 {
     main_view();
     // the names within the word lines of the cursor, the one the cursor is in left out
-    CliDocumentWords *const words = cli_view_words_alloc(&(CliViewAtCfg){.key = s_key});
-    TEST_ASSERT_NOT_NULL(words);
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, words->count);
-    CLI_TEST_ASSERT_CONTAINS("main", words->text);
-    cli_view_words_release(&(CliViewAtCfg){.words = words});
+    s_view_words_count = 0u;
+    s_view_words_line = (VerbaLinea){s_view_words, sizeof(s_view_words), 0ull};
+    cli_view_words_each(&(CliViewWordsCfg){.key = s_key, .each = view_word_noted, .context = NULL});
+    (void)mmgr_line_finish(&s_view_words_line);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_view_words_count);
+    CLI_TEST_ASSERT_CONTAINS("main", s_view_words);
     (void)EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key);
     typed("x");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_alloc, CliViewCfg, .key = s_key));

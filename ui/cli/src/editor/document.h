@@ -287,27 +287,20 @@ typedef struct
     const CellOwner *owner;
 } CliDocumentMapCfg;
 CliDocumentMap *cli_document_map_alloc(const CliDocumentMapCfg *args);
-// The words of a text in one cell: each one's start among `text` and its length
-typedef struct
-{
-    unsigned int count;
-    unsigned long long *at;
-    unsigned int *length;
-    char *text;
-} CliDocumentWords;
 // the runs the walk has saved on the lines from `first` to `last` of the text under `key` read for the names among
-// them, each of two units or more once, the one `cursor` is in or at the end of left out, in a cell of `owner`,
-// sized to them. A paged text holds no units here and gives none: the cell, or NULL where no text is stored under the
-// key or the cells cannot meet it
+// them, each of two units or more once, the one `cursor` is in or at the end of left out. Each name goes to `each`
+// with `context` as UTF-8 before the call returns. The list lives in the document module for this call alone. A paged
+// text holds no units here and gives none
 typedef struct
 {
     const char *key;
     unsigned long long first;
     unsigned long long last;
     CliPosition cursor;
-    const CellOwner *owner;
+    void (*each)(const CliEachTextLengthCfg *args);
+    void *context;
 } CliDocumentWordsCfg;
-CliDocumentWords *cli_document_words_alloc(const CliDocumentWordsCfg *args);
+void cli_document_words_each(const CliDocumentWordsCfg *args);
 // the lines that open the regions the line `line` of the text under `key` is inside, read off its lines' regions
 // as they were colored, outermost first, into `opener`, `max` at max, the innermost saved where more are open:
 // how many, 0 where no text is stored under `key`; and the folds of the text under `key`, as the walk passes them on,
@@ -740,11 +733,11 @@ EMBED_TABLE_STORAGE CliDocumentMapNs cli_document_map EMBED_UNUSED = {
 
 typedef struct
 {
-    CliDocumentWords *(*words_alloc)(const CliDocumentWordsCfg *args);
+    void (*words_each)(const CliDocumentWordsCfg *args);
 } CliDocumentWordsNs;
-EMBED_TABLE_LAYOUT(CliDocumentWordsNs, words_alloc);
+EMBED_TABLE_LAYOUT(CliDocumentWordsNs, words_each);
 EMBED_TABLE_STORAGE CliDocumentWordsNs cli_document_words EMBED_UNUSED = {
-    .words_alloc = cli_document_words_alloc,
+    .words_each = cli_document_words_each,
 };
 
 #endif
