@@ -45,7 +45,7 @@ QryShared *qry_writer_shared_made(const char *path, unsigned long long bytes)
 {
     qry_shared_named(path, s_name);
     const int memory = shm_open(s_name, O_CREAT | O_EXCL | O_RDWR, 0600);
-    // the region is sized whole, its bytes what the system allocates
+    // the code sizes the region whole, and its bytes are what the system allocates
     if ((memory < 0) || (ftruncate(memory, (off_t)bytes) != 0))
     {
         return NULL;
@@ -144,10 +144,11 @@ void qry_writer_paused(void)
     nanosleep(&pause, NULL);
 }
 
-// Raising a process takes a privilege the writer does not request: it retains the level it was started at
+// A raise of a process takes a privilege that the writer does not ask for. The writer keeps the level that it started
+// at
 void qry_writer_raised(void)
 {
-    // nothing is raised: the writer runs at the level it was started at
+    // the code raises nothing. The writer runs at the level that it started at
 }
 
 // A process no signal reaches ended. One the writer may not signal, or one ended and not yet waited on by its
@@ -251,7 +252,7 @@ unsigned long long qry_writer_input_read(unsigned char *bytes, unsigned long lon
     unsigned long long size = 0ULL;
     for (;;)
     {
-        // what is left of the room, which a size_t counts as it is in memory
+        // the rest of the room, which a size_t counts as it is in memory
         const ssize_t got = read(0, bytes + size, (size_t)(room - size));
         if (got < 0)
         {
@@ -311,8 +312,8 @@ void qry_member_file_unmapped(const unsigned char *bytes, unsigned long long siz
 {
     if ((bytes != NULL) && (size != 0ULL))
     {
-        // the bytes were mapped whole, their size a size_t counts; munmap writes nothing through the address it takes,
-        // which passes through an integer to reach its parameter
+        // the map took the bytes whole, and a size_t counts their size. The call munmap writes nothing through the address
+        // that it takes, which passes through an integer to reach its parameter
         munmap((void *)(uintptr_t)bytes, (size_t)size);
     }
 }
@@ -345,7 +346,7 @@ int qry_member_program(char *path, size_t room)
     {
         return 0;
     }
-    // a length readlink gives is the count it read, below the room it was given
+    // a length that readlink gives is the count that it read, below the room that it got
     path[(size_t)length] = '\0';
     return 1;
 }
