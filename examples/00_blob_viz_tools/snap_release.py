@@ -1,51 +1,47 @@
-"""The fourth term as the operation it exists for: a qubit snapping its vector to release entanglement.
+"""The fourth term as the operation that it exists for: a qubit snaps its vector to release entanglement.
 
-    python examples/00_blob_viz_tools/snap_release.py --check
-    python examples/00_blob_viz_tools/snap_release.py               the two snaps, measured against the state vector
-    python examples/00_blob_viz_tools/snap_release.py --cost        what the fourth term costs and what it buys
+    `python examples/00_blob_viz_tools/snap_release.py --check`
+    `python examples/00_blob_viz_tools/snap_release.py`               the two snaps, measured against the state vector
+    `python examples/00_blob_viz_tools/snap_release.py --cost`        what the fourth term costs and what it buys
 
 WHY FOUR TERMS AND NOT THREE
 
-"It needs to be 4, the integral allows for the qubit to snap its vector and switch position to
-release entanglement."
+"It needs to be 4, the integral allows for the qubit to snap its vector and switch position to release entanglement."
 
-STATIC capacity is a different question: how many reals it takes to write down an arbitrary pure
-state, which is 2^(n+1) - 2, against a fixed budget of c*n. Four reals a qubit is exact through
-two qubits and short from three on, and no amount of precision moves that line. All true, and
-none of it about the snap.
+STATIC capacity is a different question: how many reals it takes to write down an arbitrary pure state. That is 2^(n+1)
+- 2, against a fixed budget of c*n. Four reals a qubit is exact through two qubits and short from three on, and no
+amount of precision moves that line. All of that is true, and none of it is about the snap.
 
-The fourth term is not storage for an amplitude. It is a MAGNITUDE OF 0 OR 1 saying whether this
-qubit is currently entangled at all, and its purpose is to make the snap available. A binary term
-cannot hold an arbitrary amplitude and it can hold that perfectly.
+The fourth term is not storage for an amplitude. It is a MAGNITUDE OF 0 OR 1 that says whether this qubit has any
+entanglement now, and its purpose is to make the snap available. A binary term cannot hold an arbitrary amplitude, and
+it can hold that perfectly.
 
 THE THREE TERM MACHINE CANNOT ASK THE QUESTION THE SNAP ANSWERS
 
-With a direction and a polarization, a qubit carries where it points. Nothing in it says whether it
-is bound to anything. a three term machine cannot tell a free qubit from an entangled one, and
-therefore cannot know whether a snap is available or what releasing it would cost. The fourth term
-is not extra capacity, it is the predicate the operation is conditioned on.
+With a direction and a polarization, a qubit carries where it points. Nothing in it says whether it is bound to
+anything. A three term machine cannot tell a free qubit from an entangled one. It therefore cannot know whether a snap
+is available, or what a release would cost. The fourth term is not extra capacity. It is the predicate that the
+operation depends on.
 
 THE TWO SNAPS, AND THEY ARE BOTH EXACT
 
-Both are standard graph state operations and both are exact on the bits, with no arithmetic:
+Both are standard graph state operations, and both are exact on the bits, with no arithmetic:
 
-    RELEASE, which is a Z measurement. Delete every edge on the qubit. It leaves the cluster and
-    its entanglement is gone. This is snapping without switching position.
+    RELEASE, which is a Z measurement. Delete every edge on the qubit. It leaves the cluster, and its entanglement
+    ends. This is a snap with no switch of position.
 
-    SWITCH, which is a Y measurement. Complement the edges AMONG the qubit's neighbors, then
-    delete the qubit's own edges. The qubit leaves and its neighbors inherit the connectivity.
-    The entanglement moves instead of vanishing. This is the snap-and-switch, and the
-    local complementation is the switch.
+    SWITCH, which is a Y measurement. Complement the edges AMONG the qubit's neighbors, then delete the qubit's own
+    edges. The qubit leaves, and its neighbors inherit the connectivity. The entanglement moves and does not vanish.
+    This is the snap-and-switch, and the local complementation is the switch.
 
-His reading of it was "conservation in action, the system balances itself". The measurement below
-is whether that holds: whether SWITCH preserves what RELEASE destroys.
+The reading under test is "conservation in action, the system balances itself". The measurement below asks whether that
+holds: whether SWITCH keeps what RELEASE destroys.
 
 GRADED AGAINST THE STATE VECTOR, NOT AGAINST ITSELF
 
-Entropy here is read as the GF(2) rank of the off diagonal adjacency block, the bits and
-never an amplitude array. For small cases the same number is computed from the actual 2^n state
-vector and the two must agree. A bit level answer that has never been graded against the thing it
-claims to summarize is a claim instead of a measurement.
+The entropy here is the GF(2) rank of the off diagonal adjacency block: the bits, and never an amplitude array. For
+small cases the code computes the same number from the actual 2^n state vector, and the two must agree. A bit level
+answer that no test grades against the thing it claims to summarize is a claim, and not a measurement.
 """
 
 import argparse
@@ -74,17 +70,16 @@ def neighbors_of(machine, qubit):
 def entanglement_magnitude(machine, qubit):
     """The fourth term: 1 when this qubit is bound to anything, 0 when it is free.
 
-    MAGNITUDELESS, meaning it carries no length of its own. It is a predicate, and a three term
-    qubit has no room for it.
+    MAGNITUDELESS, which means that it carries no length of its own. It is a predicate, and a three term qubit has no
+    room for it.
     """
     return 1 if neighbors_of(machine, qubit) else 0
 
 
 def release(machine, qubit):
-    """Z measurement: the qubit snaps and leaves, and its entanglement is destroyed.
+    """Z measurement: the qubit snaps and leaves, and its entanglement ends.
 
-    Deletes every edge on the qubit, alone. The neighbors retain whatever they had with
-    each other and inherit nothing.
+    Deletes every edge on the qubit, alone. The neighbors keep whatever they had with each other, and inherit nothing.
     """
     machine.edges[qubit, :] = 0
     machine.edges[:, qubit] = 0
@@ -94,9 +89,9 @@ def release(machine, qubit):
 def switch(machine, qubit):
     """Y measurement: local complementation on the neighborhood, then the qubit leaves.
 
-    THE ORDER MATTERS AND IT IS NOT INTERCHANGEABLE. The complementation has to happen while the
-    qubit still has its edges, because the neighborhood is defined by them. Deleting first would
-    complement an empty set and the operation would silently degrade into release().
+    THE ORDER MATTERS, AND THE TWO STEPS DO NOT INTERCHANGE. The complementation must happen while the qubit still has
+    its edges, because those edges define the neighborhood. A deletion first would complement an empty set, and the
+    operation would silently degrade into release().
     """
     live = neighbors_of(machine, qubit)
     for at, one in enumerate(live):
@@ -124,18 +119,16 @@ SPLIT_CAP = 400                  # above this the balanced cuts are sampled, not
 def balanced_splits(qubits, cap=SPLIT_CAP, seed=0):
     """Balanced bipartitions: every one of them when that is cheap, a fixed sample when it is not.
 
-    Qubit 0 is pinned to the retained side. A split and its complement have the same off diagonal block
-    up to transpose and therefore the same GF(2) rank. Counting both would double every figure
-    and change nothing.
+    The code pins qubit 0 to the kept side. A split and its complement have the same off diagonal block up to transpose,
+    and therefore the same GF(2) rank. A count of both would double every figure and change nothing.
 
-    THE CAP RETAINS A LARGE PROBE FROM HANGING THE MACHINE. The full count is C(n-1, n/2-1), which
-    is 35 splits at 8 qubits, 462 at 12, 6435 at 16 and 1352078 at 24. Each one costs a GF(2)
-    elimination, and twist_profile calls this n+1 times. A 24 qubit probe is tens of millions of
-    eliminations.
+    THE CAP STOPS A LARGE PROBE BEFORE IT HANGS THE MACHINE. The full count is C(n-1, n/2-1), which is 35 splits at 8
+    qubits, 462 at 12, 6435 at 16 and 1352078 at 24. Each one costs a GF(2) elimination, and twist_profile calls this
+    n+1 times. A 24 qubit probe is tens of millions of eliminations.
 
-    Sampling with a FIXED seed retains the figure reproducible, the only property that
-    matters for comparing shapes against each other. The caller is told which mode ran, because a
-    sampled mean reported as a full one is a different number wearing the same name.
+    A sample with a FIXED seed keeps the figure reproducible, the only property that matters for a comparison of shapes
+    against each other. The function tells the caller which mode ran. A sampled mean reported as a full one is a
+    different number under the same name.
     """
     rest = list(range(1, qubits))
     half = qubits // 2
@@ -157,14 +150,14 @@ def balanced_splits(qubits, cap=SPLIT_CAP, seed=0):
 def total_entanglement(machine):
     """Mean entanglement across ALL balanced bipartitions, exhaustively.
 
-    THE SPLITS ARE BALANCED AND NOT ONE QUBIT AGAINST THE REST. A single qubit block is one row,
-    and the GF(2) rank of one nonzero row is 1. A sum over those splits counts how many qubits have
-    any edge at all: it reads exactly 8 for all eight shapes at 8 qubits, and a twist moment built
-    on it reads exactly 0 everywhere, because local complementation never isolates a vertex. Dead
-    columns like those look alive, and an ordering printed from them is list order.
+    EACH SPLIT HAS HALVES OF EQUAL SIZE, AND NONE IS ONE QUBIT AGAINST THE REST. A single qubit block is one row, and
+    the GF(2) rank of one nonzero row is 1. A sum over those splits counts how many qubits have any edge at all. It
+    reads exactly 8 for all eight shapes at 8 qubits. A twist moment built on it reads exactly 0 everywhere, because
+    local complementation never isolates a vertex. Dead columns like those look alive, and an ordering printed from them
+    is list order.
 
-    A balanced cut is where the entanglement of a graph state actually shows. Taken over every
-    balanced cut there is nothing chosen by hand.
+    A balanced cut is where the entanglement of a graph state actually shows. Over every balanced cut, nothing depends
+    on a hand choice.
     """
     splits, _ = balanced_splits(machine.qubits)
     if not splits:
@@ -186,20 +179,18 @@ def bound_count(machine):
 def lc_orbit(machine, cap=20000):
     """Every graph reachable from this one by local complementation, as a set of keys.
 
-    THE SECOND ENTROPY TERM, and it is independent of the first by construction. The GF(2) rank
-    measures entanglement ACROSS A CUT of one fixed graph. This measures how many DISTINCT graphs
-    the state can be moved to without touching the qubits at all, the freedom the state
-    has and not the correlation it holds. log2 of the orbit size is the entropy-adjacent figure,
-    and it is the quantity the open entropy test wanted: family size against rank.
+    THE SECOND ENTROPY TERM, and it is independent of the first by construction. The GF(2) rank measures entanglement
+    ACROSS A CUT of one fixed graph. This measures how many DISTINCT graphs the state can move to with no touch on the
+    qubits at all. That is the freedom that the state has, and not the correlation that it holds. The log2 of the orbit
+    size is the entropy-adjacent figure. It is the quantity that the open entropy test wants: family size against rank.
 
-    Two states in one orbit are the same state up to local Clifford operations. The orbit is the
-    equivalence class and its size is how much of the description is convention and not content.
-    That is the "relabeling is free, computing costs" result this tree retains finding, in a
-    form that can be counted.
+    Two states in one orbit are the same state up to local Clifford operations. The orbit is the equivalence class, and
+    its size is how much of the description is convention and not content. That is the result
+    `relabeling is free, computing costs` that this tree finds again and again, in a form that a count can measure.
 
-    Breadth first over local complementation at every vertex. `cap` stops the enumeration and does
-    not let a wide orbit run the machine out of memory, and the caller is told when it was hit,
-    because a truncated count reported as a total is a made-up number.
+    A breadth first walk over local complementation at every vertex. `cap` stops the enumeration and does not let a wide
+    orbit run the machine out of memory. The function tells the caller when the walk hit the cap, because a truncated
+    count reported as a total is a made-up number.
     """
     start = bytes(machine.edges.reshape(-1))
     seen = {start}
@@ -227,39 +218,35 @@ def lc_orbit(machine, cap=20000):
 
 
 def twist_profile(machine):
-    """Per vertex: how much the entanglement moves when the graph is twisted there.
+    """Per vertex: how much the entanglement moves when the graph takes a twist there.
 
-    "That moment inertia from the torsion and tension relationship that makes objects spin and
-    twist, qubits do that."
+    "That moment inertia from the torsion and tension relationship that makes objects spin and twist, qubits do that."
 
-    The pieces are already here and they line up without forcing:
+    The pieces are already here, and they line up with no force:
+      - the TWIST is local complementation at one vertex. That is a local Clifford operation and therefore free, and it
+        changes the description and not the state.
+      - the TENSION is the edge set, because an edge is the single bit of entanglement that a pair holds.
+      - the RESPONSE is the change in total entanglement under that twist.
 
-        the TWIST is local complementation at one vertex, which is a local Clifford operation and
-        therefore free, changing the description and not the state
-        the TENSION is the edge set, since an edge is the single bit of entanglement a pair holds
-        the RESPONSE is the change in total entanglement under that twist
+    A vertex whose complementation barely moves the total is RIGID: the graph resists a twist there. One that swings it
+    is FREE. That distribution is the profile. It is a property of the shape and not of any choice here, because the
+    code twists every vertex and picks none.
 
-    A vertex whose complementation barely moves the total is RIGID: the graph resists being twisted
-    there. One that swings it is FREE. That distribution is the profile. It is a property of the
-    shape and not of any choice made here, because every vertex is twisted and none is picked.
+    Returns two lists of signed changes, one per vertex: the change in entanglement and the change in edge count. The
+    function returns them together, because all of the result is in the contrast between them.
 
-    Returns two lists of signed changes, one per vertex: the change in entanglement and the change
-    in edge count. They are returned together because the whole result is in the contrast between
-    them.
+    THE ENTANGLEMENT RESPONSE IS EXACTLY ZERO, AND A THEOREM PROVES IT. Local complementation is a local Clifford
+    operation, and local Clifford operations preserve entanglement across every bipartition. The first list is therefore
+    all zeros for every graph, at every vertex, at any size.
 
-    THE ENTANGLEMENT RESPONSE IS EXACTLY ZERO AND THAT IS A THEOREM INSTEAD OF A MEASUREMENT. Local
-    complementation is a local Clifford operation, and local Clifford operations preserve
-    entanglement across every bipartition. So the first list is all zeros for every graph, at every
-    vertex, at any size.
+    That is not a dead measure to replace. It is an exact null, in the same family as the other exact nulls here. It
+    says what this tree finds again from new directions: A RELABEL IS FREE. A twist moves the description and not the
+    content.
 
-    That is not a dead measure to be replaced. It is an exact null, in the same family as the other
-    exact nulls here, and it says the thing this tree retains finding from new directions:
-    RELABELING IS FREE. A twist moves the description and not the content.
-
-    THE TENSION RESPONSE IS NOT ZERO. The edge count is not a local Clifford invariant. Twisting
-    changes how many pairs are bound while leaving what they hold across any cut untouched. That is
-    the torsion against tension relationship with the conservation actually measured and not
-    asserted: the twist redistributes the binding and conserves the correlation.
+    THE TENSION RESPONSE IS NOT ZERO. The edge count is not a local Clifford invariant. A twist changes how many pairs
+    have a bond, and leaves what they hold across any cut untouched. That is the torsion against tension relationship,
+    with the conservation actually measured and not asserted: the twist redistributes the binding and conserves the
+    correlation.
     """
     base_entanglement = total_entanglement(machine)
     base_edges = int(machine.edges.sum()) // 2
@@ -277,8 +264,8 @@ def twist_profile(machine):
 def twist_moment(machine):
     """Second moment of the ENTANGLEMENT response. Exactly 0 for every graph, by LC invariance.
 
-    Retained as a function and not deleted because it is the exact null, and a control that is
-    computed is worth more than one that is remembered.
+    The file keeps this as a function, because it is the exact null. A control that the code computes is worth more than
+    one that a person remembers.
     """
     moved, _ = twist_profile(machine)
     return sum(one * one for one in moved)
@@ -287,47 +274,44 @@ def twist_moment(machine):
 def tension_moment(machine):
     """Second moment of the EDGE COUNT response, the inertia analog that is alive.
 
-    Same shape as a moment of inertia summing mass against a squared distance. A graph whose edge
-    count barely moves under a twist anywhere is rigid; one that swings is free.
+    Same shape as a moment of inertia, a sum of mass against a squared distance. A graph whose edge count barely moves
+    under a twist anywhere is rigid, and one that swings is free.
 
-    SQUARED AND NOT ABSOLUTE, deliberately. Signed changes cancel, and a near-zero signed sum would
-    report a graph that twists hard in both directions as rigid. The square measures how much
-    movement there is and not where it ended up.
+    SQUARED AND NOT ABSOLUTE, deliberately. Signed changes cancel, and a signed sum near zero would report a graph that
+    twists hard in both directions as rigid. The square measures how much movement there is, and not where it ended up.
     """
     _, tension = twist_profile(machine)
     return sum(one * one for one in tension) / float(machine.qubits)
 
 
 def pressure(machine, qubit):
-    """How hard this qubit is being vibrated by its neighbors.
+    """How hard the neighbors of this qubit vibrate it.
 
-    "They usually dissipate or are vibrated by neighbors back to their lowest state."
+    `"They usually dissipate or are vibrated by neighbors back to their lowest state."`
 
-    The sum of the neighbors' DEGREES, not this qubit's own degree. That distinction is the whole
-    content of the word "neighbors": a qubit bound to four isolated partners is barely disturbed,
-    while one bound to four hubs is sitting in a storm. Using its own degree would make pressure a
-    relabeling of connectivity and the driven relaxation below would then be a slower form of
-    the random one.
+    The sum of the DEGREES of the neighbors, not the qubit's own degree. That distinction is all the content of the word
+    "neighbors". A qubit bound to four isolated partners has little disturbance, and one bound to four hubs sits in a
+    storm. With its own degree, pressure would be a relabel of connectivity. The driven relaxation below would then be a
+    slower form of the random one.
     """
     return sum(len(neighbors_of(machine, one)) for one in neighbors_of(machine, qubit))
 
 
 def relax(machine, driven=True, seed=0):
-    """Release qubits one at a time until nothing is bound, and record the entanglement each step.
+    """Release qubits one at a time until nothing is bound, and record the entanglement at each step.
 
-    THIS ADDS DISSIPATION TO THE MODEL. Local complementation and measurement are both
-    unitary-or-projective and closed: nothing in them leaks, and nothing relaxes. Without this the
-    model cannot express dissipation at all, and dissipation cannot are as an explanation for a
-    table whose real cause is neighborhood parity.
+    THIS ADDS DISSIPATION TO THE MODEL. Local complementation and measurement are both unitary-or-projective and closed:
+    nothing in them leaks, and nothing relaxes. Without this, the model cannot express dissipation at all. Dissipation
+    then cannot serve as an explanation for a table whose real cause is neighborhood parity.
 
-    `driven` picks the qubit under the max neighbor pressure at every step, recomputed each time
-    because releasing one qubit changes the pressure on the rest. `driven=False` picks in a fixed
-    random order and is the MATCHED CONTROL: same number of releases, same endpoint, no pressure.
+    `driven` picks the qubit under the max neighbor pressure at every step. The code computes the pressure again each
+    time, because the release of one qubit changes the pressure on the rest. `driven=False` picks in a fixed random
+    order, and is the MATCHED CONTROL: the same number of releases, the same endpoint, and no pressure.
 
-    If the two produce the same curve then neighbor pressure is decoration and the honest report is
-    that dissipation here is just decay in a costume.
+    If the two produce the same curve, neighbor pressure is decoration. The honest report is then that dissipation here
+    is just decay in a costume.
 
-    Returns the entanglement after each release, starting with the value before any.
+    Returns the entanglement after each release, with the value before any first.
     """
     work = graph_machine.GraphMachine(machine.qubits)
     work.edges = machine.edges.copy()
@@ -341,8 +325,8 @@ def relax(machine, driven=True, seed=0):
         if not bound:
             break
         if driven:
-            # Highest neighbor pressure, with the lowest index breaking a tie so the run is
-            # reproducible instead of depending on dictionary order.
+            # Highest neighbor pressure, with the lowest index to break a tie. The run is then reproducible, and does
+            # not depend on dictionary order.
             target = max(bound, key=lambda one: (pressure(work, one), -one))
         else:
             target = next(one for one in order if one in bound)
@@ -352,14 +336,13 @@ def relax(machine, driven=True, seed=0):
 
 
 def decay_rate(curve):
-    """Exponential rate fitted to the entanglement curve, or None when it cannot be fitted.
+    """Exponential rate fitted to the entanglement curve, or None when no fit is possible.
 
-    Least squares on log(entanglement) against step, over the steps where the entanglement is
-    still positive. A constant rate here is what would make "dissipation" a real process with a
-    number attached and not a description.
+    Least squares on log(entanglement) against step, over the steps where the entanglement is still positive. A constant
+    rate here is what would make "dissipation" a real process with a number attached, and not a description.
 
-    Returns (rate, half_life, points_used). None when fewer than three positive points exist, since
-    a rate fitted to two points is not a fit, it is a line through whatever there was.
+    Returns (rate, half_life, points_used). None when fewer than three positive points exist. A rate fitted to two
+    points is not a fit: it is a line through whatever there was.
     """
     live = [(at, value) for at, value in enumerate(curve) if value > 0.0]
     if len(live) < 3:
@@ -394,8 +377,8 @@ def _report():
             before_bound = bound_count(base)
             before_total = total_entanglement(base)
 
-            # The same qubit in both. The two operations are compared on one object and not on
-            # two differently shaped ones.
+            # The same qubit in both. The test compares the two operations on one object, and not on two objects of
+            # different shape.
             target = 0
 
             one = shaped(qubits, shape)
@@ -409,8 +392,7 @@ def _report():
                      total_entanglement(two), bound_count(two)))
     print("")
 
-    # THE CLAIM UNDER TEST, stated as a comparison and not as a conclusion. Does switching
-    # preserve what releasing destroys?
+    # THE CLAIM UNDER TEST, stated as a comparison and not as a conclusion. Does a switch keep what a release destroys?
     print("  DOES SWITCHING PRESERVE WHAT RELEASING DESTROYS, the conservation reading:")
     print("")
     print("  %-10s %7s %10s %10s %10s %10s"
@@ -467,24 +449,20 @@ def _report():
 def _entropy(qubits=8):
     """Three entropy-adjacent measures against each other, on flat and spherical arrangements.
 
-    "Spherical objects, which in this case are representing potential."
+    `"Spherical objects, which in this case are representing potential."`
 
-    THE THREE MEASURES ARE INDEPENDENT. They could easily have been three forms of one number,
-    and if they were, two of them would be waste:
+    THE THREE MEASURES ARE INDEPENDENT. They could easily be three forms of one number, and then two of them would be
+    waste:
+      - RANK: mean entanglement over every balanced cut of ONE graph. What correlation stays.
+      - FAMILY: log2 of the local complementation orbit. How many descriptions are the same state. How much of the
+        representation is convention.
+      - TENSION: the second moment of the EDGE COUNT response to a twist. How hard the binding is to move. The
+        entanglement response to the same twist is exactly zero by local Clifford invariance, the exact null in _check.
+        This is the half of the torsion relationship that carries anything.
 
-        RANK      mean entanglement over every balanced cut of ONE graph. What correlation is retained.
-        FAMILY    log2 of the local complementation orbit. How many descriptions are the same
-                  state. How much of the representation is convention.
-        TENSION   the second moment of the EDGE COUNT response to a twist. How hard the binding is
-                  to move. The entanglement response to the same twist is exactly zero by local
-                  Clifford invariance, the exact null in _check. This is the half of
-                  the torsion relationship that carries anything.
-
-    EVERY SHAPE IS MATCHED AGAINST A RANDOM GRAPH ON THE SAME EDGE COUNT. Without that the
-    comparison is worthless: a shape with more edges holds more entanglement for no interesting
-    reason.
-    The matched random row is the control, and a shape only means something where it departs from
-    it.
+    THE TEST MATCHES EVERY SHAPE AGAINST A RANDOM GRAPH ON THE SAME EDGE COUNT. Without that, the comparison is
+    worthless: a shape with more edges holds more entanglement for no deep reason. The matched random row is the
+    control, and a shape only means something where it departs from it.
     """
     print("")
     print("  %d qubits. Every shape against a random graph on the SAME edge count, because an" % qubits)
@@ -551,9 +529,8 @@ def _entropy(qubits=8):
         print("  bounds and not totals. Said here and not left for a reader to assume.")
         print("")
 
-    # DO THE THREE MEASURES AGREE ON AN ORDERING? If they rank the shapes the same way they are one
-    # measure wearing three hats. If they disagree, each is carrying something the others are not,
-    # and the disagreement is the result.
+    # DO THE THREE MEASURES AGREE ON AN ORDERING? If they rank the shapes the same way, they are one measure in three
+    # hats. If they disagree, each carries something that the others do not, and the disagreement is the result.
     if len(rows) >= 3:
         by_rank = [one[0] for one in sorted(rows, key=lambda r: -r[2])]
         by_family = [one[0] for one in sorted(rows, key=lambda r: -r[3])]
@@ -610,10 +587,9 @@ def _relax(qubits=10):
             continue
 
         driven = relax(machine, driven=True)
-        # TWENTY SEEDS, NOT FIVE, AND THE RANGE IS RETAINED. A mean alone cannot say whether a gap is
-        # real: gaps of 0.0457 and -0.0200 against rates near 0.3 say nothing about pressure
-        # without the seed to seed variation beside them.
-        # The spread of the random orders IS the null here, and it is drawn and not assumed.
+        # TWENTY SEEDS, NOT FIVE, AND THE RANGE STAYS. A mean alone cannot say whether a gap is real. Gaps of 0.0457 and
+        # -0.0200 against rates near 0.3 say nothing about pressure without the variation from seed to seed beside them.
+        # The spread of the random orders IS the null here, and the run draws it and does not assume it.
         randoms = [relax(machine, driven=False, seed=seed) for seed in range(20)]
 
         driven_fit = decay_rate(driven)
@@ -630,9 +606,9 @@ def _relax(qubits=10):
         low, high = min(rates), max(rates)
 
         examined += 1
-        # THE VERDICT IS WHETHER THE DRIVEN RATE FALLS OUTSIDE THE RANDOM ORDERS' RANGE. No
-        # tolerance is chosen: the control's own spread sets the bar, because a
-        # judgment-picked threshold produces false positives.
+        # THE VERDICT IS WHETHER THE DRIVEN RATE FALLS OUTSIDE THE RANGE OF THE RANDOM ORDERS. The code chooses no
+        # tolerance: the control's own spread sets the bar, because a threshold picked by judgment produces false
+        # positives.
         outside = d_rate < low or d_rate > high
         if outside:
             separated += 1
@@ -712,8 +688,8 @@ def _check():
     print("  the GF(2) rank agrees with the state vector on every shape and width tested: %s"
           % (failed == 0))
 
-    # AND AFTER A SNAP IT MUST STILL AGREE, the part that would break if release() or
-    # switch() left the adjacency in a state that is not a graph state.
+    # AND AFTER A SNAP IT MUST STILL AGREE. This part would break if release() or switch() left the adjacency in a state
+    # that is not a graph state.
     mismatch = 0
     for shape in ("star", "line", "ring", "complete"):
         for operation in (release, switch):
@@ -730,10 +706,9 @@ def _check():
     print("  and it still agrees after both snaps. Each leaves a valid graph state: %s"
           % (mismatch == 0))
 
-    # THE EXACT NULL. Snapping a qubit that is not entangled must change nothing at all. Its fourth
-    # term reads 0, there is no entanglement to release, and both operations must be the identity.
-    # This is free, it is exact, and it is the cheapest way to catch an off-by-one in the edge
-    # deletion that would otherwise look like a small real effect.
+    # THE EXACT NULL. A snap of a qubit with no entanglement must change nothing at all. Its fourth term reads 0, there
+    # is no entanglement to release, and both operations must be the identity. This is free and exact. It is the
+    # cheapest way to catch an off-by-one in the edge deletion, which would otherwise look like a small real effect.
     broke = 0
     for operation in (release, switch):
         machine = graph_machine.GraphMachine(8)
@@ -751,9 +726,9 @@ def _check():
     failed += broke
     print("  snapping a free qubit is the identity on both operations: %s" % (broke == 0))
 
-    # LOCAL COMPLEMENTATION IS AN INVOLUTION. Applied twice at the same vertex it must return the
-    # original graph exactly. This grades the switch's moving part on its own, separately from the
-    # deletion, a bug in one is not hidden by the other.
+    # LOCAL COMPLEMENTATION IS AN INVOLUTION. Two applications at the same vertex must return the original graph
+    # exactly. This grades the moving part of the switch on its own, apart from the deletion. A bug in one part then
+    # cannot hide behind the other.
     involution = 0
     for shape in ("star", "line", "ring", "complete", "grid"):
         machine = graph_machine.GraphMachine(9)
@@ -776,9 +751,8 @@ def _check():
     failed += involution
     print("  local complementation is an involution on every shape tested: %s" % (involution == 0))
 
-    # THE POSITIVE CONTROL. Releasing the center of a star must take the cluster to nothing, because
-    # every edge in a star touches the center. If that does not empty it, release() is not deleting
-    # what it claims to.
+    # THE POSITIVE CONTROL. A release of the center of a star must take the cluster to nothing, because every edge in a
+    # star touches the center. If that does not empty it, release() does not delete what it claims to.
     machine = graph_machine.GraphMachine(10)
     machine.star()
     before = total_entanglement(machine)
@@ -790,10 +764,9 @@ def _check():
         print("    FAIL releasing the center of a star did not empty the cluster")
         failed += 1
 
-    # THE MEASURE MUST NOT BE DEGENERATE, and this control exists because the version before it was.
-    # A figure that reads the same for a star, a ring and a complete graph is not measuring their
-    # entanglement, and the failure is invisible in a results table because equal numbers look like
-    # a finding. Any honest measure here has to separate at least some of these shapes.
+    # THE MEASURE MUST NOT BE DEGENERATE. A figure that reads the same for a star, a ring and a complete graph does not
+    # measure their entanglement. A results table hides that failure, because equal numbers look like a finding. Any
+    # honest measure here must separate at least some of these shapes.
     spread = set()
     for shape in ("star", "line", "ring", "complete"):
         spread.add(round(total_entanglement(shaped(8, shape)), 6))
@@ -821,8 +794,8 @@ def _check():
         print("    FAIL a local Clifford twist changed the entanglement. One of the two is wrong")
         failed += 1
 
-    # AND THE TENSION RESPONSE MUST BE ALIVE, or the twist is doing nothing at all and the exact
-    # null above would be vacuous and not informative.
+    # AND THE TENSION RESPONSE MUST BE ALIVE. Otherwise the twist does nothing at all, and the exact null above would be
+    # vacuous and not informative.
     tensions = set()
     for shape in ("star", "line", "ring", "complete"):
         tensions.add(round(tension_moment(shaped(8, shape)), 6))
@@ -840,10 +813,9 @@ def _check():
         print("    FAIL the entanglement magnitude is not binary")
         failed += 1
 
-    # RELAXATION MUST TERMINATE AND MUST BE MONOTONE. Each release strictly reduces the bound count.
-    # The loop cannot run longer than the qubit count and must end at zero entanglement. A
-    # non-terminating relaxation would hang the tool, and a non-monotone one would mean release() is
-    # putting edges back.
+    # RELAXATION MUST END, AND MUST BE MONOTONE. Each release strictly reduces the bound count. The loop cannot run
+    # longer than the qubit count, and must end at zero entanglement. A relaxation that does not end would hang the
+    # tool, and a non-monotone one would mean that release() puts edges back.
     for shape in ("star", "line", "ring", "complete"):
         curve = relax(shaped(8, shape), driven=True)
         if len(curve) - 1 > 8:
@@ -866,9 +838,9 @@ def _check():
         print("    FAIL an unbound graph did not relax trivially")
         failed += 1
 
-    # AND THE POSITIVE CONTROL ON PRESSURE. In a star the center carries every edge. It is under
-    # the max neighbor pressure and driven relaxation must take it first and finish in one step.
-    # If it takes more, pressure() is not ranking what it claims to.
+    # AND THE POSITIVE CONTROL ON PRESSURE. In a star the center carries every edge. It is under the max neighbor
+    # pressure, and driven relaxation must take it first and finish in one step. If it takes more, pressure() does not
+    # rank what it claims to.
     star = shaped(10, "star")
     curve = relax(star, driven=True)
     print("  driven relaxation empties a 10 qubit star in %d step(s)" % (len(curve) - 1))
