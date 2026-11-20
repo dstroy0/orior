@@ -6,8 +6,8 @@ Run python examples/qasm/maint/emit_qasm_pi.py to write the header.
 Run it with --check to exit 1 where the header on disk is not what this writes.
 
 This reads the guard width G from QASM_GUARD_BITS in qasm_internal.h, and never writes it. The places are the least p
-with 10^p past 2^(G + 1), found in integers. Pi cut to p places is then within half a unit of pi * 2^G, and
-qasm_fixed_constants takes it the rest of the way. dn_constants reaches the digits of pi by two routes that must agree.
+with 10^p past 2^(G + 1), found in integers. Pi cut to p places is then within half a unit of pi times 2^G.
+The function qasm_fixed_constants takes it the rest of the way. dn_constants reaches the digits of pi by two routes that must agree.
 """
 import os
 import re
