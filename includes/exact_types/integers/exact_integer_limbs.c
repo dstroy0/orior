@@ -87,14 +87,14 @@ void limbs_long_product(uint32_t *result, const uint32_t *left, size_t left_coun
             result[low + high] = (uint32_t)(total & LIMB_MASK);
             carry = total >> LIMB_BITS;
         }
-        // The row's carry lands on the limb just above it, which no earlier row reached: row
-        // low - 1 wrote up to index low - 1 + right_count and no further. The largest total above is
+        // The carry of the row lands on the limb just above it, which no earlier row reached.
+        // Row low - 1 wrote up to index low - 1 + right_count and no further. The largest total above is
         // (2^32 - 1)^2 + 2 * (2^32 - 1), exactly 2^64 - 1, and its high half fits one limb.
         result[low + right_count] = (uint32_t)carry;
     }
 }
 
-// Karatsuba on two equal lengths: with a = a1 B + a0 and b = b1 B + b0, the three products a0 b0, a1 b1 and
+// Karatsuba on two equal lengths. Let a = a1 B + a0 and b = b1 B + b0. The three products a0 b0, a1 b1 and
 // (a0 + a1)(b0 + b1) give the middle term as the third less the first two
 static int limbs_karatsuba(uint32_t *result, const uint32_t *left, const uint32_t *right, size_t count)
 {
@@ -132,8 +132,9 @@ static int limbs_karatsuba(uint32_t *result, const uint32_t *left, const uint32_
     return 1;
 }
 
-// result[0, left_count + right_count) = left . right by the rung that fits: long multiplication below the Karatsuba
-// width, Karatsuba on equal lengths, and slices of the longer operand otherwise; 0 when workspace cannot be allocated
+// result[0, left_count + right_count) = left . right by the rung that fits. That is long multiplication below the
+// Karatsuba width, Karatsuba on equal lengths, and slices of the longer operand else. 0 when the allocation of the
+// workspace fails
 int limbs_product(uint32_t *result, const uint32_t *left, size_t left_count, const uint32_t *right, size_t right_count)
 {
     if (left_count < right_count)
@@ -198,7 +199,7 @@ static void fermat_settle(uint32_t *value, size_t limbs)
     }
     if (borrow != 0u)
     {
-        // below zero by less than 2^n: adding 2^n + 1 adds one to the wrapped words, the carry out giving 2^n
+        // below zero by less than 2^n. An add of 2^n + 1 adds one to the wrapped words, and the carry out gives 2^n
         uint32_t one = 1u;
         value[limbs] = limbs_accumulate(value, limbs, &one, 1u);
     }
@@ -210,7 +211,7 @@ void fermat_add(uint32_t *result, const uint32_t *left, const uint32_t *right, s
     fermat_settle(result, limbs);
 }
 
-// a wrapped difference comes back by adding 2^n + 1, the wrap of the words canceling
+// a wrapped difference comes back with an add of 2^n + 1, because the wrap of the words cancels
 static void fermat_mend(uint32_t *value, size_t limbs)
 {
     uint32_t one = 1u;
