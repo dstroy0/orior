@@ -284,11 +284,17 @@ void test_a_token_names_roles_come_off_its_segments(void)
 void test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read(void)
 {
     tree_begun();
-    CliFoundDeclarations *const found = EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = "area", .max = 8u, .owner = g_cli_text_owner);
+    const CarcerMovableEntry *const found = EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = "area", .max = 8u, .owner = g_cli_text_owner);
     TEST_ASSERT_NOT_NULL(found);
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, found->count);
-    TEST_ASSERT_EQUAL_STRING("area", found->found[0].name);
-    g_cli_guard->persistent_buf_release(found, g_cli_text_owner);
+    CliFoundDeclarations head = {0u, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .dst = &head, .bytes = sizeof(head)});
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, head.count);
+    CliFoundDeclaration first;
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .offset = CLI_FOUND_DECLARATION_AT(0u), .dst = &first, .bytes = sizeof(first)});
+    char name[16] = "";
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .offset = first.name, .dst = name, .bytes = 5u});
+    TEST_ASSERT_EQUAL_STRING("area", name);
+    (void)g_cli_guard->movable_buf_release(found, g_cli_text_owner);
     static CliSignatureStore s_store;
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};

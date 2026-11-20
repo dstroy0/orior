@@ -93,22 +93,29 @@ int cli_tree_unwalked(void);
 // the declarations whose names answer `query`, at max `max` of them, the best first, written as `{"symbols":
 // [{"name", "type", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
 // its file as the answer is written
+// One declaration a query finds, in the found list's movable cell: the offsets in the cell of its name, what it is,
+// its file's tree path and its own line of text, each ended by a zero, and its line counted from 0
 typedef struct
 {
-    const char *name;
-    const char *type;
-    const char *path;
+    unsigned int name;
+    unsigned int type;
+    unsigned int path;
+    unsigned int text;
     unsigned int line;
-    const char *text;
 } CliFoundDeclaration;
-// The declarations a query finds in one cell, the best first, and whether the tree is still being read
+// The head of the declarations a query finds, at the start of their movable cell: how many, the best first, and
+// whether the tree is still being read. A CliFoundDeclaration for each comes after the head, then their texts
 typedef struct
 {
     unsigned int count;
     int reading;
-    CliFoundDeclaration *found;
 } CliFoundDeclarations;
-CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args);
+// the offset in the found list's cell of the declaration `at`
+#define CLI_FOUND_DECLARATION_AT(at)                                                                                   \
+    (sizeof(CliFoundDeclarations) + ((unsigned long long)(at) * sizeof(CliFoundDeclaration)))
+// the found list in a movable cell of `owner`, given back with movable_buf_release: the cell, or NULL where the cells
+// cannot meet it
+const CarcerMovableEntry *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args);
 // the signature of the call the cursor is in at `line`, `col` in UTF-16 units of `size` bytes of `text`, the lines
 // the page passes from the file at `path`, the first starting in its grammar's `state`: written as `{"name", "active",
 // "arguments": [{"text", "type"}], "declarations": [{"path", "line", "label", "params": [[from, to]], "types",
@@ -517,7 +524,7 @@ EMBED_TABLE_STORAGE CliSymbolsDoneNs cli_symbols_done EMBED_UNUSED = {
 
 typedef struct
 {
-    CliFoundDeclarations *(*tree_declarations_alloc)(const CliSymbolsQueryMaxCfg *args);
+    const CarcerMovableEntry *(*tree_declarations_alloc)(const CliSymbolsQueryMaxCfg *args);
 } CliSymbolsQueryMaxNs;
 EMBED_TABLE_LAYOUT(CliSymbolsQueryMaxNs, tree_declarations_alloc);
 EMBED_TABLE_STORAGE CliSymbolsQueryMaxNs cli_symbols_query_max EMBED_UNUSED = {

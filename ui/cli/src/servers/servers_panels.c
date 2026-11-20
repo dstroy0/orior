@@ -49,6 +49,8 @@
 #define CLI_PANELS_DETAIL_MAX 1024u
 #define CLI_PANELS_INSERT_MAX 4096u
 #define CLI_PANELS_HOVER_MAX (16u << 10u)
+// the max bytes of a declaration's own line as the tree's search writes it, with its end
+#define CLI_PANELS_LINE_MAX 1024u
 
 // One completion item: the places among the list's text of its label, the label in small characters, its type, what it
 // states of itself and what it inserts, the bytes of each but the lowered label, and how it scores against the prefix
@@ -255,7 +257,6 @@ typedef struct
     const char *insert;
     unsigned long long insert_length;
     VerbaLinea *out;
-    const CliFoundDeclaration *found;
     CliServerItems *server;
     CliDocumentWords *words;
     unsigned long long line;
@@ -413,21 +414,20 @@ void cli_servers_panels_pointer(const CliServersPanelsPointerCfg *args)
     }
 }
 
-// a declaration of the hover's word written: its own line as code, then its type and place
+// a declaration of the hover's word written: its own line `text` as code, then its `type` and place, `path` and `line`
 EMBED_INLINE void panels_declaration_write(const PanelsCtx *args)
 {
-    const CliFoundDeclaration *const found = args->found;
-    if (found->text[0] != '\0')
+    if (args->text[0] != '\0')
     {
         mmgr_line_put(args->out, "```\n");
-        mmgr_line_put(args->out, found->text);
+        mmgr_line_put(args->out, args->text);
         mmgr_line_put(args->out, "\n```\n\n");
     }
-    mmgr_line_put(args->out, found->type);
+    mmgr_line_put(args->out, args->type);
     mmgr_line_put(args->out, " `");
-    mmgr_line_put(args->out, found->path);
+    mmgr_line_put(args->out, args->path);
     mmgr_line_ch(args->out, ':');
-    mmgr_line_decimal(args->out, (unsigned long long)found->line + 1ULL, 1u);
+    mmgr_line_decimal(args->out, args->line + 1ULL, 1u);
     mmgr_line_ch(args->out, '`');
 }
 
@@ -577,11 +577,11 @@ EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
     const size_t begun = (out != NULL) ? out->at : 0u;
     if (out != NULL)
     {
-        const CliFoundDeclaration one = {ask->word_text, type, ask->path, (unsigned int)found_line, ""};
         mmgr_line_put(out, "```\n");
         mmgr_line_put_n(out, line_text + start, size - start);
         mmgr_line_put(out, "\n```\n\n");
-        EMBED_CALL(panels_declaration_write, PanelsCtx, .found = &one, .out = out);
+        EMBED_CALL(panels_declaration_write, PanelsCtx, .text = "", .type = type, .path = ask->path, .line = found_line,
+                   .out = out);
     }
     g_cli_guard->persistent_buf_release(line_text, g_cli_servers_owner);
     if ((out != NULL) && !mmgr_line_ok(out))
@@ -603,13 +603,15 @@ static void panels_hover_tree_run(void *context)
         return;
     }
     EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = ask->root);
-    CliFoundDeclarations *const found =
+    const CarcerMovableEntry *const found =
         EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = ask->word_text,
                    .max = CLI_PANELS_DECLARATIONS, .owner = g_cli_servers_owner);
     if (found == NULL)
     {
         return;
     }
+    CliFoundDeclarations head = {0u, 0};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .dst = &head, .bytes = sizeof(head)});
     CliLanguages languages;
     EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     char wanted[CLI_NAME_MAX_LEN];
@@ -620,28 +622,65 @@ static void panels_hover_tree_run(void *context)
     VerbaLinea *const out = ask->out;
     const size_t begun = (out != NULL) ? out->at : 0u;
     unsigned int parts = 0u;
-    for (unsigned int at = 0u; (at < found->count) && (parts < CLI_PANELS_HOVER_DECLARATIONS); at += 1u)
+    for (unsigned int at = 0u; (at < head.count) && (parts < CLI_PANELS_HOVER_DECLARATIONS); at += 1u)
     {
-        const CliFoundDeclaration *const one = &found->found[at];
+        CliFoundDeclaration one;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = found, .offset = CLI_FOUND_DECLARATION_AT(at), .dst = &one, .bytes = sizeof(one)});
+        // the declaration's name and path read out of the list's cell, cut to their arrays
+        char name[CLI_PANELS_WORD];
+        char path[CLI_PATH_MAX_LEN];
+        const unsigned long long name_measured =
+            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.name});
+        const unsigned long long name_length =
+            (name_measured < (sizeof(name) - 1ULL)) ? name_measured : (sizeof(name) - 1ULL);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = found, .offset = one.name, .dst = name, .bytes = name_length});
+        name[name_length] = '\0';
+        const unsigned long long path_measured =
+            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.path});
+        const unsigned long long path_length =
+            (path_measured < (sizeof(path) - 1ULL)) ? path_measured : (sizeof(path) - 1ULL);
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = found, .offset = one.path, .dst = path, .bytes = path_length});
+        path[path_length] = '\0';
         char id[CLI_NAME_MAX_LEN];
         const int same = !known || (EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                               .languages_read = &languages, .path = one->path, .id_out = id) &&
+                                               .languages_read = &languages, .path = path, .id_out = id) &&
                                     cellul.eq(&(CatenaFinitaCfg){.src = id, .other = wanted, .cap = sizeof(id)}));
-        if (same && cellul.eq(&(CatenaFinitaCfg){.src = one->name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
+        if (same && (name_measured == name_length) &&
+            cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
         {
-            EMBED_CALL(panels_defined, PanelsCtx, .hover_ask = ask, .path = one->path, .line = one->line,
-                       .text = one->text,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = one->text, .cap = CLI_POOL_BYTES}));
+            // the declaration's type and its own line read out of the list's cell
+            char type[CLI_NAME_MAX_LEN];
+            char text[CLI_PANELS_LINE_MAX];
+            const unsigned long long type_measured =
+                g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.type});
+            const unsigned long long type_length =
+                (type_measured < (sizeof(type) - 1ULL)) ? type_measured : (sizeof(type) - 1ULL);
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = found, .offset = one.type, .dst = type, .bytes = type_length});
+            type[type_length] = '\0';
+            const unsigned long long text_measured =
+                g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = one.text});
+            const unsigned long long text_length =
+                (text_measured < (sizeof(text) - 1ULL)) ? text_measured : (sizeof(text) - 1ULL);
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = found, .offset = one.text, .dst = text, .bytes = text_length});
+            text[text_length] = '\0';
+            EMBED_CALL(panels_defined, PanelsCtx, .hover_ask = ask, .path = path, .line = one.line, .text = text,
+                       .size = text_length);
             if (out != NULL)
             {
                 mmgr_line_put(out, (parts > 0u) ? CLI_PANELS_HOVER_BETWEEN : "");
-                EMBED_CALL(panels_declaration_write, PanelsCtx, .found = one, .out = out);
+                EMBED_CALL(panels_declaration_write, PanelsCtx, .text = text, .type = type, .path = path,
+                           .line = one.line, .out = out);
             }
             parts += 1u;
         }
     }
-    ask->reading = found->reading;
-    g_cli_guard->persistent_buf_release(found, g_cli_servers_owner);
+    ask->reading = head.reading;
+    (void)g_cli_guard->movable_buf_release(found, g_cli_servers_owner);
     g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     if (out == NULL)
     {
