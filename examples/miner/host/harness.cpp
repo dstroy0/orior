@@ -10,6 +10,9 @@
  * @note The arm is the eight-lane AVX2 arm where the processor has AVX2, and the scalar anchor arm
  *       otherwise. Thus the same source runs on x86 and on AArch64, such as a Raspberry Pi 5.
  * @note Build on x86 with -mavx2 for the eight-lane arm. Build on AArch64 without it.
+ * @note With --telemetry FILE, the harness rewrites FILE twice a second while it scans, and one last time at
+ *       the end. The file holds one counter per line: nonces evaluated, anchor survivors, slices with a
+ *       winner, and seconds. Put FILE under build/miner.
  */
 #include "sha256_core.h"
 
@@ -83,12 +86,52 @@ uint32_t header_number(const uint8_t *bytes)
     return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8u) | ((uint32_t)bytes[2] << 16u) | ((uint32_t)bytes[3] << 24u);
 }
 
-/** @brief What one core reports back. */
+/** @brief Nonces per scan call. A slice scans in chunks of this size, and the counters advance after each chunk. */
+constexpr uint32_t CHUNK_NONCES = 1u << 20u;
+
+/** @brief Milliseconds between two writes of the telemetry file. */
+constexpr unsigned TELEMETRY_PERIOD_MS = 500u;
+
+/** @brief What one core reports back: the lowest winner in its slice, where it found one. */
 struct SliceResult
 {
-    Sha256ScanResult scan;
-    uint32_t nonce_start;
+    bool found = false;
+    uint32_t winning_nonce = 0u;
 };
+
+/** @brief Counters that every core adds to while it scans, and that the telemetry file reports. */
+struct Telemetry
+{
+    std::atomic<uint64_t> evaluated{0u}; /**< Nonces that the cores hashed. */
+    std::atomic<uint64_t> survivors{0u}; /**< Nonces that passed the anchor and reached the exact compare. */
+    std::atomic<uint64_t> winners{0u};   /**< Slices that found a nonce at or below the block target. */
+};
+
+/**
+ * @brief Writes the counters to the telemetry file, one value per line.
+ *
+ * @param[in] path      The telemetry file [BORROWS].
+ * @param[in] telemetry The counters [BORROWS].
+ * @param[in] seconds   Seconds since the scan started.
+ * @note The function writes a side file and then renames it over the telemetry file. Thus a reader never
+ *       sees half a file. The rename on Windows fails where the target exists. Thus the function removes
+ *       the target first, and a reader can find no file for that short time.
+ */
+void write_telemetry(const std::string &path, const Telemetry &telemetry, double seconds)
+{
+    const std::string partial = path + ".part";
+    FILE *const file = std::fopen(partial.c_str(), "w");
+    if (file == nullptr)
+    {
+        return;
+    }
+    std::fprintf(file, "evaluated %llu\nsurvivors %llu\nwinners %llu\nseconds %.3f\n",
+                 (unsigned long long)telemetry.evaluated.load(), (unsigned long long)telemetry.survivors.load(),
+                 (unsigned long long)telemetry.winners.load(), seconds);
+    std::fclose(file);
+    std::remove(path.c_str());
+    std::rename(partial.c_str(), path.c_str());
+}
 
 } // namespace
 
@@ -97,6 +140,7 @@ int main(int argument_count, char **arguments)
     unsigned threads = std::thread::hardware_concurrency();
     uint32_t span = 1u << 26u;
     unsigned which = 0u;
+    std::string telemetry_path;
     for (int index = 1; index < argument_count; index += 1)
     {
         const std::string argument = arguments[index];
@@ -116,9 +160,14 @@ int main(int argument_count, char **arguments)
             index += 1;
             which = (unsigned)std::strtoul(arguments[index], nullptr, 10);
         }
+        else if ((argument == "--telemetry") && has_value)
+        {
+            index += 1;
+            telemetry_path = arguments[index];
+        }
         else
         {
-            std::printf("usage: harness [--threads N] [--span NONCES] [--header 0|1]\n");
+            std::printf("usage: harness [--threads N] [--span NONCES] [--header 0|1] [--telemetry FILE]\n");
             return 2;
         }
     }
@@ -166,35 +215,75 @@ int main(int argument_count, char **arguments)
 
     std::vector<SliceResult> results(threads);
     std::vector<std::thread> workers;
+    Telemetry telemetry;
+    std::atomic<bool> finished{false};
     const auto started = std::chrono::steady_clock::now();
+    const auto elapsed = [&started]() {
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+    };
+
     for (unsigned core = 0u; core < threads; core += 1u)
     {
         workers.emplace_back([&, core]() {
             Sha256ScanRequest own = request;
-            own.nonce_start = range_start + (core * slice);
-            own.nonce_count = slice;
-            results[core].nonce_start = own.nonce_start;
-            scan(&own, &results[core].scan);
+            const uint32_t slice_start = range_start + (core * slice);
+            uint32_t done = 0u;
+            // The chunks ascend, and each scan call reports its own lowest winner. Thus the first chunk
+            // with a winner holds the lowest winner of the slice, and the slice stops there.
+            while (done < slice)
+            {
+                own.nonce_start = slice_start + done;
+                own.nonce_count = ((slice - done) < CHUNK_NONCES) ? (slice - done) : CHUNK_NONCES;
+                Sha256ScanResult chunk;
+                scan(&own, &chunk);
+                telemetry.evaluated += chunk.nonces_evaluated;
+                telemetry.survivors += chunk.anchors_survived;
+                if (chunk.found != 0)
+                {
+                    results[core].found = true;
+                    results[core].winning_nonce = chunk.winning_nonce;
+                    telemetry.winners += 1u;
+                    break;
+                }
+                done += own.nonce_count;
+            }
+        });
+    }
+
+    std::thread writer;
+    if (!telemetry_path.empty())
+    {
+        writer = std::thread([&]() {
+            while (!finished.load())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(TELEMETRY_PERIOD_MS));
+                write_telemetry(telemetry_path, telemetry, elapsed());
+            }
         });
     }
     for (std::thread &worker : workers)
     {
         worker.join();
     }
-    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+    const double seconds = elapsed();
+    finished.store(true);
+    if (writer.joinable())
+    {
+        writer.join();
+        write_telemetry(telemetry_path, telemetry, seconds);
+    }
 
     // The lowest winner is the first in range order. The slices ascend from range_start, and each slice
     // reports its own lowest winner. Thus the first slice with a winner holds the lowest.
-    uint64_t evaluated = 0u;
+    const uint64_t evaluated = telemetry.evaluated.load();
     bool found = false;
     uint32_t lowest = 0u;
     for (const SliceResult &result : results)
     {
-        evaluated += result.scan.nonces_evaluated;
-        if ((!found) && (result.scan.found != 0))
+        if ((!found) && result.found)
         {
             found = true;
-            lowest = result.scan.winning_nonce;
+            lowest = result.winning_nonce;
         }
     }
 

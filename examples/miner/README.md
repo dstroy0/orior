@@ -57,6 +57,9 @@ build/miner/harness.exe --threads 4 --span 0x4000000
 
 On AArch64, such as a Raspberry Pi 5, drop both `-mavx2` flags. The harness then runs the scalar anchor arm.
 
+Add `--telemetry build/miner/telemetry.txt` for a live counter file. The harness rewrites it twice a second
+while it scans, with one counter per line: nonces evaluated, anchor survivors, slices with a winner, and seconds.
+
 ## The known-answer tests
 
 ```
