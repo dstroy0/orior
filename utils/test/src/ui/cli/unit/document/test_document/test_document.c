@@ -1,12 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_document.c: a text is split as the page splits a file; edits are written from the last to the first; the marks show whether the commit contains the file
-// and carry each change's lines; a text is stored until it is released; find returns each match with case and without, a pattern's by the regular expressions the
-// colorer reads; a branch is colored by a grammar and read through its view; its uses and brackets read off its
-// grammar's roles; texts colored at once by walkers on threads of their own read as one walked alone; and a paged text is colored the same way through the pages
+// test_document.c: a text is split as the page splits a file; edits are written from the last to the first; the marks
+// show whether the commit contains the file and carry each change's lines; a text is stored until it is released; find
+// returns each match with case and without, a pattern's by the regular expressions the colorer reads; a branch is
+// colored by a grammar and read through its view; its uses and brackets read off its grammar's roles; texts colored at
+// once by walkers on threads of their own read as one walked alone; and a paged text is colored the same way through
+// the pages
+#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/document.h"
-#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/editor/highlight.h"
 #include "ui/cli/src/editor/pages.h"
 #include "ui/cli/src/plugins/plugins.h"
@@ -23,14 +25,16 @@
 #define DOCUMENT_ONWARD_LINES 40000ull
 #define DOCUMENT_ONWARD_CAPACITY (4ull << 20u)
 
-// the lines of the texts colored at once, a comment opened on the first and closed on the middle one, and how many texts
+// the lines of the texts colored at once, a comment opened on the first and closed on the middle one, and how many
+// texts
 #define DOCUMENT_AT_ONCE_LINES 3000u
 #define DOCUMENT_AT_ONCE_TEXTS 4u
 
 // a grammar whose comments run over lines: `""` is its name 0, `comment` 1 and `identifier` 2
-static const char s_branch_grammar[] = "{\"tokenizer\": {\"root\": [[\"\\\\/\\\\*\", \"comment\", \"@comment\"], [\"[a-z]+\", \"identifier\"], "
-                                       "[\"\\\\s+\", \"\"]], \"comment\": [[\"\\\\*\\\\/\", \"comment\", \"@pop\"], [\"[^*]+\", \"comment\"], "
-                                       "[\"\\\\*\", \"comment\"]]}}";
+static const char s_branch_grammar[] =
+    "{\"tokenizer\": {\"root\": [[\"\\\\/\\\\*\", \"comment\", \"@comment\"], [\"[a-z]+\", \"identifier\"], "
+    "[\"\\\\s+\", \"\"]], \"comment\": [[\"\\\\*\\\\/\", \"comment\", \"@pop\"], [\"[^*]+\", \"comment\"], "
+    "[\"\\\\*\", \"comment\"]]}}";
 
 static const char *const s_at_once_keys[DOCUMENT_AT_ONCE_TEXTS] = {"at_once_0", "at_once_1", "at_once_2", "at_once_3"};
 
@@ -66,7 +70,8 @@ static int s_paged_step[12];
 static const CliLines *lines_of(const char *text)
 {
     s_lines = (CliLines){s_units, sizeof(s_units) / sizeof(s_units[0]), 0ull, s_start, s_length, 256u, 0u, 0};
-    EMBED_CALL(cli_document_text_size.lines_get, CliDocumentTextSizeCfg, .text = text, .size = CLI_UNITY_LENGTH(text), .lines_out = &s_lines);
+    EMBED_CALL(cli_document_text_size.lines_get, CliDocumentTextSizeCfg, .text = text, .size = CLI_UNITY_LENGTH(text),
+               .lines_out = &s_lines);
     return &s_lines;
 }
 
@@ -83,7 +88,8 @@ static void assert_found(const CliLines *lines, CliDocNeedle needle, unsigned lo
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines, .needle = &needle, .max = max, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines,
+                                .needle = &needle, .max = max, .out = &out, .err_msg = &err_msg));
     CLI_TEST_ASSERT_TEXT(required, s_out, out.at);
 }
 
@@ -94,7 +100,8 @@ static void assert_stored_found(const char *key, const char *query, const char *
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    (void)EMBED_CALL(cli_document_out_needle.find, CliDocumentOutNeedleCfg, .key = key, .needle = &needle, .max = 100ull, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_document_out_needle.find, CliDocumentOutNeedleCfg, .key = key, .needle = &needle,
+                     .max = 100ull, .out = &out, .err_msg = &err_msg);
     CLI_TEST_ASSERT_TEXT(required, s_out, out.at);
 }
 
@@ -106,8 +113,10 @@ static void edits_written(CliShape *shape)
     const CliEdit *const changes[2] = {s_first, s_second};
     const unsigned int counts[2] = {2u, 1u};
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "edits", .text = "first line\nsecond line\nthird", .size = 28ull, .shape = shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "edits", .changes = changes, .edits = counts, .count_u32 = 2u, .shape = shape, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "edits",
+                                .text = "first line\nsecond line\nthird", .size = 28ull, .shape = shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "edits", .changes = changes,
+                                .edits = counts, .count_u32 = 2u, .shape = shape, .err_msg = &err_msg));
 }
 
 // the branch's text written into s_branch: its bytes
@@ -133,13 +142,22 @@ static void branch_run_result(void)
     }
     s_branch_run_result = 1;
     const unsigned long long size = branch_text_written();
-    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "branch", .text = s_branch, .size = size, .shape = &shape);
-    s_branch_step[0] = EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "branch", .grammar = "branch", .named = 1);
+    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "branch", .text = s_branch, .size = size,
+                     .shape = &shape);
+    s_branch_step[0] = EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "branch",
+                                  .grammar = "branch", .named = 1);
     cli_document_walk();
-    s_branch_step[6] = EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "branch", .from = 100ull, .to = 110ull);
+    s_branch_step[6] =
+        EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "branch", .from = 100ull, .to = 110ull);
     // the second line is entered in the comment's state, which the states' index answers by its number
     unsigned long long entered_size = 0ull;
-    char *const second = cli_document_lines_alloc(&(CliDocumentKeyCfg){.key = "branch", .first = 1ull, .last = 1ull, .size_pointer = &entered_size, .state = s_branch_entered, .capacity = sizeof(s_branch_entered), .owner = g_cli_editor_owner});
+    char *const second = cli_document_lines_alloc(&(CliDocumentKeyCfg){.key = "branch",
+                                                                       .first = 1ull,
+                                                                       .last = 1ull,
+                                                                       .size_pointer = &entered_size,
+                                                                       .state = s_branch_entered,
+                                                                       .capacity = sizeof(s_branch_entered),
+                                                                       .owner = g_cli_editor_owner});
     s_branch_step[7] = second != NULL;
     if (second != NULL)
     {
@@ -148,7 +166,8 @@ static void branch_run_result(void)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "branch");
 }
 
-// a paged text viewed far from its first line, read, walked and edited, what each step answered recorded, once for the process
+// a paged text viewed far from its first line, read, walked and edited, what each step answered recorded, once for the
+// process
 static void paged_run_result(void)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -164,14 +183,20 @@ static void paged_run_result(void)
     cli_unity_folder("document", s_folder);
     const unsigned long long size = branch_text_written();
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "paged.c", .joined = path);
-    (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = s_branch, .size = size);
-    s_paged_step[0] = EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = "paged", .path = path, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = s_branch,
+                     .size = size);
+    s_paged_step[0] = EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = "paged", .path = path, .out = &out,
+                                 .err_msg = &err_msg);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while ((!EMBED_CALL(cli_pages.count, CliPagesCfg, .key = "paged", .lines = &lines, .whole = &whole) || !whole) && (cli_clock_milliseconds() < until))
+    while ((!EMBED_CALL(cli_pages.count, CliPagesCfg, .key = "paged", .lines = &lines, .whole = &whole) || !whole) &&
+           (cli_clock_milliseconds() < until))
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 1u);
     }
-    s_paged_step[1] = EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = "paged", .from = 350ull, .to = 361ull) && EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "paged", .grammar = "branch", .named = 1);
+    s_paged_step[1] =
+        EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = "paged", .from = 350ull, .to = 361ull) &&
+        EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "paged", .grammar = "branch",
+                   .named = 1);
     cli_document_walk();
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "paged");
     EMBED_CALL(cli_pages.release, CliPagesCfg, .key = "paged");
@@ -186,7 +211,8 @@ void setUp(void)
     {
         s_begun = 1;
         const CliJson *const json = cli_unity_parsed(s_branch_grammar, sizeof(s_branch_grammar) - 1u, &root);
-        TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "branch", .json = json, .def = root, .err_msg = &err_msg));
+        TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "branch", .json = json,
+                                    .def = root, .err_msg = &err_msg));
         EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     }
 }
@@ -224,13 +250,16 @@ void test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit
     {
         text[at] = ((at % 13ull) == 12ull) ? '\n' : 'a';
     }
-    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "large", .text = text, .size = size, .shape = &shape);
+    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "large", .text = text, .size = size,
+                     .shape = &shape);
     g_cli_guard->persistent_buf_release(text, g_checks_owner);
     cli_pool_report(&pool, &before, &temporary);
     int edited = 1;
     for (unsigned int at = 0u; at < 20u; at += 1u)
     {
-        edited = edited && EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "large", .changes = changes, .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg);
+        edited =
+            edited && EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "large", .changes = changes,
+                                 .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg);
     }
     cli_pool_report(&pool, &after, &temporary);
     TEST_ASSERT_TRUE(edited);
@@ -262,14 +291,16 @@ void test_an_edit_end_the_text_is_refused_and_the_text_released(void)
     CliShape shape;
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     edits_written(&shape);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "edits", .changes = end, .edits = one, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "edits", .changes = end,
+                                 .edits = one, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = "edits", .shape = &shape));
 }
 
 void test_a_text_is_stored_with_its_shape_until_it_is_released(void)
 {
     CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "stored", .text = "one\ntwo\nthree", .size = 13ull, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "stored", .text = "one\ntwo\nthree",
+                                .size = 13ull, .shape = &shape));
     TEST_ASSERT_EQUAL_UINT64(3ull, shape.lines);
     TEST_ASSERT_EQUAL_UINT64(11ull, shape.units);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "stored");
@@ -283,43 +314,52 @@ static void assert_file_put(const char *key, const char *required)
     char why[128];
     VerbaLinea out = {put, sizeof(put), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = key, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = key, .out = &out, .err_msg = &err_msg));
     CLI_TEST_ASSERT_TEXT(required, put, out.at);
 }
 
 void test_a_text_is_put_as_its_file_holds_it_its_line_ends_as_they_were_read(void)
 {
     CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "one\n\xC5\xBFtwo\n", .size = 10ull, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "one\n\xC5\xBFtwo\n",
+                                .size = 10ull, .shape = &shape));
     assert_file_put("put", "one\n\xC5\xBFtwo\n");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "a\r\nb", .size = 4ull, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "a\r\nb",
+                                .size = 4ull, .shape = &shape));
     assert_file_put("put", "a\r\nb");
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "put");
     char why[128];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     char put[8];
     VerbaLinea out = {put, sizeof(put), 0ull};
-    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = "put", .out = &out, .err_msg = &err_msg), "no text is stored under the key");
+    TEST_ASSERT_FALSE_MESSAGE(
+        EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = "put", .out = &out, .err_msg = &err_msg),
+        "no text is stored under the key");
 }
 
 void test_find_with_case(void)
 {
-    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("line", 0, 1, 0), 100ull, "[[0,9,13],[1,2,6]]");
+    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("line", 0, 1, 0), 100ull,
+                 "[[0,9,13],[1,2,6]]");
 }
 
 void test_find_without_case(void)
 {
-    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("line", 0, 0, 0), 100ull, "[[0,0,4],[0,9,13],[1,2,6],[1,7,11]]");
+    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("line", 0, 0, 0), 100ull,
+                 "[[0,0,4],[0,9,13],[1,2,6],[1,7,11]]");
 }
 
 void test_find_complete_words(void)
 {
-    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("line", 0, 0, 1), 100ull, "[[0,0,4],[0,9,13],[1,7,11]]");
+    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("line", 0, 0, 1), 100ull,
+                 "[[0,0,4],[0,9,13],[1,7,11]]");
 }
 
 void test_find_folds_the_long_s_and_the_kelvin_sign(void)
 {
-    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("star king", 0, 0, 0), 100ull, "[[2,0,9]]");
+    assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("star king", 0, 0, 0), 100ull,
+                 "[[2,0,9]]");
 }
 
 void test_the_line_that_reaches_the_max_is_searched_complete(void)
@@ -328,14 +368,17 @@ void test_the_line_that_reaches_the_max_is_searched_complete(void)
     const CliDocNeedle max = needle_of("line", 0, 0, 0);
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    (void)EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), .needle = &max, .max = 1ull, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg,
+                     .lines = lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), .needle = &max, .max = 1ull,
+                     .out = &out, .err_msg = &err_msg);
     const CliJson *const json = cli_unity_parsed(s_out, out.at, &found);
     TEST_ASSERT_EQUAL_UINT(2u, json->node[found].count);
 }
 
 void test_find_without_case_finds_a_character_outside_ascii_in_either_case(void)
 {
-    assert_found(lines_of("Caf\xC3\xA9 caf\xC3\x89\nnone"), needle_of("\xC3\xA9", 0, 0, 0), 100ull, "[[0,3,4],[0,8,9]]");
+    assert_found(lines_of("Caf\xC3\xA9 caf\xC3\x89\nnone"), needle_of("\xC3\xA9", 0, 0, 0), 100ull,
+                 "[[0,3,4],[0,8,9]]");
 }
 
 void test_complete_words_adjacent_text_outside_ascii_a_mark_ends_a_word_a_character_does_not(void)
@@ -362,7 +405,8 @@ void test_a_pattern_that_does_not_read_is_refused(void)
     const CliDocNeedle needle = needle_of("(", 1, 1, 0);
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines_of("x_1 = 10"), .needle = &needle, .max = 100ull, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = lines_of("x_1 = 10"),
+                                 .needle = &needle, .max = 100ull, .out = &out, .err_msg = &err_msg));
 }
 
 void test_a_finds_cols_are_in_utf16_units(void)
@@ -384,7 +428,8 @@ void test_nothing_found_runs_over_a_lines_end(void)
 
 void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
 {
-    // the pool allocated in cells of DOCUMENT_TAKEN_CELL until it refuses, one of them released, the search still answers
+    // the pool allocated in cells of DOCUMENT_TAKEN_CELL until it refuses, one of them released, the search still
+    // answers
     static void *s_allocated[DOCUMENT_TAKEN_MAX];
     CliShape shape;
     unsigned int reserved = 0u;
@@ -402,7 +447,8 @@ void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
         reserved -= 1u;
         g_cli_guard->persistent_buf_release(s_allocated[reserved], g_checks_owner);
     }
-    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "little", .text = "one line\ntwo lines", .size = 18ull, .shape = &shape);
+    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "little", .text = "one line\ntwo lines",
+                     .size = 18ull, .shape = &shape);
     assert_stored_found("little", "line", "[[0,4,8],[1,4,8]]");
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "little");
     for (unsigned int at = 0u; at < reserved; at += 1u)
@@ -418,9 +464,11 @@ void test_a_stored_text_is_found_and_its_joined_lines_created_again_after_an_edi
     const unsigned int counts[1] = {1u};
     CliShape shape;
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "joined", .text = "one two\nthree", .size = 13ull, .shape = &shape);
+    (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "joined", .text = "one two\nthree",
+                     .size = 13ull, .shape = &shape);
     assert_stored_found("joined", "three", "[[1,0,5]]");
-    (void)EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "joined", .changes = changes, .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = "joined", .changes = changes,
+                     .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg);
     assert_stored_found("joined", "three", "[[1,0,5]]");
     assert_stored_found("joined", "two", "[]");
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "joined");
@@ -442,7 +490,8 @@ void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(void)
 {
     branch_run_result();
     TEST_ASSERT_TRUE(s_branch_step[7]);
-    TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){.src = s_branch_entered, .cap = sizeof(s_branch_entered), .other = "comment", .other_cap = 8ull}));
+    TEST_ASSERT_NOT_NULL(cellul.find(&(CatenaFinitaCfg){
+        .src = s_branch_entered, .cap = sizeof(s_branch_entered), .other = "comment", .other_cap = 8ull}));
 }
 
 // the lines of the text whose runs cell is compacted while the pool is starved, the bytes of the wide line whose
@@ -470,7 +519,8 @@ static int pool_taken_until_refused(unsigned long long bytes, int temporary)
     unsigned int *const count = temporary ? &s_starved_temporary_count : &s_starved_count;
     while (*count < DOCUMENT_COMPACT_CELLS)
     {
-        cells[*count] = temporary ? g_cli_guard->temporary_buf_alloc(bytes, g_checks_owner) : g_cli_guard->persistent_buf_alloc(bytes, g_checks_owner);
+        cells[*count] = temporary ? g_cli_guard->temporary_buf_alloc(bytes, g_checks_owner)
+                                  : g_cli_guard->persistent_buf_alloc(bytes, g_checks_owner);
         if (cells[*count] == NULL)
         {
             return 1;
@@ -480,8 +530,8 @@ static int pool_taken_until_refused(unsigned long long bytes, int temporary)
     return 0;
 }
 
-// a take the pool cannot meet, after which the persistent tier's boundary is trimmed of the cells let go at it, which the
-// pool does as it sweeps for a free run
+// a take the pool cannot meet, after which the persistent tier's boundary is trimmed of the cells let go at it, which
+// the pool does as it sweeps for a free run
 static void pool_trimmed(void)
 {
     TEST_ASSERT_NULL(g_cli_guard->persistent_buf_alloc(64ull << 20u, g_checks_owner));
@@ -496,7 +546,8 @@ static void pool_starved(void)
     s_starved_count = 0u;
     s_starved_temporary_count = 0u;
     TEST_ASSERT_TRUE(pool_taken_until_refused(8ull << 20u, 0) && pool_taken_until_refused(1ull << 20u, 0));
-    while ((s_starved_count != 0u) && (g_cli_guard->buf_available() < (DOCUMENT_COMPACT_LEFT + DOCUMENT_COMPACT_MARGIN)))
+    while ((s_starved_count != 0u) &&
+           (g_cli_guard->buf_available() < (DOCUMENT_COMPACT_LEFT + DOCUMENT_COMPACT_MARGIN)))
     {
         s_starved_count -= 1u;
         g_cli_guard->persistent_buf_release(s_starved[s_starved_count], g_checks_owner);
@@ -508,7 +559,8 @@ static void pool_starved(void)
     s_starved[cut] = g_cli_guard->persistent_buf_alloc(before - DOCUMENT_COMPACT_MARGIN, g_checks_owner);
     TEST_ASSERT_NOT_NULL(s_starved[cut]);
     s_starved_count += 1u;
-    TEST_ASSERT_TRUE(pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 0) && pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 1));
+    TEST_ASSERT_TRUE(pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 0) &&
+                     pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 1));
     g_cli_guard->persistent_buf_release(s_starved[cut], g_checks_owner);
     pool_trimmed();
     const unsigned long long available = g_cli_guard->buf_available();
@@ -536,11 +588,10 @@ static void pool_given_back(void)
 static unsigned int runs_of(const char *key, unsigned long long line)
 {
     const unsigned long long number[1] = {line};
-    const CarcerMovableEntry *const read = EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = key, .number = number, .count = 1ull, .mirrored = 0, .owner = g_cli_editor_owner);
-    CliDocumentLineRuns one = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = read, .offset = CLI_DOCUMENT_RUNS_LINE_AT(0u), .dst = &one, .bytes = sizeof(one)});
-    (void)g_cli_guard->movable_buf_release(read, g_cli_editor_owner);
-    return one.runs;
+    (void)EMBED_CALL(cli_document_runs.runs_walk, CliDocumentRunsCfg, .key = key, .number = number, .count = 1ull,
+                     .mirrored = 0);
+    return EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg, .key = key, .line = line,
+                      .mirrored = 0);
 }
 
 // the line `line` of the text under `key` replaced with `text`
@@ -551,16 +602,17 @@ static void line_rewritten(const char *key, unsigned int line, unsigned int leng
     const unsigned int counts[1] = {1u};
     CliShape shape;
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = key, .changes = changes, .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = key, .changes = changes,
+                                .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg));
 }
 
 void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were(void)
 {
     // the text's first line has three runs and its third five; the second is rewritten twice as a wide line of many
-    // runs, the first past the cell's room, after which the runs are gathered again with the second line's record last; then
-    // the first line is rewritten wide past the room while the pool has room for the gathering's work cell alone, and
-    // the gathering is refused: the third line's runs are its own, the first line's none, and the pool given back the
-    // next edit colors the text again
+    // runs, the first past the cell's room, after which the runs are gathered again with the second line's record last;
+    // then the first line is rewritten wide past the room while the pool has room for the gathering's work cell alone,
+    // and the gathering is refused: the third line's runs are its own, the first line's none, and the pool given back
+    // the next edit colors the text again
     static char s_compact[4u * DOCUMENT_COMPACT_LINES];
     static char s_wide[DOCUMENT_COMPACT_WIDE];
     VerbaLinea text = {s_compact, sizeof(s_compact), 0ull};
@@ -577,9 +629,12 @@ void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_wer
     }
     const unsigned int wide_length = (unsigned int)mmgr_line_finish(&wide);
     CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "compact", .text = s_compact, .size = text.at, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "compact", .grammar = "branch", .named = 1));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "compact", .from = 0ull, .to = DOCUMENT_COMPACT_LINES));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "compact", .text = s_compact,
+                                .size = text.at, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "compact",
+                                .grammar = "branch", .named = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "compact", .from = 0ull,
+                                .to = DOCUMENT_COMPACT_LINES));
     cli_document_walk();
     TEST_ASSERT_EQUAL_UINT(3u, runs_of("compact", 0ull));
     TEST_ASSERT_EQUAL_UINT(5u, runs_of("compact", 2ull));
@@ -606,13 +661,19 @@ void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_wer
 void test_a_runs_roles_say_whether_a_col_is_inside_a_comment(void)
 {
     CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "roles", .text = "x /* y */ z\n", .size = 12ull, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "roles", .grammar = "branch", .named = 1));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "roles", .from = 0ull, .to = 1ull));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "roles", .text = "x /* y */ z\n",
+                                .size = 12ull, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "roles",
+                                .grammar = "branch", .named = 1));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "roles", .from = 0ull, .to = 1ull));
     cli_document_walk();
-    const unsigned int outside = EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 0u, .col = 0ull);
-    const unsigned int inside = EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 0u, .col = 5ull);
-    const unsigned int none = EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 1u, .col = 0ull);
+    const unsigned int outside =
+        EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 0u, .col = 0ull);
+    const unsigned int inside =
+        EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 0u, .col = 5ull);
+    const unsigned int none =
+        EMBED_CALL(cli_document_key_line.run_roles, CliDocumentKeyLineCfg, .key = "roles", .line = 1u, .col = 0ull);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "roles");
     TEST_ASSERT_EQUAL_UINT(0u, outside & CLI_ROLE_QUOTED);
     TEST_ASSERT_EQUAL_UINT(CLI_ROLE_QUOTED, inside & CLI_ROLE_QUOTED);
@@ -648,7 +709,8 @@ void test_find_each_passes_every_match_with_its_line_and_cols(void)
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_each_count = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = lines, .needle = &needle, .max = 10ull, .err_msg = &err_msg, .each = each_found, .context = NULL));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = lines, .needle = &needle,
+                                .max = 10ull, .err_msg = &err_msg, .each = each_found, .context = NULL));
     TEST_ASSERT_EQUAL_UINT(2u, s_each_count);
     TEST_ASSERT_EQUAL_UINT64(0ull, s_each_found[0][0]);
     TEST_ASSERT_EQUAL_UINT64(0ull, s_each_found[0][1]);
@@ -658,7 +720,8 @@ void test_find_each_passes_every_match_with_its_line_and_cols(void)
     TEST_ASSERT_EQUAL_UINT64(7ull, s_each_found[1][2]);
     // the max bounds the matches passed
     s_each_count = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = lines, .needle = &needle, .max = 1ull, .err_msg = &err_msg, .each = each_found, .context = NULL));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = lines, .needle = &needle,
+                                .max = 1ull, .err_msg = &err_msg, .each = each_found, .context = NULL));
     TEST_ASSERT_EQUAL_UINT(1u, s_each_count);
 }
 
@@ -673,20 +736,25 @@ void test_the_shape_of_lines_counts_their_lines_and_units(void)
 void test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none(void)
 {
     CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "units", .text = "ab\ncd\n", .size = 6ull, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "units", .text = "ab\ncd\n",
+                                .size = 6ull, .shape = &shape));
     unsigned short dst[8];
     unsigned long long count = 9ull;
-    TEST_ASSERT_EQUAL_UINT64(1ull, EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = "units", .line = 1ull, .count = &count, .dst = dst, .capacity = 8ull));
+    TEST_ASSERT_EQUAL_UINT64(1ull, EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = "units",
+                                              .line = 1ull, .count = &count, .dst = dst, .capacity = 8ull));
     TEST_ASSERT_EQUAL_UINT64(2ull, count);
     TEST_ASSERT_EQUAL_UINT('c', dst[0]);
     TEST_ASSERT_EQUAL_UINT('d', dst[1]);
     count = 9ull;
-    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = "units", .line = 9ull, .count = &count, .dst = dst, .capacity = 8ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_document_line.line_units, CliDocumentLineUnitsCfg, .key = "units",
+                                              .line = 9ull, .count = &count, .dst = dst, .capacity = 8ull));
     TEST_ASSERT_EQUAL_UINT64(0ull, count);
     // a text with no last commit's file has no head, and no head line
     TEST_ASSERT_FALSE(EMBED_CALL(cli_document.has_head, CliDocumentCfg, .key = "units"));
     count = 9ull;
-    TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg, .key = "units", .line = 0ull, .count = &count, .dst = dst, .capacity = 8ull));
+    TEST_ASSERT_EQUAL_UINT64(0ull,
+                             EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg, .key = "units",
+                                        .line = 0ull, .count = &count, .dst = dst, .capacity = 8ull));
     TEST_ASSERT_EQUAL_UINT64(0ull, count);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "units");
     TEST_ASSERT_EQUAL_UINT(0u, cli_document_walkers());
@@ -697,18 +765,24 @@ void test_utf16_units_read_as_characters_and_write_as_utf8_and_json(void)
     // 'a', a surrogate pair for U+1F600, an unpaired low surrogate, and a quote
     const unsigned short units[5] = {'a', 0xD83Du, 0xDE00u, 0xDC00u, '"'};
     unsigned long long consumed = 0ull;
-    TEST_ASSERT_EQUAL_UINT('a', EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units, .count = 5ull, .at = 0ull, .consumed = &consumed));
+    TEST_ASSERT_EQUAL_UINT('a', EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units,
+                                           .count = 5ull, .at = 0ull, .consumed = &consumed));
     TEST_ASSERT_EQUAL_UINT64(1ull, consumed);
-    TEST_ASSERT_EQUAL_UINT(0x1F600u, EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units, .count = 5ull, .at = 1ull, .consumed = &consumed));
+    TEST_ASSERT_EQUAL_UINT(0x1F600u, EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units,
+                                                .count = 5ull, .at = 1ull, .consumed = &consumed));
     TEST_ASSERT_EQUAL_UINT64(2ull, consumed);
-    TEST_ASSERT_EQUAL_UINT(0xFFFDu, EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units, .count = 5ull, .at = 3ull, .consumed = &consumed));
+    TEST_ASSERT_EQUAL_UINT(0xFFFDu, EMBED_CALL(cli_document_units.unit_character, CliDocumentUnitsCfg, .units = units,
+                                               .count = 5ull, .at = 3ull, .consumed = &consumed));
     TEST_ASSERT_EQUAL_UINT64(1ull, consumed);
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .units = units, .count = 3ull, .out = &out);
+    EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .units = units, .count = 3ull,
+               .out = &out);
     CLI_TEST_ASSERT_TEXT("a\xF0\x9F\x98\x80", s_out, out.at);
     out.at = 0ull;
-    EMBED_CALL(cli_document_units_count.units_write, CliDocumentUnitsCountCfg, .units = units, .count = 5ull, .out = &out);
-    TEST_ASSERT_TRUE((out.at >= 4ull) && (s_out[0] == '"') && (s_out[out.at - 1ull] == '"') && (s_out[out.at - 2ull] != '\\'));
+    EMBED_CALL(cli_document_units_count.units_write, CliDocumentUnitsCountCfg, .units = units, .count = 5ull,
+               .out = &out);
+    TEST_ASSERT_TRUE((out.at >= 4ull) && (s_out[0] == '"') && (s_out[out.at - 1ull] == '"') &&
+                     (s_out[out.at - 2ull] != '\\'));
     TEST_ASSERT_TRUE((s_out[out.at - 3ull] == '\\') && (s_out[out.at - 2ull] == '"'));
 }
 
@@ -716,7 +790,8 @@ void test_the_walks_telemetry_switches_on_and_off_around_a_walk(void)
 {
     CliShape shape;
     cli_document_telemetry_on();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "telemetry", .text = "a b\n", .size = 4ull, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "telemetry", .text = "a b\n",
+                                .size = 4ull, .shape = &shape));
     cli_document_walk();
     cli_document_telemetry_off();
     cli_document_walk();
@@ -743,14 +818,18 @@ void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(voi
     char grammar[CLI_NAME_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "words", .text = s_names, .size = sizeof(s_names) - 1u, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = grammar, .err_msg = &err_msg));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "words", .grammar = grammar, .named = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "words", .text = s_names,
+                                .size = sizeof(s_names) - 1u, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = grammar,
+                                .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "words",
+                                .grammar = grammar, .named = 1));
     cli_document_walk();
     const unsigned long long held = mmgr_owner_in_use(g_cli_editor_owner);
     s_words_count = 0u;
     s_words_line = (VerbaLinea){s_words, sizeof(s_words), 0ull};
-    EMBED_CALL(cli_document_words.words_each, CliDocumentWordsCfg, .key = "words", .first = 0ull, .last = 2ull, .cursor = {1ull, 3ull}, .each = word_noted, .context = NULL);
+    EMBED_CALL(cli_document_words.words_each, CliDocumentWordsCfg, .key = "words", .first = 0ull, .last = 2ull,
+               .cursor = {1ull, 3ull}, .each = word_noted, .context = NULL);
     (void)mmgr_line_finish(&s_words_line);
     TEST_ASSERT_EQUAL_UINT(3u, s_words_count);
     CLI_TEST_ASSERT_CONTAINS("beta", s_words);
@@ -758,4 +837,3 @@ void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(voi
     TEST_ASSERT_EQUAL_UINT64(held, mmgr_owner_in_use(g_cli_editor_owner));
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "words");
 }
-

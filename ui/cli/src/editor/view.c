@@ -5925,7 +5925,6 @@ void cli_view_frame_release(const CliViewAtCfg *args)
 {
     if (args->frame != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->frame->runs, g_cli_views_owner);
         g_cli_guard->persistent_buf_release(args->frame, g_cli_views_owner);
     }
 }
@@ -6372,11 +6371,16 @@ EMBED_INLINE CliViewFrame *view_frame_made(const ViewCtx *args)
     {
         (void)EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = view->key, .from = from, .to = to);
     }
-    frame->runs =
-        EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = view->key, .number = displayed.number,
-                   .count = displayed.count, .mirrored = 1, .owner = g_cli_views_owner);
+    // the rows' lines walked where they save no runs yet; the window reads each row's runs from the document by its
+    // line
+    const int walked = EMBED_CALL(cli_document_runs.runs_walk, CliDocumentRunsCfg, .key = view->key,
+                                  .number = displayed.number, .count = displayed.count, .mirrored = 1);
     g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
-    if (frame->runs == NULL)
+    memor.cpy(
+        &(MemoriaCfg){.dst = frame->key,
+                      .src = view->key,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = view->key, .cap = CLI_NAME_MAX_LEN - 1u}) + 1u});
+    if (!walked)
     {
         cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
         return NULL;

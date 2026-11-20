@@ -4375,19 +4375,11 @@ EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
     const int on_frame = (frame->cursor.line >= frame->from) && ((frame->cursor.line - frame->from) < frame->count);
     // a row of the frame is far fewer than an int counts
     const unsigned int row = on_frame ? (unsigned int)(frame->cursor.line - frame->from) : 0u;
-    // the cursor's row's entry and the words' offset read out of the frame's runs cell
-    CliDocumentLineRuns held = {0u, 0u};
-    CliDocumentRuns runs_head = {0u, 0u};
-    if (on_frame && (frame->runs != NULL))
-    {
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = frame->runs, .dst = &runs_head, .bytes = sizeof(runs_head)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &held, .bytes = sizeof(held)});
-    }
-    const unsigned int runs = held.runs;
-    const unsigned long long columns_at =
-        (unsigned long long)runs_head.words_at + ((unsigned long long)held.at * sizeof(unsigned int));
+    // the cursor's row's runs read from the document by the row's line
+    const unsigned long long row_line = on_frame ? frame->row[row].number : 0ULL;
+    const unsigned int runs = on_frame ? EMBED_CALL(cli_document_line_run_table.count, CliDocumentLineRunCfg,
+                                                    .key = frame->key, .line = row_line, .mirrored = 1)
+                                       : 0u;
     char text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "frame ");
@@ -4402,16 +4394,8 @@ EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
     {
         unsigned int column = 0u;
         unsigned int name = 0u;
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = frame->runs,
-                                .offset = columns_at + ((unsigned long long)at * sizeof(column)),
-                                .dst = &column,
-                                .bytes = sizeof(column)});
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = frame->runs,
-                                .offset = columns_at + ((unsigned long long)(runs + at) * sizeof(name)),
-                                .dst = &name,
-                                .bytes = sizeof(name)});
+        (void)EMBED_CALL(cli_document_line_run_table.read, CliDocumentLineRunCfg, .key = frame->key, .line = row_line,
+                         .mirrored = 1, .run = at, .column = &column, .name = &name);
         mmgr_line_ch(&line, ' ');
         mmgr_line_decimal(&line, column, 1u);
         mmgr_line_ch(&line, ':');

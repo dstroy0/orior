@@ -135,8 +135,8 @@ typedef struct
 } CliViewFind;
 
 // A view's frame: every count and pointer the window draws from, in cells of the views' owner, immutable once read. The
-// rows are the lines displayed from `from`, the lines a closed fold hides left out, each row's runs in
-// the movable cell `runs` at CLI_DOCUMENT_RUNS_LINE_AT(row); the closers are among `bytes` from `closers`; each match
+// rows are the lines displayed from `from`, the lines a closed fold hides left out, each row's runs read from the
+// document under the text's `key` by the row's line; the closers are among `bytes` from `closers`; each match
 // is a line, a from and a to column; `indent_tabs` is 1 for tabs, 0 for spaces and -1 where nothing set it. The file is
 // a grid of lines by cells and the view a window on it: `top` is its first line and `left` its first cell column. Each
 // row holds its line from its start through the view's last column, so every column stays the file's own and the window
@@ -181,7 +181,7 @@ typedef struct
     unsigned long long (*match)[3];
     unsigned long long *column_offset;
     char *bytes;
-    const CarcerMovableEntry *runs;
+    char key[CLI_NAME_MAX_LEN];
 } CliViewFrame;
 
 // the frame of the view under `key` in cells taken for it, sized to its rows and columns: the frame, or NULL where no
