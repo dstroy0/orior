@@ -6,23 +6,22 @@
 #
 #   Usage:  python utils/maint/data/salishan/corpus_derivation.py
 #
-# Run after every change to a hand extraction. This file reads the checks, computes a bound on the
-# per-line error rate of the pure corpus, and rewrites the corpus derivation chapter in theory/.
+# Run this after every change to a hand extraction. This file reads the checks, computes a bound on the per-line error
+# rate of the pure corpus, and rewrites the corpus derivation chapter in theory/.
 #
 # WHY A BOUND AND NOT A RATE
 #
-# Every check that matters reports zero. Zero failures in N trials is not a failure rate of zero: it
-# is a sample that has not yet seen one. The bound that goes with it is the rule of three, which
-# says that with no failures in N independent trials the true rate is under 3/N with 95 percent
-# confidence. That is the honest reading of a clean check and it is what this file reports.
+# Every check that matters reports zero. Zero failures in N trials is not a failure rate of zero: it is a sample with no
+# failure in it yet. The bound that goes with it is the rule of three. With no failures in N independent trials, the
+# true rate is under 3/N with 95 percent confidence. That is the honest reading of a clean check, and it is what this
+# file reports.
 #
 # WHERE THE SMALL NUMBERS COME FROM
 #
-# A single channel cannot get far. 3/N with N in the tens of thousands is about 10^-4, and driving
-# that to 10^-26 by counting alone would take 10^26 tokens. The small number comes from a line
-# having to pass several checks that fail for different reasons. The joint bound is the product.
-# The product is only as good as the independence, and Section 4 of the document says exactly where
-# that assumption is thin. A number quoted without it is a decoration.
+# A single channel cannot get far: 3/N with N in the tens of thousands is about 10^-4. A count alone would need 10^26
+# tokens to bring that to 10^-26. The small number comes from the rule that a line must pass several checks that fail
+# for different reasons. The joint bound is the product, and it is only as good as the independence. Section 4 of the
+# document says exactly where that assumption is thin. A number quoted without it is a decoration.
 
 import collections
 import glob
@@ -39,17 +38,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 for _category in os.scandir(HERE):
     if _category.is_dir():
         sys.path.insert(0, _category.path)
-# The engine's instrument directory, found by walking up to the repository and not by
-# counting parents. Counting put this at maint/data/instrument, which has never existed, and
-# the import failed with a missing module instead of a wrong path.
+# The engine's instrument directory, found by a walk up to the repository and not by a count of parents. A count of
+# parents lands at maint/data/instrument, which does not exist. The import then fails with an absent module instead of a
+# wrong path.
 _at = os.path.dirname(os.path.abspath(__file__))
 while (_at != os.path.dirname(_at)) and not os.path.isdir(
     os.path.join(_at, "src", "cu", "engine")
 ):
     _at = os.path.dirname(_at)
 sys.path.insert(0, os.path.join(_at, "src", "python", "engine", "nbody", "orior", "instrument"))
-# Built from the repository and not by counting parents. Counting put this at maint/data/texbuild,
-# which has never existed, and the import failed with a missing module instead of a wrong path.
+# Built from the repository and not by a count of parents. A count lands at maint/data/texbuild, which does not exist,
+# and the import then fails with an absent module instead of a wrong path.
 sys.path.insert(0, os.path.join(_at, "utils", "maint", "texbuild"))
 
 import boundary_check as border  # noqa: E402
@@ -73,15 +72,14 @@ from salish_unsorted import is_language_token  # noqa: E402
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    A marker the repository produces, such as build/, is absent from a linked worktree and a
-    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
-    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
-    of it holds.
+    A marker that the repository produces, such as build/, is absent from a linked worktree and from a clone with no
+    build. A climb to it can pass this root and land in another checkout whose paths look valid. A marker infers the
+    root. Git answers it. The climb below serves only an exported tree with no git directory. It looks for
+    archive/src/python, which the repository tracks and every checkout of it holds.
 
-    Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
-    inherits it answers about that repository and not about the directory it was asked from,
-    returning the current directory instead of the root.
+    The function clears the variables of git first. Inside a hook, git exports GIT_DIR. A rev-parse that inherits it
+    answers about that repository, and not about the directory that the caller asks from. It then returns the current
+    directory instead of the root.
     """
     start = os.path.dirname(os.path.abspath(__file__))
     environment = dict(os.environ)
@@ -119,30 +117,29 @@ def _repository_root():
 ROOT = _repository_root()
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# The chapter is the output instead of a page under docs. theory/ is the source and docs/research
-# points at it. Writing markdown there would put a second copy where the pointer belongs.
+# The chapter is the output instead of a page under docs. theory/ is the source and docs/research points at it. Markdown
+# there would put a second copy where the pointer belongs.
 #
-# The figure goes beside the chapter for the same reason. It was landing under docs/ while its
-# chapter was in theory/, which left the research paper referring to a picture in another directory and put
-# a research artifact inside what is otherwise repository documentation. PDF because matplotlib
-# writes it from the same savefig call and XeLaTeX includes it without Inkscape.
+# The figure goes beside the chapter for the same reason. Under docs/, with its chapter in theory/, the research paper
+# would refer to a picture in another directory. A research artifact would also sit inside what is otherwise repository
+# documentation. PDF, because matplotlib writes it from the same savefig call, and XeLaTeX includes it without Inkscape.
 CHAPTERS = os.path.join(ROOT, "theory", "theory", "Salishan", "chapters")
 TARGET = os.path.join(CHAPTERS, "chapter_Salishan_corpus_derivation.tex")
 FIGURE = os.path.join(CHAPTERS, "corpus-derivation.pdf")
 
-# The papers whose extracted text is not what the page prints. A check against one of these is
-# measuring the source. Its disagreements say nothing about the table and it contributes no
-# trials to the bound. The references chapter in theory/theory/Salishan names each and says what happened.
+# The papers whose extracted text is not what the page prints. A check against one of these measures the source. Its
+# disagreements say nothing about the table, and it adds no trials to the bound. The references chapter in
+# theory/theory/Salishan names each and says what happened.
 #
-# ORTHOGRAPHY_ABSENT is read from papers.py and not restated here. oracle_check errors instead of
-# counting those papers and prints why, and a copy restated here would count them into the bound as
-# though their tables disagreed with their papers: one fact read two ways, the drift reported()
-# warns about further down, arriving in the exclusion set instead of in the count.
+# This file reads ORTHOGRAPHY_ABSENT from papers.py, and does not restate it. The oracle_check script stops with an
+# error on those papers instead of a count, and prints why. A copy here would count them into the bound as though their
+# tables disagreed with their papers. That is one fact read two ways: the drift that reported() warns about further
+# down, in the exclusion set instead of in the count.
 UNSOUND = set(NOT_FAITHFUL) | set(ORTHOGRAPHY_ABSENT) | {"2012_Robertson"}
 
-# The rule of three. With no failures in trials, the true rate is under this with 95 percent
-# confidence. That rule is the standard bound for a zero numerator and it is why a clean check
-# still carries a number instead of a claim of perfection.
+# The rule of three. With no failures in trials, the true rate is under this with 95 percent confidence. That rule is
+# the standard bound for a zero numerator. It is why a clean check still carries a number instead of a claim of
+# perfection.
 CONFIDENCE = 3.0
 
 
@@ -171,34 +168,32 @@ ARCHIVE_PAPERS = 993
 # the fewest that can show a trend instead of a coincidence between two adjacent values.
 STEADY = 3
 
-# How many shuffles the ordering term is measured over. self_distance cuts a corpus at its midpoint,
-# and a pure corpus is papers concatenated in file order. An unshuffled cut can put one paper on
-# each side and report the distance between them. Shuffling puts a mixture on both sides.
+# How many shuffles the code measures the ordering term over. `self_distance` cuts a corpus at its midpoint, and a pure
+# corpus is papers concatenated in file order. An unshuffled cut can put one paper on each side, and report the distance
+# between them. A shuffle puts a mixture on both sides.
 SHUFFLES = 5
 
-# Where the projection stops. The corpora are nowhere near this and the curve past the measured
-# points is a model, which Section 6 of the document says in the same sentence it gives the number.
+# Where the projection stops. The corpora are nowhere near this. The curve past the measured points is a model, and
+# Section 6 of the document says so in the same sentence that gives the number.
 PROJECTED_PAIRS = 1e9
 
 
 def alphabets():
-    """Each language's alphabet, as the union of the marks its papers are checked with.
+    """Each language's alphabet, as the union of the marks that its papers use in their checks.
 
-    papers.py carries one mark set per paper because the question is not the same in every paper:
-    the 1983 typescript writes the glottal stop as ? where the others write ʔ. A language read from
-    several papers takes all of them, the alphabet the sift gets to apply to that dialect.
+    `papers.py` carries one mark set per paper, because the question is not the same in every paper. The 1983 typescript
+    writes the glottal stop as ? where the others write ʔ. A language read from several papers takes all of them, the
+    alphabet that the sift can apply to that dialect.
     """
     held = {}
     for name, stem, record, repair, marks, _line_joins in EVERY:
-        # A paper with no reader carries an empty record and writes no corpus file. Splitting that
-        # raised IndexError and took the whole chapter down with it: five of the twenty five papers
-        # are in that state, four of them because their text holds none of their orthography and no
-        # reader can be written against it.
+        # A paper with no reader carries an empty record and writes no corpus file. A split of that record raises
+        # IndexError and takes the whole chapter down with it. Five of the twenty five papers are in that state. Four of
+        # them have text that holds none of their orthography, and no reader can work against it.
         #
-        # Skipped, and nothing is defaulted in its place. This table is read only by pure_corpora,
-        # which walks the corpus files actually on disk and keys them by the same BY_CORPUS name.
-        # A paper with no corpus file has nothing for an alphabet to be applied to and contributes
-        # no marks that anything would look up.
+        # The code skips such a paper, and puts no default in its place. Only pure_corpora reads this table. It walks
+        # the corpus files that are actually on disk, and keys them by the same BY_CORPUS name. A paper with no corpus
+        # file has nothing to apply an alphabet to, and adds no marks that anything would look up.
         if not record:
             continue
         language = BY_CORPUS.get(record.split("_")[1])
@@ -210,11 +205,10 @@ def alphabets():
 def pure_corpora(applied):
     """The known-pure lines of each language, optionally cut down to its own alphabet.
 
-    With applied false this is the text as the readers wrote it, what the sift sees when it is
-    given nothing but a page. With applied true every line is cut to the tokens that are
-    language under that dialect's alphabet, the sift given what the extraction already
-    knows. The two are the unaided and the alphabet-applied arms, and the gap between them is what
-    the alphabet is worth.
+    With applied false, this is the text as the readers wrote it, what the sift sees when it gets nothing but a page.
+    With applied true, the code cuts every line to the tokens that are language under the alphabet of that dialect. The
+    sift then has what the extraction already knows. The two are the unaided and the alphabet-applied arms, and the gap
+    between them is what the alphabet is worth.
     """
     marks = alphabets()
     held = collections.defaultdict(list)
@@ -241,15 +235,16 @@ def pure_corpora(applied):
 def anchor_resolution(pure):
     """The estimator's resolution as corpus size grows, with the corpus ordering term taken out.
 
-    Returns (points, scale, separations). points is [(pairs, in order, shuffled), ...] across the
-    growth of every pure corpus, scale is the fitted k of k/sqrt(pairs) through the shuffled
-    points, and separations is the distance between each pair of corpora, the distance a
-    resolution has to beat before a paper can be placed beside one of them.
+    Returns (points, scale, separations):
+      - `points` is [(pairs, in order, shuffled), ...] across the growth of every pure corpus.
+      - `scale` is the fitted k of k/sqrt(pairs) through the shuffled points.
+      - `separations` is the distance between each pair of corpora. A resolution must beat it before the code can place
+        a paper beside one of them.
 
-    The two D_self numbers differ by 1.35x to 3.64x across the six corpora and the unshuffled one is
-    larger every time. D_self as corpus_growth prints it is not the resolution on its own. It
-    carries the distance between whichever papers the midpoint cut happened to separate, and that
-    term rises when a new paper joins a corpus. A resolution cannot rise as its sample grows.
+    The two D_self numbers differ by 1.35x to 3.64x across the six corpora, and the unshuffled one is larger every time.
+    D_self as corpus_growth prints it is not the resolution on its own. It carries the distance between whichever papers
+    the midpoint cut happened to separate, and that term rises when a new paper joins a corpus. A resolution cannot rise
+    as its sample grows.
     """
     held = {}
     profiles = {}
@@ -268,10 +263,10 @@ def anchor_resolution(pure):
         held[name] = (total, self_distance(lines), statistics.median(mixed))
         profiles[name] = profile
 
-    # Each dialect against the rest of the corpus pooled. This is the question the sift is actually
-    # asked, and it is the harder one: a dialect has to be off everything else at once, not beat
-    # one other language at a time. Pooling is also the leave-one-out measurement, with the corpus
-    # as its own reference corpus. A dialect that will not separate shows up here.
+    # Each dialect against the rest of the corpus pooled. This is the question that the sift actually gets, and it is
+    # the harder one. A dialect must be off everything else at once, and not beat one other language at a time. The pool
+    # is also the leave-one-out measurement, with the corpus as its own reference corpus. A dialect that will not
+    # separate shows up here.
     separations = {}
     for name in sorted(profiles):
         others = []
@@ -296,9 +291,9 @@ def anchor_resolution(pure):
 def corpus_at(readers):
     """How large the pure corpus was as each paper joined it, in adjacent byte pairs.
 
-    EVERY is in the order the papers were read. Accumulating along it is the history itself and
-    not a reconstruction of one. A reader point sits at the size the corpus reached when that
-    paper was added, and that puts it on the same axis as the algorithm curve beside it.
+    EVERY is in the order that the tool read the papers. A sum along it is the history itself, and not a reconstruction
+    of one. A reader point sits at the size that the corpus reached when that paper joined it. That puts it on the same
+    axis as the algorithm curve beside it.
     """
     sizes = {}
     for name, stem, record, repair, marks, _line_joins in EVERY:
@@ -317,19 +312,16 @@ def corpus_at(readers):
 
 
 def placeable(held, separations, growth):
-    """What fraction of the dialects are off the rest of the corpus, with every corpus grown by
-    this.
+    """What fraction of the dialects are off the rest of the corpus, with every corpus grown by this.
 
-    This is the algorithm's accuracy, asked the way `reading` asks it: a dialect is placed when its
-    distance from the pooled reference corpus clears MARGIN times the resolution of the worse of
-    the two.
-    Pooling every corpus into one resolution asks an easier question than the method faces and
-    answers 1.0 at the size the corpora are already at.
+    This is the accuracy of the algorithm, asked the way that `reading` asks it. The code places a dialect when its
+    distance from the pooled reference corpus clears MARGIN times the resolution of the worse of the two. A pool of
+    every corpus into one resolution asks an easier question than the method faces. It answers 1.0 at the size that the
+    corpora already have.
 
-    Each corpus carries its own resolution because each is a different size. Growth multiplies every
-    corpus, and a resolution measured at n falls as 1/sqrt(n). Growing by g divides it by
-    sqrt(g). Nothing is tuned per language: the distances are measured between the corpora and the
-    resolutions are measured inside them.
+    Each corpus carries its own resolution, because each is a different size. Growth multiplies every corpus, and a
+    resolution measured at n falls as 1/sqrt(n). A growth of g divides it by sqrt(g). The code tunes nothing per
+    language: it measures the distances between the corpora, and the resolutions inside them.
     """
     if not separations:
         return 0.0
@@ -342,13 +334,13 @@ def placeable(held, separations, growth):
 
 
 def figure_of(papers, readers, path):
-    """The two pictures the derivation rests on, written as one SVG beside the document.
+    """The two pictures that the derivation rests on, written as one SVG beside the document.
 
-    SVG because it is vector, because it diffs as text in git the way the document next to it does,
-    and because a reader opens it in a browser with nothing installed.
+    SVG, because it is vector, and it diffs as text in git the way the document next to it does. Also, a reader opens it
+    in a browser with nothing installed.
 
-    Left is what has been measured: every paper as one point, trials against failures. Right is
-    where the two ways of reading a paper are going as the pure corpus grows.
+    Left is what the checks measured: every paper as one point, trials against failures. Right is where the two ways to
+    read a paper go as the pure corpus grows.
     """
     import matplotlib
 
@@ -375,8 +367,8 @@ def figure_of(papers, readers, path):
             edgecolors="white",
             linewidths=0.6,
         )
-    # The readers get their own color because they are a different measurement, not another sample
-    # of the one beside them. A reader is written for one paper and its errors belong to that paper.
+    # The readers get their own color, because they are a different measurement, and not another sample of the one
+    # beside them. Each reader serves one paper, and its errors belong to that paper.
     if readers:
         left.scatter(
             [one["wanted"] for one in readers],
@@ -389,10 +381,9 @@ def figure_of(papers, readers, path):
             edgecolors="white",
             linewidths=0.6,
         )
-    # Only the papers that failed something get named. The ones on the zero line are the result and
-    # there are nine of them sitting on one row. Section 2's table names every paper.
-    # The offsets alternate above and below because the two Lyon papers land almost on top of each
-    # other, and one label would otherwise be written across the other.
+    # Only the papers that failed something get a name. The ones on the zero line are the result, and nine of them sit
+    # on one row. The table of Section 2 names every paper. The offsets alternate above and below, because the two Lyon
+    # papers land almost on top of each other. One label would otherwise lie across the other.
     failed = [one for one in papers if (one["unfound"] + one["missed"]) > 0]
     for at, one in enumerate(
         sorted(failed, key=lambda paper: paper["forms"] + paper["tokens"])
@@ -418,15 +409,15 @@ def figure_of(papers, readers, path):
     bare = anchor_resolution(pure_corpora(False))
     applied = anchor_resolution(pure_corpora(True))
 
-    # Growth multiplies every corpus at once, from a hundredth of what is on disk to ten thousand
-    # times it, and the axis is the total that growth puts in the corpus.
+    # Growth multiplies every corpus at once, from a hundredth of what is on disk to ten thousand times it. The axis is
+    # the total that growth puts in the corpus.
     growths = [10.0 ** (-2.0 + (4.0 * step / 240.0)) for step in range(241)]
     located = sum(one[0] for one in bare[0].values())
     sizes = [located * one for one in growths]
 
-    # A person's accuracy on a page does not improve because some other paper was read. The
-    # reader arm does not climb with corpus size. Its scatter is the point: a reader is written for
-    # one paper and what it gets right is a fact about that paper.
+    # A person's accuracy on a page does not improve because the tool read some other paper. The reader arm does not
+    # climb with corpus size. Its scatter is the point: each reader serves one paper, and what it gets right is a fact
+    # about that paper.
     rates = [
         one["reproduced"] / float(one["wanted"]) for one in readers if one["wanted"]
     ]
@@ -517,18 +508,17 @@ def figure_of(papers, readers, path):
 
 
 def reported(module):
-    """One check's own output, as the text it prints.
+    """One check's own output, as the text that it prints.
 
-    Run and read instead of reimplemented. The first version of this file computed the same
-    quantities a second time and got 16 failures where oracle_check reports 0 and an invented
-    count of 16912 versus its 2134, because a second copy of a rule drifts from the first. What
-    the derivation reports now is what the check reports, by construction.
+    The derivation runs the check and reads its output, and does not implement it again. A second copy of a rule drifts
+    from the first. A copy of these quantities here would report failures where oracle_check reports 0, and invent
+    counts that oracle_check does not give. By construction, the derivation reports the same as the check.
     """
 
-    # Every check writes through sys.stdout.buffer so it can put these orthographies on a console
-    # that would otherwise error on them. The capture has to offer a buffer of its own.
-    # This one declines to close because the wrapper the check builds around that buffer closes it
-    # when it is collected, and a closed BytesIO will not hand its value back.
+    # Every check writes through sys.stdout.buffer, and can then put these orthographies on a console that would
+    # otherwise error on them. The capture must offer a buffer of its own. This one declines to close. The wrapper that
+    # the check builds around that buffer closes it when the garbage collector takes the wrapper. A closed BytesIO does
+    # not hand its value back.
     class Retained(io.BytesIO):
         def close(self):
             pass
@@ -547,14 +537,14 @@ def reported(module):
     return held.buffer.getvalue().decode("utf-8", errors="replace")
 
 
-# A paper's block opens with its table's filename and every count in it is a number followed by the
-# check's own words for what it counted. Those phrases are the check's vocabulary. Keying on
-# them breaks loudly if one is reworded instead of drifting quietly.
+# A paper's block opens with the filename of its table. Every count in it is a number followed by the check's own words
+# for what it counted. Those phrases are the vocabulary of the check. A key on them breaks loudly if the check rewords
+# one, and does not drift quietly.
 BLOCK = re.compile(r"^\s+(\S+)\.oracle\.tsv")
 COUNT = re.compile(r"^\s+(\d+)\s+(\S.*?)\s*$")
 
-# reader_check puts two counts on one line, the forms it was asked for and the items the reader
-# actually wrote. The second one needs asking for by name.
+# reader_check puts two counts on one line: the forms that the check requested, and the items that the reader actually
+# wrote. The code must request the second one by name.
 ITEMS = re.compile(r"forms asked for,\s+(\d+)\s+items")
 
 
@@ -661,16 +651,14 @@ def covered():
 
 
 def settled(papers, carried):
-    """The joint bound recomputed as each paper joined the corpus, and how much of it settled.
+    """The joint bound computed again as each paper joined the corpus, and how much of it settled.
 
-    A number is worth reporting to the digit that has stopped moving and no further. The way to find
-    that digit is not to pick a format, it is to watch the number as the evidence arrives and see
-    where it stops changing.
+    A number is worth a report to the digit that no longer moves, and no further. The way to find that digit is not to
+    pick a format. It is to watch the number as the evidence arrives, and see where it no longer changes.
 
-    Returns the running values and the count of leading significant digits that agree across the
-    last STEADY of them. A bound still falling with every paper has none, and reporting none is
-    honest while the extraction is still buying accuracy: the exponent is the finding and the
-    mantissa is a number in flight.
+    Returns the running values and the count of leading significant digits that agree across the last STEADY of them. A
+    bound that still falls with every paper has none. A report of none is honest while the extraction still buys
+    accuracy: the exponent is the finding, and the mantissa is a number in flight.
     """
     running = []
     for at in range(1, len(papers) + 1):
@@ -679,9 +667,9 @@ def settled(papers, carried):
         unfound = sum(one["unfound"] for one in ahead)
         tokens = sum(one["tokens"] for one in ahead)
         missed = sum(one["missed"] for one in ahead)
-        # The coverage channel is not per paper in the same order. That channel is retained at what it
-        # is and the two directions carry the movement. Mixing a fixed term into a running one
-        # would flatten the curve and report a settling that did not happen.
+        # The coverage channel is not per paper in the same order. That channel stays at what it is, and the two
+        # directions carry the movement. A fixed term mixed into a running one would flatten the curve, and show the
+        # number as settled when it is not.
         held = sum(one["tokens"] for one in carried)
         lost = sum(one["missing"] for one in carried)
         running.append(
@@ -708,11 +696,10 @@ def settled(papers, carried):
 
 
 def border_result():
-    """What the dialect border check found, for the document to quote instead of restating it.
+    """What the dialect border check found, for the document to quote, and not to state again.
 
-    Section 7 said the border needed 2.9 times the corpus, and that was true of the distributions
-    and false of the radix, which finds it now. A number typed into prose is a number that goes
-    stale the next time a paper is read.
+    The radix finds the border at the size that the corpus has, and the distributions do not. A number typed into prose
+    goes stale the next time the tool reads a paper.
     """
     grouped, marks = border.by_language()
     if not all(one in grouped for one in border.BORDER):
@@ -796,8 +783,8 @@ def main():
         return 1
 
     sound = [one for one in papers if one["sound"]]
-    # The left panel plots unfound plus missed. Its zero line holds every paper both directions
-    # cleared. Counting it here retains the prose beside the picture true as papers are added.
+    # The left panel plots unfound plus missed. Its zero line holds every paper that both directions cleared. A count of
+    # it here keeps the prose beside the picture true as papers join.
     on_zero = len([one for one in papers if (one["unfound"] + one["missed"]) == 0])
     forms = sum(one["forms"] for one in sound)
     unfound = sum(one["unfound"] for one in sound)
@@ -807,11 +794,10 @@ def main():
     held = sum(one["tokens"] for one in carried)
     lost = sum(one["missing"] for one in carried)
 
-    # The three channels a wrong line can arrive through, each with its own trials and its own
-    # reason for failing. The reader counts are not among them. A reader is written for one paper.
-    # Its error rate is a fact about that paper and not a draw from a rate the next paper shares,
-    # and pooling them into one denominator would report a rate nothing is sampling.
-    # Section 5 gives them per paper, the only form they are true in.
+    # The three channels that a wrong line can arrive through, each with its own trials and its own reason to fail. The
+    # reader counts are not among them. Each reader serves one paper. Its error rate is a fact about that paper, and not
+    # a draw from a rate that the next paper shares. A pool of them in one denominator would report a rate that nothing
+    # samples. Section 5 gives them per paper, the only form that they are true in.
     channels = (
         ("a form written that the paper does not hold", unfound, forms),
         ("a token in the paper that no row holds", missed, tokens),
@@ -821,7 +807,7 @@ def main():
     for label, failures, trials in channels:
         joint *= bound(failures, trials)
 
-    # The figure is drawn beside its target and moved over it only where its bytes differ.
+    # The code draws the figure beside its target, and moves it over the target only where its bytes differ.
     drawn = FIGURE + ".new"
     bare, applied, rate, crossing = figure_of(papers, readers, drawn)
     figure_changed = True
@@ -835,9 +821,9 @@ def main():
     located = border_result()
     running, stable = settled(sound, carried)
 
-    # Built in memory, then passed to the converter that produced every other chapter. The document
-    # is written as markdown here because these 69 lines already say it, and converting
-    # once at the end is cheaper than restating all of them in LaTeX.
+    # Built in memory, then passed to the converter that produced every other chapter. The code writes the document as
+    # markdown here, because these 69 lines already say it. One conversion at the end is cheaper than a restatement of
+    # all of them in LaTeX.
     with io.StringIO() as handle:
         handle.write("# Corpus derivation\n\n")
 
@@ -985,8 +971,8 @@ def main():
             "extraction. It is not reached and it is not close, and the honest form of "
             "the answer is the distance.\n\n"
         )
-        # The archive is 993 papers and only the sound ones are counted. The lifetime is what
-        # those scale to. The bound is 3/N in each channel and N grows with the papers read.
+        # The archive is 993 papers, and the code counts only the sound ones. The lifetime is what those scale to. The
+        # bound is 3/N in each channel, and N grows with the papers read.
         lifetime = ARCHIVE_PAPERS / float(len(sound))
         ahead = 1.0
         handle.write(
@@ -1203,14 +1189,14 @@ def main():
 
         written = handle.getvalue()
 
-    # The chapter title comes from the manifest in markdown_to_latex. The research paper reads the same
-    # whether a chapter was converted once by hand or is rewritten by this every run.
+    # The chapter title comes from the manifest in markdown_to_latex. The research paper reads the same, whether a
+    # person converted a chapter once by hand or this code rewrites it every run.
     body = markdown_to_latex.convert(written, "How wrong it could be")
     # The heading the markdown opens with is now the chapter title, and retention both would print it
     # twice on the page.
     body = body.replace("\\section{Corpus derivation}\n\n", "", 1)
-    # A citation is written as a marker the converter leaves alone and turned into \cite after it,
-    # since the converter escapes every backslash.
+    # The code writes a citation as a marker that the converter leaves alone, and turns it into \cite after it. The
+    # converter escapes every backslash.
     body = re.sub(r"\[\[cite:([^\]]+)\]\]", r"\\cite{\1}", body)
     # Rewritten only where the text changes, and each rewrite printed as "  wrote <path>" for the
     # research paper's build to show.
