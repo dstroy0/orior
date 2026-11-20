@@ -13,8 +13,9 @@ static int khw_form_line_read(const char *text, char *operation, size_t operatio
            line_number(&at, 1, high);
 }
 
-// 1 where the machine file's text, `size` bytes at `bytes`, names the encoding `low` and `high` as one of its forms, a
-// line `form <operation> <types> 0x<low> 0x<high> ...`: the forms a word of the web is written by and ranked among
+// 1 where the text of the machine file, `size` bytes at `bytes`, names the encoding `low` and `high` as one of its
+// forms. That is a line `form <operation> <types> 0x<low> 0x<high> ...`. These are the forms that write a word of the
+// web, and that the rank of it is among
 int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigned long long low,
                     unsigned long long high)
 {
@@ -37,9 +38,9 @@ int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigne
     return 0;
 }
 
-// The vendor's writer run through the interface in `mode`, passed the part, the file to write, the container layout,
-// the vendor's table and the answers file (vendor_writer_run.h), its output passed to the run as KHW_MACHINE_NAME. 1
-// where it ended clean
+// The writer of the vendor, run through the interface in `mode` (vendor_writer_run.h). It gets the part, the file to
+// write, the container layout, the table of the vendor and the answers file.
+// Its output goes to the run as KHW_MACHINE_NAME. The result is 1 where it ended clean
 int khw_vendor_run(const char *mode, const char *answers)
 {
     char *const command[] = {(char *)s_machine_writer, (char *)s_part,  (char *)s_path, (char *)s_layout,
@@ -47,10 +48,13 @@ int khw_vendor_run(const char *mode, const char *answers)
     return vendor_writer_run(command, KHW_MACHINE_NAME, "khw_write", mode);
 }
 
-// The forms read from the latest blob of `name` in the run into s_named: the working set the split passes
-// retain, a line to a form with its phase and the order its words were read ahead of the relation, or the forms the
-// part answered for, a line without those, every form of it classified and read in order. Each form's encoding and the
-// runs its operands sit in, the relation and the signedness read past. The count read, 0 where the run contains none
+// The forms read from the latest blob of `name` in the run into s_named. It is one of two:
+//   - the working set that the passes of the split keep. Each line is a form, with its phase and the read order of its
+//     words ahead of the relation.
+//   - the forms that the part answered for, a line without those. Each form of it has its class, and reads in order.
+//
+// The read takes the encoding of each form and the runs that its operands sit in. It reads past the relation and the
+// signedness. The result is the count read, 0 where the run holds none
 unsigned int khw_forms_read(const char *name)
 {
     const unsigned char *bytes = NULL;
@@ -72,8 +76,8 @@ unsigned int khw_forms_read(const char *name)
         memset(&answered, 0, sizeof(answered));
         char relation[256];
         const char *runs_at = line;
-        // a working-set line leads with the phase and the read order; a vendor answers line leads with the relation,
-        // and every form it contains is classified and read in the order the host put the words
+        // a working-set line leads with the phase and the read order. A vendor answers line leads with the relation.
+        // Each form in it has its class, and reads in the order that the host put the words
         if (!line_unsigned(&runs_at, &answered.phase) || !line_signed(&runs_at, &answered.swapped) ||
             !line_word(&runs_at, relation, sizeof(relation)) || !line_signed(&runs_at, &answered.signed_read) ||
             !line_signed(&runs_at, &answered.signedness_queried) || !line_number(&runs_at, 1, &answered.low) ||
@@ -89,8 +93,8 @@ unsigned int khw_forms_read(const char *name)
                 continue;
             }
         }
-        // the relation named back to its anchor or its frame relation, for a form read in to write the same relation
-        // out: a frame's with its reading after a dot
+        // the relation, named back to its anchor or its frame relation. A form read in then writes the same relation
+        // out. The relation of a frame has its read after a dot
         answered.anchor = (unsigned int)LADDER_ANCHOR_COUNT;
         answered.frame = (unsigned int)FRAME_RELATION_COUNT;
         const size_t ladder_prefix = strlen(KHW_READS_LADDER);
