@@ -1,14 +1,14 @@
-"""The shared half of a paper's generator: its lines, its paragraph starts, its footnotes, its
-references, and the ops file the rows become.
+"""The shared half of the generator of a paper. It holds its lines, its paragraph starts, its footnotes, its
+references, and the ops file that the rows become.
 
-A paper's own generator imports this module and states only what is the paper's: which lines are
-headings, how its examples are arranged, which names and languages it holds.
+The own generator of a paper imports this module, and states only what belongs to the paper. That is which lines
+are headings, the arrangement of its examples, and which names and languages it holds.
 
-    import gen
-    paper = gen.Paper("ICSNL56_Zenk_final")
-    paper.add("front", gen.A, "title", paper.text(2), "page 1")
-    ...
-    paper.write()                     # ops/<stem>.ops, the rows chained in order
+    `import gen`
+    `paper = gen.Paper("ICSNL56_Zenk_final")`
+    `paper.add("front", gen.A, "title", paper.text(2), "page 1")`
+    `...`
+    `paper.write()`: ops/<stem>.ops, the rows chained in order.
 """
 import os
 import re
@@ -19,13 +19,13 @@ import unicodedata
 import pypdfium2 as pdfium
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# residue puts a public tree's corpus_script_extraction ahead on the path, and its page_text.py is
-# another module of the same name. This directory's own is imported first and retained.
+# residue puts the corpus_script_extraction of a public tree ahead on the path, and its page_text.py is another
+# module of the same name. The code imports the own module of this directory first, and keeps it.
 sys.path.insert(0, HERE)
 from workdir import PRIVATE  # noqa: E402
 import page_text  # noqa: E402,F401
 import residue  # noqa: E402
-# CORPUS is read by the generators as gen.CORPUS and ORACLES by tier_check.py as gen.ORACLES.
+# The generators read CORPUS as gen.CORPUS, and tier_check.py reads ORACLES as gen.ORACLES.
 from workdir import CORPUS, ORACLES  # noqa: E402,F401
 A, L = "@a", "@l"
 # A numbered example's first line, (12) and the words after it; a footnote numbers its own (i), (ii).
@@ -35,8 +35,8 @@ EXAMPLE = re.compile(r"^\((\d{1,3}|[ivx]{1,4})\)(?:\s+(.*))?$")
 SUB = re.compile(r"^([a-z])\.(?:\s+|(?=[?*#]))(.*)$")
 # The raised characters of the orthographies, by the plain character an italic run can read one as.
 RAISED = {"w": "ʷ", "h": "ʰ", "y": "ʸ", "j": "ʲ"}
-# What is right of a translation: a parenthesis or bracket, one level of nesting inside it,
-# with a language tag before it or not, G (VG), CT (Forbes 2018), (Independent), [JS 74].
+# What is right of a translation: a parenthesis or bracket, one level of nest inside it, with a language tag before
+# it or not. Examples are G (VG), CT (Forbes 2018), (Independent) and [JS 74].
 TAG = r"[A-Z]{1,3}(?:\+[A-Z]{1,3})?"
 PIECE = r"(?:%s\s+)?(?:\((?:[^()]|\([^()]*\))*\)|\[[^\[\]]*\])\.?" % TAG
 PIECES = re.compile(r"^(?:\s*%s)+\s*$" % PIECE)
@@ -56,8 +56,8 @@ def pieces_of(rest):
 
 
 def is_source(piece):
-    """Whether a piece right of a translation names where the example comes from: a language tag
-    before it, a year, a page or line, a text's title in brackets, or a speaker's initials."""
+    """Whether a piece right of a translation names where the example comes from. It can be a language tag before
+    it, a year, or a page or line. It can also be the title of a text in brackets, or the initials of a speaker."""
     inner = piece.strip()
     if re.match(r"^%s(?:\s|$)" % TAG, inner):
         return True
@@ -75,10 +75,10 @@ def is_source(piece):
 
 
 def split_translation(line):
-    """(translation, pieces right of it) for a line opening on a quote. The translation closes at
-    the last closing quote after which only pieces are; a translation printed without its
-    closing quote ends where the pieces begin. Returns None where the line ends mid-translation."""
-    # A translation of quoted speech opens and closes on double quotes, "Just retain going!".
+    """(translation, pieces right of it) for a line that opens on a quote. The translation closes at the last closing
+    quote after which only pieces are. A translation printed without its closing quote ends where the pieces begin.
+    Returns None where the line ends in the middle of a translation."""
+    # A translation of quoted speech opens and closes on double quotes, as `"Just keep going!"`.
     closing = [index for index, symbol in enumerate(line) if symbol == ("”" if line.startswith("“") else "’")]
     for at in reversed(closing):
         # A footnote mark on the closing quote stays with the translation, ‘I cannot figure it out.’1
@@ -102,19 +102,19 @@ def split_translation(line):
     return None
 
 
-# A consultant's comment set under an example, Consultant's comment: You own your hair, ..., or
-# under the consultant's initials, HH: It's like the book has arms in Forbes's transitivity.
+# The comment of a consultant, set under an example, as Consultant's comment: You own your hair, .... It can also sit
+# under the initials of the consultant, as HH: It's like the book has arms in the transitivity paper of Forbes.
 COMMENT = re.compile(r"^(?:(?:Consultant|Speaker)(?:’s|'s)? comment|Comment):|^[A-Z]{2,3}:\s")
-# The context an example is given in, Context: or Context 2: where it is given two.
+# The context of an example, Context: or Context 2: where the paper gives two.
 CONTEXT = re.compile(r"^Context(?: \d+)?:")
 # An exchange set as an example, Interviewer: ‘What about ...’ / Consultant: ‘...’.
 DIALOGUE = re.compile(r"^(Interviewer|Consultant):\s")
 # A part of a lettered part, i. Context: ... under a. Stative.
 ROMAN_PART = re.compile(r"^(i{1,3}|iv|vi{0,3})\.\s+(.*)$")
-# A translation judged, ?? ‘The vase is touched.’
+# A translation with a judgment, `?? ‘The vase is touched.’`
 JUDGED_QUOTE = re.compile(r"^[?#*]+\s*‘")
-# A translation under a label, Intended interpretation: ‘It’s this man that owns the dog.’ A
-# consultant's comment in quotes, Comment: ‘That’s not true.’ in Martin, is no translation.
+# A translation under a label, as `Intended interpretation: ‘It’s this man that owns the dog.’` A comment of a
+# consultant in quotes is no translation, as `Comment: ‘That’s not true.’` in Martin.
 LABELED_QUOTE = re.compile(r"^(?!Interviewer:|Consultant:|Comment:)[A-Z][a-z]+(?: [a-z]+){0,2}:\s*‘")
 # A lettered part's heading over its own parts, a. Stative.
 PART_HEAD = re.compile(r"^[A-Z][a-z]+(?: [a-z]+){0,2}$")
@@ -129,9 +129,8 @@ def is_gloss(line):
 
 
 def sentences(body):
-    """A text in the language cut into its sentences, after each full stop that is outside a
-    quotation or closes one: a quotation stays whole with the words that say who spoke it,
-    "χəpǰišθ ga!" natəm k̓ʷa tə titol ǰɛnxʷ."""
+    """A text in the language, cut into its sentences after each full stop that is outside a quotation or closes one.
+    A quotation stays whole with the words that say who spoke it, "χəpǰišθ ga!" natəm k̓ʷa tə titol ǰɛnxʷ."""
     out, current, depth = [], "", 0
     for at, character in enumerate(body):
         current += character
@@ -162,9 +161,10 @@ def successor(label, previous):
 
 
 def orthographic(run):
-    """Whether an italic run is a cited form of the language: a character outside plain English, or
-    an affix's hyphen or a root's √ at its edge. A run of four words or more, the majority of them plain
-    English characters, is an italicized sentence that names a language instead of a form of it."""
+    """Whether an italic run is a cited form of the language. That is a character outside plain English, or the
+    hyphen of an affix or the √ of a root at its edge.
+    A run of four words or more, most of them of plain English characters, is an italicized sentence. It names a
+    language, and is not a form of it."""
     words = run.split()
     if len(words) >= 4 and sum(bool(re.fullmatch(r"[A-Za-z()\-,.;:]+", one)) for one in words) > 0.6 * len(words):
         return False
@@ -182,10 +182,10 @@ def characters(text):
 
 
 def indented_rows(stem, step=10.0, reach=40.0):
-    """The glyph rows of each page whose first glyph is step to reach points right of the
-    page's common left edge, as {page: [characters of the row]}: the first lines of paragraphs, which
-    a text layer retains no indent for. The common edge is the first quartile of the rows' left edges,
-    as indents.py reads it."""
+    """The glyph rows of each page whose first glyph is step to reach points right of the common left edge of the
+    page. The result is {page: [characters of the row]}. These are the first lines of paragraphs, for which a text
+    layer keeps no indent. The common edge is the first quartile of the left edges of the rows, as indents.py reads
+    it."""
     document = page_text.paper_document(stem)[0]
     found = {}
     for number in range(len(document)):
@@ -207,10 +207,10 @@ def indented_rows(stem, step=10.0, reach=40.0):
 
 
 def row_sizes(stem):
-    """{page: (body size, [(characters of the row, font size)])}: each glyph row's median font size
-    over its characters, top to bottom, and the paper's body size, the size the majority of its characters have.
-    The body size is the paper's and not the page's: a first page can hold more abstract and
-    footnote than body."""
+    """{page: (body size, [(characters of the row, font size)])}: the median font size of each glyph row over its
+    characters, top to bottom. Then the body size of the paper, the size that most of its characters have.
+    The body size is that of the paper, and not that of the page. A first page can hold more abstract and footnote
+    than body."""
     import statistics
     document = page_text.paper_document(stem)[0]
     found, counts = {}, {}
@@ -239,17 +239,21 @@ def row_sizes(stem):
     return {number: (body, listed) for number, listed in found.items()}
 
 
-# A footnote's opening mark: a number, or a symbol for a note on the title.
-# The note's text opens on a capital, a quote, a bracket or a digit; a table row set small above
-# the notes opens on a lowercase form, 2 səsaʔliʔ.
-# A note may open on a glottal stop, 7 ʔayʔaǰuθəm has, or on a lowercase form set flush against its
-# number, 9yɩm- /yəm-/; a table row has a space there. It may open on a phonemic or morphological
-# form, 3 /ʔəm/ → [ʔam], 5 {C1V1-C1ə-}. A note may be a bracketed address alone, 6
-# <http://academic.uprm.edu/~sbischoff/COLRC/texts/> in Bischoff et al. It may open on an accented
-# capital, 1Áístainskiaakii in Aistainskiaakii et al., or on a character of Latin Extended-B,
-# 58ƛ̓əxʷənt in Lyon's 2011 paper, whose notes run past 99, 100There is no true scope interaction.
-# A mark is a space before a digit: a line of a note that opens on a year, 1987: 329) in Davis
-# and Brown's note 18, opens on no mark.
+# The opening mark of a footnote: a number, or a symbol for a note on the title.
+# The text of the note opens on a capital, a quote, a bracket or a digit. A table row set small above the notes opens
+# on a lowercase form, 2 səsaʔliʔ.
+#
+# A note can open on a glottal stop, 7 ʔayʔaǰuθəm has. It can open on a lowercase form set flush against its number,
+# 9yɩm- /yəm-/, and a table row has a space there. It can open on a phonemic or morphological form, 3 /ʔəm/ → [ʔam]
+# and 5 {C1V1-C1ə-}.
+#
+# A note can be a bracketed address alone, 6 <http://academic.uprm.edu/~sbischoff/COLRC/texts/> in Bischoff et al.
+# It can open on an accented capital, 1Áístainskiaakii in Aistainskiaakii et al.
+# It can open on a character of Latin Extended-B. An example is 58ƛ̓əxʷənt in the 2011 paper of Lyon, whose notes
+# run past 99, as 100There is no true scope interaction.
+#
+# A mark is a space before a digit. A line of a note that opens on a year, 1987: 329) in note 18 of Davis and Brown,
+# opens on no mark.
 MARK = re.compile(r"^(\d{1,3}|[*∗†‡§])(?:\s*(?=[A-ZÀ-ÖØ-Þ‘’“(\[ʔ/{<])|\s+(?=\d)|(?=[a-zƀ-ʯ]))")
 # The marks of a note on the title.
 TITLE_MARKS = "∗*†"
@@ -259,8 +263,8 @@ def title_mark(text):
     """The note mark closing a title, or None."""
     found = re.search("[%s]+$" % re.escape(TITLE_MARKS), text)
     return found.group(0) if found else None
-# The types of row that hold forms of the language, where a footnote mark is looked for only at the
-# row's end.
+# The types of row that hold forms of the language, where the code looks for a footnote mark only at the end of the
+# row.
 FORM_KINDS = ("transcription", "phonetic", "phonemic", "underlying")
 # The key page_footnotes gives the small lines at the foot of the title's page that carry no mark.
 UNMARKED = "unmarked"
@@ -306,12 +310,15 @@ class Paper(object):
         return self.lines[number][1]
 
     def joined(self, numbers):
-        """The lines' text run together with a space, or with none after a line that ends on a
-        hyphen where the paper sets hyphen_ends_join and the next line opens on a character, a digit or
-        a closing bracket: the paper breaks a line only at a hyphen it prints, taboo- / driven for
-        taboo-driven and (morpho- / )syntax. An affix's hyphen before its gloss, *-mi- / '2SG.OBJ',
-        retains the space. Where the paper sets address_ends_join, a line ending inside a web address
-        joins with none to a line opening on a lower-case character or &, muckleshoot08m. / html."""
+        """The text of the lines, run together with a space.
+
+        There is none after a line that ends on a hyphen, where the paper sets hyphen_ends_join. The next line must
+        then open on a character, a digit or a closing bracket.
+        The paper breaks a line only at a hyphen that it prints, as taboo- / driven for taboo-driven and (morpho- /
+        )syntax. The hyphen of an affix before its gloss, *-mi- / '2SG.OBJ', keeps the space.
+
+        Where the paper sets address_ends_join, a line that ends inside a web address joins with none to the next
+        line. That line must open on a lowercase character or &, as muckleshoot08m. / html."""
         out = ""
         for one in numbers:
             text = self.text(one)
@@ -325,9 +332,9 @@ class Paper(object):
         return out
 
     def on(self, lines, form):
-        """form, bound to the page: lines is the line number it is on, or the first and last of
-        the lines it runs over, and the page text there holds it with its line ends run together by
-        a space or by none. A form the page text no longer holds there stops the generator."""
+        """form, bound to the page. lines is the number of its line, or the first and last of the lines that it runs
+        over. The page text there holds it, with its line ends run together by a space or by none. A form that the page
+        text no longer holds there stops the generator."""
         first, last = (lines, lines) if isinstance(lines, int) else lines
         texts = [self.text(one) for one in range(first, last + 1)]
         flat = " ".join(form.split())
@@ -344,7 +351,7 @@ class Paper(object):
         return None
 
     def running_numbers(self):
-        """The line numbers holding only a printed page number, 3 digits alone on a line."""
+        """The numbers of the lines that hold only a printed page number, 3 digits alone on a line."""
         return {number for number in range(1, self.last + 1)
                 if re.fullmatch(r"\d{1,3}", self.text(number))}
 
@@ -366,9 +373,9 @@ class Paper(object):
     # Footnotes.
 
     def footnotes(self, marks, start=1, end=None, stops=()):
-        """{mark: (line numbers, page)} for each footnote, found in order of marks: a footnote
-        opens on a line that begins with its mark and a word, and runs to the next mark's line, the
-        page's end, or a line in stops. Marks are strings, "*" or "1" and on."""
+        """{mark: (line numbers, page)} for each footnote, found in order of marks. A footnote opens on a line that
+        begins with its mark and a word. It runs to the line of the next mark, the end of the page, or a line in stops.
+        Marks are strings, "*" or "1" and on."""
         found, expect = {}, 0
         end = end or self.last
         number = start
@@ -396,8 +403,8 @@ class Paper(object):
         return found
 
     def small_lines(self, below=0.4):
-        """The line numbers whose glyph row is set more than below points under its page's body
-        size: footnotes, table notes, the abstract where it is set small."""
+        """The numbers of the lines whose glyph row sits more than below points under the body size of its page.
+        These are footnotes, table notes, and the abstract where the paper sets it small."""
         if getattr(self, "_small", None) is None:
             sizes = row_sizes(self.stem)
             self._small = set()
@@ -410,9 +417,9 @@ class Paper(object):
                 body, rows = sizes.get(self.page(number), (0, []))
 
                 def matches(key, row_key):
-                    # A short line, -an. closing a footnote, matches only a row of the same characters;
-                    # a longer one a row of about its length, never the short affiliation Salish
-                    # School of Spokane its note opens with.
+                    # A short line, as the -an. that closes a footnote, matches only a row of the same characters.
+                    # A longer one matches a row of about its length. Neither matches the short affiliation Salish
+                    # School of Spokane that its note opens with.
                     return (row_key == key) if len(key) < 8 else (
                         (row_key[:20] in key[:28] or key[:20] in row_key[:28]) and
                         abs(len(row_key) - len(key)) <= max(8, len(key) // 3))
@@ -421,11 +428,11 @@ class Paper(object):
                     return next((at for at, (one, other) in enumerate(zip(key, row_key)) if one != other),
                                 min(len(key), len(row_key)))
 
-                # The rows can leave out a note's raised mark, 3 opening Martin's note on Hindle and
-                # Rigsby (1973), and the mark in a body line, (2)2: the line's characters are matched
-                # without its opening mark, then without its digits, and of the rows that match, the
-                # one sharing the longest opening with the line wins, never a body line naming the
-                # same authors.
+                # The rows can leave out the raised mark of a note, as the 3 that opens the note of Martin on Hindle
+                # and Rigsby (1973). They can leave out the mark in a body line, (2)2.
+                # The code matches the characters of the line without its opening mark, and then without its digits.
+                # Of the rows that match, the one that shares the longest opening with the line wins. A body line that
+                # names the same authors never wins.
                 mark = re.match(r"^(?:\d{1,2}|[∗*†‡§¶])\s+(?=\S)", self.text(number))
                 bare = characters(self.text(number)[mark.end():]) if mark else key
                 best = None
@@ -446,9 +453,9 @@ class Paper(object):
         return self._small
 
     def volume_header(self):
-        """The line numbers of the volume's header, Papers for the International Conference ...
-        through the line that closes on the year or UBCWPL, three lines at max. Volume 53 opens
-        its header on In Papers for."""
+        """The numbers of the lines of the header of the volume, Papers for the International Conference .... It runs
+        through the line that closes on the year or UBCWPL, three lines at max. Volume 53 opens its header on In
+        Papers for."""
         first = self.find(r"^(?:In )?Papers (?:for|of) the International Conference", 1, min(self.last, 200))
         if not first:
             return []
@@ -458,17 +465,22 @@ class Paper(object):
         return [first]
 
     def page_footnotes(self, stops=(), symbols_on=(1,)):
-        """{mark: (line numbers, page)} for the footnotes read from the type size: on each page,
-        the run of small lines that ends the page (before its number), from its first line opening
-        on a mark, a new note at each line opening on the next number in sequence or on a symbol.
-        A symbol mark counts only on the pages of symbols_on, where a note on the title is.
-        The volume's header, set small wherever the page puts it, is left out, and so are the
-        lines of skip. The numbers run from the paper's first_footnote, 1 where it sets none: 2 in
-        Mellesmoen and Andreotti, whose title carries a mark 1 with no note. A paper's unnoted_marks
-        are the marks in the body with no note under them, which the count steps over: 56 in Lyon's
-        2011 paper, after The bear(s) like(s) the saskatoons. in (68a). A paper's
-        body_size_notes, where it names them, are the lines of a note set at the body size and read
-        as small ones: Black's note 4, under the rule at the foot of page 4."""
+        """{mark: (line numbers, page)} for the footnotes read from the type size.
+
+        On each page, that is the run of small lines that ends the page, before its number. It starts from its first
+        line that opens on a mark. A new note starts at each line that opens on the next number in sequence, or on a
+        symbol.
+
+        A symbol mark counts only on the pages of symbols_on, where a note on the title is. The code leaves out the
+        header of the volume, set small wherever the page puts it, and the lines of skip.
+
+        The numbers run from the first_footnote of the paper, 1 where it sets none. It is 2 in Mellesmoen and
+        Andreotti, whose title carries a mark 1 with no note.
+        The unnoted_marks of a paper are the marks in the body with no note under them, which the count steps over.
+        An example is 56 in the 2011 paper of Lyon, after The bear(s) like(s) the saskatoons. in (68a).
+
+        The body_size_notes of a paper, where it names them, are the lines of a note set at the body size. The code
+        reads them as small lines, as note 4 of Black, under the rule at the foot of page 4."""
         small = self.small_lines() | set(getattr(self, "body_size_notes", ()))
         running = self.running_numbers_set()
         header = self.volume_header()
@@ -482,21 +494,21 @@ class Paper(object):
             by_page.setdefault(self.page(number), []).append(number)
         for page in sorted(by_page):
             numbers = by_page[page]
-            # The run ends at a line set at the body size; a line no glyph row matches is retained.
+            # The run ends at a line set at the body size. The code keeps a line that no glyph row matches.
             tail = []
             for number in reversed(numbers):
                 if number not in small and number in self._sized:
                     break
                 tail.insert(0, number)
-            # A note whose example the page sets at the body size, (iv) under a note 15, breaks the
-            # run: a note opens at the first small line of the page with the next number and a
-            # space after it, and runs to the page's end.
+            # A note whose example the page sets at the body size breaks the run, as (iv) under a note 15. A note then
+            # opens at the first small line of the page with the next number and a space after it. It runs to the end of
+            # the page.
             opener = next((one for one in numbers if one in small and re.match(r"^%d\s" % expect, self.text(one))),
                           None)
             if opener is not None and (not tail or opener < tail[0]):
                 tail = numbers[numbers.index(opener):]
-            # A table set small over the notes with its caption under it, Table 1 of Sardinha's 2011
-            # paper over her note 4: the notes open at the opener past the caption.
+            # A table set small over the notes, with its caption under it, as Table 1 of the 2011 paper of Sardinha over
+            # her note 4. The notes open at the opener past the caption.
             if opener in tail and any(re.match(r"^Table \d+[:.]", self.text(one)) for one in tail[:tail.index(opener)]):
                 tail = tail[tail.index(opener):]
             # A note's own example that it names, (iii), set in the lower half of the next page
