@@ -23,8 +23,8 @@ time. The 81 is the own rank of the degree-8 harmonic block. No rank is absent, 
 At bandlimit L, every function on the sphere lives in a space of (L+1)^2 dimensions. EVERY reading of ANY type is a
 linear functional on that space. That holds for a region integral, a line integral, a point evaluation, or an
 integral against any measure whatever. The span of all conceivable integrals is therefore exactly (L+1)^2, and no
-integral that nobody thought of yet exceeds it. Beams added 175 dimensions at degree 8, and not because a line integral escapes the space.
-The region rows did not span it: 81 + 175 = 256.
+integral that nobody thought of yet exceeds it. Beams added 175 dimensions at degree 8, and not because a line
+integral escapes the space. The region rows did not span it: 81 + 175 = 256.
 
 "A FUNDAMENTAL INTEGRAL WE DON'T KNOW" THEREFORE HAS NO ROOM TO EXIST at fixed degree. A count of dimensions closes
 that branch, and this file does not test it. The other branch is wide open, because rank is not the scarce thing.
