@@ -221,7 +221,7 @@ typedef struct
     unsigned long long first_u64;
     unsigned long long last_u64;
     int mirrored;
-    CliDocumentRuns *runs_out;
+    const CarcerMovableEntry *runs_out;
     unsigned int roles;
     int renames;
     unsigned int names;
@@ -376,8 +376,10 @@ EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
     }
     {
         const unsigned int stored_value = args->at + 1u;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-            .cell = args->one->state_index, .offset = entry * sizeof(stored_value), .src = &stored_value, .bytes = sizeof(stored_value)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->one->state_index,
+                                                                 .offset = entry * sizeof(stored_value),
+                                                                 .src = &stored_value,
+                                                                 .bytes = sizeof(stored_value)});
     }
 }
 
@@ -923,15 +925,16 @@ static void branch_name_pass(const CliNameEachCfg *args)
     (void)args;
 }
 
-// the names of a text's tokens as they are counted and positioned: whether the depths' names come now, how many and
-// their bytes so far, and where they are positioned, NULL while they are counted
+// The names of a text's tokens as they are counted and positioned: whether the depths' names come now, how many and
+// their bytes so far. The movable cell they are positioned in is NULL while they are counted, and `text_at` is the
+// offset in it where the names' bytes start
 struct CliBranchNamesLaid
 {
     int depths;
     unsigned int count;
     unsigned long long bytes;
-    CliDocumentNames *names;
-    char *text;
+    const CarcerMovableEntry *cell;
+    unsigned long long text_at;
 };
 
 // one name counted or positioned, `depth` after it where it is a depth's
@@ -945,13 +948,24 @@ static void branch_name_position(const DocumentBranchCtx *args)
         mmgr_line_decimal(&line, args->depth, 1u);
     }
     const unsigned long long suffix_size = mmgr_line_finish(&line);
-    if (args->positioned->names != NULL)
+    if (args->positioned->cell != NULL)
     {
-        char *const place = args->positioned->text + args->positioned->bytes;
-        memor.cpy(&(MemoriaCfg){.dst = place, .src = args->text, .bytes = args->size_u64});
-        memor.cpy(&(MemoriaCfg){.dst = place + args->size_u64, .src = suffix, .bytes = suffix_size});
-        place[args->size_u64 + suffix_size] = '\0';
-        args->positioned->names->name[args->positioned->count] = place;
+        const CarcerMovableEntry *const cell = args->positioned->cell;
+        const unsigned long long place = args->positioned->text_at + args->positioned->bytes;
+        const char end = '\0';
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = place, .src = args->text, .bytes = args->size_u64});
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell, .offset = place + args->size_u64, .src = suffix, .bytes = suffix_size});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = cell, .offset = place + args->size_u64 + suffix_size, .src = &end, .bytes = sizeof(end)});
+        // the names' bytes are inside the cell, whose size an unsigned int counts
+        const unsigned int offset = (unsigned int)place;
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = cell,
+                                .offset = CLI_DOCUMENT_NAME_AT(args->positioned->count),
+                                .src = &offset,
+                                .bytes = sizeof(offset)});
     }
     args->positioned->bytes += args->size_u64 + suffix_size + 1ULL;
     args->positioned->count += 1u;
@@ -997,32 +1011,32 @@ static void branch_names_position(const DocumentBranchCtx *args)
                      .each_name_each = branch_name_positioned, .context = args->positioned);
 }
 
-static CliDocumentNames *names_alloc_locked(const CliDocumentNamesCfg *args)
+static const CarcerMovableEntry *names_alloc_locked(const CliDocumentNamesCfg *args)
 {
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if (one == NULL)
     {
         return NULL;
     }
-    CliBranchNamesLaid counted = {0, 0u, 0ULL, NULL, NULL};
+    CliBranchNamesLaid counted = {0, 0u, 0ULL, NULL, 0ULL};
     EMBED_CALL(branch_names_position, DocumentBranchCtx, .positioned = &counted, .grammar = one->grammar);
-    // a table positioned for a frame: a cell of the temporary tier, sized to the names
-    CliDocumentNames *const names = g_cli_guard->temporary_buf_alloc(
-        sizeof(*names) + (counted.count * sizeof(*names->name)) + counted.bytes, args->owner);
-    if (names != NULL)
+    // the table in a movable cell sized to the names: the head, the places, then the names
+    const unsigned long long text_at = CLI_DOCUMENT_NAME_AT(counted.count);
+    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(text_at + counted.bytes, args->owner);
+    if (cell != NULL)
     {
-        names->name = (const char **)(void *)(names + 1);
-        CliBranchNamesLaid positioned = {0, 0u, 0ULL, names, (char *)(void *)(names->name + counted.count)};
+        CliBranchNamesLaid positioned = {0, 0u, 0ULL, cell, text_at};
         EMBED_CALL(branch_names_position, DocumentBranchCtx, .positioned = &positioned, .grammar = one->grammar);
-        names->count = positioned.count;
+        const CliDocumentNames head = {positioned.count, 0u};
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = &head, .bytes = sizeof(head)});
     }
-    return names;
+    return cell;
 }
 
-CliDocumentNames *cli_document_names_alloc(const CliDocumentNamesCfg *args)
+const CarcerMovableEntry *cli_document_names_alloc(const CliDocumentNamesCfg *args)
 {
     cli_document_lock_take();
-    CliDocumentNames *const answer = names_alloc_locked(args);
+    const CarcerMovableEntry *const answer = names_alloc_locked(args);
     cli_document_lock_give();
     return answer;
 }
@@ -2332,6 +2346,7 @@ static void branch_walk(const DocumentBranchCtx *args)
         }
         one->resting = !stepped;
         one->walked = 0;
+        (void)EMBED_ATOMIC_ADD_32(&one->colors_serial, transferred ? 1u : 0u);
         EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
         const CliDocColored colored = s_colored;
         cli_document_lock_give();
@@ -2431,6 +2446,7 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = one->grammar, .src = args->grammar, .bytes = length + 1ULL});
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->names = names;
+        (void)EMBED_ATOMIC_ADD_32(&one->colors_serial, 1u);
         // the states' cells go back, their identities' cell staying for the states to come, and the index's entries
         // are cleared
         EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = one);
@@ -2454,12 +2470,11 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
                 .offset = (((unsigned long long)(CLI_DOC_WORD_ENDED)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
-            (void)g_cli_guard->movable_buf_write(
-                &(CarcerMovableCfg){.cell = one->lines.words,
-                                    .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + line) *
-                                              sizeof(unsigned int),
-                                    .src = &(unsigned int){0u},
-                                    .bytes = sizeof(unsigned int)});
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = one->lines.words,
+                .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + line) * sizeof(unsigned int),
+                .src = &(unsigned int){0u},
+                .bytes = sizeof(unsigned int)});
             (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
                 .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*one->lines.lines) + line) * sizeof(unsigned int),
@@ -2638,17 +2653,44 @@ EMBED_INLINE unsigned long long branch_runs_walked(const DocumentBranchCtx *args
     return words;
 }
 
-// the runs of the `capacity` lines `number` names put in `runs_out`, each line's columns, then its names, those at or
-// past `columns` left off where it is not 0
+// the words read at a time as a record's columns or names go from the text's runs cell into a runs cell
+#define CLI_DOC_RUNS_CHUNK 256u
+
+// `size_u64` words copied from the text's runs cell at the word `first_u64` into the runs cell `runs_out` at the byte
+// `last_u64`, a chunk at a time through this call's own array
+EMBED_INLINE void branch_runs_words_put(const DocumentBranchCtx *args)
+{
+    unsigned int chunk[CLI_DOC_RUNS_CHUNK];
+    unsigned long long done = 0ULL;
+    while (done < args->size_u64)
+    {
+        const unsigned long long left = args->size_u64 - done;
+        const unsigned long long step = (left < CLI_DOC_RUNS_CHUNK) ? left : CLI_DOC_RUNS_CHUNK;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one_read->run,
+                                                                .offset = (args->first_u64 + done) * sizeof(*chunk),
+                                                                .dst = chunk,
+                                                                .bytes = step * sizeof(*chunk)});
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->runs_out,
+                                                                 .offset = args->last_u64 + (done * sizeof(*chunk)),
+                                                                 .src = chunk,
+                                                                 .bytes = step * sizeof(*chunk)});
+        done += step;
+    }
+}
+
+// The runs of the `capacity` lines `number` names put in the movable cell `runs_out`, each line's columns, then its
+// names, those at or past `columns` left off where it is not 0. Each record is read in the text's runs cell at its
+// place, and its words go across a chunk at a time
 EMBED_INLINE void branch_runs_put(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one_read;
     const CliStoredLines *const lines = &one->lines;
-    CliDocumentRuns *const read = args->runs_out;
+    const CarcerMovableEntry *const read = args->runs_out;
+    const unsigned long long words_at = CLI_DOCUMENT_RUNS_LINE_AT(args->capacity);
     unsigned int used = 0u;
     for (unsigned long long at = 0ULL; at < args->capacity; at += 1ULL)
     {
-        read->line[at] = (CliDocumentLineRuns){used, 0u};
+        CliDocumentLineRuns entry = {used, 0u};
         const unsigned long long line = args->number[at];
         unsigned int word_6 = 0u;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
@@ -2656,35 +2698,45 @@ EMBED_INLINE void branch_runs_put(const DocumentBranchCtx *args)
             .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(word_6),
             .dst = &word_6,
             .bytes = sizeof(word_6)});
-
         const unsigned int place = (line < lines->lines) ? word_6 : CLI_DOC_NO_RUNS;
-        if (place == CLI_DOC_NO_RUNS)
+        if (place != CLI_DOC_NO_RUNS)
         {
-            continue;
+            unsigned int recorded = 0u;
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = one->run,
+                                    .offset = (unsigned long long)place * sizeof(recorded),
+                                    .dst = &recorded,
+                                    .bytes = sizeof(recorded)});
+            const unsigned long long col_at = (unsigned long long)place + CLI_DOC_RECORD_HEAD;
+            unsigned int runs = recorded;
+            unsigned int last = 0u;
+            while ((args->columns != 0ULL) && (runs > 1u))
+            {
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
+                                                                        .offset = (col_at + runs - 1u) * sizeof(last),
+                                                                        .dst = &last,
+                                                                        .bytes = sizeof(last)});
+                if (last < args->columns)
+                {
+                    break;
+                }
+                runs -= 1u;
+            }
+            EMBED_CALL(branch_runs_words_put, DocumentBranchCtx, .one_read = one, .runs_out = read, .first_u64 = col_at,
+                       .last_u64 = words_at + ((unsigned long long)used * sizeof(unsigned int)), .size_u64 = runs);
+            EMBED_CALL(branch_runs_words_put, DocumentBranchCtx, .one_read = one, .runs_out = read,
+                       .first_u64 = col_at + recorded,
+                       .last_u64 = words_at + ((unsigned long long)(used + runs) * sizeof(unsigned int)),
+                       .size_u64 = runs);
+            entry.runs = runs;
+            used += 2u * runs;
         }
-        // the record read out of the runs' cell into one of the temporary tier
-        unsigned int *const record =
-            EMBED_CALL(branch_record_alloc, DocumentBranchCtx, .one_read = one, .place = place);
-        if (record == NULL)
-        {
-            continue;
-        }
-        const unsigned int *const col = record + CLI_DOC_RECORD_HEAD;
-        unsigned int runs = record[0];
-        while ((args->columns != 0ULL) && (runs > 1u) && (col[runs - 1u] >= args->columns))
-        {
-            runs -= 1u;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = read->word_text + used, .src = col, .bytes = runs * sizeof(*col)});
-        memor.cpy(
-            &(MemoriaCfg){.dst = read->word_text + used + runs, .src = col + record[0], .bytes = runs * sizeof(*col)});
-        read->line[at].runs = runs;
-        used += 2u * runs;
-        g_cli_guard->persistent_buf_release(record, g_cli_editor_owner);
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = read, .offset = CLI_DOCUMENT_RUNS_LINE_AT(at), .src = &entry, .bytes = sizeof(entry)});
     }
 }
 
-static CliDocumentRuns *runs_alloc_locked(const CliDocumentRunsCfg *args)
+static const CarcerMovableEntry *runs_alloc_locked(const CliDocumentRunsCfg *args)
 {
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if (one == NULL)
@@ -2698,14 +2750,15 @@ static CliDocumentRuns *runs_alloc_locked(const CliDocumentRunsCfg *args)
     const unsigned long long words =
         EMBED_CALL(branch_runs_walked, DocumentBranchCtx, .one = one, .number = args->number, .capacity = args->count,
                    .columns = columns, .mirrored = args->mirrored);
-    const unsigned long long line_bytes = args->count * sizeof(CliDocumentLineRuns);
-    // the runs of a frame: a cell of the temporary tier, sized to them
-    CliDocumentRuns *const read =
-        g_cli_guard->temporary_buf_alloc(sizeof(*read) + line_bytes + (words * sizeof(unsigned int)), args->owner);
+    // the runs of a frame in a movable cell sized to them: the head, a line's entry for each line, then the words
+    const unsigned long long words_at = CLI_DOCUMENT_RUNS_LINE_AT(args->count);
+    const CarcerMovableEntry *const read =
+        g_cli_guard->movable_buf_alloc(words_at + (words * sizeof(unsigned int)), args->owner);
     if (read != NULL)
     {
-        read->line = (CliDocumentLineRuns *)(void *)(read + 1);
-        read->word_text = (unsigned int *)(void *)(read->line + args->count);
+        // the lines asked and the words' offset are inside the cell, whose size an unsigned int counts
+        const CliDocumentRuns head = {(unsigned int)args->count, (unsigned int)words_at};
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = read, .src = &head, .bytes = sizeof(head)});
         EMBED_CALL(branch_runs_put, DocumentBranchCtx, .one_read = one, .runs_out = read, .number = args->number,
                    .capacity = args->count, .columns = columns);
     }
@@ -2713,10 +2766,10 @@ static CliDocumentRuns *runs_alloc_locked(const CliDocumentRunsCfg *args)
     return read;
 }
 
-CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
+const CarcerMovableEntry *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
 {
     cli_document_lock_take();
-    CliDocumentRuns *const answer = runs_alloc_locked(args);
+    const CarcerMovableEntry *const answer = runs_alloc_locked(args);
     cli_document_lock_give();
     return answer;
 }

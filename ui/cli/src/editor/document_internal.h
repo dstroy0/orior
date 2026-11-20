@@ -5,6 +5,7 @@
 #define DOCUMENT_INTERNAL_H
 #include "../command_line/pool.h"
 #include "document.h"
+#include "embed_atomic.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliDocumentCtx CliDocumentCtx;
@@ -71,8 +72,8 @@ typedef struct
 // stored, which its colors are passed on with, and whether the names its grammar's tokens take were passed on since it
 // was colored by the grammar; and the lines from `cached_from` to before `cached_to`, those the page holds about its
 // view, the only lines whose runs are passed on, every line until the page names them; and the characters of each line
-// whose runs are passed on, as far as the view draws, 0 for every character, each line colored whole and the next entered
-// in the state it ends in; the roles of the names its grammar's tokens take, each by its name's place,
+// whose runs are passed on, as far as the view draws, 0 for every character, each line colored whole and the next
+// entered in the state it ends in; the roles of the names its grammar's tokens take, each by its name's place,
 // CLI_DOC_ROLES_KNOWN with the roles once read and 0 before, and above them from CLI_DOC_RANK_AT one more than how many
 // names before it count the depth of a pair, 0 before it is read, in a movable cell of one word a name; whether its
 // lines' regions moved since its folds were passed on; and the runs the walk found on its lines, saved as it colors
@@ -125,6 +126,11 @@ typedef struct CliStoredText
     unsigned int run_used;
     unsigned int run_capacity;
     unsigned long long serial;
+    // A count that moves each time the colorer puts colors into the text, and each time the last commit's file is
+    // stored beside it. A reader that saw the same count sees the same colors and the same marks against the last
+    // commit. The view's thread reads it with no lock taken, so it is atomic. It wraps, and a reader tests it for a
+    // change alone
+    embed_atomic_u32 colors_serial;
     unsigned int readers;
     int let_go;
     int walked;

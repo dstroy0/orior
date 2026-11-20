@@ -551,7 +551,13 @@ static void cells_rounds_checked(void)
 static unsigned int row_runs(unsigned int row)
 {
     const CliViewFrame *const frame = s_window.editor.frame;
-    return ((frame != NULL) && (frame->runs != NULL) && (row < frame->count)) ? frame->runs->line[row].runs : 0u;
+    CliDocumentLineRuns one = {0u, 0u};
+    if ((frame != NULL) && (frame->runs != NULL) && (row < frame->count))
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &one, .bytes = sizeof(one)});
+    }
+    return one.runs;
 }
 
 // the window stepped until the row `row` has runs or `milliseconds` pass: its runs
@@ -604,11 +610,23 @@ static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsig
     {
         return 0u;
     }
-    const CliDocumentLineRuns line = frame->runs->line[row];
+    CliDocumentRuns head = {0u, 0u};
+    CliDocumentLineRuns line = {0u, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs, .dst = &head, .bytes = sizeof(head)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &line, .bytes = sizeof(line)});
+    const unsigned long long columns_at =
+        (unsigned long long)head.words_at + ((unsigned long long)line.at * sizeof(*words));
     for (unsigned int at = 0u; at < runs; at += 1u)
     {
-        words[2u * at] = frame->runs->word_text[line.at + at];
-        words[(2u * at) + 1u] = frame->runs->word_text[line.at + runs + at];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
+                                                                .offset = columns_at + (at * sizeof(*words)),
+                                                                .dst = &words[2u * at],
+                                                                .bytes = sizeof(*words)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
+                                                                .offset = columns_at + ((runs + at) * sizeof(*words)),
+                                                                .dst = &words[(2u * at) + 1u],
+                                                                .bytes = sizeof(*words)});
     }
     return runs;
 }
@@ -983,17 +1001,35 @@ static unsigned int caret_ink_at(unsigned long long now_ms)
     return s_window.caret_color;
 }
 
-// The caret does not blink. The editor shows it while it has the keys, at any time, and the window waits on no
-// deadline for it.
+// A key shows the caret through the input rest. Then the caret blinks: it shows for the first half of each blink and
+// hides for the second.
 static void caret_checked(void)
 {
     tabs_closed("first.txt", "one\n", NULL, NULL);
     cli_check(tab_opened("first.txt"), "a file opens for the caret");
     const unsigned long long typed_ms = cli_clock_milliseconds();
     typed("x");
-    cli_check(caret_ink_at(typed_ms) == 255u, "the caret is displayed as the key lands");
-    cli_check(caret_ink_at(typed_ms + 530ULL) == 255u, "displayed half a second on");
-    cli_check(caret_ink_at(typed_ms + 1060ULL) == 255u, "displayed a second on: the caret does not blink");
+    const unsigned long long begun_ms = s_window.caret_blink_start_ms;
+    cli_check(begun_ms >= typed_ms + GUI_CARET_INPUT_REST_MS, "a key puts the caret's blink past the input rest");
+    cli_check(caret_ink_at(begun_ms - 1ULL) == 255u, "the caret is displayed through the input rest");
+    cli_check(caret_ink_at(begun_ms) == 255u, "displayed as its blink begins");
+    cli_check(caret_ink_at(begun_ms + (GUI_CARET_BLINK_PERIOD_MS / 2ULL) - 1ULL) == 255u,
+              "displayed through the first half of the blink");
+    cli_check(caret_ink_at(begun_ms + (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) == 0u, "hidden from its second half");
+    cli_check(caret_ink_at(begun_ms + GUI_CARET_BLINK_PERIOD_MS - 1ULL) == 0u, "hidden to the blink's end");
+    cli_check(caret_ink_at(begun_ms + GUI_CARET_BLINK_PERIOD_MS) == 255u, "displayed again as the next blink begins");
+    cli_check(GUI_CARET_BLINK_PERIOD_MS == 1060ULL, "a blink takes 1.06 seconds");
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_BLUR});
+    cli_check(caret_ink_at(begun_ms + (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) == 255u,
+              "with another window holding the keys, the caret stands displayed");
+    const unsigned long long focused_ms = cli_clock_milliseconds();
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = &(GuiInput){.type = GUI_INPUT_FOCUS});
+    const unsigned long long back_ms = s_window.caret_blink_start_ms;
+    cli_check(!s_window.blurred, "the keys come back to the window");
+    cli_check(back_ms >= focused_ms + GUI_CARET_INPUT_REST_MS, "the caret's blink begins again after the input rest");
+    cli_check(caret_ink_at(back_ms + (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) == 0u, "and the caret blinks again");
 }
 
 // the pointer moved to x, y as the system passes it on
@@ -2603,6 +2639,47 @@ static void symbols_checked(void)
     cli_check(renamed, "Enter renames the name in every file and Save All writes them");
 }
 
+// A pointer that moves from cell to cell over the text owes no frame while no panel shows. A rest on a word asks the
+// tree on a worker. The hover lands through the step.
+static void hover_checked(void)
+{
+    cli_check(tab_opened("sym/use.c"), "use.c opens for the hover");
+    cursor_put(3ULL, 12ULL);
+    // the check reads the caret box at a frame that places the cursor on the word
+    unsigned int frames = 0u;
+    while ((frames < 100u) && ((s_window.editor.frame == NULL) || (s_window.editor.frame->cursor.line != 3ULL) ||
+                               (s_window.editor.frame->cursor.col != 12ULL)))
+    {
+        stepped_for(20ULL);
+        frames += 1u;
+    }
+    const GuiRect word = caret_box();
+    const int x = word.x + (word.width / 2);
+    const int y = word.y + (word.height / 2);
+    // the pointer comes onto the text first, so that the moves after it go from cell to cell over it
+    moved(x - (word.width * 8), y);
+    s_window.pending = 0;
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = GUI_MOVED_INPUT(x - (word.width * 7), y));
+    cli_check(!s_window.pending,
+              "a pointer moved onto another cell of the text, with no panel displayed, owes no frame");
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window, .input = GUI_MOVED_INPUT(x, y));
+    cli_check(!s_window.pending, "nor does one moved onto the word's cell");
+    stepped();
+    unsigned int waits = 0u;
+    while ((s_window.hover.panel == NULL) && (waits < 200u))
+    {
+        stepped_for(50ULL);
+        waits += 1u;
+    }
+    cli_check((s_window.hover.panel != NULL) && (s_window.hover_panel.line == 3ULL),
+              "the pointer at rest on area brings the tree's hover of it, landed from a worker");
+    s_window.pending = 0;
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = GUI_MOVED_INPUT(x + word.width, y));
+    cli_check(!s_window.pending, "a pointer moved within the hover's word owes no frame");
+}
+
 // Return whether the check named `name` runs. Every check runs if ORIOR_WINDOW_CHECKS has no value. Otherwise those it
 // names run, separated by commas.
 static int check_wanted(const char *name)
@@ -2674,6 +2751,7 @@ static const WindowCheck s_checks[] = {{"saves", saves_checked},
                                        {"edit", edit_checked},
                                        {"clipboard", clipboard_checked},
                                        {"symbols", symbols_checked},
+                                       {"hover", hover_checked},
                                        {"view_thread", view_thread_checked},
                                        {"file", file_checked}};
 

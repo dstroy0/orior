@@ -536,10 +536,11 @@ static void pool_given_back(void)
 static unsigned int runs_of(const char *key, unsigned long long line)
 {
     const unsigned long long number[1] = {line};
-    CliDocumentRuns *const read = EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = key, .number = number, .count = 1ull, .mirrored = 0, .owner = g_cli_editor_owner);
-    const unsigned int runs = (read != NULL) ? read->line[0].runs : 0u;
-    g_cli_guard->persistent_buf_release(read, g_cli_editor_owner);
-    return runs;
+    const CarcerMovableEntry *const read = EMBED_CALL(cli_document_runs.runs_alloc, CliDocumentRunsCfg, .key = key, .number = number, .count = 1ull, .mirrored = 0, .owner = g_cli_editor_owner);
+    CliDocumentLineRuns one = {0u, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = read, .offset = CLI_DOCUMENT_RUNS_LINE_AT(0u), .dst = &one, .bytes = sizeof(one)});
+    (void)g_cli_guard->movable_buf_release(read, g_cli_editor_owner);
+    return one.runs;
 }
 
 // the line `line` of the text under `key` replaced with `text`

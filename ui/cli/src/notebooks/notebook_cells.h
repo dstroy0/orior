@@ -76,8 +76,8 @@ typedef struct
     unsigned int flags;
 } CliNotebookRow;
 
-// A cell as the map positions it: the row it starts at, the rows it takes, its type, and whether it is out of date, failed
-// or runs
+// A cell as the map positions it: the row it starts at, the rows it takes, its type, and whether it is out of date,
+// failed or runs
 typedef struct
 {
     unsigned int first_row;
@@ -103,17 +103,17 @@ typedef struct
     unsigned int part_line;
 } CliNotebookFrameRow;
 
-// A run of rows positioned from the lines of one text: their runs, as the walk saved them, and the labels the runs' tokens
-// take, each in a cell of the open notebooks' owner, NULL where the text is not colored
+// A run of rows positioned from the lines of one text: their runs, as the walk saved them, and the labels the runs'
+// tokens take, each in a cell of the open notebooks' owner, NULL where the text is not colored
 typedef struct
 {
-    CliDocumentRuns *runs;
-    CliDocumentNames *labels;
+    const CarcerMovableEntry *runs;
+    const CarcerMovableEntry *labels;
 } CliNotebookFramePart;
 
-// A notebook's frame, every count and pointer the window draws from, immutable once positioned: the model's top row, the
-// rows positioned from it, the rows of the notebook, the cell being edited, CLI_NOTEBOOK_NONE for none, and its view's frame,
-// NULL for none; the rows; the parts; and the bytes the rows' texts and sentences are in
+// A notebook's frame, every count and pointer the window draws from, immutable once positioned: the model's top row,
+// the rows positioned from it, the rows of the notebook, the cell being edited, CLI_NOTEBOOK_NONE for none, and its
+// view's frame, NULL for none; the rows; the parts; and the bytes the rows' texts and sentences are in
 typedef struct
 {
     unsigned long long top;
@@ -149,9 +149,9 @@ int cli_notebook_model_step(const CliNotebookCellsStepCfg *args);
 unsigned int cli_notebook_model_rows(const CliNotebookCellsRowCfg *args);
 int cli_notebook_model_row(const CliNotebookCellsRowCfg *args);
 int cli_notebook_model_block(const CliNotebookCellsRowCfg *args);
-// `count` rows of the notebook under `key` positioned from its top row into a frame in one cell, the rows the work shows
-// recorded for the scroll, through `frame_out`: 1, or 0 with NULL where no notebook is open under the key or the cells
-// cannot meet it; and the frame through `frame_out` released, NULL after
+// `count` rows of the notebook under `key` positioned from its top row into a frame in one cell, the rows the work
+// shows recorded for the scroll, through `frame_out`: 1, or 0 with NULL where no notebook is open under the key or the
+// cells cannot meet it; and the frame through `frame_out` released, NULL after
 int cli_notebook_model_frame_alloc(const CliNotebookCellsFrameCfg *args);
 void cli_notebook_model_frame_release(const CliNotebookCellsFrameCfg *args);
 // the top row moved by a wheel's `rows`, down positive, and moved to the row at `permille` of the notebook's rows,

@@ -54,13 +54,13 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 // is, the caret's rectangle as last drawn, whether the pixels under it are saved and those pixels, row after row.
 // Last, the part of a line the view has scrolled past its first line and first cell column. `scroll_y` is the pixels
 // of the frame's first row above the editor's top, 0 to a line's height less 1. `scroll_x` is the pixels of the first
-// cell column left of the text's edge, 0 to a cell less a part of a pixel. Then the color of each token name, retained for
-// the names table, its count `name_colors` and the palette they were read for, `colored_names` and `colored_palette`;
-// a name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
+// cell column left of the text's edge, 0 to a cell less a part of a pixel. Then the color of each token name, retained
+// for the names table, its count `name_colors` and the palette they were read for, `colored_names` and
+// `colored_palette`; a name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
 typedef struct
 {
     CliViewFrame *frame;
-    CliDocumentNames *names;
+    const CarcerMovableEntry *names;
     unsigned int caret_color;
     GuiRect caret_rect;
     int caret_saved;
@@ -69,7 +69,7 @@ typedef struct
     float scroll_x;
     GuiColor name_color[GUI_EDITOR_NAME_COLORS];
     unsigned int name_colors;
-    const CliDocumentNames *colored_names;
+    const CarcerMovableEntry *colored_names;
     const GuiPalette *colored_palette;
     // whether a space is drawn as a middle dot and a tab as an arrow, in the quietest text color
     int whitespace;

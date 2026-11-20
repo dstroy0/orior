@@ -314,12 +314,12 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
-    g_cli_guard->persistent_buf_release(window->editor.names, g_cli_view_owner);
+    (void)g_cli_guard->movable_buf_release(window->editor.names, g_cli_view_owner);
     cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[0]});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[1]});
-    g_cli_guard->persistent_buf_release(window->terminal.names[0], g_cli_view_owner);
-    g_cli_guard->persistent_buf_release(window->terminal.names[1], g_cli_view_owner);
+    (void)g_cli_guard->movable_buf_release(window->terminal.names[0], g_cli_view_owner);
+    (void)g_cli_guard->movable_buf_release(window->terminal.names[1], g_cli_view_owner);
     window->editor.frame = NULL;
     window->editor.names = NULL;
     window->minimap.lines = NULL;
@@ -514,7 +514,7 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
         const char *const key = displayed ? terminal->view[view].key : NULL;
         cli_view_frame_release(&(CliViewAtCfg){.frame = terminal->frame[view]});
         terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
-        g_cli_guard->persistent_buf_release(terminal->names[view], g_cli_view_owner);
+        (void)g_cli_guard->movable_buf_release(terminal->names[view], g_cli_view_owner);
         terminal->names[view] = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
                                                            .key = key, .owner = g_cli_view_owner)
                                               : NULL;
@@ -734,11 +734,20 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     }
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
     window->editor.frame = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
-    g_cli_guard->persistent_buf_release(window->editor.names, g_cli_view_owner);
-    window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = key,
-                                                      .owner = g_cli_view_owner)
-                                         : NULL;
-    if (args->edited || (window->minimap.lines == NULL) || (key == NULL))
+    // The names and the map's colors move only as the text's colors move. They are read again where the text or its
+    // colors serial is not the one they were read at, and stay as read where only the frame moved
+    const unsigned int colors = (window->editor.frame != NULL) ? window->editor.frame->colors_serial : 0u;
+    const int recolored =
+        (key == NULL) || (window->editor.frame == NULL) || (colors != window->colors_serial) ||
+        !cellul.eq(&(CatenaFinitaCfg){.src = window->colors_key, .other = key, .cap = sizeof(window->colors_key)});
+    if (recolored || (window->editor.names == NULL))
+    {
+        (void)g_cli_guard->movable_buf_release(window->editor.names, g_cli_view_owner);
+        window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
+                                                          .key = key, .owner = g_cli_view_owner)
+                                             : NULL;
+    }
+    if (args->edited || recolored || (window->minimap.lines == NULL) || (key == NULL))
     {
         cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
         window->minimap.lines =
@@ -746,9 +755,22 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
                 ? cli_view_map_alloc(&(CliViewAtCfg){.key = key, .first = window->map_first, .last = window->map_last})
                 : NULL;
     }
+    window->colors_serial = colors;
+    window->colors_key[0] = '\0';
+    if (key != NULL)
+    {
+        memor.cpy(
+            &(MemoriaCfg){.dst = window->colors_key,
+                          .src = key,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_NAME_MAX_LEN - 1u}) + 1u});
+    }
+    window->recolored = recolored;
     // the map's lines follow the view: a frame that moved the map's first row takes the lines it now is for
     EMBED_CALL(window_map_span, GuiWindowCtx, .window = window);
     EMBED_CALL(window_scroll_adopt, GuiWindowCtx, .window = window);
+    // Every frame the view answers shows the caret through the input rest. Its blink begins after the rest, so the
+    // caret stays displayed while the keys go.
+    window->caret_blink_start_ms = cli_clock_milliseconds() + GUI_CARET_INPUT_REST_MS;
     if (args->on)
     {
         EMBED_CALL(window_scroll_damage, GuiWindowCtx, .window = window);
@@ -1374,11 +1396,43 @@ void gui_window_show(const GuiWindowDisplayedCfg *args)
     args->window->pending = args->displayed || args->window->pending;
 }
 
-// the caret's ink, 0 or 255: hidden while the editor does not have the keys, displayed while it does. The caret does
-// not blink: a blink is a timer, and the window runs none
+// The caret's ink, 0 or 255. The caret is hidden while the editor does not have the keys. It shows through the input
+// rest before its blink begins. Then it shows for the first half of each blink and hides for the second. It shows
+// while no cursor is, while the system asks for less motion, or while another window has the keys.
 EMBED_INLINE unsigned int window_caret_color(const GuiWindowCtx *args)
 {
-    return args->window_read->editing ? 255u : 0u;
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
+    if (!args->window_read->editing)
+    {
+        return 0u;
+    }
+    if ((args->window_read->editor.frame == NULL) || args->window_read->motion_still || args->window_read->blurred ||
+        (now_ms < begun_ms))
+    {
+        return 255u;
+    }
+    return (((now_ms - begun_ms) % GUI_CARET_BLINK_PERIOD_MS) < (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) ? 255u : 0u;
+}
+
+// The deadline at which the caret's ink next changes. While the input rest runs, it is the end of the blink's first
+// half. After the rest, it is the end of the half of the blink the caret is in. It is 0 while the editor does not have
+// the keys, while no cursor is, while the system asks for less motion, or while another window has the keys.
+EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *args)
+{
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
+    const unsigned long long half_ms = GUI_CARET_BLINK_PERIOD_MS / 2ULL;
+    if (!args->window_read->editing || (args->window_read->editor.frame == NULL) || args->window_read->motion_still ||
+        args->window_read->blurred)
+    {
+        return 0ULL;
+    }
+    if (now_ms < begun_ms)
+    {
+        return begun_ms + half_ms;
+    }
+    return now_ms + half_ms - ((now_ms - begun_ms) % half_ms);
 }
 
 void gui_window_tick(const GuiWindowCfg *args)
@@ -1553,9 +1607,8 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 static unsigned int s_timeout_source = GUI_WINDOW_WAKES;
 
 const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES] = {
-    "autohide", "scroll", "slide",   "ground",   "preferences", "dialog", "wordmark",
-    "sides",    "busy",   "panels",  "terminal", "notices",     "menus",  "runs",
-    "search",   "git",    "preview", "comms",    "debug",       "tip",    "bead",
+    "autohide", "scroll",  "slide", "ground", "preferences", "dialog", "wordmark", "caret", "sides", "busy", "panels",
+    "terminal", "notices", "menus", "runs",   "search",      "git",    "preview",  "comms", "debug", "tip",  "bead",
 };
 
 unsigned int gui_window_timeout_source(void)
@@ -1589,6 +1642,7 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
             : 0ULL,
         EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark,
                    .now_ms = cli_clock_milliseconds()),
+        EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = window),
         EMBED_CALL(gui_sides.next_deadline_ms, GuiSidesCfg, .sides_read = &window->sides),
         // the circle's clock stops while the window is off screen, a wake from a module's thread waking it as any does
         window->off_screen ? 0ULL
@@ -4235,10 +4289,14 @@ void gui_window_preferences_close(const GuiWindowCfg *args)
     }
 }
 
-// the panels read again of the servers' panels: the hover and the completion where they are, and the signature
+// The panels read again from the servers' panels: the hover, the completion and the signature. A panel that came or
+// went owes a frame. A caller that changed a panel displayed owes the frame itself.
 EMBED_INLINE void window_panels_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
+    const int hovered = window->hover.panel != NULL;
+    const int suggested = window->suggest.panel != NULL;
+    const int signature_displayed = window->signature.panel != NULL;
     window->hover.panel = cli_servers_panels_hover(&(CliServersPanelsCfg){.hover_out = &window->hover_panel})
                               ? &window->hover_panel
                               : NULL;
@@ -4246,7 +4304,8 @@ EMBED_INLINE void window_panels_take(const GuiWindowCtx *args)
                                 ? &window->completion_panel
                                 : NULL;
     window->signature.panel = cli_servers_panels_signature();
-    window->pending = 1;
+    window->pending = ((window->hover.panel != NULL) != hovered) || ((window->suggest.panel != NULL) != suggested) ||
+                      ((window->signature.panel != NULL) != signature_displayed) || window->pending;
 }
 
 // Every panel over the editor hidden. Where no panel shows, nothing changes and no frame is owed
@@ -4318,7 +4377,19 @@ EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
     const int on_frame = (frame->cursor.line >= frame->from) && ((frame->cursor.line - frame->from) < frame->count);
     // a row of the frame is far fewer than an int counts
     const unsigned int row = on_frame ? (unsigned int)(frame->cursor.line - frame->from) : 0u;
-    const unsigned int runs = (on_frame && (frame->runs != NULL)) ? frame->runs->line[row].runs : 0u;
+    // the cursor's row's entry and the words' offset read out of the frame's runs cell
+    CliDocumentLineRuns held = {0u, 0u};
+    CliDocumentRuns runs_head = {0u, 0u};
+    if (on_frame && (frame->runs != NULL))
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = frame->runs, .dst = &runs_head, .bytes = sizeof(runs_head)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &held, .bytes = sizeof(held)});
+    }
+    const unsigned int runs = held.runs;
+    const unsigned long long columns_at =
+        (unsigned long long)runs_head.words_at + ((unsigned long long)held.at * sizeof(unsigned int));
     char text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "frame ");
@@ -4331,11 +4402,22 @@ EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
     mmgr_line_decimal(&line, runs, 1u);
     for (unsigned int at = 0u; (at < runs) && (at < 8u); at += 1u)
     {
-        const CliDocumentLineRuns held = frame->runs->line[row];
+        unsigned int column = 0u;
+        unsigned int name = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = frame->runs,
+                                .offset = columns_at + ((unsigned long long)at * sizeof(column)),
+                                .dst = &column,
+                                .bytes = sizeof(column)});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = frame->runs,
+                                .offset = columns_at + ((unsigned long long)(runs + at) * sizeof(name)),
+                                .dst = &name,
+                                .bytes = sizeof(name)});
         mmgr_line_ch(&line, ' ');
-        mmgr_line_decimal(&line, frame->runs->word_text[held.at + at], 1u);
+        mmgr_line_decimal(&line, column, 1u);
         mmgr_line_ch(&line, ':');
-        mmgr_line_decimal(&line, frame->runs->word_text[held.at + runs + at], 1u);
+        mmgr_line_decimal(&line, name, 1u);
     }
     mmgr_line_ch(&line, '\n');
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,
@@ -5026,7 +5108,8 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
         unsigned long long to = 0ULL;
         char word_found[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = cursor.line,
-                        .col_value = cursor.col, .from = &from, .to = &to, .word_text = word_found, .capacity = sizeof(word_found)))
+                        .col_value = cursor.col, .from = &from, .to = &to, .word_text = word_found,
+                        .capacity = sizeof(word_found)))
         {
             cli_notice_post(&(CliNoticesCfg){.text = "The cursor is on no name.", .failed = 1});
             return 0;
@@ -6170,6 +6253,7 @@ static void window_key_take(const GuiWindowCtx *args)
     if (cli_servers_panels_key(&(CliServersPanelsCfg){.name = name}))
     {
         EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+        window->pending = 1;
         EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
         return;
     }
@@ -6374,6 +6458,7 @@ void gui_window_step(const GuiWindowCfg *args)
     if (cli_servers_panels_step())
     {
         EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+        window->pending = 1;
     }
     if (cli_terminal_tabs_step())
     {
@@ -6387,12 +6472,16 @@ void gui_window_step(const GuiWindowCfg *args)
     if (EMBED_ATOMIC_LOAD(&s_colored) != 0u)
     {
         EMBED_ATOMIC_STORE(&s_colored, 0u);
-        // the colorer colored more lines: their runs, the map's colors, the crumbs and the outline can change, and the
-        // text cannot
-        EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1, .on = 1);
+        // The colorer colored more lines, or a worker's answer landed for the view, as the bracket pair does. The text
+        // does not change. Where the colors moved, the runs, the map's colors, the crumbs and the outline can change,
+        // and the whole frame draws. Where they did not, the frame alone moved, and the editor's part draws
+        EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 0, .on = 1);
         EMBED_CALL(window_frame_telemetry, GuiWindowCtx, .window = window, .key = "colored");
-        EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = window, .event = GUI_PANE_VIEW, .on = 1);
-        window->pending = 1;
+        if (window->recolored)
+        {
+            EMBED_CALL(window_pane_read_event, GuiWindowCtx, .window = window, .event = GUI_PANE_VIEW, .on = 1);
+            window->pending = 1;
+        }
     }
     // a run of tests reported on its own thread: the pane drawn anew
     window->pending = EMBED_CALL(cli_tests_pane.changed, CliTestsPaneCfg, .at = 0u) || window->pending;
@@ -6478,16 +6567,28 @@ void gui_window_step(const GuiWindowCfg *args)
             ? measured.working
             : 0ULL;
     window->pending = ((window->memory_bytes / GUI_MEMORY_TENTH) != (was / GUI_MEMORY_TENTH)) || window->pending;
-    // The pages of the cellblock no cell holds go back to the system no sooner than GUI_MEMORY_MS after the last
-    // release, on a tick that runs for another reason, so the working set reads the live cells and not every page a
-    // take has touched since the window started
+    // The pages of the cellblock no cell holds go back to the system, so the working set reads the live cells. The
+    // release runs on a tick that runs for another reason, at most once in GUI_MEMORY_MS. It closes the cellblock and
+    // walks every free page, so it runs only where the working set grew by GUI_MEMORY_GROWN after the last release.
+    // A working set that did not grow holds no pages that a take touched again. It also waits for GUI_MEMORY_MS
+    // without input: a take in use touches its pages again, and each page given back faults in once more
+    window->memory_released_bytes =
+        (window->memory_bytes < window->memory_released_bytes) ? window->memory_bytes : window->memory_released_bytes;
     if (now_ms >= window->memory_due_ms)
     {
         if (window->telemetry)
         {
             cli_pool_telemetry_log();
         }
-        cli_pool_idle_released();
+        if ((now_ms >= window->input_ms + GUI_MEMORY_MS) &&
+            (window->memory_bytes >= window->memory_released_bytes + GUI_MEMORY_GROWN))
+        {
+            cli_pool_idle_released();
+            window->memory_released_bytes =
+                EMBED_CALL(cli_pid_internal.process_memory, CliPidCtx, .pid = cli_process_own(), .memory = &measured)
+                    ? measured.working
+                    : 0ULL;
+        }
         window->memory_due_ms = now_ms + GUI_MEMORY_MS;
     }
     EMBED_CALL(gui_busy_running.work, GuiBusyRunningCfg, .busy = &window->busy,
@@ -6921,8 +7022,8 @@ void gui_window_draw(const GuiWindowCfg *args)
     EMBED_CALL(gui_tip_raster.draw, GuiTipRasterCfg, .tip = &args->window->tip, .raster = raster,
                .glyphs = &args->window->glyphs, .palette = palette,
                .bounds = (GuiRect){0, 0, (int)frame->width, (int)frame->height}, .scale = frame->scale);
-    // the caret last, where no panel or menu lies over it: drawn over the frame whole, and drawn again alone where
-    // its ink alone changed; none is while the view is not drawn
+    // the caret last, at the ink its blink is at, where no panel or menu lies over it: drawn over the frame whole, its
+    // blink's flips draw it again alone; none is while the view is not drawn
     args->window->caret_color = EMBED_CALL(window_caret_color, GuiWindowCtx, .window_read = args->window);
     args->window->editor.caret_color = args->window->caret_color;
     const GuiRect caret =
@@ -8646,9 +8747,11 @@ static void window_key(const GuiInputHandlerCfg *args)
                .on = window->wordmark.exists);
 }
 
-// the keys gone to another window: the menus open closed
+// The keys gone to another window: the menus open close, and the caret stands still until the keys come back.
 static void window_blur(const GuiInputHandlerCfg *args)
 {
+    args->window->blurred = 1;
+    args->window->pending = 1;
     EMBED_CALL(window_tip_cleared, GuiWindowCtx, .window = args->window);
     EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
     // the changed tabs saved as the window loses the focus while auto save is on
@@ -8659,9 +8762,12 @@ static void window_blur(const GuiInputHandlerCfg *args)
     }
 }
 
-// the focus come to the main window or to Preferences' window: the signal moves to the edge of the one that holds it
+// The focus come to the main window or to Preferences' window: the signal moves to the edge of the one that holds it.
+// On the main window, the caret's blink begins again after the input rest.
 static void window_focus(const GuiInputHandlerCfg *args)
 {
+    args->window->blurred = 0;
+    args->window->caret_blink_start_ms = cli_clock_milliseconds() + GUI_CARET_INPUT_REST_MS;
     args->window->preferences.focused = 0;
     args->window->pending = 1;
     args->window->preferences_pending = 1;
@@ -8880,6 +8986,7 @@ void gui_window_input(const GuiWindowInputTypeCfg *args)
 {
     GuiWindow *window = args->window;
     const GuiInput *input = args->input;
+    window->input_ms = cli_clock_milliseconds();
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &s_window_handlers, .window = window,
                .input = input);
     // the pointer the input names follows each input with a place, in the shape the window is in after the input; a

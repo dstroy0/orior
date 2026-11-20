@@ -602,7 +602,8 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
     }
     else
     {
-        const int red = EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "red");
+        const int red =
+            EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "red");
         const int green =
             EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "green");
         const int blue =
@@ -660,20 +661,40 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const CliPosition from = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->anchor : frame->cursor);
     const CliPosition to = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->cursor : frame->anchor);
     const int selected = (from.line != to.line) || (from.col != to.col);
-    const CliDocumentNames *const names = args->terminal_read->names[args->view];
+    const CarcerMovableEntry *const names = args->terminal_read->names[args->view];
+    CliDocumentNames names_head = {0u, 0u};
+    if (names != NULL)
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = names, .dst = &names_head, .bytes = sizeof(names_head)});
+    }
     const unsigned int count = (frame != NULL) ? frame->count : 0u;
     for (unsigned int y = 0u; (y < count) && (y < displayed->rows); y += 1u)
     {
         const unsigned long long line = frame->row[y].number;
         const char *const text = frame->bytes + frame->row[y].text;
         const unsigned long long length = frame->row[y].length;
-        // a line's runs are in the frame's runs cell as its columns and then each run's token's place in the table,
-        // none where that cell could not be met
-        const CliDocumentLineRuns none = {0u, 0u};
-        const CliDocumentLineRuns runs = (frame->runs != NULL) ? frame->runs->line[y] : none;
-        const unsigned int *const column_of = (frame->runs != NULL) ? (frame->runs->word_text + runs.at) : NULL;
-        const unsigned int *const name_of =
-            (frame->runs != NULL) ? (frame->runs->word_text + runs.at + runs.runs) : NULL;
+        // A line's runs are in the frame's runs cell as its columns and then each run's token's place in the table,
+        // none where that cell could not be met. The line's entry is read once, and each run's column and name are
+        // read as the draw reaches it
+        CliDocumentLineRuns runs = {0u, 0u};
+        CliDocumentRuns runs_head = {0u, 0u};
+        if (frame->runs != NULL)
+        {
+            (void)g_cli_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = frame->runs, .dst = &runs_head, .bytes = sizeof(runs_head)});
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(y), .dst = &runs, .bytes = sizeof(runs)});
+        }
+        const unsigned long long columns_at =
+            (unsigned long long)runs_head.words_at + ((unsigned long long)runs.at * sizeof(unsigned int));
+        const unsigned long long names_at = columns_at + ((unsigned long long)runs.runs * sizeof(unsigned int));
+        unsigned int next_column = 0u;
+        if (runs.runs != 0u)
+        {
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = frame->runs, .offset = columns_at, .dst = &next_column, .bytes = sizeof(next_column)});
+        }
         const int on_chosen = selected && (line >= from.line) && (line <= to.line);
         const unsigned long long chosen_from = (line == from.line) ? from.col : 0ULL;
         const unsigned long long chosen_to = (line == to.line) ? to.col : ~0ULL;
@@ -687,12 +708,39 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
         CliTerminalStyle style = {CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
         while ((at < length) && (x < displayed->columns))
         {
-            while ((next < runs.runs) && (units >= column_of[next]))
+            while ((next < runs.runs) && (units >= next_column))
             {
-                const char *const token =
-                    ((names != NULL) && (name_of[next] < names->count)) ? names->name[name_of[next]] : "";
-                const unsigned long long run_end =
-                    ((next + 1u) < runs.runs) ? column_of[next + 1u] : (units + (length - at));
+                unsigned int name = 0u;
+                (void)g_cli_guard->movable_buf_read(
+                    &(CarcerMovableCfg){.cell = frame->runs,
+                                        .offset = names_at + ((unsigned long long)next * sizeof(name)),
+                                        .dst = &name,
+                                        .bytes = sizeof(name)});
+                unsigned int following = 0u;
+                if ((next + 1u) < runs.runs)
+                {
+                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                        .cell = frame->runs,
+                        .offset = columns_at + ((unsigned long long)(next + 1u) * sizeof(following)),
+                        .dst = &following,
+                        .bytes = sizeof(following)});
+                }
+                // the run's token name read out of the names' cell, cut to the 64 bytes its reading looks at
+                char token[64];
+                unsigned long long token_length = 0ULL;
+                if ((names != NULL) && (name < names_head.count))
+                {
+                    unsigned int place = 0u;
+                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                        .cell = names, .offset = CLI_DOCUMENT_NAME_AT(name), .dst = &place, .bytes = sizeof(place)});
+                    const unsigned long long measured =
+                        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = names, .offset = place});
+                    token_length = (measured < (sizeof(token) - 1ULL)) ? measured : (sizeof(token) - 1ULL);
+                    (void)g_cli_guard->movable_buf_read(
+                        &(CarcerMovableCfg){.cell = names, .offset = place, .dst = token, .bytes = token_length});
+                }
+                token[token_length] = '\0';
+                const unsigned long long run_end = ((next + 1u) < runs.runs) ? following : (units + (length - at));
                 const unsigned long long run_size = (run_end > units) ? (run_end - units) : 0ULL;
                 const unsigned long long within = (run_size < (length - at)) ? run_size : (length - at);
                 // a keyword is an escape sequence among the characters, a byte to each of its units: it takes no
@@ -702,6 +750,7 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
                                       .length = cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 64ULL}),
                                       .text = text + at, .size = (unsigned int)within, .style_out = &style);
                 next += 1u;
+                next_column = following;
             }
             unsigned long long consumed = 0ULL;
             const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = length,

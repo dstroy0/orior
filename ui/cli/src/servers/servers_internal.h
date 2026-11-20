@@ -223,6 +223,11 @@ typedef struct
 #define CLI_PROBLEMS_RING_SHIFT 5u
 #define CLI_PROBLEMS_RING_SLOTS (1u << CLI_PROBLEMS_RING_SHIFT)
 #define CLI_PROBLEMS_RING_BYTES ((unsigned long long)CLI_PROBLEMS_RING_SLOTS * sizeof(EmbedTicketRingSlot))
+// the hover answers on their way to the view's thread at once, a two's power, and the bytes their ring's slots take,
+// the hover answers' part of the rings block
+#define CLI_PANELS_HOVER_RING_SHIFT 2u
+#define CLI_PANELS_HOVER_RING_SLOTS (1u << CLI_PANELS_HOVER_RING_SHIFT)
+#define CLI_PANELS_HOVER_RING_BYTES ((unsigned long long)CLI_PANELS_HOVER_RING_SLOTS * sizeof(EmbedTicketRingSlot))
 // the jobs ring's slots as a two's power, the jobs in flight at max, and the bytes they take, the jobs' part of
 // the rings block
 #define CLI_SERVERS_JOBS_RING_SHIFT 8u

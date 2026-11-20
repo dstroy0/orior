@@ -62,6 +62,8 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 // other reasons, and the bytes of the RAM readout's last digit, a tenth of a megabyte
 #define GUI_MEMORY_MS 2000ULL
 #define GUI_MEMORY_TENTH (1024ULL * 1024ULL / 10ULL)
+// the growth of the working set after the last release that starts the next release: the pool's least released span
+#define GUI_MEMORY_GROWN (64ULL << 10u)
 // the inputs the window's own pointer drives that wait for the view's thread at once: a drag's press, its places and
 // its release
 #define GUI_WINDOW_DRIVEN 64u
@@ -132,8 +134,9 @@ typedef struct
 // frame is presented, the displayed one NULL before any; the base every frame starts from and the ground under it,
 // glyphs, icons, palette; the parts and the side pane's waits, the editor's frame, token table and map, the terminal's
 // panes and their frames, each taken of the module whose state it is and released by the window; the hover and the
-// completion as the panels last had them; the caret's ink in the last frame drawn, and whether its ink alone has
-// changed, which the caret drawn again over the frame pays with no frame whole; the busy circle, with whether its stage
+// completion as the panels last had them; when the caret's blink begins, each frame of the view putting it an input
+// rest later, the caret's ink in the last frame drawn, and whether its ink alone has changed, which the caret drawn
+// again over the frame pays with no frame whole; the busy circle, with whether its stage
 // alone has changed; the pointer
 // drawn on the main window, with whether its move alone is to be drawn, and the pointers drawn on Preferences' window
 // and the dialog's; Preferences, what its rows are at, the palette of the window's own they change, and the scale the
@@ -174,6 +177,7 @@ typedef struct GuiWindow
     GuiTerminal terminal;
     CliHoverPanel hover_panel;
     CliCompletionPanel completion_panel;
+    unsigned long long caret_blink_start_ms;
     unsigned int caret_color;
     int caret_alone;
     GuiBusy busy;
@@ -283,6 +287,8 @@ typedef struct GuiWindow
     const char *title;
     CliStateEntries entries;
     int editing;
+    // whether another window of the system has the keys: the caret stands still and sets no deadline while it does
+    int blurred;
     // whether the scroll eases toward where it goes over frames, and whether the editor claims the window's edges
     // while editing, each the View menu's switch and its setting
     int scroll_smooth;
@@ -310,6 +316,9 @@ typedef struct GuiWindow
     int closing;
     unsigned long long memory_bytes;
     unsigned long long memory_due_ms;
+    // the least working set after the last release of the cellblock's free pages, and when the last input came
+    unsigned long long memory_released_bytes;
+    unsigned long long input_ms;
     int view_displayed;
     unsigned int rows;
     unsigned int columns;
@@ -318,6 +327,11 @@ typedef struct GuiWindow
     int map_known;
     unsigned long long map_first;
     unsigned long long map_last;
+    // The text and the colors serial the names and the map were last read at, and whether the last view take read them
+    // again
+    char colors_key[CLI_NAME_MAX_LEN];
+    unsigned int colors_serial;
+    int recolored;
     // the key of the view whose language's palette is as the window's tokens, empty for none
     char tokens_key[CLI_PATH_MAX_LEN];
     unsigned int terminal_columns[2];
@@ -351,9 +365,13 @@ typedef struct GuiWindow
     unsigned int pressed;
 } GuiWindow;
 
-// the double-click window and the pixels a press may move and still count
+// The double-click window and the pixels a press may move and still count. The caret's blink shows the caret for the
+// first half of its period and hides it for the second. After a key, the caret shows through the input rest before
+// its blink begins.
 #define GUI_DOUBLE_CLICK_MS 500ULL
 #define GUI_CLICK_ADJACENT 4
+#define GUI_CARET_BLINK_PERIOD_MS 1060ULL
+#define GUI_CARET_INPUT_REST_MS 300ULL
 
 // the window begun: its glyphs read, its palette the dark scheme, its parts showing nothing: 1, or 0 with the reason
 // written; and ended, the session saved, the modules it began ended and every cell released
@@ -409,14 +427,14 @@ void gui_window_tick(const GuiWindowCfg *args);
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 // the deadlines the window waits on, each one's name for the telemetry, and the place of the one that set the last
 // wait, GUI_WINDOW_WAKES where none did
-#define GUI_WINDOW_WAKES 21u
+#define GUI_WINDOW_WAKES 22u
 extern const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES];
 unsigned int gui_window_timeout_source(void);
 // the frame positioned for the claim's movement at `time_ms`: while a slide runs the stage located then, the stages
 // made where a slide has been sent since they were; at rest the frame the slides rest at
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args);
 // the system's wish for less motion set, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
-// folder, stills the lattice, the claim's slides and the name's flight
+// folder, stills the lattice, the claim's slides, the name's flight and the caret's blink
 void gui_window_motion_wish(const GuiWindowReducedCfg *args);
 // the window gone off the screen, `displayed` 0, its ground's clock stationary, or back on it, 1, a frame owed
 void gui_window_show(const GuiWindowDisplayedCfg *args);
