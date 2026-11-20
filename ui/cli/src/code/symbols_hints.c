@@ -198,11 +198,6 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
         read.count = 0u;
         read.capacity = 0u;
     }
-    if (languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-        languages->languages = (CliLanguages){NULL, 0u, 0u};
-    }
     g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     return done;
 }

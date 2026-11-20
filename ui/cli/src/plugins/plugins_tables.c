@@ -51,6 +51,8 @@ void cli_plugins_set_tree(const CliPluginsRootCfg *args)
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     s_has_tree = 1;
+    // a plugin maps the folders of the tree to its languages: the languages are read again for the tree
+    cli_plugins_languages_changed();
 }
 
 int cli_plugins_tree(const CliPluginsTreeCfg *args)
@@ -126,9 +128,9 @@ EMBED_INLINE int cli_tables_path(const PluginsTablesCtx *args)
     return (text != NULL) && (mmgr_line_finish(&line) != 0ULL);
 }
 
-// `length` bytes of `text`, its characters put into `characters`, sized for CLI_TABLES_CHARACTERS, their count into `count`,
-// matched by `pattern` from its first character on: 1 with the first group's span, or the whole match's where it has no
-// group or the group took no part, into `from` and `to`; 0 where it matches nowhere
+// `length` bytes of `text`, its characters put into `characters`, sized for CLI_TABLES_CHARACTERS, their count into
+// `count`, matched by `pattern` from its first character on: 1 with the first group's span, or the whole match's where
+// it has no group or the group took no part, into `from` and `to`; 0 where it matches nowhere
 EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
 {
     const char *text = args->text;
@@ -137,8 +139,8 @@ EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
     unsigned long long *count = args->count;
     unsigned long long *from = args->from;
     unsigned long long *to = args->to;
-    *count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = length, .characters = characters,
-                        .capacity_u64 = CLI_TABLES_CHARACTERS);
+    *count = EMBED_CALL(cli_regexp_text.characters, CliRegexpTextCfg, .text = text, .size = length,
+                        .characters = characters, .capacity_u64 = CLI_TABLES_CHARACTERS);
     CliRegexpSpan span[CLI_TABLES_GROUPS];
     const unsigned long long last = args->pattern->anchored ? 0ULL : *count;
     for (unsigned long long at = 0ULL; at <= last; at += 1ULL)
@@ -221,7 +223,8 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
     VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
     for (unsigned long long at = from; at < to; at += 1ULL)
     {
-        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = characters[at]);
+        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                   .character = characters[at]);
     }
     const unsigned long long size = mmgr_line_finish(&line);
     if (size == 0ULL)

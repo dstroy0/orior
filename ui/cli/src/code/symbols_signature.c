@@ -75,8 +75,8 @@ EMBED_INLINE int cli_signature_language_is(const SymbolsSignatureCtx *args)
     const CliSymbolsLanguages *languages = args->languages_read;
     const char *path = args->path;
     char id[CLI_NAME_MAX_LEN];
-    return EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                      .languages_read = &languages->languages, .path = path, .id_out = id) &&
+    return EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = path,
+                      .id_out = id) &&
            cellul.eq(&(CatenaFinitaCfg){.src = id, .other = args->signature_read->language, .cap = CLI_POOL_BYTES});
 }
 
@@ -523,19 +523,14 @@ int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args)
         (languages != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(CliSymbolSignature), g_cli_code_owner) : NULL;
     if (signature == NULL)
     {
-        if (languages != NULL)
-        {
-            g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            languages->languages = (CliLanguages){NULL, 0u, 0u};
-        }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         mmgr_line_put(args->err_msg, "the cells cannot meet a signature's reading");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = signature->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
     signature->language[0] = '\0';
-    (void)EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                     .languages_read = &languages->languages, .path = path, .id_out = signature->language);
+    (void)EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = path,
+                     .id_out = signature->language);
     CliLeafRead read;
     const int saved =
         EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .languages = languages, .path = path,
@@ -569,11 +564,6 @@ int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args)
     read.count = 0u;
     read.capacity = 0u;
     g_cli_guard->persistent_buf_release(signature, g_cli_code_owner);
-    if (languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-        languages->languages = (CliLanguages){NULL, 0u, 0u};
-    }
     g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
     if (refused)
     {

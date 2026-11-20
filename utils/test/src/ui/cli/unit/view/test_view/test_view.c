@@ -173,15 +173,11 @@ static void colored_view(const char *text, unsigned int rows)
 {
     char id[CLI_NAME_MAX_LEN];
     char grammar[CLI_NAME_MAX_LEN];
-    CliLanguages languages;
     const CliViewInput size = view_size(rows);
     VerbaLinea why = {s_error, sizeof(s_error), 0ull};
     fresh_named(text, "check/view.c");
-    EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &languages);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                .languages_read = &languages, .path = "check/view.c", .id_out = id));
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    *(&languages) = (CliLanguages){NULL, 0u, 0u};
+                                .path = "check/view.c", .id_out = id));
     TEST_ASSERT_TRUE(
         EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar, .err_msg = &why));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = s_key,
@@ -1245,7 +1241,10 @@ void test_the_frame_carries_the_head_lines_of_the_regions_the_top_line_is_in_as_
     TEST_ASSERT_EQUAL_MEMORY("int main", frame->bytes + sticky->text, 8u);
     TEST_ASSERT_NOT_NULL(frame->runs);
     CliDocumentLineRuns sticky_runs = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(frame->count), .dst = &sticky_runs, .bytes = sizeof(sticky_runs)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
+                                                            .offset = CLI_DOCUMENT_RUNS_LINE_AT(frame->count),
+                                                            .dst = &sticky_runs,
+                                                            .bytes = sizeof(sticky_runs)});
     TEST_ASSERT_TRUE(sticky_runs.runs > 0u);
     cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
 }
@@ -1956,8 +1955,8 @@ void test_the_openers_above_a_line_and_the_texts_folds_come_off_the_coloring(voi
 {
     main_view();
     unsigned int opener[4];
-    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = s_key, .line = 2u,
-                                          .opener = opener, .max_u32 = 4u));
+    TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = s_key,
+                                          .line = 2u, .opener = opener, .max_u32 = 4u));
     TEST_ASSERT_EQUAL_UINT(1u, opener[0]);
     TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_document_key_line.openers, CliDocumentKeyLineCfg, .key = "check:none",
                                           .line = 2u, .opener = opener, .max_u32 = 4u));
@@ -1966,7 +1965,8 @@ void test_the_openers_above_a_line_and_the_texts_folds_come_off_the_coloring(voi
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = s_key,
                                 .each_fold_each = fold_recorded, .context = &line));
     (void)mmgr_line_finish(&line);
-    TEST_ASSERT_TRUE_MESSAGE(cellul.starts(&(CatenaFinitaCfg){.src = folds, .other = "1-", .cap = sizeof(folds)}), folds);
+    TEST_ASSERT_TRUE_MESSAGE(cellul.starts(&(CatenaFinitaCfg){.src = folds, .other = "1-", .cap = sizeof(folds)}),
+                             folds);
     TEST_ASSERT_FALSE(EMBED_CALL(cli_document_context.folds_each, CliDocumentContextCfg, .key = "check:none",
                                  .each_fold_each = fold_recorded, .context = &line));
 }
@@ -1994,7 +1994,8 @@ void test_the_session_saves_the_open_views_paths_and_restores_them_from_the_fold
     char restored_key[CLI_NAME_MAX_LEN] = "";
     paged_view();
     cli_unity_folder("view_session_home", home);
-    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
     cli_view_session_save(&(CliViewAtCfg){.root = s_folder});
     paged_closed();
     const unsigned int before = cli_view_count();
@@ -2007,7 +2008,8 @@ void test_the_session_saves_the_open_views_paths_and_restores_them_from_the_fold
     {
         char path[CLI_PATH_MAX_LEN];
         if (cli_view_path_at(&(CliViewAtCfg){.at = at, .path_out = path}) &&
-            EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = path, .size = CLI_UNITY_LENGTH(path), .suffix = "numbered.txt"))
+            EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = path, .size = CLI_UNITY_LENGTH(path),
+                       .suffix = "numbered.txt"))
         {
             (void)cli_view_key(&(CliViewAtCfg){.at = at, .key_out = restored_key});
         }

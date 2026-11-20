@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_shape.c: structural search: an expression placeholder matches a whole call and writes its text back, a name placeholder
-// matches one name, statements match past spaces and comments, and a last expression takes the rest of its statement
+// test_shape.c: structural search: an expression placeholder matches a whole call and writes its text back, a name
+// placeholder matches one name, statements match past spaces and comments, and a last expression takes the rest of its
+// statement
 #include "ui/cli/src/code/shape_internal.h"
 #include "ui/cli/src/code/symbols_internal.h"
 #include "ui/cli/src/text/edits.h"
@@ -26,8 +27,11 @@ static void match_recorded(const CliShapeEachCfg *args)
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_with + s_used, .src = args->found->has_with ? args->found->with : "", .bytes = args->found->has_with ? args->found->with_size : 0ull});
-    s_edits[s_count] = (CliTextEdit){args->found->from, args->found->to, s_with + s_used, args->found->has_with ? args->found->with_size : 0ull};
+    memor.cpy(&(MemoriaCfg){.dst = s_with + s_used,
+                            .src = args->found->has_with ? args->found->with : "",
+                            .bytes = args->found->has_with ? args->found->with_size : 0ull});
+    s_edits[s_count] = (CliTextEdit){args->found->from, args->found->to, s_with + s_used,
+                                     args->found->has_with ? args->found->with_size : 0ull};
     // the recorded texts stay below the buffer's size, which an unsigned int represents
     s_used += (unsigned int)s_edits[s_count].size;
     s_count += 1u;
@@ -38,16 +42,20 @@ static unsigned int matches_of(const char *language, const char *src, const char
 {
     s_count = 0u;
     s_used = 0u;
-    EMBED_CALL(cli_shape_languages.search, CliShapeLanguagesCfg, .languages = s_languages, .language = language, .src = src, .size = CLI_UNITY_LENGTH(src), .pattern = pattern, .template_text = template_text, .each = match_recorded, .context = NULL);
+    EMBED_CALL(cli_shape_languages.search, CliShapeLanguagesCfg, .languages = s_languages, .language = language,
+               .src = src, .size = CLI_UNITY_LENGTH(src), .pattern = pattern, .template_text = template_text,
+               .each = match_recorded, .context = NULL);
     return s_count;
 }
 
 // `src` with each match of `pattern` rewritten as `template_text` is `required`
-static void assert_replaced(const char *required, const char *language, const char *src, const char *pattern, const char *template_text)
+static void assert_replaced(const char *required, const char *language, const char *src, const char *pattern,
+                            const char *template_text)
 {
     (void)matches_of(language, src, pattern, template_text);
     VerbaLinea after = {s_after, sizeof(s_after), 0ull};
-    (void)EMBED_CALL(cli_edits_out.text_apply, CliEditsOutCfg, .text = src, .size = CLI_UNITY_LENGTH(src), .edits = s_edits, .count = s_count, .out = &after);
+    (void)EMBED_CALL(cli_edits_out.text_apply, CliEditsOutCfg, .text = src, .size = CLI_UNITY_LENGTH(src),
+                     .edits = s_edits, .count = s_count, .out = &after);
     CLI_TEST_ASSERT_TEXT(required, s_after, after.at);
 }
 
@@ -59,11 +67,6 @@ void setUp(void)
 
 void tearDown(void)
 {
-    if (s_languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(s_languages->languages.pair, g_cli_plugins_owner);
-        *(&s_languages->languages) = (CliLanguages){NULL, 0u, 0u};
-    }
     g_cli_guard->persistent_buf_release(s_languages, g_cli_code_owner);
 }
 
@@ -83,7 +86,8 @@ void test_an_expression_placeholder_matches_each_complete_call(void)
 
 void test_an_expression_placeholder_writes_its_text_back(void)
 {
-    assert_replaced("x = count(items) + count(other(1, 2))\nprint(count(z))\n", "python", s_calls, "len($a$)", "count($a$)");
+    assert_replaced("x = count(items) + count(other(1, 2))\nprint(count(z))\n", "python", s_calls, "len($a$)",
+                    "count($a$)");
 }
 
 void test_a_name_placeholder_matches_one_name_and_the_same_both_times(void)
@@ -103,8 +107,8 @@ void test_statements_match_end_spaces_and_comments(void)
 
 void test_statements_are_written_back_unchanged(void)
 {
-    assert_replaced("when(ready, () => { start(); // go\n  log(\"started\"); })\nwhen(done, () => { finish(); })\n", "javascript", s_script,
-                    "if ($c$) { $body:stmt$ }", "when($c$, () => { $body$ })");
+    assert_replaced("when(ready, () => { start(); // go\n  log(\"started\"); })\nwhen(done, () => { finish(); })\n",
+                    "javascript", s_script, "if ($c$) { $body:stmt$ }", "when($c$, () => { $body$ })");
 }
 
 void test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement(void)

@@ -317,6 +317,11 @@ int cli_plugins_create_in(const CliPluginsErrMsgCfg *args)
     g_cli_guard->persistent_buf_release(draft.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), draft.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&draft),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    // a plugin written can open files as its language: the languages are read again
+    if (written)
+    {
+        cli_plugins_languages_changed();
+    }
     return written;
 }
 

@@ -48,10 +48,9 @@ typedef struct
     char directive_continued[CLI_SYMBOLS_MARK_MAX];
 } CliSymbolsGrammar;
 
-// The languages a reading reads its files in: the language each file opens as, and those whose plugins have a grammar
+// The languages a reading reads its files in: those whose plugins have a grammar
 struct CliSymbolsLanguages
 {
-    CliLanguages languages;
     CliSymbolsGrammar grammar[CLI_SYMBOLS_GRAMMARS];
     unsigned int grammars;
 };

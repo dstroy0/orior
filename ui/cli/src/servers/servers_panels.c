@@ -111,12 +111,9 @@ typedef struct
     unsigned long long pointer_column;
     unsigned long long hover_due_ms;
     unsigned long long hover_hide_ms;
-    // when the view thread next takes the hover's answer, 0 where no answer is to come, and when the hover was asked.
-    // `hover_reading` is 1 while a worker reads a hover: the view thread posts no other read until its answer lands,
-    // or until CLI_PANELS_HOVER_ANSWER_MS goes by
+    // when the view thread next takes the hover's answer, 0 where no answer is to come, and when the hover was asked
     unsigned long long hover_take_ms;
     unsigned long long hover_asked_ms;
-    int hover_reading;
     unsigned long long hover_ask;
     char hover_text[CLI_PANELS_HOVER_MAX];
     int hover_displayed;
@@ -612,12 +609,9 @@ static void panels_hover_tree_run(void *context)
     }
     CliFoundDeclarations head = {0u, 0};
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .dst = &head, .bytes = sizeof(head)});
-    CliLanguages languages;
-    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     char wanted[CLI_NAME_MAX_LEN];
-    const int known =
-        (languages.pair != NULL) && EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                               .languages_read = &languages, .path = ask->path, .id_out = wanted);
+    const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = ask->path,
+                                 .id_out = wanted);
     // the Markdown written into the asker's line, where it gives one
     VerbaLinea *const out = ask->out;
     const size_t begun = (out != NULL) ? out->at : 0u;
@@ -646,7 +640,7 @@ static void panels_hover_tree_run(void *context)
         path[path_length] = '\0';
         char id[CLI_NAME_MAX_LEN];
         const int same = !known || (EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                               .languages_read = &languages, .path = path, .id_out = id) &&
+                                               .path = path, .id_out = id) &&
                                     cellul.eq(&(CatenaFinitaCfg){.src = id, .other = wanted, .cap = sizeof(id)}));
         if (same && (name_measured == name_length) &&
             cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
@@ -681,7 +675,6 @@ static void panels_hover_tree_run(void *context)
     }
     ask->reading = head.reading;
     (void)g_cli_guard->movable_buf_release(found, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
     if (out == NULL)
     {
         return;
@@ -767,8 +760,6 @@ EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
             break;
         }
         const CarcerMovableEntry *const landed = job;
-        // the read out has landed: the next ask can go
-        s_panels.hover_reading = 0;
         PanelsHoverLanded head;
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = landed, .dst = &head, .bytes = sizeof(head)});
         if (head.ask == s_panels.hover_ask)
@@ -872,20 +863,12 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
     {
         job.path[0] = '\0';
     }
-    // One read at a time: while a read is out, this ask comes again at the next take. A read out longer than
-    // CLI_PANELS_HOVER_ANSWER_MS lets the next one go
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    if (s_panels.hover_reading && ((now_ms - s_panels.hover_asked_ms) < CLI_PANELS_HOVER_ANSWER_MS))
-    {
-        s_panels.hover_due_ms = now_ms + CLI_PANELS_HOVER_TAKE_MS;
-        return;
-    }
     // The view thread comes back on its own deadline to take the answer. The worker pushes it on the ring and wakes
     // nothing
+    const unsigned long long now_ms = cli_clock_milliseconds();
     if (EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_hover_job, .job = &job,
                    .size = sizeof(job)))
     {
-        s_panels.hover_reading = 1;
         s_panels.hover_asked_ms = now_ms;
         s_panels.hover_take_ms = now_ms + CLI_PANELS_HOVER_TAKE_MS;
     }
@@ -1877,11 +1860,8 @@ static void panels_open_send(const PanelsCtx *args)
         return;
     }
     PanelsServeJob job = {.does = PANELS_SERVE_OPEN};
-    CliLanguages languages;
-    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
-    const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                 .languages_read = &languages, .path = path, .id_out = job.language);
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
+    const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = path,
+                                 .id_out = job.language);
     if (!known)
     {
         return;

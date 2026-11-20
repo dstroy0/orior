@@ -301,6 +301,7 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_terminal_tabs_end();
     cli_servers_problems_end();
     cli_servers_panels_end();
+    cli_plugins_languages_end();
     cli_files_explorer_end();
     cli_comms_pane_end();
     cli_door_macro_close();
@@ -679,12 +680,8 @@ EMBED_INLINE void window_tokens_load(const GuiWindowCtx *args)
     {
         return;
     }
-    CliLanguages languages;
-    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
-    const int known =
-        (languages.pair != NULL) && EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                               .languages_read = &languages, .path = path, .id_out = window->tokens_id);
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
+    const int known = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .path = path,
+                                 .id_out = window->tokens_id);
     if (known)
     {
         (void)EMBED_CALL(cli_plugins_id_each.palette_each, CliPluginsIdEachCfg, .id = window->tokens_id,

@@ -818,12 +818,8 @@ static void view_plugin_read(const CliEachPluginCfg *args)
 EMBED_INLINE void view_language_read(const ViewCtx *args)
 {
     char id[CLI_NAME_MAX_LEN];
-    CliLanguages languages;
-    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int named = EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                 .languages_read = &languages, .path = args->view->path, .id_out = id);
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    languages = (CliLanguages){NULL, 0u, 0u};
+                                 .path = args->view->path, .id_out = id);
     if (named)
     {
         CliViewPluginNeedle needle = {id, args->view};

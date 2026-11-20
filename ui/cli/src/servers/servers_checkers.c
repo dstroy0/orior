@@ -173,12 +173,8 @@ void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
     const unsigned int ids = g_cli_servers.checkers;
     memor.cpy(&(MemoriaCfg){.dst = s_id, .src = g_cli_servers.checker, .bytes = sizeof(s_id)});
     char language[CLI_NAME_MAX_LEN];
-    CliLanguages languages;
-    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
     const int known = (ids != 0u) && EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
-                                                .languages_read = &languages, .path = path, .id_out = language);
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    languages = (CliLanguages){NULL, 0u, 0u};
+                                                .path = path, .id_out = language);
     if (!known)
     {
         return;

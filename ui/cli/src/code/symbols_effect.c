@@ -1476,11 +1476,6 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
                            : NULL;
     if (cell == NULL)
     {
-        if (languages != NULL)
-        {
-            g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            languages->languages = (CliLanguages){NULL, 0u, 0u};
-        }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(effect, g_cli_code_owner);
         mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
@@ -1556,11 +1551,6 @@ void cli_effect_input_back(const CliSymbolsTextLengthCtx *args)
         }
     }
     g_cli_guard->persistent_buf_release(args->effect->branch_read, g_cli_code_owner);
-    if (args->effect->languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(args->effect->languages->languages.pair, g_cli_plugins_owner);
-        args->effect->languages->languages = (CliLanguages){NULL, 0u, 0u};
-    }
     g_cli_guard->persistent_buf_release(args->effect->languages, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(args->effect, g_cli_code_owner);
 }

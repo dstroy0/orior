@@ -4,9 +4,9 @@
 // listed in the audit, a take past the pool is refused, the owner table holds the owners declared, a file of whole
 // pages in a cell is measured and searched past its end, and a movable cell moves at a quiet time with its bytes. The
 // cases run in source order: the mover's is last, the pool not being made anew once the option is assigned
+#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/code/symbols_internal.h"
-#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/editor/files_internal.h"
@@ -33,6 +33,7 @@ static void path_counted(const CliEachPathLengthCfg *args)
 // the pool made anew at its full size, which resets the peaks
 static void pool_created_anew(void)
 {
+    cli_plugins_languages_end();
     TEST_ASSERT_TRUE(cli_pool_made(CLI_POOL_BYTES));
 }
 
@@ -47,12 +48,15 @@ static void assert_full_text_pages(const char *name, unsigned int pages)
 {
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = name, .joined = path);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = s_bytes, .size = pages * PAGE, .fresh = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = s_bytes,
+                                .size = pages * PAGE, .fresh = 1));
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = g_checks_owner);
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
+                                                  .size_pointer = &size, .owner = g_checks_owner);
     TEST_ASSERT_NOT_NULL(bytes);
     TEST_ASSERT_EQUAL_UINT64(pages * PAGE, size);
-    TEST_ASSERT_EQUAL_UINT64(pages * PAGE, cellul.len(&(CatenaFinitaCfg){.src = (const char *)bytes, .cap = CLI_POOL_BYTES}));
+    TEST_ASSERT_EQUAL_UINT64(pages * PAGE,
+                             cellul.len(&(CatenaFinitaCfg){.src = (const char *)bytes, .cap = CLI_POOL_BYTES}));
     TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = (const char *)bytes, .cap = CLI_POOL_BYTES, .byte = '!'}));
     g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, g_checks_owner);
 }
@@ -127,7 +131,8 @@ void test_the_owner_table_holds_every_owner_declared_at_its_place(void)
 void test_a_walk_finds_the_folders_files(void)
 {
     unsigned int found = 0u;
-    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted, .context = &found);
+    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted,
+               .context = &found);
     TEST_ASSERT_NOT_EQUAL(0u, found);
 }
 
@@ -135,7 +140,8 @@ void test_a_walks_paths_stay_out_of_the_persistent_tier(void)
 {
     unsigned int found = 0u;
     pool_created_anew();
-    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted, .context = &found);
+    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted,
+               .context = &found);
     peaks_read();
     TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
 }
@@ -144,7 +150,8 @@ void test_a_walks_paths_are_in_the_temporary_tier(void)
 {
     unsigned int found = 0u;
     pool_created_anew();
-    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted, .context = &found);
+    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted,
+               .context = &found);
     peaks_read();
     TEST_ASSERT_NOT_EQUAL(0ull, s_temporary);
 }
@@ -153,9 +160,12 @@ void test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier
 {
     CliFiles files;
     pool_created_anew();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_bytes_internal.work_init, CliFilesBytesCtx, .files = &files, .count = 2ull, .bytes = 8ull));
-    (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "b", .length = 1ull);
-    (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "a", .length = 1ull);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_bytes_internal.work_init, CliFilesBytesCtx, .files = &files, .count = 2ull,
+                                .bytes = 8ull));
+    (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "b",
+                     .length = 1ull);
+    (void)EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &files, .path = "a",
+                     .length = 1ull);
     peaks_read();
     const unsigned long long list_entries = s_persistent;
     const int sorted = EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &files);
@@ -167,30 +177,15 @@ void test_a_list_is_sorted_and_its_reserve_list_stays_out_of_the_persistent_tier
     TEST_ASSERT_EQUAL_UINT64(list_entries, s_persistent);
 }
 
-void test_the_languages_for_a_call_stay_out_of_the_persistent_tier(void)
+void test_the_languages_are_read_in_the_temporary_tier_and_kept_in_one_cell_sized_to_them(void)
 {
-    CliLanguages languages;
     pool_created_anew();
-    EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &languages);
-    const int reserved = languages.pair != NULL;
+    char id[CLI_NAME_MAX_LEN];
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
+                                .path = "build.zig", .id_out = id));
     peaks_read();
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    *(&languages) = (CliLanguages){NULL, 0u, 0u};
-    TEST_ASSERT_TRUE(reserved);
-    TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
-}
-
-void test_the_languages_a_walk_or_a_batch_holds_stay_out_of_the_persistent_tier(void)
-{
-    CliLanguages languages;
-    pool_created_anew();
-    EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &languages);
-    const int reserved = languages.pair != NULL;
-    peaks_read();
-    g_cli_guard->persistent_buf_release(languages.pair, g_cli_plugins_owner);
-    *(&languages) = (CliLanguages){NULL, 0u, 0u};
-    TEST_ASSERT_TRUE(reserved);
-    TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT64((unsigned long long)CLI_LANGUAGE_PAIRS * 2ull * CLI_NAME_MAX_LEN, s_temporary);
+    TEST_ASSERT_LESS_THAN_UINT64((unsigned long long)CLI_LANGUAGE_PAIRS * 2ull * CLI_NAME_MAX_LEN, s_persistent);
 }
 
 void test_the_languages_a_call_reads_stay_out_of_the_persistent_tier(void)
@@ -199,11 +194,6 @@ void test_the_languages_a_call_reads_stay_out_of_the_persistent_tier(void)
     CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
     peaks_read();
     TEST_ASSERT_NOT_NULL(read);
-    if (read != NULL)
-    {
-        g_cli_guard->persistent_buf_release(read->languages.pair, g_cli_plugins_owner);
-        *(&read->languages) = (CliLanguages){NULL, 0u, 0u};
-    }
     g_cli_guard->persistent_buf_release(read, g_cli_code_owner);
     TEST_ASSERT_EQUAL_UINT64(0ull, s_persistent);
 }
@@ -211,7 +201,8 @@ void test_the_languages_a_call_reads_stay_out_of_the_persistent_tier(void)
 void test_the_walks_and_the_lists_cells_are_released(void)
 {
     unsigned int found = 0u;
-    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted, .context = &found);
+    EMBED_CALL(cli_files_root_each_context.walk, CliFilesRootEachContextCfg, .root = ".", .each = path_counted,
+               .context = &found);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_files_views_owner));
 }
 
@@ -374,8 +365,11 @@ void test_an_owners_usage_is_the_pools_bytes_its_peak_and_a_zero_and_the_reports
     mmgr_line_ch(&pool_line, ' ');
     (void)mmgr_line_finish(&pool_line);
     TEST_ASSERT_TRUE_MESSAGE(cellul.starts(&(CatenaFinitaCfg){.src = text, .other = pool, .cap = sizeof(text)}), text);
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = text, .size = out.at, .suffix = " 0"), text);
-    TEST_ASSERT_EQUAL_UINT64(2ull, EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = out.at, .byte = ' '));
+    TEST_ASSERT_TRUE_MESSAGE(
+        EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = text, .size = out.at, .suffix = " 0"),
+        text);
+    TEST_ASSERT_EQUAL_UINT64(
+        2ull, EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = out.at, .byte = ' '));
     // a process in no run reports nothing, and the telemetry line goes to the error stream
     cli_pool_peaks_report();
     cli_pool_reported("checks", &out);
@@ -403,8 +397,11 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
         // a byte of the pattern, its low eight bits
         s_written[at] = (unsigned char)(at * 7u);
     }
-    TEST_ASSERT_TRUE(g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES}));
-    TEST_ASSERT_FALSE_MESSAGE(g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES + 1u}), "a write past its end");
+    TEST_ASSERT_TRUE(
+        g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES}));
+    TEST_ASSERT_FALSE_MESSAGE(
+        g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES + 1u}),
+        "a write past its end");
     const size_t gap = g_cli_guard->buf_available();
     g_cli_guard->persistent_buf_release(hole, g_checks_owner);
     const unsigned long long began = cli_clock_milliseconds();
@@ -413,7 +410,8 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wake, .milliseconds_u64 = 50ull);
     }
     TEST_ASSERT_GREATER_THAN_UINT64(gap, g_cli_guard->buf_available());
-    TEST_ASSERT_TRUE(g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = s_read, .bytes = CELL_BYTES}));
+    TEST_ASSERT_TRUE(
+        g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = s_read, .bytes = CELL_BYTES}));
     TEST_ASSERT_EQUAL_MEMORY(s_written, s_read, CELL_BYTES);
     TEST_ASSERT_TRUE(g_cli_guard->movable_buf_release(cell, g_checks_owner));
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));

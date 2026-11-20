@@ -77,7 +77,7 @@ typedef struct
     unsigned int file;
 } SymbolsCtx;
 
-// the walk's cells given back, the languages' pairs first, and the walk itself
+// the walk's cells given back, and the walk itself
 EMBED_INLINE void symbols_walk_released(const SymbolsCtx *args)
 {
     CliTreeWalk *const walk = args->walk;
@@ -85,11 +85,6 @@ EMBED_INLINE void symbols_walk_released(const SymbolsCtx *args)
     g_cli_guard->persistent_buf_release(walk->read_symbols, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(walk->file_bytes, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(walk->mount_name, g_cli_code_owner);
-    if (walk->languages != NULL)
-    {
-        g_cli_guard->persistent_buf_release(walk->languages->languages.pair, g_cli_plugins_owner);
-        walk->languages->languages = (CliLanguages){NULL, 0u, 0u};
-    }
     g_cli_guard->persistent_buf_release(walk->languages, g_cli_code_owner);
     g_cli_guard->persistent_buf_release(walk, g_cli_code_owner);
 }
@@ -767,10 +762,8 @@ static unsigned long long cli_tree_mounts_word(void)
     {
         // each mount read out of the process's cell
         CliMount mount;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
-                                                               .offset = (embed_word)at * sizeof(CliMount),
-                                                               .dst = &mount,
-                                                               .bytes = sizeof(mount)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = mounts.cell, .offset = (embed_word)at * sizeof(CliMount), .dst = &mount, .bytes = sizeof(mount)});
         for (const char *character = mount.path; character[0] != '\0'; character += 1)
         {
             word_text = (word_text ^ (unsigned char)character[0]) * 0x100000001b3ULL;
@@ -801,11 +794,6 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
     s_walk = (languages != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(*s_walk), g_cli_code_owner) : NULL;
     if (s_walk == NULL)
     {
-        if (languages != NULL)
-        {
-            g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            languages->languages = (CliLanguages){NULL, 0u, 0u};
-        }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         g_cli_tree_walking = 0;
         return;
@@ -818,24 +806,19 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
     unsigned long long mount_bytes = 2ULL * mounts.count * sizeof(*s_walk->mount_name);
     for (unsigned int at = 0u; at < mounts.count; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
-                                                               .offset = (embed_word)at * sizeof(CliMount),
-                                                               .dst = &mount,
-                                                               .bytes = sizeof(mount)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = mounts.cell, .offset = (embed_word)at * sizeof(CliMount), .dst = &mount, .bytes = sizeof(mount)});
         mount_bytes += cellul.len(&(CatenaFinitaCfg){.src = mount.name, .cap = CLI_NAME_MAX_LEN}) +
                        cellul.len(&(CatenaFinitaCfg){.src = mount.path, .cap = CLI_PATH_MAX_LEN}) + 2ULL;
     }
-    s_walk->mount_name =
-        (mounts.count != 0u) ? g_cli_guard->temporary_buf_alloc(mount_bytes, g_cli_code_owner) : NULL;
+    s_walk->mount_name = (mounts.count != 0u) ? g_cli_guard->temporary_buf_alloc(mount_bytes, g_cli_code_owner) : NULL;
     s_walk->mounts = (s_walk->mount_name != NULL) ? mounts.count : 0u;
     s_walk->mount_path = (s_walk->mount_name != NULL) ? (s_walk->mount_name + mounts.count) : NULL;
     char *mount_text = (s_walk->mount_name != NULL) ? (char *)(void *)(s_walk->mount_path + mounts.count) : NULL;
     for (unsigned int at = 0u; at < s_walk->mounts; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = mounts.cell,
-                                                               .offset = (embed_word)at * sizeof(CliMount),
-                                                               .dst = &mount,
-                                                               .bytes = sizeof(mount)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = mounts.cell, .offset = (embed_word)at * sizeof(CliMount), .dst = &mount, .bytes = sizeof(mount)});
         const unsigned long long name_size =
             cellul.len(&(CatenaFinitaCfg){.src = mount.name, .cap = CLI_NAME_MAX_LEN}) + 1ULL;
         memor.cpy(&(MemoriaCfg){.dst = mount_text, .src = mount.name, .bytes = name_size});
@@ -865,11 +848,6 @@ void cli_tree_on_walk(const CliSymbolsRootCfg *args)
         g_cli_guard->persistent_buf_release(s_walk->read_symbols, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(s_walk->file_bytes, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(s_walk->mount_name, g_cli_code_owner);
-        if (s_walk->languages != NULL)
-        {
-            g_cli_guard->persistent_buf_release(s_walk->languages->languages.pair, g_cli_plugins_owner);
-            s_walk->languages->languages = (CliLanguages){NULL, 0u, 0u};
-        }
         g_cli_guard->persistent_buf_release(s_walk->languages, g_cli_code_owner);
         g_cli_guard->persistent_buf_release(s_walk, g_cli_code_owner);
         s_walk = NULL;
@@ -886,11 +864,6 @@ void cli_tree_branches_walk(const CliSymbolsRootCfg *args)
         (languages != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(*walk), g_cli_code_owner) : NULL;
     if (walk == NULL)
     {
-        if (languages != NULL)
-        {
-            g_cli_guard->persistent_buf_release(languages->languages.pair, g_cli_plugins_owner);
-            languages->languages = (CliLanguages){NULL, 0u, 0u};
-        }
         g_cli_guard->persistent_buf_release(languages, g_cli_code_owner);
         return;
     }
