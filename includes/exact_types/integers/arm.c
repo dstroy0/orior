@@ -17,7 +17,7 @@
 
 #include "arm.h"
 
-/** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
+/** @brief The arm as a driver sees it. Static storage. A return of its address is safe. */
 static const OriorExactArm PORTABLE_ARM = {
     "portable",
     orior_exact_equal,

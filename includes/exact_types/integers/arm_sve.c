@@ -10,20 +10,20 @@
  * @brief The SVE arm of the exact arithmetic, at whatever vector length the part turns out to have.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * @note Written for server class ARM: Graviton, Ampere Altra, Grace, the Neoverse cores. No part in
- *       this project has SVE. The Raspberry Pi 5 is a Cortex-A76, which is NEON only. This arm has
- *       never been run. It is compiled for armv8.2-a+sve and its emitted instructions are read by
- *       utils/maint/engine/verify_arm_asm.sh, which confirms the predicated forms. That shows the intrinsics
- *       became SVE instructions and not a scalar fallback. It states nothing about behavior, and the
- *       arm's name carries that.
- * @note SVE has no fixed vector length. A part may be 128, 256, 512 bits or more, and the same
- *       binary runs on all of them: svcntw() answers how many 32 bit lanes this part carries and the
- *       loop is written around a predicate instead of around a constant. No lane count appears in
- *       this file for that reason, and the tail needs no separate scalar loop.
- * @note Detection reads the hardware capability word Linux exposes, never executing an SVE
- *       instruction to see whether it faults. There is no cpuid on ARM: a part's features come from
- *       the kernel, and on anything other than Linux this arm reports itself absent instead of
- *       guessing.
+ * @note This arm is for server class ARM: Graviton, Ampere Altra, Grace, the Neoverse cores. No part in
+ *       this project has SVE. The Raspberry Pi 5 is a Cortex-A76, which is NEON only.
+ * @note No test runs this arm on hardware. The build compiles it for armv8.2-a+sve.
+ *       utils/maint/engine/verify_arm_asm.sh reads its instructions and confirms the predicated forms.
+ * @note That shows that the intrinsics became SVE instructions and not a scalar fallback. It states
+ *       nothing about behavior, and the name of the arm says that.
+ * @note SVE has no fixed vector length. A part can be 128, 256, 512 bits or more, and the same program
+ *       runs on all of them.
+ * @note svcntw() gives how many 32 bit lanes this part has, and a predicate controls the loop in place of a
+ *       constant. For that reason no lane count shows in this file, and the tail needs no scalar loop.
+ * @note The detection reads the hardware capability word that Linux gives. It never runs an SVE
+ *       instruction to see whether it faults.
+ * @note There is no cpuid on ARM, and the features of a part come from the kernel. On any system other
+ *       than Linux, this arm reports that it is absent, and does not guess.
  */
 
 #include "arm.h"
@@ -47,7 +47,7 @@
 /**
  * @brief Whether this part carries SVE.
  *
- * @return 1 where the kernel reports SVE, 0 where it does not or cannot be queried.
+ * @return 1 where the kernel reports SVE, 0 where it does not or where the call cannot ask it.
  */
 static int sve_present(void)
 {
@@ -64,10 +64,10 @@ static int sve_present(void)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          1 where every limb matches, 0 otherwise.
- * @note Walks upward here and not downward. svwhilelt_b32 builds the predicate for a forward run
- *       and there is no reversed form of it. The direction that costs nothing on this instruction
- *       set is the forward one. Equality has no early information in the high limbs the way ordering
- *       does. Nothing is lost by it.
+ * @note Walks up here and not down. svwhilelt_b32 builds the predicate for a forward run, and it has
+ *       no reversed form. On this instruction set the forward direction costs nothing.
+ * @note Equality has no early information in the high limbs, as order does. The walk up loses
+ *       nothing.
  */
 static int sve_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
@@ -91,10 +91,10 @@ static int sve_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
- * @note Ordering is settled by the highest limb that differs. This walks blocks from the top down
- *       and then walks the differing block backward. The block stride is the vector length, which is
- *       not known until run time. The top block is found by counting down from the limb count
- *       instead of by a constant.
+ * @note The highest limb that differs settles the order. This walks blocks from the top down, and then
+ *       walks the block that differs back.
+ * @note The block stride is the vector length, which the arm learns only at run time. The arm finds the
+ *       top block by a count down from the limb count, and not by a constant.
  */
 static int sve_magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
@@ -162,7 +162,7 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
 }
 
 /**
- * @brief Counts agreeing places over a sorted run, through the SVE equality.
+ * @brief Counts the places that agree over a sorted run, through the SVE equality.
  *
  * @param[in] positions Positions, ascending [BORROWS].
  * @param[in] values    The value located at each position [BORROWS].
@@ -173,12 +173,12 @@ static int arm_compare(const OriorExactInteger *left, const OriorExactInteger *r
 static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
                             const OriorExactInteger *lag)
 {
-    // The shared search, with only the equality test swapped. The timing then measures the instruction
-    // set and not a second algorithm.
+    // The shared search, with only the equality test swapped. A time of it then measures the instruction
+    // set, and not a second algorithm.
     return orior_exact_agreement_using(arm_equal, positions, values, count, lag);
 }
 
-/** @brief The arm as a driver sees it. Static storage. Returning its address is safe. */
+/** @brief The arm as a driver sees it. Static storage. A return of its address is safe. */
 static const OriorExactArm SVE_ARM = {
     "sve-unrun",
     arm_equal,
