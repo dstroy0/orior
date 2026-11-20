@@ -18,17 +18,17 @@ uint64_t orior_exact_hash(const OriorExactInteger *value)
 }
 
 /**
- * @brief The agreement count without a table, for when the table cannot be allocated.
+ * @brief The agreement count without a table, for when the allocation of the table fails.
  *
  * @param[in] equal     Whether two integers have the same value [BORROWS].
- * @param[in] positions Positions carrying values, in any order [BORROWS].
+ * @param[in] positions Positions that carry values, in any order [BORROWS].
  * @param[in] values    The value located at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              The count orior_exact_agreement_using returns with a table.
- * @note Quadratic in `count` and needs no memory. A position is counted at its last entry only, and
- *       a displaced position is matched to the last entry equal to it, which retains the last value
- *       at a repeated position.
+ * @note Quadratic in `count` and needs no memory. The count takes a position at its last entry only.
+ *       It matches a displaced position to the last entry equal to it, which keeps the last value at a
+ *       repeated position.
  */
 static size_t agreement_without_table(int (*equal)(const OriorExactInteger *left, const OriorExactInteger *right),
                                       const OriorExactInteger *positions, const uint64_t *values, size_t count,
@@ -88,16 +88,16 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
                                     const OriorExactInteger *lag)
 {
     // What the measure requires of the set is membership: is there a point exactly one lag away, and
-    // does it carry the same value. A set has no ordering, and a search that walks one imposes a
-    // structure the domain never had and pays a full limb comparison at every step of it.
+    // does it carry the same value. A set has no order. A search that walks one puts on the domain a
+    // structure that it does not have. It also pays a full limb comparison at each step.
     //
     // An open addressed table keyed on the hash answers the same question in one probe on average.
-    // The hash is not trusted on its own: a hit is confirmed with a full comparison, since two
-    // distinct coordinates reading as equal is the error this whole path exists to prevent.
+    // The code does not trust the hash on its own. A full comparison confirms a hit. Two different
+    // coordinates that read as equal are the error that this whole path prevents.
     //
-    // This is what the python side has always done. Its `placed` is a dict built by overwriting,
-    // which retains the last value at a repeated position and stores each position once. The table
-    // below retains the last entry and the count walks the table, which gives the same count.
+    // The Python side does the same. Its `placed` is a dict that each write replaces at its key. It
+    // keeps the last value at a repeated position, and stores each position once. The table below
+    // keeps the last entry, and the count walks the table, which gives the same count.
     if (count == 0u)
     {
         return 0u;
@@ -138,8 +138,8 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
         {
             slot = (slot + 1u) & mask;
         }
-        // An empty bucket takes the entry. A bucket already containing this position takes it too. The
-        // table ends up containing the last entry for every position.
+        // An empty bucket takes the entry. A bucket that already holds this position takes it too. The
+        // table then holds the last entry for each position.
         table[slot] = at;
     }
 
