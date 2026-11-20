@@ -1,79 +1,80 @@
 #!/usr/bin/env python3
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""The compression function's memory as a surface that bends from round to round instead of snapping.
+"""The memory of the compression function as a surface that bends from round to round, and does not snap.
 
-    python examples/00_blob_viz_tools/build_bend_view.py --check          the controls, each able to fail
-    python examples/00_blob_viz_tools/build_bend_view.py --sweep          the bend angles as a table, and no page
-    python examples/00_blob_viz_tools/build_bend_view.py --fit            fit log n, n log n and exponential to the rise
-    python examples/00_blob_viz_tools/build_bend_view.py --invariant      seeds compared with rotation taken away
-    python examples/00_blob_viz_tools/build_bend_view.py --residue --chain    what the break leaves, with its floor
-    python examples/00_blob_viz_tools/build_bend_view.py                  write the page
-    python examples/00_blob_viz_tools/build_bend_view.py --samples 8000 --degrees 16 --out bend.html
+    `python examples/00_blob_viz_tools/build_bend_view.py --check`: the controls, each able to fail.
+    `python examples/00_blob_viz_tools/build_bend_view.py --sweep`: the bend angles as a table, and no page.
+    `python examples/00_blob_viz_tools/build_bend_view.py --fit`: fit log n, n log n and exponential to the rise.
+    `python examples/00_blob_viz_tools/build_bend_view.py --invariant`: seeds compared with rotation taken away.
+    `python examples/00_blob_viz_tools/build_bend_view.py --residue --chain`: what the break leaves, with its floor.
 
-  --samples   random blocks per seed, each flipped at one input bit. Default 4000.
-  --degrees   highest harmonic degree carried. Default 12.
-  --word      flip only bits of this message word, 0 to 15. Default: any of the 512 bits. In a
-              block header the nonce is word 3 of the second compression block.
-  --chain     measure real block headers from utils/maint/chain instead of random blocks: the flip goes
-              into the second compression block, run from each header's own midstate. Even heights
-              are one set and odd heights the other. --word defaults to 3, the nonce, and
-              --samples, when given, cuts each half to that many headers.
-  --reseed    with --chain, draw which nonce bit each header flips from a different pair of seeds.
-              Zero, the default, is the fixed reference pair. A shape that is real comes back
-              at the same rounds under a new seed; a chance excursion moves.
-  --residue   what is left after the break, read bit by bit instead of through the sphere: see
-              `_residue`.
-  --draws     pairs of fair rounds drawn through the basis for the null band. Default 1000, which
-              puts 25 readings in each tail; each pair costs two full projections.
-  --out       where to write. Default: build/view/bend_view.html at the tree top.
-  --set       opening settings for the page, as the other builders take them.
+    `python examples/00_blob_viz_tools/build_bend_view.py`: write the page.
+    `python examples/00_blob_viz_tools/build_bend_view.py --samples 8000 --degrees 16 --out bend.html`
 
-WHAT IS MEASURED
+  - `--samples`: random blocks per seed, each flipped at one input bit. Default 4000.
+  - `--degrees`: highest harmonic degree carried. Default 12.
+  - `--word`: flip only bits of this message word, 0 to 15. Default: any of the 512 bits. In a block header, the
+    nonce is word 3 of the second compression block.
+  - `--chain`: measure real block headers from utils/maint/chain, and not random blocks. The flip goes into the
+    second compression block, run from the own midstate of each header. Even heights are one set, and odd heights
+    the other. `--word` defaults to 3, the nonce. `--samples`, when given, cuts each half to that many headers.
+  - `--reseed`: with `--chain`, draw which nonce bit each header flips from a different pair of seeds. Zero, the
+    default, is the fixed reference pair. A real shape comes back at the same rounds under a new seed, and a chance
+    excursion moves.
+  - `--residue`: what remains after the break, read bit by bit, and not through the sphere. See `_residue`.
+  - `--draws`: pairs of fair rounds drawn through the basis for the null band. Default 1000, which puts 25 readings
+    in each tail. Each pair costs two full projections.
+  - `--out`: where to write. Default: build/view/bend_view.html at the tree top.
+  - `--set`: opening settings for the page, as the other builders take them.
 
-Draw a random 512 bit block, flip one input bit, and run both through the compression function,
-retention the output (H0 plus state) after EVERY round instead of only the last. For each round and
-each of the 256 output bits, the flip rate's signed departure from one half is how much that bit
-still follows the flipped input at that depth. An untouched bit departs by -0.5; a fair bit by
+THE MEASUREMENT
+
+Draw a random 512 bit block, flip one input bit, and run both through the compression function. Keep the output
+(H0 plus state) after EACH round, and not only the last.
+For each round and each of the 256 output bits, take the signed departure of the flip rate from one half. That is
+how much the bit still follows the flipped input at that depth. An untouched bit departs by -0.5, and a fair bit by
 zero.
 
-Each output bit has a fixed direction on the sphere, taken from the same golden spiral the sphere
-view uses, and a fixed depth. The boundary field is then linear in the 256 departures. Every
-round is one set of harmonic coefficients and the shape of round r is a linear image of round r.
+Each output bit has a fixed direction on the sphere, from the same golden spiral that the sphere view uses, and a
+fixed depth. The boundary field is then linear in the 256 departures. Each round is one set of harmonic
+coefficients, and the shape of round r is a linear image of round r.
 
 WHY BEND AND NOT FADE
 
-Going from round r to round r + 1 by crossfading the coefficients passes through their average. For
-two patterns at an angle Omega in the degree's own coefficient space, the average has norm
-cos(Omega / 2) of the ends, which is 0.707 for orthogonal patterns: the shape collapses toward a
-plain sphere and reinflates. That collapse is the snap. Rotating each degree's pattern along the
-great circle joining the two (slerp), with its norm interpolated geometrically, retains the power
-through the whole transition. One shape turns into the next the way metal bends.
+A crossfade of the coefficients from round r to round r + 1 passes through their average. Take two patterns at an
+angle Omega in the own coefficient space of the degree. The average has norm cos(Omega / 2) of the ends, which is
+0.707 for orthogonal patterns. The shape collapses toward a plain sphere, and then inflates again. That collapse is
+the snap.
+
+The bend turns the pattern of each degree along the great circle that joins the two (slerp), with its norm
+interpolated geometrically. That keeps the power through the full transition. One shape turns into the next the
+way metal bends.
 
 WHAT THE BEND ANSWERS
 
-The bend angle between consecutive rounds is a measurement. If round r + 1 carries on from round r
-the angle is well under 90 degrees. If the function has forgotten, the angle sits where two
-independent random shapes put it. Three curves separate those, and each is needed:
+The bend angle between consecutive rounds is a measurement. If round r + 1 carries on from round r, the angle is
+well under 90 degrees. If the function forgets, the angle sits where two independent random shapes put it. Three
+curves separate those, and each is necessary:
 
-    same seed      round r against round r + 1, from one set of samples
-    cross seed     round r from one set against round r + 1 from an independent set, which removes
-                   any smoothness that only exists because both rounds were read from the same draws
-    repeat         round r from one set against round r from the other, a measure of how reproducible
-                   a round's own shape is; where this reaches the random band the shape is noise
+  - same seed: round r against round r + 1, from one set of samples.
+  - cross seed: round r from one set against round r + 1 from an independent set. That removes any smoothness that
+    exists only because both rounds read the same draws.
+  - repeat: round r from one set against round r from the other. It measures how reproducible the own shape of a
+    round is. Where this reaches the random band, the shape is noise.
 
-The band is DRAWN: rounds of fair bits, exact binomial counts, pushed through this view's own
-placement and kernel, many pairs, and the 2.5 and 97.5 percentiles of their angle. Nothing is
-derived and nothing is picked. See `drawn_band` for why the basis matters.
+The code DRAWS the band: rounds of fair bits, exact binomial counts, put through the own placement and kernel of
+this view. It takes many pairs, and the 2.5 and 97.5 percentiles of their angle. The code derives nothing and picks
+nothing. See `drawn_band` for why the basis matters.
 
-MEASURED at 4000 samples per seed, degrees 1 to 12, 1000 drawn pairs: the band is 73.3 to
-105.8 degrees. All three curves carry through round 20 and sit in the band from round 21. Past the
-break the tails hold 0 and 2, 1 and 0, 1 and 2 readings of 43 or 44, against 1.1 each by chance.
+MEASURED at 4000 samples per seed, degrees 1 to 12, and 1000 drawn pairs: the band is 73.3 to 105.8 degrees. All
+three curves carry through round 20, and sit in the band from round 21. Past the break, the tails hold 0 and 2, 1
+and 0, and 1 and 2 readings of 43 or 44, against 1.1 each by chance.
 
 WHAT IS WITHHELD
 
-Every number this writes is about SHA-256 and sits under the fail-closed partition as WITHHELD. No row
-is added for it anywhere.
+Each number that this writes is about SHA-256, and sits under the fail-closed partition as WITHHELD. No row for it
+goes anywhere.
 """
 
 import hashlib
@@ -100,10 +101,10 @@ TEMPLATE = os.path.join(HERE, "bend_view_template.html")
 ROUNDS = 64
 MASK = 0xFFFFFFFF
 
-# One depth for every source. The only thing that changes between rounds is the departure vector
-# and the field stays a linear image of it. The sphere view scales depth by each round's hottest bit,
-# which is nonlinear in the data and would make the transition between rounds partly a change of
-# kernel and not of memory.
+# One depth for each source. The only thing that changes between rounds is the departure vector, and the field
+# stays a linear image of it.
+# The sphere view scales depth by the hottest bit of each round. That is nonlinear in the data. It makes the
+# transition between rounds in part a change of kernel, and not of memory.
 DEPTH = 0.8
 
 SEED_FIRST = 1
@@ -112,14 +113,15 @@ SEED_NULL = 7
 
 
 def round_outputs(block, start=None):
-    """The compression output, the starting state plus the round state, after every one of the 64 rounds.
+    """The compression output, the start state plus the round state, after each of the 64 rounds.
 
-    One run of the rounds with the output read at each step. Stopping and restarting for each round
-    count would cost sixty four runs per block for the same numbers.
+    One run of the rounds, with the output read at each step. A stop and a new start for each round count costs
+    sixty four runs per block for the same numbers.
 
-    `start` is the chaining value the compression begins from and feeds forward into. None is H0,
-    the first block of any message. The second block of a block header begins from the midstate the
-    first block left, and reading it from H0 instead measures a compression no miner ever runs.
+    `start` is the chaining value that the compression begins from and feeds forward into. None is H0, the first
+    block of any message.
+    The second block of a block header begins from the midstate that the first block leaves. A read of it from H0
+    measures a compression that no miner ever runs.
     """
     rotate = build_sha_sphere_view.rotate
     constants = build_sha_sphere_view.K
@@ -152,9 +154,9 @@ def round_outputs(block, start=None):
 def add_to_counter(planes, mask):
     """Add one 32 bit mask to a bit-sliced counter, one count per bit position.
 
-    `planes[k]` holds bit k of all thirty two counts at once, adding a mask is a ripple carry
-    across the planes and touches each plane once at max. Counting the thirty two bits one at a
-    time would cost thirty two operations per word per round per sample.
+    `planes[k]` holds bit k of all thirty two counts at once. To add a mask is a ripple carry across the planes, and
+    it touches each plane once at max. A count of the thirty two bits one at a time costs thirty two operations per
+    word per round per sample.
     """
     carry = mask
     level = 0
@@ -180,19 +182,19 @@ def counter_values(planes):
 def departures(seed, samples, word=None):
     """Signed flip rate departure from one half, per round and per output bit.
 
-    Returns ROUNDS rows of 256, bit 0 being the most significant bit of the first output word, the
-    order the sphere view places them in.
+    Returns ROUNDS rows of 256. Bit 0 is the most significant bit of the first output word, the order that the
+    sphere view places them in.
 
-    `word` restricts the flipped input bit to one of the sixteen message words. None flips any of
-    the 512 bits, which blends the words together: word w reaches nothing before round w. The
-    blend's break is an average over sixteen entry rounds and belongs to no single one of them. In a
-    block header the nonce is bytes 76 to 79, which is word 3 of the second compression block, and
-    that is the word whose break bears on the nonce.
+    `word` restricts the flipped input bit to one of the sixteen message words. None flips any of the 512 bits, which
+    blends the words together: word w reaches nothing before round w.
+    The break of the blend is an average over sixteen entry rounds, and belongs to no single one of them. In a block
+    header, the nonce is bytes 76 to 79. That is word 3 of the second compression block, and its break bears on the
+    nonce.
 
-    SIGNED AND NOT ABSOLUTE. The sphere view takes |rate - 1/2|, which folds sampling noise onto one
-    side and gives every bit a positive floor. A field built from that is no longer mean zero above
-    degree zero, and the random band would no longer be the right null for it. The signed departure
-    retains the noise centered, a round with nothing in it has nothing above degree zero.
+    SIGNED AND NOT ABSOLUTE. The sphere view takes |rate - 1/2|, which folds sampling noise onto one side, and gives
+    each bit a positive floor.
+    A field built from that is no longer mean zero above degree zero. The random band is then not the right null for
+    it. The signed departure keeps the noise centered: a round with nothing in it has nothing above degree zero.
     """
     stream = build_sha_sphere_view.draw(seed)
     counters = [[[] for _ in range(8)] for _ in range(ROUNDS)]
@@ -210,9 +212,8 @@ def departures(seed, samples, word=None):
             row_before = before[index]
             row_after = after[index]
             row_counter = counters[index]
-            # NOT `word`. That name is the parameter choosing which message word is flipped, and a
-            # loop over output words named `word` would overwrite it, leaving every later sample
-            # flipping message word 7 whatever was asked.
+            # NOT `word`. That name is the parameter that chooses the flipped message word. A loop over output words
+            # named `word` overwrites it. Each later sample then flips message word 7, whatever the caller asks.
             for output_word in range(8):
                 flipped = row_before[output_word] ^ row_after[output_word]
                 if flipped:
@@ -234,10 +235,10 @@ CHAIN_FILES = ("blocks.json", "blocks_2021.json", "blocks_ban_2021.json", "block
 
 
 def chain_directory():
-    """utils/maint/chain, found by walking up from this file to the directory that holds it.
+    """utils/maint/chain, found by a walk up from this file to the directory that holds it.
 
-    Walked and not counted, because this tool's depth below the tree top is not something it gets
-    to assume. Returns None when no ancestor holds utils/maint/chain, and the caller refuses by name.
+    Walked and not counted, because this tool must not assume its depth below the tree top. Returns None when no
+    ancestor holds utils/maint/chain, and the caller refuses by name.
     """
     at = HERE
     while True:
@@ -251,12 +252,12 @@ def chain_directory():
 
 
 def header_bytes(block, nonce=None):
-    """The exact eighty byte header, arranged the way examples/00_blob_viz_tools/chain_kat.py positions it out.
+    """The exact eighty byte header, arranged the way examples/00_blob_viz_tools/chain_kat.py lays it out.
 
-    Rebuilt here and not imported, because chain_kat.py imports numpy at load and this tree bans it.
-    The two hashes are display hex and carried reversed; everything else is a little endian integer.
-    A wrong byte order still yields a header-shaped object, and so every header is checked
-    against its own block id before it is used.
+    Rebuilt here and not imported, because chain_kat.py imports numpy at load, and this tree bans it. The two hashes
+    are display hex, and carried reversed. All else is a little endian integer.
+    A wrong byte order still yields a header-shaped object. So the code checks each header against its own block id
+    before it uses it.
     """
     version = int(block["version"])
     previous = bytes.fromhex(block["previousblockhash"])[::-1]
@@ -286,12 +287,12 @@ def header_words(header):
 
 
 def load_chain():
-    """Every distinct block in the chain corpus whose rebuilt header reproduces its own id.
+    """Each distinct block in the chain corpus whose rebuilt header reproduces its own id.
 
-    Returns (verified blocks sorted by height, files read, blocks refused). The five files overlap.
-    Blocks are taken once each by id. A block that fails its own id is refused and counted, never
-    silently dropped, because a corpus that loses blocks without saying so looks like a smaller
-    clean corpus.
+    Returns (verified blocks sorted by height, files read, blocks refused). The five files overlap, and the code
+    takes each block once by id.
+    The code refuses and counts a block that fails its own id, and never drops it silently. A corpus that loses
+    blocks and does not say so looks like a smaller clean corpus.
     """
     directory = chain_directory()
     if directory is None:
@@ -317,10 +318,10 @@ def load_chain():
 
 
 def chain_halves(blocks):
-    """Even heights and odd heights, trimmed to equal size by dropping the highest of the larger.
+    """Even heights and odd heights, trimmed to equal size by a drop of the highest of the larger.
 
-    Two sets of real headers sharing no block, interleaved so both eras fall in both. Equal size.
-    One drawn null serves both; the drop is stated and not left to whichever half ran long.
+    Two sets of real headers with no block in common, interleaved so that both eras fall in both. Equal size. One
+    drawn null serves both. The docstring states the drop, and does not leave it to whichever half ran long.
     """
     even = [block for block in blocks if block["height"] % 2 == 0]
     odd = [block for block in blocks if block["height"] % 2 == 1]
@@ -331,10 +332,10 @@ def chain_halves(blocks):
 def chain_departures(blocks, seed, word=3):
     """Signed flip rate departure per round and per output bit, over real headers.
 
-    One sample per header: flip a random bit of `word` in the SECOND compression block, starting
-    from that header's own midstate. Word 3 there is the nonce. The other words of that block are the
-    merkle tail, the timestamp and the bits for words 0 to 2, and fixed padding from word 4 on, a
-    flip in a padding word probes a variation no real header carries.
+    One sample per header: flip a random bit of `word` in the SECOND compression block, from the own midstate of
+    that header. Word 3 there is the nonce.
+    The other words of that block are the merkle tail, the timestamp and the bits for words 0 to 2. From word 4 on,
+    they hold fixed padding. A flip in a padding word probes a variation that no real header carries.
     """
     stream = build_sha_sphere_view.draw(seed)
     counters = [[[] for _ in range(8)] for _ in range(ROUNDS)]
@@ -367,12 +368,12 @@ def chain_departures(blocks, seed, word=3):
 
 
 def source_basis(top, directions):
-    """Kernel times harmonics for every source direction, computed once.
+    """Kernel times harmonics for each source direction, computed once.
 
-    The field of round r is the sum over sources of departure times this basis. The basis is the
-    only expensive part and it does not depend on the round. `sphere_field.coefficients` recomputes
-    the harmonics for every source on every call, which is right for one field and wasteful for a
-    hundred and twenty eight of them; `_check` holds the two routes to the same numbers.
+    The field of round r is the sum over sources of departure times this basis. The basis is the only costly part,
+    and it does not depend on the round.
+    `sphere_field.coefficients` computes the harmonics again for each source on each call. That is right for one
+    field, and a waste for a hundred and twenty eight of them. `_check` holds the two routes to the same numbers.
     """
     gains = sphere_field.kernel(top, DEPTH, 0.0)
     out = []
@@ -411,8 +412,8 @@ def degree_slices(top):
 def angle_between(first, second):
     """Angle between two vectors, in degrees, or None when either has no length.
 
-    None and not zero or ninety, because a vector with no length has no direction and any number
-    reported for it would read as a measurement.
+    None and not zero or ninety, because a vector with no length has no direction. Any number reported for it reads
+    as a measurement.
     """
     dot = sum(one * two for one, two in zip(first, second))
     length_first = math.sqrt(sum(one * one for one in first))
@@ -424,16 +425,15 @@ def angle_between(first, second):
 
 
 def slerp(first, second, fraction):
-    """One degree's coefficients a fraction of the way along the bend from `first` to `second`.
+    """The coefficients of one degree, a fraction of the way along the bend from `first` to `second`.
 
-    Direction follows the great circle between the two unit vectors and the norm moves
-    geometrically. The power neither dips nor bulges on the way. Where the two are parallel the
-    great circle is undefined and the straight line is the same path.
+    Direction follows the great circle between the two unit vectors, and the norm moves geometrically, with no dip
+    or bulge in the power. With parallel vectors, the straight line is the same path.
     """
-    # A single number has no great circle to follow. Degree zero is one coefficient, and past the
-    # break its sign wanders; two unit vectors of opposite sign in one dimension sit at an angle of
-    # pi with nothing perpendicular to turn through, and the formula below divides by sin(pi), which
-    # in floating point is 1.2e-16 and not zero. The straight line is the only path there is.
+    # A single number has no great circle. Degree zero is one coefficient, and past the break its sign wanders.
+    # Two unit vectors of opposite sign in one dimension sit at an angle of pi, with no perpendicular to turn through.
+    # The formula below divides by sin(pi), which in floating point is 1.2e-16 and not zero. The straight line is the
+    # only path there is.
     if len(first) == 1:
         return [first[0] + (second[0] - first[0]) * fraction]
     length_first = math.sqrt(sum(one * one for one in first))
@@ -454,30 +454,30 @@ def slerp(first, second, fraction):
 
 
 def fair_departures(generator, samples):
-    """One round's departures for 256 bits that remember nothing, drawn exactly.
+    """The departures of one round for 256 bits that remember nothing, drawn exactly.
 
-    Each bit's flip count is a sum of `samples` fair coins, taken as the population count of that
-    many random bits. That is the binomial itself and not a normal approximation to it.
+    The flip count of each bit is a sum of `samples` fair coins, taken as the population count of that many random
+    bits. That is the binomial itself, and not a normal approximation to it.
     """
-    # bit_count and not bin().count("1"): the same count of the same draw, measured at 5.4 against
-    # 33.0 microseconds for a 7077 bit draw. Every drawn null is unchanged and six times cheaper.
+    # Fast count: bit_count, and not bin().count("1"). It is the same count of the same draw, about six times
+    # faster. Each drawn null stays the same.
     return [generator.getrandbits(samples).bit_count() / float(samples) - 0.5
             for _ in range(256)]
 
 
 def drawn_band(basis, samples, draws, seed):
-    """The angle between two rounds that remember nothing, drawn through this view's own basis.
+    """The angle between two rounds that remember nothing, drawn through the own basis of this view.
 
     Returns (2.5th percentile, median, 97.5th percentile) over `draws` pairs.
 
-    WHY THROUGH THE BASIS AND NOT BETWEEN RANDOM VECTORS. The real noise is not isotropic in the
-    coefficient dimension, 168 at degree 12: the kernel weights degree l by DEPTH to the l. The low
-    degrees carry the majority of it and the effective dimension is far below 168. A band drawn from
-    isotropic Gaussian vectors in the nominal dimension comes out too narrow, and past the break
-    both tails of every curve overflow it: the null reporting its own shape as a finding.
+    WHY THROUGH THE BASIS AND NOT BETWEEN RANDOM VECTORS. The real noise is not isotropic in the coefficient
+    dimension, 168 at degree 12: the kernel weights degree l by DEPTH to the l. The low degrees carry most of it, and
+    the effective dimension is far below 168.
+    A band drawn from isotropic Gaussian vectors in the nominal dimension comes out too narrow. Past the break, both
+    tails of each curve overflow it: the null reports its own shape as a finding.
 
-    Pushing fair bits through the same placement and the same kernel draws the band from the
-    distribution the measurement actually has.
+    Fair bits put through the same placement and the same kernel draw the band from the distribution that the
+    measurement has.
     """
     generator = random.Random(seed)
     angles = []
@@ -504,14 +504,14 @@ def shape_energy(flat):
 
 
 def drawn_energy(basis, samples, draws, seed):
-    """The shape energy a round of fair bits has, drawn through this view's own basis.
+    """The shape energy of a round of fair bits, drawn through the own basis of this view.
 
     Returns (2.5th percentile, median, 97.5th percentile) over `draws` rounds.
 
-    THE ANGLE CANNOT SEE THIS AND IT IS A SEPARATE QUESTION. The bend angle asks whether a shape
-    points where the last one did. A round could carry information as EXCESS SIZE while pointing
-    somewhere random, and the angle test would pass it as noise. A round whose shape energy sits
-    above what fair bits produce is carrying something the angle does not report.
+    THE ANGLE CANNOT SEE THIS, AND IT IS A SEPARATE QUESTION. The bend angle asks whether a shape points where the
+    last one did. A round can carry information as EXCESS SIZE, and point somewhere random. The angle test then passes
+    it as noise. A round whose shape energy sits above what fair bits produce carries something that the angle does
+    not report.
     """
     generator = random.Random(seed)
     energies = []
@@ -524,12 +524,13 @@ def drawn_energy(basis, samples, draws, seed):
 
 
 def measure(samples, top, draws, word=None, chain=None):
-    """Every curve the page draws and the sweep prints, from two independent sets of samples.
+    """Each curve that the page draws and the sweep prints, from two independent sets of samples.
 
-    `chain` is None for random blocks, or a dict holding the two header sets from `chain_halves` as
-    "first" and "second", each already cut to `samples` headers, and the two seeds that pick which
-    nonce bit each header flipped as "seeds". The halves share no header. The cross seed and
-    repeat curves compare two independent sets of real blocks the way they compare two seeds.
+    `chain` is None for random blocks. Else it is a dict that holds the two header sets from `chain_halves` as
+    "first" and "second", each already cut to `samples` headers. It also holds, as "seeds", the two seeds that pick
+    which nonce bit each header flipped.
+    The halves share no header. The cross seed and repeat curves compare two independent sets of real blocks the way
+    they compare two seeds.
     """
     directions = build_sha_sphere_view.place("spiral")
     basis = source_basis(top, directions)
@@ -592,10 +593,10 @@ def measure(samples, top, draws, word=None, chain=None):
 def entry_round(rows):
     """The first round index where any output bit flipped in any sample, or None when none ever did.
 
-    Rounds before the flipped word enters are not measurements. Every bit reads exactly -0.5, the
-    fields of those rounds are identical, and the angle between identical fields is zero, which the
-    carry would count as a perfect match. For word 3 that reported the shape "carrying through round
-    2" and set the break before the word entered at all.
+    Rounds before the flipped word enters are not measurements. Each bit reads exactly -0.5, and the fields of those
+    rounds are identical. The angle between identical fields is zero, which the carry counts as a perfect match.
+    Without this, for word 3 the carry reports the shape through round 2, and sets the break before the word enters
+    at all.
     """
     for index, row in enumerate(rows):
         if any(value != -0.5 for value in row):
@@ -604,18 +605,18 @@ def entry_round(rows):
 
 
 def carry_through(curve, band, start=0):
-    """The last round index of the LEADING run below the drawn band's lower edge, or None.
+    """The last round index of the LEADING run below the lower edge of the drawn band, or None.
 
-    The run starts at `start`, the entry round, because nothing before it was measured.
+    The run starts at `start`, the entry round, because nothing before it has a measurement.
 
-    WHY THE LEADING RUN AND NOT THE LAST DIP. The band is a 95 percent interval for one pair, and
-    past the break about forty rounds are pure noise, a curve is expected to dip under the band
-    about once by chance. Taking the last dip anywhere reports shape carrying through round 56 off
-    a single 71 degree reading at round 41 and a 78 at round 56. The loudest of many readings against a one-reading bar is how a sweep manufactures findings, and
+    WHY THE LEADING RUN AND NOT THE LAST DIP. The band is a 95 percent interval for one pair. Past the break, about
+    forty rounds are pure noise, and a curve dips under the band about once by chance.
+    The last dip anywhere reports shape that carries through round 56, off a single 71 degree reading at round 41 and
+    a 78 at round 56. The loudest of many readings against a bar for one reading is how a sweep makes findings.
     anisotropy_detector.py already records that rule.
 
-    Carry depth is where the curve first enters the band. Later dips are counted separately by
-    `chance_dips` against what the band itself predicts.
+    Carry depth is where the curve first enters the band. `chance_dips` counts later dips apart, against what the
+    band itself predicts.
     """
     found = None
     for index in range(start, len(curve)):
@@ -629,10 +630,10 @@ def carry_through(curve, band, start=0):
 def chance_dips(curve, band, after):
     """Readings past index `after` under the band and over it, against what chance predicts for each.
 
-    Each edge of the band is a 2.5 percent tail. With no structure at all 2.5 percent of the
-    readings past the break fall under it and 2.5 percent over it. Both tails are counted because
-    an overflow on both sides at once is what a band of the wrong shape produces, and an overflow on
-    one side only is what structure produces.
+    Each edge of the band is a 2.5 percent tail. With no structure at all, 2.5 percent of the readings past the break
+    fall under it, and 2.5 percent over it.
+    The code counts both tails. An overflow on both sides at once is what a band of the wrong shape produces. An
+    overflow on one side only is what structure produces.
     """
     start = 0 if after is None else after + 1
     tail = [value for value in curve[start:] if value is not None]
@@ -693,7 +694,7 @@ def _round_label(index):
 
 
 def degree_spectrum(flat, top):
-    """Power per degree from 1 to `top`. Rotating the sphere leaves every one of these unchanged."""
+    """Power per degree from 1 to `top`. A rotation of the sphere leaves each of these unchanged."""
     out = []
     for degree in range(1, top + 1):
         low = degree * degree
@@ -715,19 +716,20 @@ def pearson(first, second):
 
 
 def rotation_invariant(result, samples, top, draws):
-    """Whether two independent seeds agree on a round's shape once orientation is taken away.
+    """Whether two independent seeds agree on the shape of a round, with orientation taken away.
 
-    WHY ROTATION. The angle between seed A's round and seed B's asks whether they point the same way.
-    Structure that is real but not tied to where the placement put it would show up in both seeds at
-    different orientations and fail that test. Power per degree does not change under rotation.
-    Two seeds carrying one structure agree on it whatever the orientation.
+    WHY ROTATION. The angle between the round of seed A and that of seed B asks whether they point the same way.
+    Structure that is real, but not tied to where the placement put it, shows up in both seeds at different
+    orientations, and fails that test.
+    Power per degree does not change under rotation. Two seeds that carry one structure agree on it, whatever the
+    orientation.
 
-    WHY NOT CORRELATE THE RAW SPECTRA. The kernel tilts every spectrum the same way, DEPTH to the 2l
-    times (2l + 1). Two rounds of pure noise have spectra that correlate strongly across degree.
-    Each spectrum is divided by the fair spectrum first, drawn as the mean over fair rounds through
-    this basis, and the comparison is of the residual shape: which degrees carry more than fair bits
-    give and which carry less. The null for that correlation is drawn from pairs of fair rounds,
-    independent of the draws that set the fair spectrum.
+    WHY NOT CORRELATE THE RAW SPECTRA. The kernel tilts each spectrum the same way, DEPTH to the 2l times (2l + 1).
+    Two rounds of pure noise have spectra that correlate strongly across degree.
+    The code first divides each spectrum by the fair spectrum, drawn as the mean over fair rounds through this basis.
+    The comparison is of the residual shape: which degrees carry more than fair bits give, and which carry less.
+    The null for that correlation comes from pairs of fair rounds, independent of the draws that set the fair
+    spectrum.
     """
     basis = result["basis"]
     generator = random.Random(SEED_NULL + 2)
@@ -803,8 +805,8 @@ def least_squares(inputs, outputs):
     return slope, mean_out - slope * mean_in
 
 
-# Three models with two parameters each. No model wins by having more to fit with. Each is a
-# straight line in a transformed input, and each is scored in the space it is fitted in.
+# Three models with two parameters each. No model wins because it has more to fit with. Each is a straight line in a
+# transformed input, and each takes its score in the space of its fit.
 MODELS = (
     ("log n", lambda round_number: math.log(round_number)),
     ("n log n", lambda round_number: round_number * math.log(round_number)),
@@ -815,10 +817,10 @@ MODELS = (
 def fit_rise(curve, first_index, last_index):
     """Fit the rise of one curve from `first_index` to `last_index` in two spaces.
 
-    In ANGLE space each model is angle = a * g(n) + b. In LOG ANGLE space it is
-    log(angle) = a * g(n) + b, where "linear in n" becomes exponential growth and "log n" becomes a
-    power law. Both spaces are reported because the question "is this curve log n shaped" does not
-    say which space it is asked in, and choosing one would decide the answer before the fit did.
+    In ANGLE space, each model is `angle = a * g(n) + b`. In LOG ANGLE space, it is `log(angle) = a * g(n) + b`.
+    There, "linear in n" becomes exponential growth, and "log n" becomes a power law.
+    The code reports both spaces. The question "is this curve log n shaped" does not say which space it asks in. A
+    choice of one decides the answer before the fit does.
 
     Returns rows of (space, model, residual sum of squares), sorted within each space.
     """
@@ -872,15 +874,15 @@ def _fit(samples, top, draws, word=None, chain=None):
 
 
 def fair_pair_sums(generator, samples):
-    """Two rounds of fair bits and one pattern of signs, reduced to the eight sums a correlation needs.
+    """Two rounds of fair bits and one pattern of signs, reduced to the eight sums that a correlation needs.
 
     Returns (sum x, sum y, sum s, sum xy, sum xs, sum ys, sum xx, sum yy) over the 256 bits.
 
-    WHY SUMS AND NOT THE ROUNDS. A residue of size d shared by both sets adds d times the sign
-    pattern to each, and every sum the correlation reads then moves by an exact identity in d:
-    sum (x + ds)(y + ds) is sum xy + d sum xs + d sum ys + 256 d squared, and so on. One draw of the
-    pair therefore answers every planted size exactly, where drawing fresh pairs for each size would
-    cost the whole null again per size and pair nothing with nothing.
+    WHY SUMS AND NOT THE ROUNDS. A residue of size d that both sets share adds d times the sign pattern to each.
+    Each sum that the correlation reads then moves by an exact identity in d.
+    For example, `sum (x + ds)(y + ds)` is `sum xy + d sum xs + d sum ys + 256 d squared`. One draw of the pair
+    therefore answers each planted size exactly.
+    Fresh pairs for each size cost the full null again per size, and pair nothing with nothing.
     """
     first = fair_departures(generator, samples)
     second = fair_departures(generator, samples)
@@ -894,7 +896,7 @@ def fair_pair_sums(generator, samples):
 
 
 def planted_correlation(sums, planted):
-    """The correlation of a fair pair once a residue of size `planted` is added to both, or None."""
+    """The correlation of a fair pair, with a residue of size `planted` added to both, or None."""
     total_x, total_y, total_s, cross, cross_x, cross_y, square_x, square_y = sums
     count = 256.0
     shifted_x = total_x + planted * total_s
@@ -911,32 +913,34 @@ def planted_correlation(sums, planted):
 
 
 def _residue(samples, top, draws, word=None, chain=None):
-    """What the break leaves behind, read bit by bit, with the smallest residue this run could see.
+    """What the break leaves behind, read bit by bit, with the smallest residue that this run can see.
 
-    THE CLAIM UNDER TEST. Past the break the flip rate of every output bit should sit at one half.
-    The two independent sets, even and odd heights, should share nothing but chance. A residue
-    the break fails to clear would be a departure pattern both sets carry. It would show as a
-    positive correlation between their 256 raw departures at rounds where the shape has gone.
+    THE CLAIM UNDER TEST. Past the break, the flip rate of each output bit must sit at one half. The two independent
+    sets, even and odd heights, must share nothing but chance.
+    A residue that the break fails to clear is a departure pattern that both sets carry. It shows as a positive
+    correlation between their 256 raw departures, at rounds where the shape no longer shows.
 
-    WHY RAW BITS AND NOT THE SPHERE. The field retains degrees 1 to 12, 168 numbers from 256, and
-    weights them by the kernel. A residue sitting in the part the projection drops is invisible to
-    the angle. The correlation of the raw departures reads all 256.
+    WHY RAW BITS AND NOT THE SPHERE. The field keeps degrees 1 to 12, 168 numbers from 256, and weights them by the
+    kernel. A residue that sits in the part that the projection drops is invisible to the angle. The correlation of
+    the raw departures reads all 256.
 
-    WHERE THE BREAK IS. Read from the data: the first round after the flipped word enters whose
-    correlation falls inside the drawn band for one pair of fair rounds. That round was CHOSEN for
-    sitting low. It is left out, and the residue is read over every round after it.
+    WHERE THE BREAK IS. The data gives it: the first round after the flipped word enters whose correlation falls
+    inside the drawn band for one pair of fair rounds. The code CHOSE that round because it sits low. The code leaves
+    it out, and reads the residue over each round after it.
 
-    THE NULL AND THE FLOOR ARE ONE DRAW. `draws` times the number of rounds after the break, pairs of
-    fair rounds, each carrying a sign pattern. The same draws give the band for one round, the band
-    for the mean over the rounds after the break, and, by planting a shared residue of size d into
-    each pair, how often a residue of that size lifts the mean over the band. The floor is the
-    smallest d on a ladder of halvings in power, starting at the sampling spread of one bit, that is
-    seen in at least half the draws. A reading inside the band says no residue at or above the floor,
-    and nothing about one below it.
+    THE NULL AND THE FLOOR ARE ONE DRAW. `draws` times the number of rounds after the break, pairs of fair rounds,
+    each with a sign pattern. The same draws give these:
+      - the band for one round.
+      - the band for the mean over the rounds after the break.
+      - with a shared residue of size d planted into each pair, how often a residue of that size lifts the mean over
+        the band.
 
-    A residue planted this way adds d to a fair draw instead of drawing binomially around one half
-    plus d. At the sizes the floor lands on the two differ in the variance by d squared, far below
-    the sampling spread.
+    The floor is the smallest d on a ladder of halvings in power that shows in at least half the draws. The ladder
+    starts at the sampling spread of one bit.
+    A reading inside the band says no residue at or above the floor, and nothing about one below it.
+
+    A residue planted this way adds d to a fair draw, and does not draw binomially around one half plus d. At the
+    sizes where the floor lands, the two differ in the variance by d squared, far below the sampling spread.
     """
     result = measure(samples, top, draws, word, chain)
     entry = result["entry"]
@@ -952,8 +956,8 @@ def _residue(samples, top, draws, word=None, chain=None):
     print("  flipped bit in %s" % result["source"])
     print("  %d samples per set; sampling spread of one bit's flip rate %.6f" % (samples, spread))
 
-    # The band for one round needs no more than the pool below gives, but the break has to be known
-    # to size the pool. So the band for one round is drawn first from its own `draws` pairs.
+    # The band for one round needs no more than the pool below gives, but the size of the pool depends on the break.
+    # The code therefore draws the band for one round first, from its own `draws` pairs.
     generator = random.Random(SEED_NULL + 4)
     single = sorted(planted_correlation(fair_pair_sums(generator, samples), 0.0) for _ in range(draws))
     low, high = single[int(0.025 * (draws - 1))], single[int(0.975 * (draws - 1))]
@@ -1024,8 +1028,8 @@ def _residue(samples, top, draws, word=None, chain=None):
             return 1
         if 2 * lifted >= draws:
             floor = planted
-        # Stopped where the planted residue lifts no more draws than the band lets through by
-        # chance, the point past which the ladder measures the band and not the plant.
+        # Stop where the planted residue lifts no more draws than the band lets through by chance. Past that point,
+        # the ladder measures the band and not the plant.
         if lifted <= 0.025 * draws:
             break
         step += 1
@@ -1043,9 +1047,10 @@ def build(samples, top, draws, opening, word=None, chain=None):
     band = result["band"]
     slices = degree_slices(top)
 
-    # The page recomputes the field and the bend itself. It is given references from this side to
-    # grade its own arithmetic against on load. Two routes to the same numbers, and a page whose
-    # basis or bend disagrees with this file reports it instead of drawing a plausible wrong shape.
+    # The page computes the field and the bend itself again. This side gives it references to grade its own
+    # arithmetic against on load.
+    # Two routes to the same numbers. A page whose basis or bend disagrees with this file reports it, and does not draw
+    # a plausible wrong shape.
     probe_directions = [(0.4, 0.3), (1.2, 2.2), (2.0, 4.1), (2.9, 5.5), (1.57, 0.0)]
     probe_fields = []
     reference_round = 0
@@ -1145,7 +1150,7 @@ def _check():
         say("    FAIL the bend does not meet its ends")
         failed += 1
 
-    # A vector with no length has no direction, and the angle says so instead of inventing one.
+    # A vector with no length has no direction, and the angle says so, and does not make one up.
     if angle_between([0.0, 0.0], [1.0, 0.0]) is not None:
         say("    FAIL an empty vector was given an angle")
         failed += 1
@@ -1194,11 +1199,12 @@ def _check():
     if partway != stopped:
         failed += 1
 
-    # THE FLIPPED WORD HAS TO BE THE WORD ASKED FOR. Message word w is added into temp1 at round w + 1
-    # and at no earlier round, and addition is injective, a flip of word w leaves every output of
-    # rounds 1 to w untouched and changes the round w + 1 output in every single sample. That is an
-    # exact count and no bound is needed. It is the check that would have caught a loop variable
-    # defined `word` overwriting the parameter and flipping word 7 in every sample after the first.
+    # THE FLIPPED WORD MUST BE THE WORD ASKED FOR. Message word w adds into temp1 at round w + 1, and at no earlier
+    # round. Addition is injective.
+    # A flip of word w thus leaves each output of rounds 1 to w untouched, and changes the round w + 1 output in each
+    # sample. That is an exact count, and no bound is necessary.
+    # This check catches a loop variable named `word` that overwrites the parameter, and flips word 7 in each sample
+    # after the first.
     for chosen in (3, 15):
         per_sample = 64
         rows = departures(SEED_FIRST, per_sample, chosen)
@@ -1214,11 +1220,10 @@ def _check():
                 % (chosen + 1, chosen))
             failed += 1
 
-    # THE HEADER ROUTE, against a block whose id is fixed and public: the genesis block. The corpus
-    # check in `load_chain` compares each header to its own id, but a check that has only ever seen
-    # the corpus cannot say whether the corpus or the layout is at fault, and one that has never
-    # refused anything has not been displayed to refuse. The same header with the nonce moved by one
-    # must NOT reproduce the id.
+    # THE HEADER ROUTE, against a block with a fixed and public id: the genesis block.
+    # The corpus check in `load_chain` compares each header to its own id. But a check that sees only the corpus
+    # cannot say whether the corpus or the layout is at fault. A check that never refuses anything shows no refusal.
+    # The same header with the nonce moved by one must NOT reproduce the id.
     genesis = {"version": 1, "previousblockhash": "00" * 32,
                "merkle_root": "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
                "timestamp": 1231006505, "bits": "1d00ffff", "nonce": 2083236893,
@@ -1234,9 +1239,9 @@ def _check():
         say("    FAIL a wrong nonce reproduced the id. The id comparison refuses nothing")
         failed += 1
 
-    # Two routes to the first SHA-256 of that header: the library, and the second compression block
-    # stepped round by round from the midstate the first block leaves. That is the exact compression
-    # `chain_departures` reads. Started from H0 instead it must disagree, or the midstate is inert.
+    # Two routes to the first SHA-256 of that header. One is the library. The other is the second compression block,
+    # stepped round by round from the midstate that the first block leaves. That is the exact compression that
+    # `chain_departures` reads. Started from H0, it must disagree, or the midstate is inert.
     first_words, second_words = header_words(header)
     midstate = build_sha_sphere_view.compress(first_words, ROUNDS)
     digest = hashlib.sha256(header).digest()
@@ -1251,9 +1256,9 @@ def _check():
         say("    FAIL the midstate changed nothing")
         failed += 1
 
-    # The entry count again, now through `chain_departures`: word 3 of the second block is added at
-    # round 4. Rounds 1 to 3 show no flip and round 4 shows at least one per header. Headers here
-    # are genesis with the timestamp moved. The check needs no corpus on disk.
+    # The entry count again, now through `chain_departures`: word 3 of the second block adds in at round 4. Rounds 1
+    # to 3 show no flip, and round 4 shows at least one per header. The headers here are genesis with the timestamp
+    # moved. The check needs no corpus on disk.
     headers = [dict(genesis, timestamp=genesis["timestamp"] + offset) for offset in range(64)]
     rows = chain_departures(headers, SEED_FIRST, 3)
     before_entry = sum(value + 0.5 for index in range(3) for value in rows[index]) * len(headers)
@@ -1267,10 +1272,9 @@ def _check():
         say("    FAIL round 4 shows fewer flipped bits than headers. The nonce was not the word flipped")
         failed += 1
 
-    # Two routes to a planted correlation: the eight sums `_residue` reads every planted size from,
-    # and the correlation of the planted rounds formed directly. Drawn twice from one seed so both
-    # routes see the same bits. A plant of the opposite sign must NOT agree, or the sums are not
-    # carrying the plant at all.
+    # Two routes to a planted correlation: the eight sums that `_residue` reads each planted size from, and the
+    # correlation of the planted rounds formed directly. Drawn twice from one seed, so that both routes see the same
+    # bits. A plant of the opposite sign must NOT agree, or the sums do not carry the plant at all.
     planted = 0.013
     sums = fair_pair_sums(random.Random(5), 64)
     replay = random.Random(5)
@@ -1354,9 +1358,9 @@ def main(argv):
                              % (asked, len(even)))
             return 2
         samples = len(even) if asked is None else asked
-        # Reseed zero is the fixed reference pair, and an unmarked run reproduces it. A
-        # nonzero reseed moves both seeds past the null seeds, which run from SEED_NULL to
-        # SEED_NULL + 5, a flip choice never shares a stream with a drawn null.
+        # Reseed zero is the fixed reference pair, and an unmarked run reproduces it. A nonzero reseed moves both seeds
+        # past the null seeds, which run from SEED_NULL to SEED_NULL + 5. A flip choice thus never shares a stream
+        # with a drawn null.
         reseed = option(argv, "--reseed", 0, int)
         if reseed < 0:
             sys.stderr.write("--reseed takes zero or a positive integer\n")
