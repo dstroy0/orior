@@ -106,7 +106,7 @@ static void kqr_identity_words(const KqrIdentity *identity, unsigned int answer,
 // the identity and the answer of the first KQR_QUERY_WORDS words of a query's or a sample's record
 static unsigned int kqr_identity_of_words(const unsigned long long *words, KqrIdentity *identity)
 {
-    // each count and the answer were written from an unsigned int, which represents them again
+    // the code wrote each count and the answer from an unsigned int, which holds them again
     identity->code = words[0];
     identity->registers = (unsigned int)words[1];
     identity->threads = (unsigned int)words[2];
@@ -142,7 +142,7 @@ static int kqr_identity_matches(const KrepRecord *entry, const KqrIdentity *iden
            (memcmp(entry->word, words, (KQR_QUERY_WORDS - 1u) * sizeof(unsigned long long)) == 0);
 }
 
-// the bucket of `identity`: the one containing it, or the empty one it would be put in
+// the bucket of `identity`: the one that holds it, or the empty one where it goes
 unsigned int kqr_slot_of(const KqrRecord *record, const KqrIdentity *identity)
 {
     unsigned int at = (unsigned int)(kqr_identity_hash(identity) & (KQR_SLOTS - 1u));
@@ -163,7 +163,7 @@ void kqr_text_copied(const KqrRecord *record, unsigned long long number, char *t
 {
     unsigned long long length = 0ULL;
     const char *const found = krep_text(&record->file, number, &length);
-    // a text is cut to its room
+    // the code cuts a text to its room
     const size_t written =
         (found == NULL) ? 0u
                         : verba_textus.put_n(&(VerbaTextusCfg){.out = text,
@@ -296,9 +296,9 @@ int kqr_who_put(KqrRecord *record, unsigned int at, int has_who, Who who)
     return krep_record_put(&record->file, at, KREP_RECORD_WHO, words, has_who ? 2u : 0u);
 }
 
-// a record of `code` and `count` words from `words` put by `who` before the pairs, after a who record of `who` where
-// the who in force there is another's, and the pairs then put after the who that was in force over them: the record's
-// place, or the count of records where it could not be put
+// a record of `code` and `count` words from `words`, put by `who` before the pairs. It comes after a who record of
+// `who`, where the who in force there is another. The pairs then go after the who that was in force over them.
+// The result is the place of the record, or the count of records where the put failed
 unsigned int kqr_put(KqrRecord *record, unsigned int code, const unsigned long long *words, unsigned int count, Who who)
 {
     Who before;
@@ -355,7 +355,7 @@ int kqr_opened(KqrRecord *record, const char *member)
     return record->open && krep_record_add(&record->file, KQR_MEMBER_RECORD, &named, 1u);
 }
 
-// the sample at record `at` taken into the record's samples: 1, or 0 where it could not be stored
+// the sample at record `at`, taken into the samples of the record. The result is 1, or 0 where the store failed
 int kqr_sample_take(KqrRecord *record, unsigned int at)
 {
     if (record->samples == record->sample_room)
