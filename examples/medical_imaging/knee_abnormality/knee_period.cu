@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The knee's period pass over sealed sets:
-//   - series are grouped by exact extent, and each group retains its own null top per axis;
-//   - a group of N series has rank * N axes, and its draws D are the least with D + 1 > rank * N: D = rank * N;
-//   - draw k uses series k mod N of its group, in set order, seeded by that series' root and k (period_draw);
-//   - each axis's top is the strongest null height over the group's D draws, and period_read reads every series
-//     against its group's tops with no draws of its own.
-// Every load, every draw and every read is one job on the device's tessera daemon. The draws and readings are written
-// as they finish. A stopped pass resumes from its files.
+//   - the pass groups series by exact extent, and each group keeps its own null top per axis.
+//   - a group of N series has rank * N axes, and its draws D are the least with D + 1 > rank * N: D = rank * N.
+//   - draw k uses series k mod N of its group, in set order, seeded by the root of that series and k (period_draw).
+//   - the top of each axis is the strongest null height over the D draws of the group. `period_read` reads every series
+//     against the tops of its group, with no draws of its own.
+// Every load, every draw and every read is one job on the device's tessera daemon. The pass writes the draws and
+// readings as they finish. A stopped pass resumes from its files.
 //
-//   knee_period --daemon <tessera_daemon> --out <dir> <set> [<set> ...]
-//   knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>   (knee_ingest below)
-//   knee_period flatten --daemon <tessera_daemon> --readings <periods.tsv> --set <dir> [--list <file>]
-//   knee_period spacing --daemon <tessera_daemon> --set <dir> --out <spacing.tsv>
-//   knee_period ladder --daemon <tessera_daemon> --readings <periods.tsv> --spacing <spacing.tsv> --set <dir>
-//                      --out <ladder.tsv> [--bodies <dir>] [--list <file>]
+//   `knee_period --daemon <tessera_daemon> --out <dir> <set> [<set> ...]`
+//   `knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>`  (knee_ingest below)
+//   `knee_period flatten --daemon <tessera_daemon> --readings <periods.tsv> --set <dir> [--list <file>]`
+//   `knee_period spacing --daemon <tessera_daemon> --set <dir> --out <spacing.tsv>`
+//   `knee_period ladder --daemon <tessera_daemon> --readings <periods.tsv> --spacing <spacing.tsv> --set <dir>`
+//                      `--out <ladder.tsv> [--bodies <dir>] [--list <file>]`
 #include "engine.h"
 #include "body_overlap.h"
 #include "cycle.h"
@@ -86,11 +86,11 @@ static const char *s_daemon = NULL;
 // how long a job waits for room on the device before the run gives the device up; 0 waits until it fits
 static unsigned long long s_waiting = 0ull;
 
-// set where a job was not taken: the daemon refused it, it found no room in time, or it was reserved and lost
+// set where a job did not go through: the daemon refused it, it found no room in time, or it lost the room it reserved
 static int s_refused = 0;
 
-// set where every job's declaration is counted from its own buffers, and a job tracked over its signum's last peak is
-// confirmed on its declaration
+// set where the run counts the declaration of every job from its own buffers. The run confirms a job on its declaration
+// where it tracks the job over the last peak of its signum
 static int s_confirming = 0;
 
 static unsigned long long knee_now_microseconds(void)
@@ -232,7 +232,8 @@ static int knee_job_submit(const char *type, const unsigned long long *shape, un
     }
     if (job->ticket.over_budget != 0u)
     {
-        // a declaration counted from the job's own buffers is confirmed where it is tracked over its signum's last peak
+        // the run counts a declaration from the job's own buffers, and confirms it where it tracks the job over the
+        // last peak of its signum
         const long answered = (s_confirming != 0) ? tessera_job_override(job->client, &job->ticket, &error)
                                                   : tessera_job_wait(job->client, &job->ticket, &error);
         if ((answered != 0L) || (job->ticket.lost != 0u))
@@ -292,15 +293,15 @@ static unsigned long long knee_file_bytes(const char *path)
     const long long end = (fseeko(file, 0, SEEK_END) == 0) ? (long long)ftello(file) : -1ll;
 #endif
     fclose(file);
-    // a file's length is not negative where it was reported
+    // a file's length is not negative where the call reported it
     return (end > 0ll) ? (unsigned long long)end : 0ull;
 }
 
 static unsigned long long knee_allocation_bytes(unsigned long long bytes);
 
-// a series' crystal, lowered and proved against its seal, as one job allocating the tower's and the coder's pools, the
-// coder's stream, and the seal's chunk offsets, stream and leaves; the stream is at max the crystal file's bytes.
-// `side` takes its side bytes where it is not NULL
+// a series' crystal, lowered and proved against its seal, as one job. The job allocates the pools of the tower and the
+// coder, the coder's stream, and the seal's chunk offsets, stream and leaves. The stream is at max the
+// bytes of the crystal file. `side` takes its side bytes where it is not NULL
 static unsigned short *knee_load(const KneeSeries *series, EngineSignum *root, EngineSideBytes *side)
 {
     unsigned long long shape[KNEE_RANK];
@@ -353,8 +354,8 @@ static unsigned long long knee_allocation_bytes(unsigned long long bytes)
     return device_pool_plan_bytes(&plan);
 }
 
-// the device bytes of one period call on this shape: the lanes, in their own allocation and so paged alone, and the
-// period's pool for that many voxels and lags
+// the device bytes of one period call on this shape. The lanes have their own allocation and page alone. The pool of
+// the period holds that many voxels and lags
 static unsigned long long knee_period_bytes(const unsigned long long shape[KNEE_RANK])
 {
     const unsigned long long voxels = shape[0] * shape[1] * shape[2];
@@ -369,7 +370,7 @@ typedef struct
     unsigned long long microseconds;
 } KneeCall;
 
-// one period call as one job: the lanes go up, the call runs, the lanes are freed
+// one period call as one job: the lanes go up, the call runs, and the job frees the lanes
 static int knee_period_call(const KneeSeries *series, const unsigned short *volume, const EngineSignum *root,
                             const char *type, unsigned long long draw, const PeriodMargin *null_top, KneeCall *call)
 {
@@ -424,8 +425,8 @@ static int knee_header(KneeText *text, unsigned long long series, const KneeGrou
     return good;
 }
 
-// a written file is retained only when its header is this run's, line for line. Otherwise its lines were made under
-// other groups, and the run refuses and mixes none of them. Each body line is passed to `take`.
+// the run keeps a written file only when its header is this run's, line for line. Otherwise other groups made its
+// lines, and the run refuses and mixes none of them. The function passes each body line to `take`.
 typedef int (*KneeLineTake)(const char *line, void *context);
 
 static int knee_resume(const char *path, const KneeText *header, KneeLineTake take, void *context, int *existed)
@@ -555,7 +556,7 @@ static int knee_take_draw(const char *line, void *context)
     return knee_fold(group, heights);
 }
 
-// a reading line starts with its series; the rest is retained as written
+// a reading line starts with its series, and the rest stays as written
 static int knee_take_reading(const char *line, void *context)
 {
     KneeRun *const run = (KneeRun *)context;
@@ -597,13 +598,15 @@ typedef struct
     unsigned long long room;
 } KneeNames;
 
-// the ingest: every series named in the list, one a line, read from the source and sealed into the set as a crystal,
-// one job each. A series whose crystal's head already reads is retained as it is, and a stopped ingest resumes from the
-// set. A series that does not ingest is reported and the next one runs, but where the device's daemon takes no job the
-// ingest stops at that series; the exit is 1 where any did not. While one series is sealed the next one's span of the
-// source is read (engine_source_prefetch), and a list in the order the series lie in the source reads it start to end
+// the ingest: every series in the list, one a line, read from the source and sealed into the set as a crystal, one job
+// each. The ingest keeps a series whose crystal head already reads as it is, and a stopped ingest resumes from the set.
 //
-//   knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>
+// The ingest reports a series that does not ingest, and the next one runs. Where the device's daemon takes no job, the
+// ingest stops at that series. The exit is 1 where any did not ingest. While the ingest seals one series, it reads the
+// span of the source for the next one (engine_source_prefetch). A list in the order that the series lie in the source
+// reads the source from start to end
+//
+//   `knee_period ingest --daemon <tessera_daemon> --source <zip> --set <dir> --list <file>`
 static int knee_ingest(int argc, char **argv)
 {
     const char *source = NULL;
@@ -628,7 +631,7 @@ static int knee_ingest(int argc, char **argv)
         }
         return 2;
     }
-    // the list whole: the series after each one is known while it is sealed
+    // the whole list: the ingest knows the next series while it seals each one
     KneeNames listed = {NULL, 0ull, 0ull};
     char *line = NULL;
     int ingest_ok = 1;
@@ -677,9 +680,9 @@ static int knee_ingest(int argc, char **argv)
             continue;
         }
         memset(&error, 0, sizeof(error));
-        // this series' span is requested where the last series did not request it, and the next series not yet sealed
-        // is requested for behind it: the source is read from one span into the next while each series is unpacked and
-        // sealed
+        // the ingest requests the span of this series where the last series did not request it. It also requests the
+        // next series that is not yet sealed, behind it. The source then reads from one span into the next while the
+        // ingest unpacks and seals each series
         EngineError ahead;
         memset(&ahead, 0, sizeof(ahead));
         if (queued_ahead != at)
@@ -709,8 +712,8 @@ static int knee_ingest(int argc, char **argv)
                                        knee_allocation_bytes(lanes * sizeof(unsigned short)) +
                                            tower_reserve_bytes(lanes) + compression_reserve_bytes(lanes),
                                        &job);
-        // a job the device's daemon does not take is taken by no later series either: the ingest stops, and a rerun
-        // resumes from the set
+        // the device's daemon takes no job from a later series either. The ingest stops, and a rerun resumes from the
+        // set
         if (read && !good)
         {
             failed += 1ull;
@@ -842,8 +845,8 @@ static KneePeriod *knee_periods_read(const char *path, unsigned long long *count
     return periods;
 }
 
-// the residual's own check of a series' orders, on one voxel: its key is encoded from the orders alone, and the orders
-// it refuses (an odd background order, or orders wider than its limbs) are refused here as they would be in the set
+// the residual's own check of a series' orders, on one voxel. The check encodes its key from the orders alone. It
+// refuses here the orders that it refuses in the set: an odd background order, or orders wider than its limbs
 static int knee_orders_valid(const FlattenOrders *orders, EngineError *error)
 {
     unsigned short voxel = 0u;
@@ -864,12 +867,12 @@ static int knee_orders_valid(const FlattenOrders *orders, EngineError *error)
     return engine_residual(&request, &device_residual) == 0L;
 }
 
-// the flatten: each series of a set lowered to its residual by its own orders and cut into bodies by the max tree, every
-// body one vector magnitude in <set>/flattened.iapx (flatten_set). A series' orders are s = b = P on each axis, P read
-// from the pass's periods.tsv, and P = 0 leaves that axis unsmoothed. A series whose orders the residual refuses is
-// reported and left out; the rest are one job.
+// the flatten: each series of a set lowered to its residual by its own orders, and cut into bodies by the max tree.
+// Every body is one vector magnitude in <set>/flattened.iapx (flatten_set). The orders of a series are s = b = P on
+// each axis, with P from the periods.tsv of the pass. P = 0 leaves that axis unsmoothed. The flatten reports a
+// series whose orders the residual refuses, and leaves it out. The rest are one job.
 //
-//   knee_period flatten --daemon <tessera_daemon> --readings <periods.tsv> --set <dir> [--list <file>]
+//   `knee_period flatten --daemon <tessera_daemon> --readings <periods.tsv> --set <dir> [--list <file>]`
 static int knee_flatten(int argc, char **argv)
 {
     const char *readings = NULL;
@@ -964,7 +967,7 @@ static int knee_flatten(int argc, char **argv)
     {
         return 1;
     }
-    // each distinct set of orders is checked once, and every series that shares it takes its answer
+    // the run checks each distinct set of orders once, and every series that shares it takes its answer
     unsigned char *const fits = (unsigned char *)calloc((size_t)count + 1u, 1u);
     EngineError *const refusals = (EngineError *)calloc((size_t)count + 1u, sizeof(EngineError));
     if ((fits == NULL) || (refusals == NULL))
@@ -1031,8 +1034,8 @@ static int knee_flatten(int argc, char **argv)
     return (flattened && released) ? 0 : 1;
 }
 
-// the elements a voxel's size is read from: Spacing Between Slices (0018,0088) contains z, and Pixel Spacing
-// (0028,0030) contains y then x, the spacing between rows and then between columns
+// the elements that give the size of a voxel. Spacing Between Slices (0018,0088) contains z. Pixel Spacing (0028,0030)
+// contains y then x, the spacing between rows and then between columns
 #define KNEE_SPACING_ELEMENTS 2u
 
 static const unsigned int KNEE_SPACING_GROUP[KNEE_SPACING_ELEMENTS] = {0x0018u, 0x0028u};
@@ -1052,7 +1055,7 @@ static void knee_exact_of(unsigned long long value, OriorExactInteger *out)
 }
 
 // two decimals carried to the lesser exponent of the two, where their mantissas add, subtract and compare. Returns 0
-// where the one at the larger exponent cannot be carried
+// where the carry of the one at the larger exponent fails
 static int knee_decimal_align(const DicomDecimal *one, const DicomDecimal *other, DicomDecimal *left,
                               DicomDecimal *right)
 {
@@ -1097,7 +1100,7 @@ static int knee_decimal_difference(const DicomDecimal *one, const DicomDecimal *
     return orior_exact_subtract(&left.mantissa, &right.mantissa, &out->mantissa) == ORIOR_EXACT_OK;
 }
 
-// one plus the other times itself, exactly: the sum of squares a distance is read from
+// one plus the other times itself, exactly: the sum of squares that gives a distance
 static int knee_decimal_square_into(DicomDecimal *sum, const DicomDecimal *value)
 {
     DicomDecimal square;
@@ -1159,7 +1162,8 @@ static int knee_text_order(const void *left, const void *right)
     return strcmp(*(const char *const *)left, *(const char *const *)right);
 }
 
-// a spacing line starts with its series; the names already written are retained in `context` and not read again
+// a spacing line starts with its series. `context` keeps the names already written, and the run does not read them
+// again
 static int knee_take_spacing(const char *line, void *context)
 {
     KneeNames *const written = (KneeNames *)context;
@@ -1190,13 +1194,17 @@ static int knee_take_spacing(const char *line, void *context)
     return 1;
 }
 
-// the spacing: each series' voxel in mm, exactly as its DICOM headers write it, read from every slice's side bytes in
-// its crystal. A line contains the series; z, y and x, each the largest any slice writes ("-" where no slice contains
-// the element); the slices; for each element the slices that do not write that largest value; z² from the slices'
-// positions, the largest squared distance from one slice's position to the next ("-" where a slice contains no
-// position); and the gaps whose square is not that largest. A stopped run resumes from its file.
+// the spacing: each series' voxel in mm, exactly as its DICOM headers write it, read from the side bytes of every slice
+// in its crystal. A stopped run resumes from its file. A line contains:
+//   - the series.
+//   - z, y and x, each the largest that any slice writes ("-" where no slice contains the element).
+//   - the slices.
+//   - for each element, the slices that do not write that largest value.
+//   - z² from slice positions: the largest squared distance from one slice's position to the next ("-" where a slice
+//     contains no position).
+//   - the gaps whose square is not that largest.
 //
-//   knee_period spacing --daemon <tessera_daemon> --set <dir> --out <spacing.tsv>
+//   `knee_period spacing --daemon <tessera_daemon> --set <dir> --out <spacing.tsv>`
 static int knee_spacing(int argc, char **argv)
 {
     const char *set = NULL;
@@ -1293,8 +1301,8 @@ static int knee_spacing(int argc, char **argv)
                 apart[element] += (good && !same) ? 1ull : 0ull;
             }
         }
-        // the squared distance between each slice's position (0020,0032) and the next one's, in the slices' sorted
-        // order; the largest of them, and the gaps that differ from it
+        // the squared distance between the position (0020,0032) of each slice and that of the next, in the sorted order
+        // of the slices. Also the largest of them, and the gaps that differ from it
         DicomDecimal widest;
         memset(&widest, 0, sizeof(widest));
         unsigned int positioned = (leaves >= 2u) ? 1u : 0u;
@@ -1359,8 +1367,8 @@ static int knee_spacing(int argc, char **argv)
     return (failed == 0u) ? 0 : 1;
 }
 
-// each series' voxel from a spacing.tsv, as the square of z, y and x: z² from Spacing Between Slices where a slice
-// writes it and from the slices' positions where none does; `present` 0 where neither is in the line
+// each series' voxel from a spacing.tsv, as the square of z, y and x. The z² comes from Spacing Between Slices where a
+// slice writes it, and from the positions of the slices where none does. `present` is 0 where neither is in the line
 typedef struct
 {
     char *name;
@@ -1489,8 +1497,8 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
     return spacings;
 }
 
-// a rung's orders: on each axis its order n_a, positioned as spaced pairs, the smooth's from 0 to n_a and the background's
-// from n_a to 2 n_a. And the comb P
+// a rung's orders: on each axis its order n_a, positioned as spaced pairs, the smooth's from 0 to n_a and the
+// background's from n_a to 2 n_a. And the comb P
 typedef struct
 {
     unsigned int order[KNEE_RANK];
@@ -1500,9 +1508,9 @@ typedef struct
 } KneeOrders;
 
 // spaced pairs from the order `from` to the order `to`, both even. A pair at spacing s adds the order 2 s², the
-// variance of a binomial of that order. Each pair takes the widest s, a power of two, whose 2 s² is at max the order
-// already reached (2 at the start) and at max what is left: the gaps between its taps fall inside the smooth before
-// it. The pairs from 0 to n are the start of the pairs from 0 to 2 n
+// variance of a binomial of that order. Each pair takes the widest s, a power of two, that meets two limits. Its 2 s²
+// is at max the order already reached (2 at the start), and at max what remains. The gaps between its taps fall inside
+// the smooth before it. The pairs from 0 to n are the start of the pairs from 0 to 2 n
 static void knee_spaced_pairs(unsigned long long from, unsigned long long to, unsigned int pairs[ENGINE_SPACINGS])
 {
     unsigned long long reached = from;
@@ -1543,7 +1551,7 @@ static unsigned int knee_rung_request(const KneeOrders *orders, const unsigned i
     knee_residual_orders(orders, request);
     request->unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
     const unsigned long long limbs = engine_residual_limbs(request);
-    // the limbs are bounded at or below ENGINE_RESIDUAL_LIMBS here, and narrow exactly
+    // the limbs stay at or below ENGINE_RESIDUAL_LIMBS here, and narrow exactly
     request->limbs = (limbs <= ENGINE_RESIDUAL_LIMBS) ? (unsigned int)limbs : 0u;
     return request->limbs;
 }
@@ -1566,9 +1574,9 @@ static int knee_rung_valid(const KneeOrders *orders, EngineError *error)
     return engine_residual(&request, &device_residual) == 0L;
 }
 
-// a rung's orders. The axis of the finest voxel takes n; every other axis the largest even n_a with n_a · d_a² ≤
-// n · d², d the finest spacing: no axis smooths wider in mm than the finest does. Returns 0 where an axis's spacing
-// is not bounded or does not carry exactly
+// a rung's orders. The axis of the finest voxel takes n. Every other axis takes the largest even n_a with n_a · d_a² ≤
+// n · d², where d is the finest spacing. No axis smooths wider in mm than the finest does. Returns 0 where the spacing
+// of an axis has no bound or does not carry exactly
 static int knee_rung_orders(const KneeSpacing *spacing, unsigned int n, const unsigned int comb[KNEE_RANK],
                             KneeOrders *orders)
 {
@@ -1634,8 +1642,8 @@ static unsigned long long knee_field_low(const unsigned int *magnitude, unsigned
     return value;
 }
 
-// steps making 2^power: a constant below 2^32, times 2^32 as many times as 32 goes into power. Returns the step that
-// stores it, and moves `at` past the steps it wrote
+// the steps that make 2^power: a constant below 2^32, times 2^32 as many times as 32 goes into power. Returns the step
+// that stores it, and moves `at` past the steps it wrote
 static unsigned int knee_power_steps(EngineRecordStep *steps, unsigned int *at, unsigned int power)
 {
     const unsigned int made = *at;
@@ -1666,13 +1674,14 @@ static unsigned int knee_power_steps(EngineRecordStep *steps, unsigned int *at, 
 #define KNEE_LADDER_PEAKED 1u
 #define KNEE_LADDER_OUTPUTS 2u
 
-// the verdicts over a lane of three bodies, its own, its partner on the rung before and its partner on the rung after,
-// each read by its level, the residual at its peak voxel. A rung's residual has the gain 2^G, G its background term's
-// bits (knee_rung_gain), and a level over 2^G is the response normalized; `rise` is G here less G before, and `fall`
-// G after less G here: the levels compare exactly with no division. A partner a lane does not have is a body of
-// level 0.
-//   rose: the response here is above the one before, c (c + 1) with c = COMPARE(level, before · 2^rise)
-//   peaked: rose, and the response here is not below the one after, rose · (COMPARE(level · 2^fall, after) + 1)
+// the verdicts over a lane of three bodies: its own, its partner on the rung before, and its partner on the rung after.
+// The verdicts read each body by its level, the residual at its peak voxel.
+//
+// A rung's residual has the gain 2^G, where G is the bits of its background term (knee_rung_gain). A level over 2^G is
+// the response normalized. `rise` is G here less G before, and `fall` is G after less G here. The levels then compare
+// exactly with no division. A partner that a lane does not have is a body of level 0.
+//   - rose: the response here is above the one before, `c (c + 1)` with `c = COMPARE(level, before · 2^rise)`.
+//   - peaked: rose, and the response here is not below the one after, `rose · (COMPARE(level · 2^fall, after) + 1)`.
 static EngineRecordStep *knee_ladder_program(unsigned int rise, unsigned int fall, unsigned int *count,
                                              unsigned int outputs[KNEE_LADDER_OUTPUTS])
 {
@@ -1711,9 +1720,12 @@ static EngineRecordStep *knee_ladder_program(unsigned int rise, unsigned int fal
     return steps;
 }
 
-// one rung of a series: its orders, its bodies' packed magnitudes with a body of level 0 after them, their peak voxels
-// in ascending order, each body's partner on the rung before (`count` of that rung where it has none) and on the rung
-// after, and the voxels' labels and positive words the next rung is linked against
+// one rung of a series. It holds:
+//   - its orders.
+//   - the packed magnitudes of its bodies, with a body of level 0 after them.
+//   - their peak voxels in ascending order.
+//   - the partner of each body on the rung before (`count` of that rung where it has none), and on the rung after.
+//   - the labels and positive words of the voxels, which the next rung links against.
 typedef struct
 {
     KneeOrders orders;
@@ -1753,9 +1765,9 @@ static unsigned int knee_body_of(const KneeRung *rung, unsigned int peak)
     return (found != NULL) ? (unsigned int)(found - rung->peaks) : rung->count;
 }
 
-// a rung cut into bodies: the residual on the device, the max tree's bodies and labels, and the bodies packed and
-// brought to the host. Returns 1 when cut, -1 where the residual refuses the request before it runs (a line of the
-// extent too long for the unit sweep at these orders), and 0 on any other failure
+// a rung cut into bodies: the residual on the device, the max tree's bodies and labels, and the packed bodies on the
+// host. Returns 1 when the cut succeeds. Returns -1 where the residual refuses the request before it
+// runs (a line of the extent too long for the unit sweep at these orders). Returns 0 on any other failure
 static int knee_rung_cut(const unsigned short *volume, const unsigned int extent[KNEE_RANK],
                          const MaxTreeLayout *layout, unsigned int frame, KneeRung *rung, EngineError *error)
 {
@@ -1834,7 +1846,7 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
         const unsigned int *const magnitude = &rung->magnitudes[(size_t)body * limbs];
         rung->peaks[body] = (unsigned int)knee_field_low(magnitude, layout->offset[MAX_TREE_FIELD_PEAK],
                                                          layout->bits[MAX_TREE_FIELD_PEAK]);
-        // the bodies are packed in the order of their peak voxels, and a peak is found by bisection
+        // the code packs the bodies in the order of their peak voxels, and a bisection finds a peak
         ok = (body == 0u) || (rung->peaks[body] > rung->peaks[body - 1u]);
         if (!ok)
         {
@@ -1847,8 +1859,9 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
     return ok;
 }
 
-// each body's partner on the rung after it: the voxels both rungs' bodies contain, counted for every pair of bodies
-// (body_overlap), and the heaviest matching of those counts. `runs` takes the max runs the overlap contained
+// each body's partner on the rung after it. For every pair of bodies, body_overlap counts the voxels that both bodies
+// contain. The heaviest matching of those counts gives the partners. `runs` takes the max runs that the overlap
+// contained
 static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int extent[KNEE_RANK],
                           unsigned long long *runs)
 {
@@ -1961,9 +1974,10 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
     return ok;
 }
 
-// the verdicts over every body of `own`, its partners read from `before` and `after` (either may be `own` itself, its
-// level-0 body located in), run on the device and on the host, which must agree word for word. `counted` takes how
-// many lanes are truthy for each verdict, and `truthy[output]`, where it is not NULL, 1 for each lane truthy on it
+// the verdicts over every body of `own`, with its partners read from `before` and `after`. Either can be `own` itself,
+// with its level-0 body located in it. The verdicts run on the device and on the host, which must agree word for word.
+// `counted` takes how many lanes are truthy for each verdict. `truthy[output]`, where it is not NULL, takes 1 for each
+// lane truthy on it
 static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const unsigned int *before_index,
                               const KneeRung *after, const unsigned int *after_index, unsigned long long rise,
                               unsigned long long fall, const MaxTreeLayout *layout,
@@ -1982,7 +1996,7 @@ static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const
     }
     unsigned int steps = 0u;
     unsigned int outputs[KNEE_LADDER_OUTPUTS];
-    // a gain difference past 32 bits is refused above, and re-signs exactly
+    // the check above refuses a gain difference past 32 bits, and the difference re-signs exactly
     EngineRecordStep *const program = knee_ladder_program((unsigned int)rise, (unsigned int)fall, &steps, outputs);
     unsigned int output_offset[KNEE_LADDER_OUTPUTS] = {0u, 0u};
     unsigned int output_bits[KNEE_LADDER_OUTPUTS] = {0u, 0u};
@@ -2125,10 +2139,14 @@ static int knee_magnitudes_add(KneeMagnitudes *magnitudes, const unsigned int *m
     return 1;
 }
 
-// a series' ladder file, <dir>/<series>.ladder, all of it 32-bit words: the fields (MAX_TREE_FIELDS), the limbs a body,
-// the rungs, the peaked bodies and the open bodies; each field's bits, then each field's offset; for each rung its
-// order on z, y and x and its gain's low and high words; then the peaked bodies' magnitudes, each in its rung's FRAME
-// field, and after them the open bodies', the ones the last rung leaves rising. It is written whole and then renamed
+// a series' ladder file, <dir>/<series>.ladder, all of it 32-bit words:
+//   - the fields (MAX_TREE_FIELDS), the limbs a body, the rungs, the peaked bodies and the open bodies.
+//   - the bits of each field, then the offset of each field.
+//   - for each rung, its order on z, y and x, and the low and high words of its gain.
+//   - then the magnitudes of the peaked bodies, each in the FRAME field of its rung.
+//   - after them, those of the open bodies, the ones that the last rung leaves on the rise.
+//
+// The function writes the file whole and then renames it
 static int knee_ladder_write(const char *dir, const char *name, const MaxTreeLayout *layout,
                              const unsigned int *rung_words, unsigned int rungs, const KneeMagnitudes *magnitudes,
                              size_t peaked)
@@ -2161,21 +2179,22 @@ static int knee_ladder_write(const char *dir, const char *name, const MaxTreeLay
 #define KNEE_LADDER_RUNGS 32u
 
 // a series' job declares room for KNEE_LADDER_ROOM_BODIES bodies and KNEE_LADDER_ROOM_RUNS overlap runs in every
-// thousand voxels. A rung that cuts more bodies, or a link that counts more runs, gives the device back, and the ladder
-// requests again with room for what it counted before it goes on
+// thousand voxels. A rung that cuts more bodies, or a link that counts more runs, gives the device back. The ladder
+// then requests again with room for what it counted, before it goes on
 #define KNEE_LADDER_ROOM_BODIES 20ull
 #define KNEE_LADDER_ROOM_RUNS 450ull
 
 // the pages the residual's key and a verdict program occupy on the device, one an allocation
 #define KNEE_LADDER_PROGRAM_PAGES 8ull
 
-// the series a ladder leaves to be cut in slabs: its ladder occupies more device bytes whole than a series may take
+// the series that a ladder leaves for the slabs to cut: its ladder occupies more device bytes whole than a series may
+// take
 #define KNEE_LADDER_WHOLE 2
 
-// how long a ladder's job waits for room where `--waiting` is not given
+// how long a ladder's job waits for room where the command line gives no `--waiting`
 #define KNEE_LADDER_WAITING_SECONDS 600ull
 
-// the max device bytes one series' ladder may declare; a series past it is left whole for the slabs
+// the max device bytes that one series' ladder may declare; the ladder leaves a series past it whole for the slabs
 static unsigned long long s_device_cap = 0ull;
 
 // the bodies a rung and the runs a link may contain under a series' job
@@ -2185,10 +2204,13 @@ typedef struct
     unsigned long long runs;
 } KneeRoom;
 
-// the device bytes a series' ladder occupies at once, those of its widest rung: the lanes, the residual and the unit
-// sweep's planes in that rung's limbs (engine_residual_bytes), the max tree over every voxel with room for its bodies,
-// a rung's bodies packed in `limbs` words with the verdicts' records, each member's packed bodies and the lanes' index
-// beside them, and the overlap's labels, sign words and runs; 0 where the ladder reaches no rung
+// the device bytes that a series' ladder occupies at once, those of its widest rung. Returns 0 where the ladder reaches
+// no rung. The bytes are:
+//   - the lanes, the residual and the planes of the unit sweep in the limbs of that rung (engine_residual_bytes).
+//   - the max tree over every voxel, with room for its bodies.
+//   - the bodies of a rung packed in `limbs` words, with the records of the verdicts.
+//   - the packed bodies of each member, and the index of the lanes beside them.
+//   - the labels, sign words and runs of the overlap.
 static unsigned long long knee_ladder_bytes(const EngineResidualRequest *widest, unsigned long long voxels,
                                             const KneeRoom *room, unsigned int limbs)
 {
@@ -2215,17 +2237,19 @@ static int knee_ladder_release(unsigned long long declared, KneeJob *job)
     return (declared == 0ull) || knee_job_release("knee ladder", job);
 }
 
-// rung k smooths and takes the background at n = 2^(k + 1) on the finest axis (knee_rung_orders), a difference of
-// smooths whose doubling preserves Lindeberg's t / Δt the same on every rung, each smooth positioned as spaced pairs so its
-// bits grow with the count of its pairs. A rung is cut into bodies, linked to the rung before, and its verdicts run:
-// which bodies rose, and which bodies of the rung before peaked. The ladder ends where no body rose, where an axis's
-// window is longer than the axis, or where the residual refuses the orders. Each rung is one line; the last line of a
-// series reports why it ended and how many bodies are still open. Where `bodies` is not NULL the peaked and open bodies
-// are written there (knee_ladder_write).
+// rung k smooths and takes the background at n = 2^(k + 1) on the finest axis (knee_rung_orders). It is a difference of
+// smooths, and the double of n on each rung keeps Lindeberg's t / Δt the same on every rung. Each smooth sits as spaced
+// pairs, and its bits grow with the count of its pairs.
 //
-// The series' job declares every device byte the ladder occupies at its widest rung (knee_ladder_bytes), and the device
-// is given back before the series returns. A series whose ladder would declare more than s_device_cap is left whole
-// for the slabs, and KNEE_LADDER_WHOLE returned
+// The ladder cuts a rung into bodies, links it to the rung before, and runs its verdicts. These tell which bodies rose,
+// and which bodies of the rung before peaked. The ladder ends where no body rose, where the window of an axis is longer
+// than the axis, or where the residual refuses the orders. Each rung is one line. The last line of a series reports why
+// it ended and how many bodies are still open. Where `bodies` is not NULL, the ladder writes the peaked and open bodies
+// there (knee_ladder_write).
+//
+// The series' job declares every device byte that the ladder occupies at its widest rung (knee_ladder_bytes). The
+// series gives the device back before it returns. Where its ladder would declare more than s_device_cap, the ladder
+// leaves the series whole for the slabs, and returns KNEE_LADDER_WHOLE
 static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spacing,
                               const unsigned int comb[KNEE_RANK], const char *bodies, KneeText *text)
 {
@@ -2234,8 +2258,9 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     const unsigned long long voxels = (unsigned long long)extent[0] * extent[1] * extent[2];
     MaxTreeLayout layout;
     max_tree_layout(extent[0], extent[1], extent[2], KNEE_LADDER_RUNGS, 1u, &layout);
-    // the widest rung the ladder can reach: every rung's limbs and planes are at least the rung's before it, and the
-    // engine allocates its buffers at max requested. The widest rung's bytes are the series' max
+    // the widest rung that the ladder can reach. The limbs and planes of every rung are at least those of the rung
+    // before it. The engine allocates its buffers at the max requested. The bytes of the widest rung are the max of
+    // the series
     EngineResidualRequest widest;
     memset(&widest, 0, sizeof(widest));
     for (unsigned int step = 0u; step < KNEE_LADDER_RUNGS; step += 1u)
@@ -2338,8 +2363,8 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
         ok = (cut > 0) && ((step == 0u) || knee_rung_link(before, here, extent, &runs));
         if (ok && (((unsigned long long)here->count > room.bodies) || (runs > room.runs)))
         {
-            // the rung is cut and linked, and its bodies and links are on the host: the job is given back and requested
-            // again with room for what the rung counted, before the verdicts go on
+            // the ladder cut and linked the rung, and its bodies and links are on the host. The job gives the device
+            // back and requests it again with room for what the rung counted, before the verdicts go on
             room.bodies = ((unsigned long long)here->count > room.bodies) ? here->count : room.bodies;
             room.runs = (runs > room.runs) ? runs : room.runs;
             series_ok = knee_ladder_release(declared, &job);
@@ -2371,8 +2396,8 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
              knee_rung_verdicts(here, (step == 0u) ? here : before, here->before, here, here->after,
                                 (step == 0u) ? 0ull : (here->gain - before->gain), 0ull, &layout, own_counted,
                                 own_truthy, &error);
-        // the rung before: each body against both its partners, now that the rung after it is cut. Its peaked bodies
-        // are retained
+        // the rung before: each body against both its partners, now that the ladder cut the rung after it. The ladder
+        // keeps its peaked bodies
         unsigned long long before_counted[KNEE_LADDER_OUTPUTS] = {0ull, 0ull};
         unsigned char *const peaked =
             (ok && (step != 0u)) ? (unsigned char *)calloc((size_t)before->count + 1u, 1u) : NULL;
@@ -2414,7 +2439,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
         }
     }
     const int released = !series_ok || knee_ladder_release(declared, &job);
-    // the bodies the last rung leaves rising are retained after the peaked ones
+    // the ladder keeps the bodies that the last rung leaves on the rise, after the peaked ones
     const size_t peaked_count = magnitudes.count;
     for (unsigned int body = 0u; ok && (last != NULL) && (body < last->count); body += 1u)
     {
@@ -2448,7 +2473,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     return knee_text_add(text, "%s\tend\t%u\t%s\t%llu\t%zu\n", series->name, made, ended, open, peaked_count);
 }
 
-// a ladder line starts with its series; a series is done where it has an end line
+// a ladder line starts with its series; a series is complete where it has an end line
 static int knee_take_ladder(const char *line, void *context)
 {
     const char *const tab = strchr(line, '\t');
@@ -2459,18 +2484,19 @@ static int knee_take_ladder(const char *line, void *context)
     return (strncmp(tab + 1, "end\t", 4u) != 0) || knee_take_spacing(line, context);
 }
 
-// the ladder over a set: each series' P from the readings and its voxel from the spacing, one series' lines written
-// together once its ladder ends, and its bodies' file in `--bodies` (knee_ladder_write), a directory that is there. A
-// series with no reading or no spacing on an axis is reported and left out.
+// the ladder over a set: each series' P from the readings, and its voxel from the spacing. The run writes the lines of
+// one series together once its ladder ends, and the file of its bodies in `--bodies` (knee_ladder_write), a directory
+// that exists. The run reports a series with no reading or no spacing on an axis, and leaves it out.
 //
-// A series' job declares every device byte its ladder occupies (knee_ladder_bytes), and the engine frees them before
-// the job releases. A series whose ladder declares more than `--device-bytes` (half the device's memory where it is not
-// given) is left whole for the slabs. The run stops, with what it has written retained, where a job finds no room in
-// `--waiting` seconds (600 where it is not given, 0 to wait until it fits) or where the daemon takes no job
+// A series' job declares every device byte that its ladder occupies (knee_ladder_bytes), and the engine frees them
+// before the job releases. The run leaves a series whole for the slabs where its ladder declares more than
+// `--device-bytes`. That limit is half the memory of the device where the command line does not give it. The run stops
+// where a job finds no room in `--waiting` seconds, or where the daemon takes no job. It keeps what it wrote. The wait
+// is 600 seconds where the command line does not give it, and 0 waits until the job fits
 //
-//   knee_period ladder --daemon <tessera_daemon> --readings <periods.tsv> --spacing <spacing.tsv> --set <dir>
-//                      --out <ladder.tsv> [--bodies <dir>] [--list <file>] [--waiting <seconds>]
-//                      [--device-bytes <bytes>]
+//   `knee_period ladder --daemon <tessera_daemon> --readings <periods.tsv> --spacing <spacing.tsv> --set <dir>`
+//                      `--out <ladder.tsv> [--bodies <dir>] [--list <file>] [--waiting <seconds>]`
+//                      `[--device-bytes <bytes>]`
 static int knee_ladder(int argc, char **argv)
 {
     const char *readings = NULL;
@@ -2639,7 +2665,7 @@ int main(int argc, char **argv)
     if ((argc > 1) && (strcmp(argv[1], "ingest") == 0))
     {
 #if defined(_WIN32)
-        // the card is shared: the ingest runs below every normal process
+        // other work shares the card: the ingest runs below every normal process
         SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
 #endif
         setvbuf(stdout, NULL, _IONBF, 0u);
@@ -2721,13 +2747,13 @@ int main(int argc, char **argv)
         return 2;
     }
 #if defined(_WIN32)
-    // the card is shared: this pass runs below every normal process
+    // other work shares the card: this pass runs below every normal process
     SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
 #endif
     setvbuf(stdout, NULL, _IONBF, 0u);
 
-    // the device's context is made before the first job is requested. Its bytes are in what submit measures, and no
-    // job's peak carries them
+    // the run makes the device's context before it requests the first job. Its bytes are in what submit measures, and
+    // no job's peak carries them
     int device = 0;
     if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
         || (cudaFree(0) != cudaSuccess))
@@ -2901,7 +2927,7 @@ int main(int argc, char **argv)
     }
     fclose(draws_file);
 
-    // the tops, and the header the readings are made under
+    // the tops, and the header that the readings come under
     KneeText tops = {NULL, 0u, 0u};
     int good = knee_text_add(&tops, "%s", header.bytes);
     for (unsigned int group = 0u; good && (group < group_count); group += 1u)
