@@ -20,15 +20,15 @@ typedef struct
     unsigned long long time_ms;
 } SidesCtx;
 
-// the share of its way the pane has gone at `time_ms` on its slide
+// the share of its way that the pane went at `time_ms` on its slide
 EMBED_INLINE int sides_away_at(const SidesCtx *args)
 {
     return EMBED_CALL(gui_autohide_slide.slide_at, GuiAutohideSlideCfg, .slide = &args->sides_read->slide,
                       .time_ms = args->time_ms, .lasts_ms = GUI_SIDES_SLIDE_MS);
 }
 
-// the pane's collapse set to `collapsed` at `time_ms`, its slide begun from where it is toward the way it goes, or
-// the pane located there at once where motion is still
+// the collapse of the pane set to `collapsed` at `time_ms`. Its slide begins from where it is, toward the way that it
+// goes. Where motion is still, the pane goes there at once
 EMBED_INLINE void sides_collapsed_set(const SidesCtx *args)
 {
     GuiSides *const sides = args->sides;
@@ -39,7 +39,7 @@ EMBED_INLINE void sides_collapsed_set(const SidesCtx *args)
     }
     else
     {
-        // the pane's slide is sent on from where it is, a bead's speed retained with it
+        // the slide of the pane goes on from where it is, and keeps the speed of a bead
         sides->slide.curve = GUI_CURVE_BEAD;
         EMBED_CALL(gui_autohide_target.slide_to, GuiAutohideTargetCfg, .slide_out = &sides->slide, .to = to,
                    .time_ms = args->time_ms, .lasts_ms = GUI_SIDES_SLIDE_MS);
@@ -78,8 +78,8 @@ EMBED_INLINE int sides_has_pane(const SidesCtx *args)
     return (at >= 0) && g_gui_tools[at].side;
 }
 
-// the edge a collapsed pane comes back from: the view's left, GUI_SIDES_EDGE pixels wide, from the inside's head to
-// the terminal's panel, or to the inside's foot where none is open
+// the edge that a collapsed pane comes back from: the left of the view, GUI_SIDES_EDGE pixels wide. It goes from the
+// head of the inside to the panel of the terminal, or to the foot of the inside where none is open
 EMBED_INLINE GuiRect sides_edge(const SidesCtx *args)
 {
     const GuiFrame *const frame = args->frame;
@@ -132,8 +132,8 @@ int gui_sides_move(const GuiSidesCfg *args)
         has_pane && side_menu->collapsed &&
         EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
                    .rect = EMBED_CALL(sides_edge, SidesCtx, .frame = frame), .x = args->x, .y = args->y);
-    // the pane: no wait while the pointer is on it, and the wait begun as it leaves the pane, or the side_menu for
-    // neither, while the pane is
+    // the pane: no wait while the pointer is on it. While the pane shows, the wait begins as the pointer leaves the
+    // pane, or the side_menu, for neither
     if (over_pane && !sides->over_pane)
     {
         sides->collapse_ms = 0ULL;
@@ -143,8 +143,8 @@ int gui_sides_move(const GuiSidesCfg *args)
     {
         sides->collapse_ms = args->time_ms + GUI_SIDES_REST_MS;
     }
-    // the edge: a rest begun as the pointer comes onto it, one back within the grace resting still, and the grace
-    // begun as it leaves
+    // the edge: a rest begins as the pointer comes onto it. A pointer back within the grace keeps its rest. The grace
+    // begins as it leaves
     if (over_edge && !sides->over_edge)
     {
         if ((sides->edge_off_ms == 0ULL) || (args->time_ms >= sides->edge_off_ms))
@@ -165,9 +165,9 @@ int gui_sides_move(const GuiSidesCfg *args)
         sides->icon = icon;
         sides->icon_ms = (icon != GUI_SIDE_MENU_NONE) ? args->time_ms + GUI_SIDES_ICON_REST_MS : 0ULL;
     }
-    // a preview the pointer leaves for neither the side_menu nor the pane is through a rest, as a pane displayed by a
-    // press does: the rest begins as it leaves, and the wait to collapse takes the preview back where the pointer is
-    // still off both when the rest ends
+    // a preview that the pointer leaves for neither the side_menu nor the pane ends through a rest, as a pane that a
+    // press showed does. The rest begins as it leaves. Where the pointer is still off both when the rest ends, the
+    // wait to collapse takes the preview back
     const int left_preview =
         sides->previewing && (sides->over_strip || sides->over_pane) && !over_strip && !over_pane;
     sides->over_pane = over_pane;
@@ -237,7 +237,7 @@ int gui_sides_tick(const GuiSidesCfg *args)
         sides->edge_ms = 0ULL;
         if (has_pane && side_menu->collapsed)
         {
-            // the pane displayed is over the edge, which is gone with the pointer's place on it
+            // the displayed pane is over the edge, and the edge and the place of the pointer on it go
             EMBED_CALL(sides_collapsed_set, SidesCtx, .sides = sides, .side_menu = side_menu, .collapsed = 0,
                        .still = args->still, .time_ms = now_ms);
             sides->over_edge = 0;
@@ -269,8 +269,8 @@ int gui_sides_tick(const GuiSidesCfg *args)
                    .time_ms = now_ms);
         sides->collapse_ms = 0ULL;
     }
-    // the wait to collapse reached: the pane collapsed where the pointer is on neither it nor the side_menu and no menu
-    // is open, else looked at again a rest later
+    // the wait to collapse, reached. The pane collapses where the pointer is on neither it nor the side_menu and no
+    // menu is open. Else the code looks at it again a rest later
     if ((sides->collapse_ms != 0ULL) && (now_ms >= sides->collapse_ms))
     {
         sides->collapse_ms = 0ULL;

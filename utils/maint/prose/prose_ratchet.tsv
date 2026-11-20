@@ -550,7 +550,6 @@ includes/window/scrollbar.c	4
 includes/window/scrollbar.h	6
 includes/window/side_menu.c	8
 includes/window/side_menu.h	8
-includes/window/sides.c	9
 includes/window/tip.c	8
 includes/window/tip.h	6
 includes/window/top_menu.c	5
