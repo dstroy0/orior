@@ -9,13 +9,13 @@ void orior_exact_zero(OriorExactInteger *value)
 }
 
 /**
- * @brief Orders two magnitudes, ignoring sign.
+ * @brief Orders two magnitudes, without the sign.
  *
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1, 0 or 1.
- * @note Walks from the top limb down, since the first limb that differs settles the order and the
- *       high limbs of a value narrower than the width are zero on both sides.
+ * @note Walks from the top limb down. The first limb that differs settles the order. The high limbs of a
+ *       value narrower than the width are zero on both sides.
  */
 int magnitude_compare(const uint32_t *left, const uint32_t *right)
 {
@@ -66,8 +66,8 @@ size_t magnitude_used(const uint32_t *value)
 }
 
 /**
- * @brief Whether the sum of two magnitudes carries off the top limb, found before any limb is
- *        written.
+ * @brief Whether the sum of two magnitudes carries off the top limb, which the call finds before it
+ *        writes a limb.
  *
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
@@ -97,8 +97,8 @@ static int magnitude_add_overflows(const uint32_t *left, const uint32_t *right)
  *
  * @param[in]  left   First magnitude [BORROWS].
  * @param[in]  right  Second magnitude [BORROWS].
- * @param[out] result Sum [BORROWS]. May alias either input, since each limb is read before the
- *                    limb at the same index is written.
+ * @param[out] result Sum [BORROWS]. It can be the same object as either input. The call reads each limb
+ *                    before it writes the limb at the same index.
  */
 static void magnitude_add(const uint32_t *left, const uint32_t *right, uint32_t *result)
 {
@@ -106,7 +106,7 @@ static void magnitude_add(const uint32_t *left, const uint32_t *right, uint32_t 
     for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         const uint64_t total = (uint64_t)left[at] + (uint64_t)right[at] + carry;
-        // Explicit narrowing to a limb. The high half is the carry and is retained.
+        // Explicit narrowing to a limb. The high half is the carry, and the code keeps it.
         result[at] = (uint32_t)(total & LIMB_MASK);
         carry = total >> LIMB_BITS;
     }
@@ -117,16 +117,16 @@ static void magnitude_add(const uint32_t *left, const uint32_t *right, uint32_t 
  *
  * @param[in]  left   Magnitude to subtract from, no smaller than right [BORROWS].
  * @param[in]  right  Magnitude to subtract [BORROWS].
- * @param[out] result Difference [BORROWS]. May alias either input, since each limb is read before
- *                    the limb at the same index is written.
+ * @param[out] result Difference [BORROWS]. It can be the same object as either input. The call reads
+ *                    each limb before it writes the limb at the same index.
  */
 static void magnitude_subtract(const uint32_t *left, const uint32_t *right, uint32_t *result)
 {
     uint64_t borrow = 0u;
     for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
-        // LIMB_BASE maintains the arithmetic non negative before the narrowing below. No unsigned
-        // wrap has to be reasoned about at the point the limb is stored.
+        // LIMB_BASE keeps the arithmetic non negative before the narrowing below. No unsigned wrap can
+        // occur at the point where the code stores the limb.
         const uint64_t total = LIMB_BASE + (uint64_t)left[at] - (uint64_t)right[at] - borrow;
         result[at] = (uint32_t)(total & LIMB_MASK);
         borrow = (total < LIMB_BASE) ? 1u : 0u;
@@ -158,12 +158,12 @@ int orior_exact_compare(const OriorExactInteger *left, const OriorExactInteger *
 }
 
 /**
- * @brief Writes a signed result from a magnitude and the sign it should carry.
+ * @brief Writes a signed result from a magnitude and its sign.
  *
  * @param[in,out] result Integer whose limbs are already set [BORROWS].
  * @param[in]     sign   Sign to apply where the magnitude is not zero.
- * @note Zero always ends up carrying sign 0, which prevents a negative zero from ever existing and
- *       makes two zeros comparing equal.
+ * @note Zero always gets sign 0. A negative zero then never exists, and two zeros always compare
+ *       equal.
  */
 void settle_sign(OriorExactInteger *result, int32_t sign)
 {
@@ -174,15 +174,15 @@ void settle_sign(OriorExactInteger *result, int32_t sign)
  * @brief Adds two integers, with the sign of the second supplied apart from it.
  *
  * @param[in]  left       First addend [BORROWS].
- * @param[in]  right      Second addend, whose magnitude is read and whose sign is not [BORROWS].
- * @param[in]  right_sign Sign the second addend is taken to carry.
+ * @param[in]  right      Second addend. The call reads its magnitude and not its sign [BORROWS].
+ * @param[in]  right_sign The sign of the second addend.
  * @param[out] result     Sum [BORROWS]. May alias either input.
  * @return                ORIOR_EXACT_OK, or ORIOR_EXACT_WILL_NOT_FIT where the sum needs more
  *                        limbs.
- * @note The two signs are the flag for which operation is legal on this pair. Equal signs add the
- *       magnitudes, which alone can overrun and is tested before a limb is written. Opposite signs
- *       subtract the smaller magnitude from the larger and take the larger one's sign. Equal
- *       magnitudes of opposite sign are zero.
+ * @note The two signs tell which operation is legal on this pair. Equal signs add the magnitudes. Only
+ *       the add can overrun, and the call tests that before it writes a limb.
+ * @note Opposite signs subtract the smaller magnitude from the larger, and take the sign of the larger.
+ *       Equal magnitudes of opposite sign are zero.
  * @note Subtraction is this call with the sign turned over.
  */
 static OriorExactStatus exact_add_signed(const OriorExactInteger *left, const OriorExactInteger *right,
@@ -219,7 +219,7 @@ static OriorExactStatus exact_add_signed(const OriorExactInteger *left, const Or
         return ORIOR_EXACT_OK;
     }
 
-    // The sign is taken before the limbs are written, since `result` may be either input.
+    // The code takes the sign before it writes the limbs, because `result` can be either input.
     if (order > 0)
     {
         const int32_t sign = left->sign;
