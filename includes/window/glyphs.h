@@ -19,8 +19,9 @@ typedef struct GuiGlyphsFaceCfg GuiGlyphsFaceCfg;
 typedef struct GuiGlyphsCfg GuiGlyphsCfg;
 typedef struct GuiGlyphsBakeCfg GuiGlyphsBakeCfg;
 
-// the faces: the code face regular, bold, italic and bold italic, the interface face, the reading face, the interface
-// face bold, the large name's, and the symbol face a character is drawn from where its own face has none of it
+// the faces. They are the code face regular, bold, italic and bold italic, and the interface face. Then come the reading
+// face, the bold interface face and the face of the large name. The last is the symbol face, which draws a character that its own
+// face does not hold
 #define GUI_FACE_CODE 0u
 #define GUI_FACE_CODE_BOLD 1u
 #define GUI_FACE_CODE_ITALIC 2u
@@ -30,18 +31,19 @@ typedef struct GuiGlyphsBakeCfg GuiGlyphsBakeCfg;
 #define GUI_FACE_HEAD_BOLD 6u
 #define GUI_FACE_SYMBOL 7u
 #define GUI_FACES 8u
-// the glyphs saved drawn at once; past three quarters of them every one is let go and drawn again as it is asked for
+// the drawn glyphs that the cache keeps at once. Past three quarters of them, the cache lets each go and draws it again
+// when a caller asks for it
 #define GUI_GLYPH_CACHE_ENTRIES 4096u
-// the stem darkening: how far a stroke's side is pushed out, max at the small sizes and least at the large, in pixels;
-// and the gamma the coverage is lifted through as a glyph is positioned for the blend
+// the stem dark: how far the code pushes out the side of a stroke, in pixels. It is max at the small sizes and least at
+// the large sizes. The gamma lifts the coverage when the code positions a glyph for the blend
 #define GUI_DARKEN_MAX 0.2f
 #define GUI_DARKEN_MIN 0.06f
 #define GUI_DARKEN_SMALL 12u
 #define GUI_DARKEN_LARGE 32u
 #define GUI_TEXT_GAMMA 1.4f
 
-// A cache entry: whether it is in use, its key (the face, the glyph and the pixel size), the glyph's advance in
-// pixels, and the coverage mask, allocated in a cell of its own, NULL where the glyph has no pixels
+// A cache entry. It holds whether it is in use, and its key: the face, the glyph and the pixel size. It holds the
+// advance of the glyph in pixels. It holds the coverage mask in a cell of its own, NULL where the glyph has no pixels
 typedef struct
 {
     int used;
@@ -52,15 +54,18 @@ typedef struct
     GuiMask mask_bits;
 } GuiCachedGlyph;
 
-// the glyph cells saved at once, a glyph in one color each. Past three quarters of them every one is let go and made
-// again as it is asked for
+// the glyph cells that the cache keeps at once, a glyph in one color each. Past three quarters of them, the cache lets
+// each go and makes it again when a caller asks for it
 #define GUI_CELL_CACHE_ENTRIES 4096u
 
-// A glyph cell: whether it is in use, its key (the face, the character, the pixel size and the color), the glyph's
-// advance in pixels, its box, the size and where its top left is from the pen on the baseline, and its lanes,
-// for each pixel of the box the ink's red and blue lanes by the pixel's share of the color with half of 255 in,
-// its green lane the same, and the rest of 255 the ground saves, each a word, row after row, the three in one cell
-// of the cellblock, NULL where the glyph has no pixels
+// A glyph cell. It holds whether it is in use, and its key: the face, the character, the pixel size and the color.
+// It holds the advance of the glyph in pixels. It holds its box: the size, and the top left from the pen on the
+// baseline.
+//
+// It holds its lanes. Each pixel of the box has the red, blue and green lanes of the ink. Each lane is by the share of
+// the color of the pixel, with half of 255 in. The rest of 255 is the part of the ground that
+// stays. Each is a word, row after row. The three are in one cell of the cellblock, NULL where the glyph has no
+// pixels
 typedef struct
 {
     int used;
@@ -84,8 +89,9 @@ typedef struct
 #define GUI_ASCII_COUNT 95u
 #define GUI_ASCII_TABLES 32u
 
-// An ASCII table: whether it is in use, its key, and for each printable character its glyph cell, NULL until the character is
-// first asked for in the key, and its advance; a character of the table is one index, its cell positioned straight from there
+// An ASCII table. It holds whether it is in use and its key. For each printable character it holds the glyph cell and
+// the advance. The cell is NULL until a caller first asks for the character in the key. A character of the table is
+// one index, and the code positions its cell straight from there
 typedef struct
 {
     int used;
@@ -104,11 +110,14 @@ typedef struct
     int (*read)(unsigned int face, unsigned char *at, unsigned long long size);
 } GuiGlyphsFaces;
 
-// The glyphs: the faces' files as the caller's system holds them, each face as read and whether it was, the file each was read from, whether the symbol face has been
-// looked for, the outline a glyph is drawn through, the cache's entries, one rasterized glyph each, with how many of
-// them are in use, and the cells, one glyph in one color each, with how many of them are in use; the ASCII tables,
-// the one last found and the next to be taken; and how far the cells' lanes and the entries' masks have taken their
-// rings of the block
+// The glyphs. They hold the files of the faces as the system of the caller holds them. For each face, they hold the
+// read face, whether the read succeeded, and the file of the read. They hold whether the code looked for the symbol
+// face.
+//
+// They hold the outline that draws a glyph. They hold the entries of the cache, one rasterized glyph each, and how many
+// are in use. They hold the cells, one glyph in one color each, and how many are in use. They hold the ASCII tables,
+// the last table found and the next table to take. They hold how far the lanes of the cells and the masks of the
+// entries took their rings of the block
 typedef struct
 {
     const GuiGlyphsFaces *faces;
@@ -129,25 +138,31 @@ typedef struct
     unsigned long long masks_used;
 } GuiGlyphs;
 
-// the faces read through `faces`, the code face first: 1, or 0 with why given, the code face being the one the
-// window cannot do without. And every cell of theirs given back
+// the faces, read through `faces`, the code face first: 1, or 0 with the reason. The window cannot work without the
+// code face. A second call gives back each of their cells
 int gui_glyphs_init(const GuiGlyphsCfg *args);
 void gui_glyphs_free(const GuiGlyphsCfg *args);
-// the face `face` is drawn with: itself where it was read, the interface face in place of its bold where that was
-// read, else the code face
+// the face that draws `face`. That is `face` itself where the read of it succeeded. For the bold interface face,
+// it is the interface face where its read succeeded. Else it is the code face
 unsigned int gui_face_had(const GuiGlyphsFaceCfg *args);
-// the interface face's bold read for as long as it is drawn from, it being read at no other time: 1 where it was read
-// now, 0 where it already was or the system has none; and given back with its characters' masks
+// the bold interface face, read for as long as the code draws from it, and at no other time. The call gives 1 where
+// it reads the face now, and 0 where the code read the face before or the system has none. A second call gives it back
+// with the masks of its characters
 int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args);
 void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args);
-// the glyph of `character` in `face` at `size` pixels an em, drawn and saved, from the symbol face where `face` has none
-// of it and the symbol face has, that face read from the system's fonts the first time a character needs it: its mask,
-// with no pixels where the character draws none, or NULL where it could not be drawn; its advance in pixels into `advance`
+// the glyph of `character` in `face` at `size` pixels an em, drawn and kept. Where `face` does not hold the character
+// and the symbol face does, the glyph comes from the symbol face. The code reads that face from the fonts of the system
+// the first time a character needs it.
+// The result is its mask, with no pixels where the character draws none, or NULL where the code cannot draw it. Its
+// advance in pixels goes into `advance`
 const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args);
-// the cell of `character` in `face` at `size` pixels an em in `color`, made from the glyph's mask and saved: its lanes
-// positioned for the blend over any ground, with no pixels where the character draws none, or NULL where the glyph could not
-// be drawn or the cell's lanes not taken; its advance in pixels into `advance`; and a cell positioned on `raster` with the
-// pen at x on the baseline y, no further than `clip`, each pixel of its box in one blend, straight along
+// the cell of `character` in `face` at `size` pixels an em in `color`, made from the mask of the glyph and kept. The
+// result holds its lanes, positioned for the blend over any ground. It has no pixels where the character draws none.
+// It is NULL where the code cannot draw the glyph or cannot take the lanes of the cell. Its advance in pixels goes into
+// `advance`.
+//
+// The second call positions a cell on `raster`, with the pen at x on the baseline y, no further than `clip`. Each pixel
+// of its box takes one blend, straight along
 const GuiGlyphCell *gui_glyph_cell(const GuiGlyphsFaceLetterCfg *args);
 void gui_glyph_cell_layout(const GuiGlyphsRasterCfg *args);
 // a face's ascent above the baseline and its descent below it, in pixels at `size`; and the code face's cell, the
@@ -161,11 +176,12 @@ float gui_glyphs_cell(const GuiGlyphsFaceLetterCfg *args);
 // `length` bytes of the UTF-8 `text` drawn in `face` at `size` from `x` on the baseline `y` in `color`, no further than
 // `clip`: the x after it; and the width the text takes
 float gui_text_draw(const GuiGlyphsFaceSizeCfg *args);
-// The glyph of `character` in `face` at `size` pixels an em baked into the compositor's atlas at the place `phase`
-// across a pixel: its outline moved right by a quarter of a pixel for each place, drawn as `gui_glyph` draws it, and
-// its coverage handed to the atlas unlifted. The atlas keys it by the face asked for and the character, which keeps
-// the printable ASCII one range. The result is the entry, found where it is baked already, or GUI_COMPOSITOR_NO_GLYPH
-// where it could not be drawn or the atlas has no room
+// The glyph of `character` in `face` at `size` pixels an em, put into the atlas of the compositor at the place `phase`
+// across a pixel. The code moves its outline right by a quarter of a pixel for each place, and draws it as `gui_glyph`
+// draws it.
+// The atlas gets its coverage without the lift. The atlas keys it by the requested face and the character, which keeps
+// the printable ASCII in one range. The result is the entry, which the atlas finds where it holds the glyph already.
+// It is GUI_COMPOSITOR_NO_GLYPH where the code cannot draw the glyph or the atlas has no room
 embed_u32 gui_glyph_bake(const GuiGlyphsBakeCfg *args);
 float gui_text_width(const GuiGlyphsFaceSizeCfg *args);
 struct GuiGlyphsFaceSizeCfg
