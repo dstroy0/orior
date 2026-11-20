@@ -3461,8 +3461,8 @@
     return out;
   }
 
-  // Every harmonic up to the ceiling at one direction, flattened the way the coefficients are: degree
-  // l occupies the run starting at l squared, ordered from -l to +l.
+  // Each harmonic up to the ceiling at one direction, flattened as the coefficients are. Degree l
+  // holds the run that starts at l squared, in order from -l to +l.
   function harmonicsAt(top, down, around, into) {
     var x = Math.cos(down);
     var rootTwo = Math.SQRT2;
@@ -3490,8 +3490,8 @@
     var cols = SURFACE_LON + 1;
     var points = rings * cols;
 
-    // The basis on the grid, evaluated once. It depends on the direction and the ceiling and never on
-    // the state. Recomputing it per operation would be paying for the same numbers 512 times.
+    // The basis on the grid, evaluated once. It depends on the direction and the ceiling, and never on
+    // the state. A new computation per operation pays for the same numbers 512 times.
     surfaceBasis = new Float32Array(points * width);
     surfaceUnit = new Float32Array(points * 3);
     var one = new Float64Array(width);
@@ -3532,9 +3532,8 @@
     }
     geometry.setIndex(faces);
 
-    // Lit and not additive. The reconstruction is a shape and a shape needs shading to be read as
-    // one: an additive skin brightens where it folds toward the eye and says nothing about which way
-    // it is facing.
+    // Lit, and not additive. The reconstruction is a shape, and a shape needs shade to read as one. An
+    // additive skin brightens where it folds toward the eye, and says nothing about which way it faces.
     surface = new THREE.Mesh(
       geometry,
       new THREE.MeshStandardMaterial({
@@ -3551,13 +3550,15 @@
     surface.receiveShadow = false;
     scene.add(surface);
 
-    // A spherical mesh positioned on the boundary: a coarse net of latitude and longitude lines so the
-    // deformity can be read off the cells. On a flat field the cells are even and the net is a plain
-    // sphere; where the field pushes the surface out or pulls it in, the cells there stretch and
-    // shear, and the amount they distort is the deformity. It shares the surface's own vertex buffer
-    // instead of carrying one of its own. It deforms with the surface for free and costs nothing
-    // a frame: the same positions the reconstruction already uploaded are the ones the net draws
-    // between. Every fourth ring and every sixth column, coarse enough to read a cell as a cell.
+    // A spherical mesh on the boundary: a coarse net of latitude and longitude lines. The reader can
+    // read the deformity off the cells.
+    // On a flat field the cells are even, and the net is a plain sphere. Where the field pushes the
+    // surface out or pulls it in, the cells there stretch and shear. Their distortion is the deformity.
+    //
+    // It shares the own vertex buffer of the surface, and has no buffer of its own. It deforms with the
+    // surface for free, and costs nothing a frame. The net draws between the same positions that the
+    // reconstruction already uploaded. Each fourth ring and each sixth column, coarse enough to read a
+    // cell as a cell.
     var gridIndex = [];
     var latStep = 4,
       lonStep = 6;
@@ -3587,19 +3588,21 @@
 
     // The lit boundary, on the same grid and the same basis, at a radius that never moves.
     //
-    // This is the projection. A constituent inside the shell emits, and what arrives at the surface
-    // is not an outline of it: the light spreads on the way out and lands as a cap, wide and faint
-    // when the source is deep and small and sharp when it is near. Summing those caps over every
-    // constituent is the field the harmonics already carry. The same numbers that shape the
-    // envelope also paint this, and the two are one reading drawn twice.
+    // This is the projection. A constituent inside the shell emits, and what arrives at the surface is
+    // not an outline of it. The light spreads on the way out, and lands as a cap. The cap is wide and
+    // faint when the source is deep, and small and sharp when it is near.
     //
-    // Brightness and not displacement. Light on a surface is a luminance: a dipole is a real thing for
-    // a field to be and a nonsense thing for a radius to be.
-    // One lit surface per boundary, each reading the same interior from its own distance and with its
-    // own sensitivity. An outer boundary is further from the constituents. The depth kernel has
-    // taken more of the fine structure away by the time the light arrives, and its own conduction
-    // spreads what is left further still. The same state therefore prints sharp spots on the inner
-    // surface and a nebula on the outer one, and both are correct readings of it.
+    // The sum of those caps over each constituent is the field that the harmonics already carry. The
+    // same numbers that shape the envelope also paint this. The two are one reading, drawn twice.
+    //
+    // Brightness, and not displacement. Light on a surface is a luminance. A dipole is a real thing for
+    // a field to be, and a nonsense thing for a radius to be.
+    //
+    // One lit surface per boundary, each with a read of the same interior from its own distance and
+    // with its own sensitivity. An outer boundary is further from the constituents.
+    // The depth kernel takes more of the fine structure away by the time the light arrives. Its own
+    // conduction spreads the rest further still. The same state thus prints sharp spots on the inner
+    // surface and a nebula on the outer one. Both are correct readings of it.
     for (var s2 = 0; s2 < shells.length; s2++) {
       var litGeometry = new THREE.BufferGeometry();
       var at = new Float32Array(points * 3);
@@ -3608,9 +3611,9 @@
       litGeometry.setAttribute("color", new THREE.BufferAttribute(tone, 3));
       litGeometry.setIndex(faces);
 
-      // Additive, because light adds. Two caps overlapping on the boundary are brighter where they
-      // overlap, and a blend that averaged them would report the overlap as the mean of two arrivals
-      // instead of both of them landing.
+      // Additive, because light adds. Two caps that overlap on the boundary are brighter where they
+      // overlap. A blend that averages them reports the overlap as the mean of two arrivals, and not as
+      // two landings.
       var skin = new THREE.Mesh(
         litGeometry,
         new THREE.MeshBasicMaterial({
@@ -3637,22 +3640,26 @@
       });
     }
 
-    // The same budget rule the sources are under, for the same reason. Additive surfaces stack, and
-    // each of these is drawn on both faces. Three boundaries at full strength position six lit layers
-    // over each other and the whole nest saturates to white before anything can be read off it.
-    // Sharing the brightness retains the sum in range and makes the cost of another boundary visible.
+    // The same budget rule as the sources, for the same reason. Additive surfaces stack, and each of
+    // these draws on both faces. Three boundaries at full strength put six lit layers over each other.
+    // The whole nest then saturates to white before the reader can read anything off it. A shared
+    // brightness keeps the sum in range, and makes the cost of another boundary visible.
     var share = 1 / (litOf.length * 2);
     for (var s3 = 0; s3 < litOf.length; s3++) {
       litOf[s3].mesh.material.opacity = share;
     }
 
     // THE FIFTH SHELL: THE INVERSE BOUNDARY. The four heatmaps above read the state through the depth
-    // kernel (r/R)^l, which ATTENUATES the high degrees. The fine structure is smoothed away by the
-    // time the light lands on a surface. This one runs that kernel BACKWARDS, (R/r)^l, on a surface set
-    // outside the others: the high degrees AMPLIFY instead of decay. The detail the mixing hides
-    // blooms here. It is a deblur, the inverse of the diffusion the hash performs, and it is the first
-    // of the n-dimensional caps we push the field through to hunt the elision dimension. It carries its
-    // own opacity and is added AFTER the share above. The four heatmaps below it are left untouched.
+    // kernel (r/R)^l, which ATTENUATES the high degrees. The fine structure smooths away by the time
+    // the light lands on a surface.
+    //
+    // This one runs that kernel BACKWARDS, (R/r)^l, on a surface outside the others. The high degrees
+    // AMPLIFY, and do not decay. The detail that the mix hides blooms here.
+    // It is a deblur, the inverse of the diffusion of the hash. It is the first of the n-dimensional
+    // caps that we push the field through, in the hunt for the elision dimension.
+    //
+    // It carries its own opacity, and the code adds it AFTER the share above. The four heatmaps below
+    // it stay as they are.
     var invGeometry = new THREE.BufferGeometry();
     var invAt = new Float32Array(points * 3);
     var invTone = new Float32Array(points * 3);
@@ -3685,29 +3692,28 @@
     });
   }
 
-  // Scratch the surface sum reuses instead of allocating fresh every tick. A few megabytes of garbage
-  // a second climbs and collects in a sawtooth that
-  // reads as a leak in the task manager and stutters the frame when the collector runs. Every element
-  // each of these carries is written before it is read, a buffer retained from the last tick carries
-  // no stale value, and one is reallocated only when the ceiling the reader set changes its length.
+  // Scratch that the surface sum uses again, with no fresh allocation each tick. A few megabytes of
+  // garbage a second climbs and collects in a sawtooth. That reads as a leak in the task manager, and
+  // stutters the frame when the collector runs.
+  // The code writes each element of these before it reads it. A buffer kept from the last tick then
+  // carries no stale value. The code allocates one again only when the ceiling changes its length.
   var scratchGain = null;
   var scratchField = null;
   var scratchEach = null;
   var scratchSum = null;
 
-  // What one unit of the reader's gain is worth against the object's own field. Set a full turn of
-  // the slider puts the beam and the object at comparable size, which is where the two can be told
-  // apart on the surface.
+  // What one unit of the gain of the reader is worth against the own field of the object. With this
+  // value, a full turn of the slider puts the beam and the object at comparable size. The two then
+  // show apart on the surface.
   //
-  // Measured and not guessed, and swept. Against an object field
-  // spanning 6.99, full gain gives 6.66 at a scale of 2.4, 14.5 at 6, 26.5 at 10 and 74.5 at 26. The
-  // first buries the object and leaves the whole useful range of the slider inside its first tenth;
-  // the last is a five percent perturbation and reads as nothing. Six puts the beam at about twice
-  // the object, which shows both. The whole travel of the slider says something.
+  // Against an object field that spans 6.99, full gain at a scale of 6 gives 14.5. That puts the beam
+  // at about twice the object, which shows both. The whole travel of the slider then says something.
+  // A much smaller scale buries the object. A much larger scale is a small perturbation, and reads as
+  // nothing.
   //
-  // The span falls slightly at the smallest scales before it climbs, because the beam's coefficients
-  // partly cancel the object's. Cancellation is the physical answer here: two fields on one boundary
-  // add, and adding can subtract.
+  // The span falls a little at the smallest scales before it climbs. The coefficients of the beam
+  // partly cancel those of the object. Cancellation is the physical answer here: two fields on one
+  // boundary add, and an add can subtract.
   var BEAM_FIELD_SCALE = 6.0;
 
   function sized(existing, want) {
@@ -3716,41 +3722,43 @@
       : new Float64Array(want);
   }
 
-  // The kernel and the sum, at whatever radius the clock reached and whatever ceiling is set.
-  // The reading is a pure function of these, and of nothing else.
+  // The kernel and the sum, at the radius that the clock reached and at the set ceiling. The reading is
+  // a pure function of these, and of nothing else.
   //
-  // Four full harmonic passes run in here -- one for the surface and one per lit boundary -- and each
-  // is 2,701 points against 121 coefficients. The four together are about 1.3 million multiply
-  // adds, 0.51 ms a pass, 2.0 ms of a 4.65 ms frame.
+  // Four full harmonic passes run in here, one for the surface and one per lit boundary. Each is 2,701
+  // points against 121 coefficients. The four together are about 1.3 million multiply adds.
   //
-  // The field depends on the state, the reading depth, the conduction time, the beam's share and each
-  // boundary's own radius and sensitivity. The clock walks 129 distinct states across 512 operations
-  // at a handful of operations a second, while this, run on every frame, recomputes the same field
-  // from the same inputs sixty times a second and draws it identically each time.
+  // The field depends on the state, the read depth, the conduction time, and the share of the beam. It
+  // also depends on the own radius and sensitivity of each boundary.
+  // The clock walks 129 distinct states across 512 operations, at a few operations a second. Run on
+  // each frame, this computes the same field from the same inputs sixty times a second.
   //
-  // So the passes are keyed on their inputs and the result is cached. The retention blend runs every
-  // frame, because that is the surface's own memory moving, one cheap pass with no coefficient loop
-  // in it. Only arithmetic whose answer is already known is skipped. Two counters make the key honest.
+  // The passes thus key on their inputs, and the result goes in a cache. The retention blend runs
+  // each frame, because that is the own memory of the surface in motion. It is one cheap pass with no
+  // coefficient loop. The code skips only arithmetic whose answer it already knows. Two counters keep
+  // the key honest.
   //
-  // The field depends on the beam's deposits, and a deposit is where a ray happened to end. So moving
-  // a source changes the field without changing the state, the depth, the conduction time or the
-  // deposit count -- every named input the key holds. A cache keyed on those alone goes on showing
-  // the reading from the source's old position: a stale picture with no symptom, the numbers stay
-  // plausible and nothing says they are the previous answer.
+  // The field depends on the deposits of the beam, and a deposit is where a ray happened to end. A
+  // move of a source thus changes the field, and leaves the state, the depth and the conduction time.
+  // It also leaves the deposit count. Those are all the named inputs in the key.
   //
-  // A counter bumped wherever the dependency actually changes is the fix. It reports "something under
-  // me moved" without the key having to enumerate what.
+  // A cache keyed on those alone still shows the reading from the old position of the source. That is
+  // a stale picture with no symptom. The numbers stay plausible, and nothing says that they are the
+  // old answer.
+  //
+  // The fix is a counter that the code bumps wherever the dependency actually changes. It reports
+  // "something under me moved", and the key does not need to list what.
   var sourceGen = 0;
   var transportGen = 0;
 
   // The key, compared as numbers and never built as a string.
   //
-  // Concatenating the inputs into a string once per frame is a fresh allocation on the frame path,
-  // sixty a second, and an audit that looks for `new` and array literals does not catch it, because a
-  // string concatenation is neither.
+  // A join of the inputs into a string once per frame is a fresh allocation on the frame path, sixty a
+  // second. An audit that looks for `new` and array literals does not catch it, because a string
+  // join is neither.
   //
-  // Stored as a small array of the values themselves and compared element by element. Nothing is allocated, nothing is
-  // formatted, and there is no question about whether two different readings can format to one string.
+  // The key is a small array of the values themselves, compared element by element. The code
+  // allocates nothing and formats nothing. No two different readings can then format to one string.
   var paintFresh = true;
   var paintKeyNow = null;
   var paintKeyWas = null;
@@ -3768,8 +3776,9 @@
     if (!paintKeyNow || paintKeyNow.length !== want) {
       paintKeyNow = new Float64Array(want);
       paintKeyWas = new Float64Array(want);
-      // A fresh pair cannot be compared against anything. The first call after a resize is fresh
-      // by construction. Filled with a value no input takes. No accidental match is possible.
+      // A fresh pair has nothing to compare against. The first call after a resize is fresh by
+      // construction. The code fills it with a value that no input takes, and no accidental match can
+      // occur.
       paintKeyWas.fill(Number.NaN);
     }
     paintKeyNow[0] = CLOCK.index[whole];
@@ -3794,8 +3803,8 @@
 
   function paintSurface(whole, reach) {
     if (!surface) {
-      // Nothing here decided anything. The panels are left to paint. A stored flag from a previous call
-      // would gate them on a decision never made.
+      // Nothing here decided anything, and the panels can paint. A stored flag from an earlier call
+      // gates them on a decision that nobody made.
       paintFresh = true;
       return;
     }
@@ -3806,13 +3815,13 @@
     var coefficients = CLOCK.harmonics[CLOCK.index[whole]];
 
     // The beam summed into the same field, when the reader asked for any of it. The two sets of
-    // coefficients add because the fields add: a boundary carries one field and has no way of saying
-    // which source put a given part of it there. Fixed at zero, the field is the object alone, and that
-    // control makes the rest of the coupling readable.
+    // coefficients add because the fields add. A boundary carries one field, and cannot say which
+    // source put a given part of it there. At zero, the field is the object alone. That control makes
+    // the rest of the coupling readable.
     if (state.beamField > 0 && depCount > 0) {
       var beam = buildBeamField(top, bandOuter(bandFor(reach)));
-      // Divided by the root of the deposit count as well as scaled by the reader's gain, adding
-      // sources or rays changes what the beam says and never merely how loud it is.
+      // Divided by the root of the deposit count, and scaled by the gain of the reader. More sources
+      // or rays then change what the beam says, and never only how loud it is.
       var share = (state.beamField * BEAM_FIELD_SCALE) / Math.sqrt(depCount);
       scratchSum = sized(scratchSum, width);
       for (var c = 0; c < width; c++) {
@@ -3821,14 +3830,14 @@
       coefficients = scratchSum;
     }
 
-    // Depth as (r/R)^l and conduction as exp(-l(l+1)tau), one number per degree, carrying everything
-    // between the state and the surface it is being read on.
+    // Depth as (r/R)^l and conduction as exp(-l(l+1)tau), one number per degree. They carry all between
+    // the state and the surface of the reading.
     //
-    // R is the boundary doing the reading. The ratio is the state's radius over that boundary's.
-    // Measuring it against the outermost depth the room allows instead makes the state look four times
-    // further from its surface than it is, and (r/R)^l with r/R at 0.27 leaves degree one located
-    // and nothing above it. A lone degree one term is a dipole, and a dipole drawn as a radius is an
-    // egg: the surface reports the offset of the state and no part of its shape.
+    // R is the boundary that reads. The ratio is the radius of the state over that of that boundary.
+    // A measure against the outermost depth of the room makes the state look four times further from
+    // its surface than it is. Then (r/R)^l with r/R at 0.27 leaves degree one, and nothing above it.
+    // A lone degree one term is a dipole, and a dipole drawn as a radius is an egg. The surface then
+    // reports the offset of the state, and no part of its shape.
     var ratio = (reach * SHELL) / bandOuter(bandFor(reach));
     scratchGain = sized(scratchGain, carried);
     var gain = scratchGain;
@@ -3843,9 +3852,8 @@
 
     var points = surfaceAt.length / 3;
 
-    // Cached from the last time these inputs were seen. A match on the key means the arithmetic below
-    // would produce the numbers already sitting in the
-    // buffer, to the last bit.
+    // The cache holds the result from the last time that these inputs came. A match on the key means
+    // that the arithmetic below gives the numbers already in the buffer, to the last bit.
     var fresh = keyChanged(whole, reach, carried);
     paintFresh = fresh;
 
@@ -3876,26 +3884,28 @@
       high = surfHigh;
     }
 
-    // Scaled to its own range and not to a fixed one. The kernel drops the whole field by orders of
-    // magnitude as the state goes deep, a fixed scale would draw a sphere at every operation and
-    // report that the shape had gone away when the amplitude went away. The shape is being read here;
-    // the amplitude is reported in the panel, where it can be compared across depths.
+    // Scaled to its own range, and not to a fixed one. The kernel drops the whole field by orders of
+    // magnitude as the state goes deep. A fixed scale draws a sphere at each operation. It reports that
+    // the shape went away when the amplitude went away.
+    // The shape is what this reads. The panel reports the amplitude, where the reader can compare it
+    // across depths.
     var span = high - low;
 
-    // The envelope lives between the state and the boundary it is read on, and the range is built
-    // from those two radii instead of from a swing about a center. A swing can always be passed a
-    // radius that carries it through the surface above it; a range cannot, because both ends of it
-    // are the walls. So the innermost fold clears the outermost bit and the outermost fold stops
-    // short of the boundary, at every depth the reader can set, by construction.
+    // The envelope lives between the state and the boundary of the reading. The range comes from those
+    // two radii, and not from a swing about a center.
+    // A swing can always get a radius that carries it through the surface above it. A range cannot,
+    // because both of its ends are the walls.
+    // The innermost fold thus clears the outermost bit, and the outermost fold stops short of the
+    // boundary. That holds at each depth that the reader can set, by construction.
     var nearest = reach * SHELL + rad[0] * 1.6;
     var furthest = bandOuter(bandFor(reach)) * 0.97;
     if (furthest < nearest) {
       furthest = nearest;
     }
 
-    // The positions, and the normals and bounds that follow from them, only when the field moved.
-    // Recomputing normals over 5,184 faces to arrive at the normals already in the buffer is 0.35 ms
-    // a frame spent to change nothing.
+    // The positions, and the normals and bounds that follow from them, only when the field moved. A
+    // new computation of normals over 5,184 faces gives the normals already in the buffer, and changes
+    // nothing.
     if (fresh) {
       for (var q = 0; q < points; q++) {
         var along = span < 1e-12 ? 0.5 : (field[q] - low) / span;
@@ -3910,19 +3920,20 @@
     }
     surfaceSpan = span;
 
-    // Every boundary, each reading the same interior from its own radius and its own sensitivity.
+    // Each boundary, each with a read of the same interior from its own radius and its own
+    // sensitivity.
     //
-    // The retention is the surface's own time and takes its own control.
+    // The retention is the own time of the surface, and takes its own control.
     var retain = Math.exp(-1 / Math.max(0.35, state.linger * 26));
     var stateAt = reach * SHELL;
 
     for (var b2 = 0; b2 < litOf.length; b2++) {
       var one = litOf[b2];
-      // The inverse boundary runs the depth kernel backwards, R/r instead of r/R. Per-degree the
-      // gain rises as (R/r)^l and the high degrees the ordinary boundaries attenuate are amplified
-      // here. The conduction term still cuts the very top off. The pair reads as a bandpass that
-      // isolates the fine structure instead of blowing it up, and the normalization below scales the
-      // result to its own range like every other boundary.
+      // The inverse boundary runs the depth kernel backwards, R/r in place of r/R. Per degree, the
+      // gain rises as (R/r)^l. The high degrees that the ordinary boundaries attenuate grow here.
+      // The conduction term still cuts the very top off. The pair reads as a bandpass that isolates
+      // the fine structure, and does not blow it up. The normalization below scales the result to its
+      // own range, as for each other boundary.
       var toHere = one.inverse ? one.reach / stateAt : stateAt / one.reach;
       scratchEach = sized(scratchEach, carried);
       var eachGain = scratchEach;
@@ -3937,8 +3948,8 @@
 
       // Read as a departure from the mean and never as an amount. What lands on a boundary is not a
       // quantity of light with a floor at nothing. It is a field with a mean, and the structure is
-      // where it is above and below that mean. Scaled from its own minimum instead, every map
-      // comes out as brightness rising from a dark side and the cold half of the sky is drawn as
+      // where it is above and below that mean. Scaled from its own minimum, each map comes out
+      // as brightness that grows from a dark side. The draw then shows the cold half of the sky as
       // absence. There are hot spots and there are cold spots, and both are something.
       //
       // The scale is symmetric about the mean for the same reason. Fitted to the two extremes
