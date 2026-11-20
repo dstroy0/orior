@@ -2,24 +2,23 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Extract the Upper Nicola Okanagan of twelve narratives from ICSNL 48, repairing the font substitution
-# first.
+# Extract the Upper Nicola Okanagan of twelve narratives from ICSNL 48, from the drafted page text.
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_lindley_lyon.py
 #
-# Written for one paper. Twelve stories, and unlike the others in this set its subsections carry
-# names: Okanagan, Interlinear gloss, Free translation, Commentary. Three of the twelve are three
-# tellings of one story and three more are three tellings of another, each with its own commentary.
-# The section numbers do not line up with the story count, and reading them positionally misfiles the
-# versions against each other. The subsections are matched on their titles instead.
+# This file serves one paper. Twelve stories, and unlike the others in this set, its subsections carry names: Okanagan,
+# Interlinear gloss, Free translation, Commentary. Three of the twelve are three tellings of one story, and three more
+# are three tellings of another, each with its own commentary. The section numbers do not line up with the story count,
+# and a read of them by position misfiles the versions against each other. The reader therefore matches the subsections
+# on their titles.
 #
-# This paper carries the same font substitution as the other Lyon volume, and the same table was
-# tested against it independently: before the mapping, 2 tokens of 4332 were attested in Lyon's later
-# papers on this language; after it, 965. That table is applied here and recorded in the output. A
-# reader can then see the text passed through a transformation, and check the mapping.
+# This paper carries the same font substitution as the other Lyon volume. A test of the same table on this paper moves
+# the tokens attested in Lyon's later papers on this language from 2 of 4332 to 965. `draft_page_text.py` writes the
+# page text back into the orthography. This reader reads that text, and applies no substitution of its own: every repair
+# call in this file returns its line unchanged.
 #
-# The appendix holds a note on transcription and glossing practice and two pronominal paradigm tables.
-# Those are the language and they are not narrative. They are retained and marked derived.
+# The appendix holds a note on the practice of transcription and gloss, and two pronominal paradigm tables. Those are
+# the language, and they are not narrative. The file keeps them, and marks them derived.
 
 import io
 import os
@@ -54,15 +53,14 @@ from space_repair import joined_words, vocabulary_of, welded
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    A marker the repository produces, such as build/, is absent from a linked worktree and a
-    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
-    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
-    of it holds.
+    A marker that the repository produces, such as build/, is absent from a linked worktree and from a clone with no
+    build. A climb to it can pass this root and land in another checkout whose paths look valid. A marker infers the
+    root. Git answers it. The climb below serves only an exported tree with no git directory. It looks for
+    archive/src/python, which the repository tracks and every checkout of it holds.
 
-    Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
-    inherits it answers about that repository and not about the directory it was asked from,
-    returning the current directory instead of the root.
+    The function clears the variables of git first. Inside a hook, git exports GIT_DIR. A rev-parse that inherits it
+    answers about that repository, and not about the directory that the caller asks from. It then returns the current
+    directory instead of the root.
     """
     start = os.path.dirname(os.path.abspath(__file__))
     environment = dict(os.environ)
@@ -101,9 +99,9 @@ ROOT = _repository_root()
 PAPERS = os.path.join(ROOT, "build", "papers")
 CORPORA = os.path.join(ROOT, "build", "corpora")
 
-# The drafted page text instead of the extraction. This paper's PDF passes back the font's own alphabet,
-# and a corpus built on that is not the language: read from the PDF's text, much of what this reader
-# writes is a string the page does not print.
+# The drafted page text instead of the extraction. The PDF of this paper passes back the font's own alphabet, and a
+# corpus built on that is not the language. Much of what this reader would write from the text of the PDF is a string
+# that the page does not print.
 SOURCE = os.path.join(PAPERS, "2013_Lindley_Lyon.page.txt")
 
 # <spoken by>_<original paper>_<who wrote it down>_Salish_<language without accents>_<year>_<mixed>
@@ -119,19 +117,18 @@ PAGE = re.compile(r"^===== page \d+ =====$")
 HEADING = re.compile(r"^(\d{1,2}(?:\.\d+)*)\s+(\S.*)$")
 DOTTED = re.compile(r"\.\s*\.\s*\.")
 NUMBERED_BLOCK = re.compile(r"^\((\d{1,4})\)\s*(.*)$")
-# The free translation closes a block and this paper writes it inside single quotes. The double
-# quote is deliberately absent: these are stories full of people talking, and a transcription of
-# quoted speech opens with one. Matching it ended the block at the first line somebody spoke in and
-# sent every entry after that into the leftovers, which cost the other Lyon paper eight hundred.
+# The free translation closes a block, and this paper writes it inside single quotes. The double quote is deliberately
+# absent. These are stories full of people who talk, and a transcription of quoted speech opens with one. A match on it
+# would end the block at the first line that somebody speaks in, and send every entry after that into the leftovers.
 QUOTED = re.compile(r"^['‘]")
 
-# A segmentation line joins its morphemes with a hyphen or an equals sign, and neither character is
-# touched by the font repair below. Testing for one retains a wrapped transcription line from
-# entering the record as segmentation because nothing else matched it.
+# A segmentation line joins its morphemes with a hyphen or an equals sign, and no repair changes either character. A
+# test for one keeps a wrapped transcription line out of the record as segmentation, where it would land only because
+# nothing else matches it.
 SEGMENTED = re.compile(r"[-=]")
 
-# A page number survives inside a block and would put the two-line cycle out of step by one for
-# every word after it. Nothing in this orthography is written with digits alone.
+# A page number survives inside a block, and would put the two-line cycle out of step by one for every word after it.
+# This orthography writes nothing with digits alone.
 PAGE_NUMBER = re.compile(r"^\d{1,4}$")
 
 CATEGORIES = re.compile(
@@ -141,8 +138,8 @@ CATEGORIES = re.compile(
 )
 
 
-# What each named subsection holds. Matched on the title because the numbering does not line up
-# with the story count once the multiple versions and their commentaries are counted.
+# What each named subsection holds. The match is on the title. The numbering does not line up with the story count once
+# the count includes the multiple versions and their commentaries.
 def type_of(title):
     """What a subsection holds, from its own heading."""
     lowered = title.lower()
@@ -168,7 +165,7 @@ LAYER = {
     "gloss": DERIVED,
     "commentary": DERIVED,
     "appendix": DERIVED,
-    # Retained and marked, excluded from the ingestion stream until someone classified it.
+    # Kept and marked, and out of the ingestion stream until someone classifies it.
     UNCLASSIFIED: DERIVED,
 }
 
@@ -179,19 +176,19 @@ def carries_language(text):
 
 
 def two_line_words(block):
-    """One numbered block of the interlinear, as the two lines this paper gives for each word.
+    """One numbered block of the interlinear, as the two lines that this paper gives for each word.
 
-    The PDF passed the interlinear over a column at a time. A word arrives as its form and then its
-    gloss on the next line, and the pair repeats until the free translation closes the block.
-    Position is what fixes which line is which. Content cannot: iʔ and DET are both plain ASCII, and
-    the form of a word with no affixes carries nothing a gloss does not.
+    The PDF passed the interlinear over a column at a time. A word arrives as its form, and then its gloss on the next
+    line, and the pair repeats until the free translation closes the block. Position fixes which line is which. Content
+    cannot: iʔ and DET are both plain ASCII, and the form of a word with no affixes carries nothing that a gloss does
+    not.
 
-    The form line here is the segmented form. It writes sm-sámaʔ and c-’tʕap-nwíxw where the running
-    text of the same story writes the surface. A sentence rebuilt from this column is the paper's
-    analysis of what was said and not a record of it.
+    The form line here is the segmented form. It writes sm-sámaʔ and c-’tʕap-nwíxw where the running text of the same
+    story writes the surface. A sentence rebuilt from this column is the paper's analysis of the speech, and not a
+    record of it.
 
-    A slipped count is caught, not repaired, on the same test the other Lyon paper uses: an uppercase
-    category label belongs to a gloss and cannot are in a form.
+    The function catches a slipped count, and does not repair it. The other Lyon paper uses the same test: an uppercase
+    category label belongs to a gloss, and cannot appear in a form.
 
     Returns the words, the free translation, any line left over, and whether the cycle slipped.
     """
@@ -252,9 +249,9 @@ def main():
         return 1
 
     with open(SOURCE, encoding="utf-8", errors="replace") as handle:
-        # Ligatures come out here, before the loop below. That everything reading these lines
-        # sees the same text. Taking them out later left the unreached check comparing preﬁxsən-
-        # against prefixsən- and reporting a hole that was not one.
+        # Ligatures come out here, before the loop below, so that everything that reads these lines sees the same text.
+        # A later removal would leave the unreached check to compare preﬁxsən- against prefixsən-, and to report a hole
+        # that is not one.
         lines = [unligatured(one.rstrip("\n")) for one in handle]
 
     rows = []
@@ -299,20 +296,17 @@ def main():
         name = stories.get(story, "")
 
         if holds == "running speech":
-            # A footnote or an acknowledgment printed inside a story section is English throughout,
-            # and the repair hides that by putting a glottal stop where its capital P was. The
-            # American Philosophical Society's Phillips Fund reached the ingestion stream that way.
-            # So the test runs on the line as it arrived, where the English is still English.
+            # A footnote or an acknowledgment inside a story section is English throughout. The test runs on the line as
+            # it arrived, and a line that fails it goes into the record as unclassified.
             if not language_line(trimmed):
                 rows.append(
                     ("N", 0, section, name, UNCLASSIFIED, repaired_english(trimmed))
                 )
                 continue
-            # The Okanagan subsection is the language from end to end. Every substitution
-            # applies to it and no token in it needs guarding. Where the extraction broke a word in
-            # two is not known yet: the interlinear says that and has not been read. So the row is
-            # written now to retain the paper's order, its place is remembered, and the words are put
-            # back together below once the list exists.
+            # The Okanagan subsection is the language from end to end, and no token in it needs a guard. The interlinear
+            # says where the extraction broke a word in two, and this loop has not read the interlinear yet. The row
+            # therefore goes in now, to keep the paper's order. The loop remembers its place, and the code below puts
+            # the words back together once the list exists.
             fixed = repaired(trimmed)
             if carries_language(fixed):
                 running_at.append(len(rows))
@@ -320,9 +314,8 @@ def main():
             continue
 
         if holds in ("free translation", "commentary", "appendix"):
-            # A free translation and a commentary are Lyon's own English. The appendix is his
-            # pronominal paradigms, which are the language. It retains the repair that a capital
-            # at the front of a word does not survive.
+            # A free translation and a commentary are Lyon's own English. The appendix holds Lyon's pronominal
+            # paradigms, which are the language. It takes repaired_line, the call for a line with no column to go on.
             fixed = (
                 repaired_line(trimmed)
                 if holds == "appendix"
@@ -332,9 +325,8 @@ def main():
             rows.append((mark, 0, section, name, holds, fixed))
             continue
 
-        # A block is gathered whole and unrepaired, and read afterward. Its lines cannot be typed
-        # one at a time, because which column a line belongs to is fixed by its position in the
-        # block, and which repair a line may take depends on which column it turns out to be.
+        # The loop gathers a block whole, as it arrived, and reads it afterward. It cannot type the lines one at a time.
+        # The position of a line in the block fixes its column, and the call that a line takes depends on that column.
         found = NUMBERED_BLOCK.match(trimmed)
         if found:
             number = int(found.group(1))
@@ -345,13 +337,14 @@ def main():
             continue
         blocks[-1][3].append(trimmed)
 
-    # Each block read back as words. The sentence is the form column joined in order, and it is
-    # marked segmentation because that column carries the morpheme boundaries. The surface of the
-    # same story is in the Okanagan subsection above and is what reaches the ingestion stream.
-    # Every block read first. The list of true word forms exists before any of them is written.
-    # An entry is one word. The spaces inside it are the extraction's, and welding them shut
-    # gives what the word really looks like. Only blocks that read cleanly contribute: one bad
-    # entry in the list joins two real words together everywhere it matches.
+    # Each block read back as words. The sentence is the form column joined in order. Its mark is segmentation, because
+    # that column carries the morpheme boundaries. The surface of the same story is in the Okanagan subsection above,
+    # and it reaches the ingestion stream.
+    #
+    # The code reads every block first, so that the list of true word forms exists before it writes any of them. An
+    # entry is one word. The spaces inside it are the extraction's, and a weld of them gives the true look of the word.
+    # Only blocks that read cleanly contribute: one bad entry in the list joins two real words together everywhere it
+    # matches.
     slipped_blocks = 0
     vocabulary = set()
     parsed = []
@@ -366,12 +359,12 @@ def main():
     for section, name, number, block, read in parsed:
         words, translation, leftover, slipped = read
         if slipped:
-            # The count slipped. Every column after that point is one line out and nothing in
-            # the block can be named. Flagged whole. Nothing is written under a guessed name.
+            # The count slipped. Every column after that point is one line out, and no line in the block has a known
+            # column. The code flags the block whole, and writes nothing under a guessed name.
             slipped_blocks += 1
             for one in block:
-                # Which column each line belongs to is the unknown here. The repair is chosen
-                # from what the line itself turns out to be.
+                # The column of each line is the unknown here. The call repaired_line serves a line with no column to go
+                # on.
                 fixed = repaired_line(one)
                 rows.append(
                     (
@@ -404,23 +397,21 @@ def main():
                 )
             )
         for one in leftover:
-            # What sits after the free translation is the wrapped tail of it, a footnote, or Lyon's
-            # prose discussing a form. The English test the other branches use is deliberately not
-            # applied here: he cites words of the language inside English sentences, and dropping
-            # those lines costs coverage with nothing gained.
+            # What sits after the free translation is its wrapped tail, a footnote, or Lyon's prose about a form. The
+            # English test of the other branches deliberately does not run here. Lyon cites words of the language inside
+            # English sentences, and a drop of those lines costs coverage for no gain.
             fixed = repaired_line(one)
             if carries_language(fixed):
                 rows.append(("T", number, section, name, UNCLASSIFIED, fixed))
 
-    # The running text, with the words the extraction broke put back together. Its rows were
-    # written above to retain the paper's order, and the list that says where the breaks are only
-    # exists now that the interlinear has been read.
+    # The running text, with the words that the extraction broke put back together. The loop above wrote its rows in the
+    # paper's order. The list that says where the breaks are exists only now, after the read of the interlinear.
     for at in running_at:
         row = rows[at]
         rows[at] = row[:5] + (joined_words(row[5], vocabulary),)
 
-    # The list is written out beside the record, because the coverage check has to put the source
-    # through the same joining and a second list built from the paper would not be the same one.
+    # The code writes the list out beside the record. The coverage check must put the source through the same join, and
+    # a second list built from the paper would not be the same one.
     words_at = TARGET[:-4] + ".words.txt"
     with open(words_at, "w", encoding="utf-8", newline="") as handle:
         handle.write(
@@ -434,14 +425,13 @@ def main():
             handle.write("%s\n" % one)
 
     def prepared(text):
-        """One line put through everything this reader does before recording it."""
+        """One line through everything that this reader does to a line before it records it."""
         return joined_words(repaired_line(text), vocabulary)
 
-    # Every line of the paper no subsection reached, added to the record as unclassified. The
-    # marked file holds every token of the language the paper printed. They stay out of the pure
-    # stream and are listed in the flag file for someone to work through.
-    # The union of every orthography, not this paper's own set. The coverage check counts a token
-    # against the union. A finder using a narrower set leaves holes the check still reports.
+    # Every line of the paper that no subsection reached, added to the record as unclassified. The marked file holds
+    # every token of the language that the paper printed. They stay out of the pure stream, and the flag file lists them
+    # for someone to work through. The union of every orthography, and not this paper's own set. The coverage check
+    # counts a token against the union. A finder with a narrower set leaves holes that the check still reports.
     missed = unreached(lines, covered_tokens(one[5] for one in rows), repair=prepared)
     for page, where, reason, missing, text in missed:
         rows.append(("T", 0, "not reached", "page %d" % page, UNCLASSIFIED, text))
@@ -523,9 +513,9 @@ def main():
                 handle.write("%s\n" % key)
                 retained += 1
 
-    # A file of its own for what the tool could not sort: an interlinear line none of the tests
-    # typed, and a line no subsection reached. The source is put through the same font repair
-    # before comparing. A correctly repaired word is not reported as a hole.
+    # A file of its own for what the tool could not sort. That is an interlinear line that none of the tests typed, and
+    # a line that no subsection reached. The comparison above puts the source through `prepared` first, so that a word
+    # that the record holds does not come back as a hole.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
         (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
