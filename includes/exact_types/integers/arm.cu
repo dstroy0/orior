@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission. That permission is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -10,22 +10,23 @@
  * @brief The exact agreement count on a CUDA device, one position per thread.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * @note There is no arbitrary precision integer here and there does not need to be. A fixed width
- *       limb array is a representation of the same value, and a device register file stores one as
- *       readily as a host register does. Fixed width is the only bound, it is declared, and a value
- *       that will not fit errors on the host before anything is copied.
- * @note The device arithmetic is the host arithmetic transcribed. It is not shared source, because
- *       __device__ qualification has to sit on every function, and that means the two can drift.
- *       utils/maint/engine/build_gpu_arm.sh builds bench_exact_arms.c with this arm as
- *       bench_exact_gpu.exe to catch it: every count the device returns is compared against the
- *       count the portable host arm returns on the same data.
+ * @note There is no arbitrary precision integer here, and there need not be. A fixed width limb array
+ *       holds the same value. A device register file stores one as easily as a host register.
+ * @note Fixed width is the only bound, and the build declares it. A value that does not fit gives an
+ *       error on the host before the arm copies anything.
+ * @note The device arithmetic is a copy of the host arithmetic. The two do not share source, because each
+ *       function needs the __device__ qualifier. The two can then drift apart.
+ * @note utils/maint/engine/build_gpu_arm.sh builds bench_exact_arms.c with this arm as
+ *       bench_exact_gpu.exe, to find a drift. It compares each count of the device against the count of
+ *       the portable host arm on the same data.
  * @note Positions arrive already sorted, and each thread runs a binary search with no coordination.
  *       Threads share nothing. Each writes its own displaced position and one atomic increment at
  *       max.
- * @note A repeated position sits in adjacent entries once sorted. A thread counts its position only
- *       where it contains the last of those entries. The search returns the last entry equal to the
- *       displaced position. The count matches the portable arm, which retains the last value at a
- *       repeated position and counts it once.
+ * @note After the sort, a repeated position sits in adjacent entries. A thread counts its position only
+ *       where it holds the last of those entries. The search returns the last entry equal to the
+ *       displaced position.
+ * @note The count matches the portable arm, which keeps the last value at a repeated position and
+ *       counts it once.
  */
 
 #include "arm.h"
@@ -36,17 +37,17 @@
 #include <stdio.h>
 #include <string.h>
 
-/** @brief Threads per block. 256 suits every device this is built for and needs no tuning here. */
+/** @brief Threads per block. 256 suits each device of the build, and needs no change here. */
 #define ORIOR_GPU_BLOCK 256u
 
 /**
- * @brief Orders two magnitudes on the device, ignoring sign.
+ * @brief Orders two magnitudes on the device, without the sign.
  *
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1, 0 or 1.
- * @note Walks from the top limb down, the same direction the host walks, because the first limb
- *       that differs settles the order and a scaled value carries its information in the high limbs.
+ * @note Walks from the top limb down, in the same direction as the host. The first limb that differs
+ *       settles the order, and a scaled value holds its information in the high limbs.
  */
 __device__ static int device_magnitude_compare(const unsigned int *left, const unsigned int *right)
 {
@@ -114,7 +115,7 @@ __device__ static int device_magnitude_add(const unsigned int *left, const unsig
     for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         const unsigned long long total = (unsigned long long)left[at] + (unsigned long long)right[at] + carry;
-        // Explicit narrowing to a limb. The high half is the carry and is retained.
+        // Explicit narrowing to a limb. The high half is the carry, and the code keeps it.
         result[at] = (unsigned int)(total & 0xFFFFFFFFULL);
         carry = total >> 32;
     }
@@ -134,8 +135,8 @@ __device__ static void device_magnitude_subtract(const unsigned int *left, const
     unsigned long long borrow = 0ULL;
     for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
-        // The base maintains the arithmetic non negative before the narrowing. No unsigned wrap has
-        // to be reasoned about at the point the limb is stored.
+        // The base keeps the arithmetic non negative before the narrowing. No unsigned wrap can occur at
+        // the point where the code stores the limb.
         const unsigned long long total =
             (1ULL << 32) + (unsigned long long)left[at] - (unsigned long long)right[at] - borrow;
         result[at] = (unsigned int)(total & 0xFFFFFFFFULL);
@@ -207,15 +208,15 @@ __device__ static int device_add(const OriorExactInteger *left, const OriorExact
  * @param[in]     lag       The offset to test [BORROWS].
  * @param[out]    displaced One integer per position, where each thread writes its displaced
  *                          position [BORROWS].
- * @param[in,out] agreed    Where the count is accumulated [BORROWS].
- * @note A thread whose displaced position overruns the fixed width contributes nothing, matching
- *       the host, which skips that position and reports no wrapped one.
- * @note A thread whose position repeats in the next entry contributes nothing. The next entry with
- *       the same position counts it once, carrying the last value at that position.
- * @note The displaced position lives in device memory the host allocated, one per thread. A local
- *       integer is sized by the width, 128 KiB per thread at 32768 limbs, and local memory is
- *       reserved for every thread the device can support resident. On the RTX 3070 here that is 1536
- *       threads on each of 46 SMs, 8.6 GiB, past the card's 8 GiB.
+ * @param[in,out] agreed    The count, which the threads add to [BORROWS].
+ * @note A thread whose displaced position overruns the fixed width adds nothing. The host does the same:
+ *       it skips that position and reports no wrapped position.
+ * @note A thread whose position repeats in the next entry adds nothing. The next entry with the same
+ *       position counts it once, with the last value at that position.
+ * @note The displaced position lives in device memory that the host gives, one per thread. A local
+ *       integer has the size of the width, 128 KiB per thread at 32768 limbs.
+ * @note The device reserves local memory for each thread that it can keep resident. On an RTX 3070 that
+ *       is 1536 threads on each of 46 SMs, 8.6 GiB, more than the 8 GiB of the card.
  */
 __global__ static void agreement_kernel(const OriorExactInteger *positions, const unsigned long long *values,
                                         size_t count, const OriorExactInteger *lag, OriorExactInteger *displaced,
@@ -365,9 +366,9 @@ done:
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              The count, or the portable count where the device errored on the work.
- * @note An error falls back to the host instead of returning a sentinel into a table of counts.
- *       A driver comparing arms would otherwise read the sentinel as a disagreement and blame the
- *       arithmetic for what was an allocation failure.
+ * @note An error falls back to the host, and does not put a sentinel into a table of counts. Else a
+ *       driver that compares arms reads the sentinel as a disagreement. It then blames the arithmetic for
+ *       an allocation failure.
  */
 static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *values, size_t count,
                             const OriorExactInteger *lag)
@@ -381,10 +382,10 @@ static size_t arm_agreement(const OriorExactInteger *positions, const uint64_t *
 }
 
 /**
- * @brief The arm as a driver sees it. Static storage. Returning its address is safe.
+ * @brief The arm as a driver sees it. Static storage. A return of its address is safe.
  *
- * @note equal and compare are the portable ones. One comparison is far too small to be
- *       worth a bus crossing, and only the whole sweep is passed to the device.
+ * @note equal and compare are the portable functions. One comparison is far too small for a bus
+ *       crossing, and the arm passes only the whole sweep to the device.
  */
 static const OriorExactArm CUDA_ARM = {
     "cuda",
