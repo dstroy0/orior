@@ -178,9 +178,11 @@ static double turing_now(void)
 #define TURING_HALF_BITS 31u
 // the code sets the widths below from the input before it builds any program. Each is at least its floor, and as
 // wide as the input asks. The code turns no input away for its size.
-// A width reached is the signal for the engine to fold the arithmetic, or schedule the run again at the layout and the
-// allocation of the device, and never here. The values nu and each k and x are below 2^turing_nu_bits, and s below
-// 2^(2 turing_nu_bits). The lanes of a pair run below 2^turing_lane_bits
+//
+// A width reached is the signal for the engine to fold the arithmetic, or schedule the run again. That happens at the
+// layout and the allocation of the device, and never here.
+// The values nu and each k and x are below 2^turing_nu_bits, and s below 2^(2 turing_nu_bits). The lanes of a pair run
+// below 2^turing_lane_bits
 #define TURING_NU_FLOOR 16u
 #define TURING_LANE_FLOOR 24u
 static unsigned int turing_nu_bits = TURING_NU_FLOOR;
@@ -634,12 +636,15 @@ static void turing_log_fields(TuringProgram *program, TuringLogFields *fields, c
     }
 }
 
-// the pole stage: shared fields the logarithm's, then, for the multiple evaluation, its constants. With them it
-// gives, besides ln k and k^(-1/2): pos = (2 nu + 1) ln k, where the pole sits among the frequencies h;
-// a = k^(-1/2) exp(-2 pi i nu^2 ln k); and q = -a (1 - exp(-2 pi i pos)) exp(2 pi i pos / P) / P, its charge.
-// Where `weighted`, a and q are each times -i ln k / 2^shift: d/dt k^(-it) = -i ln k k^(-it), and the multiple
-// evaluation over these poles gives F' / 2^shift. With 2^shift at least ln nu every charge is at max F's, and every
-// width that represents F represents it
+// the pole stage: shared fields of the logarithm, then, for the multiple evaluation, its constants. With them, it gives
+// ln k and k^(-1/2), and also:
+//   - `pos = (2 nu + 1) ln k`, where the pole sits among the frequencies h.
+//   - `a = k^(-1/2) exp(-2 pi i nu^2 ln k)`.
+//   - `q = -a (1 - exp(-2 pi i pos)) exp(2 pi i pos / P) / P`, its charge.
+//
+// Where `weighted`, a and q are each times `-i ln k / 2^shift`: `d/dt k^(-it) = -i ln k k^(-it)`. The multiple
+// evaluation over these poles then gives `F' / 2^shift`. With 2^shift at least ln nu, each charge is at max that of
+// F, and each width that holds F holds it
 static void turing_pole_build(TuringStage *stage, unsigned int newton, const TuringConstant &ln2,
                               const std::vector<TuringConstant> &artanh, unsigned int p,
                               const TuringOsConstants *os, int weighted, unsigned int shift)
@@ -694,10 +699,12 @@ static void turing_pole_build(TuringStage *stage, unsigned int newton, const Tur
     stage->outputs.push_back(turing_op(program, ENGINE_RECORD_QUOTIENT, turing_negate(program, charge.im), big_p));
 }
 
-// the point stage: shared fields sign, nu^2 2^p, 2 nu + 1, nu, then the logarithm's, 1 / (96 pi^2), theta's two
-// constants of s^-3 and s^-5, then the curves' coefficients, `curves` runs of gamma.size() / curves, C_0's first.
-// Where `listed`, point j is read from member 1, a record a point, in place of the lane, and S is given last. With the
-// multiple evaluation or where `sloped`, ln s is given after theta / pi and cos theta and sin theta, where they are
+// the point stage: shared fields sign, `nu^2 2^p`, `2 nu + 1` and nu. Then those of the logarithm, `1 / (96 pi^2)`,
+// and the two constants of theta of s^-3 and s^-5. Then the coefficients of the curves, `curves` runs of
+// `gamma.size() / curves`, those of C_0 first.
+// Where `listed`, the stage reads point j from member 1, a record a point, in place of the lane, and gives S last.
+// With the multiple evaluation or where `sloped`, ln s comes after theta / pi, and after cos theta and sin theta where
+// the stage gives them
 static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int newton, const TuringConstant &ln2,
                                const std::vector<TuringConstant> &artanh, const TuringConstant &c96,
                                const TuringConstant &c3, const TuringConstant &c5,
@@ -800,10 +807,10 @@ static const DeviceRecordStep *turing_place(const TuringStage *stage, unsigned i
     return &stage->layout.step_table[stage->outputs[output]];
 }
 
-// the pair stage: member 0 the pole records, member 1 the point records, member 2 the shared record of nu,
-// nu^2 2^p, 2 nu + 1, start, then cos's constants. Where `s_place` is given, S is read from the point record. Where
-// `sloped`, it gives besides k^(-1/2) cos(phi) the terms of Z''s sums, k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi),
-// sin(phi) = cos(phi - pi / 2)
+// the pair stage: member 0 the pole records, member 1 the point records, and member 2 the shared record of nu,
+// `nu^2 2^p`, `2 nu + 1` and start, then the constants of cos. Where the caller gives `s_place`, the stage reads S from
+// the point record. Where `sloped`, it also gives, besides `k^(-1/2) cos(phi)`, the terms of the sums of Z':
+// `k^(-1/2) sin(phi)` and `k^(-1/2) ln k sin(phi)`, with `sin(phi) = cos(phi - pi / 2)`
 static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringStage *pole, const TuringStage *point,
                               const std::vector<TuringConstant> &cosine, const DeviceRecordStep *s_place, int sloped)
 {
@@ -863,11 +870,16 @@ static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringSt
     stage->shared.assign((program->shared_bits + 31u) / 32u, 0u);
 }
 
-// the Euler-Maclaurin stage, one lane a point: member 0 the record of the pole N, member 1 the point records, member 2
-// the shared record of nu^2 2^p, 2 nu + 1 and N, then pi, cos's constants and the M - 1 ratios r_k. With s = 1/2 + i t,
-// zeta = sum over n < N of n^(-s) + N^(-s) C, C = N / (s - 1) + 1/2 + sum over k <= M of tau_k, tau_1 = s / (12 N),
-// tau_k = tau_(k-1) r_k (s + 2k - 3) (s + 2k - 2) / N^2, r_k = (B_2k / (2k)!) / (B_(2k-2) / (2k - 2)!). It gives
-// Re(exp(i theta) N^(-s) C) = N^(-1/2) (cos(pi Q) Re C - sin(pi Q) Im C), Q = theta / pi - 2 s ln N, and theta / pi
+// the Euler-Maclaurin stage, one lane a point. Member 0 is the record of the pole N, and member 1 the point records.
+// Member 2 is the shared record of `nu^2 2^p`, `2 nu + 1` and N, then pi, the constants of cos and the M - 1 ratios
+// r_k. With `s = 1/2 + i t`:
+//   - `zeta = sum over n < N of n^(-s) + N^(-s) C`.
+//   - `C = N / (s - 1) + 1/2 + sum over k <= M of tau_k`, with `tau_1 = s / (12 N)`.
+//   - `tau_k = tau_(k-1) r_k (s + 2k - 3) (s + 2k - 2) / N^2`.
+//   - `r_k = (B_2k / (2k)!) / (B_(2k-2) / (2k - 2)!)`.
+//
+// It gives `Re(exp(i theta) N^(-s) C) = N^(-1/2) (cos(pi Q) Re C - sin(pi Q) Im C)`, with
+// `Q = theta / pi - 2 s ln N`, and theta / pi
 static void turing_em_build(TuringStage *stage, unsigned int p, const TuringStage *pole, const TuringStage *point,
                             const TuringOsConstants &os, const std::vector<TuringConstant> &ratio)
 {
@@ -940,20 +952,25 @@ static void turing_em_build(TuringStage *stage, unsigned int p, const TuringStag
 
 // THE MULTIPLE EVALUATION
 //
-// F_j = sum over k of a_k exp(-2 pi i j pos_k / P) at every point j is the transform of
-// u_h = sum over k of c_k / (1 - exp(2 pi i (h - pos_k) / P)), c_k = a_k (1 - exp(-2 pi i pos_k)), h in [-P/2, P/2):
-// F_j = sum over h of (u_h / P) exp(-2 pi i j h / P). With z = exp(2 pi i h / P) and w_k = exp(2 pi i pos_k / P),
-// u_h / P = sum over k of q_k / (z - w_k), q_k = -c_k w_k / P, the poles' charges on the unit circle. The leaves are
-// runs of W = 2^beta frequencies, and the tree over them halves at each level; a box of width V has center
-// sigma = exp(2 pi i c / P) and radius rho = pi V / P, and every pole in it has eta = (w / sigma - 1) / rho with
-// |eta| <= 1, every point zeta = (z / sigma - 1) / rho likewise. A box's multipole is
-// M_m = sum over its poles of (q / sigma) eta^m, m < N; a box's local expansion is the L_n with
-// u_h / P = sum of L_n zeta^n over the poles outside its near field. Each is one record of 2N values, the real and
-// imaginary parts, every one wrapped to TURING_EXP_BITS.
+// `F_j = sum over k of a_k exp(-2 pi i j pos_k / P)` at each point j is the transform of
+// `u_h = sum over k of c_k / (1 - exp(2 pi i (h - pos_k) / P))`, with `c_k = a_k (1 - exp(-2 pi i pos_k))` and h in
+// [-P/2, P/2). Then `F_j = sum over h of (u_h / P) exp(-2 pi i j h / P)`.
+// With `z = exp(2 pi i h / P)` and `w_k = exp(2 pi i pos_k / P)`, `u_h / P = sum over k of q_k / (z - w_k)`. Here
+// `q_k = -c_k w_k / P` are the charges of the poles on the unit circle.
 //
-// Between a target box T and a source box S of the same level, Delta = T - S, D = exp(2 pi i Delta V / P) - 1:
-// 1 / (z - w) = (1 / (sigma_S D)) sum of binom(m + n, n) (-(1 + D) rho zeta / D)^n (rho eta / D)^m. Both ratios are
-// at max rho / |D|, a third or less where |Delta| >= 3, and the terms past N are the error the machine bounds.
+// The leaves are runs of `W = 2^beta` frequencies, and the tree over them halves at each level. A box of width V has
+// center `sigma = exp(2 pi i c / P)` and radius `rho = pi V / P`.
+// Each pole in it has `eta = (w / sigma - 1) / rho` with `|eta| <= 1`, and each point `zeta = (z / sigma - 1) / rho`
+// likewise.
+//
+// The multipole of a box is `M_m = sum over its poles of (q / sigma) eta^m`, with m < N. The local expansion of a box
+// is the L_n with `u_h / P = sum of L_n zeta^n` over the poles outside its near field.
+// Each is one record of 2N values, the real and imaginary parts, each wrapped to TURING_EXP_BITS.
+//
+// Between a target box T and a source box S of the same level, `Delta = T - S` and `D = exp(2 pi i Delta V / P) - 1`.
+// Then `1 / (z - w) = (1 / (sigma_S D)) sum of binom(m + n, n) (-(1 + D) rho zeta / D)^n (rho eta / D)^m`.
+// Both ratios are at max rho / |D|, a third or less where |Delta| >= 3. The terms past N are the error that the machine
+// bounds.
 
 // an expansion record's layout: each value's offset and width
 typedef struct
@@ -993,8 +1010,8 @@ static int turing_same_expansion(const TuringExpansion &a, const TuringExpansion
     return same;
 }
 
-// an expansion's fields in member `member`, positioned once. Each value is read at the step that wants it, which leaves it
-// out of the register file until then
+// the fields of an expansion in member `member`, positioned once. The code reads each value at the step that wants it.
+// That leaves it out of the register file until then
 typedef struct
 {
     std::vector<unsigned int> re;
@@ -1104,8 +1121,8 @@ static void turing_below_build(TuringStage *stage, unsigned int beta, const Turi
     stage->outputs.push_back(turing_above(program, boundary, pos));
 }
 
-// the leaf multipoles' terms: lane (leaf, position) reads its pole through the index, finds its leaf from pos, and
-// gives (q / sigma) eta^m for every m < N; the sum over a leaf's positions is its multipole
+// the terms of the leaf multipoles. Lane (leaf, position) reads its pole through the index, and finds its leaf from
+// pos. It gives `(q / sigma) eta^m` for each m < N. The sum over the positions of a leaf is its multipole
 static void turing_p2m_build(TuringStage *stage, unsigned int p, unsigned int beta, unsigned int order, const TuringStage *pole,
                              const TuringOsConstants &os)
 {
@@ -1161,9 +1178,9 @@ static void turing_fold_build(TuringStage *stage, const TuringExpansion &layout)
     }
 }
 
-// the child's center over the parent's, kappa = exp(i phi), phi = -/+ pi V_c / P for the lower and the upper child;
-// s = (kappa - 1) / rho_p and r = kappa rho_c / rho_p = kappa / 2, from which eta_p = s + r eta_c and
-// zeta_p = s + r zeta_c
+// the center of the child over that of the parent, `kappa = exp(i phi)`, with `phi = -/+ pi V_c / P` for the lower and
+// the upper child. `s = (kappa - 1) / rho_p` and `r = kappa rho_c / rho_p = kappa / 2`. From these,
+// `eta_p = s + r eta_c` and `zeta_p = s + r zeta_c`
 typedef struct
 {
     TuringComplex kappa;
@@ -1189,12 +1206,13 @@ static TuringShift turing_shift(TuringProgram *program, unsigned int turn, unsig
     return shift;
 }
 
-// a child's multipole carried to its parent's center: member 0 the child's multipole, member 1 the shared record of
-// 2^(l + 1) at parent level l, the side, -1 for the lower child and +1 for the upper, and the constants. The sum of
-// a parent's two children's is its multipole.
-// M_p,m = kappa (2 s)^m 2^(-m) sum over j <= m of binom(m, j) z_j, z_j = (r/s)^j M_c,j: |r/s| = 1 / |E1(i phi)|, which
-// maintains each z_j within 1.2 |M_c|, stored live in two limbs, and the binomial sum is exact; its one division by 2^m
-// leaves each z_j's error where it was
+// the multipole of a child, carried to the center of its parent. Member 0 is the multipole of the child. Member 1 is
+// the shared record of 2^(l + 1) at parent level l, the side, -1 for the lower child and +1 for the upper, and the
+// constants. The sum of the two children of a parent is its multipole.
+//
+// `M_p,m = kappa (2 s)^m 2^(-m) sum over j <= m of binom(m, j) z_j`, with `z_j = (r/s)^j M_c,j`.
+// `|r/s| = 1 / |E1(i phi)|` keeps each z_j within 1.2 |M_c|, stored live in two limbs, and the binomial sum is exact.
+// Its one division by 2^m leaves the error of each z_j where it was
 static void turing_m2m_build(TuringStage *stage, const TuringExpansion &layout, const TuringOsConstants &os)
 {
     TuringProgram *const program = &stage->program;
@@ -1240,12 +1258,15 @@ static void turing_m2m_build(TuringStage *stage, const TuringExpansion &layout, 
     }
 }
 
-// a source box's multipole carried to a target box's local expansion: member 0 the source's multipole, member 1 the
-// shared record of Delta and 2^l at level l and the constants.
-// L_n = (1 / D) (-(1 + D) rho / D)^n sum over m of binom(m + n, n) (rho / D)^m M_m. Both ratios are at max
-// rho / |D| <= 0.22, and with y_m = (4 rho / D)^m M_m, stored live in two limbs,
-// L_n = (1 / D) (4 c)^n 4^(-2(N - 1)) sum over m of binom(m + n, n) 4^(2(N - 1) - m - n) y_m, c = -(1 + D) rho / D:
-// the binomial sum is exact, and its one division leaves each y_m's error weighed by binom(m + n, n) 4^(-m - n)
+// the multipole of a source box, carried to the local expansion of a target box. Member 0 is the multipole of the
+// source. Member 1 is the shared record of Delta and 2^l at level l, and the constants.
+//
+// `L_n = (1 / D) (-(1 + D) rho / D)^n sum over m of binom(m + n, n) (rho / D)^m M_m`. Both ratios are at max
+// `rho / |D| <= 0.22`. With `y_m = (4 rho / D)^m M_m`, stored live in two limbs:
+// `L_n = (1 / D) (4 c)^n 4^(-2(N - 1)) sum over m of binom(m + n, n) 4^(2(N - 1) - m - n) y_m`, with
+// `c = -(1 + D) rho / D`.
+//
+// The binomial sum is exact. Its one division leaves the error of each y_m weighed by `binom(m + n, n) 4^(-m - n)`
 static void turing_m2l_build(TuringStage *stage, const TuringExpansion &layout, const TuringOsConstants &os)
 {
     TuringProgram *const program = &stage->program;
@@ -1259,8 +1280,8 @@ static void turing_m2l_build(TuringStage *stage, const TuringExpansion &layout, 
     const unsigned int delta = turing_read(program, delta_field, 1u);
     const unsigned int level = turing_read(program, level_field, 1u);
     const unsigned int phi = turing_op(program, ENGINE_RECORD_QUOTIENT, turing_read(program, of.pi, 1u), level);
-    // D = exp(i theta) - 1, theta / pi = 2 Delta / 2^l exactly, from cos and sin, whose Horner's rule runs in an
-    // argument of at max 1; rho / D = phi / D and -(1 + D) rho / D = -(rho / D + phi)
+    // `D = exp(i theta) - 1`, with `theta / pi = 2 Delta / 2^l` exactly, from cos and sin. Their rule of Horner runs in
+    // an argument of at max 1. `rho / D = phi / D`, and `-(1 + D) rho / D = -(rho / D + phi)`
     const unsigned int turn = turing_wrap(
         program,
         turing_op(program, ENGINE_RECORD_QUOTIENT,
@@ -1304,12 +1325,14 @@ static void turing_m2l_build(TuringStage *stage, const TuringExpansion &layout, 
     }
 }
 
-// a parent's local expansion carried to a child, with the child's own multipole-to-local sum added: member 0 the
-// parent's local expansion, member 1 the child's sum, member 2 the shared record of 2^l at child level l and the
-// constants. Lane T is box T, the lower child where T is even.
-// L_c,j = (r/s)^j 2^(-(N - 1)) sum over n >= j of binom(n, j) 2^(N - 1 - n) (2 s)^n L_p,n. |2 s| = |E1(i phi)| <= 1,
-// and the powers (2 s)^n are stored live in two limbs; each (2 s)^n L_p,n is taken again where it is wanted, the
-// binomial sum is exact, and its one division leaves each term's error weighed by binom(n, j) 2^(-n)
+// the local expansion of a parent, carried to a child, with the own multipole-to-local sum of the child added.
+// Member 0 is the local expansion of the parent, and member 1 the sum of the child. Member 2 is the shared record of
+// 2^l at child level l, and the constants. Lane T is box T, the lower child where T is even.
+//
+// `L_c,j = (r/s)^j 2^(-(N - 1)) sum over n >= j of binom(n, j) 2^(N - 1 - n) (2 s)^n L_p,n`.
+// `|2 s| = |E1(i phi)| <= 1`, and the powers (2 s)^n stay live in two limbs. The code takes each `(2 s)^n L_p,n`
+// again where it wants it. The binomial sum is exact. Its one division leaves the error of each term weighed by
+// `binom(n, j) 2^(-n)`
 static void turing_l2l_build(TuringStage *stage, const TuringExpansion &layout, const TuringOsConstants &os)
 {
     TuringProgram *const program = &stage->program;
@@ -1356,10 +1379,10 @@ static void turing_l2l_build(TuringStage *stage, const TuringExpansion &layout, 
     }
 }
 
-// the near field: lane (h - h_lo) S + position reads its pole through the index and gives a D_P(h - pos) / P, where
-// D_P(d) / P = exp(i pi d (P - 1) / P) sin(pi d) / (P sin(pi d / P)) = exp(...) (-1)^m (r / d) S(r^2) / S((d / P)^2),
-// d = m + r with r in [-1/2, 1/2), which retains its precision where d is near 0. Member 1 the shared record of h_lo,
-// S and the constants
+// the near field. Lane `(h - h_lo) S + position` reads its pole through the index and gives `a D_P(h - pos) / P`, with
+// `D_P(d) / P = exp(i pi d (P - 1) / P) sin(pi d) / (P sin(pi d / P)) = exp(...) (-1)^m (r / d) S(r^2) / S((d / P)^2)`.
+// Here `d = m + r`, with r in [-1/2, 1/2), which keeps its precision where d is near 0. Member 1 is the shared record
+// of h_lo, S and the constants
 static void turing_near_build(TuringStage *stage, unsigned int p, const TuringStage *pole, const TuringOsConstants &os)
 {
     TuringProgram *const program = &stage->program;
@@ -1408,9 +1431,9 @@ static void turing_near_build(TuringStage *stage, unsigned int p, const TuringSt
     stage->outputs.push_back(value.im);
 }
 
-// u_h / P at each point: lane o, h = o - P/2, reads its leaf's local expansion and its near sum through the index:
-// sum of L_n zeta^n + near, zeta = (z / sigma - 1) / rho = u i E1(i psi), u = 2 (h - c) / W, psi = u pi W / P.
-// Member 2 the shared record of the constants
+// u_h / P at each point. Lane o, with `h = o - P/2`, reads the local expansion of its leaf and its near sum through the
+// index. The value is `sum of L_n zeta^n + near`, with `zeta = (z / sigma - 1) / rho = u i E1(i psi)`,
+// `u = 2 (h - c) / W` and `psi = u pi W / P`. Member 2 is the shared record of the constants
 static void turing_eval_build(TuringStage *stage, unsigned int p, unsigned int beta, const TuringExpansion &layout,
                               unsigned int near_bits, const TuringOsConstants &os)
 {
@@ -1455,8 +1478,8 @@ static void turing_twiddle_build(TuringStage *stage, unsigned int p, const Turin
     stage->outputs.push_back(turn.im);
 }
 
-// one stage of Stockham's transform: lane o reads x[j], x[j + P/2] and the twiddle t through the index and gives
-// x[j] + w_t x[j + P/2]; the index carries the stage, with w_(t + P/2) = -w_t for the lower half
+// one stage of the transform of Stockham. Lane o reads x[j], x[j + P/2] and the twiddle t through the index, and gives
+// `x[j] + w_t x[j + P/2]`. The index carries the stage, with `w_(t + P/2) = -w_t` for the lower half
 static void turing_fft_build(TuringStage *stage, const TuringExpansion &values, const TuringStage *twiddle)
 {
     TuringProgram *const program = &stage->program;
@@ -1472,9 +1495,9 @@ static void turing_fft_build(TuringStage *stage, const TuringExpansion &values, 
     stage->outputs.push_back(value.im);
 }
 
-// the verdict stage over the transform: member 0 F at each point, member 1 the point records, member 2 the shared
-// record; w = exp(i theta) F, its real part cos theta Re F - sin theta Im F the main sum's half, its imaginary part
-// sin theta Re F + cos theta Im F
+// the verdict stage over the transform. Member 0 is F at each point, member 1 the point records, and member 2 the
+// shared record. `w = exp(i theta) F`. Its real part, `cos theta Re F - sin theta Im F`, is the half of the main sum.
+// Its imaginary part is `sin theta Re F + cos theta Im F`
 static TuringComplex turing_main_from_transform(TuringProgram *program, const TuringExpansion &values, const TuringStage *point)
 {
     const TuringComplex f = turing_read_at(program, turing_expansion_fields(program, values, 0u), 0u);
@@ -1487,9 +1510,9 @@ static TuringComplex turing_main_from_transform(TuringProgram *program, const Tu
     return w;
 }
 
-// the twist stage: member 0 F' / 2^shift at each point, the multiple evaluation over the weighted poles, member 1 the
-// point records; exp(i theta) F' / 2^shift, read beside w = exp(i theta) F, their ratio F'/F, its imaginary part the
-// twist (arg F)' and its real part the swell (ln |F|)'
+// the twist stage. Member 0 is `F' / 2^shift` at each point, the multiple evaluation over the weighted poles, and
+// member 1 the point records. The stage gives `exp(i theta) F' / 2^shift`, read beside `w = exp(i theta) F`. Their
+// ratio is F'/F. Its imaginary part is the twist `(arg F)'`, and its real part the swell `(ln |F|)'`
 static void turing_twist_build(TuringStage *stage, const TuringExpansion &values, const TuringStage *point)
 {
     TuringProgram *const program = &stage->program;
@@ -1498,9 +1521,9 @@ static void turing_twist_build(TuringStage *stage, const TuringExpansion &values
     stage->outputs.push_back(turned.im);
 }
 
-// the slope stage: member 0 the twist records, member 1 the verdict records, member 2 the point records. With
-// theta' = ln s / 2, it gives each point's sign, Z and Z' = 2 Re(i theta' w + exp(i theta) F'), the main sum's
-// slope, R's left out: Z' = 2 (exp(i theta) F' / 2^shift) 2^shift - 2 theta' Im w in its real part
+// the slope stage. Member 0 is the twist records, member 1 the verdict records, and member 2 the point records. With
+// `theta' = ln s / 2`, it gives the sign, Z and `Z' = 2 Re(i theta' w + exp(i theta) F')` of each point. That is the
+// slope of the main sum, without R: `Z' = 2 (exp(i theta) F' / 2^shift) 2^shift - 2 theta' Im w` in its real part
 static void turing_slope_build(TuringStage *stage, const TuringStage *twist, const TuringStage *verdict,
                                const TuringStage *point, unsigned int shift)
 {
@@ -1523,10 +1546,10 @@ static void turing_slope_build(TuringStage *stage, const TuringStage *twist, con
     stage->outputs.assign(listed, listed + 3);
 }
 
-// the slope stage by pairs: member 0 each point's sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi), `sum_limbs`
-// limbs each, member 1 the verdict records, member 2 the point records, ln s at output `log_output`. With
-// d/dt cos(theta - t ln k) = -(theta' - ln k) sin(phi), it gives each point's sign, Z and
-// Z' = 2 (sum of k^(-1/2) ln k sin(phi) - theta' sum of k^(-1/2) sin(phi))
+// the slope stage by pairs. Member 0 is the sums of each point of `k^(-1/2) sin(phi)` and `k^(-1/2) ln k sin(phi)`,
+// `sum_limbs` limbs each. Member 1 is the verdict records, and member 2 the point records, with ln s at output
+// `log_output`. With `d/dt cos(theta - t ln k) = -(theta' - ln k) sin(phi)`, it gives the sign, Z and
+// `Z' = 2 (sum of k^(-1/2) ln k sin(phi) - theta' sum of k^(-1/2) sin(phi))` of each point
 static void turing_slope_pairs_build(TuringStage *stage, const TuringStage *verdict, const TuringStage *point,
                                      unsigned int log_output, unsigned int sum_limbs)
 {
@@ -1545,13 +1568,16 @@ static void turing_slope_pairs_build(TuringStage *stage, const TuringStage *verd
     stage->outputs.assign(listed, listed + 3);
 }
 
-// the margin stage, lane q the step from point q - 1 to point q: members 0 and 1 the slope records at q and q - 1,
-// member 2 the shared record of h / 3, the margin and the steepness, its parameters. The cubic through Z and Z' at
-// the step's ends, h apart, lies in the hull of z0, z0 + (h / 3) Z'0, z1 - (h / 3) Z'1 and z1, and where all four
-// carry the ends' sign past the margin, Z retains it over the whole step: the step is clean. Where the ends' certified
-// signs change, and the cubic's slope, a quadratic, has its three Bernstein points past the steepness the way Z
-// crosses, Z' remains that way over the step and Z crosses once: the step is single. It gives clean, the flag, 1 where
-// the step is neither, and single
+// the margin stage, with lane q the step from point q - 1 to point q. Members 0 and 1 are the slope records at q and
+// q - 1. Member 2 is the shared record of h / 3, the margin and the steepness, its parameters.
+//
+// The cubic through Z and Z' at the ends of the step, h apart, lies in the hull of z0, `z0 + (h / 3) Z'0`,
+// `z1 - (h / 3) Z'1` and z1. Where all four carry the sign of the ends past the margin, Z keeps it over the whole
+// step, and the step is clean.
+//
+// The certified signs of the ends can change. The slope of the cubic is a quadratic. Where its three Bernstein points
+// are past the steepness in the direction that Z crosses, Z' keeps that direction over the step. Z then crosses once,
+// and the step is single. The stage gives clean, the flag, 1 where the step is neither, and single
 static void turing_margin_build(TuringStage *stage, const TuringStage *slope, unsigned int third_bits, unsigned int margin_bits,
                                 unsigned int steep_bits)
 {
@@ -1587,8 +1613,9 @@ static void turing_margin_build(TuringStage *stage, const TuringStage *slope, un
         clean = turing_op(program, ENGINE_RECORD_PRODUCT, clean,
                           turing_above(program, turing_op(program, ENGINE_RECORD_PRODUCT, s0, hull[at]), margin));
     }
-    // the cubic's slope is a quadratic whose Bernstein points, over h / 3, are Z'0, (b2 - b1) / (h / 3) and Z'1: each
-    // past the steepness the way Z crosses, the middle one as s1 (b2 - b1) > (h / 3) steepness
+    // the slope of the cubic is a quadratic whose Bernstein points, over h / 3, are Z'0, `(b2 - b1) / (h / 3)` and Z'1.
+    // Each must be past the steepness in the direction that Z crosses, the middle one as
+    // `s1 (b2 - b1) > (h / 3) steepness`
     const unsigned int steepness = turing_read(program, steep_field, 2u);
     const unsigned int middle = turing_op(program, ENGINE_RECORD_DIFFERENCE, hull[2], hull[1]);
     unsigned int single = changed;
@@ -1606,12 +1633,12 @@ static void turing_margin_build(TuringStage *stage, const TuringStage *slope, un
     stage->outputs.assign(listed, listed + 3);
 }
 
-// the verdict stage: member 0 the sums, member 1 the point records, member 2 the shared record of nu^2 2^p,
-// 2 nu + 1 and the bounds
-// member 0 is the transform's F where `transform` is given, its layout, and the pair stage's sums where it is not.
-// Member 1 is the point records, or the Euler-Maclaurin records, which position their term and theta / pi alike.
-// Z = 2 sum + the term where `doubled`, the Riemann-Siegel sum's half, and sum + the term where not, Euler-Maclaurin's.
-// The shared record's fields are the stage's parameters, in order
+// the verdict stage: member 0 the sums, member 1 the point records, and member 2 the shared record of `nu^2 2^p`,
+// `2 nu + 1` and the bounds.
+// Member 0 is the F of the transform where the caller gives `transform`, its layout. Else it is the sums of the pair
+// stage. Member 1 is the point records, or the Euler-Maclaurin records, which position their term and theta / pi alike.
+// `Z = 2 sum + the term` where `doubled`, the half of the Riemann-Siegel sum, and `sum + the term` where not, that of
+// Euler-Maclaurin. The fields of the shared record are the parameters of the stage, in order
 static void turing_verdict_build(TuringStage *stage, unsigned int p, unsigned int sum_limbs, const TuringStage *point,
                                  unsigned int bound_bits, unsigned int theta_bits, const TuringExpansion *transform,
                                  int doubled, const DeviceRecordStep *s_place)
@@ -1799,8 +1826,8 @@ static void turing_content_add(std::string *content, const void *bytes, size_t c
     content->append((const char *)bytes, count);
 }
 
-// the stage's program as the imprint and the layout read it: its steps, its fields' widths and places, its members
-// with their widths, and its outputs
+// the program of the stage as the imprint and the layout read it. That is its steps, the widths and places of its
+// fields, its members with their widths, and its outputs
 static std::string turing_content(const TuringStage *stage)
 {
     const TuringProgram *const program = &stage->program;
@@ -1837,8 +1864,8 @@ static void turing_forget(void)
     turing_loaded.clear();
 }
 
-// imprints, arranges and loads a stage's program, and reports where it stops when it does; a program the process stores
-// already is read from it, and one it loads is cached
+// imprints, arranges and loads the program of a stage, and reports where it stops when it does. The code reads a
+// program that the process already stores from it, and caches one that it loads
 static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *error)
 {
     TuringProgram *const program = &stage->program;
@@ -1922,8 +1949,9 @@ static int turing_run(TuringStage *stage, unsigned int *const members[3], const 
     return cycle_record_run(&run) == (long)lanes;
 }
 
-// a host check's inputs, copied back from the device: of each member the records the checked lanes read and their
-// count, the index into them, and the device's records of the lanes checked, the first of them lane `records_first`
+// the inputs of a host check, copied back from the device. Of each member, it holds the records that the checked lanes
+// read, and their count. It also holds the index into them, and the records of the device of the checked lanes. The
+// first of them is lane `records_first`
 typedef struct
 {
     EngineRecordLayout layout;
@@ -1981,9 +2009,9 @@ static void turing_settle_one(void)
 // the lanes a part of a check runs on one host thread, at the least
 #define TURING_PART_LANES 8ull
 
-// a check's lanes [from, from + tried) run on the host beside the device and beside the other checks, in parts of
-// TURING_PART_LANES lanes or more, as many parts at once as half the cores, the other half left to the driver and the
-// machine
+// the lanes [from, from + tried) of a check run on the host beside the device and beside the other checks. They run in
+// parts of TURING_PART_LANES lanes or more, as many parts at once as half the cores. The other half stays for the
+// driver and the machine
 static void turing_dispatch(const std::shared_ptr<const TuringCheck> &check, unsigned long long from, unsigned long long tried,
                             int *same)
 {
@@ -2003,7 +2031,7 @@ static void turing_dispatch(const std::shared_ptr<const TuringCheck> &check, uns
     }
 }
 
-// a check of the run's that reads a host check's flag, taken once every host check has run
+// a check of the run that reads the flag of a host check, taken once each host check ran
 typedef struct
 {
     int ok;
