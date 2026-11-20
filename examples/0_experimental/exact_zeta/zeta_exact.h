@@ -473,4 +473,86 @@ void zeta_gap(const ZetaPoint *point, int32_t places, int64_t n_sum, int integra
 int64_t zeta_agreed_value(const ZetaPoint *point, int32_t places, OriorExactInteger value[2],
                           OriorExactInteger gaps[64], size_t *count);
 
+/* ---------------------------------------------------------------- exact rationals */
+
+/**
+ * @brief The reduced rational top / under, with a positive denominator.
+ *
+ * @param[in]  top    The numerator [BORROWS].
+ * @param[in]  under  The denominator. It is not zero [BORROWS].
+ * @param[out] result The rational [BORROWS].
+ */
+void rational_make(const OriorExactInteger *top, const OriorExactInteger *under, ZetaRational *result);
+
+/**
+ * @brief The reduced rational of two machine integers.
+ *
+ * @param[in]  top    The numerator.
+ * @param[in]  under  The denominator. It is not zero.
+ * @param[out] result The rational [BORROWS].
+ */
+void rational_small(int64_t top, int64_t under, ZetaRational *result);
+
+/**
+ * @brief The sum of two rationals.
+ *
+ * @param[in]  left   First addend [BORROWS].
+ * @param[in]  right  Second addend [BORROWS].
+ * @param[out] result The sum [BORROWS].
+ */
+void rational_add(const ZetaRational *left, const ZetaRational *right, ZetaRational *result);
+
+/**
+ * @brief The difference of two rationals.
+ *
+ * @param[in]  left   The minuend [BORROWS].
+ * @param[in]  right  The subtrahend [BORROWS].
+ * @param[out] result The difference [BORROWS].
+ */
+void rational_sub(const ZetaRational *left, const ZetaRational *right, ZetaRational *result);
+
+/**
+ * @brief The product of two rationals.
+ *
+ * @param[in]  left   First factor [BORROWS].
+ * @param[in]  right  Second factor [BORROWS].
+ * @param[out] result The product [BORROWS].
+ */
+void rational_mul(const ZetaRational *left, const ZetaRational *right, ZetaRational *result);
+
+/**
+ * @brief The quotient of two rationals.
+ *
+ * @param[in]  left   The dividend [BORROWS].
+ * @param[in]  right  The divisor, not zero [BORROWS].
+ * @param[out] result The quotient [BORROWS].
+ */
+void rational_div(const ZetaRational *left, const ZetaRational *right, ZetaRational *result);
+
+/**
+ * @brief Orders two rationals.
+ *
+ * @param[in] left  First rational [BORROWS].
+ * @param[in] right Second rational [BORROWS].
+ * @return          -1, 0 or 1.
+ */
+int rational_cmp(const ZetaRational *left, const ZetaRational *right);
+
+/**
+ * @brief A rational as the nearest double, ties to even, as float() of Python rounds a Fraction.
+ *
+ * @param[in] value The rational [BORROWS].
+ * @return          The double.
+ */
+double rational_to_double(const ZetaRational *value);
+
+/**
+ * @brief A rational as Python prints a Fraction: top, or top/under.
+ *
+ * @param[in]  value    The rational [BORROWS].
+ * @param[out] text     The buffer [BORROWS].
+ * @param[in]  capacity Bytes of the buffer.
+ */
+void rational_text(const ZetaRational *value, char *text, size_t capacity);
+
 #endif

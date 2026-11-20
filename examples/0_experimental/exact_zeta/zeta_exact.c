@@ -6,6 +6,7 @@
  */
 #include "zeta_exact.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -1415,4 +1416,149 @@ int64_t zeta_agreed_value(const ZetaPoint *point, int32_t places, OriorExactInte
         }
         n_sum *= 2;
     }
+}
+
+/* ---------------------------------------------------------------- exact rationals */
+
+void rational_make(const OriorExactInteger *top, const OriorExactInteger *under, ZetaRational *result)
+{
+    if (under->sign == 0)
+    {
+        zeta_stop("a rational with a zero denominator");
+    }
+    OriorExactInteger numerator = *top;
+    OriorExactInteger denominator = *under;
+    if (denominator.sign < 0)
+    {
+        numerator.sign = -numerator.sign;
+        denominator.sign = 1;
+    }
+    OriorExactInteger divisor;
+    z_gcd(&numerator, &denominator, &divisor);
+    if (divisor.sign == 0)
+    {
+        z_set(&divisor, 1);
+    }
+    z_div_exact(&numerator, &divisor, &result->top);
+    z_div_exact(&denominator, &divisor, &result->under);
+}
+
+void rational_small(int64_t top, int64_t under, ZetaRational *result)
+{
+    OriorExactInteger numerator;
+    OriorExactInteger denominator;
+    z_set(&numerator, top);
+    z_set(&denominator, under);
+    rational_make(&numerator, &denominator, result);
+}
+
+void rational_add(const ZetaRational *left, const ZetaRational *right, ZetaRational *result)
+{
+    OriorExactInteger first;
+    OriorExactInteger second;
+    OriorExactInteger under;
+    z_mul(&left->top, &right->under, &first);
+    z_mul(&right->top, &left->under, &second);
+    z_add(&first, &second, &first);
+    z_mul(&left->under, &right->under, &under);
+    rational_make(&first, &under, result);
+}
+
+void rational_sub(const ZetaRational *left, const ZetaRational *right, ZetaRational *result)
+{
+    ZetaRational negative = *right;
+    negative.top.sign = -negative.top.sign;
+    rational_add(left, &negative, result);
+}
+
+void rational_mul(const ZetaRational *left, const ZetaRational *right, ZetaRational *result)
+{
+    OriorExactInteger top;
+    OriorExactInteger under;
+    z_mul(&left->top, &right->top, &top);
+    z_mul(&left->under, &right->under, &under);
+    rational_make(&top, &under, result);
+}
+
+void rational_div(const ZetaRational *left, const ZetaRational *right, ZetaRational *result)
+{
+    OriorExactInteger top;
+    OriorExactInteger under;
+    z_mul(&left->top, &right->under, &top);
+    z_mul(&left->under, &right->top, &under);
+    rational_make(&top, &under, result);
+}
+
+int rational_cmp(const ZetaRational *left, const ZetaRational *right)
+{
+    OriorExactInteger first;
+    OriorExactInteger second;
+    z_mul(&left->top, &right->under, &first);
+    z_mul(&right->top, &left->under, &second);
+    return z_cmp(&first, &second);
+}
+
+double rational_to_double(const ZetaRational *value)
+{
+    if (value->top.sign == 0)
+    {
+        return 0.0;
+    }
+    OriorExactInteger size;
+    z_abs(&value->top, &size);
+    // A quotient of 55 bits: 54 for the double and its rounding bit, and one more. The rest decides a tie.
+    const int64_t shift = 55 - (z_bit_length(&size) - z_bit_length(&value->under));
+    OriorExactInteger top = size;
+    OriorExactInteger under = value->under;
+    if (shift >= 0)
+    {
+        OriorExactInteger power;
+        z_two_to(shift, &power);
+        z_mul(&top, &power, &top);
+    }
+    else
+    {
+        OriorExactInteger power;
+        z_two_to(-shift, &power);
+        z_mul(&under, &power, &under);
+    }
+    OriorExactInteger quotient;
+    OriorExactInteger remainder;
+    zeta_require(orior_exact_divide(&top, &under, &quotient, &remainder), "division");
+    int64_t mantissa = z_small(&quotient);
+    int64_t exponent = -shift;
+    // The quotient has 55 or 56 bits. Bring it to 54: 53 bits and the rounding bit.
+    int sticky = remainder.sign != 0;
+    while (mantissa >= ((int64_t)1 << 54))
+    {
+        sticky = sticky || ((mantissa & 1) != 0);
+        mantissa >>= 1;
+        exponent += 1;
+    }
+    const int round_bit = (int)(mantissa & 1);
+    mantissa >>= 1;
+    exponent += 1;
+    if (round_bit && (sticky || ((mantissa & 1) != 0)))
+    {
+        mantissa += 1;
+    }
+    // The exponent of a value in this tree fits an int.
+    const double magnitude = ldexp((double)mantissa, (int)exponent);
+    return (value->top.sign < 0) ? -magnitude : magnitude;
+}
+
+void rational_text(const ZetaRational *value, char *text, size_t capacity)
+{
+    static char top_text[8192];
+    static char under_text[8192];
+    z_text(&value->top, top_text, sizeof(top_text));
+    OriorExactInteger one;
+    z_set(&one, 1);
+    if (orior_exact_equal(&value->under, &one))
+    {
+        snprintf(text, capacity, "%s", top_text);
+        return;
+    }
+    z_text(&value->under, under_text, sizeof(under_text));
+    snprintf(text, capacity, "%s/%s", top_text, under_text);
 }

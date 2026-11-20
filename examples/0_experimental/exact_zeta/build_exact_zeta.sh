@@ -6,9 +6,9 @@
 #
 # Run examples/0_experimental/exact_zeta/build_exact_zeta.sh zeros [height] [bits] for the zeros.
 #
-# The integers are 32768 bits wide, 1024 limbs. The tail of Euler-Maclaurin carries rationals near 9700 bits, and
-# a product of two of them before its reduction near twice that. A value that does not fit stops the program with
-# a message, and the program prints no wrong value.
+# Each program has its own width. The tail of Euler-Maclaurin carries rationals near 9700 bits, and a product of two
+# of them before its reduction near twice that. Thus a program that sums zeta by Euler-Maclaurin uses 32768 bits,
+# 1024 limbs. A value that does not fit stops the program with a message, and the program prints no wrong value.
 set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,22 +19,32 @@ EXACT="$TOP/includes/exact_types/integers"
 OUT="$TOP/build/exact_zeta/$(uname -s | tr "[:upper:]" "[:lower:]")"
 mkdir -p "$OUT"
 
+USAGE="usage: build_exact_zeta.sh zeros|gram|phase|certificate|arrival [arguments]"
 if [ $# -lt 1 ]; then
-    echo "usage: build_exact_zeta.sh zeros|gram|phase|certificate [arguments]"
+    echo "$USAGE"
     exit 2
 fi
 NAME="$1"
 shift
 case "$NAME" in
-    zeros) PROGRAM=exact_zeta_zeros ;;
-    gram) PROGRAM=exact_zeta_gram ;;
-    phase) PROGRAM=exact_zeta_phase ;;
-    certificate) PROGRAM=zeta_zero_certificate ;;
-    *) echo "usage: build_exact_zeta.sh zeros|gram|phase|certificate [arguments]"; exit 2 ;;
+    zeros) PROGRAM=exact_zeta_zeros LIMBS=1024u ;;
+    gram) PROGRAM=exact_zeta_gram LIMBS=1024u ;;
+    phase) PROGRAM=exact_zeta_phase LIMBS=1024u ;;
+    certificate) PROGRAM=zeta_zero_certificate LIMBS=1024u ;;
+    arrival) PROGRAM=exact_zeta_arrival LIMBS=32u ;;
+    *) echo "$USAGE"; exit 2 ;;
 esac
 
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS=1024u -o "$OUT/$PROGRAM" "$HERE/$PROGRAM.c" \
-    "$HERE/zeta_exact.c" "$HERE/zeta_search.c" "$HERE/zeta_shuffle.c" "$HERE/zeta_theta.c" "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_decimal.c" \
-    "$EXACT/exact_integer_divide.c" "$EXACT/exact_integer_gcd.c" "$EXACT/exact_integer_limbs.c" \
-    "$EXACT/exact_integer_multiply.c" || exit 1
+SOURCES=("$HERE/zeta_exact.c" "$HERE/zeta_search.c" "$HERE/zeta_shuffle.c" "$HERE/zeta_theta.c"
+    "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_decimal.c" "$EXACT/exact_integer_divide.c"
+    "$EXACT/exact_integer_gcd.c" "$EXACT/exact_integer_limbs.c" "$EXACT/exact_integer_multiply.c")
+# A width below 4096 bits declares its own floor of decimal digits, as exact_integer_widths.h asks.
+DIGITS=()
+if [ "${LIMBS%u}" -lt 128 ]; then
+    DIGITS=(-DORIOR_EXACT_DIGITS=$(( ${LIMBS%u} * 8 ))u)
+fi
+"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS="$LIMBS" "${DIGITS[@]}" -o "$OUT/$PROGRAM" \
+    "$HERE/$PROGRAM.c" "${SOURCES[@]}" || exit 1
+# The programs read and write paths from the top of the tree.
+cd "$TOP" || exit 1
 "$OUT/$PROGRAM" "$@"
