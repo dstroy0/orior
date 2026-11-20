@@ -7,46 +7,42 @@
 
 WHAT THIS COMPUTES
 
-A ball of radius R holds sources in its interior. The medium scatters light so many times that
-transport is diffusion, and under diffusion the boundary response to one interior source at radius
-r is the Poisson kernel, whose Legendre expansion is
+A ball of radius R holds sources in its interior. The medium scatters light so many times that transport is diffusion.
+Under diffusion, the boundary response to one interior source at radius r is the Poisson kernel, whose Legendre
+expansion is
 
     P(gamma) = (1 / 4 pi R^2) sum_l (2l + 1) (r/R)^l P_l(cos gamma)
 
-Everything here follows from that one line. The coefficient at degree l falls as (r/R)^l, and a
-source near the center reaches only the low degrees and a source near the shell reaches all of
-them. Depth sets bandwidth, and bandwidth sets how small a spot the source can print. Writing
-r = R - d and expanding, the spot's angular radius is about d/R: a source one tenth of the way in
-from the shell prints a spot a tenth of a radian across, no matter how small the source is.
+Everything here follows from that one line. The coefficient at degree l falls as (r/R)^l. A source near the center
+reaches only the low degrees, and a source near the shell reaches all of them. Depth sets bandwidth, and bandwidth sets
+how small a spot the source can print. With r = R - d, an expansion gives the angular radius of the spot as about d/R. A
+source one tenth of the way in from the shell prints a spot a tenth of a radian across, at any source size.
 
-Counting the modes that survive gives an area law. Degrees up to l carry (l + 1)^2 modes, the
-usable l is about R/d. The boundary holds about (R/d)^2 numbers. That is a surface area over a
-squared length and it does not grow with the volume, a statement worth measuring instead
-of asserting: put sources through a ball uniformly by volume and count how many boundary modes
-carry anything, and the count stops climbing.
+The count of the modes that survive gives an area law. Degrees up to l carry (l + 1)^2 modes, and the usable l is about
+R/d. The boundary holds about (R/d)^2 numbers. That is a surface area over a squared length, and it does not grow with
+the volume. That statement deserves a measurement, and not an assertion. Put sources through a ball uniformly by volume,
+and count how many boundary modes carry anything: the count stops its climb.
 
 TWO KERNELS, ONE MULTIPLICATION EACH
+  - depth, `(r/R)^l`: where the source sits.
+  - conduction, `exp(-l (l+1) tau)`: how long the boundary sits and smooths.
 
-    depth       (r/R)^l              where the source sits
-    conduction  exp(-l (l+1) tau)    how long the boundary has been left to smooth
-
-Both are diagonal in degree. Both are one multiply per coefficient. Conduction is the heat
-kernel on the sphere, whose eigenfunctions are these same harmonics. Leaving the boundary to sit
-for time tau is a low-pass at degree about 1/sqrt(tau) and no further computation is needed.
+Both are diagonal in degree. Both are one multiply per coefficient. Conduction is the heat kernel on the sphere, whose
+eigenfunctions are these same harmonics. A boundary left to sit for time tau gets a low-pass at degree about
+1/sqrt(tau), and needs no further computation.
 
 HEAT IS SURPRISAL
 
-A source's strength is the information its event carried, -log2 p, in bits. The conversion to
-energy is Landauer's constant, k T ln 2 per bit, which is a scale on the display and changes no
-number here. Rare events are hot, common events are cool, and an event nothing was surprised by
-deposits nothing.
+A source's strength is the information that its event carried, -log2 p, in bits. The conversion to energy is Landauer's
+constant, k T ln 2 per bit, which is a scale on the display and changes no number here. Rare events are hot, and common
+events are cool. An event with no surprise deposits nothing.
 
-WHAT IS MEASURED AND WHAT IS CHOSEN
+WHAT THE TOOL MEASURES AND WHAT IT CHOOSES
 
-Nothing here picks a direction for a source. A source whose direction is averaged away contributes
-to degree zero alone, and a boundary carrying power above degree zero reports that a direction
-was picked somewhere. `spread` does that averaging, and comparing a run against it separates the
-structure in the data from the structure in the map that placed it.
+Nothing here picks a direction for a source. A source whose direction averages away contributes to degree zero alone. A
+boundary with power above degree zero therefore reports that something picked a direction somewhere. `spread` does that
+average. A comparison of a run against it separates the structure in the data from the structure in the map that placed
+it.
 
     python sphere_field.py --check      the three checks below, each able to fail
 """
@@ -60,9 +56,9 @@ FOUR_PI = 4.0 * math.pi
 def gauss_legendre(count):
     """Nodes and weights for Gauss-Legendre quadrature on [-1, 1].
 
-    Newton from a Chebyshev guess, which converges in four iterations at every order used here.
-    Exact quadrature matters because the checks below decide whether the basis is orthonormal, and
-    a basis graded with an approximate rule reports its own quadrature error as a defect.
+    Newton from a Chebyshev guess, which converges in four iterations at every order used here. Exact quadrature matters
+    because the checks below decide whether the basis is orthonormal. A basis graded with an approximate rule reports
+    its own quadrature error as a defect.
     """
     nodes = [0.0] * count
     weights = [0.0] * count
@@ -89,10 +85,9 @@ def gauss_legendre(count):
 def legendre_column(top, order, x):
     """Normalized associated Legendre values for one order, every degree from `order` to `top`.
 
-    Climbs the diagonal first and then recurs in degree, which retains every intermediate at unit
-    scale. Computing these from factorials overflows above degree about 150 and loses digits long
-    before that, and the failure is quiet: the low degrees stay right and only the fine structure
-    goes wrong, and a picture built on it looks plausible.
+    Climbs the diagonal first and then recurs in degree, which keeps every intermediate at unit scale. A computation
+    from factorials overflows above degree about 150, and loses digits long before that. The failure is quiet: the low
+    degrees stay right and only the fine structure goes wrong, and a picture built on it looks plausible.
     """
     out = [0.0] * (top + 1)
     sine = math.sqrt(max(0.0, 1.0 - x * x))
@@ -117,7 +112,7 @@ def legendre_column(top, order, x):
 def harmonics_at(top, colatitude, longitude):
     """Every real harmonic up to `top` at one direction, as rows indexed by degree.
 
-    Row l holds 2l + 1 values ordered from -l to +l, matching how coefficients are stored.
+    Row l holds 2l + 1 values ordered from -l to +l, in the same order as the coefficients.
     """
     x = math.cos(colatitude)
     rows = [[0.0] * (2 * degree + 1) for degree in range(top + 1)]
@@ -154,14 +149,14 @@ def kernel(top, radius_fraction, tau):
 def coefficients(sources, top, tau, spread=False):
     """Harmonic coefficients of the boundary field from a list of interior sources.
 
-    Each source is (strength, radius_fraction, colatitude, longitude). The addition theorem turns
-    the zonal kernel about a source's own axis into a sum over this basis, and a source costs one
-    evaluation of the harmonics at its direction and nothing on a grid. Synthesis onto a grid
-    happens once at the end, for the whole field and not per source.
+    Each source is (strength, radius_fraction, colatitude, longitude). The addition theorem turns the zonal kernel about
+    a source's own axis into a sum over this basis. A source then costs one evaluation of the harmonics at its
+    direction, and nothing on a grid. Synthesis onto a grid happens once at the end, for the whole field and not per
+    source.
 
-    With `spread` the direction is averaged over the sphere before the sum, which leaves degree
-    zero located and zeroes every other degree exactly. That is the reading with no direction
-    chosen, and it is computed and never approximated by drawing many directions.
+    With `spread`, the function averages the direction over the sphere before the sum. That leaves degree zero in place,
+    and zeroes every other degree exactly. That is the reading with no chosen direction. The function computes it, and
+    never approximates it by many drawn directions.
     """
     total = [[0.0] * (2 * degree + 1) for degree in range(top + 1)]
     for strength, radius_fraction, colatitude, longitude in sources:
@@ -180,16 +175,16 @@ def coefficients(sources, top, tau, spread=False):
 
 
 def power(total):
-    """Power per degree, summed over order. Independent of how the sphere is oriented."""
+    """Power per degree, summed over order. Independent of the orientation of the sphere."""
     return [sum(value * value for value in row) for row in total]
 
 
 def synthesize(total, top, latitudes, longitudes):
     """The field on a latitude by longitude grid, separably.
 
-    Summing the basis at every grid point costs the grid times the mode count, which is twenty
-    million multiplications on the grid this tool uses. Splitting the sum into a Legendre part per
-    latitude and a trigonometric part per longitude costs under one million for the same answer.
+    A sum of the basis at every grid point costs the grid times the mode count. That is twenty million multiplications
+    on the grid that this tool uses. A split of the sum into a Legendre part per latitude and a trigonometric part per
+    longitude costs under one million for the same answer.
     """
     grid = []
     root_two = math.sqrt(2.0)
@@ -225,9 +220,9 @@ def synthesize(total, top, latitudes, longitudes):
 def surprisal(data):
     """Bits of surprise per byte value, from the byte's own frequency in this data.
 
-    A value that fills the file carries nothing and a value seen once carries log2 of the length.
-    Values absent from the data are given zero and never infinity, since a source that never fired
-    deposits nothing and an infinity here would poison every sum downstream in silence.
+    A value that fills the file carries nothing, and a value seen once carries log2 of the length. A value absent from
+    the data gets zero and never infinity. A source that never fired deposits nothing, and an infinity here would poison
+    every sum downstream in silence.
     """
     counts = [0] * 256
     for byte in data:
@@ -241,16 +236,14 @@ def surprisal(data):
 
 
 def read_depth(spectrum, tau, first=1, last=None):
-    """Recovers r/R from the slope of the spectrum, undoing conduction first.
+    """Recovers r/R from the slope of the spectrum, and undoes conduction first.
 
-    For one source the spectrum is q^2 (r/R)^(2l) exp(-2 l (l+1) tau) (2l+1) / 4 pi. Dividing
-    out everything except the depth term leaves a straight line in degree whose slope is 2 log(r/R).
-    Several sources at different depths give a mixture and this reports the effective depth of it,
-    summarizing them without separating them.
+    For one source, the spectrum is `q^2 (r/R)^(2l) exp(-2 l (l+1) tau) (2l+1) / 4 pi`. A division by everything except
+    the depth term leaves a straight line in degree, whose slope is 2 log(r/R). Several sources at different depths give
+    a mixture. This reports the effective depth of it, a summary that does not separate them.
 
-    Returns (radius_fraction, degrees_used). A spectrum with fewer than three usable degrees
-    returns zero degrees used, because a slope through two points is a definition instead of a
-    measurement.
+    Returns (radius_fraction, degrees_used). A spectrum with fewer than three usable degrees returns zero degrees used,
+    because a slope through two points is a definition instead of a measurement.
     """
     top = len(spectrum) - 1
     if last is None:
@@ -282,8 +275,8 @@ def read_depth(spectrum, tau, first=1, last=None):
 def live_modes(spectrum, floor):
     """How many harmonic modes carry more than `floor` of the total power.
 
-    This is the count the area law is about. It rises with the bandwidth the sources reach and
-    stops rising when they stop getting shallower, however many more are added.
+    This is the count that the area law is about. It rises with the bandwidth that the sources reach. It stops its rise
+    when the sources are no shallower, however many more the run adds.
     """
     total = sum(spectrum)
     if total <= 0.0:
@@ -298,11 +291,11 @@ def live_modes(spectrum, floor):
 
 
 def spot_radians(radius_fraction):
-    """Angular radius of the spot one source prints, from its depth.
+    """Angular radius of the spot that one source prints, from its depth.
 
-    The spectrum falls as (r/R)^l. The degree where it dropped by e is 1 / ln(R/r) and the
-    angular scale is its reciprocal. A source at the center returns pi, since its spot is the whole
-    sphere, and there the claim that a spot is larger than its source becomes a number.
+    The spectrum falls as (r/R)^l. The degree where it drops by e is 1 / ln(R/r), and the angular scale is its
+    reciprocal. A source at the center returns pi, because its spot is the whole sphere. There, the claim that a spot is
+    larger than its source becomes a number.
     """
     if radius_fraction <= 0.0:
         return math.pi
@@ -314,10 +307,9 @@ def spot_radians(radius_fraction):
 def zonal_profile(radius_fraction, tau, top, samples=721):
     """One source's boundary response against angle from its own direction.
 
-    This is the spot itself, sampled from its center to the far side. It falls away from the center
-    and never rises again, and a level cuts it at one angle and the region above that level is a
-    circle. Everything about overlap below rests on the profile being monotone, and conduction
-    retains it so because a heat kernel cannot sharpen anything.
+    This is the spot itself, sampled from its center to the far side. It falls away from the center and never rises
+    again. A level cuts it at one angle, and the region above that level is a circle. Everything about overlap below
+    rests on a monotone profile. Conduction keeps it monotone, because a heat kernel cannot sharpen anything.
     """
     gains = kernel(top, radius_fraction, tau)
     out = []
@@ -339,12 +331,11 @@ def zonal_profile(radius_fraction, tau, top, samples=721):
 
 
 def cap_radius(profile, level):
-    """The angle at which a profile crosses `level`, in radians, by walking a monotone table.
+    """The angle at which a profile crosses `level`, in radians, by a walk of a monotone table.
 
-    Returns zero where the peak never reaches the level, and pi where the profile stays above it
-    everywhere. The second case is a source deep enough that its circle swallowed the sphere,
-    and reporting it as a circle of radius pi retains the caller from treating a swallowed sphere as
-    a missing spot.
+    Returns zero where the peak never reaches the level, and pi where the profile stays above it everywhere. The second
+    case is a source deep enough that its circle swallowed the sphere. A report of it as a circle of radius pi stops the
+    caller from reading a swallowed sphere as an absent spot.
     """
     samples = len(profile)
     if not samples or profile[0] < level:
@@ -360,9 +351,8 @@ def cap_radius(profile, level):
 def between(first, second):
     """Angle between two directions given as (colatitude, longitude).
 
-    Nothing outside this pair enters, and that makes it the quantity worth reporting: an
-    observer free to move anywhere over the sphere changes every direction and changes no angle
-    between a pair of them.
+    Nothing outside this pair enters, and that makes it the quantity worth a report. An observer free to move anywhere
+    over the sphere changes every direction, and changes no angle between a pair of them.
     """
     one_colatitude, one_longitude = first
     two_colatitude, two_longitude = second
@@ -375,13 +365,13 @@ def between(first, second):
 def overlaps(sources, top, tau, level, samples=721):
     """Which circles meet at this level, with how much angle to spare.
 
-    A source's circle has a radius set by its depth and the level the edge is read at. Two circles
-    meet when the angle between their directions is less than the sum of their radii. The test
-    needs the two radii and the angle between the pair and no orientation at all.
+    A source's circle has a radius that its depth and the level of the edge set. Two circles meet when the angle between
+    their directions is less than the sum of their radii. The test needs the two radii and the angle between the pair,
+    and no orientation at all.
 
-    The level is a reading, never a measurement. Raising it shrinks every circle and breaks the
-    weakest overlaps first, and sweeping it is how a set of coincidences is separated into the ones
-    that need the circles fat and the ones that survive the circles being cut to nothing.
+    The level is a reading, never a measurement. A higher level shrinks every circle, and breaks the weakest overlaps
+    first. A sweep of it separates a set of coincidences into two groups. One group needs the circles fat. The other
+    survives when the circles shrink to nothing.
     """
     radii = []
     for strength, radius_fraction, colatitude, longitude in sources:
@@ -405,13 +395,12 @@ def overlaps(sources, top, tau, level, samples=721):
 
 
 def distinguishable(radii):
-    """How many circles of this size the sphere holds without them lying on top of one another.
+    """How many circles of this size the sphere holds, with no two on top of one another.
 
-    The surface is continuous and two circle centers can be any distance apart. The sphere
-    discriminates without limit until the circles are asked to be told apart. Once they are, the
-    count is the sphere's area over one circle's area. It is finite the moment the circles have
-    any size at all. This is the same area law the mode count reports, arrived at by measuring the
-    spots instead of counting the harmonics, and the two agreeing is worth more than either alone.
+    The surface is continuous, and two circle centers can be any distance apart. The sphere discriminates without limit
+    until the caller asks to tell the circles apart. Then the count is the sphere's area over one circle's area. It is
+    finite the moment the circles have any size at all. This is the same area law that the mode count reports, from a
+    measure of the spots instead of a count of the harmonics. The agreement of the two is worth more than either alone.
     """
     retained = [one for one in radii if one > 0.0]
     if not retained:
@@ -464,8 +453,8 @@ def _check():
             print("  FAIL depth recovery is off by %.2e" % off)
             bad += 1
 
-    # Conduction has to be undone exactly, or the recovered depth moves when the boundary is left
-    # to smooth. This is the check that caught the sign of the exponent being applied twice.
+    # Conduction must come off exactly, or the recovered depth moves when the boundary sits and smooths. This check
+    # catches an exponent sign applied twice.
     total = coefficients([(1.0, 0.7, 0.9, 2.0)], top, 0.004)
     got, used = read_depth(power(total), 0.004, 1, 12)
     print("  depth 0.70 under conduction read back %.4f over %d degrees" % (got, used))
