@@ -2073,8 +2073,8 @@ static std::vector<unsigned int> turing_copy_back(const unsigned int *device, si
     return host;
 }
 
-// the records `taken` of a device array of `limbs` limbs a record, ascending, copied back side by side, each run of
-// consecutive records in one copy; 1 where every copy matches
+// the records `taken` of a device array of `limbs` limbs a record, ascending, copied back side by side. Each run of
+// consecutive records goes in one copy. The result is 1 where each copy matches
 static int turing_gather(const unsigned int *device, unsigned int limbs, const std::vector<unsigned long long> &taken,
                          std::vector<unsigned int> *host)
 {
@@ -2152,8 +2152,8 @@ static void turing_write_output(FILE *out, const TuringStage *stage, const std::
     turing_hex(out, value.data(), (unsigned int)value.size());
 }
 
-// the sum of output `output` over lanes [first, first + count) of a stage's records, on the device and on the host,
-// written after `key`; 1 where the two agree word for word
+// the sum of output `output` over lanes [first, first + count) of the records of a stage, on the device and on the
+// host, written after `key`. The result is 1 where the two agree word for word
 static int turing_range(FILE *out, const char *key, const TuringStage *stage, const unsigned int *device_records,
                         const std::vector<unsigned int> &host_records, unsigned long long first, unsigned long long count,
                         unsigned int output, EngineError *error)
@@ -2218,11 +2218,10 @@ static unsigned int *turing_upload(std::vector<unsigned int *> *owned, const std
     return device;
 }
 
-// a run of a stage over `lanes` lanes on the device, its members wired by `index` where it is not empty, and the
-// the host's check of lanes [from, from + tried) of a stage's run, beside the device's next runs: of each member the
-// records those lanes read, copied back alone, and the index taken to their places in the copy, a record a lane names
-// past its member's end staying past the copy's end, the lane zero on both. With no index a lane reads its own
-// record, and the lanes checked start at 0. 1 where the copies match
+// the check of the host of lanes [from, from + tried) of the run of a stage, beside the next runs of the device. Of
+// each member, it copies back alone the records that those lanes read. It takes the index to their places in the copy.
+// A record that a lane names past the end of its member stays past the end of the copy. The lane is zero on both.
+// With no index, a lane reads its own record, and the checked lanes start at 0. The result is 1 where the copies match
 static int turing_check_range(const TuringStage *stage, unsigned int *const members[3], const unsigned long long bodies[3],
                               const std::vector<unsigned int> &index, unsigned long long from, unsigned long long tried,
                               const unsigned int *device_out, int *same)
@@ -2282,10 +2281,10 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
     return ok;
 }
 
-// a run of a stage over `lanes` lanes on the device, its members wired by `index` where it is not empty, and the
-// host's run of its first `checked` lanes against the device's records, beside the device's next runs, and as many
-// again from lane `also` where it is not 0; 1 where the run matches, and `same` stays 0 once a check differs, settled
-// by turing_settle
+// a run of a stage over `lanes` lanes on the device, with its members wired by `index` where it is not empty. The host
+// runs its first `checked` lanes against the records of the device, beside the next runs of the device. It runs as
+// many again from lane `also` where it is not 0.
+// The result is 1 where the run matches. `same` stays 0 once a check differs, and turing_settle settles it
 static int turing_sweep(TuringStage *stage, unsigned int *const members[3],
                         const unsigned long long bodies[3], const std::vector<unsigned int> &index, unsigned long long lanes,
                         unsigned int *device_out, unsigned long long checked, EngineError *error, int *same,
@@ -2369,9 +2368,10 @@ static std::vector<long long> turing_group_sums(const TuringStage *stage, const 
     return values;
 }
 
-// the fold of each group of `group` expansions, record `map[g * group + member_at]` of `records` (the array's last
-// record, `zero`, where a position is empty), into one expansion a group, by sums of three; returns the array of one a
-// group. The groups are `sets` runs of as many each, and each run's lanes are checked
+// the fold of each group of `group` expansions into one expansion a group, by sums of three. Each is record
+// `map[g * group + member_at]` of `records`, or `zero`, the last record of the array, where a position is empty.
+// Returns the array of one a group. The groups are `sets` runs of as many each, and the code checks the lanes of each
+// run
 static unsigned int *turing_fold(std::vector<unsigned int *> *owned, TuringStage *fold, unsigned int *records,
                                  unsigned long long zero, std::vector<unsigned int> map, unsigned long long groups,
                                  unsigned long long group, unsigned long long checked, EngineError *error, int *same, int *ok,
@@ -2479,10 +2479,11 @@ typedef struct
     std::vector<unsigned int> steps;
 } TuringOsReport;
 
-// the multiple evaluation: from `sets` sets of pole records, each nu of them and a zero record after and every set's
-// poles at the same places, the sum at every point of the cell for each set into the returned array, set s at records
-// s P to (s + 1) P - 1, arranged as `values`. The sets share the tree, its lists and its twiddles, and run in one run
-// a stage, set after set. Each run checks the first lanes of the first set and of the last
+// the multiple evaluation. It takes `sets` sets of pole records, each nu of them with a zero record after, and the
+// poles of each set at the same places. It puts the sum at each point of the cell for each set into the returned
+// array. Set s is at records s P to (s + 1) P - 1, arranged as `values`.
+// The sets share the tree, its lists and its twiddles, and run in one run a stage, set after set. Each run checks the
+// first lanes of the first set and of the last
 static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *owned, unsigned long long nu, unsigned int p,
                                unsigned int beta, unsigned int order, unsigned long long checked,
                                const TuringOsConstants &os, TuringStage *pole, unsigned int *device_pole,
@@ -2601,10 +2602,10 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     sim_check(job, ok, "the multiple evaluation's programs load, every expansion arranged alike");
     const unsigned int limbs = ok ? expansion.out_limbs : 0u;
 
-    // the poles below each leaf boundary b W, b from 0, the frequency 0's leaf first, up to the leaf past
-    // pos_nu = (2 nu + 1) ln nu <= (2 nu + 1) 0.7 log2(2 nu) and two leaves short of P/2 at max, which places every
-    // pole's near field off the circle's far side; the device's count places every pole below the last boundary, and
-    // the leaves end at the first boundary with every pole below it
+    // the poles below each leaf boundary b W, b from 0, with the leaf of the frequency 0 first. That goes up to the
+    // leaf past `pos_nu = (2 nu + 1) ln nu <= (2 nu + 1) 0.7 log2(2 nu)`, and two leaves short of P/2 at max.
+    // That places the near field of each pole off the far side of the circle. The count of the device places each pole
+    // below the last boundary, and the leaves end at the first boundary with each pole below it
     unsigned int bits = 0u;
     while ((nu >> bits) != 0ull)
     {
@@ -2701,8 +2702,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     sim_check(job, ok, "the leaves' multipoles are summed on the device");
 
-    // up the tree: each box with poles carried to its parent's center, the lower children in one run and the upper in
-    // another, and each parent's two summed by a fold
+    // up the tree. Each box with poles goes to the center of its parent, the lower children in one run and the upper
+    // in another. A fold sums the two of each parent
     for (unsigned int level = top - 1u; ok && (level >= 3u) && (level < top); level -= 1u)
     {
         const unsigned long long boxes = 1ull << level;
@@ -2928,7 +2929,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     sim_check(job, ok, "the local expansions are carried down the tree on the device");
 
-    // the near field: the points of the leaves within two of a leaf with poles, each against the poles of the five
+    // the near field: the points of the leaves within two of a leaf with poles. Each goes against the poles of the five
     // leaves about its own
     const long long near_low = -2ll * (long long)width;
     const long long near_high = ((long long)boundaries + 2ll) * (long long)width;
@@ -3079,8 +3080,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
 // one cell's run, from the input at `input` to the output at `output`
 static int turing_job(const char *input, const char *output)
 {
-    // the run's phases, marked as it passes each: the start, the pole and point stages, the pairs, the multiple
-    // evaluation, the twist, the verdict and count, the slope and margin
+    // the phases of the run, marked as it passes each: the start, the pole and point stages, the pairs, and the
+    // multiple evaluation. Then the twist, the verdict and count, and the slope and margin
     double marks[7] = {turing_now(), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     turing_load_seconds = turing_check_seconds = turing_imprint_seconds = turing_layout_seconds = 0.0;
     turing_loads = turing_reuses = 0u;
@@ -3095,11 +3096,13 @@ static int turing_job(const char *input, const char *output)
     {
         read = turing_word(in, &header[at]);
     }
-    // Euler-Maclaurin, method 3, takes N - 1 terms a point and is valid from cell 1; the others take nu from cell 2.
-    // Only the multiple evaluation reads the leaf width 2^beta, which must lie below the cell's 2^p points. The input
-    // is read for its form alone: every count at least what its series needs, the points the 2^p a 64-bit word stores,
-    // and none refused for its size. Method 4, the listed points, takes the pairs at the points j the input lists after
-    // its constants, each on the lattice of 2^p, as many as the points word specifies
+    // Euler-Maclaurin, method 3, takes N - 1 terms a point and is valid from cell 1. The others take nu from cell 2.
+    // Only the multiple evaluation reads the leaf width 2^beta, which must lie below the 2^p points of the cell.
+    //
+    // The code reads the input for its form alone. Each count is at least what its series needs, and the points are the
+    // 2^p that a 64-bit word stores. The code refuses none for its size.
+    // Method 4, the listed points, takes the pairs at the points j that the input lists after its constants. Each is on
+    // the lattice of 2^p, as many as the points word says
     const int em_header = (header[9] == 3);
     const int listed_header = (header[9] == 4);
     const long long terms_header = em_header ? header[14] - 1 : header[2];
@@ -3123,16 +3126,17 @@ static int turing_job(const char *input, const char *output)
     const unsigned int order = read ? (unsigned int)header[10] : 0u;
     const unsigned int beta = read ? (unsigned int)header[11] : 0u;
     const int listing = read && (header[16] >= 1);
-    // with the listing word 2, Z' at every point and each step's hull against the margin: by the multiple evaluation,
-    // the twist, F' / 2^shift at every point beside w, 2^shift at least ln nu, the bits of the bits of nu; at the
-    // listed points, by the pairs' sums of k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi)
+    // with the listing word 2, Z' at each point, and the hull of each step against the margin:
+    //   - by the multiple evaluation, the twist, `F' / 2^shift` at each point beside w. 2^shift is at least ln nu, the
+    //     bits of the bits of nu.
+    //   - at the listed points, by the sums of the pairs of `k^(-1/2) sin(phi)` and `k^(-1/2) ln k sin(phi)`.
     const int sloped = read && (header[16] == 2);
     const int twisted = sloped && ((header[9] == 1) || (header[9] == 2));
     // with the listing word 3, each point's theta / pi less and more its bound after its w
     const int bracketed = read && (header[16] == 3);
     const unsigned int shift = read ? turing_bits_of((unsigned long long)turing_bits_of((unsigned long long)header[2])) : 0u;
-    // the width every value is wrapped to: the floor, or 60 + l where the multiple evaluation's top level
-    // l = p - beta requires more
+    // the width that each value wraps to: the floor, or 60 + l where the top level `l = p - beta` of the multiple
+    // evaluation needs more
     if (read && (header[9] == 1 || header[9] == 2) &&
         (60u + (unsigned int)(header[3] - header[11]) > TURING_SCALED_FLOOR))
     {
@@ -3192,8 +3196,8 @@ static int turing_job(const char *input, const char *output)
     {
         read = turing_read_constant(in, &ratio[k]);
     }
-    // with the listing word 2, the margin a step's hull must clear, h / 3, and the steepness a step whose ends change
-    // sign must be valid at both ends
+    // with the listing word 2, the margin that the hull of a step must clear, h / 3. Then the steepness, which must
+    // hold at both ends of a step whose ends change sign
     TuringConstant third, margin, steep;
     read = read && (!sloped || (turing_read_constant(in, &margin) && turing_read_constant(in, &third) &&
                                 turing_read_constant(in, &steep) && (third.sign > 0) && (margin.sign > 0) &&
@@ -3328,9 +3332,9 @@ static int turing_job(const char *input, const char *output)
     }
 
     const unsigned long long pair_lanes = piece * heads;
-    // the multiple evaluation's records: every box's local expansion, about 2 P / W of them, the evaluation, the
-    // transform's two arrays and the twiddles, each a few limbs a point, and the multipoles and near field, a few
-    // expansions a pole
+    // the records of the multiple evaluation: the local expansion of each box, about 2 P / W of them, and the
+    // evaluation. Then the two arrays of the transform and the twiddles, each a few limbs a point. Then the multipoles
+    // and near field, a few expansions a pole
     const unsigned long long expansion_limbs = (2ull * order * (TURING_EXP_BITS + 1u) + 31ull) / 32ull + 1ull;
     const unsigned long long transform_words =
         (transform_run ? points * (2ull * expansion_limbs / (1ull << beta) + 32ull) + 64ull * nu * expansion_limbs : 0ull) *
@@ -3344,7 +3348,7 @@ static int turing_job(const char *input, const char *output)
     char *const arguments[3] = {&named[0][0], &named[1][0], &named[2][0]};
     ok = ok && sim_job_submit(&job, "exact_zeta_turing", 3, arguments, declared);
 
-    // the pole and point stages; the pole records end in a zero record, the empty record every wiring points at
+    // the pole and point stages. The pole records end in a zero record, the empty record that each link points at
     int host_pole = 1, host_point = 1, host_pair = 1, host_sums = 1, host_os = 1, host_verdict = 1, host_count = 1;
     const unsigned long long one[3] = {1ull, 0ull, 0ull};
     unsigned int *const device_pole_shared = ok ? turing_upload(&owned, pole.shared) : NULL;
@@ -3468,16 +3472,16 @@ static int turing_job(const char *input, const char *output)
                                 &host_twist);
     }
 
-    // the multiple evaluation; with the twist, over the poles and the weighted poles as two sets of one evaluation,
-    // the weighted poles' records after the poles', where the two are arranged alike
+    // the multiple evaluation. With the twist, it runs over the poles and the weighted poles as two sets of one
+    // evaluation. The records of the weighted poles come after those of the poles, where the two have the same layout
     TuringExpansion values, values_twist;
     TuringOsReport report;
     unsigned int *device_transform = NULL;
     unsigned int *device_transform_twist = NULL;
     if (ok && transform_run)
     {
-        // the evaluation reads every set's poles at the places of the poles' outputs: the weighted poles join them
-        // where every output has the same place and width
+        // the evaluation reads the poles of each set at the places of the outputs of the poles. The weighted poles join
+        // them where each output has the same place and width
         int joined = twisted && (pole_twist.layout.out_limbs == pole.layout.out_limbs) &&
                      (pole_twist.outputs.size() == pole.outputs.size());
         for (unsigned int at = 0u; joined && (at < (unsigned int)pole.outputs.size()); at += 1u)
@@ -3802,8 +3806,8 @@ static int turing_job(const char *input, const char *output)
         }
         fprintf(out, "host %d %d %d %d %d %d %d %d %d %d\n", host_pole, host_point, host_pair, host_sums, host_os, host_em,
                 host_verdict, host_count, host_ranges, host_twist);
-        // the seconds to each mark from the one before, then those spent loading programs and in the host's checks,
-        // the run's whole before the output, and of the loading the imprint's and the layout's
+        // the seconds to each mark from the one before, then those of the program loads and of the checks of the host.
+        // Then the run in full before the output, and of the load, the imprint and the layout
         fprintf(out, "seconds");
         for (unsigned int at = 1u; at < 7u; at += 1u)
         {
@@ -3836,9 +3840,9 @@ static int turing_job(const char *input, const char *output)
             turing_hex(out, slope_apart.data(), (unsigned int)slope_apart.size() - 1u);
             fprintf(out, " %u\n", slope_apart.back());
         }
-        // every point, where the input requests: its sign, S, Z and w = exp(i theta) F, read from its verdict record,
-        // with the twist exp(i theta) F' / 2^shift from its twist record, and with the listing word 2 last the flag of
-        // the step that ends at it
+        // each point, where the input asks: its sign, S, Z and `w = exp(i theta) F`, read from its verdict record. With
+        // the twist, `exp(i theta) F' / 2^shift` from its twist record. With the listing word 2, last, the flag of the
+        // step that ends at it
         if (twisted)
         {
             fprintf(out, "twist %u\n", shift);
@@ -3918,8 +3922,8 @@ int main(int count, char **arguments)
     }
     else if ((count == 2) && (strcmp(arguments[1], "serve") == 0))
     {
-        // a run for each two lines read, its input's path and its output's, each answered by the line "done" and its
-        // code once its output is written
+        // a run for each two read lines, the path of its input and that of its output. The code answers each with the
+        // line "done" and its code, once it writes its output
         code = 0;
         std::string input, output;
         while (turing_line(stdin, &input) && turing_line(stdin, &output))
