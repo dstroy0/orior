@@ -1076,7 +1076,10 @@ static void minimap_lines_checked(void)
     tabs_closed("tall.c", s_tall, NULL, NULL);
     cli_check(tab_opened("tall.c"), "a tall file opens for the map");
     const GuiMinimap *const map = &s_window.minimap;
-    cli_check((map->lines != NULL) && (map->lines->from == 0u) && (map->lines->count > 1u),
+    unsigned long long held_from = 0ULL;
+    unsigned int held_count = 0u;
+    cli_check(map->lines && cli_view_map_lines(&(CliViewMapCfg){.from_out = &held_from, .count_out = &held_count}) &&
+                  (held_from == 0u) && (held_count > 1u),
               "the map's lines are taken as the file opens, from its first line");
     char path[CLI_PATH_MAX_LEN];
     tree_path("tall.c:2500", path);
@@ -1086,8 +1089,8 @@ static void minimap_lines_checked(void)
     cli_check(EMBED_CALL(gui_minimap_first.span, GuiMinimapFirstCfg, .map_read = map, .first = &first, .last = &last) &&
                   (first > 0ULL),
               "the map's first row follows the view down the file");
-    cli_check((map->lines != NULL) && (map->lines->from == first) &&
-                  (map->lines->from + (unsigned long long)map->lines->count == last + 1ULL),
+    cli_check(map->lines && cli_view_map_lines(&(CliViewMapCfg){.from_out = &held_from, .count_out = &held_count}) &&
+                  (held_from == first) && (held_from + (unsigned long long)held_count == last + 1ULL),
               "the map's lines are the lines its rows are for");
 }
 

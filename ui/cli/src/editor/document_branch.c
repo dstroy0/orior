@@ -212,7 +212,9 @@ typedef struct
     unsigned int passed_to;
     int made;
     const unsigned int *record;
-    CliDocumentMap *map;
+    const CarcerMovableEntry *map_cell;
+    unsigned int map_count;
+    unsigned int *bars_pointer;
     unsigned int tab;
     CliDocumentWords *words;
     unsigned int (*word_table)[2];
@@ -2715,7 +2717,6 @@ int cli_document_line_run(const CliDocumentLineRunCfg *args)
 // that opens the line `tab` cells a unit
 EMBED_INLINE void branch_map_line(const DocumentBranchCtx *args)
 {
-    CliDocumentMap *const map = args->map;
     const unsigned int *const record = args->record;
     const unsigned int runs = record[0];
     const unsigned int *const col = record + CLI_DOC_RECORD_HEAD;
@@ -2731,14 +2732,19 @@ EMBED_INLINE void branch_map_line(const DocumentBranchCtx *args)
         }
         else if (width != 0u)
         {
-            map->bar[map->bars] = (CliDocumentMapBar){cell, width, name[run]};
-            map->bars += 1u;
+            const CliDocumentMapBar bar = {cell, width, name[run]};
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = args->map_cell,
+                                    .offset = CLI_DOCUMENT_MAP_BAR_AT(args->map_count, *args->bars_pointer),
+                                    .src = &bar,
+                                    .bytes = sizeof(bar)});
+            *args->bars_pointer += 1u;
             cell += width;
         }
     }
 }
 
-static CliDocumentMap *map_alloc_locked(const CliDocumentMapCfg *args)
+static const CarcerMovableEntry *map_alloc_locked(const CliDocumentMapCfg *args)
 {
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if (one == NULL)
@@ -2772,20 +2778,20 @@ static CliDocumentMap *map_alloc_locked(const CliDocumentMapCfg *args)
         max += (place != CLI_DOC_NO_RUNS) ? word_10 : 1ULL;
     }
     const unsigned int count = to - from;
-    const unsigned long long line_bytes = (count + 1ULL) * sizeof(unsigned int);
-    // the map's lines for a view's frames: a cell of the temporary tier, sized to them
-    CliDocumentMap *const map =
-        g_cli_guard->temporary_buf_alloc(sizeof(*map) + line_bytes + (max * sizeof(CliDocumentMapBar)), args->owner);
+    // the map's lines for a view's frames: a movable cell of the owner the view keeps, sized to them
+    const CarcerMovableEntry *const map =
+        g_cli_guard->movable_buf_alloc(CLI_DOCUMENT_MAP_BAR_AT(count, max), args->owner);
     if (map != NULL)
     {
-        map->from = from;
-        map->count = count;
-        map->bars = 0u;
-        map->line_at = (unsigned int *)(void *)(map + 1);
-        map->bar = (CliDocumentMapBar *)(void *)(map->line_at + count + 1u);
-        for (unsigned int at = 0u; at < count; at += 1u)
+        unsigned int bars = 0u;
+        for (unsigned int at = 0u; at <= count; at += 1u)
         {
-            map->line_at[at] = map->bars;
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = map, .offset = CLI_DOCUMENT_MAP_LINE_AT(at), .src = &bars, .bytes = sizeof(bars)});
+            if (at == count)
+            {
+                break;
+            }
             const unsigned int line = from + at;
             unsigned int place = 0u;
             unsigned long long length = 0ULL;
@@ -2793,26 +2799,31 @@ static CliDocumentMap *map_alloc_locked(const CliDocumentMapCfg *args)
                                                     .line_number = line, .place_out = &place, .length_out = &length);
             if (record != NULL)
             {
-                EMBED_CALL(branch_map_line, DocumentBranchCtx, .map = map, .tab = args->tab, .record = record);
+                EMBED_CALL(branch_map_line, DocumentBranchCtx, .map_cell = map, .map_count = count,
+                           .bars_pointer = &bars, .tab = args->tab, .record = record);
                 g_cli_guard->persistent_buf_release(record, g_cli_editor_owner);
             }
             else if ((place == CLI_DOC_NO_RUNS) && !one->paged && (length != 0ULL))
             {
                 // the units of a line a map shows are far inside what an unsigned int represents
-                map->bar[map->bars] = (CliDocumentMapBar){0u, (unsigned int)length, 0u};
-                map->bars += 1u;
+                const CliDocumentMapBar bar = {0u, (unsigned int)length, 0u};
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                    .cell = map, .offset = CLI_DOCUMENT_MAP_BAR_AT(count, bars), .src = &bar, .bytes = sizeof(bar)});
+                bars += 1u;
             }
         }
-        map->line_at[count] = map->bars;
+        const CliDocumentMapHead head = {from, count, bars};
+        (void)g_cli_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = map, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     }
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
     return map;
 }
 
-CliDocumentMap *cli_document_map_alloc(const CliDocumentMapCfg *args)
+const CarcerMovableEntry *cli_document_map_alloc(const CliDocumentMapCfg *args)
 {
     cli_document_lock_take();
-    CliDocumentMap *const answer = map_alloc_locked(args);
+    const CarcerMovableEntry *const answer = map_alloc_locked(args);
     cli_document_lock_give();
     return answer;
 }

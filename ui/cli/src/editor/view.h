@@ -195,7 +195,6 @@ typedef struct
     CliViewFrame *frame;
     unsigned long long first;
     unsigned long long last;
-    CliDocumentMap *map;
     const CliViewWatcher *watcher;
     unsigned int at;
     char *key_out;
@@ -208,11 +207,28 @@ typedef struct
 CliViewFrame *cli_view_frame_alloc(const CliViewAtCfg *args);
 void cli_view_frame_release(const CliViewAtCfg *args);
 
-// the lines from `first` to `last` of the view under `key` positioned as bars in a cell of the views' owner, as
-// cli_document_map_alloc positions them, a text that indents by tabs a tab's step of cells a unit of the gap that opens
-// a line: the cell, or NULL where no view is open under the key or the cells cannot meet it; and that cell released
-CliDocumentMap *cli_view_map_alloc(const CliViewAtCfg *args);
-void cli_view_map_release(const CliViewAtCfg *args);
+// The minimap's map the views keep. The place puts the lines from `first` to `last` of the view under `key` as bars,
+// as cli_document_map_alloc puts them, in place of the map before. A text that indents by tabs takes a tab's step of
+// cells a unit of the gap that opens a line. The place returns 1, or 0 where no view is open under the key or the
+// cells cannot meet the map. The bars count of `line`, 0 where the map holds no line `line`. The bar `at` of `line`
+// goes into `bar_out`: 1, or 0 where the map holds no such bar. The lines writes the map's first line into `from_out`
+// and its count into `count_out`: 1, or 0 where no map is placed. The release gives the map back
+typedef struct
+{
+    const char *key;
+    unsigned long long first;
+    unsigned long long last;
+    unsigned long long line;
+    unsigned int at;
+    CliDocumentMapBar *bar_out;
+    unsigned long long *from_out;
+    unsigned int *count_out;
+} CliViewMapCfg;
+int cli_view_map_place(const CliViewMapCfg *args);
+unsigned int cli_view_map_bars(const CliViewMapCfg *args);
+int cli_view_map_bar(const CliViewMapCfg *args);
+int cli_view_map_lines(const CliViewMapCfg *args);
+void cli_view_map_release(const CliViewMapCfg *args);
 
 // the names the walk has found within CLI_VIEW_WORD_LINES of the cursor of the view under `key`, each passed to `each`
 // with `context` as cli_document_words_each passes them, before the call returns. No view open under the key passes

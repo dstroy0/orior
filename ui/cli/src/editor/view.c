@@ -1712,8 +1712,8 @@ EMBED_INLINE void view_column_measure_all(const ViewCtx *args)
 }
 
 // the map of a table's lines from `first` to `last`: each field a bar at its column's offset, as wide as the field
-// measures, named as the editor's text, in a cell of the views' owner; NULL where the cells cannot meet it
-EMBED_INLINE CliDocumentMap *view_table_map_alloc(const ViewCtx *args)
+// measures, named as the editor's text, in a movable cell of the views' owner; NULL where the cells cannot meet it
+EMBED_INLINE const CarcerMovableEntry *view_table_map_alloc(const ViewCtx *args)
 {
     CliView *const view = args->view;
     const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
@@ -1732,21 +1732,17 @@ EMBED_INLINE CliDocumentMap *view_table_map_alloc(const ViewCtx *args)
             max += (EMBED_CALL(view_unit, ViewCtx, .view = view, .line = line, .col = at) == view->table) ? 1ULL : 0ULL;
         }
     }
-    CliDocumentMap *const map = g_cli_guard->temporary_buf_alloc(
-        sizeof(*map) + ((count + 1ULL) * sizeof(unsigned int)) + (max * sizeof(CliDocumentMapBar)), g_cli_views_owner);
+    const CarcerMovableEntry *const map =
+        g_cli_guard->movable_buf_alloc(CLI_DOCUMENT_MAP_BAR_AT(count, max), g_cli_views_owner);
     if (map == NULL)
     {
         return NULL;
     }
-    map->from = from;
-    // a count of lines a map holds is far inside what an unsigned int represents
-    map->count = (unsigned int)count;
-    map->bars = 0u;
-    map->line_at = (unsigned int *)(void *)(map + 1);
-    map->bar = (CliDocumentMapBar *)(void *)(map->line_at + count + 1ULL);
+    unsigned int bars = 0u;
     for (unsigned long long line = from; line < to; line += 1ULL)
     {
-        map->line_at[line - from] = map->bars;
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = map, .offset = CLI_DOCUMENT_MAP_LINE_AT(line - from), .src = &bars, .bytes = sizeof(bars)});
         const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line);
         ViewCellPosition position = {0ULL, 0ULL, 0u, 0};
         unsigned long long start = 0ULL;
@@ -1759,9 +1755,10 @@ EMBED_INLINE CliDocumentMap *view_table_map_alloc(const ViewCtx *args)
             {
                 // the field from `start` to the cell before its delimiter is one bar; the cells of a field are far
                 // inside what an unsigned int represents
-                map->bar[map->bars] =
-                    (CliDocumentMapBar){(unsigned int)start, (unsigned int)(position.cell - start), 0u};
-                map->bars += 1u;
+                const CliDocumentMapBar bar = {(unsigned int)start, (unsigned int)(position.cell - start), 0u};
+                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                    .cell = map, .offset = CLI_DOCUMENT_MAP_BAR_AT(count, bars), .src = &bar, .bytes = sizeof(bar)});
+                bars += 1u;
             }
             if (at < length)
             {
@@ -1771,7 +1768,12 @@ EMBED_INLINE CliDocumentMap *view_table_map_alloc(const ViewCtx *args)
             start = ends ? position.cell : start;
         }
     }
-    map->line_at[count] = map->bars;
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = map, .offset = CLI_DOCUMENT_MAP_LINE_AT(count), .src = &bars, .bytes = sizeof(bars)});
+    // a count of lines a map holds is far inside what an unsigned int represents
+    const CliDocumentMapHead head = {from, (unsigned int)count, bars};
+    (void)g_cli_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = map, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     return map;
 }
 
@@ -6466,29 +6468,82 @@ int cli_view_cursor(const CliViewCursorCfg *args)
     return 1;
 }
 
-// the bytes the runs of the minimap's lines may take as they are read for their bars
-#define CLI_VIEW_MAP_CAPACITY (1024ULL * 1024ULL)
+// The minimap's map the views keep: its movable cell, NULL for none, and the head written at the cell's start
+static const CarcerMovableEntry *s_view_map;
+static CliDocumentMapHead s_view_map_head;
 
-CliDocumentMap *cli_view_map_alloc(const CliViewAtCfg *args)
+void cli_view_map_release(const CliViewMapCfg *args)
 {
+    (void)args;
+    (void)g_cli_guard->movable_buf_release(s_view_map, g_cli_views_owner);
+    s_view_map = NULL;
+    s_view_map_head = (CliDocumentMapHead){0ULL, 0u, 0u};
+}
+
+int cli_view_map_place(const CliViewMapCfg *args)
+{
+    cli_view_map_release(args);
     CliView copy;
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     if (view == NULL)
     {
-        return NULL;
-    }
-    if (view->table != 0u)
-    {
-        return EMBED_CALL(view_table_map_alloc, ViewCtx, .view = view, .first = args->first, .last = args->last);
+        return 0;
     }
     const unsigned int tab = (view->indent.tabs == 1) ? EMBED_CALL(view_tab, ViewCtx, .view_read = view) : 1u;
-    return EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = args->key, .first = args->first,
-                      .last = args->last, .tab = tab, .owner = g_cli_views_owner);
+    s_view_map = (view->table != 0u)
+                     ? EMBED_CALL(view_table_map_alloc, ViewCtx, .view = view, .first = args->first, .last = args->last)
+                     : EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = args->key, .first = args->first,
+                                  .last = args->last, .tab = tab, .owner = g_cli_views_owner);
+    if (s_view_map != NULL)
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = s_view_map, .offset = 0ULL, .dst = &s_view_map_head, .bytes = sizeof(s_view_map_head)});
+    }
+    return s_view_map != NULL;
 }
 
-void cli_view_map_release(const CliViewAtCfg *args)
+// the places of the first bar of the map's line `line` and of the line after it into `pair`: 1, or 0 where the map
+// holds no line `line`
+static int view_map_line_places(unsigned long long line, unsigned int pair[2])
 {
-    g_cli_guard->persistent_buf_release(args->map, g_cli_views_owner);
+    if ((s_view_map == NULL) || (line < s_view_map_head.from) ||
+        (line >= (s_view_map_head.from + (unsigned long long)s_view_map_head.count)))
+    {
+        return 0;
+    }
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_view_map,
+                            .offset = CLI_DOCUMENT_MAP_LINE_AT(line - s_view_map_head.from),
+                            .dst = pair,
+                            .bytes = 2u * sizeof(unsigned int)});
+    return 1;
+}
+
+unsigned int cli_view_map_bars(const CliViewMapCfg *args)
+{
+    unsigned int pair[2] = {0u, 0u};
+    return view_map_line_places(args->line, pair) ? (pair[1] - pair[0]) : 0u;
+}
+
+int cli_view_map_bar(const CliViewMapCfg *args)
+{
+    unsigned int pair[2] = {0u, 0u};
+    if (!view_map_line_places(args->line, pair) || (args->at >= (pair[1] - pair[0])))
+    {
+        return 0;
+    }
+    return g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_view_map,
+                            .offset = CLI_DOCUMENT_MAP_BAR_AT(s_view_map_head.count, pair[0] + args->at),
+                            .dst = args->bar_out,
+                            .bytes = sizeof(CliDocumentMapBar)});
+}
+
+int cli_view_map_lines(const CliViewMapCfg *args)
+{
+    *args->from_out = s_view_map_head.from;
+    *args->count_out = s_view_map_head.count;
+    return s_view_map != NULL;
 }
 
 int cli_view_path(const CliViewPathTypeCfg *args)

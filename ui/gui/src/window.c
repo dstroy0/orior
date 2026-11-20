@@ -318,11 +318,11 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
-    cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
+    cli_view_map_release(&(CliViewMapCfg){.key = NULL});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[0]});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[1]});
     window->editor.frame = NULL;
-    window->minimap.lines = NULL;
+    window->minimap.lines = 0;
     window->terminal.frame[0] = NULL;
     window->terminal.frame[1] = NULL;
     window->hover.panel = NULL;
@@ -745,13 +745,12 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
                                                                 .key = key, .serial = &window->editor.names_serial)
                                                    : 0u;
     }
-    if (args->edited || recolored || (window->minimap.lines == NULL) || (key == NULL))
+    if (args->edited || recolored || !window->minimap.lines || (key == NULL))
     {
-        cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
+        cli_view_map_release(&(CliViewMapCfg){.key = NULL});
         window->minimap.lines =
-            ((key != NULL) && window->map_known)
-                ? cli_view_map_alloc(&(CliViewAtCfg){.key = key, .first = window->map_first, .last = window->map_last})
-                : NULL;
+            (key != NULL) && window->map_known &&
+            cli_view_map_place(&(CliViewMapCfg){.key = key, .first = window->map_first, .last = window->map_last});
     }
     window->colors_serial = colors;
     window->colors_key[0] = '\0';
@@ -1045,9 +1044,9 @@ EMBED_INLINE void window_map_span(const GuiWindowCtx *args)
     window->map_first = first;
     window->map_last = last;
     const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
-    cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
+    cli_view_map_release(&(CliViewMapCfg){.key = NULL});
     window->minimap.lines =
-        (key != NULL) ? cli_view_map_alloc(&(CliViewAtCfg){.key = key, .first = first, .last = last}) : NULL;
+        (key != NULL) && cli_view_map_place(&(CliViewMapCfg){.key = key, .first = first, .last = last});
     window->pending = 1;
 }
 

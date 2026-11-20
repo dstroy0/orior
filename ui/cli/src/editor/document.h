@@ -264,20 +264,25 @@ typedef struct
     unsigned int width;
     unsigned int name;
 } CliDocumentMapBar;
-// The minimap's lines in one cell: the first and how many, each line's bars from `line_at[line]` to `line_at[line + 1]`
+// The head of a movable cell of the minimap's lines: the first line and how many, and the bars of them all. The bars'
+// first places follow the head, one for each line and one more, then the bars. The bars of a line go from its place to
+// the next line's place
 typedef struct
 {
     unsigned long long from;
     unsigned int count;
     unsigned int bars;
-    unsigned int *line_at;
-    CliDocumentMapBar *bar;
-} CliDocumentMap;
-// the lines from `first` to `last` of the text under `key` walked where they save no runs that are and positioned in a
-// cell of `owner`, sized to them: each run with a name a bar, the empty name a gap, and a gap that opens a line `tab`
-// cells a unit, every other run one cell a unit. A line with no runs is positioned as one bar of the empty name, its
-// units wide, where the text holds its units: the cell, or NULL where no text is stored under the key or the cells
-// cannot meet it
+} CliDocumentMapHead;
+// the offset in a map's cell of the place of line `at_`'s first bar, and of bar `bar_` of a map of `count_` lines
+#define CLI_DOCUMENT_MAP_LINE_AT(at_) (sizeof(CliDocumentMapHead) + ((unsigned long long)(at_) * sizeof(unsigned int)))
+#define CLI_DOCUMENT_MAP_BAR_AT(count_, bar_)                                                                          \
+    (CLI_DOCUMENT_MAP_LINE_AT((unsigned long long)(count_) + 1ULL) +                                                   \
+     ((unsigned long long)(bar_) * sizeof(CliDocumentMapBar)))
+// The walk colors the lines from `first` to `last` of the text under `key` where they save no runs. The lines then go
+// as bars into a movable cell of `owner`, sized to them. Each run with a name is a bar and the empty name a gap. A gap
+// that opens a line is `tab` cells a unit, and every other run one cell a unit. A line with no runs is one bar of the
+// empty name, its units wide, where the text holds its units. Returns the cell, or NULL where no text is stored under
+// the key or the cells cannot meet it
 typedef struct
 {
     const char *key;
@@ -286,7 +291,7 @@ typedef struct
     unsigned int tab;
     const CellOwner *owner;
 } CliDocumentMapCfg;
-CliDocumentMap *cli_document_map_alloc(const CliDocumentMapCfg *args);
+const CarcerMovableEntry *cli_document_map_alloc(const CliDocumentMapCfg *args);
 // the runs the walk has saved on the lines from `first` to `last` of the text under `key` read for the names among
 // them, each of two units or more once, the one `cursor` is in or at the end of left out. Each name goes to `each`
 // with `context` as UTF-8 before the call returns. The list lives in the document module for this call alone. A paged
@@ -741,7 +746,7 @@ EMBED_TABLE_STORAGE CliDocumentLineRunNs cli_document_line_run_table EMBED_UNUSE
 
 typedef struct
 {
-    CliDocumentMap *(*map_alloc)(const CliDocumentMapCfg *args);
+    const CarcerMovableEntry *(*map_alloc)(const CliDocumentMapCfg *args);
 } CliDocumentMapNs;
 EMBED_TABLE_LAYOUT(CliDocumentMapNs, map_alloc);
 EMBED_TABLE_STORAGE CliDocumentMapNs cli_document_map EMBED_UNUSED = {

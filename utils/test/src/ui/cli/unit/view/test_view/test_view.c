@@ -558,18 +558,23 @@ void test_a_table_s_map_positions_each_field_at_its_column(void)
     CliViewFrame *const frame = cli_view_frame_alloc(&(CliViewAtCfg){.key = s_key});
     TEST_ASSERT_NOT_NULL(frame);
     cli_view_frame_release(&(CliViewAtCfg){.frame = frame});
-    CliDocumentMap *const map = cli_view_map_alloc(&(CliViewAtCfg){.key = s_key, .first = 0ull, .last = 1ull});
-    TEST_ASSERT_NOT_NULL(map);
-    TEST_ASSERT_EQUAL_UINT32(2u, map->count);
-    TEST_ASSERT_EQUAL_UINT32(6u, map->bars);
-    TEST_ASSERT_EQUAL_UINT32(3u, map->line_at[1]);
-    TEST_ASSERT_EQUAL_UINT32(0u, map->bar[3].start);
-    TEST_ASSERT_EQUAL_UINT32(4u, map->bar[3].width);
-    TEST_ASSERT_EQUAL_UINT32(5u, map->bar[4].start);
-    TEST_ASSERT_EQUAL_UINT32(1u, map->bar[4].width);
-    TEST_ASSERT_EQUAL_UINT32(8u, map->bar[5].start);
-    TEST_ASSERT_EQUAL_UINT32(1u, map->bar[5].width);
-    cli_view_map_release(&(CliViewAtCfg){.map = map});
+    TEST_ASSERT_TRUE(cli_view_map_place(&(CliViewMapCfg){.key = s_key, .first = 0ull, .last = 1ull}));
+    unsigned long long from = 0ull;
+    unsigned int count = 0u;
+    TEST_ASSERT_TRUE(cli_view_map_lines(&(CliViewMapCfg){.from_out = &from, .count_out = &count}));
+    TEST_ASSERT_EQUAL_UINT32(2u, count);
+    TEST_ASSERT_EQUAL_UINT32(3u, cli_view_map_bars(&(CliViewMapCfg){.line = 0ull}));
+    TEST_ASSERT_EQUAL_UINT32(3u, cli_view_map_bars(&(CliViewMapCfg){.line = 1ull}));
+    // the second line's bars: its fields at their columns, each as wide as it measures
+    static const unsigned int s_bars[3][2] = {{0u, 4u}, {5u, 1u}, {8u, 1u}};
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        CliDocumentMapBar bar = {0u, 0u, 0u};
+        TEST_ASSERT_TRUE(cli_view_map_bar(&(CliViewMapCfg){.line = 1ull, .at = at, .bar_out = &bar}));
+        TEST_ASSERT_EQUAL_UINT32(s_bars[at][0], bar.start);
+        TEST_ASSERT_EQUAL_UINT32(s_bars[at][1], bar.width);
+    }
+    cli_view_map_release(&(CliViewMapCfg){.key = NULL});
 }
 
 // what the views last passed the watcher: the moment and its key and path, and the last frame's view
@@ -1942,12 +1947,14 @@ void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_wal
     typed("x");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_view_table.changed_clear, CliViewCfg, .key = s_key));
-    CliDocumentMap *const map = EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = s_key, .first = 0ull,
-                                           .last = 4ull, .tab = 4u, .owner = g_cli_text_owner);
+    const CarcerMovableEntry *const map = EMBED_CALL(cli_document_map.map_alloc, CliDocumentMapCfg, .key = s_key,
+                                                     .first = 0ull, .last = 4ull, .tab = 4u, .owner = g_cli_text_owner);
     TEST_ASSERT_NOT_NULL(map);
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, map->count);
-    TEST_ASSERT_GREATER_THAN_UINT(0u, map->bars);
-    g_cli_guard->persistent_buf_release(map, g_cli_text_owner);
+    CliDocumentMapHead head = {0ull, 0u, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = map, .dst = &head, .bytes = sizeof(head)});
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, head.count);
+    TEST_ASSERT_GREATER_THAN_UINT(0u, head.bars);
+    (void)g_cli_guard->movable_buf_release(map, g_cli_text_owner);
 }
 
 // a fold written after the others as `first-last`, `|` between them
