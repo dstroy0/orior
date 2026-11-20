@@ -98,27 +98,27 @@ typedef struct
 #define REFERENCES_ONE_AT(at_)                                                                                         \
     (REFERENCES_FILE_AT(s_references.files) + ((unsigned long long)(at_) * sizeof(Reference)))
 
-// the text the editor holds of the tree's file at `path`, in a cell the tree gives back as the code's: NULL where it
-// holds none
+// The servers write the editor's text of the tree's file at `path` a window at a time into a cell of the code's own.
+// A NUL follows the text, and the tree gives the cell back. Returns the cell, or NULL where the editor holds no text or
+// the pool cannot meet the cell
 static char *references_open_text(const CliOpenTextCfg *args)
 {
     unsigned long long size = 0ULL;
-    char *const held = EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg, .path = args->path,
-                                  .size_pointer = &size);
-    if (held == NULL)
+    if (!EMBED_CALL(cli_servers_path_size_type.text_measure, CliServersPathSizeTypeCfg, .path = args->path,
+                    .size_pointer = &size))
     {
         return NULL;
     }
-    char *const copy = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner);
-    if (copy != NULL)
+    char *const text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner);
+    VerbaLinea line = {text, size + 1ULL, 0ULL};
+    if ((text == NULL) || !EMBED_CALL(cli_servers_path_out_err_msg_from_to.text_get, CliServersPathOutErrMsgFromToCfg,
+                                      .path = args->path, .out = &line))
     {
-        // a text the editor holds fits a embed_word
-        memor.cpy(&(MemoriaCfg){.dst = copy, .src = held, .bytes = (embed_word)size});
-        copy[size] = '\0';
-        *args->size = size;
+        g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
+        return NULL;
     }
-    g_cli_guard->persistent_buf_release(held, g_cli_servers_owner);
-    return copy;
+    *args->size = mmgr_line_finish(&line);
+    return text;
 }
 
 // one reference the tree passes: a file record where its path is not the last file's, its line's text and its record

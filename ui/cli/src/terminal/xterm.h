@@ -14,6 +14,7 @@
 // the xterm does not read it reads past (xterm.c)
 #ifndef CLI_TERMINAL_XTERM_H
 #define CLI_TERMINAL_XTERM_H
+#include "../command_line/callback_cfg.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliTerminalXtermSizeCfg CliTerminalXtermSizeCfg;
@@ -65,8 +66,8 @@ typedef struct
 // the answer for the shell, each in its own bytes; the folder the path of a folder the shell reports is written into,
 // NULL for none, and its bytes, whether a folder was reported since the terminal last read it and whether one ever
 // was; the cursor, the region that scrolls and the cursor saved; the modes; where the reading of the output is and
-// the bytes of a character cut across two writes; whether the text or the cursor moved since the drawing last read them;
-// and whether the text refused an edit, after which nothing more is written into it
+// the bytes of a character cut across two writes; whether the text or the cursor moved since the drawing last read
+// them; and whether the text refused an edit, after which the xterm writes no further bytes into it
 typedef struct
 {
     unsigned int columns;
@@ -120,8 +121,8 @@ unsigned long long cli_terminal_xterm_trim(const CliTerminalXtermKeepCfg *args);
 unsigned short *cli_terminal_xterm_line_units_alloc(const CliTerminalXtermLineCfg *args);
 // `size` bytes of a shell's output read into the text, a character or a sequence cut by the end read on with the next
 void cli_terminal_xterm_write(const CliTerminalXtermBytesCfg *args);
-// the place among a row's `count` units at `units` where the character of column `column` starts, the sequences before it
-// passed over: `count` where the row's characters end first
+// the place among a row's `count` units at `units` where the character of column `column` starts, the sequences before
+// it passed over: `count` where the row's characters end first
 typedef struct
 {
     const unsigned short *units;
@@ -129,14 +130,24 @@ typedef struct
     unsigned int column;
 } CliTerminalXtermUnitsCfg;
 unsigned long long cli_terminal_xterm_column_unit(const CliTerminalXtermUnitsCfg *args);
-// the `size` bytes at `bytes` with the escape sequences among them taken out in place, the characters after each moved up:
-// the count of the bytes left
+// the `size` bytes at `bytes` with the escape sequences among them taken out in place, the characters after each moved
+// up: the count of the bytes left
 typedef struct
 {
     unsigned char *bytes;
     unsigned long long size;
 } CliTerminalXtermPlainCfg;
 unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args);
+// Each run of the `size` bytes at `text` between two escape sequences goes to `each` with `context`, in order. The
+// text stays as it is
+typedef struct
+{
+    const char *text;
+    unsigned long long size;
+    void (*each)(const CliEachTextLengthCfg *args);
+    void *context;
+} CliTerminalXtermPlainEachCfg;
+void cli_terminal_xterm_plain_each(const CliTerminalXtermPlainEachCfg *args);
 // A span of a line's plain text in one style: the place of its first byte among the plain bytes and its bytes, its
 // color, the index of one of the sixteen or CLI_TERMINAL_SPAN_PLAIN for the default and every other, and whether it is
 // bold

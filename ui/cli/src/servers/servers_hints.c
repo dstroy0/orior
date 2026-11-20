@@ -157,7 +157,7 @@ int cli_servers_selection(const CliServersPathErrMsgOutCtx *args)
                                            .each = hints_selection_spans, .context = &selection))
     {
         unsigned long long size = 0ULL;
-        char *const text = EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
+        char *const text = EMBED_CALL(cli_servers_path_size_type_internal.text_alloc, CliServersPathSizeTypeCtx,
                                       .path = args->path, .size_pointer = &size);
         if (text != NULL)
         {

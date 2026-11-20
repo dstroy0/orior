@@ -22,6 +22,7 @@
 typedef struct CliServersPathCtx CliServersPathCtx;
 typedef struct CliServersPathErrMsgCtx CliServersPathErrMsgCtx;
 typedef struct CliServersPathSizeCtx CliServersPathSizeCtx;
+typedef struct CliServersPathSizeTypeCtx CliServersPathSizeTypeCtx;
 typedef struct CliServersPathSizeRootCtx CliServersPathSizeRootCtx;
 typedef struct CliServersPathSizeRootErrMsgCtx CliServersPathSizeRootErrMsgCtx;
 typedef struct CliServersLengthCtx CliServersLengthCtx;
@@ -448,6 +449,10 @@ typedef int (*CliServersWindow)(const CliServersWindowCfg *args);
 int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args);
 int cli_servers_cut_send(const CliServersErrMsgServerCtx *args);
 
+// The editor's text of a file goes into a temporary cell of the servers with a 0 after it, and its size into `size`.
+// Returns the cell, or NULL where the editor has no text or the pool cannot meet the cell. The call that asks gives
+// the cell back (servers_files.c)
+char *cli_servers_text_alloc(const CliServersPathSizeTypeCtx *args);
 // a file's key and its URI, each into what is sized for CLI_PATH_MAX_LEN (servers_emit.c)
 void cli_servers_key_get(const CliServersPathKeyCtx *args);
 void cli_servers_uri_get(const CliServersPathUriCtx *args);
@@ -581,6 +586,12 @@ struct CliServersPathErrMsgCtx
     const char *tree;
     VerbaLinea *out;
     const char *name;
+};
+
+struct CliServersPathSizeTypeCtx
+{
+    const char *path;
+    unsigned long long *size_pointer;
 };
 
 struct CliServersPathSizeCtx
@@ -1364,6 +1375,15 @@ EMBED_TABLE_LAYOUT(CliServersErrMsgServerNs, cut_send, plugin_get);
 EMBED_TABLE_STORAGE CliServersErrMsgServerNs cli_servers_err_msg_server_internal EMBED_UNUSED = {
     .cut_send = cli_servers_cut_send,
     .plugin_get = cli_servers_plugin_get,
+};
+
+typedef struct
+{
+    char *(*text_alloc)(const CliServersPathSizeTypeCtx *args);
+} CliServersPathSizeTypeInternalNs;
+EMBED_TABLE_LAYOUT(CliServersPathSizeTypeInternalNs, text_alloc);
+EMBED_TABLE_STORAGE CliServersPathSizeTypeInternalNs cli_servers_path_size_type_internal EMBED_UNUSED = {
+    .text_alloc = cli_servers_text_alloc,
 };
 
 typedef struct

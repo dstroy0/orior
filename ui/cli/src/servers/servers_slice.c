@@ -715,9 +715,10 @@ static void slice_gather_job(const CliServersJobCfg *args)
     CliLsp *const server =
         same ? EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = gather->path) : NULL;
     unsigned long long size = 0ULL;
-    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
-                                                     .path = gather->path, .size_pointer = &size)
-                                        : NULL;
+    char *const text = (server != NULL)
+                           ? EMBED_CALL(cli_servers_path_size_type_internal.text_alloc, CliServersPathSizeTypeCtx,
+                                        .path = gather->path, .size_pointer = &size)
+                           : NULL;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     int fresh = 0;
@@ -755,8 +756,8 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
             ? EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = path)
             : NULL;
     unsigned long long size = 0ULL;
-    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_type.text_alloc, CliServersPathSizeTypeCfg,
-                                                     .path = path, .size_pointer = &size)
+    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_type_internal.text_alloc,
+                                                     CliServersPathSizeTypeCtx, .path = path, .size_pointer = &size)
                                         : NULL;
     if (text == NULL)
     {

@@ -1600,8 +1600,8 @@ EMBED_INLINE unsigned long long xterm_text_run(const XtermCtx *args)
             unsigned long long packed = 0ULL;
             memor.cpy(&(MemoriaCfg){.dst = &packed, .src = args->bytes + at, .bytes = 8u});
             const unsigned long long rubout = packed ^ (ones * 0x7fULL);
-            const unsigned long long flagged =
-                ((packed - (ones * 0x20ULL)) & ~packed & highs) | ((rubout - ones) & ~rubout & highs) | (packed & highs);
+            const unsigned long long flagged = ((packed - (ones * 0x20ULL)) & ~packed & highs) |
+                                               ((rubout - ones) & ~rubout & highs) | (packed & highs);
             if (flagged != 0ULL)
             {
                 break;
@@ -1788,6 +1788,36 @@ unsigned long long cli_terminal_xterm_plain(const CliTerminalXtermPlainCfg *args
         at += 1ULL;
     }
     return plain_count;
+}
+
+void cli_terminal_xterm_plain_each(const CliTerminalXtermPlainEachCfg *args)
+{
+    // the text's bytes read as the xterm reads every byte, unsigned
+    const unsigned char *const bytes = (const unsigned char *)args->text;
+    unsigned long long run = 0ULL;
+    unsigned long long at = 0ULL;
+    while (at < args->size)
+    {
+        const unsigned long long sequence =
+            EMBED_CALL(xterm_sequence_units, XtermCtx, .bytes = bytes, .units_count = args->size, .at = at);
+        if (sequence == 0ULL)
+        {
+            at += 1ULL;
+            continue;
+        }
+        if (at > run)
+        {
+            EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = args->text + run,
+                       .length = at - run);
+        }
+        at += sequence;
+        run = at;
+    }
+    if (args->size > run)
+    {
+        EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = args->text + run,
+                   .length = args->size - run);
+    }
 }
 
 unsigned int cli_terminal_xterm_spans(const CliTerminalXtermSpansCfg *args)

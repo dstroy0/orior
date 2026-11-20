@@ -492,6 +492,9 @@ void cli_clipboard_clear(void);
 // (platform/windows_clipboard.c, platform/posix_clipboard.c)
 int cli_clipboard_units_take(const CliClipboardUnitsCtx *args);
 int cli_clipboard_units_append(const CarcerMovableCfg *args);
+// The `size` bytes of UTF-8 at `text` go after the units of the take as UTF-16. A byte that starts no character is one
+// unit. Returns 1, or 0 where no take is out or the units do not fit (windows_clipboard.c, posix_clipboard.c)
+int cli_clipboard_units_append_text(const CliSizeTextCtx *args);
 int cli_clipboard_units_break(const CliClipboardUnitsCtx *args);
 int cli_clipboard_units_put(const CliClipboardUnitsCtx *args);
 const unsigned short *cli_clipboard_units_open(const CliClipboardUnitsCtx *args);

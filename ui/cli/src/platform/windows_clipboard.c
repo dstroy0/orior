@@ -201,6 +201,23 @@ int cli_clipboard_units_append(const CarcerMovableCfg *args)
     return read;
 }
 
+int cli_clipboard_units_append_text(const CliSizeTextCtx *args)
+{
+    const unsigned long long room = s_units_capacity - s_units_at;
+    if ((s_units == NULL) || (args->size > CLI_CLIPBOARD_INT_MAX) || (room > CLI_CLIPBOARD_INT_MAX))
+    {
+        return 0;
+    }
+    if (args->size == 0ULL)
+    {
+        return 1;
+    }
+    // the size and the room are at max what an int counts, as checked above
+    const int units = MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, s_units + s_units_at, (int)room);
+    s_units_at += (units > 0) ? (unsigned long long)units : 0ULL;
+    return units > 0;
+}
+
 int cli_clipboard_units_break(const CliClipboardUnitsCtx *args)
 {
     (void)args;
