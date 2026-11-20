@@ -138,7 +138,7 @@ int main(void)
   run_test(test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none, "test_a_stored_lines_units_are_copied_out_and_a_line_past_the_end_is_none", 673);
   run_test(test_utf16_units_read_as_characters_and_write_as_utf8_and_json, "test_utf16_units_read_as_characters_and_write_as_utf8_and_json", 695);
   run_test(test_the_walks_telemetry_switches_on_and_off_around_a_walk, "test_the_walks_telemetry_switches_on_and_off_around_a_walk", 715);
-  run_test(test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out, "test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out", 727);
+  run_test(test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out, "test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out", 739);
 
   return UNITY_END();
 }
