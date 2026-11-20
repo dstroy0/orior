@@ -11,8 +11,9 @@
 #include <string>
 #include <vector>
 
-// the schema as the core reads it, in host memory: every name's characters end to end, each form's, bank's and fixed
-// register's name among them, each form's count of parameters, and the core's view of them, which points into them
+// the schema as the core reads it, in host memory. It holds the characters of each name end to end, with the names of
+// each form, bank and fixed register among them. It also holds the count of parameters of each form, and the view of
+// the core, which points into them
 struct RulesetFlat
 {
     std::vector<unsigned char> characters;
@@ -52,8 +53,9 @@ struct RulesetFlatConstructs
     std::vector<unsigned int> form_placeholders;
 };
 
-// the memory of a relation read in host memory: the files' characters end to end, each file's span and the name a report
-// knows it by, and the entries, the walk's marks and stack and the relations, sized from the files' lines
+// the memory of a relation read in host memory. It holds the characters of the files end to end, and the span of each
+// file with the name that a report knows it by. It also holds the entries, the marks and stack of the walk, and the
+// relations, sized from the lines of the files
 struct RulesetRelationMemory
 {
     std::vector<unsigned char> text;
@@ -65,9 +67,9 @@ struct RulesetRelationMemory
     std::vector<RulesetCoreRelation> relations;
 };
 
-// the files at `paths`, `count` of them, read into `memory` and checked against each other, and against `schema` where
-// it is not NULL, by ruleset_core_relations into `relations`, which points into `memory`: 1, or 0 where a file could
-// not be opened, and its path in `error`
+// the files at `paths`, `count` of them, read into `memory`. The check ruleset_core_relations reads them against each
+// other, and against `schema` where it is not NULL, into `relations`, which points into `memory`. The result is 1, or
+// 0 with its path in `error` where a file did not open
 int ruleset_relations_read(const std::string *paths, unsigned int count, const RulesetCoreSchema *schema,
                            RulesetRelationMemory *memory, RulesetCoreRelations *relations, std::string *error);
 
@@ -80,28 +82,33 @@ const char *ruleset_map_text(unsigned int type);
 // the max characters a ruleset's file contains, which limits the reader's capacities in 32 bits
 #define RULESET_FILE_MAX (1u << 30u)
 
-// the max files a ruleset is read from: its own, its part's .krs and .kdm, and the .ksc beside it
+// the most files of a ruleset: its own, the .krs and .kdm of its part, and the .ksc beside it
 #define RULESET_PATHS_MAX 4u
 
-// The file at `path` read whole onto the end of `text` as the run stores it, where the program is of a run and the run
-// stores it (qry_member_file), and from the disk where it is not: 1, or 0 where neither is there. A program built
-// without the run reads every file from the disk. The text stops once it reaches RULESET_FILE_MAX characters, which the
-// caller refuses
+// The file at `path`, read whole onto the end of `text`. Where the program is of a run and the run stores the file, the
+// read is as the run stores it (qry_member_file). Else the read comes from the disk. The result is 1, or 0 where
+// neither has it.
+// A program built without the run reads each file from the disk. The text stops once it reaches RULESET_FILE_MAX
+// characters, which the caller refuses
 int ruleset_bytes_read(const std::string &path, std::string *text);
 
-// the files the ruleset at `path` is read from, into `paths` in the order ruleset_text reads them: the file, where
-// the file names a part on its line part <part> the part's .krs and .kdm, and the .ksc beside the file where it opens.
-// Their count returned
+// the files of the ruleset at `path`, into `paths` in the order that ruleset_text reads them:
+//   - the file.
+//   - where the file names a part on its line part <part>, the .krs and .kdm of the part.
+//   - the .ksc beside the file, where it opens.
+//
+// The result is their count
 unsigned int ruleset_paths(const RulesetSchema *schema, const std::string &path, std::string paths[RULESET_PATHS_MAX]);
 
-// the ruleset at `path` read whole into `text`, and where the file names a part, the part's .krs after it, its krs 1
-// line left out, the ruleset lines of the part's .kdm after that, and last the ruleset lines of the .ksc beside the
-// file where it has one: 1 where all were read; 0, and why in `error`, where one could not be opened or the whole is
-// more than the reader supports
+// the ruleset at `path`, read whole into `text`. Where the file names a part, the .krs of the part comes after it,
+// without its krs 1 line. The ruleset lines of the .kdm of the part come after that. Last come the ruleset lines of
+// the .ksc beside the file, where it has one.
+// The result is 1 where each read succeeded. It is 0, with the reason in `error`, where one did not open or the whole
+// is more than the reader supports
 int ruleset_text(const RulesetSchema *schema, const std::string &path, std::string *text, std::string *error);
 
-// `rules` begun against its schema, as the host's reader begins it, and its text read into `text` by ruleset_text: 1
-// where it was read; 0, and why in rules->error, where it was not
+// `rules` begun against its schema, as the reader of the host begins it, with its text read into `text` by
+// ruleset_text. The result is 1 where the read succeeded. It is 0, with the reason in rules->error, where it failed
 int ruleset_file(Ruleset *rules, const std::string &path, std::string *text);
 
 void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat);
