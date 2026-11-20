@@ -488,7 +488,6 @@ includes/file_defs/krep/krep_records/viewed.c	2
 includes/file_defs/krf/krf.c	1
 includes/file_defs/krf/krf.h	4
 includes/file_defs/krs/krs_write/forms.c	7
-includes/file_defs/krs/krs_write/frame_forms.h	8
 includes/file_defs/krs/krs_write/head.h	2
 includes/file_defs/krs/krs_write/krs_write_internal.h	4
 includes/file_defs/krs/krs_write/words.c	4
