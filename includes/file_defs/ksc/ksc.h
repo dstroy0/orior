@@ -26,8 +26,8 @@ extern "C"
     // A .ksc's lines (kfile_lines.h). A file starts as zeros
     typedef KfileLines KscFile;
 
-    // one row of a channel: the channel, what came back, the word it answered as the row writes it and as a number,
-    // and the question
+    // one row of a channel: the channel, what came back, and the word that it answered, as the row writes it and as a
+    // number. Then the question
     typedef struct
     {
         char channel[KSC_CHANNEL];
@@ -37,12 +37,12 @@ extern "C"
         char question[KSC_QUESTION];
     } KscRow;
 
-    // the .ksc at `path` read into `file` as the run stores it (kfile_lines_read): 1, and none of its lines where there
-    // is no such file; 0 where there was no memory for a line
+    // the .ksc at `path`, read into `file` as the run stores it (kfile_lines_read). The result is 1, with no lines where
+    // there is no such file. It is 0 where there was no memory for a line
     int ksc_read(KscFile *file, const char *path);
 
-    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
-    // could not be written
+    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by). The result is 1,
+    // or 0 where the write failed
     int ksc_write_by(const KscFile *file, const char *path, Who who);
 
     // every line `file` contains let go, and the file zeros again
@@ -55,22 +55,26 @@ extern "C"
     // after its answer; 0 otherwise
     int ksc_row_read(const char *line, const char *channel, KscRow *row);
 
-    // the field line `field <name> <from> <width>` at `line`, its name into `name`, which has room for `room`, its
-    // first bit into `from` and its width into `width`: 1, or 0 where `line` is no field line or a value does not fit
+    // the field line `field <name> <from> <width>` at `line`. Its name goes into `name`, which has room for `room`. Its
+    // first bit goes into `from`, and its width into `width`. The result is 1, or 0 where `line` is no field line or a
+    // value does not fit
     int ksc_field_read(const char *line, char *name, size_t room, unsigned int *from, unsigned int *width);
 
-    // Every row of `channel` whose question begins with the words `question_prefix` let go, whatever came back, and
-    // `rows`, `count` of them, put by `who` where the first row of the question was, so that a row put again retains
-    // its place; where the file contains none of the question, after the last row of the channel it retains, or after
-    // its last line where it retains none of the channel (kfile_lines_put_by). Each count of the channel, `count
-    // <channel> <answer> <number>`, is taken again over the rows it then contains, and every who line left over no line
-    // is let go. 1, or 0 where there was no memory for the rows, the file as it was
+    // Each row of `channel` whose question begins with the words `question_prefix`, let go, whatever came back. Then
+    // `who` puts `rows`, `count` of them, where the first row of the question was. A row put again then keeps its place.
+    // Where the file holds none of the question, they go after the last row of the channel that it keeps. Where it keeps
+    // none of the channel, they go after its last line (kfile_lines_put_by).
+    //
+    // The call takes each count of the channel, `count <channel> <answer> <number>`, again over the rows that it then
+    // holds. It drops each who line that is over no line. The result is 1, or 0 where there was no memory for the rows,
+    // and the file stays as it was
     int ksc_rows_replaced_by(KscFile *file, const char *channel, const char *question_prefix, const char *const *rows,
                              unsigned int count, Who who);
 
-    // As ksc_rows_replaced_by, and every row let go that no row put gives again recorded in `removed`, a file of the
-    // caller's (kfile_lines_free), each as the file contained it and in its order, for the part's .krf to record
-    // (krf.h); NULL records none. 1, or 0 where there was no memory for the rows, the file as it was
+    // As ksc_rows_replaced_by. Each row that the call lets go, and that no put row gives again, goes in `removed`. That
+    // is a file of the caller (kfile_lines_free), for the .krf of the part (krf.h). Each row is as it was in the file, and
+    // in its order. NULL records none. The result is 1, or 0 where there was no memory for the rows, and the file stays as
+    // it was
     int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *question_prefix,
                                     const char *const *rows, unsigned int count, Who who, KfileLines *removed);
 

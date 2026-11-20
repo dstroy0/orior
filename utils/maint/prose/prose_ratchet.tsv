@@ -487,7 +487,6 @@ includes/file_defs/krs/krs_write/words.c	4
 includes/file_defs/krs/ruleset_core_relations.h	4
 includes/file_defs/krs/ruleset_flat/flat.cu	4
 includes/file_defs/ksc/ksc.c	3
-includes/file_defs/ksc/ksc.h	7
 includes/file_defs/ksg/ksa.c	1
 includes/file_defs/ksg/ksa.h	3
 includes/file_defs/ksg/ksg_approvals.c	2
