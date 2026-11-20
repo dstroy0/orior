@@ -21,12 +21,17 @@ typedef struct GuiBlockFramebufferCfg GuiBlockFramebufferCfg;
 // buffer at
 #define GUI_BLOCK_POSITION (64ULL << 10u)
 
-// The parts, each named with its segments; a segment holds one raster of the largest monitor. The rasters hold one
-// each; the glyph cells, the busy indicator and the faces span theirs; the lattice has a segment a slot and the faces one
-// a face; the work parts hold the float coverage a glyph, an icon or the wordmark's cut is drawn in before its bytes,
-// and the row counts a polygon fill retains; the bead part holds the toolkit's own three groups of beads, the side menu's,
-// the top menu's and the controls', a segment each. A program adds parts of its own after them through
-// GUI_BLOCK_PARTS_OWN, which its build defines as part_(NAME, segments) lines, none where it defines none
+// The parts, each named with its segments. A segment holds one raster of the largest monitor.
+//   - the rasters hold one each.
+//   - the glyph cells, the busy indicator and the faces span theirs.
+//   - the lattice has a segment for each of its LATTICE_SLOTS lattices, and the faces one a face.
+//   - the work parts hold the float coverage that a glyph, an icon or the cut of the wordmark draws in before its
+//     bytes. They also hold the row counts that a polygon fill keeps.
+//   - the bead part holds the own three groups of beads of the toolkit, a segment each. Those are the beads of the side
+//     menu, of the top menu and of the controls.
+//
+// A program adds parts of its own after them through GUI_BLOCK_PARTS_OWN. Its build defines that as
+// part_(NAME, segments) lines, none where it defines none
 #ifndef GUI_BLOCK_PARTS_OWN
 #define GUI_BLOCK_PARTS_OWN(part_)
 #endif
@@ -66,34 +71,42 @@ enum
 // the max segments a part has
 #define GUI_BLOCK_SEGMENTS_MAX 8u
 
-// the block reserved for a monitor `width` by `height`, nothing of it committed: 1, or 0 where there is no size or the
-// system gave no pages; the block given back whole, every part with it; and the bytes one raster of the largest monitor
-// takes, which is a segment's capacity, 0 where the block has no pages
+// the block reserved for a monitor `width` by `height`, with nothing of it committed. The result is 1, or 0 where there
+// is no size or the system gave no pages.
+// Then the block given back whole, each part with it. Then the bytes of one raster of the largest monitor, the capacity of
+// a segment, 0 where the block has no pages
 int gui_block_init(const GuiBlockSizeCfg *args);
 void gui_block_free(const GuiBlockSizeCfg *args);
 unsigned long long gui_block_raster_bytes(const GuiBlockSizeCfg *args);
-// the ring of part `part` positioned anew over the part's span, its segments the part's, each segment's pages committed as
-// far as `bytes` reach: the ring, or NULL where the block has no pages or `bytes` pass a segment; the ring as it
-// is, NULL where the block has no pages; `bytes` from the start of segment `segment` of part `part`, committed:
-// the span, or NULL where the block has no pages or `bytes` pass a segment; and `bytes` taken at `*cursor` from the
-// start of part `part`, across its segments, committed, the cursor moved past them to a word's boundary: the span, or
-// NULL where the block has no pages or the take passes the part, the cursor as it was
+// The calls on the parts. Each gives NULL where the block has no pages.
+//   - the ring of part `part`, positioned anew over the span of the part, its segments those of the part. The call
+//     commits the pages of each segment as far as `bytes` reach. The result is the ring, or NULL where `bytes` pass a
+//     segment.
+//   - the ring as it is.
+//   - `bytes` from the start of segment `segment` of part `part`, committed. The result is the span, or NULL where
+//     `bytes` pass a segment.
+//   - `bytes` taken at `*cursor` from the start of part `part`, across its segments, committed. The cursor moves past
+//     them to the boundary of a word. The result is the span, or NULL where the take passes the part. The cursor then
+//     stays as it was.
 mmgr_ring *gui_block_ring(const GuiBlockPartCfg *args);
 mmgr_ring *gui_block_ring_read(const GuiBlockPartCfg *args);
 unsigned char *gui_block_span(const GuiBlockPartCfg *args);
 unsigned char *gui_block_take(const GuiBlockPartCfg *args);
-// a raster of `width` by `height` made clear over segment `segment` of part `part`, its pixels committed: 1, or 0
-// where the block has no pages or the raster passes the segment
+// a raster of `width` by `height`, made clear over segment `segment` of part `part`, with its pixels committed. The
+// result is 1, or 0 where the block has no pages or the raster passes the segment
 int gui_block_raster_init(const GuiBlockRasterCfg *args);
-// the framebuffers positioned over the frames and background parts for a window `width` by `height`, a segment's capacity
-// one raster of the largest monitor: 1, or 0 where the block has no pages or the window passes the capacity; and the
-// framebuffers sized to a window `width` by `height`, each segment's pages committed as far as the window draws: 1, or
-// 0 with nothing changed where the window passes the capacity
+// the framebuffers, positioned over the frames and background parts for a window `width` by `height`. The capacity of a
+// segment is one raster of the largest monitor. The result is 1, or 0 where the block has no pages or the window
+// passes the capacity.
+// Then the framebuffers sized to a window `width` by `height`, with the pages of each segment committed as far as the
+// window draws. The result is 1, or 0 with no change where the window passes the capacity
 int gui_block_framebuffer_init(const GuiBlockFramebufferCfg *args);
 int gui_block_framebuffer_fit(const GuiBlockFramebufferCfg *args);
 
-// The system's pages the block positions in, as the caller's system does them: `bytes` of pages reserved, NULL where the
-// system gives none; `bytes` of pages at `at` committed, 1 or 0; and `bytes` of pages at `at` given back
+// The pages of the system that the block sits in, as the system of the caller gives them:
+//   - `bytes` of pages reserved, NULL where the system gives none.
+//   - `bytes` of pages at `at` committed, 1 or 0.
+//   - `bytes` of pages at `at` given back.
 typedef struct
 {
     void *(*reserve)(unsigned long long bytes);
