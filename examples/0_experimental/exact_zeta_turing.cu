@@ -3,8 +3,8 @@
 // Catalog: EXP-x-028
 //
 // The automata of the method of Turing over one cell of the Riemann-Siegel formula. They are programs of the record
-// machine on the device, one job on the tessera daemon of the device. The machine one level up, exact_zeta_turing.py,
-// runs a cell at a time and joins the cells.
+// machine on the device, one job on the tessera daemon of the device. The machine one level up,
+// exact_zeta/exact_zeta_turing.c, runs a cell at a time and joins the cells.
 //
 //   Usage:  exact_zeta_turing <input> <output>
 //           exact_zeta_turing serve
@@ -188,8 +188,8 @@ static double turing_now(void)
 static unsigned int turing_nu_bits = TURING_NU_FLOOR;
 static unsigned int turing_lane_bits = TURING_LANE_FLOOR;
 // a quotient keeps the width of its dividend at imprint. The wrap to turing_scaled_bits gives it the width of its
-// value. Each value taken back is below 2^(turing_scaled_bits - 1) in size, by the bounds that exact_zeta_turing.py
-// verifies. A value inside the range of the wrap passes it unchanged.
+// value. Each value taken back is below 2^(turing_scaled_bits - 1) in size, by the bounds that
+// exact_zeta/exact_zeta_turing.c verifies. A value inside the range of the wrap passes it unchanged.
 // The code sets the width from the input before it builds any program: 80 bits, or wider where the 1 / D of the
 // multiple evaluation needs it. That is at its top level `l = p - beta`, with `|1 / D| <= 2^l / (6 pi) < 2^(l - 4)`,
 // stored at the scale in 63 + l - 4 bits, which 60 + l covers

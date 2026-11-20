@@ -35,6 +35,24 @@ typedef struct
 void twister_seed(ZetaTwister *twister, uint32_t seed);
 
 /**
+ * @brief A draw below a bound, as CPython draws it: getrandbits of the bit length of the bound, until it is below.
+ *
+ * @param[in,out] twister The generator [BORROWS].
+ * @param[in]     bound   The bound, from 1 to 2^32 - 1.
+ * @return                The draw.
+ */
+uint32_t twister_below(ZetaTwister *twister, uint32_t bound);
+
+/**
+ * @brief A double in [0, 1), as random.random of CPython draws it from two words.
+ *
+ * @param[in,out] twister The generator [BORROWS].
+ * @return                The draw.
+ * @note The draw is (a 2^26 + b) / 2^53, with a the top 27 bits of one word and b the top 26 bits of the next.
+ */
+double twister_random(ZetaTwister *twister);
+
+/**
  * @brief The same symbols in a drawn order, as random.Random(seed).shuffle draws it.
  *
  * @param[in,out] symbols The symbols [BORROWS].
@@ -42,6 +60,15 @@ void twister_seed(ZetaTwister *twister, uint32_t seed);
  * @param[in]     seed    The seed, at least zero.
  */
 void zeta_permuted(unsigned char *symbols, size_t count, uint32_t seed);
+
+/**
+ * @brief The same symbols in an order that a seeded generator draws, as random.Random.shuffle draws it.
+ *
+ * @param[in,out] twister The generator, which goes on from its state [BORROWS].
+ * @param[in,out] symbols The symbols [BORROWS].
+ * @param[in]     count   How many.
+ */
+void twister_shuffle(ZetaTwister *twister, unsigned char *symbols, size_t count);
 
 /**
  * @brief How many positions carry the same symbol as the position one lag above.

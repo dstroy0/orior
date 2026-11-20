@@ -94,14 +94,14 @@ static uint32_t twister_next(ZetaTwister *twister)
     return value;
 }
 
-/**
- * @brief A draw below a bound, as CPython draws it: getrandbits of the bit length of the bound, until it is below.
- *
- * @param[in,out] twister The generator [BORROWS].
- * @param[in]     bound   The bound, from 1 to 2^32 - 1.
- * @return                The draw.
- */
-static uint32_t twister_below(ZetaTwister *twister, uint32_t bound)
+double twister_random(ZetaTwister *twister)
+{
+    const uint32_t high = twister_next(twister) >> 5u;
+    const uint32_t low = twister_next(twister) >> 6u;
+    return (((double)high * 67108864.0) + (double)low) * (1.0 / 9007199254740992.0);
+}
+
+uint32_t twister_below(ZetaTwister *twister, uint32_t bound)
 {
     uint32_t bits = 0u;
     for (uint32_t rest = bound; rest != 0u; rest >>= 1u)
@@ -122,10 +122,15 @@ void zeta_permuted(unsigned char *symbols, size_t count, uint32_t seed)
 {
     ZetaTwister twister;
     twister_seed(&twister, seed);
+    twister_shuffle(&twister, symbols, count);
+}
+
+void twister_shuffle(ZetaTwister *twister, unsigned char *symbols, size_t count)
+{
     for (size_t at = count - 1u; (count > 1u) && (at > 0u); at -= 1u)
     {
         // The count of symbols here is small, and the index fits a uint32_t.
-        const size_t other = twister_below(&twister, (uint32_t)(at + 1u));
+        const size_t other = twister_below(twister, (uint32_t)(at + 1u));
         const unsigned char held = symbols[at];
         symbols[at] = symbols[other];
         symbols[other] = held;

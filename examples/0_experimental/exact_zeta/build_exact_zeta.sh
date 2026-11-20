@@ -23,7 +23,7 @@ EXACT="$TOP/includes/exact_types/integers"
 OUT="$TOP/build/exact_zeta/$(uname -s | tr "[:upper:]" "[:lower:]")"
 mkdir -p "$OUT"
 
-USAGE="usage: build_exact_zeta.sh zeros|gram|phase|certificate|arrival|spherical|riemann_siegel [arguments]"
+USAGE="usage: build_exact_zeta.sh zeros|gram|phase|certificate|arrival|spherical|riemann_siegel|turing|lobes|carrier|tension|form_factor|demon [arguments]"
 if [ $# -lt 1 ]; then
     echo "$USAGE"
     exit 2
@@ -39,11 +39,17 @@ case "$NAME" in
     arrival) PROGRAM=exact_zeta_arrival LIMBS=32u ;;
     spherical) PROGRAM=exact_zeta_spherical LIMBS=256u ;;
     riemann_siegel) PROGRAM=exact_zeta_riemann_siegel LIMBS=8192u STACK=536870912 ;;
+    turing) PROGRAM=exact_zeta_turing LIMBS=16384u STACK=1073741824 ;;
+    lobes) PROGRAM=exact_zeta_lobes LIMBS=1024u ;;
+    carrier) PROGRAM=exact_zeta_carrier LIMBS=1024u STACK=268435456 ;;
+    tension) PROGRAM=exact_zeta_tension LIMBS=1024u STACK=268435456 ;;
+    form_factor) PROGRAM=exact_zeta_form_factor LIMBS=1024u STACK=268435456 ;;
+    demon) PROGRAM=exact_zeta_demon LIMBS=1024u STACK=268435456 ;;
     *) echo "$USAGE"; exit 2 ;;
 esac
 
 SOURCES=("$HERE/zeta_exact.c" "$HERE/zeta_gram_walk.c" "$HERE/zeta_riemann_siegel.c" "$HERE/zeta_search.c"
-    "$HERE/zeta_shuffle.c" "$HERE/zeta_theta.c"
+    "$HERE/zeta_shuffle.c" "$HERE/zeta_tension.c" "$HERE/zeta_theta.c" "$HERE/zeta_machine.c"
     "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_decimal.c" "$EXACT/exact_integer_divide.c"
     "$EXACT/exact_integer_gcd.c" "$EXACT/exact_integer_limbs.c" "$EXACT/exact_integer_multiply.c")
 # A width below 4096 bits declares its own floor of decimal digits, as exact_integer_widths.h asks.
