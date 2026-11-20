@@ -78,9 +78,12 @@ typedef struct
     unsigned int row;
     unsigned int column;
 } BaseCtx;
-// the entry of `color` over the lattice with the grain's `grain` of white over that: each lane the color's channel by
-// its alpha and the grain's rest, over 255, plus white by the grain, with half of 255 in; the rest the lattice saves
-// the alpha's rest by the grain's rest, over 255; a lane's sum with the lattice's channel by the rest is below 65536
+// the entry of `color` over the lattice, with `grain` of white over that:
+//   - each lane is the channel of the color by its alpha and by the rest of the grain, over 255. Add white by the
+//     grain, and half of 255 for the round.
+//   - the rest that the lattice keeps is the rest of the alpha by the rest of the grain, over 255.
+//
+// The sum of a lane with the channel of the lattice by the rest is below 65536
 EMBED_INLINE void base_entry_set(const BaseCtx *args)
 {
     const unsigned int alpha = GUI_ALPHA_OF(args->color);
@@ -94,8 +97,8 @@ EMBED_INLINE void base_entry_set(const BaseCtx *args)
     args->entry->rest = (((255u - alpha) * grain_remainder) + 127u) / 255u;
 }
 
-// the entries from `entry` of `color` at each of the parts a fading part's share is at but the whole, the first at
-// a sixteenth of its alpha and the last at fifteen, with no grain
+// the entries from `entry` of `color` at each part that the share of a part in a fade can be at, other than the whole.
+// The first is at a sixteenth of its alpha, and the last at fifteen, with no grain
 EMBED_INLINE void base_parts_set(const BaseCtx *args)
 {
     for (unsigned int part = 1u; part < GUI_BASE_PARTS; part += 1u)
@@ -107,16 +110,16 @@ EMBED_INLINE void base_parts_set(const BaseCtx *args)
     }
 }
 
-// the part a fading part's `share` of GUI_FIXED_ONE is at, GUI_BASE_PARTS whole and 0 none; a share is no more
-// than GUI_FIXED_ONE and not negative
+// the part that the `share` of GUI_FIXED_ONE of a part in a fade is at, GUI_BASE_PARTS whole and 0 none. A share is no
+// more than GUI_FIXED_ONE and not negative
 EMBED_INLINE unsigned int base_part_of(const BaseCtx *args)
 {
     return (args->share >= GUI_FIXED_ONE) ? GUI_BASE_PARTS
                                           : (((unsigned int)args->share * GUI_BASE_PARTS) / GUI_FIXED_ONE);
 }
 
-// `rect` of `layer` positioned on the map, over everything positioned before, no further than the map; a rectangle past the
-// capacity for them is not positioned
+// `rect` of `layer`, positioned on the map over all that came before, no further than the map. The call does not
+// position a rectangle past their capacity
 EMBED_INLINE void base_layout(const BaseCtx *args)
 {
     GuiRect rect = args->rect;
@@ -137,8 +140,8 @@ EMBED_INLINE int base_pixel_get(const BaseCtx *args)
     return (args->edge >= 0) ? args->edge / GUI_FIXED_ONE : -((-args->edge + (GUI_FIXED_ONE - 1)) / GUI_FIXED_ONE);
 }
 
-// the layer of a pane's edge at `share` of GUI_FIXED_ONE of the pixel it falls in: the pane itself at a whole share,
-// the part at the nearest sixteenth, or nothing at none
+// the layer of the edge of a pane at `share` of GUI_FIXED_ONE of the pixel that it falls in. It is the pane itself at a
+// whole share, the part at the nearest sixteenth, or nothing at none
 EMBED_INLINE unsigned int base_part_layer(const BaseCtx *args)
 {
     // a share of GUI_FIXED_ONE in sixteenths, rounded, is a small count
@@ -150,9 +153,9 @@ EMBED_INLINE unsigned int base_part_layer(const BaseCtx *args)
     return (part <= 0) ? GUI_BASE_CLEAR : GUI_BASE_PANE_PART + (((unsigned int)part - 1u) * GUI_BASE_GRAIN_LEVELS);
 }
 
-// a pane positioned from its `edges` in the frame's words: the pixels it covers whole its layer, and the row or column an
-// edge falls in positioned at the edge's share of it, the rows across the pane's whole width and the columns down its whole
-// height, a corner the column's
+// a pane, positioned from its `edges` in the words of the frame. The pixels that it covers whole get its layer. The row
+// or column that an edge falls in gets the share of the edge in it. The rows go across the whole width of the pane, and
+// the columns down its whole height. A corner takes the layer of the column
 static void base_pane_layout(const BaseCtx *args)
 {
     if ((args->edges.right <= args->edges.left) || (args->edges.bottom <= args->edges.top))
@@ -216,7 +219,8 @@ unsigned int gui_base_layer_at(const GuiBaseCfg *args)
     return GUI_BASE_CLEAR;
 }
 
-// `value` put among `edges`, `count` of them in rising order, where it is not among them: the count after
+// `value`, put among `edges`, `count` of them in ascending order, where it is not among them. The result is the count
+// after
 EMBED_INLINE unsigned int base_edge_append(const BaseCtx *args)
 {
     unsigned int at = 0u;
@@ -236,9 +240,9 @@ EMBED_INLINE unsigned int base_edge_append(const BaseCtx *args)
     return args->count + 1u;
 }
 
-// the bands and their runs read from the rectangles positioned: the bands cut at every rectangle's top and bottom, and a
-// band's runs cut at the left and right of every rectangle covering it, each run the layer of the last rectangle
-// positioned over its start, runs of one layer joined
+// the bands and their runs, read from the positioned rectangles. The bands cut at the top and bottom of each rectangle.
+// The runs of a band cut at the left and right of each rectangle over it. Each run takes the layer of the last
+// rectangle positioned over its start. Runs of one layer join
 EMBED_INLINE void base_bands_read(const BaseCtx *args)
 {
     GuiBase *base = args->base;
@@ -322,8 +326,8 @@ void gui_base_paint(const GuiBaseFrameCfg *args)
                .color = args->palette->side_background, .grain = 0u);
     EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_TABS], .color = args->palette->surface,
                .grain = 0u);
-    // the tabs row's surface, the side's ground and the editor's at each sixteenth of their alpha, as the claim fades
-    // the row, the side's pane slides and the terminal's panel arrives
+    // the surface of the tabs row, and the grounds of the side and of the editor, at each sixteenth of their alpha. They
+    // are for the time when the claim fades the row, the pane of the side slides, and the panel of the terminal arrives
     EMBED_CALL(base_parts_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_TABS_PART],
                .color = args->palette->surface);
     EMBED_CALL(base_parts_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_SIDE_PART],
@@ -384,14 +388,14 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
     }
     args->base->frame = *frame;
     args->base->controls_steady = controls_steady;
-    // the sheet everywhere, the work's inside its parts' grounds, the map's column and the lines' ring the lattice
-    // the map's sides are far inside what an int represents
+    // the sheet everywhere. The lattice in the work, inside the grounds of its parts, the column of the map and the ring
+    // of the lines. The sides of the map are far inside what an int holds
     args->base->layers = 0u;
     EMBED_CALL(base_layout, BaseCtx, .base = args->base,
                .rect = (GuiRect){0, 0, (int)args->base->width, (int)args->base->height}, .layer = GUI_BASE_GLASS);
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->work, .layer = GUI_BASE_CLEAR);
-    // the side's ground where its pane is as it slides, inside the work's inside, at the share of it displayed by
-    // sixteenths, the side it leaves the lattice
+    // the ground of the side where its pane is as it slides, inside the inside of the work. It shows at its displayed
+    // share, by sixteenths. The side that it leaves stays the lattice
     const unsigned int side_part = EMBED_CALL(base_part_of, BaseCtx, .share = frame->side_share);
     if (side_part != 0u)
     {
@@ -400,7 +404,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
                                       .other = frame->inside),
                    .layer = (side_part >= GUI_BASE_PARTS) ? GUI_BASE_SIDE : (GUI_BASE_SIDE_PART + side_part - 1u));
     }
-    // the tabs row's surface at the share of it displayed, by sixteenths, none of it leaving the lattice
+    // the surface of the tabs row at its displayed share, by sixteenths. No part of it leaves the lattice
     const unsigned int tabs_part = EMBED_CALL(base_part_of, BaseCtx, .share = frame->tabs_share);
     if (tabs_part != 0u)
     {
@@ -412,8 +416,8 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
                .rect = (GuiRect){frame->editor.x, frame->editor.y, frame->editor.width + frame->editor_bar.width,
                                  frame->editor.height + frame->editor_bar_across.height},
                .layer = GUI_BASE_EDITOR);
-    // the terminal's panel on the ink at half as the side is, its views on the editor's ground, each where it is as
-    // it arrives, inside the work's inside, at the part of its opacity reached
+    // the panel of the terminal on the ink at half, as the side is, and its views on the ground of the editor. Each is
+    // where it is as it arrives, inside the inside of the work, at the part of its opacity so far
     const unsigned int terminal_part = EMBED_CALL(base_part_of, BaseCtx, .share = frame->terminal_share);
     if (terminal_part != 0u)
     {
@@ -449,9 +453,9 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
             EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = saved[fillet], .layer = under[fillet]);
         }
     }
-    // the panes that have slid in, each the slat its edge shows, and the controls' pane where it is, each positioned
-    // from its edges in the frame's words; the controls' pane coming down at its share's part, the tint between the
-    // sheet's and a pane's
+    // the panes that slid in, each the slat that its edge shows, and the pane of the controls where it is. The code
+    // positions each from its edges in the words of the frame. As the pane of the controls comes down, it shows at the
+    // part of its share. Its tint is between that of the sheet and that of a pane
     EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->bar_edges);
     EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->side_menu_edges);
     EMBED_CALL(base_pane_layout, BaseCtx, .base = args->base, .edges = frame->status_edges);
@@ -480,9 +484,10 @@ EMBED_INLINE GuiColor base_blend(const BaseCtx *args)
     return 0xff000000u | red_blue_out | (green_out << 8u);
 }
 
-// `count` pixels of the sheet or a pane drawn from the lattice's `under` pixels, or `color` where under is NULL,
-// into `out`, the tile tables read straight along from `row`, the tile's row, and `column`, wrapping at the tile's
-// side; each pixel's lanes are the lattice's channels by the rest the table gives plus the lanes it gives
+// `count` pixels of the sheet or a pane, drawn into `out` from the `under` pixels of the lattice, or from `color` where
+// under is NULL. The code reads the tile tables straight along from `row`, the row of the tile, and from `column`. It
+// wraps at the side of the tile. The lanes of each pixel are the channels of the lattice by the rest from the table,
+// plus the lanes from the table
 EMBED_INLINE void base_tiled_draw(const BaseCtx *args)
 {
     unsigned int column = args->column;
@@ -522,9 +527,9 @@ EMBED_INLINE void base_tiled_draw(const BaseCtx *args)
     }
 }
 
-// a run of `count` pixels of one layer drawn from the lattice's `under` pixels, or `color` where under is NULL, into
-// `out`: nothing over the lattice copied whole, a part's ground blended with its one entry across the run, and the
-// sheet or a pane through the tile tables from the tile's `row` and `column`
+// a run of `count` pixels of one layer, drawn into `out` from the `under` pixels of the lattice, or from `color` where
+// under is NULL. Where nothing is over the lattice, the code copies it whole. The ground of a part blends with its one
+// entry across the run. The sheet or a pane goes through the tile tables from the `row` and `column` of the tile
 EMBED_INLINE void base_run_draw(const BaseCtx *args)
 {
     unsigned int column = args->column;
@@ -601,8 +606,8 @@ void gui_base_map_draw(const GuiBaseRasterCfg *args)
     const int from_background = (args->background_fill != NULL) && (args->background_fill->pixels != NULL) &&
                                 (args->background_fill->width == args->base_read->width) &&
                                 (args->background_fill->height == args->base_read->height);
-    // The rows and the columns the raster's clip lets the frame write, the whole raster where the clip is empty. The
-    // clip's sides lie on the raster, so they are not negative
+    // The rows and the columns that the clip of the raster lets the frame write, the whole raster where the clip is
+    // empty. The sides of the clip lie on the raster and are not negative
     const GuiRect clip = args->raster->clip;
     const int clipped = (clip.width > 0) && (clip.height > 0);
     const unsigned int top = clipped ? (unsigned int)clip.y : 0u;

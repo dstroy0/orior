@@ -563,7 +563,6 @@ includes/parsers/who.c	5
 includes/parsers/who.h	2
 includes/utf8/utf8.c	3
 includes/utf8/utf8.h	1
-includes/window/base.c	20
 includes/window/base.h	18
 includes/window/block.c	6
 includes/window/block.h	8
