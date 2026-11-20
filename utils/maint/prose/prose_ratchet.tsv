@@ -23,7 +23,6 @@ examples/00_blob_viz_tools/build_field_view.py	5
 examples/00_blob_viz_tools/build_illuminate_view.py	9
 examples/00_blob_viz_tools/build_pack.ps1	7
 examples/00_blob_viz_tools/build_plot_view.py	16
-examples/00_blob_viz_tools/build_pool_view.py	63
 examples/00_blob_viz_tools/build_room_view.py	35
 examples/00_blob_viz_tools/build_scope_view.py	14
 examples/00_blob_viz_tools/build_sha_pairs_view.py	17
@@ -43,7 +42,6 @@ examples/00_blob_viz_tools/chain_kat.py	24
 examples/00_blob_viz_tools/chart_view_template.html	5
 examples/00_blob_viz_tools/conserved.py	20
 examples/00_blob_viz_tools/cut_project.py	22
-examples/00_blob_viz_tools/data_check.py	64
 examples/00_blob_viz_tools/deform_rate.py	52
 examples/00_blob_viz_tools/dsp.py	15
 examples/00_blob_viz_tools/earth_view_template.html	2
@@ -97,7 +95,6 @@ examples/00_blob_viz_tools/settings.py	16
 examples/00_blob_viz_tools/shapes_view_template.html	2
 examples/00_blob_viz_tools/shor_trace.py	22
 examples/00_blob_viz_tools/sources_view_template.html	2
-examples/00_blob_viz_tools/sphere_field.py	61
 examples/00_blob_viz_tools/sphere_view_template.html	59
 examples/00_blob_viz_tools/spiral_view_template.html	1
 examples/00_blob_viz_tools/stabilizer_rank.py	49
@@ -381,7 +378,6 @@ examples/proofing/proth_reach.py	12
 examples/proofing/relation_search.py	31
 examples/proofing/state_deflection.py	31
 examples/proofing/twiddle_placement.py	37
-examples/proofing/twiddle_proof.py	62
 examples/proteins/1_represent/protein_bonds.py	17
 examples/proteins/1_represent/protein_chain.py	18
 examples/proteins/1_represent/rebuild_from_the_table.py	15
@@ -1054,7 +1050,6 @@ utils/maint/data/salishan/corpus_script_extraction/extract_hall_ctr.py	31
 utils/maint/data/salishan/corpus_script_extraction/extract_hall_phillips.py	40
 utils/maint/data/salishan/corpus_script_extraction/extract_kim_twana.py	12
 utils/maint/data/salishan/corpus_script_extraction/extract_lafontaine_janzen.py	33
-utils/maint/data/salishan/corpus_script_extraction/extract_lindley_lyon.py	63
 utils/maint/data/salishan/corpus_script_extraction/extract_lyon_inchoatives.py	15
 utils/maint/data/salishan/corpus_script_extraction/extract_mary_george.py	27
 utils/maint/data/salishan/corpus_script_extraction/extract_matthewson_redan.py	32
