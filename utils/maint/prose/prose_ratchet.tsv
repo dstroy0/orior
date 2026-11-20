@@ -504,7 +504,6 @@ includes/file_defs/klq/klq_write/klq_write.cu	15
 includes/file_defs/klq/query_trace.h	3
 includes/file_defs/kqr/kqr.h	13
 includes/file_defs/kqr/kqr_merge.c	5
-includes/file_defs/kqr/kqr_record.h	23
 includes/file_defs/kqr/kqr_record/kqr_internal.h	1
 includes/file_defs/kqr/kqr_record/queries.c	7
 includes/file_defs/kqr/kqr_record/read.c	3

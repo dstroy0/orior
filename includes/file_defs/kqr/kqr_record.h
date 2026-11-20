@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // kqr_record.h: a member's query record stored, read, retained and written (kqr.h)
 //
-// A record a run stores is a view of the run's table of queries, KQR_TABLE (kqr_tabled_by, krep_records.h): every
-// record it contains a row of the table, every record retained after a row as it is retained, and the record written as
-// its rows put it together.
+// A record that a run stores is a view of the table of queries of the run, KQR_TABLE (kqr_tabled_by,
+// krep_records.h). Each record of it is a row of the table. Each record that the code keeps later gets a row as the
+// code keeps it. The code writes the record as its rows put it together.
 #ifndef KQR_RECORD_H
 #define KQR_RECORD_H
 
@@ -19,10 +19,13 @@ extern "C"
 {
 #endif
 
-    // A member's record. A record starts as zeros, and kqr_read opens it. Its records, the member's first; the record
-    // each identity's query is at, plus one, 0 for an entry that contains none; the record of each sample; the
-    // record the pairs start at, the who before them where it is theirs; and the marks pending, each its code and its
-    // two words, a cycle's first its mode's text, numbered as it is written
+    // The record of a member. A record starts as zeros, and kqr_read opens it. It holds:
+    //   - its records, the record of the member first.
+    //   - the record of the query of each identity, plus one, 0 for an entry with none.
+    //   - the record of each sample.
+    //   - the record where the pairs start, and the who before them where it belongs to them.
+    //   - the pending marks, each its code and its two words. The first of a cycle is the text of its mode, numbered
+    //     as the code writes it.
     typedef struct
     {
         KrepFile file;
@@ -46,35 +49,43 @@ extern "C"
     // the answer the text form writes as `name`, KQR_ANSWER_COUNT where it is none of the five
     unsigned int kqr_answer_of(const char *name);
 
-    // the identity `text` writes, seven words apart by one space, read into `identity`: 1, or 0 where it is not seven
-    // numbers, the two hashes in hex and the rest in decimal
+    // the identity that `text` writes, seven words apart by one space, read into `identity`. The result is 1, or 0 where
+    // it is not seven numbers, the two hashes in hex and the rest in decimal
     int kqr_identity_read(const char *text, KqrIdentity *identity);
 
     // `identity` written as the text form writes it into `text`, which has room for `room`
     void kqr_identity_text(const KqrIdentity *identity, char *text, size_t room);
 
-    // the record at `path` read into `record` as the run stores it (qry_member_file), its records or its text form,
-    // whatever it contained before let go: 1, an empty record of `member` where there is neither, or 0 and why in
-    // `error`, which has room for `room`, where a record or a line is none the oracle gives. The record is open either
-    // way, an empty one of `member` where it stopped
+    // the record at `path`, read into `record` as the run stores it (qry_member_file), its records or its text form.
+    // The call lets go of the old contents of `record`.
+    //
+    // The result is 1, with an empty record of `member` where there is neither. It is 0 with the reason in `error`,
+    // which has room for `room`, where a record or a line is not one that the oracle gives.
+    //
+    // The record is open in both cases. Where the read stopped, it is an empty record of `member`
     int kqr_read(KqrRecord *record, const char *path, const char *member, char *error, size_t room);
 
-    // the record of `member` put together from the rows of the table KQR_TABLE of the finished run at `path`, the
-    // record named `name` in the run or the first it contains where `name` is NULL (krep_viewed_at), into `record`,
-    // whatever it contained before let go: 1, or 0 and why in `error`, which has room for `room`. The record is open
-    // either way, an empty one of `member` where it stopped
+    // the record of `member`, put together into `record` from the rows of the table KQR_TABLE of the finished run at
+    // `path` (krep_viewed_at). It is the record named `name` in the run, or the first one where `name` is NULL.
+    //
+    // The call lets go of the old contents of `record`. The result is 1, or 0 with the reason in `error`, which has
+    // room for `room`. The record is open in both cases. Where the read stopped, it is an empty record of `member`
     int kqr_viewed_at(KqrRecord *record, const char *path, const char *name, const char *member, char *error,
                       size_t room);
 
-    // `record` made a view of the table KQR_TABLE of the run `buffer`, as the file at `path`, by `who`
-    // (krep_tabled_by): every record it contains a row of the table, every record retained after a row as it is
-    // retained, and the record written as its rows put it together. 1, or 0 where it is not open, no run is given or a
-    // row could not be passed, and the record is written as it is stored
+    // `record`, made a view of the table KQR_TABLE of the run `buffer`, as the file at `path`, by `who`
+    // (krep_tabled_by). Each record of it is a row of the table. Each record that the code keeps later gets a row as the
+    // code keeps it. The code writes the record as its rows put it together.
+    //
+    // The result is 1, or 0 where the record is not open, the caller gives no run, or the call cannot pass a row. The
+    // code then writes the record as it stores it
     int kqr_tabled_by(KqrRecord *record, QryShared *buffer, const char *path, Who who);
 
-    // `record` passed to the run's writer as the file at `path` (qry_member_filed), written by `who`, the record its
-    // rows put together where it is a view of the run's table (kqr_tabled_by): 1, or 0 where no run's writer runs, the
-    // path is outside the tree, or it could not be written
+    // `record`, passed to the writer of the run as the file at `path` (qry_member_filed), written by `who`. Where it is
+    // a view of the table of the run (kqr_tabled_by), the call passes the record that its rows put together.
+    //
+    // The result is 1, or 0 where no writer of a run runs, or where the path is outside the tree. It is also 0 where the
+    // call cannot write it
     int kqr_write_by(const KqrRecord *record, const char *path, Who who);
 
     // everything `record` contains let go, and the record zeros again
@@ -83,23 +94,25 @@ extern "C"
     // 1 with the query of `identity` the record contains in `out`, whatever came back of it; 0 where it contains none
     int kqr_find(const KqrRecord *record, const KqrIdentity *identity, KqrQuery *out);
 
-    // `query` stored by `who` after every record before the pairs, where the record contains no query of its identity,
-    // the marks pending written before it. And in place of the one it contains where that one timed out or was
-    // censored, the part never having seen it
+    // `query`, stored by `who` after each record before the pairs, where the record holds no query of its identity. The
+    // call writes the pending marks before it. Where the record holds one that timed out or that a censor removed, this
+    // query takes its place, because the part never saw it
     void kqr_store_by(KqrRecord *record, const KqrQuery *query, Who who);
 
     // `sample` stored by `who` after every record before the pairs, the marks pending written before it
     void kqr_sample_by(KqrRecord *record, const KqrSample *sample, Who who);
 
-    // a cycle, a seed or a round, KQR_CYCLE_RECORD, KQR_SEED_RECORD or KQR_ROUND_RECORD, pending until the next new
-    // query or sample, a round in place of a round still pending; a cycle's `value` its mode, written numbered after
-    // every cycle the record contains, and a seed's and a round's their number in decimal
+    // a cycle, a seed or a round, KQR_CYCLE_RECORD, KQR_SEED_RECORD or KQR_ROUND_RECORD. It is pending until the next
+    // new query or sample. A round takes the place of a round that is still pending.
+    //
+    // The `value` of a cycle is its mode, numbered after each cycle of the record. The `value` of a seed or a round is
+    // its number in decimal
     void kqr_mark(KqrRecord *record, unsigned int code, const char *value);
 
-    // 1 with the query `at` of the record's queries, in the order they were stored, in `out`; 0 past the last
+    // 1 with the query `at` of the queries of the record, in their order of storage, in `out`. 0 past the last
     int kqr_query_read(const KqrRecord *record, unsigned int at, KqrQuery *out);
 
-    // 1 with the sample `at` of the record's samples, in the order they were stored, in `out`; 0 past the last
+    // 1 with the sample `at` of the samples of the record, in their order of storage, in `out`. 0 past the last
     int kqr_sample_read(const KqrRecord *record, unsigned int at, KqrSample *out);
 
     // 1 with the path `at` of the record's pairs in `out`; 0 past the last
@@ -111,13 +124,13 @@ extern "C"
     // `path` stored by `who` after every pair before it
     void kqr_path_add_by(KqrRecord *record, const KqrPath *path, Who who);
 
-    // `record` written as the .kqr's text form at `at` into `out`, which has room for `cap`, a line a record, each who
-    // a line `who` its code named through the who table where `named`, and its code alone where not: the offset after
-    // it, or `cap` where it did not fit (verba_scribo.h)
+    // `record`, written as the text form of the .kqr at `at` into `out`, which has room for `cap`, a line a record. Each
+    // who is a line `who`. Where `named`, the who table names its code, and else the line holds its code alone. The
+    // result is the offset after it, or `cap` where it did not fit (verba_scribo.h)
     size_t kqr_text_rendered(const KqrRecord *record, char *out, size_t cap, size_t at, int named);
 
-    // as kqr_text_rendered, the records from `from` on, `count` of them, or every one past it where `count` is 0: a
-    // slice a reader decodes while it is still and grows outward from, its records' numbers given raw while it moves
+    // as kqr_text_rendered, the records from `from` on, `count` of them, or each one past it where `count` is 0. A reader
+    // decodes this slice while it is still, and grows out from it. While it moves, the numbers of its records stay raw
     size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at, int named, unsigned int from,
                            unsigned int count);
 
