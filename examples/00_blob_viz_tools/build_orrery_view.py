@@ -3,58 +3,55 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: VIZ-x-005
 #
-"""Puts a moving system inside the ball and derives it back from the boundary alone.
+"""Puts a moving system inside the ball, and derives it back from the boundary alone.
 
     python examples/00_blob_viz_tools/build_orrery_view.py
     python examples/00_blob_viz_tools/build_orrery_view.py --bodies 6 --frames 512 --mode shadow
 
-  --bodies    how many orbiting bodies. Default 6.
-  --frames    how many steps of the clock to precompute. Default 512.
-  --mode      glow for a scattering ball, shadow for a clear one. Default glow.
-  --degrees   highest harmonic degree carried. Default 48.
-  --tau       conduction time the surface is left to smooth for. Default 0.0006.
-  --seed      draw for the sizes and phases. Default 11.
-  --out       where to write. Default: orrery_view.html in build/view, through out_path.
+  - `--bodies`: how many bodies in orbit. Default 6.
+  - `--frames`: how many steps of the clock to precompute. Default 512.
+  - `--mode`: glow for a scattering ball, shadow for a clear one. Default glow.
+  - `--degrees`: highest harmonic degree carried. Default 48.
+  - `--tau`: conduction time that the surface gets to smooth for. Default 0.0006.
+  - `--seed`: draw for the sizes and phases. Default 11.
+  - `--out`: where to write. Default: orrery_view.html in build/view, through out_path.
 
 WHY A SYSTEM AND NOT A FILE
 
-Everything else in this directory reads data nobody knows the shape of, and a viewer that
-looks right is impossible to grade. Here the interior is written down first: bodies at known radii on
-known periods. The page then shows the boundary alone, derives the interior back out of it, and
-prints the derived numbers next to the ones it was built from. A viewer that draws a convincing
-picture and recovers the wrong radius is caught in the same glance.
+Everything else in this directory reads data that nobody knows the shape of, and a viewer that looks right is impossible
+to grade. Here the build writes the interior down first: bodies at known radii on known periods. The page then shows the
+boundary alone, and derives the interior back out of it. It prints the derived numbers next to the ones that the build
+used. A viewer that draws a plausible picture and recovers the wrong radius shows its fault in the same glance.
 
 TWO WAYS FOR THE INSIDE TO REACH THE OUTSIDE
 
     glow    the medium scatters without limit, transport is diffusion, and a body at radius r
-            reaches degree l as (r/R)^l. Depth sets how wide a patch the body can print, and a body
-            near the center is a broad warmth and one near the shell is a small bright spot. There
-            are no shadows in this limit at all: light that has forgotten its direction cannot
-            leave one behind.
+            reaches degree l as (r/R)^l. Depth sets how wide a patch the body can print. A body
+            near the center is a broad warmth, and one near the shell is a small bright spot. There
+            are no shadows in this limit at all: light that lost its direction cannot leave one
+            behind.
 
     shadow  the medium is clear, transport is ballistic, and a beam from outside prints the
             silhouette of whatever it passes. Edges are as sharp as the bodies are, and a body that
             emits nothing is as visible as one that emits everything.
 
-Those are the two limits of one transport equation and the page carries both, because they fail in
-opposite directions. Diffusion sees what is bright and loses where it is. Ballistics sees where
-something is and loses what it was. Shining a very bright light through a scattering ball is the
-attempt to read the ballistic part before scattering buries it, and the page prints the attenuation
-that attempt has to survive.
+Those are the two limits of one transport equation, and the page carries both, because they fail in opposite directions.
+Diffusion sees what is bright, and loses where it is. Ballistics sees where something is, and loses what it was. A very
+bright light through a scattering ball is the attempt to read the ballistic part before scattering buries it. The page
+prints the attenuation that the attempt must survive.
 
-TIME IS THE INTERIOR MOVING WHILE THE BOUNDARY HOLDS STILL
+TIME IS THE INTERIOR IN MOTION WHILE THE BOUNDARY HOLDS STILL
 
-The boundary never moves here. The bodies do, and the surface changes because of it. So the clock
-is not supplied from outside: it is read off a fixed surface, and a run where the observer also
-moves can be told apart from a run where it does not by holding the observer still and watching
-whether anything retains changing.
+The boundary never moves here. The bodies do, and the surface changes because of them. The clock therefore comes from no
+outside source: the page reads it off a fixed surface. To tell a run where the observer also moves from a run where it
+does not, hold the observer still. Then watch whether anything still changes.
 
-WHAT IS DERIVED
+WHAT THE PAGE DERIVES
 
-A single patch of the boundary is watched over the whole run, giving one number per step. Each body
-crossing the line between the source and that patch prints a dip. The dips repeat on that body's
-period, the period gives the radius by Kepler's third law, and the recovered radius is printed
-beside the radius the body was built with. Nothing about the recovery reads the body table.
+The page watches a single patch of the boundary over the whole run, and gets one number per step. Each body that crosses
+the line between the source and that patch prints a dip. The dips repeat on the period of that body, and the period
+gives the radius by Kepler's third law. The page prints the recovered radius beside the radius that the build gave the
+body. Nothing about the recovery reads the body table.
 """
 
 import io
@@ -102,15 +99,13 @@ def sideways(axis):
 def system(count, seed):
     """Bodies at spread radii on Kepler periods, each on its own orbit plane.
 
-    The period goes as the radius to the three halves. The outer bodies are slow and the dips
-    they print are rare. The run has to be long for that reason: a body at 0.85 of the way out
-    crosses about a third as often as one at 0.4, and a run that stops early recovers the inner
-    bodies cleanly and reports the outer ones as absent.
+    The period goes as the radius to the three halves. The outer bodies are slow, and the dips that they print are rare.
+    The run must be long for that reason. A body at 0.85 of the way out crosses about a third as often as one at 0.4. A
+    run that stops early recovers the inner bodies cleanly, and reports the outer ones as absent.
 
-    Each orbit gets a plane of its own and never a tilt applied to a shared one. Tilting one plane
-    leaves every orbit crossing the same two points, and a patch placed at either of them watches
-    every body pass dead center. The recovery then reports the whole system from a single patch and
-    looks far better than it is. That failure is what this construction exists to avoid.
+    Each orbit gets a plane of its own, and never a tilt on a shared one. A tilt of one plane leaves every orbit across
+    the same two points. A patch at either of them watches every body pass dead center. The recovery then reports the
+    whole system from a single patch, and looks far better than it is. This construction exists to avoid that failure.
     """
     stream = draw(seed)
     bodies = []
@@ -146,7 +141,7 @@ def system(count, seed):
 
 
 def at_time(body, moment):
-    """Where a body is at this moment, as a unit direction. Its radius is carried separately."""
+    """Where a body is at this moment, as a unit direction. The code carries its radius apart."""
     angle = body["phase"] + 2.0 * math.pi * moment / body["period"]
     here = math.cos(angle)
     there = math.sin(angle)
@@ -158,13 +153,12 @@ def at_time(body, moment):
 
 
 def watch_shadow(bodies, frames, span, patch):
-    """What a fixed patch receives when the ball is clear: the source, minus whatever crosses it.
+    """What a fixed patch receives when the ball is clear: the source, less whatever crosses it.
 
-    A body blocks when its angular size covers the line from the center to the patch. This is the
-    transit curve, and it carries a body only where that body's orbit happens to pass across this
-    particular patch. Max pairings of body and patch never line up at all. The majority of these curves
-    are flat, and reading one flat curve as an empty system is the mistake the glow curve below and
-    the several patches above exist to prevent.
+    A body blocks when its angular size covers the line from the center to the patch. This is the transit curve, and it
+    carries a body only where the orbit of that body happens to pass across this patch. Most pairs of body and patch
+    never line up at all. Most of these curves are flat. The glow curve below and the several patches above exist to
+    prevent the mistake of a flat curve read as an empty system.
     """
     curve = []
     for step in range(frames):
@@ -185,17 +179,16 @@ def watch_shadow(bodies, frames, span, patch):
 
 
 def watch_glow(bodies, frames, span, patch, profiles):
-    """What a fixed patch receives when the ball scatters: the sum of every body's spot, moving.
+    """What a fixed patch receives when the ball scatters: the sum of every body's spot, in motion.
 
-    Nothing has to line up here. A body's contribution to this patch is its profile read at the
-    angle between the patch and wherever the body is, and that angle swings once per orbit for
-    every body and every patch. So each body prints a periodic signal on every patch, and the
-    signal is smooth instead of a spike.
+    Nothing must line up here. The contribution of a body to this patch is its profile, read at the angle between the
+    patch and wherever the body is. That angle swings once per orbit for every body and every patch. Each body therefore
+    prints a periodic signal on every patch, and the signal is smooth instead of a spike.
 
-    That difference decides whether the recovery works. A transit is a narrow pulse, and a narrow
-    pulse carries more power in its high harmonics than in its own fundamental. Reading the
-    strongest peaks off one gives a tidy row of periods that are all too short. Reading a smooth
-    swing gives the fundamental first: the period the body actually has.
+    That difference decides whether the recovery works. A transit is a narrow pulse, and a narrow pulse carries more
+    power in its high harmonics than in its own fundamental. A read of the strongest peaks off one gives a tidy row of
+    periods that are all too short. A read of a smooth swing gives the fundamental first: the period that the body
+    actually has.
     """
     curve = []
     for step in range(frames):
@@ -215,44 +208,39 @@ def watch_glow(bodies, frames, span, patch, profiles):
 def recover(curve, span, frames, bodies):
     """Periods out of the light curve, then radii out of the periods. Reads no body table.
 
-    The curve is turned into a spectrum and its peaks are read as periods. Kepler's third law then
-    gives a radius from each period, since the period was built as the radius to the three halves
-    and no other quantity went into it. The comparison printed on the page is against radii this
-    function never sees, and a recovery that agrees is agreeing with the scene and not with itself.
+    The function turns the curve into a spectrum, and reads its peaks as periods. Kepler's third law then gives a radius
+    from each period. The build made the period as the radius to the three halves, and no other quantity went into it.
+    The page compares against radii that this function never sees. A recovery that agrees agrees with the scene, and not
+    with itself.
     """
     middle = sum(curve) / len(curve)
     centered = [one - middle for one in curve]
 
-    # Padded eight times past the transform the data alone needs. Padding adds no resolution and
-    # this is not asking it to: a period whose peak lands between two bins is read at whichever bin
-    # is nearer, and the radius that comes back from a period read off by half a bin is wrong by
-    # more than the whole recovery is worth. The interpolation puts the peak where it belongs.
+    # Padded eight times past the transform that the data alone needs. Padding adds no resolution, and this does not ask
+    # it to. A period whose peak lands between two bins reads at whichever bin is nearer. A radius from a period off by
+    # half a bin is wrong by more than the whole recovery is worth. The interpolation puts the peak where it belongs.
     padded = dsp.next_power(len(centered)) * 8
     magnitudes = dsp.spectrum(centered, dsp.window("hann", len(centered)), padded)
 
-    # A peak has to be above the noise before it is called a period, since a curve with one deep
-    # dip has power at every harmonic of that dip and reading them all back gives a tidy row of
-    # bodies that are not there.
+    # A peak must be above the noise before the code calls it a period. A curve with one deep dip has power at every
+    # harmonic of that dip. A read of all of them gives a tidy row of bodies that are not there.
     #
-    # The floor is the median of the whole spectrum and never of a window around the peak. Padding
-    # eight times over makes neighboring bins copies of one another, and a window of a dozen bins
-    # covers less than two real ones and its median is the peak itself. A windowed median compares
-    # every peak against a slightly smaller copy of itself and passes nothing, which reads as a
-    # system too faint to recover: a window measured in the wrong units.
+    # The floor is the median of the whole spectrum, and never of a window around the peak. Eight times of padding make
+    # adjacent bins copies of one another. A window of a dozen bins covers less than two real ones, and its median is
+    # the peak itself. A windowed median compares every peak against a slightly smaller copy of itself, and passes
+    # nothing. That reads as a system too faint to recover: a window measured in the wrong units.
     ranked = sorted(magnitudes)
     floor = ranked[len(ranked) // 2]
     oversample = max(1, padded // len(centered))
 
-    # A harmonic sum instead of a bare peak list. A body's swing is smooth and not a sine. It
-    # puts power at twice its frequency and at three times it, and those extra peaks read back as
-    # bodies that are not there: 0.786 arrives again as 0.498, 0.558 as 0.351. Filtering them
-    # afterwards by comparing candidates in pairs was tried and made the answer worse, since
-    # a harmonic of one body sits close enough to a real period of another to take its place.
+    # A harmonic sum instead of a bare peak list. A body's swing is smooth, and not a sine. It puts power at twice its
+    # frequency and at three times it, and those extra peaks read back as bodies that are not there. A filter on pairs
+    # of candidates does not fix it. A harmonic of one body sits close enough to a real period of another to take its
+    # place.
     #
-    # Scoring each trial frequency by what sits at it and at its own multiples settles it without
-    # comparing anything to anything. A true fundamental collects from every harmonic it has. A
-    # harmonic collects from its multiples alone, because the bins below it, where its own
-    # sub-harmonics would be, hold nothing.
+    # A score for each trial frequency, from what sits at it and at its own multiples, settles it with no comparison at
+    # all. A true fundamental collects from every harmonic it has. A harmonic collects from its multiples alone, because
+    # the bins below it, where its own sub-harmonics would be, hold nothing.
     reach = 4
     top_bin = len(magnitudes) // reach
     score = [0.0] * top_bin
@@ -262,11 +250,10 @@ def recover(curve, span, frames, bodies):
             total += magnitudes[index * times]
         score[index] = total
 
-    # The trial band comes from geometry and not from the scene. A body is inside the ball. Its
-    # radius is under one and its period is under one with it; a body too close to the center has
-    # no orbit worth the name. Without the band the harmonic sum runs away at the bottom, where
-    # every one of its multiples lands in the crowded low bins and collects leakage from all of
-    # them. It returned radii above 1.0, which is a body outside the ball it is orbiting inside.
+    # The trial band comes from geometry, and not from the scene. A body is inside the ball. Its radius is under one,
+    # and its period is under one with it. A body too close to the center has no orbit worth the name. Without the band,
+    # the harmonic sum runs away at the bottom, where every one of its multiples lands in the crowded low bins. It
+    # collects leakage from all of them, and gives radii above 1.0: a body outside the ball that it orbits inside.
     def bin_for(radius):
         period = math.pow(radius, 1.5)
         return int((1.0 / period) * span / (frames / float(padded)))
@@ -286,16 +273,13 @@ def recover(curve, span, frames, bodies):
             continue
         found.append({"period": 1.0 / frequency, "strength": here / (floor * reach)})
 
-    # Harmonic families, folded to their fundamental. A body's swing is smooth but not a sine.
-    # It puts power at twice its frequency and three times it as well. Read as periods those come
-    # back as radii the second and third harmonics imply, and every one of them lands on a body
-    # that is not there: 0.786 arrives a second time as 0.498, 0.558 as 0.351, 0.443 as 0.279.
-    # Six real bodies became twelve, half of them ghosts of the other half.
+    # Harmonic families, folded to their fundamental. A body's swing is smooth but not a sine. It puts power at twice
+    # its frequency and three times it as well. Read as periods, those come back as the radii that the second and third
+    # harmonics imply. Each of them lands on a body that is not there, and the count of bodies doubles with ghosts.
     #
-    # A candidate is dropped where a stronger candidate already sits at a whole fraction of its
-    # frequency. Where the harmonic came in stronger than its own fundamental, the fundamental
-    # replaces it instead, since the body has the longer period and the harmonic is an artifact of
-    # the shape of the swing.
+    # The code drops a candidate where a stronger candidate already sits at a whole fraction of its frequency. Where the
+    # harmonic came in stronger than its own fundamental, the fundamental replaces it instead. The body has the longer
+    # period, and the harmonic is an artifact of the shape of the swing.
     found.sort(key=lambda one: -one["strength"])
     retained = []
     for entry in found:
@@ -304,9 +288,8 @@ def recover(curve, span, frames, bodies):
         ):
             continue
         retained.append(entry)
-        # A fixed ceiling, never the number of bodies. Capping at the count the scene was built
-        # with passes the recovery the answer to the question it is being asked, and a recovery that
-        # is told how many to find cannot report finding too many.
+        # A fixed ceiling, and never the number of bodies. A cap at the count that the scene used would pass the
+        # recovery the answer to its own question. A recovery that knows how many to find cannot report too many.
         if len(retained) >= 10:
             break
 
@@ -355,17 +338,15 @@ def main():
 
     bodies = system(count, seed)
 
-    # Long enough that the slowest body crosses several times. A run cut to the inner periods
-    # recovers those and reports the outer bodies as absent, which reads as a defect in the
-    # recovery and is a defect in the run length.
+    # Long enough that the slowest body crosses several times. A run cut to the inner periods recovers those, and
+    # reports the outer bodies as absent. That reads as a defect in the recovery, and is a defect in the run length.
     span = 8.0 * max(body["period"] for body in bodies)
 
-    # Six patches, at the two poles of each of three great circles at right angles. One patch sees
-    # only the bodies whose orbit crosses its own line, and with orbit planes drawn independently
-    # that is a different few bodies for each patch. Recovering from one patch and reporting the
-    # result as the system is the mistake this is here to make impossible: the page prints what
-    # each patch found on its own and what they found together, and the gap between those is the
-    # measure of what moving the observer is worth.
+    # Six patches, at the two poles of each of three great circles at right angles. One patch sees only the bodies whose
+    # orbit crosses its own line. With orbit planes drawn independently, that is a different few bodies for each patch.
+    # A recovery from one patch, reported as the system, is the mistake that this makes impossible. The page prints what
+    # each patch found on its own and what they found together. The gap between those measures what a move of the
+    # observer is worth.
     patches = [
         ("+x", (1.0, 0.0, 0.0)),
         ("-x", (-1.0, 0.0, 0.0)),
@@ -398,15 +379,13 @@ def main():
 
     # Merged across every patch, and ranked by how many independent axes agree.
     #
-    # Peak strength was tried first as the way to tell a body from an artifact and it does not
-    # work: on one patch a spurious peak scored 2419 while a real body scored 555. Strength says
-    # how loud a bin is. It does not say whether anything is there.
+    # Peak strength cannot tell a body from an artifact: on one patch a spurious peak can outscore a real body several
+    # times over. Strength says how loud a bin is. It does not say whether anything is there.
     #
-    # Agreement does work. A body is somewhere. Every patch sees it swing. An artifact is a
-    # feature of one curve. It lives on one patch and dies on the next. Antipodal patches are
-    # not independent, since a great circle through a point runs through its opposite as well,
-    # what gets counted is axes and never patches: three of three is a body, one of three is a
-    # number that came out of one arithmetic.
+    # Agreement does work. A body is somewhere, and every patch sees it swing. An artifact is a feature of one curve,
+    # which lives on one patch and dies on the next. Antipodal patches are not independent, because a great circle
+    # through a point runs through its opposite as well. The code therefore counts axes and never patches. Three of
+    # three is a body, and one of three is a number that came out of one arithmetic.
     merged = []
     for entry in watched:
         axis = entry["name"][1]
@@ -443,9 +422,9 @@ def main():
     for key in profiles:
         shipped[key] = [round(one, 8) for one in profiles[key]]
 
-    # What a ballistic reading has to survive. Scattering buries the straight-through part as the
-    # exponential of the path in scattering lengths. The brightness a shadow needs is that
-    # exponential. Printing it retains the shadow mode honest about being a clear-medium answer.
+    # What a ballistic reading must survive. Scattering buries the straight-through part as the exponential of the path
+    # in scattering lengths. The brightness that a shadow needs is that exponential. The page prints it, and the shadow
+    # mode stays honest as a clear-medium answer.
     depths = [1.0, 4.0, 12.0, 30.0]
     attenuation = [
         {"lengths": one, "survives": "%.2e" % math.exp(-one)} for one in depths
