@@ -484,7 +484,6 @@ includes/file_defs/gsm/gsm_write.c	9
 includes/file_defs/kcs/kcs.h	1
 includes/file_defs/kdm/kdm.c	2
 includes/file_defs/kdm/kdm.h	8
-includes/file_defs/kdm/kdm_write.c	21
 includes/file_defs/kernel_blob/forms_blob.h	2
 includes/file_defs/kfile_lines/kfile_lines.c	5
 includes/file_defs/kfile_lines/kfile_lines.h	12
