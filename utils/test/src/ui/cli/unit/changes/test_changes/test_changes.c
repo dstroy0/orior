@@ -23,7 +23,7 @@ void tearDown(void)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
 }
 
-// the store told nothing of a change: the head alone is stored by the call
+// the store told nothing of a change: the call stores the head alone
 static void head_stored_each(const CliEachHunkCfg *args)
 {
     (void)args;

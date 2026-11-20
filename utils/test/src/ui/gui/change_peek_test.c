@@ -41,7 +41,7 @@ static int colored(const GuiRaster *raster, GuiRect rect, GuiColor color, GuiCol
     return 0;
 }
 
-// the store told nothing of a change: the head alone is stored by the call
+// the store told nothing of a change: the call stores the head alone
 static void head_stored_each(const CliEachHunkCfg *args)
 {
     (void)args;

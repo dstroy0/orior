@@ -1507,7 +1507,6 @@ utils/test/src/ui/cli/unit/binary/test_binary/test_binary.c	3
 utils/test/src/ui/cli/unit/bridge/test_bridge/test_bridge.c	1
 utils/test/src/ui/cli/unit/cargo_tests/test_cargo_tests/test_cargo_tests.c	1
 utils/test/src/ui/cli/unit/catalog/test_catalog/test_catalog.c	1
-utils/test/src/ui/cli/unit/changes/test_changes/test_changes.c	1
 utils/test/src/ui/cli/unit/commands/test_commands/test_commands.c	1
 utils/test/src/ui/cli/unit/comms/test_comms/test_comms.c	13
 utils/test/src/ui/cli/unit/comms_pane/test_comms_pane/test_comms_pane.c	17
@@ -1584,7 +1583,6 @@ utils/test/src/ui/cli/unit/xterm/test_xterm/test_xterm.c	1
 utils/test/src/ui/gui/base_test.c	4
 utils/test/src/ui/gui/bead_test.c	3
 utils/test/src/ui/gui/button_test.c	1
-utils/test/src/ui/gui/change_peek_test.c	1
 utils/test/src/ui/gui/changes_test.c	5
 utils/test/src/ui/gui/claim_test.c	2
 utils/test/src/ui/gui/comms_test.c	15
