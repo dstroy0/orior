@@ -6,19 +6,24 @@
 #ifndef RULESET_CORE_RELATION_WALK_H
 #define RULESET_CORE_RELATION_WALK_H
 
-// Each line of each file is read as an entry of its own, its type the line's first word and its relation to the
-// others named on the same line: no entry waits on another and no file is read before another. Every entry is then
-// checked against every other, and a relation no set of files should contain is recorded: the file each entry came from
-// is recorded with it, and the caller reads a relation within one file, between two, or across the whole set from that.
-// Nothing here knows a target: a register is whatever a bank's text writes, and a name's words are its parts at
-// underscores. The memory is the caller's: an entry a line, a mark and a place on the walk's stack an entry, and
-// relations as many as RULESET_CORE_RELATION_KINDS an entry and one a name of the schema
+// The walk reads each line of each file as an entry of its own. The first word of the line is its type, and the line
+// names its relation to the others. No entry waits for another, and the walk reads no file before another.
+//
+// The walk then checks each entry against each other entry. It records each relation that no set of files must
+// hold, with the file of each entry. From that, the caller reads a relation in one file, between two, or across the
+// whole set.
+//
+// Nothing here knows a target. A register is what the text of a bank writes, and the words of a name are its parts at
+// underscores.
+//
+// The caller gives the memory. That is an entry for each line, and a mark and a place on the stack of the walk for each
+// entry. It is also RULESET_CORE_RELATION_KINDS relations for each entry, and one for each name of the schema
 
 #include "ruleset_core_words.h"
 
-// what an entry is, by the first word of its line: a construct's line by the construct it is in, a device map's
-// arrangement by its tabs, and any other line, a classification's channel, class, count or question among them, by
-// its first word alone
+// what an entry is, by the first word of its line. A line of a construct is by the construct that holds it. An
+// arrangement of a device map is by its tabs. Each other line is by its first word alone. The channel, class, count and
+// question of a classification are among those lines
 #define RULESET_CORE_ENTRY_FORM 0u
 #define RULESET_CORE_ENTRY_NOP 1u
 #define RULESET_CORE_ENTRY_ERR 2u
@@ -32,30 +37,32 @@
 // an entry or a place that is none
 #define RULESET_CORE_NONE 0xFFFFFFFFu
 
-// The relations recorded, each between an entry and `other`: another entry, or where the relation specifies so, a place
-// in the entry's head or text, a count, or which of the schema's lists a name is of (0 forms, 1 banks, 2 fixed
-// registers)
+// The relations that the walk records, each between an entry and `other`. `other` is another entry, or what the
+// relation names. That is a place in the head or text of the entry, a count, or the list of the schema with a name. The
+// lists are 0 forms, 1 banks and 2 fixed registers.
 //
-//     GIVEN_TWICE          a name given by an earlier entry of the same type
-//     SAME_TEXT            a form's text is an earlier form's, each parameter read as its place in its own head
-//     RENAMED              a construct of one line writing its own parameters, in order, to the form `other`
-//     MODIFIERS            names one word apart, and texts the same once every dot and the characters after it are struck
-//     OPENED               a form is the form `other` with literal operands opened as parameters of its own
-//     LINE_NOT_GIVEN       a construct's line writes a name no entry gives
-//     LINE_ARGUMENTS       a construct's line gives the form `other` another count of arguments than it takes
-//     LOOP                 a construct reaches itself through its line `other`
-//     PARAMETER_UNWRITTEN  a form takes its parameter at place `other` in its head and its text never writes it, where
-//                          the parameter's name does not open with an underscore, which marks one the form takes and
-//                          does not write
-//     PLACE_UNKNOWN        a form's text writes a place, `other` characters into the text, that its head does not take
-//     NO_TEXT              a form with nothing after its equals, which specifies neither nop nor err
-//     NUMERIC_NAME         a form's text uses the numeric name of the register the fixed entry `other` names
-//     SCHEMA_NOT_NAMED     a name given that the schema does not name
-//     SCHEMA_NOT_GIVEN     a name of the schema, at its place `entry` in the list `other`, that no entry gives
-//     SCHEMA_PARAMETERS    a form taking another count of parameters than the schema specifies
-//     ROW_TWICE            an arrangement the same operator and chain as an earlier one
-//     COUNT_DISAGREES      a count other than the `other` questions its file writes of that channel and class
-//     CLASS_NOT_NAMED      a question answered with a class its file does not name
+//     - GIVEN_TWICE          an earlier entry of the same type gives the name.
+//     - SAME_TEXT            the text of a form is the text of an earlier form, each parameter as its place in its head.
+//     - RENAMED              a construct of one line writes its own parameters, in order, to the form `other`.
+//     - MODIFIERS            names one word apart, with the same texts after each dot and the characters after it go.
+//     - OPENED               a form is the form `other`, with literal operands opened as parameters of its own.
+//     - LINE_NOT_GIVEN       a line of a construct writes a name that no entry gives.
+//     - LINE_ARGUMENTS       a line of a construct gives the form `other` a count of arguments that it does not take.
+//     - LOOP                 a construct reaches itself through its line `other`.
+//     - PARAMETER_UNWRITTEN  a form takes its parameter at place `other` in its head, and its text never writes it.
+//                            A name that opens with an underscore marks a parameter that the form takes and does not
+//                            write, and does not count.
+//     - PLACE_UNKNOWN        the text of a form writes a place, `other` characters into the text, that its head does
+//                            not take.
+//     - NO_TEXT              a form with nothing after its equals, which names neither nop nor err.
+//     - NUMERIC_NAME         the text of a form uses the numeric name of the register that the fixed entry `other`
+//                            names.
+//     - SCHEMA_NOT_NAMED     an entry gives a name that the schema does not name.
+//     - SCHEMA_NOT_GIVEN     no entry gives a name of the schema, at its place `entry` in the list `other`.
+//     - SCHEMA_PARAMETERS    a form takes a count of parameters that the schema does not give.
+//     - ROW_TWICE            an arrangement has the same operator and chain as an earlier one.
+//     - COUNT_DISAGREES      a count that is not the `other` questions of that channel and class in its file.
+//     - CLASS_NOT_NAMED      a question gets an answer with a class that its file does not name.
 #define RULESET_CORE_RELATION_GIVEN_TWICE 0u
 #define RULESET_CORE_RELATION_SAME_TEXT 1u
 #define RULESET_CORE_RELATION_RENAMED 2u
@@ -76,26 +83,33 @@
 #define RULESET_CORE_RELATION_CLASS_NOT_NAMED 17u
 #define RULESET_CORE_RELATION_KINDS 18u
 
-// A relation is witnessed by the entries it names where every set containing those entries contains it: a file added
-// never undoes it, and it is a verdict on whatever part of a set is read. A relation of absence, a name no entry gives,
-// is true only of a set that is whole, and no set read is known to be whole: the file that gives the name undoes it.
-// Such a relation is open, retained for a later read to close or retain and never a verdict. A classification's counts
-// and classes are contained within one file, which is read whole, and its file witnesses them
+// The entries that a relation names witness it where each set with those entries holds it. An added file never
+// undoes it. It is a verdict on any part of a set that the walk reads.
+//
+// A relation of absence, a name that no entry gives, is true only of a whole set. The walk does not know whether a set
+// is whole: the file that gives the name undoes it. Such a relation is open. The walk keeps it for a later read to close
+// or keep, and it is never a verdict.
+//
+// One file holds the counts and classes of a classification. The walk reads that file whole, and the file witnesses
+// them
 #define RULESET_CORE_RELATION_OPEN(type_)                                                                              \
     (((type_) == RULESET_CORE_RELATION_LINE_NOT_GIVEN) || ((type_) == RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN))
 
-// A relation between two forms' writings is true of writings that are right as well as of wrong ones: a form's text
-// another's, a construct writing another form under its own parameters, two names a word and their modifiers apart,
-// and a form opening another's literal operands. A target writes two operations one modifier apart, and a language
-// writes one text for two names. Such a relation is recorded and written, the bridge's pairs are read from it
-// (klq_write.cu), and it is no verdict. Every other relation that is not open is one
+// A relation between the writings of two forms is true of correct writings and of wrong ones. Examples are a form with
+// the text of another, and a construct that writes another form under its own parameters. Others are two names a word
+// and their modifiers apart, and a form that opens the literal operands of another.
+//
+// A target writes two operations one modifier apart, and a language writes one text for two names. The walk records
+// and writes such a relation, and the bridge reads its pairs from it (klq_write.cu). It is no verdict. Each other
+// relation that is not open is a verdict
 #define RULESET_CORE_RELATION_VERDICT(type_)                                                                           \
     (!RULESET_CORE_RELATION_OPEN(type_) && ((type_) != RULESET_CORE_RELATION_SAME_TEXT) &&                             \
      ((type_) != RULESET_CORE_RELATION_RENAMED) && ((type_) != RULESET_CORE_RELATION_MODIFIERS) &&                     \
      ((type_) != RULESET_CORE_RELATION_OPENED))
 
-// one line of one file: its type, the file and the line it is, the construct a construct's line is in, whether
-// the line has an equals, its name, the words after the name up to the equals, and the text after it
+// one line of one file. It holds its type, its file and its line number, and the construct that holds a line of a
+// construct. It holds whether the line has an equals, its name, the words after the name up to the equals, and the text
+// after it
 struct RulesetCoreEntry
 {
     unsigned int type;
@@ -116,9 +130,10 @@ struct RulesetCoreRelation
     unsigned int other;
 };
 
-// the files read together and what is read of them: the schema, its characters NULL where the files are read against
-// none; the characters of every file, each file a span of them; the entries, the walk's marks and stack, and the
-// relations, each with the capacity the caller sized. A relation past the capacity is counted and not recorded
+// the files that the walk reads together, and what it reads of them. The schema has its characters, NULL where the
+// files have no schema. The characters of each file follow, each file a span of them. Then come the entries, the marks
+// and stack of the walk, and the relations, each with the capacity that the caller gives. The walk counts a relation
+// past the capacity and does not record it
 struct RulesetCoreRelations
 {
     RulesetCoreSchema schema;
@@ -147,8 +162,8 @@ CODEGEN_CORE unsigned int ruleset_core_relation_find(const unsigned char *text, 
     return found;
 }
 
-// part `index` of the span `within` cut at `character`, runs of it counted as one where `character` is a space, or an empty
-// span past its end where it has fewer parts
+// part `index` of the span `within`, cut at `character`. Where `character` is a space, a run of it counts as one.
+// Where the span has fewer parts, the result is an empty span past its end
 CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_part(const unsigned char *text, RulesetCoreSpan within,
                                                         unsigned char character, unsigned int index)
 {
@@ -235,8 +250,8 @@ CODEGEN_CORE void ruleset_core_relation_add(RulesetCoreRelations *relations, uns
     relations->relation_count += 1u;
 }
 
-// the entries of file `file`: its first line names what the file is and is no entry, a line opening with # is a
-// comment and a blank line is nothing
+// the entries of file `file`. Its first line names what the file is, and is no entry. A line that opens with # is a
+// comment, and a blank line is nothing
 CODEGEN_CORE void ruleset_core_relation_file(RulesetCoreRelations *relations, unsigned int file)
 {
     const unsigned char *const text = relations->text;
@@ -247,7 +262,7 @@ CODEGEN_CORE void ruleset_core_relation_file(RulesetCoreRelations *relations, un
     while (at < whole.length)
     {
         const unsigned int end = ruleset_core_relation_find(text, whole, (unsigned char)'\n', at);
-        // a checkout that ends its lines with a carriage return as well leaves each line as it was written
+        // a checkout that also ends its lines with a carriage return keeps each line as its writer wrote it
         const unsigned int line_end = ((end > at) && (text[whole.first + end - 1u] == '\r')) ? (end - 1u) : end;
         const RulesetCoreSpan line = {whole.first + at, line_end - at};
         number += 1u;
@@ -325,7 +340,7 @@ CODEGEN_CORE int ruleset_core_relation_gives(unsigned int type)
            (type == RULESET_CORE_ENTRY_CONSTRUCT);
 }
 
-// the first entry giving the name `name`, or RULESET_CORE_NONE where none does
+// the first entry that gives the name `name`, or RULESET_CORE_NONE where none does
 CODEGEN_CORE unsigned int ruleset_core_relation_giver(const RulesetCoreRelations *relations, RulesetCoreSpan name)
 {
     for (unsigned int at = 0u; at < relations->entry_count; at += 1u)
@@ -356,9 +371,9 @@ CODEGEN_CORE unsigned int ruleset_core_relation_place(const RulesetCoreRelations
     return count;
 }
 
-// the parameter `entry`'s text names at `at`, a place of its text containing {: the name between the braces, or an
-// empty span where no } closes it or what the braces contain is not a name of characters, digits and underscores, as a
-// brace of the target's own language is not
+// the parameter that the text of `entry` names at `at`, a place of its text that holds {. The result is the name
+// between the braces. It is an empty span where no } closes it, or where the braces do not hold a name of characters,
+// digits and underscores. A brace of the own language of the target holds no such name
 CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_braced(const RulesetCoreRelations *relations,
                                                           const RulesetCoreEntry *entry, unsigned int at)
 {
@@ -403,10 +418,10 @@ CODEGEN_CORE int ruleset_core_relation_ends(unsigned char character)
            (character == '{');
 }
 
-// The texts of forms `one` and `other` walked together, each parameter read as its place in its own head. With
-// `struck`, every dot and the characters and digits after it are passed over in both. With `opened`, a parameter of
-// `one` past `other`'s count is for a literal operand of `other`, and the operands it was for are counted into
-// `opened`. 1 where the walk reaches both ends together
+// The texts of forms `one` and `other`, walked together, each parameter as its place in its own head. With `struck`,
+// the walk passes over each dot and the characters and digits after it in both. With `opened`, a parameter of `one`
+// past the count of `other` is for a literal operand of `other`. The walk counts those operands into `opened`. The
+// result is 1 where the walk reaches both ends together
 CODEGEN_CORE int ruleset_core_relation_walk(const RulesetCoreRelations *relations, const RulesetCoreEntry *one,
                                             const RulesetCoreEntry *other, int struck, unsigned int *opened)
 {

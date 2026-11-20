@@ -528,7 +528,6 @@ includes/file_defs/krs/krs_write/krs_write_internal.h	4
 includes/file_defs/krs/krs_write/words.c	4
 includes/file_defs/krs/ruleset_core_read.h	22
 includes/file_defs/krs/ruleset_core_relation_schema.h	10
-includes/file_defs/krs/ruleset_core_relation_walk.h	37
 includes/file_defs/krs/ruleset_core_relations.h	4
 includes/file_defs/krs/ruleset_core_scratch.h	18
 includes/file_defs/krs/ruleset_core_words.h	18
