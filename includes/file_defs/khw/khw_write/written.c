@@ -5,8 +5,8 @@
 #include "khw_write.h"
 #include "verba_scribo/verba_scribo.h"
 
-// the text a writer here puts together: its bytes, the room they have, and the offset written to, the room once a write
-// did not fit
+// the text that a writer here puts together: its bytes, the room that they have, and the offset of the write. The
+// offset is the room once a write did not fit
 static char *s_text_out;
 static size_t s_text_cap;
 static size_t s_text_at;
@@ -66,8 +66,8 @@ static int khw_text_passed(const char *name)
     return passed;
 }
 
-// run `run` of `form` written after what the text contains as its first bit, its last and its place with its type's
-// character after it, KHW_PLACE_NONE_TEXT where it has none
+// run `run` of `form`, written after what the text holds, as its first bit, its last and its place. The character of
+// its type comes after the place, or KHW_PLACE_NONE_TEXT where it has none
 static void khw_run_printed(const KhwAnswered *answered, unsigned int run)
 {
     const unsigned int type = (answered->type[run] <= KHW_KIND_CONSTANT) ? answered->type[run] : KHW_KIND_REGISTER;
@@ -100,9 +100,12 @@ static void khw_encoding_printed(unsigned long long low, unsigned long long high
     text_hex(high);
 }
 
-// the runs of `form` read from `text`, `form->runs` of them: three words a run, its first bit, its last and its place
-// with its type's character after it, a register where none; or two, its first bit and its last, where the line contains
-// no place, every run then containing none. 1, or 0 where the words are neither
+// the runs of `form` read from `text`, `form->runs` of them:
+//   - three words a run: its first bit, its last, and its place with the character of its type after it, a register
+//     where none.
+//   - or two words, its first bit and its last, where the line holds no place. Each run then holds none.
+//
+// The result is 1, or 0 where the words are neither
 int khw_runs_read(KhwAnswered *answered, const char *text)
 {
     unsigned int words = 0u;
@@ -150,8 +153,8 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
     return 1;
 }
 
-// the relation `form` answered as the answers and the working set write it, `ladder.<anchor>` or `frame.<relation>`,
-// the frame's with its reading after a dot where `with_reading` is not 0, into `written` of `room` bytes. The text
+// the relation that `form` answered, as the answers and the working set write it, into `written` of `room` bytes. It
+// is `ladder.<anchor>` or `frame.<relation>`. Where `with_reading` is not 0, the read of the frame comes after a dot. The text
 const char *khw_relation_named(const KhwAnswered *answered, int with_reading, char *written, size_t room)
 {
     if (answered->frame == (unsigned int)FRAME_RELATION_COUNT)
@@ -169,11 +172,15 @@ const char *khw_relation_named(const KhwAnswered *answered, int with_reading, ch
     return written;
 }
 
-// the forms the part answered for passed to the run as KHW_FORMS_NAME, one a line, for the vendor's writer to
-// name and arrange: the relation the gate read, whether the answers read a word signed and whether the part was
-// queried, the encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet
-// classified, or one with no operand run, names nothing; the vendor arranges none of them. 1, or 0 with the reason
-// printed
+// the forms that the part answered for, passed to the run as KHW_FORMS_NAME, one a line. The writer of the vendor
+// names and arranges them. Each line holds:
+//   - the relation that the gate read.
+//   - whether the answers read a word as signed, and whether the part got the query.
+//   - the encoding.
+//   - the first and last bit of each run, and its place in the tuple of the relation.
+//
+// A form not yet classified, or one with no operand run, names nothing, and the vendor arranges none of them. The
+// result is 1, or 0 with the reason printed
 int khw_answers_written(void)
 {
     static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ULL];
@@ -203,11 +210,15 @@ int khw_answers_written(void)
     return khw_text_passed(KHW_FORMS_NAME);
 }
 
-// The working set passed to the run as KHW_WORK_NAME, every form of it a line read back by khw_forms_read the
-// next pass: its phase and the order its words were read, the relation, the signedness, the encoding, and its runs
-// with their places. A discovered form carries no run, a turned form the candidates its register-runs will sort, each
-// with no place, a classified form the operands retained. It is the state the passes of the split hand each other,
-// retained apart from what the vendor arranges. 1, or 0 with the reason printed
+// The working set, passed to the run as KHW_WORK_NAME. Each form of it is a line, and khw_forms_read reads it back the
+// next pass. The line holds its phase, the read order of its words, the relation, the signedness and the encoding.
+// It also holds its runs with their places.
+//
+// A discovered form carries no run. A turned form carries the candidates that its register-runs sort, each with no
+// place. A classified form carries the kept operands.
+//
+// It is the state that the passes of the split hand each other, kept apart from what the vendor arranges. The result
+// is 1, or 0 with the reason printed
 int khw_forms_work_written(void)
 {
     static char s_work_bytes[QRY_WRITER_RING_BYTES / 2ULL];
