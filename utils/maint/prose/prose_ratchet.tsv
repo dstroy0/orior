@@ -591,7 +591,6 @@ includes/window/controls.c	3
 includes/window/controls.h	2
 includes/window/dialog.c	3
 includes/window/dialog.h	4
-includes/window/frame.c	34
 includes/window/frame.h	30
 includes/window/glyphs.c	30
 includes/window/ground.c	2

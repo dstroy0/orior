@@ -48,7 +48,7 @@ EMBED_INLINE int frame_share(const FrameCtx *args)
     return (int)((scaled + ((scaled >= 0LL) ? (GUI_FIXED_ONE / 2) : -(GUI_FIXED_ONE / 2))) / GUI_FIXED_ONE);
 }
 
-// `share`, a number of GUI_FIXED_ONE from 0 to it, at the nearest of the parts a fading part's share is at
+// `share`, a number of GUI_FIXED_ONE from 0 to it, at the nearest of the parts where the share of a part that fades is
 EMBED_INLINE int frame_part_share(const FrameCtx *args)
 {
     // a share in parts, rounded, is a small count
@@ -63,8 +63,8 @@ EMBED_INLINE int frame_part(const FrameCtx *args)
     return (int)(((long long)args->share * (long long)args->pixels) / GUI_FIXED_ONE);
 }
 
-// the lesser and the greater of a part's place `first` at its reveal and `end` at the reveal's lagged number: a pane
-// spans between the two, and its far edge trails as it comes in, its near edge as it goes
+// the lesser and the greater of the place `first` of a part at its reveal, and `end` at the lagged number of the
+// reveal. A pane spans between the two. Its far edge trails as it comes in, and its near edge trails as it goes
 EMBED_INLINE int frame_least(const FrameCtx *args)
 {
     return (args->first < args->end) ? args->first : args->end;
@@ -85,9 +85,9 @@ EMBED_INLINE GuiEdges frame_edges_intersect(const FrameCtx *args)
     return met;
 }
 
-// a slat along an edge: the part's span from `first` to `end` along the edge, grown by `grown` from the point
-// `pulled`, the middle where none has been, into `from` and `to`; the grown ends rounded to the nearest pixel where
-// `rounded`, the span in pixels, else cut in the frame's words
+// a slat along an edge, into `from` and `to`. It is the span of the part from `first` to `end` along the edge, grown by
+// `grown` from the point `pulled`, or the middle where there is none. Where `rounded`, the grown ends round to the
+// nearest pixel, with the span in pixels. Else the code cuts the ends in the words of the frame
 EMBED_INLINE void frame_band(const FrameCtx *args)
 {
     int *from = args->from;
@@ -115,9 +115,9 @@ EMBED_INLINE void frame_band(const FrameCtx *args)
                               : EMBED_CALL(frame_part, FrameCtx, .share = args->grown, .pixels = after));
 }
 
-// the terminal's panel's height in the inside `pixels` tall: the height asked at the scale, no less than its least and,
-// short of that, no more than the window's share or what leaves the views above it their least, and no taller than the
-// inside; 0 while the panel is closed
+// the height of the panel of the terminal in the inside, which is `pixels` tall. It is the requested height at the
+// scale, no less than its least. Short of that, it is no more than the share of the window. It is also no more than the
+// height that leaves the views above it their least, and no taller than the inside. It is 0 while the panel does not show
 EMBED_INLINE int frame_terminal_height(const FrameCtx *args)
 {
     if (args->frame->terminal_height <= 0)
@@ -140,10 +140,11 @@ EMBED_INLINE int frame_terminal_height(const FrameCtx *args)
     return (height < args->pixels) ? height : ((args->pixels > 0) ? args->pixels : 0);
 }
 
-// the work's inside arranged: the inside the work less its padding, the terminal's panel across its foot where it is
-// open, drawn down from there by its arrival, above it the side `side_width` pixels of it at the left, the tabs row
-// across the rest, and under it the editor with the map's column at its right, the row and the column away by the
-// claim's numbers
+// the inside of the work, arranged. The inside is the work less its padding. Where the panel of the terminal is open,
+// it goes across the foot, drawn down from there by its arrival.
+//
+// Above it, the side takes `side_width` pixels at the left, and the tabs row goes across the rest. Under the tabs row
+// is the editor, with the column of the map at its right. The numbers of the claim move the row and the column away
 EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
 {
     const int scale = args->frame->scale;
@@ -156,8 +157,8 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_BOTTOM, .scale = scale);
     const int pad_left =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_PAD_LEFT, .scale = scale);
-    // the tabs row is away while the claim holds and its own reveal is not taken, risen out of the work's head whole
-    // and faded by the share away; the map is away while the right is not revealed
+    // the tabs row is away while the claim holds and the claim does not take its own reveal. It rises out of the head
+    // of the work whole, and fades by the share away. The map is away while the claim does not reveal the right
     const int tabs_share = GUI_FIXED_ONE - EMBED_CALL(frame_share, FrameCtx, .share = claim->claim,
                                                       .pixels = GUI_FIXED_ONE - claim->reveal_tabs);
     const int tabs_whole =
@@ -209,8 +210,8 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     args->frame->inside =
         (GuiRect){args->frame->work.x + pad_left, args->frame->work.y + pad_top, inner_width, inside_height};
     args->frame->side = (GuiRect){args->frame->inside.x, args->frame->inside.y, side, inner_height};
-    // the pane drawn moved up and toward the left by the share of its way gone, its own size the whole way, at the
-    // part of its opacity left
+    // the pane, drawn up and toward the left by the share of its way gone. It keeps its own size the whole way, at the
+    // part of its opacity that stays
     const int away = args->frame->side_away;
     args->frame->side_pane =
         (GuiRect){args->frame->side.x - EMBED_CALL(frame_share, FrameCtx, .share = away, .pixels = side),
@@ -224,8 +225,8 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     const int views = (terminal > head) ? (terminal - head) : 0;
     args->frame->terminal_views = (GuiRect){args->frame->terminal.x, args->frame->terminal.y + terminal - views,
                                             (views > 0) ? inner_width : 0, views};
-    // the panel drawn down from its place by the share of its way left as it arrives, its views with it, at the part of
-    // its opacity reached
+    // the panel, drawn down from its place by the share of its way left as it arrives, with its views. It is at the part
+    // of its opacity that it reached
     const int arriving = args->frame->terminal_away;
     const int down = EMBED_CALL(frame_share, FrameCtx, .share = arriving,
                                 .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
@@ -249,11 +250,12 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
                                     inner_height - tabs_height - tabs_gap};
     args->frame->map = (GuiRect){args->frame->editor.x + args->frame->editor.width, args->frame->editor.y, map,
                                  args->frame->editor.height};
-    // the map is whole from its column's left, the claim closing the column sliding it out past the editor's edge
+    // the map is whole from the left of its column. When the claim shuts the column, the map slides out past the edge of
+    // the editor
     args->frame->map_whole =
         (GuiRect){args->frame->map.x, args->frame->map.y, (map_whole > map) ? map_whole : map, args->frame->map.height};
-    // the preview beside the text takes the editor's right half, and alone the editor's rectangle, the editor left none
-    // of its width at its left edge; off, it has no rectangle
+    // the preview beside the text takes the right half of the editor. Alone, it takes the rectangle of the editor, and
+    // the editor keeps none of its width at its left edge. When the preview is off, it has no rectangle
     const GuiRect editor = args->frame->editor;
     const int half = editor.width / 2;
     if (args->frame->preview_mode == GUI_FRAME_PREVIEW_BESIDE)
@@ -270,9 +272,10 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     {
         args->frame->preview = (GuiRect){editor.x + editor.width, editor.y, 0, 0};
     }
-    // The editor's scrollbars take their room from its rectangle, as a scrolling page's do: one down its right side,
-    // located its standoff in from the work's line and its own thickness down from the text's head, as far as it
-    // is up from the text's foot, and one along its foot. The text never runs under either
+    // The scrollbars of the editor take their room from its rectangle, as the scrollbars of a page do. One goes down its
+    // right side, its standoff in from the line of the work. It starts its own thickness down from the head of the
+    // text, and stops as far up from the foot of the text. The other goes along its foot. The text never runs under
+    // either
     const int bar = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SCROLLBAR_WIDTH, .scale = scale);
     const int standoff =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SCROLLBAR_STANDOFF, .scale = scale);
@@ -292,10 +295,11 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
     }
 }
 
-// every part arranged for the frame's size, scale, side and claim; and, where this is not itself the resting layout, the
-// bar, its tools, the controls and the strip positioned again with no claim into the resting rectangles, where their beads
-// bake whatever the claim's slides move them to. The tabs row rests with no side beside it as well, and a side pane's
-// arrival moves its beads without a bake
+// each part arranged for the size, scale, side and claim of the frame. Where this is not the rest layout itself, the
+// bar and its tools go again, with no claim, into the rest rectangles. The controls and the strip do the same.
+//
+// There their beads bake the places that the slides of the claim move them to. The tabs row also rests with no side
+// beside it. The arrival of a side pane moves its beads without a bake
 static void frame_layout(const FrameCtx *args);
 static void frame_rest_positioned(GuiFrame *frame)
 {
@@ -325,8 +329,9 @@ static void frame_layout(const FrameCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_WIDTH, .scale = scale);
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_FRAME_GAP, .scale = scale);
     const int gap_autohide = EMBED_CALL(frame_share, FrameCtx, .share = c, .pixels = gap);
-    // the bar: its top margin runs from none to the bar's height above the window, or the gap below it as the head is
-    // revealed; its sides are in by the gap at the right and by the wordmark's corner and two gaps at the left
+    // the bar. Its top margin runs from none to the height of the bar above the window. As the claim reveals the head,
+    // the margin is the gap below it. Its sides are in by the gap at the right, and by the corner of the wordmark and two gaps at the
+    // left
     const int top_menu_y = EMBED_CALL(
         frame_share, FrameCtx, .share = c,
         .pixels = EMBED_CALL(frame_share, FrameCtx, .share = claim->reveal_top, .pixels = gap) -
@@ -338,9 +343,11 @@ static void frame_layout(const FrameCtx *args)
                   EMBED_CALL(frame_share, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_top, .pixels = top_menu_height));
     const int top_menu_x = EMBED_CALL(frame_share, FrameCtx, .share = c, .pixels = side_menu_width + (2 * gap));
     args->frame->top_menu = (GuiRect){top_menu_x, top_menu_y, pixel_width - top_menu_x - gap_autohide, top_menu_height};
-    // the frame's row: from the bar's foot, pulled up by the head's part come in but not yet given its inset, to the
-    // status bar's head, pulled down by the foot's likewise; the work inside it by the claim's share of the gap on the
-    // left, top and foot and the gap at the right
+    // the row of the frame. It runs from the foot of the bar to the head of the status bar. The part of the head that
+    // came in before its inset pulls the top up. The part of the foot pulls the bottom down in the same way.
+    //
+    // The work sits inside it. On the left, top and foot, it is in by the share of the gap that the claim gives. At the
+    // right it is in by the gap
     const int frame_top =
         top_menu_y + top_menu_height -
         EMBED_CALL(frame_share, FrameCtx, .share = c,
@@ -366,8 +373,8 @@ static void frame_layout(const FrameCtx *args)
                    .pixels = EMBED_CALL(frame_share, FrameCtx, .share = GUI_FIXED_ONE - claim->lag_bottom,
                                         .pixels = status_height));
     args->frame->status = (GuiRect){gap_autohide, status_y, pixel_width - (2 * gap_autohide), status_height};
-    // the side_menu: below the wordmark's corner however far the bar has come in, slid off to the left until the left is
-    // revealed, the work following it back as the left's inset is taken
+    // the side_menu. It sits below the corner of the wordmark, however far the bar came in. It slides off to the left
+    // until the claim reveals the left. The work follows it back as the claim takes the inset of the left
     const int side_menu_y =
         frame_top + gap_autohide +
         EMBED_CALL(frame_share, FrameCtx, .share = c,
@@ -421,7 +428,8 @@ static void frame_layout(const FrameCtx *args)
         (GuiRect){args->frame->controls.x - bevel, controls_pane_y, controls_width + bevel,
                   EMBED_CALL(frame_greatest, FrameCtx, .first = controls_y, .end = controls_y_lag) - controls_pane_y +
                       top_menu_height};
-    // the bar's tools are left of the controls, their buttons centred on the controls' row, and move with them
+    // the tools of the bar sit left of the controls, with their buttons centered on the row of the controls. They move
+    // with the controls
     const int tool = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_TOOL, .scale = scale);
     const int tool_gap =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_TOOL_GAP, .scale = scale);
@@ -446,8 +454,8 @@ static void frame_layout(const FrameCtx *args)
         args->frame->controls_pane_share = EMBED_CALL(frame_part_share, FrameCtx, .share = pane_share);
     }
     args->frame->controls_alpha = EMBED_CALL(frame_part_share, FrameCtx, .share = claim->controls_alpha);
-    // The editor's scrollbar is under the controls' pane as it comes down: its head retains the standoff from the
-    // work's line that it retains from the work's top, below the line that bends round the pane
+    // The scrollbar of the editor is under the pane of the controls as the pane comes down. Its head keeps the standoff
+    // from the line of the work that it keeps from the top of the work. That is below the line that bends round the pane
     if (args->frame->controls_pane_share > 0)
     {
         const int under = args->frame->controls_pane.y + args->frame->controls_pane.height + gap_autohide +
@@ -460,9 +468,11 @@ static void frame_layout(const FrameCtx *args)
                 (args->frame->editor_bar.height > moved) ? args->frame->editor_bar.height - moved : 0;
         }
     }
-    // the slats: the head's and the left's span from the work's own edge, the wordmark's corner theirs; the foot's
-    // from the status bar's own ends. Each slat spans from its part's place to the place at the lagged number: the
-    // pane stretches as a bead does, and its contents, in the part's own rectangle, follow the front edge
+    // the slats. The slats of the head and the left span from the edge of the work, and the corner of the wordmark has
+    // theirs. The slat of the foot spans from the ends of the status bar.
+    //
+    // Each slat spans from the place of its part to the place at the lagged number. The pane stretches as a bead does.
+    // Its contents, in the rectangle of the part, follow the front edge
     int from = 0;
     int to = 0;
     EMBED_CALL(frame_band, FrameCtx,
@@ -502,14 +512,14 @@ static void frame_layout(const FrameCtx *args)
     args->frame->status_pane = EMBED_CALL(
         gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->status_band,
         .other = (GuiRect){args->frame->status.x, status_band_y, args->frame->status.width, args->frame->status_band.height});
-    // a pane's corners are rounded by the claim's share of the work's radius; the radii are not negative
+    // the share of the radius of the work that the claim gives rounds the corners of a pane. The radii are not negative
     args->frame->pane_radius = (unsigned int)EMBED_CALL(
         frame_share, FrameCtx, .share = c,
         .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_RADIUS, .scale = scale));
     args->frame->radius =
         (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_WORK_RADIUS, .scale = scale);
-    // the panes' edges in the frame's words, the same arithmetic unrounded: each part's place along its slide and
-    // its slat's span, met with the part's own
+    // the edges of the panes in the words of the frame, the same arithmetic without the round. That is the place of each
+    // part along its slide and the span of its slat, met with the own span of the part
     const int bar_top = EMBED_CALL(
         frame_part, FrameCtx, .share = c,
         .pixels = EMBED_CALL(frame_part, FrameCtx, .share = claim->reveal_top, .pixels = gap * GUI_FIXED_ONE) -
@@ -667,8 +677,8 @@ void gui_frame_layout(const GuiFrameScaleCfg *args)
     EMBED_CALL(frame_layout, FrameCtx, .frame = args->frame);
 }
 
-// `box`, a part's slat, grown by `grown` on every side, cut to `work` and snapped to the edges of `work` it comes
-// within `snap` of, into `hole`: 1, or 0 where nothing of it lies on the work
+// `box`, the slat of a part, into `hole`. It grows by `grown` on each side, cuts to `work`, and snaps to each edge of
+// `work` within `snap` of it. The result is 1, or 0 where no part of it lies on the work
 EMBED_INLINE int frame_hole(const FrameCtx *args)
 {
     GuiRect *hole = args->hole;
@@ -719,8 +729,8 @@ unsigned int gui_frame_holes(const GuiFrameHolesCfg *args)
                         .grown = grown, .snap = snap, .hole = &args->holes[count])
                  ? 1u
                  : 0u;
-    // the controls' pane is a tab in the work's corner: its hole is the pane itself, the border bent round its edge
-    // with no gap, and the pane and the bend read as one object
+    // the pane of the controls is a tab in the corner of the work. Its hole is the pane itself, and the border bends round
+    // its edge with no gap. The pane and the bend read as one object
     if (args->frame_read->controls_pane_share > 0)
     {
         count +=
