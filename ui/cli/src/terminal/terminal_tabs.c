@@ -891,10 +891,10 @@ int cli_terminal_tabs_command(const CliTerminalTabsCfg *args)
         // the args->words passed to the paste, a space between each, else the clipboard's text
         char text_words[CLI_PATH_MAX_LEN];
         VerbaLinea line = {text_words, sizeof(text_words), 0ULL};
-        for (unsigned int word = 0u; word < args->count; word += 1u)
+        for (unsigned int word_at = 0u; word_at < args->count; word_at += 1u)
         {
-            mmgr_line_put(&line, (word != 0u) ? " " : "");
-            mmgr_line_put(&line, args->words[word]);
+            mmgr_line_put(&line, (word_at != 0u) ? " " : "");
+            mmgr_line_put(&line, args->words[word_at]);
         }
         EMBED_CALL(terminal_paste, TerminalCtx, .bytes = (args->count != 0u) ? text_words : NULL,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);

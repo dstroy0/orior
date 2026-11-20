@@ -232,19 +232,10 @@ EMBED_INLINE GuiColor diffview_tint(const DiffviewCtx *args)
 {
     const GuiPalette *const palette = args->work->palette;
     const unsigned int type = args->row_read->type;
-    GuiColor mark = 0u;
-    if (type == CLI_CHANGED)
-    {
-        mark = palette->mark[2];
-    }
-    else if ((type == CLI_DIFF_VIEW_ADDED) && args->right)
-    {
-        mark = palette->mark[1];
-    }
-    else if ((type == CLI_DIFF_VIEW_REMOVED) && !args->right)
-    {
-        mark = palette->mark[0];
-    }
+    const GuiColor mark = (type == CLI_CHANGED)                               ? palette->mark[2]
+                          : ((type == CLI_DIFF_VIEW_ADDED) && args->right)    ? palette->mark[1]
+                          : ((type == CLI_DIFF_VIEW_REMOVED) && !args->right) ? palette->mark[0]
+                                                                              : 0u;
     return (mark != 0u) ? ((mark & 0x00ffffffu) | (GUI_DIFFVIEW_TINT << 24u)) : 0u;
 }
 

@@ -384,7 +384,7 @@ int cli_job_runs_row_read(const CliJobRunsRowCfg *args)
                                                                 .offset = 0ULL,
                                                                 .dst = &s_row_run,
                                                                 .bytes = sizeof(s_row_run)});
-        const unsigned int from = (section.type == CLI_JOB_RUN_END) ? s_row_run.word : 0u;
+        const unsigned int from = (section.type == CLI_JOB_RUN_END) ? s_row_run.word_at : 0u;
         row->text = s_row_run.state + from;
         row->text_length = s_row_run.state_length - from;
         row->number = s_row_run.run;

@@ -136,7 +136,7 @@ int main(void)
     unsigned long long now_ms = 1000ULL;
 
     // off: no rectangle, nothing drawn
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "off");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "off");
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame,
                .displayed = (int)EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = now_ms));
     (void)stepped(key, &frame, now_ms);
@@ -146,7 +146,7 @@ int main(void)
               "with the mode off the frame has no preview and nothing is drawn");
 
     // beside: the right half drawn, the left half the editor's
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "beside");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "beside");
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame,
                .displayed = (int)EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = now_ms));
     now_ms += CLI_PREVIEW_LOOK_MS;
@@ -165,7 +165,7 @@ int main(void)
               "nothing is drawn above or below the rectangle");
 
     // alone: the whole rectangle
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "alone");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "alone");
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame,
                .displayed = (int)EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = now_ms));
     now_ms += CLI_PREVIEW_LOOK_MS;
@@ -174,7 +174,7 @@ int main(void)
     cli_check((frame.preview.x == whole.x) && (frame.preview.width == shared) && (frame.editor.width == 0) &&
                   (drawn_in(&raster, (GuiRect){whole.x, whole.y, 40, 40}) != 0u),
               "alone, the preview fills the editor's rectangle");
-    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .word = "beside");
+    EMBED_CALL(cli_preview.mode_set, CliPreviewCfg, .mode_word = "beside");
     EMBED_CALL(gui_frame_displayed.preview, GuiFrameDisplayedCfg, .frame = &frame,
                .displayed = (int)EMBED_CALL(cli_preview.mode_get, CliPreviewCfg, .now_ms = now_ms));
     now_ms += CLI_PREVIEW_LOOK_MS;

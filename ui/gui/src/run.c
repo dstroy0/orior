@@ -186,15 +186,10 @@ EMBED_INLINE GuiColor run_state_color(const RunCtx *args)
 {
     const GuiPalette *const palette = args->pane->palette;
     const unsigned int flags = args->row->flags;
-    if ((flags & CLI_JOB_RUN_LIVE) != 0u)
-    {
-        return palette->signal;
-    }
-    if ((flags & CLI_JOB_RUN_OK) != 0u)
-    {
-        return palette->mark[1];
-    }
-    return ((flags & CLI_JOB_RUN_FAILED) != 0u) ? palette->error : palette->text_2;
+    return ((flags & CLI_JOB_RUN_LIVE) != 0u)     ? palette->signal
+           : ((flags & CLI_JOB_RUN_OK) != 0u)     ? palette->mark[1]
+           : ((flags & CLI_JOB_RUN_FAILED) != 0u) ? palette->error
+                                                  : palette->text_2;
 }
 
 // a line of the run displayed drawn from `x_f32` in the code face: each piece its spans cut in the span's color of the

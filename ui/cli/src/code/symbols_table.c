@@ -179,19 +179,19 @@ EMBED_INLINE unsigned int cli_place_taken(const SymbolsTableCtx *args)
         EMBED_CALL(cli_cell_zeroed, SymbolsTableCtx, .entry = s_chunk[chunk],
                    .bytes = (unsigned long long)CLI_BRANCH_CHUNK * sizeof(CliTreeBranch));
     }
-    unsigned int word = 0u;
-    while (s_chunk_bits[chunk][word] == ~0ULL)
+    unsigned int bits_at = 0u;
+    while (s_chunk_bits[chunk][bits_at] == ~0ULL)
     {
-        word += 1u;
+        bits_at += 1u;
     }
     unsigned int bit = 0u;
-    while (((s_chunk_bits[chunk][word] >> bit) & 1ULL) != 0ULL)
+    while (((s_chunk_bits[chunk][bits_at] >> bit) & 1ULL) != 0ULL)
     {
         bit += 1u;
     }
-    s_chunk_bits[chunk][word] |= 1ULL << bit;
+    s_chunk_bits[chunk][bits_at] |= 1ULL << bit;
     s_chunk_used[chunk] += 1u;
-    const unsigned int place = (chunk << CLI_BRANCH_CHUNK_SHIFT) + (word * 64u) + bit;
+    const unsigned int place = (chunk << CLI_BRANCH_CHUNK_SHIFT) + (bits_at * 64u) + bit;
     g_cli_branch_count = (place >= g_cli_branch_count) ? place + 1u : g_cli_branch_count;
     return place;
 }

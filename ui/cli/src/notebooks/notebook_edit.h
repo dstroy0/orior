@@ -60,7 +60,7 @@ struct CliNotebookEditFocusCfg
 struct CliNotebookEditKeyCfg
 {
     const char *key;
-    const char *word;
+    const char *pressed;
 };
 
 struct CliNotebookEditCellCfg
@@ -76,7 +76,7 @@ struct CliNotebookEditMenuCfg
     const char *key;
     unsigned int cell;
     unsigned int output;
-    const char *word;
+    const char *menu_word;
 };
 
 typedef struct

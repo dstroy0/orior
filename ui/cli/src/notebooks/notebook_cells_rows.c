@@ -359,12 +359,12 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
         int listed = 0;
         for (unsigned int other = 0u; other < model->cells; other += 1u)
         {
-            CliNotebookCell one = {0};
+            CliNotebookCell other_cell = {0};
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = model->cells_cell, .offset = CLI_NOTEBOOK_CELL_AT(other), .dst = &one, .bytes = sizeof(one)});
+                .cell = model->cells_cell, .offset = CLI_NOTEBOOK_CELL_AT(other), .dst = &other_cell, .bytes = sizeof(other_cell)});
             if ((other == args->cell) ||
-                !EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = one.first_run,
-                            .last_run = one.last_run, .edited = one.edited, .gone = 0))
+                !EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = other_cell.first_run,
+                            .last_run = other_cell.last_run, .edited = other_cell.edited, .gone = 0))
             {
                 continue;
             }
@@ -374,14 +374,14 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
         }
         for (unsigned int gone = 0u; gone < model->gone_count; gone += 1u)
         {
-            CliNotebookGone one;
+            CliNotebookGone gone_cell;
             (void)g_cli_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = ((CliNotebookModel *)(embed_word)model)->gone_cell,
                                     .offset = CLI_NOTEBOOK_GONE_AT(gone),
-                                    .dst = &one,
+                                    .dst = &gone_cell,
                                     .bytes = sizeof(CliNotebookGone)});
-            if (EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = one.first_run,
-                           .last_run = one.last_run, .edited = 0u, .gone = 1))
+            if (EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = gone_cell.first_run,
+                           .last_run = gone_cell.last_run, .edited = 0u, .gone = 1))
             {
                 mmgr_line_put(out, listed ? ", a cell since deleted" : "a cell since deleted");
                 listed = 1;

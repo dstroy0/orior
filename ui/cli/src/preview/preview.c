@@ -484,10 +484,10 @@ unsigned int cli_preview_mode_get(const CliPreviewCfg *args)
 void cli_preview_mode_set(const CliPreviewCfg *args)
 {
     unsigned int mode = (s_preview.mode == args->mode) ? CLI_PREVIEW_OFF : args->mode;
-    for (unsigned int each = 0u; (args->word != NULL) && (each < 3u); each += 1u)
+    for (unsigned int each = 0u; (args->mode_word != NULL) && (each < 3u); each += 1u)
     {
         mode =
-            cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = s_mode_words[each], .cap = 16ULL}) ? each : mode;
+            cellul.eq(&(CatenaFinitaCfg){.src = args->mode_word, .other = s_mode_words[each], .cap = 16ULL}) ? each : mode;
     }
     s_preview.mode = (mode < 3u) ? mode : CLI_PREVIEW_OFF;
     // the folder it is saved in and the error line, for the save alone

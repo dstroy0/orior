@@ -335,9 +335,9 @@ EMBED_INLINE int macro_step_sent(const DoorMacroOpCtx *args)
         words[count + 1u] = s_macros.sender;
         count += 2u;
     }
-    for (unsigned int word = 2u; word < fields; word += 1u)
+    for (unsigned int field_at = 2u; field_at < fields; field_at += 1u)
     {
-        words[count] = field[word];
+        words[count] = field[field_at];
         count += 1u;
     }
     char why[CLI_ERR_MSG_MAX_LEN];

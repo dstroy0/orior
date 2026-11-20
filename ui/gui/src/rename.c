@@ -16,12 +16,6 @@ typedef struct
     int scale;
 } RenameCtx;
 
-// whether the key `name` is `required`
-EMBED_INLINE int rename_key_is(const RenameCtx *args)
-{
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->rename->text, .other = args->name, .cap = CLI_NAME_MAX_LEN});
-}
-
 // `pixels` of the page at the box's scale
 EMBED_INLINE int rename_scaled(const RenameCtx *args)
 {

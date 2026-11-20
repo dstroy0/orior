@@ -94,7 +94,7 @@ typedef struct
     unsigned int run_text;
     unsigned int run_length;
     MarkdownStyle run_style;
-    unsigned char word[MARKDOWN_WORD];
+    unsigned char word_bytes[MARKDOWN_WORD];
     MarkdownStyle word_style[MARKDOWN_WORD];
     unsigned int word_length;
     int space;
@@ -380,7 +380,7 @@ EMBED_INLINE void word_flush(const MarkdownCtx *args)
     long long width = 0LL;
     for (unsigned int at = 0u; at < flow->word_length; at += 1u)
     {
-        width += (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = flow->word[at],
+        width += (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = flow->word_bytes[at],
                                        .flags = flow->word_style[at].flags) *
                  (long long)flow->size;
     }
@@ -419,7 +419,7 @@ EMBED_INLINE void word_flush(const MarkdownCtx *args)
     for (unsigned int at = 0u; at < flow->word_length; at += 1u)
     {
         EMBED_CALL(run_character, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow,
-                   .character = flow->word[at], .style = &flow->word_style[at]);
+                   .character = flow->word_bytes[at], .style = &flow->word_style[at]);
     }
     flow->word_length = 0u;
     flow->space = 0;
@@ -440,7 +440,7 @@ EMBED_INLINE void flow_character(const MarkdownCtx *args)
     {
         EMBED_CALL(word_flush, MarkdownCtx, .items = args->items, .writing = args->writing, .flow = flow);
     }
-    flow->word[flow->word_length] = args->character;
+    flow->word_bytes[flow->word_length] = args->character;
     flow->word_style[flow->word_length] = flow->style;
     flow->word_length += 1u;
 }

@@ -325,14 +325,7 @@ static void git_row_draw(const GuiPaneCfg *args)
         const float measured = EMBED_CALL(gui_pane_part.text_width, GuiPanePartCfg, .pane = args, .face = GUI_FACE_CODE,
                                           .size = GUI_GIT_REF_SIZE, .text = ref.name, .length = ref.length);
         int width = (int)(measured + 0.5f) + (2 * ref_pad);
-        if (width < ref_min)
-        {
-            width = ref_min;
-        }
-        else if (width > ref_max)
-        {
-            width = ref_max;
-        }
+        width = (width < ref_min) ? ref_min : ((width > ref_max) ? ref_max : width);
         const GuiRect pill = {x, rect.y + ((rect.height - ref_height) / 2), width, ref_height};
         EMBED_CALL(gui_pane_field.box_draw, GuiPaneFieldCfg, .pane = args, .rect = pill, .radius = GUI_GIT_REF_RADIUS,
                    .color = ref.head ? palette->signal : palette->line,

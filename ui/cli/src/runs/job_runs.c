@@ -126,7 +126,7 @@ EMBED_INLINE void state_written(const JobRunsCtx *args)
     mmgr_line_decimal(&line, run->run, 1u);
     mmgr_line_ch(&line, ' ');
     // the state's bytes are fewer than its array's, far inside an unsigned int
-    run->word = (unsigned int)line.at;
+    run->word_at = (unsigned int)line.at;
     if (run->live)
     {
         mmgr_line_put(&line, "running");

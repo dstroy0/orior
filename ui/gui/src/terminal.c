@@ -607,14 +607,11 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
             EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "green");
         const int blue =
             EMBED_CALL(terminal_word_is, TerminalCtx, .token = part, .length = part_length, .expected = "blue");
-        const unsigned int green_shift = green ? 8u : 0u;
-        const unsigned int shift = red ? 16u : green_shift;
+        const unsigned int shift = red ? 16u : (green ? 8u : 0u);
         const unsigned int parts = ((*color & CLI_TERMINAL_COLOR_TYPE) == CLI_TERMINAL_COLOR_DIRECT) ? *color : 0u;
-        const unsigned int level = (number < 255u) ? number : 255u;
-        if (red || green || blue)
-        {
-            *color = CLI_TERMINAL_COLOR_DIRECT | (parts & 0x00ffffffu & ~(0xffu << shift)) | (level << shift);
-        }
+        *color = (red || green || blue) ? (CLI_TERMINAL_COLOR_DIRECT | (parts & 0x00ffffffu & ~(0xffu << shift)) |
+                                           (((number < 255u) ? number : 255u) << shift))
+                                        : *color;
     }
     return 1;
 }
@@ -660,13 +657,8 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const int anchored =
         (frame != NULL) && ((frame->anchor.line < frame->cursor.line) ||
                             ((frame->anchor.line == frame->cursor.line) && (frame->anchor.col < frame->cursor.col)));
-    CliPosition from = {0ULL, 0ULL};
-    CliPosition to = {0ULL, 0ULL};
-    if (frame != NULL)
-    {
-        from = anchored ? frame->anchor : frame->cursor;
-        to = anchored ? frame->cursor : frame->anchor;
-    }
+    const CliPosition from = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->anchor : frame->cursor);
+    const CliPosition to = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->cursor : frame->anchor);
     const int selected = (from.line != to.line) || (from.col != to.col);
     const CliDocumentNames *const names = args->terminal_read->names[args->view];
     const unsigned int count = (frame != NULL) ? frame->count : 0u;

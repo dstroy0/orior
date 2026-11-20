@@ -170,7 +170,7 @@ struct CliPreviewCfg
     const char *key;
     const char *path;
     unsigned int mode;
-    const char *word;
+    const char *mode_word;
     unsigned long long now_ms;
     int width_px;
     int height_px;

@@ -145,10 +145,10 @@ int cli_notebook_cell_key(const CliNotebookEditKeyCfg *args)
         return 0;
     }
     const unsigned int cell = model->focused;
-    const int next = cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "Shift+Enter", .cap = 32ULL});
-    const int stay = cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "Ctrl+Enter", .cap = 32ULL}) ||
-                     cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "Meta+Enter", .cap = 32ULL});
-    const int escape = cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "Escape", .cap = 32ULL});
+    const int next = cellul.eq(&(CatenaFinitaCfg){.src = args->pressed, .other = "Shift+Enter", .cap = 32ULL});
+    const int stay = cellul.eq(&(CatenaFinitaCfg){.src = args->pressed, .other = "Ctrl+Enter", .cap = 32ULL}) ||
+                     cellul.eq(&(CatenaFinitaCfg){.src = args->pressed, .other = "Meta+Enter", .cap = 32ULL});
+    const int escape = cellul.eq(&(CatenaFinitaCfg){.src = args->pressed, .other = "Escape", .cap = 32ULL});
     if (!next && !stay && !escape)
     {
         return 0;
@@ -470,18 +470,18 @@ int cli_notebook_cell_command(const CliNotebookEditMenuCfg *args)
     const unsigned int cell = (args->cell != CLI_NOTEBOOK_NONE) ? args->cell : model->menu_cell;
     static const char *const s_words[] = {"notebook-run",   "notebook-retype", "notebook-up",    "notebook-down",
                                           "notebook-clear", "notebook-delete", "notebook-debug", "notebook-show-all"};
-    unsigned int word = CLI_NOTEBOOK_NONE;
+    unsigned int named_at = CLI_NOTEBOOK_NONE;
     for (unsigned int at = 0u; at < (sizeof(s_words) / sizeof(s_words[0])); at += 1u)
     {
-        word = cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = s_words[at], .cap = 32ULL}) ? at : word;
+        named_at = cellul.eq(&(CatenaFinitaCfg){.src = args->menu_word, .other = s_words[at], .cap = 32ULL}) ? at : named_at;
     }
-    if ((word == CLI_NOTEBOOK_NONE) || (cell >= model->cells))
+    if ((named_at == CLI_NOTEBOOK_NONE) || (cell >= model->cells))
     {
-        return word != CLI_NOTEBOOK_NONE;
+        return named_at != CLI_NOTEBOOK_NONE;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    switch (word)
+    switch (named_at)
     {
     case 0u: {
         (void)EMBED_CALL(cli_notebook_kernel_run.run, CliNotebookKernelRunCfg, .key = args->key, .cell = cell,
@@ -495,7 +495,7 @@ int cli_notebook_cell_command(const CliNotebookEditMenuCfg *args)
     case 2u:
     case 3u: {
         (void)EMBED_CALL(cli_notebook_edit_cell.move, CliNotebookEditCellCfg, .key = args->key, .cell = cell,
-                         .by = (word == 2u) ? -1 : 1);
+                         .by = (named_at == 2u) ? -1 : 1);
         break;
     }
     case 4u: {

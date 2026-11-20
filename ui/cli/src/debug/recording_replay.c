@@ -129,15 +129,15 @@ int cli_replay_at_breakpoint(const CliRecordingSerialStepCtx *args)
                                       .serial = step.frame, .path_out = file),
                .full = full);
     EMBED_CALL(cli_recording_path_internal.replay_key, CliRecordingPathCtx, .path = full, .key = key);
-    for (unsigned int file = 0u; file < g_cli_replay->break_file_count; file += 1u)
+    for (unsigned int break_file = 0u; break_file < g_cli_replay->break_file_count; break_file += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_replay->break_files[file], .other = key, .cap = CLI_POOL_BYTES}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_replay->break_files[break_file], .other = key, .cap = CLI_POOL_BYTES}))
         {
             continue;
         }
-        for (unsigned int at = 0u; at < g_cli_replay->break_count[file]; at += 1u)
+        for (unsigned int at = 0u; at < g_cli_replay->break_count[break_file]; at += 1u)
         {
-            if (g_cli_replay->break_lines[file][at] == step.line)
+            if (g_cli_replay->break_lines[break_file][at] == step.line)
             {
                 return 1;
             }

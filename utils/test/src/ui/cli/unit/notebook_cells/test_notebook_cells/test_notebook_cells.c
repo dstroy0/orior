@@ -316,7 +316,7 @@ void test_the_sentences_the_rows_show(void)
     sentence_is("nb:a", CLI_NOTEBOOK_TEXT_MORE, 2u, output, "Show all 100 lines");
     const unsigned int rows = EMBED_CALL(cli_notebook_cells_row.rows, CliNotebookCellsRowCfg, .key = "nb:a");
     TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_notebook_edit_menu.command, CliNotebookEditMenuCfg, .key = "nb:a",
-                                        .cell = 2u, .output = output, .word = "notebook-show-all"));
+                                        .cell = 2u, .output = output, .menu_word = "notebook-show-all"));
     TEST_ASSERT_EQUAL_UINT(rows + 100u - ((2u * CLI_NOTEBOOK_CUT_LINES) + 1u),
                            EMBED_CALL(cli_notebook_cells_row.rows, CliNotebookCellsRowCfg, .key = "nb:a"));
     // the kernel's state as its status messages set it, the display text the notebook records before it

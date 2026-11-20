@@ -271,8 +271,8 @@ void cli_vim_operate(const CliVimCtx *args)
     else
     {
         unsigned int motion = command->motion;
-        const int word = (motion == 'w') || (motion == 'W');
-        if ((command->name == 'c') && word &&
+        const int by_word = (motion == 'w') || (motion == 'W');
+        if ((command->name == 'c') && by_word &&
             (EMBED_CALL(cli_vim_motions_internal.type, CliVimCtx, .big = motion == 'W',
                         .character = EMBED_CALL(cli_vim_motions_internal.character_at, CliVimCtx, .key = args->key,
                                                 .place = from)) != 0u))
@@ -562,20 +562,20 @@ EMBED_INLINE void commands_word_searched(const CliVimCtx *args)
         end += 1ULL;
     }
     const unsigned long long max = (3ULL * (end - start)) + 1ULL;
-    char *const word = (start != end) ? g_cli_guard->temporary_buf_alloc(max, g_cli_vim_owner) : NULL;
-    if (word == NULL)
+    char *const word_text = (start != end) ? g_cli_guard->temporary_buf_alloc(max, g_cli_vim_owner) : NULL;
+    if (word_text == NULL)
     {
         EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
         return;
     }
-    VerbaLinea out = {word, max, 0ULL};
+    VerbaLinea out = {word_text, max, 0ULL};
     EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &out, .units = units + start,
                .count = end - start);
     EMBED_CALL(cli_vim_motions_internal.line_end, CliVimCtx, .units = units);
     const unsigned long long written = mmgr_line_finish(&out);
-    EMBED_CALL(cli_vim_commands_internal.search, CliVimCtx, .at = args->at, .key = args->key, .text = word,
+    EMBED_CALL(cli_vim_commands_internal.search, CliVimCtx, .at = args->at, .key = args->key, .text = word_text,
                .length = written, .back = args->back, .word_text = 1);
-    g_cli_guard->persistent_buf_release(word, g_cli_vim_owner);
+    g_cli_guard->persistent_buf_release(word_text, g_cli_vim_owner);
 }
 
 // o and O: a line opened below the cursor's, or above it for O, with its blanks, and insert mode entered on it

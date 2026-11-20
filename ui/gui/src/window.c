@@ -393,15 +393,6 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(gui_block_size.free, GuiBlockSizeCfg);
 }
 
-// whether the side_menu's tool displayed is the tool named `key`
-EMBED_INLINE int window_tool_by_name(const GuiWindowCtx *args)
-{
-    // the tool displayed is among the tools
-    return (args->window_read->side_menu.displayed >= 0) &&
-           cellul.eq(&(CatenaFinitaCfg){
-               .src = g_gui_tools[args->window_read->side_menu.displayed].name, .other = args->key, .cap = 32ULL});
-}
-
 // the tool whose pane the side shows, NULL where none; its table of pane, NULL where it has none; and the pane's own
 // state, a state a tool
 EMBED_INLINE const GuiTool *window_tool(const GuiWindowCtx *args)
@@ -2236,7 +2227,7 @@ EMBED_INLINE void window_preference_percent_set(const GuiWindowCtx *args)
 // The value goes to the nearest step of the zoom, and to the nearest whole percent
 EMBED_INLINE void window_preference_slid(const GuiWindowCtx *args)
 {
-    GuiPreferenceValues *const values = &args->window->preference_values;
+    const GuiPreferenceValues *const values = &args->window->preference_values;
     if (args->change->at >= values->rows)
     {
         return;
@@ -2405,7 +2396,7 @@ EMBED_INLINE void window_preference_row_remove(const GuiWindowCtx *args)
 // displayed again leaves Notices
 EMBED_INLINE void window_preference_acted(const GuiWindowCtx *args)
 {
-    GuiPreferenceValues *const values = &args->window->preference_values;
+    const GuiPreferenceValues *const values = &args->window->preference_values;
     if (args->change->at >= values->rows)
     {
         return;
@@ -5271,7 +5262,7 @@ EMBED_INLINE int window_command_run(const GuiWindowCtx *args)
                    .mode = EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "preview-alone")
                                ? CLI_PREVIEW_ALONE
                                : CLI_PREVIEW_BESIDE,
-                   .word = (args->count != 0u) ? args->words[0] : NULL);
+                   .mode_word = (args->count != 0u) ? args->words[0] : NULL);
         window->pending = 1;
     }
     else if (EMBED_CALL(window_words_run, GuiWindowCtx, .window = window, .name = name, .words = args->words,
@@ -5350,7 +5341,7 @@ EMBED_INLINE unsigned int window_hand_named(const GuiWindowCtx *args)
     unsigned int free_hand = 0u;
     for (unsigned int at = 0u; at < GUI_WINDOW_HANDS; at += 1u)
     {
-        GuiHand *const hand = &window->hands[at];
+        const GuiHand *const hand = &window->hands[at];
         if (hand->used && EMBED_CALL(window_is, GuiWindowCtx, .name = hand->name, .key = args->name))
         {
             return at + 1u;
@@ -5933,14 +5924,8 @@ static int window_command_named(const char *command, const char *const *words, u
         const int off = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "off");
         const int lock = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "lock");
         const int free_word = EMBED_CALL(window_is, GuiWindowCtx, .name = words[0], .key = "free");
-        if (on || off)
-        {
-            window->raw_wanted = on ? 1 : 0;
-        }
-        if (lock || free_word)
-        {
-            window->lock_wanted = lock ? 1 : 0;
-        }
+        window->raw_wanted = on ? 1 : (off ? 0 : window->raw_wanted);
+        window->lock_wanted = lock ? 1 : (free_word ? 0 : window->lock_wanted);
         return on || off || lock || free_word;
     }
     // The sessions on other hosts, reached as text: a host joined or left, the hosts listed, and a command of a menu
@@ -6805,7 +6790,7 @@ void gui_window_draw(const GuiWindowCfg *args)
     const int view_displayed = !args->window->wordmark.exists;
     // a stage of the claim's movement brings its map and its holes; only a frame at rest positions them
     const GuiStage *const stage = view_displayed ? args->window->stage : NULL;
-    GuiRaster *const retained = &args->window->base_retained;
+    const GuiRaster *const retained = &args->window->base_retained;
     const int retained_fits = args->window->base_retained_whole && (retained->pixels != NULL) &&
                               (retained->width == raster->width) && (retained->height == raster->height);
     if (clipped && retained_fits)
@@ -8011,7 +7996,7 @@ EMBED_INLINE int window_editor_bar_press(const GuiWindowCtx *args)
         return 1;
     }
     const unsigned long long page = (displayed != 0ULL) ? displayed : 1ULL;
-    unsigned long long moved = first;
+    unsigned long long moved;
     if (hit == GUI_SCROLLBAR_UP)
     {
         moved = (first > 0ULL) ? first - 1ULL : 0ULL;

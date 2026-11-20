@@ -708,17 +708,17 @@ EMBED_INLINE int first_rows_run(const DbPaneTreeCtx *args)
 int cli_db_pane_command(const CliDbPaneTreeCfg *args)
 {
     CliDbPaneState *const pane = &g_cli_db_pane_state;
-    const char *const word = (args->count != 0u) ? args->words[0] : NULL;
+    const char *const first_word = (args->count != 0u) ? args->words[0] : NULL;
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "db-choose", .cap = 32ULL}))
     {
         CliDbConnection connection;
-        for (unsigned int at = 0u; (word != NULL) && (at < pane->connections); at += 1u)
+        for (unsigned int at = 0u; (first_word != NULL) && (at < pane->connections); at += 1u)
         {
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(at),
                                                                     .dst = &connection,
                                                                     .bytes = sizeof(CliDbConnection)});
-            if (cellul.eq(&(CatenaFinitaCfg){.src = connection.name, .other = word, .cap = CLI_NAME_MAX_LEN}))
+            if (cellul.eq(&(CatenaFinitaCfg){.src = connection.name, .other = first_word, .cap = CLI_NAME_MAX_LEN}))
             {
                 EMBED_CALL(chosen_set, DbPaneTreeCtx, .at = at);
             }
@@ -727,10 +727,10 @@ int cli_db_pane_command(const CliDbPaneTreeCfg *args)
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "db-copy-name", .cap = 32ULL}))
     {
-        if (word != NULL)
+        if (first_word != NULL)
         {
-            (void)EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .text = word,
-                             .size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_POOL_BYTES}));
+            (void)EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .text = first_word,
+                             .size = cellul.len(&(CatenaFinitaCfg){.src = first_word, .cap = CLI_POOL_BYTES}));
         }
         return 1;
     }

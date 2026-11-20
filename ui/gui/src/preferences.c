@@ -1151,7 +1151,6 @@ EMBED_INLINE int preferences_on_list(const PreferencesCtx *args)
 int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args)
 {
     const GuiPalette *palette = args->palette;
-    const int colors = args->preferences->section == GUI_PREFERENCES_COLORS;
     // the palettes' list under the pointer, else the grid's rows of colors, or a section's own rows
     if (EMBED_CALL(preferences_on_list, PreferencesCtx, .preferences = args->preferences))
     {

@@ -945,7 +945,7 @@ static void view_hands_follow(void)
 // changed. A full ring leaves the order to the next pass
 static void view_raw_follow(void)
 {
-    GuiWindow *const window = &s_view.window;
+    const GuiWindow *const window = &s_view.window;
     if (window->raw_wanted != s_view.raw_ordered)
     {
         const CliViewOrder order = {.type = CLI_VIEW_ORDER_ACT,

@@ -335,7 +335,7 @@ static void debug_row_draw(const GuiPaneCfg *args)
         return;
     }
     default: {
-        GuiColor color = palette->text;
+        GuiColor color;
         switch (row.line_type)
         {
         case CLI_DEBUG_LINE_STDERR:

@@ -110,7 +110,7 @@ typedef struct
     long long code;
     char state[48];
     unsigned int state_length;
-    unsigned int word;
+    unsigned int word_at;
     CliJobRunsRings *rings;
     unsigned char *rings_taken;
 } CliJobRunsRun;

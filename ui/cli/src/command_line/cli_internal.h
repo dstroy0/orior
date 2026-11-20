@@ -242,7 +242,7 @@ typedef struct
 // on the word with the turnstile's backoff until the holder opens it and wakes the word
 typedef struct
 {
-    embed_atomic_word word;
+    embed_atomic_word state;
 } CliGate;
 
 #define CLI_GATE_INIT {EMBED_ATOMIC_INIT(0u)}
@@ -253,12 +253,12 @@ typedef struct
 EMBED_INLINE void cli_gate_shut(CliGate *gate)
 {
     EmbedTurnstileBackoff backoff;
-    embed_atomic_word_value was = embed_atomic_word_fetch_or(&gate->word, CLI_GATE_HELD);
+    embed_atomic_word_value was = embed_atomic_word_fetch_or(&gate->state, CLI_GATE_HELD);
     embed_turnstile_backoff_begin(&backoff);
     while ((was & CLI_GATE_HELD) != 0u)
     {
-        embed_turnstile_backoff_step(&gate->word, was, CLI_GATE_SLEEPER, &backoff, 1u);
-        was = embed_atomic_word_fetch_or(&gate->word, CLI_GATE_HELD);
+        embed_turnstile_backoff_step(&gate->state, was, CLI_GATE_SLEEPER, &backoff, 1u);
+        was = embed_atomic_word_fetch_or(&gate->state, CLI_GATE_HELD);
     }
     EMBED_ATOMIC_ORDERED();
 }
@@ -267,10 +267,10 @@ EMBED_INLINE void cli_gate_shut(CliGate *gate)
 EMBED_INLINE void cli_gate_opened(CliGate *gate)
 {
     EMBED_ATOMIC_ORDERED();
-    const embed_atomic_word_value was = embed_atomic_word_fetch_and(&gate->word, ~(CLI_GATE_HELD | CLI_GATE_SLEEPER));
+    const embed_atomic_word_value was = embed_atomic_word_fetch_and(&gate->state, ~(CLI_GATE_HELD | CLI_GATE_SLEEPER));
     if ((was & CLI_GATE_SLEEPER) != 0u)
     {
-        embed_word_wake(&gate->word);
+        embed_word_wake(&gate->state);
     }
 }
 

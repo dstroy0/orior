@@ -989,7 +989,7 @@ typedef struct
 {
     void (*each)(const CliEachHunkCfg *args);
     void *context;
-    unsigned int *word;
+    unsigned int *hunk_words;
     unsigned int count;
     unsigned int max;
 } HunksLaying;
@@ -1002,11 +1002,11 @@ static void hunk_positioned(const CliEachHunkCfg *args)
         &(CliEachHunkCfg){positioning->context, args->now_from, args->now_to, args->then_from, args->then_to});
     if (positioning->count < positioning->max)
     {
-        unsigned int *const word = positioning->word + ((unsigned long long)positioning->count * CLI_DOC_HUNK_WORDS);
-        word[0] = args->now_from;
-        word[1] = args->now_to;
-        word[2] = args->then_from;
-        word[3] = args->then_to;
+        unsigned int *const hunk = positioning->hunk_words + ((unsigned long long)positioning->count * CLI_DOC_HUNK_WORDS);
+        hunk[0] = args->now_from;
+        hunk[1] = args->now_to;
+        hunk[2] = args->then_from;
+        hunk[3] = args->then_to;
     }
     positioning->count += 1u;
 }
@@ -1020,19 +1020,19 @@ EMBED_INLINE void hunks_replayed(const DocumentStoreCtx *args)
         return;
     }
     const unsigned long long bytes = (unsigned long long)one->hunks * CLI_DOC_HUNK_WORDS * sizeof(unsigned int);
-    unsigned int *const word = g_cli_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
-    if (word == NULL)
+    unsigned int *const hunk_words = g_cli_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
+    if (hunk_words == NULL)
     {
         return;
     }
     (void)g_cli_guard->movable_buf_read(
-        &(CarcerMovableCfg){.cell = one->hunks_cell, .offset = 0u, .dst = word, .bytes = bytes});
+        &(CarcerMovableCfg){.cell = one->hunks_cell, .offset = 0u, .dst = hunk_words, .bytes = bytes});
     for (unsigned int at = 0u; at < one->hunks; at += 1u)
     {
-        const unsigned int *const change = word + ((unsigned long long)at * CLI_DOC_HUNK_WORDS);
+        const unsigned int *const change = hunk_words + ((unsigned long long)at * CLI_DOC_HUNK_WORDS);
         args->each(&(CliEachHunkCfg){args->context, change[0], change[1], change[2], change[3]});
     }
-    g_cli_guard->persistent_buf_release(word, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(hunk_words, g_cli_editor_owner);
 }
 
 // the diff of the head against the lines run, each change passed to `each` as it is found, and the changes saved in a
@@ -1051,11 +1051,11 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
                        EMBED_CALL(stored_copy_enter, DocumentStoreCtx, .stored_read = &one->lines, .lines = &now);
     // the lines of both texts are far below 2^32
     const unsigned int max = copied ? (then.lines + now.lines) : 0u;
-    unsigned int *const word =
+    unsigned int *const hunk_words =
         (max != 0u) ? g_cli_guard->temporary_buf_alloc(
                           (unsigned long long)max * CLI_DOC_HUNK_WORDS * sizeof(unsigned int), g_cli_editor_owner)
                     : NULL;
-    HunksLaying positioning = {args->each, args->context, word, 0u, (word != NULL) ? max : 0u};
+    HunksLaying positioning = {args->each, args->context, hunk_words, 0u, (hunk_words != NULL) ? max : 0u};
     const int changed = copied && EMBED_CALL(cli_document_out_then.line_changes, CliDocumentOutThenCfg, .then = &then,
                                              .now = &now, .each = hunk_positioned, .context = &positioning);
     if (changed && (positioning.count <= positioning.max))
@@ -1068,14 +1068,14 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
             if (one->hunks_cell != NULL)
             {
                 (void)g_cli_guard->movable_buf_write(
-                    &(CarcerMovableCfg){.cell = one->hunks_cell, .offset = 0u, .src = word, .bytes = bytes});
+                    &(CarcerMovableCfg){.cell = one->hunks_cell, .offset = 0u, .src = hunk_words, .bytes = bytes});
             }
             one->hunks = positioning.count;
             one->hunks_serial = one->serial;
             one->hunks_known = 1;
         }
     }
-    g_cli_guard->persistent_buf_release(word, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(hunk_words, g_cli_editor_owner);
     if (now.unit != NULL)
     {
         EMBED_CALL(stored_work_exit, DocumentStoreCtx, .lines = &now);
