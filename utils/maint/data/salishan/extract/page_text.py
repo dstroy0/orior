@@ -2381,11 +2381,11 @@ def write_rows(stem, by_page, document, lifted=None):
     target = os.path.join(PRIVATE, "pagetext", stem + ".txt")
     with open(target, "w", encoding="utf-8", newline="\n") as handle:
         handle.write("\n".join(merged))
-    # Every space here is a gap between glyphs, and residue.paper_repair reads this file to
-    # leave the space after a stacked mark open, xin̓ te.
+    # Each space here is a gap between glyphs. residue.paper_repair reads this file, to leave the space
+    # after a stacked mark open, xin̓ te.
     with open(os.path.join(PRIVATE, "pagetext", stem + ".rows"), "w", encoding="utf-8") as handle:
         handle.write("spaces set from glyph positions\n")
-    # A .layer an earlier closeup read left is no longer this text's.
+    # A .layer that an earlier closeup read left no longer belongs to this text.
     layer_file = os.path.join(PRIVATE, "pagetext", stem + ".layer")
     if os.path.isfile(layer_file):
         os.remove(layer_file)
@@ -2393,9 +2393,9 @@ def write_rows(stem, by_page, document, lifted=None):
 
 
 def drop_other_readings(stem):
-    """Remove the .rows and .layer files an earlier rows or closeup read of stem left: residue reads
-    a page text with a .rows file as read by glyph rows, and one with a .layer file as closed up, and
-    a default read is neither. Mayer's VOT paper retained a .rows past a default read."""
+    """Remove the .rows and .layer files that an earlier rows or closeup read of stem left. The reader residue
+    reads a page text with a .rows file as read by glyph rows, and one with a .layer file as closed up. A
+    default read is neither, and a stale .rows must not outlive it."""
     for suffix in (".rows", ".layer"):
         stale = os.path.join(PRIVATE, "pagetext", stem + suffix)
         if os.path.isfile(stale):
@@ -2403,15 +2403,18 @@ def drop_other_readings(stem):
 
 
 def join_broken_lines(layer, by_characters, spaced_join=False, columns=None):
-    """The layer can break a line the glyphs set on one row: Dery / le Lonsdale in Lonsdale and
-    Matsushita's byline, <pre / f-asp2> in their Figure 2, Figu / re 6, and in Stewart's (46) the
-    gloss throw= / OBJ=DET. Two layer lines are one where their characters together make a glyph line
-    and neither makes one alone. With spaced_join the two meet with a space where the glyph row
-    sets one between them, no / NEG=1P.POSS in Stewart's (7); without it they meet with none.
-    columns maps the characters of a glyph row to the row read with wide gaps (gap_lines with wide and
-    held_wide),
-    and two lines a column's gap parts on the row stay two: the captions (a) and (b) of Menon's
-    side-by-side figures. Returns the lines and the repairs."""
+    """The layer can break a line that the glyphs set on one row. Examples are Dery / le Lonsdale in the
+    byline of Lonsdale and Matsushita, <pre / f-asp2> in their Figure 2, and Figu / re 6. Another is the
+    gloss throw= / OBJ=DET in (46) of Stewart.
+
+    Two layer lines are one where their characters together make a glyph line, and neither makes one
+    alone. With spaced_join, the two meet with a space where the glyph row sets one between them, as
+    no / NEG=1P.POSS in (7) of Stewart. Without it, they meet with none.
+
+    The argument columns maps the characters of a glyph row to the row read with wide gaps (gap_lines
+    with wide and held_wide). Two lines that the gap of a column parts on the row then stay two.
+    Examples are the captions (a) and (b) of the side-by-side figures of Menon. Returns the lines and
+    the repairs."""
     joined, repairs, page = [], [], 0
     for line in layer:
         marker = re.match(r"^===== page (\d+) =====$", line)
@@ -2448,23 +2451,27 @@ def join_broken_lines(layer, by_characters, spaced_join=False, columns=None):
 
 def main():
     stem = sys.argv[1]
-    # A typed page scanned to an image has a text layer of OCR that holds none of the orthography.
-    # Its page text is transcribed from the scan by a person, and nothing here reads it again.
+    # A typed page scanned to an image has a text layer of OCR that holds none of the orthography. A
+    # person transcribes its page text from the scan, and nothing here reads it again.
     if stem in TRANSCRIBED_FROM_SCAN:
         raise SystemExit("%s: the page text is transcribed from the scan, and page_text.py leaves it" % stem)
     document, mended, _ = paper_document(stem)
-    # A font that gives characters a space in ToUnicode is read with the characters its program maps.
-    # Its rows go under a name of their own, since each reading below replaces page_text.py's rows.
+    # The code reads a font that gives characters a space in ToUnicode with the characters that its
+    # program maps. Its rows go under a name of their own, because each read below replaces the rows of
+    # page_text.py.
     defects.write(stem, "page_text.py fonts", [(0, "ToUnicode gives glyphs a space, mended from the font program",
                                                 one, "") for one in mended])
-    # A paper whose text layer sets each word of an example over its gloss, dim / PROSP / hadiks /
-    # swim in Brown's (1), is read by glyph rows on request: python page_text.py <stem> rows. The
-    # word-space threshold is the paper's own, from its gaps inside words.
-    # A text layer that puts spaces inside words, associa te and C hinook in Zenk's §1, while
-    # the glyph rows break words the layer holds whole, mamuk- ˈhihi at a stress mark's narrow box,
-    # is read on request as python page_text.py <stem> closeup: each layer line retains its own
-    # spacing less the gaps its glyph row does not show. No space is added, and a layer line with
-    # no glyph row of the same characters stays as the layer has it.
+    # A paper whose text layer sets each word of an example over its gloss reads by glyph rows on
+    # request: python page_text.py <stem> rows. An example is dim / PROSP / hadiks / swim in (1) of
+    # Brown. The word-space threshold is the own threshold of the paper, from its gaps inside words.
+    #
+    # A text layer can put spaces inside words, as associa te and C hinook in §1 of Zenk. The glyph
+    # rows can also break words that the layer holds whole. An example is mamuk- ˈhihi at the narrow box
+    # of a stress mark.
+    #
+    # Such a paper reads on request as python page_text.py <stem> closeup. Each layer line keeps its
+    # own spacing, less the gaps that its glyph row does not show. The code adds no space. A layer line
+    # with no glyph row of the same characters stays as the layer has it.
     if sys.argv[2:3] == ["closeup"]:
         share = calibrated_share(document)
         by_characters, by_base = {}, {}
@@ -2475,8 +2482,9 @@ def main():
                 by_base.setdefault(base_characters(one), one)
         layer = layer_text(stem).split("\n")
         merged, repairs, unmatched, page = [], [], 0, 0
-        # An italic mark the layer reads as a space or as two marks, x ux and ṯ̕sud in Sardinha's
-        # Kwak̕wala, is mended page by page from the glyphs before the lines meet the rows.
+        # The code mends an italic mark that the layer reads as a space or as two marks. It works page by
+        # page from the glyphs, before the lines meet the rows. Examples are x ux and ṯ̕sud in the Kwak̕wala of
+        # Sardinha.
         pages = [(0, [])]
         for line in layer:
             marker = re.match(r"^===== page (\d+) =====$", line)
@@ -2489,8 +2497,8 @@ def main():
                                              number)
             layer += lines
             repairs += found
-        # A paper closed up before closeup joined broken lines retains its line numbers, its ops keyed
-        # to them: Reisinger's modality paper, its table row k̓ ʷa / PAST T. P.
+        # A paper closed up before closeup joined broken lines keeps its line numbers, because its ops
+        # key to them. An example is the modality paper of Reisinger, its table row k̓ ʷa / PAST T. P.
         if stem not in CLOSEUP_UNJOINED:
             layer, found = join_broken_lines(layer, by_characters, spaced_join=True)
             repairs += found
@@ -2501,15 +2509,16 @@ def main():
                 page = int(marker.group(1))
                 merged.append(line)
                 continue
-            # A layer that defines á as a and a combining acute, St' át'imcets in Davis's
-            # introduction, meets the glyph row's á once both are composed.
+            # A layer that defines á as a and an acute that combines meets the á of the glyph row after
+            # the composition of both. An example is St' át'imcets in the introduction of Davis.
             if unicodedata.normalize("NFC", line) != line and \
                     unicodedata.normalize("NFC", "".join(line.split())) in by_characters:
                 line = unicodedata.normalize("NFC", line)
             spaced = by_characters.get("".join(line.split()))
             closer = subtract_spaces
-            # A glyph row that sets a mark apart from its character or drops it, ḵ ̕ux̱ in the layer and
-            # ḵux̱ in the row of Sardinha's second paper, meets the layer line on base characters.
+            # A glyph row that sets a mark apart from its character, or drops it, meets the layer line on
+            # base characters. An example is ḵ ̕ux̱ in the layer and ḵux̱ in the row of the second paper of
+            # Sardinha.
             if spaced is None and line.strip():
                 spaced, closer = by_base.get(base_characters(line)), subtract_base_spaces
             if spaced is None:
@@ -2532,9 +2541,9 @@ def main():
         rows_file = os.path.join(PRIVATE, "pagetext", stem + ".rows")
         if os.path.isfile(rows_file):
             os.remove(rows_file)
-        # The lines retained as the layer has them, for residue.paper_repair: only these can hold the
-        # layer's space after a stacked mark. A closed-up line's spaces are the glyph row's own,
-        # =ox̱ =da in Sardinha's (6), and closing one there joins two words.
+        # The lines kept as the layer has them, for residue.paper_repair. Only these can hold the space
+        # of the layer after a stacked mark. The spaces of a closed-up line are the own spaces of the
+        # glyph row, as =ox̱ =da in (6) of Sardinha. A close there joins two words.
         with open(os.path.join(PRIVATE, "pagetext", stem + ".layer"), "w", encoding="utf-8",
                   newline="\n") as handle:
             handle.write("\n".join(one_glyph(one) for one in retained) + "\n")
@@ -2553,13 +2562,14 @@ def main():
                             drawn_back=stem in PAPER_DRAWN_BACK, mark_base=stem in PAPER_MARK_BASE,
                             ruled=stem in PAPER_RULED, stream_faces=PAPER_STREAM_FACES.get(stem, ()),
                             underscored=stem in PAPER_UNDERSCORED, marks_ahead=stem in PAPER_MARKS_AHEAD)
-        # A private-use glyph is written as the character it draws here too, before the raised characters
-        # are read: x̌ʷ in van Eijk's nax̌ʷít sets its ʷ after the private-use x̌.
+        # The code writes a private-use glyph as the character that it draws here too. It does so before
+        # it reads the raised characters. The x̌ʷ in nax̌ʷít of van Eijk sets its ʷ after the private-use
+        # x̌.
         mapping = PRIVATE_USE.get(stem, {})
         by_page = [[lettered_glyphs(one, mapping) for one in page_lines] for page_lines in by_page]
-        # A page set a quarter turn round, a wide table printed sideways, has its glyph rows run
-        # across the table's columns. The text layer reads it in order, and that page retains the
-        # layer's lines.
+        # On a page set a quarter turn round, a wide table printed sideways, the glyph rows run across the
+        # columns of the table. The text layer reads it in order, and that page keeps the lines of the
+        # layer.
         layer_pages = re.split(r"^===== page \d+ =====$", layer_text(stem), flags=re.M)[1:]
         turned = []
         for number in range(len(document)):
@@ -2586,13 +2596,14 @@ def main():
         out.append("===== page %d =====" % (number + 1))
         text = document[number].get_textpage().get_text_range()
         out.extend(one.rstrip() for one in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"))
-    # pdfium retains the spaces of running prose and drops the wide column gaps of an example, where
-    # it gives ƛ̓ʊxʷegənč. for the text layer's ƛ̓ʊxʷegən č. Neither is the page everywhere. A text
-    # layer line retains its own spacing unless it holds a glued token, and then takes the pdfium
-    # line with the same characters once spaces are set aside.
-    # A font whose ToUnicode names the comma above as a character leaves both the text layer and
-    # pdfium's text wrong at every glottalized character, ƛ ƛ qƛ əmcin for ƛ̓q̓əmcín. There the page is
-    # read from the glyph positions alone, page by page, with each misread mark set right.
+    # pdfium keeps the spaces of running prose, and drops the wide column gaps of an example. It gives
+    # ƛ̓ʊxʷegənč. for the ƛ̓ʊxʷegən č. of the text layer. Neither is the page everywhere.
+    # A text layer line keeps its own spacing, unless it holds a glued token. It then takes the pdfium
+    # line with the same characters, with the spaces put aside.
+    #
+    # A font whose ToUnicode names the comma above as a character leaves the text layer wrong at each
+    # glottalized character. The text of pdfium is wrong there too, ƛ ƛ qƛ əmcin for ƛ̓q̓əmcín. There the code
+    # reads the page from the glyph positions alone, page by page, with each misread mark set right.
     marks = []
     for number in range(len(document)):
         gap_lines(OnePage(document, number), marks=marks)
@@ -2618,18 +2629,19 @@ def main():
         target = os.path.join(PRIVATE, "pagetext", stem + ".txt")
         with open(target, "w", encoding="utf-8", newline="\n") as handle:
             handle.write("\n".join(merged))
-        # Every space here is a gap between glyphs, and residue.paper_repair reads this file to
-        # leave the space after a stacked mark open, xin̓ te.
+        # Each space here is a gap between glyphs. residue.paper_repair reads this file, to leave the
+        # space after a stacked mark open, xin̓ te.
         with open(os.path.join(PRIVATE, "pagetext", stem + ".rows"), "w", encoding="utf-8") as handle:
             handle.write("spaces set from glyph positions\n")
-        # A .layer an earlier closeup read left is no longer this text's.
+        # A .layer that an earlier closeup read left no longer belongs to this text.
         layer_file = os.path.join(PRIVATE, "pagetext", stem + ".layer")
         if os.path.isfile(layer_file):
             os.remove(layer_file)
         print("%s: the font names its marks as the characters %s; %d marks set right, the page read from "
               "the glyph positions" % (target, " and ".join(sorted(set(marks) & set(MARK_OF))), len(marks)))
         return
-    # A private-use glyph is written as the character it draws, in pdfium's lines as in the layer's.
+    # The code writes a private-use glyph as the character that it draws, in the lines of pdfium as in
+    # those of the layer.
     mapping = PRIVATE_USE.get(stem, {})
     out = [lettered_glyphs(one, mapping) for one in out]
     glyphs = [lettered_glyphs(one, mapping) for one in gap_lines(document)]
@@ -2644,10 +2656,11 @@ def main():
         by_out.setdefault("".join(one.split()), set()).add(" ".join(one.split()))
     by_out = {key: next(iter(found)) for key, found in by_out.items() if len(found) == 1}
     layer = layer_text(stem).split("\n")
-    # The layer can drop a glyph pdfium retains, the ∼ of reduplication in Huijsmans' det=prog∼sing-md
-    # and [tə=wu∼wuw-əm]. A layer line without it takes pdfium's line of the same characters once
-    # the glyph and the spaces are set aside, with the glyph put back where pdfium sets it. The layer
-    # can leave a control character in its place, det=prog\x18sing-md, and that goes.
+    # The layer can drop a glyph that pdfium keeps, the ∼ of reduplication in det=prog∼sing-md and
+    # [tə=wu∼wuw-əm] of Huijsmans.
+    # A layer line without it takes the line of pdfium with the same characters, with the glyph and the
+    # spaces put aside. The glyph goes back where pdfium sets it. The layer can leave a control
+    # character in its place, det=prog\x18sing-md, and that goes.
     retained = {}
     for one in out:
         if any(glyph in one for glyph in DROPPED):
@@ -2685,8 +2698,8 @@ def main():
         columns = {}
         for one in gap_lines(document, wide=True, fonts=True):
             columns.setdefault("".join(one.split()), lettered_glyphs(one, mapping))
-        # Such a layer breaks a line at a change of font as well, go=1 / SG.SBJ go.home in Turner's
-        # (1a), where the gloss sets its small capitals.
+        # Such a layer breaks a line at a change of font as well, where the gloss sets its small capitals.
+        # An example is go=1 / SG.SBJ go.home in (1a) of Turner.
         spans = {}
         for one in gap_lines(document, wide=True, fonts=True, held_wide=True):
             spans.setdefault("".join(one.split()), lettered_glyphs(one, mapping))
@@ -2730,9 +2743,10 @@ def main():
             page = int(marker.group(1))
         # Of two printings of one line, the one with more spaces lost fewer of the page's gaps.
         spaced = by_characters.get("".join(line.split()))
-        # The layer can also set a space inside a word or move one: max ex tensive, b y the and
-        # 1Seeww w.tei-c.org in Lonsdale and Matsushita. Where pdfium's line and the glyph line read
-        # the same characters alike, their spacing is the page's.
+        # The layer can also set a space inside a word, or move one. Examples are max ex tensive, b y the
+        # and 1Seeww w.tei-c.org in Lonsdale and Matsushita.
+        # Where the line of pdfium and the glyph line read the same characters alike, their spacing is
+        # that of the page.
         agreed = by_out.get("".join(line.split()))
         glyph_line = by_glyphs.get("".join(line.split()))
         if spaced and len(spaced.split()) > len(line.split()):
@@ -2747,10 +2761,11 @@ def main():
             repairs.append((page, "space inside a word", line, agreed))
         else:
             merged.append(line)
-    # A line whose marks pdfium sets in another order than the layer, scw̓ éxmx beside scw̓éxmx,
-    # matches no pdfium line whole, and its glued tokens stay: information(YY)isabbreviatedasNV in
-    # Hannon's footnote *. Each such token takes the spacing of the same characters in pdfium's
-    # text of its page, where they are once with only spaces between them.
+    # pdfium can set the marks of a line in another order than the layer, as scw̓ éxmx beside scw̓éxmx.
+    # Such a line matches no pdfium line whole, and its glued tokens stay. An example is the token
+    # information(YY)isabbreviatedasNV in footnote * of Hannon.
+    # Each such token takes the spacing of the same characters in the pdfium text of its page. That
+    # holds where they occur once, with only spaces between them.
     page_texts = {}
     for number in range(len(document)):
         text = document[number].get_textpage().get_text_range()
@@ -2767,9 +2782,9 @@ def main():
             if len(token) < 8 or token.startswith("http") or \
                     sum(1 for character in token if character.isascii() and character.isalpha()) < 6:
                 continue
-            # Each run of plain characters is matched alone, nukʷasideforthe... and discus- carry a
-            # mark and a line-end hyphen pdfium may set otherwise; a run pdfium prints more than
-            # once, past temporal orientation, is taken where every printing is spaced alike.
+            # The code matches each run of plain characters alone. nukʷasideforthe... and discus- carry a
+            # mark and a line-end hyphen that pdfium can set otherwise. A run that pdfium prints more than
+            # once, past temporal orientation, counts where each print has the same spacing.
             def respaced(run):
                 pattern = r"\s?".join(re.escape(character) for character in run.group(0))
                 found = {one.group(0) for one in re.finditer(pattern, page_texts.get(page, ""))}
