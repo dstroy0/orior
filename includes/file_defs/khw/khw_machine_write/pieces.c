@@ -15,8 +15,8 @@ typedef struct
 static KhwPiece s_piece[KHW_PIECES];
 static unsigned int s_pieces;
 
-// the container the system accepted, the part it enters at, how many registers a thread of it uses, the kernel's
-// code and how many places it contains
+// the container that the system accepted, and the part where it enters. Then how many registers a thread of it uses,
+// the code of the kernel, and how many places it holds
 unsigned char s_pattern[KHW_PATTERN_BYTES];
 
 unsigned long long s_pattern_size;
@@ -140,10 +140,12 @@ static const char *khw_piece_named(const char *type, const char *text)
     return NULL;
 }
 
-// The name of a form the part answered `form` of, composed from the pieces of the vendor's table: the type of value
-// the cases contain, the piece whose reads contain the relation, none where no type row reads it; the relation
-// answered; how many sources the fields found; and the qualifier the answers read a word into where a case of the
-// relation reads two ways. Into `written`, which has room for `room`
+// The name of a form that the part answered `form` of, made from the pieces of the table of the vendor, into
+// `written`, which has room for `room`. In order:
+//   - the type of value in the cases: the piece whose reads hold the relation, none where no type row reads it.
+//   - the answered relation.
+//   - how many sources the fields found.
+//   - the qualifier that the answers read a word into, where a case of the relation reads two ways.
 static void khw_name_composed(const KhwForm *form, char *written, size_t room)
 {
     const char *const type = khw_piece_reading("type", form->relation);
@@ -167,8 +169,8 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
             break;
         }
     }
-    // a test form carries the test the relation reads, then the unsigned reading's qualifier alone, the vendor
-    // writing a signed comparison with no qualifier, then the join of its flag to another
+    // a test form carries the test that the relation reads. Then comes only the qualifier of the unsigned read, because
+    // the vendor writes a signed comparison with no qualifier. Then comes the join of its flag to another
     const char *const test = khw_piece_reading("test", form->relation);
     if (test != NULL)
     {
@@ -197,10 +199,10 @@ static int khw_flag(const KhwForm *form, unsigned int run)
     return (form->place[run] == SASS_RUN_NO_PLACE) && (form->first[run] == form->last[run]);
 }
 
-// 1 where `run` of `form` prints no operand of its own: a flag; or a run before it is at the same place of the
-// relation's tuple, two runs of one place being one operand printed once, by the first. A wider run with no place
-// prints as its type reads its bits, a register where the table names nothing for it, so that two forms apart in such
-// a run read apart
+// 1 where `run` of `form` prints no operand of its own. That is a flag, or a run where a run before it is at the same
+// place of the tuple of the relation. Two runs of one place are one operand, which the first prints once.
+// A wider run with no place prints as its type reads its bits, as a register where the table names nothing for it. Two
+// forms that differ in such a run then read apart
 static int khw_place_printed(const KhwForm *form, unsigned int run)
 {
     if (khw_flag(form, run))
@@ -217,8 +219,8 @@ static int khw_place_printed(const KhwForm *form, unsigned int run)
     return 0;
 }
 
-// 1 where `run` of `form` is a constant run after the form's first: the constant bank's operand is printed once,
-// by the first constant run, the offset, with the bank read from the second where the form has one
+// 1 where `run` of `form` is a constant run after the first of the form. The first constant run prints the operand of
+// the constant bank once, as the offset. The bank comes from the second run, where the form has one
 static int khw_constant_later(const KhwForm *form, unsigned int run)
 {
     if (form->type[run] != KHW_KIND_CONSTANT)
@@ -235,8 +237,8 @@ static int khw_constant_later(const KhwForm *form, unsigned int run)
     return 0;
 }
 
-// the bank the constant bank's operand of `form` reads, the second constant run's value; 0 where the form has one
-// constant run alone, the bank its encoding contains
+// the bank that the operand of the constant bank of `form` reads: the value of the second constant run. 0 where the
+// form has only one constant run, the bank in its encoding
 static unsigned long long khw_constant_bank(const KhwForm *form, unsigned int first_run)
 {
     for (unsigned int run = first_run + 1u; run < form->runs; run += 1u)
@@ -249,8 +251,9 @@ static unsigned long long khw_constant_bank(const KhwForm *form, unsigned int fi
     return 0ULL;
 }
 
-// the field of the instruction word the part's .ksc names the guard, as khw_guard_field_set gives it; a predicate run
-// inside it is the guard, printed before the operation, and one outside it an operand in its order
+// the field of the instruction word that the .ksc of the part names the guard, as khw_guard_field_set gives it. A
+// predicate run inside it is the guard, which prints before the operation. A predicate run outside it is an operand in
+// its order
 static unsigned int s_guard_first;
 static unsigned int s_guard_bits;
 
@@ -260,8 +263,8 @@ void khw_guard_field_set(unsigned int first, unsigned int bits)
     s_guard_bits = bits;
 }
 
-// 1 where `run` of `form` is the guard: a predicate run inside the guard field, or, where no guard field is known, any
-// predicate run
+// 1 where `run` of `form` is the guard: a predicate run inside the guard field, or any predicate run where the code
+// knows no guard field
 static int khw_guard(const KhwForm *form, unsigned int run)
 {
     return (form->type[run] == KHW_KIND_PREDICATE) &&
@@ -269,11 +272,14 @@ static int khw_guard(const KhwForm *form, unsigned int run)
             ((form->first[run] >= s_guard_first) && (form->first[run] < (s_guard_first + s_guard_bits))));
 }
 
-// The runs of `form` that print an operand, in the order they are printed, into `order`, which has room for
-// SASS_MACHINE_RUNS: the guard, a flag, a run of a place printed by an earlier run and a constant's bank run print
-// none; the rest are in the order their first bits rise, or, where the table gives the relation an `order` piece,
-// a character an operand, P a predicate and R any other, in that order, each character taking the next run of its type by
-// its first bit. The count
+// The runs of `form` that print an operand, in their print order, into `order`, which has room for SASS_MACHINE_RUNS.
+// The result is the count.
+//
+// The guard, a flag, a run of a place that an earlier run prints, and the bank run of a constant print none. The rest
+// are in ascending order of their first bits.
+//
+// Where the table gives the relation an `order` piece, that piece has a character an operand: P a predicate and R any
+// other, in that order. Each character takes the next run of its type by its first bit.
 static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
 {
     unsigned int count = 0u;
@@ -313,13 +319,20 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
     return count;
 }
 
-// The text of a form the part answered `form` of: a predicate run inside the guard field as the vendor writes a
-// guard, `@P<n>` before the operation, `@!P<n>` where the bit past the predicate's three is set, and nothing where it
-// is every predicate; its name; then each other run in the order its first bit rises, the order they are printed in,
-// the runs of one place one operand printed by the first, each read from the encoding through its own run by its
-// type: a register `R<n>`, or the name the tree writes a register the part answers nothing at under; a predicate
-// `P<n>`, `PT` where it is every predicate; an address `[R<n>.64]`; a number `0x<n>`; the constant bank's operand
-// `c[0x<bank>][0x<offset>]`, printed once by its offset run
+// The text of a form that the part answered `form` of. Each run reads from the encoding through its own run, by its
+// type. In order:
+//   - a predicate run inside the guard field, as the vendor writes a guard: `@P<n>` before the operation. It is
+//     `@!P<n>` where the bit past the three of the predicate is 1, and nothing where it is every predicate.
+//   - its name.
+//   - each other run in ascending order of its first bit, the print order. The runs of one place are one
+//     operand, which the first prints.
+//
+// The operand types:
+//   - a register `R<n>`, or the name under which the tree writes a register that the part answers nothing at.
+//   - a predicate `P<n>`, or `PT` where it is every predicate.
+//   - an address `[R<n>.64]`.
+//   - a number `0x<n>`.
+//   - the operand of the constant bank, `c[0x<bank>][0x<offset>]`, which its offset run prints once.
 void khw_text_composed(const KhwForm *form, char *written, size_t room)
 {
     char name[KHW_NAME];
@@ -397,13 +410,13 @@ int khw_form_store(SassMachine *machine, const KhwForm *form, const char *text)
     {
         return 0;
     }
-    // the relation's name fits the form's room, and a longer one is cut to it
+    // the name of the relation fits the room of the form, and the code cuts a longer name to it
     snprintf(stored->relation, sizeof(stored->relation), "%.*s", (int)(sizeof(stored->relation) - 1u), form->relation);
     stored->signed_read = form->signed_read;
     stored->runs = 0u;
-    // each run's operand is its order among the printed ones, the runs of one place sharing the first's; a predicate
-    // run inside the guard field is the guard, printed before the operation and no operand, and a flag prints none,
-    // each stored under the operand count as its mark
+    // the operand of each run is its order among the printed runs. The runs of one place take the operand of the first.
+    // A predicate run inside the guard field is the guard, which prints before the operation and is no operand. A flag
+    // prints none. The code stores each of these two under the operand count as its mark
     unsigned int order[SASS_MACHINE_RUNS];
     const unsigned int operands = khw_printed_runs(form, order);
     unsigned int operand_of[SASS_MACHINE_RUNS];
