@@ -1152,8 +1152,8 @@ def ruled_tables(page, bold=None, grids=None):
     textpage = page.get_textpage()
     found = ruled_grids(page) if grids is None else grids
     drawn = [drawn_edges(page, xs, ys) for xs, ys in found] if grids is None else None
-    # Each cell is a list of lines. Each line is [text, lowest bottom so far, inside a bold run, and
-    # the left and right of each glyph that takes a mark with its end in the text].
+    # Each cell is a list of lines. Each line is [text, lowest bottom so far, inside a bold run]. It also
+    # holds the left and right of each glyph that takes a mark, with its end in the text.
     cells = [[[[] for _ in range(len(xs) - 1)] for _ in range(len(ys) - 1)] for xs, ys in found]
     spaced = {}
     for index in range(textpage.count_chars()):
@@ -1558,16 +1558,17 @@ def italic(font):
 def sheared(textpage, index):
     """True for a glyph that an upright face sets slanted by its text matrix. That is an oblique that the
     writer made of a face with no italic.
-    Examples are the 2011 FirstNationsUnicode forms of Sardinha, sheared by a quarter of their size:
-    təp'ídida bábaGʷəmeχ in her note 11, and the =χa qʷəʔsta of her page 16."""
+    Examples are the 2011 FirstNationsUnicode forms of Sardinha, with a shear of a quarter of their
+    size. They include təp'ídida bábaGʷəmeχ in her note 11, and the =χa qʷəʔsta of her page 16."""
     matrix = pdfium_c.FS_MATRIX()
     if not pdfium_c.FPDFText_GetMatrix(textpage.raw, index, ctypes.byref(matrix)) or not matrix.d:
         return False
     return abs(matrix.b) < 1e-6 and matrix.c / matrix.d > 0.1
 
 
-# Papers whose cited forms are sheared upright faces. Elsewhere a writer's synthesized oblique
-# covers only part of a form, the həxʔid and doχaλəɬnukʷ of Sardinha's 2013 paper, and splits it.
+# Papers whose cited forms are upright faces with a shear. Elsewhere the synthesized oblique of a
+# writer covers only part of a form, and splits it. Examples are the həxʔid and doχaλəɬnukʷ of the
+# 2013 paper of Sardinha.
 PAPER_SHEARED = tables.members("PAPER_SHEARED")
 
 
@@ -1575,39 +1576,58 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
               ciphers=None, images=None, overset=False, underlined=False, struck=False, tracked=False,
               lifted=None, lone_acute=False, drawn_back=False, mark_base=False, ruled=False,
               stream_faces=(), underscored=False, marks_ahead=False):
-    """Each page's lines rebuilt by position: the glyphs grouped by baseline and each row read left
-    to right, a space where the page leaves a gap and three where it leaves a column's.
+    """The lines of each page, built again by position. The code groups the glyphs by baseline, and reads
+    each row left to right. It puts a space where the page leaves a gap, and three where it leaves the
+    gap of a column.
 
-    An interlinear set cell by cell, ɬe / ɬ= / REM / e= / DET / the in the stream of wlwlmelst and
-    Janzen's (1), comes out as its four tiers. With read_marks, for a font that names its marks as
-    characters, the misread marks are set on their characters first, in the stream order the font gives
-    them, and each í is read from the ink over it. A heading's number retains the gap after it, 3.3
-    Interlinear, where a digit inside a line retains none. slanted, where given, collects each space
-    set only because a roman word met an italic one or a capital followed f: (page, the word
-    before, the character after, the gap in em). With stream_spaces, a space pdfium sets between two
-    glyphs that follow each other in the stream is retained too, where the gap is narrower than a word
-    space: of the in Hannon's §4.2, 0.07 em apart on a tight justified line, and Section 2
-    presents, 0.22 em on each side of the digit. A space after a character carrying a mark is left
-    to the gap alone. ciphers, where given, is the paper's PAPER_CIPHERS entry, and images its
-    PAPER_IMAGES entry, each image it names set among the glyphs as the characters it draws. With
-    overset, an apostrophe drawn over a character is set on it as the comma above, with underlined
-    a rule drawn under a character as the macron below, and with struck a rule drawn through a character
-    as the long stroke overlay. With tracked, a small capital's gap is measured against its row's
-    size, a gap beside a Menlo modifier character is weighed against its wide advance, and a space the
-    stream sets inside a bracket or brace is retained. lifted, where given, is filled with each
-    page's raised characters, {page index: {index in the text page: modifier}}, and each is written
-    as its modifier where it is: the raised j of -kʲ in Black's table (32) is over a row
-    of its own, and the stream sets the table's cells in another order than its rows, and aligning
-    the stream to the rows afterward misses it. Its "lines" holds a defects row to each line given
-    a raised character. With ruled, each ruled grid of a page is read by ruled_tables and set where its
-    rows are, a line to a table row. stream_faces names the faces whose word spaces the stream
-    alone sets, a paper's PAPER_STREAM_FACES entry. With underscored, a row of underscores alone
-    joins the row over it. With marks_ahead, a mark with no character under it waits for the character
-    the stream sets after it."""
+    An interlinear set cell by cell comes out as its four tiers. An example is ɬe / ɬ= / REM / e= / DET
+    / the in the stream of (1) of wlwlmelst and Janzen.
+
+    With read_marks, the code first sets the misread marks on their characters, in the stream order of
+    the font. This is for a font that names its marks as characters. It reads each í from the ink over it.
+
+    The number of a heading keeps the gap after it, 3.3 Interlinear, where a digit inside a line keeps
+    none.
+
+    The argument slanted, where given, collects each space set only because a roman word met an italic
+    one, or a capital followed f. Each entry is (page, the word before, the character after, the gap in
+    em).
+
+    With stream_spaces, the code also keeps a space that pdfium sets between two glyphs in stream
+    order. That holds where the gap is narrower than a word space.
+    Examples are of the in §4.2 of Hannon, 0.07 em apart on a tight justified line, and Section 2
+    presents, 0.22 em on each side of the digit. The gap alone decides a space after a character with
+    a mark.
+
+    The argument ciphers, where given, is the PAPER_CIPHERS entry of the paper, and images its
+    PAPER_IMAGES entry. The code sets each image that it names among the glyphs, as the characters that
+    it draws.
+
+    With overset, the code sets an apostrophe drawn over a character on it as the comma above. With
+    underlined, it sets a rule drawn under a character as the macron below. With struck, it sets a
+    rule drawn through a character as the long stroke overlay.
+
+    With tracked, the code measures the gap of a small capital against the size of its row. It weighs
+    a gap beside a Menlo modifier character against its wide advance. It keeps a space that the stream
+    sets inside a bracket or brace.
+
+    The argument lifted, where given, fills with the raised characters of each page, {page index:
+    {index in the text page: modifier}}. The code writes each as its modifier where it is.
+    The raised j of -kʲ in table (32) of Black is over a row of its own. The stream sets the cells of
+    the table in another order than its rows. An alignment of the stream to the rows after the fact
+    misses it.
+    Its "lines" holds a defects row for each line that gets a raised character.
+
+    With ruled, the code reads each grid of rules on a page by ruled_tables. It sets each grid where its
+    rows are, a line to a table row.
+    The argument stream_faces names the faces whose word spaces the stream alone sets, the
+    PAPER_STREAM_FACES entry of a paper.
+    With underscored, a row of underscores alone joins the row over it. With marks_ahead, a mark with
+    no character under it waits for the character that the stream sets after it."""
     pages = []
     scale = INK_DPI / 72.0
-    # The gap an f's overhang leaves before the next character of its word stays under 0.08 em, of the
-    # apart; a share set over the calibration's 0.18 ceiling for a loose face loosens it by half.
+    # The gap that the overhang of an f leaves before the next character of its word stays under 0.08
+    # em. A share set over the 0.18 ceiling of the calibration, for a loose face, loosens it by half.
     after_f = 0.08 if share <= 0.18 else share / 2
     for number in range(len(document)):
         textpage = document[number].get_textpage()
@@ -1630,19 +1650,20 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             lifted[number] = raised_at
         for index in range(textpage.count_chars()):
             symbol = textpage.get_text_range(index, 1)
-            # A character past U+FFFF, the math italic 𝜆 and 𝑥 of Mellesmoen's formulas in Cambria Math,
-            # takes two indexes, one per surrogate, and each alone reads as nothing. The first is read
-            # with the second; the second stays empty and is passed over.
+            # A character past U+FFFF takes two indexes, one per surrogate, and each alone reads as
+            # nothing. Examples are the math italic 𝜆 and 𝑥 of the formulas of Mellesmoen in Cambria
+            # Math. The code reads the first with the second. The second stays empty, and the code
+            # skips it.
             if not symbol and 0xD800 <= pdfium_c.FPDFText_GetUnicode(textpage, index) < 0xDC00:
                 symbol = textpage.get_text_range(index, 2)
             # A space a cipher's font draws with ink is a character of that font, Galloway's =.
             drawn = symbol == " " and ciphers and drawn_space(textpage, index) and \
                 deciphered(symbol, textpage, index, ciphers) != " "
-            # pdfium sets a space of no width after a mark the stream carries late, x a s ̣ í l̓ for
-            # x̣asíl̓ in Mellesmoen's (3d). The gap alone decides whether a word space is there.
-            # A space pdfium made up is marked "made", one the stream carries True. A space the
-            # stream carries with its width after a mark set on its character is: the x̌ and
-            # all-spice of Lyon's 2008 (7).
+            # pdfium sets a space of no width after a mark that the stream carries late. An example is
+            # x a s ̣ í l̓ for x̣asíl̓ in (3d) of Mellesmoen. The gap alone decides whether a word space is there.
+            # The code marks a space that pdfium made up as "made", and one that the stream carries as
+            # True. A space that the stream carries with its width after a mark set on its character
+            # stays. Examples are the x̌ and all-spice of (7) of the 2008 paper of Lyon.
             if symbol == " " and not drawn and (not after_mark or textpage.get_charbox(index)[2] -
                                                 textpage.get_charbox(index)[0] > 0.01):
                 space_before = "made" if pdfium_c.FPDFText_IsGenerated(textpage.raw, index) else True
@@ -1653,13 +1674,14 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             # pdfium gives U+FFFE for the hyphen of CVC- and n-.
             if symbol == "￾":
                 symbol = "-"
-            # Each glyph is placed by its box below, which puts a ciphered run back in order.
+            # The code below places each glyph by its box, which puts a ciphered run back in order.
             coded = symbol
             symbol = raised_at.get(index) or deciphered(symbol, textpage, index, ciphers)
-            # A tie bar a cipher's font sets before the two characters it joins, the > of Tammpere,
-            # Birdstone and Wiltschko's t͡s, is over both, raised above the line. It goes after
-            # the first character the stream sets next. A U+0361 the stream itself carries already
-            # is in Unicode order and takes the mark reading below.
+            # The font of a cipher can set a tie bar before the two characters that it joins. An
+            # example is the > of t͡s of Tammpere, Birdstone and Wiltschko. It is over both, raised
+            # above the line. It goes after the first character that the stream sets next.
+            # A U+0361 that the stream itself carries is already in Unicode order, and takes the mark
+            # reading below.
             if symbol == "͡" and coded != symbol:
                 tie = True
                 continue
@@ -1673,22 +1695,25 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 if mark != symbol:
                     marks.append(symbol)
                 middle = (box[0] + box[2]) / 2
-                # A mark set above its character is over the character's bottom. The comma above right
-                # of Janzen's t̕ and k̕ in the Dawson wordlist is past its character's box, its middle
-                # over a character of the line above, whose bottom is higher than the mark's, or at the
-                # foot of that line's g; the character before it in the stream takes it.
+                # A mark set above its character is over the bottom of the character.
+                # The comma above right of the t̕ and k̕ of Janzen in the Dawson wordlist is past the box
+                # of its character. Its middle is over a character of the line above. That character has
+                # a higher bottom than the mark, or it is at the foot of the g of that line. The character
+                # before it in the stream takes it.
                 above = unicodedata.combining(mark[0]) >= 230
                 under = [one for one in glyphs if one[1][0] <= middle <= one[1][2]
                          and abs(one[1][1] - box[1]) < size and not (above and one[1][1] >= box[1])]
-                # With drawn_back the stream sets a line's DejaVu glyphs after its Times ones, and
-                # the character before a mark in the stream can are anywhere on the line: the comma
-                # above right of Lyon's k̕ʷúl follows the stop that ends the line. Where no character
-                # is under the mark, the character ending nearest before its middle, within 0.4
-                # em on its line, takes it. The comma above right is past its character and over
-                # the next, t̕uk̕ʷ in Lyon's (11a) with its middle over the u, and always goes to
-                # the character before it. A mark set above takes no character of the line over it, whose
-                # bottom is higher than the mark's: the a of also over the l̕ of k+s+ql̕t=mixʷ on
-                # Mattina's page 10.
+                # With drawn_back, the stream sets the DejaVu glyphs of a line after its Times glyphs. The
+                # character before a mark in the stream can sit anywhere on the line. The comma above
+                # right of k̕ʷúl of Lyon follows the stop that ends the line.
+                # Where no character is under the mark, the character that ends nearest before its
+                # middle, within 0.4 em on its line, takes it.
+                #
+                # The comma above right is past its character and over the next. An example is t̕uk̕ʷ in
+                # (11a) of Lyon, with its middle over the u. It always goes to the character before it.
+                # A mark set above takes no character of the line over it, whose bottom is higher than
+                # that of the mark. An example is the a of also over the l̕ of k+s+ql̕t=mixʷ on page 10
+                # of Mattina.
                 if drawn_back and (not under or mark == "̕"):
                     under = sorted((one for one in glyphs if abs(one[1][1] - box[1]) < size and
                                     -0.05 * size <= middle - one[1][2] < 0.4 * size and one[1][2] > one[1][0]
@@ -1701,21 +1726,24 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 target = under[-1] if under else (glyphs[-1] if glyphs else None)
                 if target is not None:
                     target[0] += mark
-                    # The comma above right is past its character in an advance of its own, the
-                    # Calibri l̕ of Lyon's 2008 (sgweshúl̕emxw), and where the stream sets no space
-                    # after it and the next glyph retains its slant, the gap after the character is
-                    # measured from the mark, the Times ε after it in (hεnq̓ʷεlúl̕εmxʷεn) too. Where
-                    # the slant changes the mark can are in the word space itself: the italic
-                    # t̕íl̕ before the upright is of Lyon and Czaykowska-Higgins's page 14, the is
-                    # 0.05 em past the mark.
+                    # The comma above right is past its character in an advance of its own. An
+                    # example is the Calibri l̕ of (sgweshúl̕emxw) of the 2008 paper of Lyon.
+                    # The stream can set no space after it, and the next glyph can keep its slant.
+                    # There the code measures the gap after the character from the mark. The Times ε
+                    # after it in (hεnq̓ʷεlúl̕εmxʷεn) is an example too.
+                    #
+                    # Where the slant changes, the mark can sit in the word space itself. In the italic
+                    # t̕íl̕ before the upright is on page 14 of Lyon and Czaykowska-Higgins, the word is
+                    # sits 0.05 em past the mark.
                     if mark == "̕" and box[2] > target[1][2]:
                         reach[target[4]] = box[2]
-                    # A mark the stream carries after other glyphs, the caron of *t'əx̌ is at the end
-                    # of its line in Denzer-King's §3.1, leaves the character's own space in the stream.
+                    # A mark that the stream carries after other glyphs leaves the own space of the
+                    # character in the stream. An example is the caron of *t'əx̌, at the end of its line
+                    # in §3.1 of Denzer-King.
                     if target is not glyphs[-1]:
                         late.add(target[4])
-                        # pdfium makes up a space before such a mark as well: gígiȷ̉atsáɢa in
-                        # Black's (14a) streams as á, a space, ̉ and ɢ. That space goes.
+                        # pdfium makes up a space before such a mark as well. gígiȷ̉atsáɢa in (14a) of
+                        # Black streams as á, a space, ̉ and ɢ. That space goes.
                         if space_before == "made":
                             space_before = False
                 after_mark = True
@@ -1730,23 +1758,27 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 symbol = "í"
             if tie:
                 symbol, tie = symbol + "͡", False
-            # A bold faked by printing a word twice, Upper Chehalis heading Denzer-King's (5) with its
-            # second print 0.024 em right of the first: a character over the same character less than 0.05
-            # em away is the second print and is passed over. Two characters set side by side are
-            # an advance apart, 0.2 em or more. The characters of a ligature share its box and follow
-            # each other in the stream, the ff of suffixes in Jantzen's introduction. The glyph just
-            # before is never the first print. While a second print is being passed over, the glyph
-            # last retained is not the one before in the stream.
+            # A bold faked by a print of a word twice. An example is the Upper Chehalis that heads (5)
+            # of Denzer-King. Its second print is 0.024 em right of the first.
+            # A character over the same character less than 0.05 em away is the second print, and the
+            # code skips it. Two characters set side by side are an advance apart, 0.2 em or more.
+            #
+            # The characters of a ligature share its box, and follow each other in the stream, as the
+            # ff of suffixes in the introduction of Jantzen. The glyph just before is never the first
+            # print. While the code skips a second print, the last kept glyph is not the one before in
+            # the stream.
             if box[2] > box[0] and any(one[0] == symbol and abs(one[1][0] - box[0]) < 0.05 * size and
                                        abs(one[1][1] - box[1]) < 0.05 * size
                                        for one in (glyphs[-60:] if overprint else glyphs[-60:-1])):
                 space_before, overprint = False, True
                 continue
             overprint = False
-            # With drawn_back, a space the stream sets before a glyph but draws past that glyph's
-            # right edge is after it: Lyon's 2010 Word export sets iʔ as i, a space, and a
-            # DejaVu ʔ drawn back over the space, 0.04 em after the i. pdfium makes up a space of
-            # its own where the stream steps back, past the ʔ of sámaʔ in (4); that one goes too.
+            # With drawn_back, a space that the stream sets before a glyph, but draws past the right
+            # edge of that glyph, is after it. The 2010 Word export of Lyon sets iʔ as i and a space.
+            # Then a DejaVu ʔ comes, drawn back over the space, 0.04 em after the i.
+            #
+            # The library pdfium makes up a space of its own where the stream steps back, past the ʔ of sámaʔ in
+            # (4). That one goes too.
             if drawn_back and space_before and space_left >= box[2] - 0.05 * size:
                 space_before = False
             glyphs.append([symbol, box, size, font_name(textpage, index), len(glyphs), space_before])
@@ -1755,10 +1787,11 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             space_before = False
             if box[2] > box[0]:
                 last = box
-        # An italic character leans right, its top a quarter of its rise past its foot: the comma over
-        # the italic l of sl̓ax̌ts on page 20 of Lyon's 2011 paper is right of the l's upright box
-        # and over the l's top. A waiting mark is measured against the character's box shifted by that
-        # lean at the mark's height.
+        # An italic character leans right, with its top a quarter of its rise past its foot. An example
+        # is the comma over the italic l of sl̓ax̌ts on page 20 of the 2011 paper of Lyon. It is right of
+        # the upright box of the l, and over its top.
+        # The code measures a mark that waits against the box of the character, shifted by that lean at
+        # the height of the mark.
         def lean(one, box):
             return 0.25 * (box[1] - one[1][1]) if italic(one[3]) else 0
         for mark, middle, box, size, above in waiting:
@@ -1774,8 +1807,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             under_rules(document[number], glyphs)
         if struck:
             strike_rules(document[number], glyphs)
-        # Rows by the glyphs' vertical middles, taken top down: within a line the middles of the
-        # characters, the descenders, the parentheses and the = sit close together, and the next line
+        # Rows by the vertical middles of the glyphs, taken top down. Within a line, the middles of the
+        # characters, the descenders, the parentheses and the = sit close together. The next line
         # starts after a gap of more than 0.3 em.
         rows = []
         for glyph in sorted(glyphs, key=lambda one: -(one[1][1] + one[1][3]) / 2):
@@ -1785,12 +1818,12 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 rows[-1][1].append(glyph)
             else:
                 rows.append([middle, [glyph]])
-        # A row of quote marks alone is the marks of the row beside it: the quotes round a gloss
-        # set in small capitals are clear of its characters, ‘1sg’ in Brown, Forbes and Schwan's
-        # (48c), and so do the apostrophes of ’waa-’nu in their footnote 17, and the closing quote
-        # of pronouns.”, alone on the last line of a quotation in Baier and Wdzenczny's §6.
+        # A row of quote marks alone is the marks of the row beside it. The quotes round a gloss set in
+        # small capitals are clear of its characters, as ‘1sg’ in (48c) of Brown, Forbes and Schwan.
+        # So are the apostrophes of ’waa-’nu in their footnote 17. So is the closing quote of
+        # pronouns.”, alone on the last line of a quotation in §6 of Baier and Wdzenczny.
         # Each such row joins the neighbor whose middle is nearer. The ties of enclisis do the same,
-        # set low between the words they join: kaᴗcut-iɬᴗc’akʷ in Nater's 2013 §3.
+        # set low between the words that they join, as in kaᴗcut-iɬᴗc’akʷ in §3 of Nater 2013.
         for place in range(len(rows) - 1, -1, -1):
             middle, members = rows[place]
             if not all(one[0] in "‘’“”'ʼᴗ" for one in members):
@@ -1818,11 +1851,12 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             nearest = min(beside, key=lambda one: (abs(rows[one][0] - middle), -one))
             rows[nearest][1].extend(members)
             del rows[place]
-        # With underscored, a row of underscores alone is the underscores linking the words of the
-        # row over it, set under that row's baseline in the gaps between its words: the italic
-        # -take_back and bring_pl_cisl in Mattina's Tables 12 and 13. It joins that row where it
-        # is within an em under its middle. A scanned paper's text layer sets an underscore
-        # where the page underlines a word, the alikw of Bates and Hess's page 1, and retains it apart.
+        # With underscored, a row of underscores alone is the underscores that link the words of the
+        # row over it. They sit under the baseline of that row, in the gaps between its words.
+        # Examples are the italic -take_back and bring_pl_cisl in Tables 12 and 13 of Mattina. It joins
+        # that row where it is within an em under its middle.
+        # The text layer of a scanned paper sets an underscore where the page underlines a word, as
+        # the alikw of page 1 of Bates and Hess. The code keeps that apart.
         for place in range(len(rows) - 1, 0, -1):
             middle, members = rows[place]
             if not underscored or not all(one[0] == "_" for one in members):
@@ -1832,11 +1866,12 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             if above_middle - middle < size:
                 above.extend(members)
                 del rows[place]
-        # A row of a note's mark alone is the mark raised over the row under it: the * set high
-        # after the title Orbital Clitics in Nxaʔamxčín and before the note it opens, Deep gratitude,
-        # in Lyon and Czaykowska-Higgins, or a number set smaller than the row's characters. So is a
-        # row of primes set smaller, the w′′ of y(w′′) = x(w′′)] closing Lyon's 2011 (129). It joins
-        # that row where it is within an em of it.
+        # A row of the mark of a note alone is the mark raised over the row under it. An example is the *
+        # set high after the title Orbital Clitics in Nxaʔamxčín, in Lyon and Czaykowska-Higgins. It
+        # comes before the note that it opens, Deep gratitude. A number set smaller than the characters of
+        # the row is another.
+        # So is a row of primes set smaller, the w′′ of y(w′′) = x(w′′)] that closes (129) of Lyon
+        # 2011. It joins that row where it is within an em of it.
         for place in range(len(rows) - 2, -1, -1):
             middle, members = rows[place]
             below_middle, below = rows[place + 1]
@@ -1849,14 +1884,17 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
             if middle - below_middle < size:
                 below.extend(members)
                 del rows[place]
-        # A row of small raised characters alone is the raised characters of the row under it: the ʷ of
-        # kxʷans, cǝkʷlátǝn and qʷáy in Davis and Van Eijk's bird names is clear of its row
-        # where no tall character of that row reaches up to it. It joins the row under it where it
-        # is within an em over it, set smaller than that row's characters. Only a w or an h joins,
-        # the h the aspiration of [tɕɪpʰamej:ʊ̀χda] in Black's (39b), or a character already written as
-        # its modifier, the ʲ of -kʲ in Black's (32): a raised digit or suffix located alone
-        # (Crowgey's 331, Thompson's rd) is read where it is. The raised apostrophes of the same
-        # word join with them, ’ ’w over u c oq m for c’oq’ʷm in Baier and Wdzenczny's (4).
+        # A row of small raised characters alone is the raised characters of the row under it. An example
+        # is the ʷ of kxʷans, cǝkʷlátǝn and qʷáy in the bird names of Davis and Van Eijk. It is clear of
+        # its row, where no tall character of that row reaches up to it.
+        # It joins the row under it where it is within an em over it, set smaller than the characters
+        # of that row.
+        #
+        # Only a w or an h joins. The h is the aspiration of [tɕɪpʰamej:ʊ̀χda] in (39b) of Black. A
+        # character already written as its modifier also joins, as the ʲ of -kʲ in (32) of Black.
+        # The code reads a raised digit or suffix alone where it is, as 331 of Crowgey and rd of
+        # Thompson. The raised apostrophes of the same word join with them, ’ ’w over u c oq m for
+        # c’oq’ʷm in (4) of Baier and Wdzenczny.
         for place in range(len(rows) - 2, -1, -1):
             middle, members = rows[place]
             below_middle, below = rows[place + 1]
@@ -1869,9 +1907,10 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 below.extend(members)
                 del rows[place]
         def located(glyph):
-            """Where glyph is in its row, its box's left edge. An opening quote goes before the
-            glyph after it in the stream where that glyph's box starts left of the quote's and
-            reaches over it: the f of ‘feed’ in Robertson's tables starts 0.5pt left of its quote."""
+            """Where glyph is in its row: the left edge of its box. An opening quote goes before the glyph
+            after it in the stream. That holds where the box of that glyph starts left of that of the
+            quote and reaches over it. The f of ‘feed’ in the tables of Robertson starts 0.5pt left of its
+            quote."""
             following = glyphs[glyph[4] + 1] if glyph[0] in "‘“" and glyph[4] + 1 < len(glyphs) else None
             if following is not None and following[1][0] < glyph[1][0] < following[1][2] and \
                     abs(following[1][1] + following[1][3] - glyph[1][1] - glyph[1][3]) < glyph[2]:
@@ -1885,9 +1924,9 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
         def grid_of(lowest):
             return next((which for which, (xs, ys, _) in enumerate(tables) if ys[-1] < lowest < ys[0]), None)
 
-        # The glyphs of a grid's rows that are left or right of the grid go on the line of the
-        # grid row whose height they are in: the number (3) beside the head of Mellesmoen's 2017
-        # tableau, and the pointing hand beside its winner.
+        # Some glyphs of the rows of a grid sit left or right of the grid. They go on the line of the
+        # grid row whose height they are in. Examples are the number (3) beside the head of the 2017
+        # tableau of Mellesmoen, and the hand that points beside its winner.
         flanking = {}
         for lowest, members in rows:
             inside = grid_of(lowest)
