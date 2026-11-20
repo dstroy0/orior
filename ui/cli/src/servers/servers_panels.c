@@ -10,6 +10,7 @@
 #include "../code/references.h"
 #include "../code/symbols.h"
 #include "../command_line/pool.h"
+#include "../command_line/rings.h"
 #include "../editor/view.h"
 #include "../plugins/plugins.h"
 #include "../text/text.h"
@@ -154,6 +155,59 @@ typedef struct
     unsigned long long defined_col;
     int defined_found;
 } PanelsHoverAsk;
+
+// A hover ask carried to a worker: the ask it answers, the word, the view's key, the file's tree path and the word's
+// place in the text.
+typedef struct
+{
+    unsigned long long ask;
+    char word[CLI_PANELS_WORD];
+    char key[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    unsigned long long line;
+    unsigned long long from;
+    unsigned long long to;
+} PanelsHoverJob;
+
+// A hover answer landed for the view thread: the ask it answers, the word's place, the bytes of Markdown after this
+// head, and whether the tree's walk still read as the ask found no declaration.
+typedef struct
+{
+    unsigned long long ask;
+    unsigned long long line;
+    unsigned long long from;
+    unsigned long long to;
+    unsigned long long length;
+    int reading;
+} PanelsHoverLanded;
+
+// The hover answers on their way from the workers to the view thread: a ticket ring of movable cells, each an answer,
+// the workers taking tickets and pushing, the view thread popping in order; its turnstiles, and its slots the hover's
+// part of the rings block. On the view thread only: the next ticket popped. A worker that finds no slot free gives its
+// answer back; nothing waits.
+static EmbedTurnstiles s_hover_turnstiles;
+static EmbedTicketRing s_hover_ring;
+static embed_atomic_u32 s_hover_ticket;
+static embed_u32 s_hover_taken;
+static int s_hover_ring_positioned;
+
+// On the view thread: the hover answers' ring positioned over its part of the rings block, once, before the first
+// take or the first ask, no answer on it.
+static void panels_hover_ring_positioned(void)
+{
+    if (s_hover_ring_positioned)
+    {
+        return;
+    }
+    memor.set(&(MemoriaCfg){.dst = &s_hover_turnstiles, .val = 0, .bytes = sizeof(s_hover_turnstiles)});
+    EmbedTicketRingSlot *const slots =
+        (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_HOVER_ANSWERS);
+    memor.set(&(MemoriaCfg){.dst = slots, .val = 0, .bytes = CLI_PANELS_HOVER_RING_BYTES});
+    embed_ticket_ring_begin(&s_hover_ring, slots, CLI_PANELS_HOVER_RING_SHIFT);
+    embed_atomic_u32_store(&s_hover_ticket, 0u);
+    s_hover_taken = 0u;
+    s_hover_ring_positioned = 1;
+}
 
 // the max lines above the pointer's a parameter or a local is sought in, and the lines read at once
 #define CLI_PANELS_LOCAL_LINES 512ULL
@@ -587,29 +641,110 @@ static void panels_hover_tree_run(void *context)
     ask->length = joined.at;
 }
 
-// the tree's answer: it is as the hover, its Markdown copied into the hover's own bytes, cut to them, and the ask's
-// cell given back
-static void panels_hover_tree_done(void *context)
+// A worker reads the hover's declarations from the tree. The answer goes into a movable cell of its own, and the cell's
+// entry is pushed on the answers' ring under a ticket of its own; a cell the ring has no slot for waits for one. The
+// view thread takes it as it next steps.
+static void panels_hover_job(const CliServersJobCfg *args)
 {
-    PanelsHoverAsk *const ask = (PanelsHoverAsk *)context;
-    EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
-    if (ask->text != NULL)
+    if (args->size < sizeof(PanelsHoverJob))
     {
-        const unsigned long long retained =
-            (ask->length < CLI_PANELS_HOVER_MAX) ? ask->length : CLI_PANELS_HOVER_MAX - 1ULL;
-        if (retained != 0ULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = s_panels.hover_text, .src = ask->text, .bytes = retained});
-        }
-        s_panels.hover_text[retained] = '\0';
-        s_panels.hover_length = retained;
-        s_panels.hover_displayed = 1;
-        g_cli_guard->persistent_buf_release(ask->text, g_cli_servers_owner);
-        ask->text = NULL;
+        return;
     }
-    s_panels.hover_line = ask->line;
-    s_panels.hover_from = ask->from;
-    s_panels.hover_to = ask->to;
+    PanelsHoverJob *const job = g_cli_guard->temporary_buf_alloc(sizeof(*job), g_cli_servers_owner);
+    if (job == NULL)
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = job, .src = args->job, .bytes = sizeof(*job)});
+    PanelsHoverAsk asked = {job->ask, job->word, s_panels.root, job->line, job->from, job->to, NULL,
+                            0ULL,     0,         job->key,      ""};
+    VerbaLinea path = {asked.path, sizeof(asked.path), 0ULL};
+    mmgr_line_put(&path, job->path);
+    (void)mmgr_line_finish(&path);
+    panels_hover_tree_run(&asked);
+    const PanelsHoverLanded head = {job->ask, job->line, job->from, job->to, asked.length, asked.reading};
+    const CarcerMovableEntry *const landed =
+        g_cli_guard->movable_buf_alloc(sizeof(head) + asked.length, g_cli_servers_owner);
+    if (landed != NULL)
+    {
+        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = landed, .src = &head, .bytes = sizeof(head)});
+        if (asked.length != 0ULL)
+        {
+            (void)g_cli_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = landed, .offset = sizeof(head), .src = asked.text, .bytes = asked.length});
+        }
+    }
+    g_cli_guard->persistent_buf_release(asked.text, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(job, g_cli_servers_owner);
+    if (landed == NULL)
+    {
+        return;
+    }
+    const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_hover_ticket, 1u);
+    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    // Explicit cast carries the cell's address as the pass's entry
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)landed;
+    embed_u64 seen = 0u;
+    // a ring with no slot free holds answers the view thread has not taken yet: this answer goes back, and the next
+    // ask reads anew
+    if (!cli_ticket_room(&s_hover_ring, ticket) ||
+        !embed_ticket_ring_pass_grant(&s_hover_turnstiles, address, &s_hover_ring, stamp, &seen))
+    {
+        (void)g_cli_guard->movable_buf_release(landed, g_cli_servers_owner);
+        return;
+    }
+    // Explicit cast carries the entry, read only, as the ring's job
+    (void)embed_ticket_ring_pass_push(&s_hover_turnstiles, address, &s_hover_ring, stamp, (void *)(embed_word)landed,
+                                      &seen);
+}
+
+// On the view thread: every answer pushed popped in the order of its ticket. An answer to the ask still asked for is
+// the hover, its Markdown copied into the hover's own bytes and cut to them. An answer to an ask the pointer left is
+// dropped. A word the tree's walk has not reached yet is asked for again after the rest, while the pointer stays on it.
+// Each cell goes back and its slot is released.
+EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
+{
+    (void)args;
+    panels_hover_ring_positioned();
+    // Explicit cast carries the ring's address as the pass's entry
+    const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_hover_ring;
+    embed_u64 stamp = 0u;
+    while (cli_ticket_pushed(&s_hover_ring, s_hover_taken, &stamp))
+    {
+        void *job = NULL;
+        embed_u64 seen = 0u;
+        if (!embed_ticket_ring_pass_pop(&s_hover_turnstiles, address, &s_hover_ring, stamp, &job, &seen))
+        {
+            break;
+        }
+        const CarcerMovableEntry *const landed = job;
+        PanelsHoverLanded head;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = landed, .dst = &head, .bytes = sizeof(head)});
+        if (head.ask == s_panels.hover_ask)
+        {
+            EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
+            const unsigned long long retained =
+                (head.length < CLI_PANELS_HOVER_MAX) ? head.length : CLI_PANELS_HOVER_MAX - 1ULL;
+            if (retained != 0ULL)
+            {
+                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    .cell = landed, .offset = sizeof(head), .dst = s_panels.hover_text, .bytes = retained});
+                s_panels.hover_text[retained] = '\0';
+                s_panels.hover_length = retained;
+                s_panels.hover_displayed = 1;
+            }
+            s_panels.hover_line = head.line;
+            s_panels.hover_from = head.from;
+            s_panels.hover_to = head.to;
+            if ((retained == 0ULL) && head.reading)
+            {
+                s_panels.hover_due_ms = cli_clock_milliseconds() + CLI_PANELS_HOVER_REST_MS;
+            }
+        }
+        (void)g_cli_guard->movable_buf_release(landed, g_cli_servers_owner);
+        (void)embed_ticket_ring_drain_release(&s_hover_turnstiles, &s_hover_ring, stamp, &seen);
+        s_hover_taken += 1u;
+    }
 }
 
 int cli_references_definition(const CliReferencesPlaceCfg *args)
@@ -651,8 +786,9 @@ int cli_references_definition(const CliReferencesPlaceCfg *args)
     return 1;
 }
 
-// the hover asked for at the pointer's cell: a pointer resting on the word displayed does not ask again, and a place no
-// word is at lets the hover displayed go unless the pointer is on it
+// The hover asked for at the pointer's cell. A pointer at rest on the word displayed does not ask again. A place with
+// no word lets the hover displayed go, unless the pointer is on it. The tree's read of the word goes to a worker, and
+// the view thread goes on.
 EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
 {
     (void)args;
@@ -676,19 +812,19 @@ EMBED_INLINE void panels_hover_ask(const PanelsCtx *args)
         EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
         return;
     }
-    PanelsHoverAsk asked = {s_panels.hover_ask, word_text, s_panels.root, line, from, to, NULL, 0ULL, 0, key, ""};
-    if (!EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = asked.path))
+    PanelsHoverJob job = {s_panels.hover_ask, "", "", "", line, from, to};
+    VerbaLinea word = {job.word, sizeof(job.word), 0ULL};
+    mmgr_line_put(&word, word_text);
+    (void)mmgr_line_finish(&word);
+    VerbaLinea viewed = {job.key, sizeof(job.key), 0ULL};
+    mmgr_line_put(&viewed, key);
+    (void)mmgr_line_finish(&viewed);
+    if (!EMBED_CALL(cli_view_path_type.path, CliViewPathTypeCfg, .key = key, .path_out = job.path))
     {
-        asked.path[0] = '\0';
+        job.path[0] = '\0';
     }
-    panels_hover_tree_run(&asked);
-    // a word the tree's walk has not reached yet is asked for again after the rest, while the pointer stays on it
-    const int again = (asked.text == NULL) && asked.reading;
-    panels_hover_tree_done(&asked);
-    if (again)
-    {
-        s_panels.hover_due_ms = cli_clock_milliseconds() + CLI_PANELS_HOVER_REST_MS;
-    }
+    (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = panels_hover_job, .job = &job,
+                     .size = sizeof(job));
 }
 
 // how the item scores against the prefix: 5 its label starts with it, 4 starts with it case aside, 3 holds it case
@@ -1736,34 +1872,57 @@ unsigned long long cli_servers_panels_due_ms(void)
     return earliest;
 }
 
+// What the panels show, as the step compares it before and after: the hover and its place, the list open, and the
+// signature. A step that changes none of it owes no frame.
+typedef struct
+{
+    int hover_displayed;
+    unsigned long long hover_length;
+    unsigned long long hover_line;
+    unsigned long long hover_from;
+    unsigned long long hover_to;
+    int completion_open;
+    int signature_displayed;
+} PanelsShown;
+
+// what the panels show now
+EMBED_INLINE PanelsShown panels_shown(const PanelsCtx *args)
+{
+    (void)args;
+    return (PanelsShown){s_panels.hover_displayed,    s_panels.hover_length, s_panels.hover_line,
+                         s_panels.hover_from,         s_panels.hover_to,     s_panels.completion_open,
+                         s_panels.signature_displayed};
+}
+
 int cli_servers_panels_step(void)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    int did = 0;
+    const PanelsShown before = EMBED_CALL(panels_shown, PanelsCtx, .at = 0u);
+    int asked = 0;
+    EMBED_CALL(panels_hover_answers_taken, PanelsCtx, .at = 0u);
     if ((s_panels.hover_hide_ms != 0ULL) && (now_ms >= s_panels.hover_hide_ms))
     {
         EMBED_CALL(panels_hover_hide, PanelsCtx, .at = 0u);
-        did = 1;
     }
     if ((s_panels.hover_due_ms != 0ULL) && (now_ms >= s_panels.hover_due_ms))
     {
         s_panels.hover_due_ms = 0ULL;
         s_panels.hover_ask += 1ULL;
         EMBED_CALL(panels_hover_ask, PanelsCtx, .at = 0u);
-        did = 1;
     }
     if ((s_panels.signature_due_ms != 0ULL) && (now_ms >= s_panels.signature_due_ms))
     {
         s_panels.signature_due_ms = 0ULL;
         EMBED_CALL(panels_signature_ask, PanelsCtx, .at = 0u);
-        did = 1;
+        // a signature asked for anew can change what it shows while it stays displayed
+        asked = s_panels.signature_displayed;
     }
     if ((s_panels.view_due_ms != 0ULL) && (now_ms >= s_panels.view_due_ms))
     {
         EMBED_CALL(panels_view_send, PanelsCtx, .at = 0u);
-        did = 1;
     }
-    return did;
+    const PanelsShown after = EMBED_CALL(panels_shown, PanelsCtx, .at = 0u);
+    return asked || (memor.cmp(&(MemoriaCfg){.src = &before, .other = &after, .bytes = sizeof(before)}) != 0);
 }
 
 // the views' moments the panels take: each frame positioned and each view about to close. A view is opened in its
@@ -1773,6 +1932,7 @@ static const CliViewWatcher s_panels_watcher = {panels_drawn, NULL, panels_closi
 void cli_servers_panels_begin(const CliServersPanelsCfg *args)
 {
     s_panels.root = args->root;
+    panels_hover_ring_positioned();
     // the list's cell taken once at its max
     if (s_panels.completion == NULL)
     {
@@ -1785,6 +1945,8 @@ void cli_servers_panels_end(void)
 {
     cli_view_watch(&(CliViewAtCfg){.watcher = NULL});
     cli_servers_panels_hide();
+    // every answer pushed and not taken goes back with the panels
+    EMBED_CALL(panels_hover_answers_taken, PanelsCtx, .at = 0u);
     (void)g_cli_guard->movable_buf_release(s_panels.completion, g_cli_servers_owner);
     s_panels.completion = NULL;
     s_panels.root = NULL;

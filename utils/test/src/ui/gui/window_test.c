@@ -2603,6 +2603,47 @@ static void symbols_checked(void)
     cli_check(renamed, "Enter renames the name in every file and Save All writes them");
 }
 
+// A pointer that moves from cell to cell over the text owes no frame while no panel shows. A rest on a word asks the
+// tree on a worker. The hover lands through the step.
+static void hover_checked(void)
+{
+    cli_check(tab_opened("sym/use.c"), "use.c opens for the hover");
+    cursor_put(3ULL, 12ULL);
+    // the check reads the caret box at a frame that places the cursor on the word
+    unsigned int frames = 0u;
+    while ((frames < 100u) && ((s_window.editor.frame == NULL) || (s_window.editor.frame->cursor.line != 3ULL) ||
+                               (s_window.editor.frame->cursor.col != 12ULL)))
+    {
+        stepped_for(20ULL);
+        frames += 1u;
+    }
+    const GuiRect word = caret_box();
+    const int x = word.x + (word.width / 2);
+    const int y = word.y + (word.height / 2);
+    // the pointer comes onto the text first, so that the moves after it go from cell to cell over it
+    moved(x - (word.width * 8), y);
+    s_window.pending = 0;
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = GUI_MOVED_INPUT(x - (word.width * 7), y));
+    cli_check(!s_window.pending,
+              "a pointer moved onto another cell of the text, with no panel displayed, owes no frame");
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window, .input = GUI_MOVED_INPUT(x, y));
+    cli_check(!s_window.pending, "nor does one moved onto the word's cell");
+    stepped();
+    unsigned int waits = 0u;
+    while ((s_window.hover.panel == NULL) && (waits < 200u))
+    {
+        stepped_for(50ULL);
+        waits += 1u;
+    }
+    cli_check((s_window.hover.panel != NULL) && (s_window.hover_panel.line == 3ULL),
+              "the pointer at rest on area brings the tree's hover of it, landed from a worker");
+    s_window.pending = 0;
+    EMBED_CALL(gui_window_input_type.input, GuiWindowInputTypeCfg, .window = &s_window,
+               .input = GUI_MOVED_INPUT(x + word.width, y));
+    cli_check(!s_window.pending, "a pointer moved within the hover's word owes no frame");
+}
+
 // Return whether the check named `name` runs. Every check runs if ORIOR_WINDOW_CHECKS has no value. Otherwise those it
 // names run, separated by commas.
 static int check_wanted(const char *name)
@@ -2674,6 +2715,7 @@ static const WindowCheck s_checks[] = {{"saves", saves_checked},
                                        {"edit", edit_checked},
                                        {"clipboard", clipboard_checked},
                                        {"symbols", symbols_checked},
+                                       {"hover", hover_checked},
                                        {"view_thread", view_thread_checked},
                                        {"file", file_checked}};
 

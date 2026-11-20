@@ -4235,10 +4235,14 @@ void gui_window_preferences_close(const GuiWindowCfg *args)
     }
 }
 
-// the panels read again of the servers' panels: the hover and the completion where they are, and the signature
+// The panels read again from the servers' panels: the hover, the completion and the signature. A panel that came or
+// went owes a frame. A caller that changed a panel displayed owes the frame itself.
 EMBED_INLINE void window_panels_take(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
+    const int hovered = window->hover.panel != NULL;
+    const int suggested = window->suggest.panel != NULL;
+    const int signature_displayed = window->signature.panel != NULL;
     window->hover.panel = cli_servers_panels_hover(&(CliServersPanelsCfg){.hover_out = &window->hover_panel})
                               ? &window->hover_panel
                               : NULL;
@@ -4246,7 +4250,8 @@ EMBED_INLINE void window_panels_take(const GuiWindowCtx *args)
                                 ? &window->completion_panel
                                 : NULL;
     window->signature.panel = cli_servers_panels_signature();
-    window->pending = 1;
+    window->pending = ((window->hover.panel != NULL) != hovered) || ((window->suggest.panel != NULL) != suggested) ||
+                      ((window->signature.panel != NULL) != signature_displayed) || window->pending;
 }
 
 // Every panel over the editor hidden. Where no panel shows, nothing changes and no frame is owed
@@ -5026,7 +5031,8 @@ EMBED_INLINE int window_symbol_run(const GuiWindowCtx *args)
         unsigned long long to = 0ULL;
         char word_found[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = cursor.line,
-                        .col_value = cursor.col, .from = &from, .to = &to, .word_text = word_found, .capacity = sizeof(word_found)))
+                        .col_value = cursor.col, .from = &from, .to = &to, .word_text = word_found,
+                        .capacity = sizeof(word_found)))
         {
             cli_notice_post(&(CliNoticesCfg){.text = "The cursor is on no name.", .failed = 1});
             return 0;
@@ -6170,6 +6176,7 @@ static void window_key_take(const GuiWindowCtx *args)
     if (cli_servers_panels_key(&(CliServersPanelsCfg){.name = name}))
     {
         EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+        window->pending = 1;
         EMBED_CALL(window_view_take, GuiWindowCtx, .window = window, .edited = 1);
         return;
     }
@@ -6374,6 +6381,7 @@ void gui_window_step(const GuiWindowCfg *args)
     if (cli_servers_panels_step())
     {
         EMBED_CALL(window_panels_take, GuiWindowCtx, .window = window);
+        window->pending = 1;
     }
     if (cli_terminal_tabs_step())
     {

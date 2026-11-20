@@ -60,9 +60,17 @@ int main(void)
     cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = s_text,
                          .size = sizeof(s_text) - 1u, .shape = &shape),
               "the text is stored");
-    EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = s_key, .path = "check.c");
+    cli_check(EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = s_key, .path = "check.c"),
+              "the text's outline is read");
     const unsigned int rows = EMBED_CALL(cli_outline.rows, CliOutlineCfg, .at = 0u);
     cli_check(rows >= 2u, "the text's declarations are read as rows");
+    cli_check(!EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = s_key, .path = "check.c") &&
+                  (EMBED_CALL(cli_outline.rows, CliOutlineCfg, .at = 0u) == rows),
+              "read again for the same text, the outline located stands");
+    cli_check(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_key, .text = s_text,
+                         .size = sizeof(s_text) - 1u, .shape = &shape) &&
+                  EMBED_CALL(cli_outline.read, CliOutlineCfg, .key = s_key, .path = "check.c"),
+              "a text stored anew is read anew");
     CliOutlineRow helper;
     CliOutlineRow entry;
     cli_check(row_with_name("helper", &helper) && (helper.line == 1ULL) && (helper.depth == 0u) &&
@@ -78,7 +86,8 @@ int main(void)
     cli_check(!EMBED_CALL(cli_outline.row, CliOutlineCfg, .at = rows, .row = &first), "no row is past the last");
 
     const GuiPaneTable *const table = &gui_structure_table;
-    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "structure") == table, "the Structure tool has the table");
+    cli_check(EMBED_CALL(gui_pane.table_of, GuiPaneCfg, .tool = "structure") == table,
+              "the Structure tool has the table");
     GuiPane pane;
     EMBED_CALL(gui_pane.init, GuiPaneCfg, .pane = &pane);
     cli_check((pane.pointed == GUI_PANE_NONE) && (pane.scroll == 0u) && (pane.action == 0u),
@@ -94,16 +103,15 @@ int main(void)
               "the cursor on the first line is in the first row or none");
 
     GuiRaster raster;
-    cli_check(
-        EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
-        "the raster is taken");
+    cli_check(EMBED_CALL(gui_block_raster.init, GuiBlockRasterCfg, .raster = &raster, .width = 1440u, .height = 920u),
+              "the raster is taken");
     EMBED_CALL(gui_pane.draw, GuiPaneCfg, .table = table, .pane_read = &pane, .frame = &frame, .raster = &raster,
                .glyphs = &glyphs, .palette = palette, .title = "Structure", .tree = "", .cursor_line = 7ULL);
     const GuiRect main_rect =
         EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = main_row);
     const unsigned int other_row = (main_row == 0u) ? 1u : 0u;
-    const GuiRect other_rect =
-        EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame, .pane_read = &pane, .row = other_row);
+    const GuiRect other_rect = EMBED_CALL(gui_pane.row_rect, GuiPaneCfg, .table = table, .frame = &frame,
+                                          .pane_read = &pane, .row = other_row);
     const GuiColor on_main =
         raster.pixels[((unsigned int)(main_rect.y + 2) * raster.width) + (unsigned int)main_rect.x + 2u];
     const GuiColor on_other =

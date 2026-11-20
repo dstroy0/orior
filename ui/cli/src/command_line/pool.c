@@ -195,22 +195,15 @@ static embed_bool pool_mover_started(void (*run)(void *context), void *context)
     return (embed_bool)started;
 }
 
-// The mover's sleep: until a give wakes it or the pool ends it. No timer ends the sleep.
-static embed_bool pool_mover_waited(void)
+static embed_bool pool_mover_waited(embed_u32 milliseconds)
 {
-    const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_mover_wake);
     if (EMBED_ATOMIC_LOAD(&s_mover_ending) != 0u)
     {
         return EMBED_FALSE;
     }
-    EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_mover_wake, .seen = seen);
+    (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_mover_wake,
+                     .milliseconds_u64 = milliseconds);
     return (embed_bool)(EMBED_ATOMIC_LOAD(&s_mover_ending) == 0u);
-}
-
-// The mover's wake: MMgr calls it from a give that left the cellblock fragmented over the threshold.
-static void pool_mover_woken(void)
-{
-    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_mover_wake);
 }
 
 // the mover ended where it runs: asked to end, woken, and waited for
@@ -223,13 +216,8 @@ static void pool_mover_ended(void)
     EMBED_ATOMIC_STORE(&s_mover_ending, 1u);
     while (EMBED_ATOMIC_LOAD(&s_mover_ended) == 0u)
     {
-        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_mover_wake);
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_mover_wake);
-        if (EMBED_ATOMIC_LOAD(&s_mover_ended) == 0u)
-        {
-            // the mover's end wakes this wait; the wake above moved the word past seen, so the wait reads it again
-            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_mover_wake, .seen = seen + 1u);
-        }
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_mover_wake, .milliseconds_u64 = 1ULL);
     }
     s_mover_run = NULL;
 }
@@ -260,7 +248,6 @@ void cli_pool_movable_ready(void)
                                 .thread_started = pool_mover_started,
                                 .thread_id = pool_thread_id,
                                 .thread_wait = pool_mover_waited,
-                                .thread_wake = pool_mover_woken,
                                 .thread_yield = cli_thread_yield,
                                 .thread_moving = pool_mover_moving});
 }

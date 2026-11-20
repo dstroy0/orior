@@ -620,9 +620,10 @@ typedef struct
 } CliOutlineRow;
 typedef struct CliOutlineCfg CliOutlineCfg;
 
-// the outline read anew of the text under `key`, the file at `path`, in the language of the path, its rows in the order
-// of their lines; none where `key` is NULL or no text read whole is under it
-void cli_outline_read(const CliOutlineCfg *args);
+// The outline of the text under `key`, the file at `path`, in the language of the path, its rows in the order of their
+// lines: 1 where it is read anew, 0 where the outline located is of this text at its serial and stands, or where `key`
+// is NULL or no text read whole is under it, which leaves none
+int cli_outline_read(const CliOutlineCfg *args);
 // how many rows the outline has; and the row `at` into `row`: 1, or 0 past the last
 unsigned int cli_outline_rows(const CliOutlineCfg *args);
 int cli_outline_row(const CliOutlineCfg *args);
@@ -636,7 +637,7 @@ struct CliOutlineCfg
 
 typedef struct
 {
-    void (*read)(const CliOutlineCfg *args);
+    int (*read)(const CliOutlineCfg *args);
     unsigned int (*rows)(const CliOutlineCfg *args);
     int (*row)(const CliOutlineCfg *args);
 } CliOutlineNs;

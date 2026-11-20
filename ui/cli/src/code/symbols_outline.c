@@ -7,6 +7,7 @@
 
 #include "../command_line/pool.h"
 #include "../editor/document.h"
+#include "../editor/document_internal.h"
 #include "../text/text.h"
 
 // the bytes each row's name and type are copied into
@@ -41,6 +42,11 @@ static const CarcerMovableEntry *s_outline_cell;
 static unsigned int s_outline_count;
 static unsigned long long s_outline_text_at;
 
+// The text the outline located is of: its key and its serial. A read of the same key at the same serial keeps the
+// outline located. An outline of no text has no key.
+static char s_outline_key[CLI_NAME_MAX_LEN];
+static unsigned long long s_outline_serial;
+
 // the outline located let go, none located
 static void outline_released(void)
 {
@@ -48,6 +54,8 @@ static void outline_released(void)
     s_outline_cell = NULL;
     s_outline_count = 0u;
     s_outline_text_at = 0ULL;
+    s_outline_key[0] = '\0';
+    s_outline_serial = 0ULL;
 }
 
 // the outline under build published as the outline located, in a movable cell of its rows and the text they use
@@ -157,24 +165,33 @@ EMBED_INLINE void outline_depths_read(const OutlineCtx *args)
     }
 }
 
-void cli_outline_read(const CliOutlineCfg *args)
+int cli_outline_read(const CliOutlineCfg *args)
 {
-    outline_released();
-    if ((args->key == NULL) || (args->path == NULL))
+    const CliStoredText *const stored =
+        (args->key != NULL) ? EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key) : NULL;
+    if ((stored == NULL) || (args->path == NULL))
     {
-        return;
+        outline_released();
+        return 0;
     }
+    // the outline located is of this text at this serial: it stands
+    if ((s_outline_key[0] != '\0') && (stored->serial == s_outline_serial) &&
+        cellul.eq(&(CatenaFinitaCfg){.src = s_outline_key, .other = args->key, .cap = sizeof(s_outline_key)}))
+    {
+        return 0;
+    }
+    outline_released();
     CliShape shape = {0ULL, 0ULL};
     if (!EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = args->key, .shape = &shape) ||
         (shape.lines > CLI_OUTLINE_LINES_MAX))
     {
-        return;
+        return 0;
     }
     // the outline built in a cell of this read, then published sized to its rows
     s_outline = g_cli_guard->temporary_buf_alloc(sizeof(Outline), g_cli_code_owner);
     if (s_outline == NULL)
     {
-        return;
+        return 0;
     }
     s_outline->count = 0u;
     s_outline->used = 0u;
@@ -188,9 +205,14 @@ void cli_outline_read(const CliOutlineCfg *args)
         EMBED_CALL(outline_depths_read, OutlineCtx, .text = text, .length = size);
         g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
         outline_published();
+        VerbaLinea key = {s_outline_key, sizeof(s_outline_key), 0ULL};
+        mmgr_line_put(&key, args->key);
+        (void)mmgr_line_finish(&key);
+        s_outline_serial = stored->serial;
     }
     g_cli_guard->persistent_buf_release(s_outline, g_cli_code_owner);
     s_outline = NULL;
+    return 1;
 }
 
 unsigned int cli_outline_rows(const CliOutlineCfg *args)
