@@ -5,8 +5,8 @@
 #include "ruleset_flat_internal.h"
 #include "../../../parsers/tree_folder.h"
 
-// the folder a part's files are read from: src/cu/transpiler/lstar/protocol/table in the tree this file was built from, where
-// the part's machine file, its .kdm and its .ksc are
+// the folder of the files of a part: src/cu/transpiler/lstar/protocol/table in the tree of the build of this file. The
+// machine file of the part, its .kdm and its .ksc are there
 static std::string ruleset_part_folder(void)
 {
     return tree_folder_from(__FILE__, 4u, "transpiler/lstar/protocol/table");
@@ -21,8 +21,8 @@ int ruleset_bytes_read(const std::string &path, std::string *text)
         return 0;
     }
     const unsigned long long room = (text->size() < RULESET_FILE_MAX) ? (RULESET_FILE_MAX - text->size()) : 0ULL;
-    // a ruleset the reader accepts is below RULESET_FILE_MAX characters, which a size_t counts; one past it is cut there
-    // and refused by the caller
+    // a ruleset that the reader accepts is below RULESET_FILE_MAX characters, which a size_t counts. The code cuts one
+    // past it there, and the caller refuses it
     text->append((const char *)bytes, (size_t)((size < room) ? size : room));
     return 1;
 }
@@ -33,9 +33,9 @@ int ruleset_append(const std::string &path, std::string *text)
     return ruleset_bytes_read(path, text);
 }
 
-// the lines of a part's .kdm or of a .ksc a ruleset reads: the text of each of its blocks of the ruleset's language,
-// `__krs__(` to `)__krs__` (klang.h), each ended by a newline. The arrangements, the pipes, the questions and the
-// comments are the file's own and are outside every such block
+// the lines of the .kdm of a part, or of a .ksc that a ruleset reads. That is the text of each of its blocks of the
+// language of the ruleset, `__krs__(` to `)__krs__` (klang.h), each ended by a newline.
+// The arrangements, the pipes, the questions and the comments belong to the file, and are outside each such block
 static std::string ruleset_lines_read(const std::string &kdm)
 {
     std::string lines;
@@ -53,7 +53,7 @@ static std::string ruleset_lines_read(const std::string &kdm)
     return lines;
 }
 
-// the part the ruleset at `path` names on its line `part <part>`, empty where it names none or cannot be opened
+// the part that the ruleset at `path` names on its line `part <part>`, empty where it names none or does not open
 static std::string ruleset_part_named(const std::string &path)
 {
     std::string text;
@@ -123,8 +123,8 @@ int ruleset_text(const RulesetSchema *schema, const std::string &path, std::stri
         {
             text->push_back('\n');
         }
-        // a part's .krs opens with krs 1 as every ruleset does, and the ruleset's own file has given that line. Of a
-        // .kdm and a .ksc only the ruleset lines are read
+        // the .krs of a part opens with krs 1, as each ruleset does, and the own file of the ruleset gave that line. Of a
+        // .kdm and a .ksc, the code reads only the ruleset lines
         const size_t opening = read.find('\n');
         const int krs = paths[at].compare(paths[at].size() - 4u, 4u, ".krs") == 0;
         text->append((krs == 0) ? ruleset_lines_read(read)

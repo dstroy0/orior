@@ -493,7 +493,6 @@ includes/file_defs/krs/krs_write/head.h	2
 includes/file_defs/krs/krs_write/krs_write_internal.h	4
 includes/file_defs/krs/krs_write/words.c	4
 includes/file_defs/krs/ruleset_core_relations.h	4
-includes/file_defs/krs/ruleset_flat/files.cu	8
 includes/file_defs/krs/ruleset_flat/flat.cu	4
 includes/file_defs/ksc/ksc.c	3
 includes/file_defs/ksc/ksc.h	7
