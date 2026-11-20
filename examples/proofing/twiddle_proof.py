@@ -1,75 +1,67 @@
-"""The twiddle constants, proved, not copied, at whatever size is asked for.
+"""The twiddle constants, proved and not copied, at whatever size the caller asks for.
 
+docs-check: quoting
     python examples/proofing/twiddle_proof.py --check          grade against known answers
     python examples/proofing/twiddle_proof.py --show 2113929217   prove one modulus and its root
     python examples/proofing/twiddle_proof.py --find 62 --order 32   find moduli nobody tabled
+docs-check: end quoting
 
-WHAT WAS MISSING
+WHAT A COPIED TABLE LACKS
 
-A number theoretic transform is a sum of powers of one constant, the root of unity, and the powers
-it is evaluated at are the twiddle constants. Every implementation of the transform in wide use
-takes them from a table: Kyber's modulus is 3329, Dilithium's is 8380417, and the three thirty-two
-bit moduli that general purpose libraries reach for are the same three everywhere. The tables are
-copied, and a copied constant is a constant nobody checked.
+A number theoretic transform is a sum of powers of one constant, the root of unity. The powers that it takes are the
+twiddle constants. Every implementation of the transform in wide use takes them from a table. Kyber's modulus is 3329,
+and Dilithium's is 8380417. The three thirty-two bit moduli of general purpose libraries are the same three everywhere.
+Each library copies the table, and a copied constant is a constant that nobody checked.
 
-Ravi, Yang, Bhasin, Zhang and Chattopadhyay show what that is worth. Their fault injection sets the
-twiddle constants to zero with a single targeted fault, and the transform does not fail: it returns
-a value of the ordinary shape carrying far less entropy than it should, which is enough to recover a
-Kyber key and to forge a Dilithium signature. The attack works because nothing downstream can tell
-a real root of unity from a fiddled one.
+Ravi, Yang, Bhasin, Zhang and Chattopadhyay show what that is worth. Their fault injection sets the twiddle constants to
+zero with a single targeted fault, and the transform does not fail. It returns a value of the ordinary shape, with far
+less entropy than it should carry. That is enough to recover a Kyber key, and to forge a Dilithium signature. The attack
+works because nothing downstream can tell a real root of unity from a fiddled one.
 
-THIS TREE PRODUCED THAT FAULT CONDITION WITH NO ATTACKER. A modulus was taken on faith for the
-transform underneath the constants module, its root was raised to the power that is supposed to give
-an order 2^27 root of unity, and the result had no such order, because the modulus was not prime. A
-generator check written next to it reported the root was fine, having tested trial division to one
-hundred on a ten digit number. Wrong twiddles, output of the ordinary shape, and a check that said
-yes. That is the paper's fault model arriving by carelessness instead of by electromagnetic pulse,
-and it is the reason this file exists.
+A MODULUS THAT NOBODY PROVES GIVES THAT FAULT CONDITION WITH NO ATTACKER. Take 1610612737, which is 3 * 2^29 + 1 and
+composite. A root raised to the power that should give an order 2^27 root of unity has no such order. A generator check
+that tries division only up to one hundred, on a ten digit number, would report the root as fine. Wrong twiddles, output
+of the ordinary shape, and a check that says yes. That is the fault model of the paper from carelessness instead of an
+electromagnetic pulse, and it is the reason this file exists.
 
-WHAT IS PROVED HERE, AND WHY IT CAN BE
+WHAT THIS FILE PROVES, AND WHY IT CAN
 
-Every modulus a transform can use has the form k * 2^n + 1, because having a root of
-unity of order 2^n means. For that form two complete proofs are available, and neither is a test
-that returns a probability.
-
-    PRIMALITY, BY PROTH. For N = k * 2^n + 1 with k odd and k < 2^n, N is prime if and only if some
-    a has a^((N-1)/2) congruent to -1 modulo N. A witness is a certificate of primality instead of
-    evidence of it. On the other side a single a with a^(N-1) not congruent to 1 is a certificate of
-    compositeness by Fermat. So both verdicts are proofs and neither is a judgement call.
-
-    THE ORDER OF THE ROOT, EXACTLY, WITHOUT FACTORING ANYTHING. The order of a root of unity of
-    order dividing 2^m is itself a power of two. So it is enough that w^(2^m) is 1 and w^(2^(m-1))
-    is not: the order divides 2^m and does not divide 2^(m-1), which leaves exactly 2^m. Two
-    exponentiations settle it completely. This is the step the fault attack defeats and it costs
-    almost nothing to run.
-
-    THE GENERATOR, COMPLETELY. g generates the whole group if and only if g^((p-1)/q) is not 1 for
-    each prime q dividing p-1. Here p-1 is k * 2^n with k small. Factoring it is factoring k, and
-    the proof is complete instead of partial.
+Every modulus that a transform can use has the form k * 2^n + 1, because a root of unity of order 2^n needs 2^n to
+divide N - 1. For that form, two complete proofs are available, and neither is a test that returns a probability.
+  - PRIMALITY, BY PROTH. For `N = k * 2^n + 1` with k odd and `k < 2^n`, N is prime if and only if some a has
+    `a^((N-1)/2)` congruent to -1 modulo N. A witness is a certificate of primality, and not evidence of it. On the
+    other side, a single a with `a^(N-1)` not congruent to 1 is a certificate of compositeness, by Fermat. Both verdicts
+    are therefore proofs, and neither is a judgement call.
+  - THE ORDER OF THE ROOT, EXACTLY, AND WITH NO FACTORS. The order of a root of unity whose order divides 2^m is itself
+    a power of two. It is therefore enough that `w^(2^m)` is 1 and `w^(2^(m-1))` is not. The order then divides 2^m, and
+    does not divide 2^(m-1), which leaves exactly 2^m. Two exponentiations settle it completely. This is the step that
+    the fault attack defeats, and it costs almost nothing to run.
+  - THE GENERATOR, COMPLETELY. A value g generates the whole group if and only if `g^((p-1)/q)` is not 1 for each prime
+    q that divides p-1. Here p-1 is k * 2^n with k small. A factorization of p-1 is a factorization of k, and the proof
+    is complete and not partial.
 
 WHY THE SIZE IS OURS TO CHOOSE
 
-The tabled moduli are small because they are sized to a machine word: a lane holds sixty four bits,
-a product of two residues has to fit, and so the modulus stops below 2^32. That is a property of the
-lane and not of the mathematics. The arithmetic here is on unbounded integers. Proth's proof runs
-at any width, and moduli far past anything tabled can be produced and proved on demand. The floor
-belongs to the format, which is this tree's own finding, and the format is a choice.
+The tabled moduli are small because each fits a machine word: a lane holds sixty four bits, and a product of two
+residues must fit. The modulus therefore stops below 2^32. That is a property of the lane, and not of the mathematics.
+The arithmetic here is on unbounded integers, and Proth's proof runs at any width. This file can produce and prove
+moduli far past anything tabled, on demand. The floor belongs to the format, which is this tree's own finding, and the
+format is a choice.
 
 WHAT IT ERRORS
 
-A modulus outside Proth's range, where k is not below 2^n. The theorem's converse is the step that
-makes a witness a proof and it does not hold there. A root whose order is short of the length asked
-for, the fiddled twiddle exactly. And any verdict without its certificate: every answer
-below carries the witness that establishes it. The reader can recheck the claim without rerunning
-this file.
+A modulus outside Proth's range, where k is not below 2^n. The converse of the theorem is the step that makes a witness
+a proof, and it does not hold there. A root whose order is short of the length asked for, the fiddled twiddle exactly.
+And any verdict without its certificate: every answer below carries the witness that establishes it. The reader can
+recheck the claim without another run of this file.
 """
 
 import argparse
 import sys
 
-# The constants in wide use, with the transform length each is chosen to support. Retained as known
-# answers instead of as a source: nothing here reads them to compute with, and every one of them is
-# put through the same proof as anything this file produces.
+# The constants in wide use, with the transform length that each supports. The file keeps them as known answers, and not
+# as a source. Nothing here reads them to compute with, and every one of them goes through the same proof as anything
+# that this file produces.
 TABLED = (
     (3329, 256, "Kyber's modulus"),
     (8380417, 512, "Dilithium's modulus"),
@@ -83,9 +75,9 @@ TABLED = (
 def proth_form(value):
     """`value` as k * 2^n + 1 with k odd, and whether Proth's theorem reaches it.
 
-    The theorem needs k below 2^n. That condition promotes a single witness from an indication to a
-    proof, and a value outside the range is therefore reported as out of range instead of being
-    tested anyway and having its answer quietly mean something weaker.
+    The theorem needs k below 2^n. That condition promotes a single witness from an indication to a proof. The function
+    therefore reports a value outside the range as out of range. It does not test it anyway, and let its answer quietly
+    mean something weaker.
     """
     if value < 3 or value % 2 == 0:
         return None, None, False
@@ -98,11 +90,10 @@ def proth_form(value):
 
 
 def small_factors(value):
-    """The distinct primes dividing `value`, by trial division to its own square root.
+    """The distinct primes that divide `value`, by trial division to its own square root.
 
-    This is only ever called on the odd part of a modulus less one, which is
-    small by the same condition that lets Proth's theorem apply. Dividing all the way up is
-    cheap and there is no probable answer anywhere in it.
+    The only caller passes a prime less one. That is k * 2^n, with k small by the same condition that lets Proth's
+    theorem apply. Trial division all the way up is cheap, and there is no probable answer anywhere in it.
     """
     found = []
     rest = value
@@ -121,10 +112,9 @@ def small_factors(value):
 def proth_prime(value, tries=1000):
     """A proof that `value` is prime or that it is composite, with the witness for whichever it is.
 
-    A witness a with a^((N-1)/2) congruent to -1 proves primality outright, by Proth. An a with
-    a^(N-1) not congruent to 1 proves compositeness outright, by Fermat. Both directions are
-    certificates. The only inconclusive outcome is running out of candidates, which is reported
-    as inconclusive instead of rounded to either verdict.
+    A witness a with a^((N-1)/2) congruent to -1 proves primality outright, by Proth. An a with a^(N-1) not congruent to
+    1 proves compositeness outright, by Fermat. Both directions are certificates. The only inconclusive outcome is a run
+    out of candidates. The function reports that as inconclusive, and does not round it to either verdict.
     """
     odd, power, reachable = proth_form(value)
     if odd is None:
@@ -138,17 +128,17 @@ def proth_prime(value, tries=1000):
         if lifted == value - 1:
             return "prime", candidate
         if lifted != 1:
-            # a^((N-1)/2) is neither 1 nor -1, leaving a^(N-1) short of 1, and Fermat errors on it.
+            # The value a^((N-1)/2) is neither 1 nor -1. Modulo a prime, its square a^(N-1) is 1, and 1 has no square
+            # root other than 1 and -1. N is therefore composite.
             return "composite", candidate
     return "inconclusive", None
 
 
 def generator_of(prime, tries=1000):
-    """The smallest proven generator of the group modulo `prime`, with the factors proving it.
+    """The smallest proven generator of the group modulo `prime`, with the factors that prove it.
 
-    Complete because p-1 factors completely: it is k * 2^n and k is small. A candidate is a
-    generator exactly when it is not killed by any maximal divisor. The test is one exponentiation
-    per prime factor and there are only ever a handful.
+    Complete, because p-1 factors completely: it is k * 2^n, and k is small. A candidate is a generator exactly when no
+    maximal divisor kills it. The test is one exponentiation per prime factor, and there are only ever a handful.
     """
     factors = small_factors(prime - 1)
     for candidate in range(2, tries):
@@ -160,9 +150,9 @@ def generator_of(prime, tries=1000):
 def order_is(root, length, prime):
     """Whether `root` has order exactly `length`, where `length` is a power of two.
 
-    The whole proof, and the step a fault attack removes. An order dividing a power of two is a
-    power of two. Failing to divide the half is the same as being the whole. Two exponentiations,
-    no factoring, and it catches a zeroed twiddle, a wrong modulus and a root of short order alike.
+    The whole proof, and the step that a fault attack removes. An order that divides a power of two is a power of two.
+    An order that does not divide the half is the whole. Two exponentiations, no factors, and it catches a zeroed
+    twiddle, a wrong modulus and a root of short order alike.
     """
     if length & (length - 1):
         raise ValueError("a transform length is a power of two, not %d" % length)
@@ -172,9 +162,9 @@ def order_is(root, length, prime):
 def twiddle_of(prime, length):
     """The root of unity of order `length` modulo `prime`, and the proof that it has that order.
 
-    Raising a generator to (p-1)/length gives a root of that order whenever length divides p-1, and
-    the result is checked instead of assumed, because the whole point of this file is that the
-    step from a generator to a twiddle is where the constant stops being checked.
+    A generator raised to (p-1)/length gives a root of that order whenever length divides p-1. The function checks the
+    result, and does not assume it. The whole point of this file is that the step from a generator to a twiddle is where
+    the checks on the constant stop.
     """
     if (prime - 1) % length:
         return None, "modulus admits no root of order %d" % length
@@ -215,12 +205,11 @@ def examined(value, length):
 
 
 def search(bits, order, want=3):
-    """Moduli of at least `bits` bits admitting a transform of length 2^`order`, each proved prime.
+    """Moduli of at least `bits` bits that admit a transform of length 2^`order`, each proved prime.
 
-    Walks k upward at fixed n, the only shape a modulus of this type can have, and retains
-    the ones Proth proves. Nothing here is tabled and nothing is looked up: the size is an argument
-    because the arithmetic is unbounded, and the difference lies between choosing a modulus and
-    being passed one.
+    Walks k upward at fixed n, the only shape that a modulus of this type can have, and keeps the ones that Proth
+    proves. Nothing here comes from a table, and nothing comes from a lookup. The size is an argument because the
+    integers here have no bound. The difference is between a choice of modulus and a modulus that somebody hands over.
     """
     found = []
     power = order
