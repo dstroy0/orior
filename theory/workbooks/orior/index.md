@@ -9,6 +9,7 @@ That is the construction. Every domain is that one sentence with a different ans
 | [Setup](https://github.com/dstroy0/orior/blob/main/docs/setup.md) | dependencies, building the engine, building the research papers |
 | [Using it](https://github.com/dstroy0/orior/blob/main/docs/usage.md) | run the measure on something of your own |
 | [Research](../../README.md) | the research papers in `theory/`, and how to build them |
+| [Quantum and reading pages](quantum-and-reading.md) | the boundary reading, the quantum machine, SHA-256 and a quantum search, and precision |
 
 The repository is at [github.com/dstroy0/orior](https://github.com/dstroy0/orior). Its README covers the algorithm, the areas of research, and the licensing.
 
