@@ -54,9 +54,9 @@
     font-size: 14px;
     line-height: 1.55;
   }
-  /* Not centered. A centered column puts the controls wherever the window width happens to leave
-     them, which on a wide monitor is a long way in from the edge. The sidecar is pinned 0.2in from
-     the left and the stage takes whatever is left. The controls sit in the same place on every
+  /* Not centered. A centered column puts the controls where the window width leaves them. On a
+     wide monitor, that is a long way in from the edge. The sidecar sits 0.2in from the left, and the
+     stage takes the rest. The controls sit in the same place on every
      screen and the view window gets the rest. */
   .wrap {
     max-width: none;
@@ -72,9 +72,9 @@
     height: 100%;
   }
 
-  /* One stage, full width, with the controls floating over it in a panel the user can move.
-     Thirty-two shapes and nine transforms as flat lists made a column taller than the picture it
-     was controlling. They are dropdowns now and the column is gone. */
+  /* One stage, full width, with the controls that float over it in a panel the user can move.
+     The shapes and transforms are dropdowns. As flat lists, they make a column taller than the
+     picture that it controls. */
   .console {
     display: block;
   }
@@ -119,9 +119,9 @@
     color: var(--muted);
     border-radius: 3px;
   }
-  /* Never a horizontal scrollbar. The box is a fixed width and everything in it is told it may be
-     narrower than its content. A long option name shortens with an ellipsis instead of pushing
-     a second scrollbar into a box this small. */
+  /* Never a horizontal scrollbar. The box is a fixed width, and all in it can be narrower than
+     its content. A long option name shortens with an ellipsis, and does not push a second
+     scrollbar into a box this small. */
   .panel-body {
     padding: 8px;
     display: grid;
@@ -460,9 +460,9 @@
     text-align: right;
   }
 
-  /* Drag the bottom edge to resize. The height lives in a custom property because the sidecar is
-     capped to the same number: whatever the view window becomes, the controls beside it never grow
-     past it, and the footer below is pushed down and not squeezed up. */
+  /* Drag the bottom edge to resize. The height lives in a custom property, because the same number
+     caps the sidecar. Whatever the view window becomes, the controls beside it never grow past it.
+     The footer below moves down, and does not squeeze up. */
   .stage {
     background: var(--panel);
     border: 1px solid var(--rule);
@@ -589,12 +589,12 @@
     color: var(--ink);
   }
 
-  /* A question mark in the corner, and a tile only when asked for. The description of what is being
-     looked at is worth having and is not worth a paragraph competing with the object. It stays
-     folded away and the picture retains the attention. */
-  /* The question mark and its tile are one hover target. Moving the pointer from the button onto
-     the tile does not close it on the way. The tile is fully opaque and sits above everything: the
-     previous version inherited the button's dimming and read as invisible. */
+  /* A question mark in the corner, and a tile only when the user asks for it. The description of
+     the object on view is of value, but not of the value of a paragraph that competes with the
+     object. It stays folded away, and the picture keeps the attention. */
+  /* The question mark and its tile are one hover target. A move of the pointer from the button onto
+     the tile does not close it on the way. The tile is fully opaque and sits above all else. It does
+     not take the dimmed look of the button, which reads as invisible. */
   .infowrap {
     position: absolute;
     right: 12px;
@@ -832,9 +832,9 @@
       return;
     }
 
-    // The fields come from the data instead of being written here. This page renders any
-    // parametric table: each field is a set of series measured over one common depth axis. What was
-    // once four SHA-256 projections is now whatever the generator was pointed at.
+    // The fields come from the data, and not from this page. This page renders any parametric
+    // table: each field is a set of series measured over one common depth axis. The fields are
+    // what the generator reads.
     var VIEWS = DATA.fields;
 
     function say(id, text) {
@@ -848,9 +848,9 @@
       }
     }
 
-    // There is no heading band and no footer. What this is, what it is drawn from, and how to read
-    // it lives behind the question mark in the corner, because the object is what the page is for
-    // and prose beside it is prose competing with it.
+    // There is no heading band and no footer. What this is, what its source is, and how to read it
+    // live behind the question mark in the corner. The object is what the page is for, and prose
+    // beside it competes with it.
     say("depth-name", DATA.depthLabel);
     say("value-name", DATA.valueLabel);
     // The tile carries what a heading and footer would say, in one place, folded away.
@@ -874,29 +874,33 @@
     // under one embedding and not another belongs to the map instead of the field. Agreement across
     // shapes is the invariant content - the same null-by-subtraction every other reading here uses.
     //
-    // Each supplies a surface point and its outward normal for (u, v) in the unit square, where u
-    // runs along the rounds and v along the cut. The voxel is extruded along the normal.
+    // Each supplies a surface point and its outward normal for (u, v) in the unit square. Here u
+    // runs along the rounds, and v along the cut. The voxel extrudes along the normal.
     var TAU = 6.283185307179586;
 
-    // Order is one control shared by every shape that has a countable feature: sides for the
-    // polygonal solids, petals for the superformula ones, winding for the knots, curvature for the
-    // bends. It goes to 4096, where a polygon is a circle to within a pixel and the interesting
-    // reading is the approach. It is not the limit.
+    // Order is one control that each shape with a countable feature shares:
+    //   - sides for the polygonal solids.
+    //   - petals for the superformula ones.
+    //   - winding for the knots.
+    //   - curvature for the bends.
+    //
+    // It goes to 4096, where a polygon is a circle to within a pixel. The reading of value is the
+    // approach, and not the limit.
     var orderAt = 6;
     function order() {
       return orderAt;
     }
 
-    // Shapes whose extent grows with the count, and not only their detail, are capped. A prism
-    // at 4096 sides is still a prism the same size; a helicoid at 4096 turns is 23,591 units tall and
-    // left the camera behind. Measured: the sweep that found it is in the scratch
-    // harness that checks every shape at orders 3 through 4096.
+    // A cap applies to the shapes whose extent grows with the count, and not only their detail. A
+    // prism at 4096 sides is still a prism of the same size. A helicoid at 4096 turns is 23,591
+    // units tall, and leaves the camera behind. A sweep of each shape at orders 3 through 4096
+    // measures it.
     function winding() {
       return Math.max(1, Math.min(48, orderAt / 6));
     }
 
-    // The grid this shape is currently carrying. The space-filling layouts can recover a cell's
-    // integer index from the (u, v) they are passed.
+    // The grid that this shape now carries. The space-filling layouts can recover the integer index
+    // of a cell from the (u, v) that they get.
     var GRID = { span: 1, depth: 1 };
 
     /** Gielis's superformula: one equation whose parameters give circles, polygons, stars and
@@ -921,8 +925,8 @@
       ];
     }
 
-    /** Hilbert's curve, index to point. Its locality is the reason binary files are read this way:
-      bytes near each other in the file stay near each other on the surface. Cortesi 2011. */
+    /** The curve of Hilbert, index to point. Its locality is the reason to read binary files this
+      way: bytes near each other in the file stay near each other on the surface. Cortesi 2011. */
     function hilbertAt(side, index) {
       var x = 0,
         y = 0,
@@ -981,17 +985,17 @@
       return side;
     }
 
-    /** Wraps a position-only function into the {p, n} the renderer wants, taking the normal from the
-      surface itself by difference. Every shape below is then three lines instead of ten, and none
+    /** Wraps a position-only function into the {p, n} that the renderer wants. It takes the normal
+      from the surface itself by difference. Every shape below is then three lines instead of ten, and none
       of them can disagree with its own normal. */
     function surface(f) {
       return function (u, v) {
         var step = 0.0015;
         var here = f(u, v);
-        // At the far edge there is nothing ahead to difference against. The step is taken
-        // backward and the result negated. Without the negation the tangent reverses, the cross
-        // product with it, and the last row of every field is lit and extruded upside down while the
-        // other rows are not - which reads as an inverted row of data and not as a normal.
+        // At the far edge there is nothing ahead to difference against. The step goes backward,
+        // and the code negates the result. Without the negation, the tangent reverses, and the cross
+        // product with it. The last row of each field then lights and extrudes upside down, and the
+        // other rows do not. That reads as an inverted row of data, and not as a normal.
         var backU = u + step > 1;
         var backV = v + step > 1;
         var alongU = f(backU ? u - step : u + step, v);
@@ -1401,10 +1405,10 @@
       },
     ];
 
-    // A transform is applied to the surface after the embedding and before the value is raised.
-    // It changes where a cell sits without changing what the cell says. Same discipline as the
-    // shapes: anything that survives a transform is in the data, anything that appears under one is
-    // in the map.
+    // A transform applies to the surface after the embedding, and before the value rises on it.
+    // It changes where a cell sits, and does not change what the cell says. The rule is the same as
+    // for the shapes. A thing that a transform does not change is in the data. A thing that shows
+    // under one is in the map.
     function unit(n) {
       var len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
       return len ? [n[0] / len, n[1] / len, n[2] / len] : [0, 1, 0];
@@ -1542,10 +1546,10 @@
     var fillLight = new THREE.DirectionalLight(0xffffff, 0.28);
     fillLight.position.set(-140, 70, -90);
     scene.add(fillLight);
-    // Both of those are above the field. Now that the camera turns all the way under, the underside
-    // needs its own light or it reads as one flat ambient tone and the relief disappears exactly
-    // where the light cone's cliff is max legible. Weaker than the key. Up and down stay
-    // distinguishable and not the object looking lit from nowhere.
+    // Both of those are above the field. The camera turns all the way under, and the underside
+    // needs its own light. Without it, the underside reads as one flat ambient tone. The relief then
+    // goes away at the exact place where the cliff of the light cone is most legible.
+    // Weaker than the key. Up and down stay distinct, and the object does not look lit from nowhere.
     var under = new THREE.DirectionalLight(0xffffff, 0.34);
     under.position.set(60, -180, -40);
     scene.add(under);
@@ -1570,7 +1574,7 @@
       scene.background = new THREE.Color(token("--sky"));
     }
 
-    /** Signed log. Six decades of amplitude fit one axis without the top crushing the rest. */
+    /** Signed log. Six decades of amplitude fit one axis, and the top does not crush the rest. */
     function shaped(value, ceiling) {
       var top = Math.log10(1 + ceiling);
       if (top <= 0) {
@@ -1588,15 +1592,17 @@
     var brush = null;
     var contrastAt = 0.6;
     var picked = null;
-    // Each step retains its own selection: a range that means something in one field means nothing in
-    // the next. Switching steps restores what was selected there instead of carrying it across.
+    // Each step keeps its own selection: a range that means something in one field means nothing in
+    // the next. A change of step restores the selection of that step, and does not carry it across.
     var selections = {};
 
-    /** Writes the instance colors for one moment: the gradient underneath, a mark's own color over
-      it, and for a moving mark a mix between the two that depends on the clock. Separated from
-      build, an animating mark repaints colors alone and does not rebuild the geometry sixty
-      times a second, which would be the difference between a page that turns and one that does
-      not. */
+    /** Writes the instance colors for one moment:
+      - the gradient underneath.
+      - the own color of a mark over it.
+      - for a moving mark, a mix between the two that depends on the clock.
+
+      Apart from build, a moving mark repaints colors alone. It does not rebuild the geometry sixty
+      times a second. A page that does that does not turn. */
     function paintColors(now) {
       if (!mesh || !baseColor) {
         return;
@@ -1607,8 +1613,8 @@
         var g = baseColor[i * 3 + 1];
         var b = baseColor[i * 3 + 2];
 
-        // The selection dragged on the histogram sits above every mark. It is what the eye is being
-        // pointed at right now, and a located mark should not hide it.
+        // The selection dragged on the histogram sits above each mark. It is what the eye must look
+        // at now, and a located mark must not hide it.
         var mark = null;
         var raw = rawOf[i];
         for (var m = marks.length - 1; m >= 0; m -= 1) {
@@ -1674,8 +1680,8 @@
       GRID.span = span;
       GRID.depth = depth;
 
-      // The overlay is read on the same grid. A field of a different size errors and not
-      // stretched: comparing two fields cell by cell only means something when the cells correspond.
+      // The overlay reads on the same grid. A field of a different size errors, and does not
+      // stretch. A comparison of two fields cell by cell only means something when the cells match.
       var tint = null;
       if (overlay && overlay !== view && overlay.rows.length === span) {
         tint = overlay.rows;
@@ -1753,14 +1759,13 @@
         var reach = Math.abs(t) * lift * 4;
         var high;
         if (shape.key === "balloon") {
-          // The value moves the surface instead of growing a spike. The silhouette is the field.
+          // The value moves the surface, and does not grow a spike. The silhouette is the field.
           seat.addScaledVector(normal, reach);
           high = Math.max(0.8, Math.min(footAcross, footAlong));
         } else {
-          // No minimum height. Clamping quiet cells to a floor paints them all the same size and
-          // color, and 512 rows of that aliases into periodic banding that reads as structure -
-          // measured and refuted at 3.18 sigmas against a max-of-512 peak of 3.53. A renderer must
-          // not manufacture what the instrument says is not there.
+          // No minimum height. A clamp of quiet cells to a floor paints them all the same size and
+          // color. Many rows of that alias into a periodic band, which reads as structure. A renderer
+          // must not make what the instrument says is not there.
           high = reach;
           seat.addScaledVector(normal, high / 2);
         }
@@ -1783,10 +1788,10 @@
         baseColor[i * 3 + 1] = palette.zero[1] + (end[1] - palette.zero[1]) * eased;
         baseColor[i * 3 + 2] = palette.zero[2] + (end[2] - palette.zero[2]) * eased;
 
-        // The raw value is retained per instance and not the mark it matched. Which mark claims a
-        // cell then costs nothing to change: adding a mark, editing its range, or dragging a
-        // selection across the histogram repaints colors from these numbers instead of rebuilding
-        // the geometry. That retains a drag over 32,000 cells up with the pointer.
+        // The code keeps the raw value per instance, and not the mark that it matched. A change of
+        // the mark that claims a cell then costs nothing. To add a mark, to edit its range, or to
+        // drag a selection across the histogram repaints colors from these numbers. It does not
+        // rebuild the geometry. That keeps a drag over 32,000 cells up with the pointer.
         rawOf[i] = tint ? tint[row][col] : rows[row][col];
       }
       drawn = retained.length;
@@ -1805,17 +1810,17 @@
 
     // -- a small orbit controller, written, not loaded ------------------------------------
     //
-    // The camera is an offset from the target and an up vector instead of a pair of angles. Angles are what
-    // made the drag wrong: yaw and pitch are measured against the world. What "left" means on the
-    // screen depends on where the camera already is, and past the pole it means the opposite. There
-    // is no orientation at which this version disagrees with the screen, because the axes it turns
-    // about are read off the camera at the moment of the move.
+    // The camera is an offset from the target and an up vector, and not a pair of angles. Angles make
+    // the drag wrong, because yaw and pitch measure against the world. What "left" means on the
+    // screen depends on where the camera already is, and past the pole it means the opposite.
+    // This camera agrees with the screen at each orientation. It reads the axes that it turns about
+    // off the camera at the moment of the move.
     //
-    // Right is recomputed on every pointermove and not retained for the gesture. Letting go and
-    // starting again therefore cannot desync it: there is no stored frame to go stale.
+    // The code computes right again on each pointermove, and does not keep it for the gesture. A
+    // release and a new start therefore cannot desync it: there is no stored frame to go stale.
     //
     // The sense is grab and drag. Pull right and the object goes right, which means the camera orbits
-    // left. Both rotations are applied negatively.
+    // left. Both rotations apply with a negative sign.
     var target = new THREE.Vector3(0, 12, 0);
     var offset = new THREE.Vector3();
     var upVec = new THREE.Vector3(0, 1, 0);
@@ -1871,9 +1876,9 @@
         target.addScaledVector(side, -dx * reach);
         target.addScaledVector(upVec, dy * reach);
       } else {
-        // Horizontal about the camera's own up, vertical about the camera's own right. Rotating the
-        // up vector along with the offset on the vertical turn retains the two perpendicular
-        // and the roll free of any accumulated tilt.
+        // Horizontal about the own up of the camera, and vertical about its own right. The up vector
+        // turns with the offset on the vertical turn. That keeps the two perpendicular, and the roll
+        // free of any accumulated tilt.
         offset.applyAxisAngle(upVec, -dx * 0.006);
         offset.applyAxisAngle(side, -dy * 0.006);
         upVec.applyAxisAngle(side, -dy * 0.006).normalize();
@@ -1915,9 +1920,8 @@
 
     // -- the floating panel -----------------------------------------------------------------------
     //
-    // Every control is a dropdown or a slider and not a list of buttons, and the whole thing
-    // moves, because it sits on top of the picture it controls and will otherwise cover the part
-    // being looked at.
+    // Each control is a dropdown or a slider, and not a list of buttons. The panel moves, because it
+    // sits on top of the picture that it controls. Else it covers the part on view.
 
     function fillOptions(select, items, chosen) {
       select.innerHTML = "";
@@ -1941,13 +1945,13 @@
     var stepPick = document.getElementById("pick-step");
     fillOptions(stepPick, VIEWS, 0);
 
-    // Steps are a sequence instead of a set of alternatives: a representation is fed a step at a time and
-    // the point is to walk it. The dropdown and the two arrows go through one call. The readout
+    // Steps are a sequence, and not a set of alternatives. A representation takes one step at a time,
+    // and the point is to walk it. The dropdown and the two arrows go through one call. The readout
     // and the drawing cannot disagree about which step is up.
     function showStep(index) {
       var many = VIEWS.length;
       var at = ((index % many) + many) % many;
-      // Put this step's selection down before picking up the next one's.
+      // Put the selection of this step down before the code picks up that of the next one.
       if (view) {
         selections[view.key] = { brush: brush, picked: picked };
       }
@@ -1985,8 +1989,8 @@
       redraw();
     });
 
-    // Off is first, because reading one field against another only means something when it can also
-    // be turned off and the field seen alone.
+    // Off is first. A reading of one field against another only means something when the user can
+    // also turn it off, and see the field alone.
     var overlayPick = document.getElementById("pick-overlay");
     var overlayItems = [{ label: "Off", field: null }].concat(
       VIEWS.map(function (one) {
@@ -1999,9 +2003,9 @@
       redraw();
     });
 
-    // Order is logarithmic on the slider: the interesting ground is 3 to 40 sides, and 4096 is the
-    // far end where a polygon has become a circle. A linear slider would spend nine tenths of its
-    // travel where nothing changes.
+    // Order is logarithmic on the slider. The ground of value is 3 to 40 sides, and 4096 is the far
+    // end, where a polygon is a circle. A linear slider spends nine tenths of its travel where
+    // nothing changes.
     var orderSlider = document.getElementById("order");
     orderSlider.min = 0;
     orderSlider.max = 1000;
@@ -2032,8 +2036,8 @@
 
     // -- readouts: which of them show is the user's ------------------------------------------------
     //
-    // Which numbers are worth having on screen depends on what is being looked at. The list is a
-    // set of checkboxes and the corner shows whatever is ticked.
+    // The numbers of value on screen depend on what is on view. The list is a set of checkboxes, and
+    // the corner shows the checked ones.
 
     var METRICS = [
       {
@@ -2151,12 +2155,12 @@
       metricHolder.appendChild(row);
     });
 
-    // -- the distribution, and selecting from it ---------------------------------------------------
+    // -- the distribution, and the selection from it -----------------------------------------------
     //
-    // The readouts said what the field is. This says what is in it: how the values are actually
-    // distributed, and not only their largest. Dragging across it selects a set of values and a
-    // click selects the one bin under the pointer, and either way the cells holding those values are
-    // lit in the object while the numbers underneath say how many they are.
+    // The readouts say what the field is. This says what is in it: the distribution of the values,
+    // and not only their largest. A drag across it selects a set of values. A click selects the one
+    // bin under the pointer. Either way, the cells that hold those values light up in the object, and
+    // the numbers underneath say how many there are.
 
     var BINS = 96;
     var histCanvas = document.getElementById("hist");
@@ -2236,9 +2240,9 @@
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       ctx.clearRect(0, 0, wide, high);
 
-      // Counts are drawn on a log scale. A field whose values pile into one bin - the majority of
-      // them, the plateau being what it is - draws every other bin as nothing at all on a linear
-      // one, and the tail is the part worth seeing.
+      // Counts show on a log scale. A field can pile most of its values into one bin, at the plateau.
+      // On a linear scale, each other bin then shows as nothing at all, and the tail is the part of
+      // value.
       var top = Math.log10(1 + binMost);
       var step = wide / BINS;
       for (var i = 0; i < BINS; i += 1) {
@@ -2250,8 +2254,8 @@
         ctx.fillRect(i * step, high - tall, Math.max(1, step - 0.5), tall);
       }
 
-      // A cell clicked in the object is drawn as a line at its value. The thing seen in the shape
-      // can be located in the distribution.
+      // A cell clicked in the object shows as a line at its value. The user can find the thing seen
+      // in the shape in the distribution.
       if (picked !== null && isFinite(picked) && binTo > binFrom) {
         var mark = ((picked - binFrom) / (binTo - binFrom)) * wide;
         ctx.fillStyle = token("--warm");
@@ -2268,9 +2272,9 @@
       var same = 0;
       for (var r = 0; r < rows.length; r += 1) {
         for (var c = 0; c < rows[r].length; c += 1) {
-          // The picked value came back through a Float32Array and the table holds doubles. An
-          // exact comparison never matches and every pick reports nothing, itself included. Rounding
-          // the table value to single precision is the comparison that is actually being asked for.
+          // The picked value comes back through a Float32Array, and the table holds doubles. An
+          // exact comparison never matches, and each pick reports nothing, itself too. The correct
+          // comparison rounds the table value to single precision.
           if (Math.fround(rows[r][c]) === picked) {
             same += 1;
           }
@@ -2356,8 +2360,8 @@
       brushing = false;
       var box = histCanvas.getBoundingClientRect();
       var now = event.clientX - box.left;
-      // A click and not a drag: take the single bin under the pointer, which is one value of the
-      // data and not a set of them.
+      // A click and not a drag: take the single bin under the pointer. That is one value of the data,
+      // and not a set of them.
       if (Math.abs(now - brushStart) < 3) {
         var wide = histCanvas.clientWidth || 232;
         var at = Math.floor((now / wide) * BINS);
@@ -2372,8 +2376,8 @@
       repaint();
     });
 
-    // Double click clears, and a selection can be promoted to a located mark so it survives being
-    // replaced by the next drag.
+    // Double click clears. The user can make a selection into a located mark, so that the next drag
+    // does not replace it.
     histCanvas.addEventListener("dblclick", function () {
       brush = null;
       drawHist();
@@ -2400,13 +2404,13 @@
       lowPick.value = hexOf(ramp.low || toRgb(token("--cool")));
       midPick.value = hexOf(ramp.mid || toRgb(token("--sunk")));
       highPick.value = hexOf(ramp.high || toRgb(token("--warm")));
-      // The legend is the ramp itself with the values at its ends. The panel says what the colors
-      // mean without being opened. Everything that changes them is folded away behind Settings.
+      // The legend is the ramp itself, with the values at its ends. The panel says what the colors
+      // mean, and the user does not have to open it. All that changes them folds away behind Settings.
       document.getElementById("ramp-strip").style.background =
         "linear-gradient(to right, " + lowPick.value + ", " + midPick.value + ", " + highPick.value + ")";
-      // The end labels start as the numbers the data happens to hold and are then the reader's to
-      // write. What a color means is asserted by whoever is reading, not carried in by the values.
-      // Once one has been typed over it is left alone.
+      // The end labels start as the numbers that the data holds, and the reader then writes them.
+      // The reader says what a color means, and the values do not. Once the reader types over one,
+      // the code leaves it alone.
       if (bins) {
         if (!rampNames.low) {
           document.getElementById("ramp-low").textContent = binFrom.toPrecision(3);
@@ -2447,9 +2451,9 @@
       });
     });
 
-    // Contrast is the exponent the value is raised to before it is mixed into the ramp. Below one it
-    // lifts the quiet cells toward full color and makes a faint structure visible against
-    // a plateau; above one it does the reverse and leaves only the loudest cells colored.
+    // Contrast is the exponent of the value before the value mixes into the ramp. Below one, it lifts
+    // the quiet cells toward full color, and makes a faint structure visible against a plateau.
+    // Above one, it does the reverse, and leaves only the loudest cells in color.
     document.getElementById("contrast").addEventListener("input", function () {
       contrastAt = parseInt(this.value, 10) / 100;
       document.getElementById("contrast-out").textContent = contrastAt.toFixed(2);
@@ -2539,8 +2543,8 @@
     }
 
     document.getElementById("mark-add").addEventListener("click", function () {
-      // A new mark opens on the range the current field actually holds. It claims something the
-      // moment it appears instead of starting empty and looking broken.
+      // A new mark opens on the range that the current field holds. It claims something the moment
+      // it shows, and does not start empty and look broken.
       var top = 0;
       var rows = view.rows;
       for (var r = 0; r < rows.length; r += 1) {
@@ -2566,9 +2570,10 @@
 
     // -- moving the boxes --------------------------------------------------------------------------
     //
-    // Three things float over the stage and all three get in the way of the object sooner or later.
-    // All three move, through one routine and not three copies: the box to move and the part of
-    // it that is the handle, which for the readouts is the whole box because it has no frame to grab.
+    // Three things float over the stage, and all three get in the way of the object at some time.
+    // All three move, through one routine and not three copies. The routine takes the box to move,
+    // and the part of it that is the handle. For the readouts, the handle is the full box, because it
+    // has no frame to grab.
 
     function movable(box, handle) {
       var held = false;
@@ -2581,8 +2586,8 @@
           return;
         }
         held = true;
-        // Pin the box to left/top before the first move. A box positioned from the right or the
-        // bottom does not jump across the stage as soon as left is set.
+        // Pin the box to left/top before the first move. Then a box placed from the right or the
+        // bottom does not jump across the stage as soon as the code sets left.
         var here = box.getBoundingClientRect();
         var room = box.parentElement.getBoundingClientRect();
         box.style.left = here.left - room.left + "px";
@@ -2640,7 +2645,7 @@
       this.textContent = panel.classList.contains("folded") ? "+" : "−";
     });
 
-    // -- resizing a box, and filling the stage with it ---------------------------------------------
+    // -- the resize of a box, and the fill of the stage with it ------------------------------------
 
     function resizable(box, edge) {
       var held = false;
@@ -2663,7 +2668,7 @@
         }
         var room = box.parentElement.getBoundingClientRect();
         var want = startHigh + (event.clientY - startY);
-        // Never taller than the stage it floats on, never so short it has no content showing.
+        // Never taller than the stage that it floats on, and never so short that no content shows.
         body.style.maxHeight = Math.max(40, Math.min(room.height - 60, want)) + "px";
       });
 
@@ -2737,11 +2742,11 @@
       });
     });
 
-    // -- picking in the object, read on the distribution -------------------------------------------
+    // -- the pick in the object, read on the distribution -------------------------------------------
     //
-    // The histogram selects cells in the object. This is the same road traveled the other way: click
-    // a cell and its value is marked on the distribution. A feature seen in the shape can be found
-    // in the numbers and not only described.
+    // The histogram selects cells in the object. This is the same road the other way: click a cell,
+    // and the distribution marks its value. The user can find a feature seen in the shape in the
+    // numbers, and not only describe it.
 
     var caster = new THREE.Raycaster();
     var atScreen = new THREE.Vector2();
@@ -2781,12 +2786,14 @@
 
     // -- opening state, as parameters ---------------------------------------------------------------
     //
-    // A caller that wants a particular view asks for it here instead of publishing a page and
-    // telling the reader which controls to move. The shared control bar's model reads these: every
-    // value in DATA.settings is checked against the one schema the build injected, a value of the
-    // wrong type or out of range is named and refused and never clamped, and a key the build leaves
-    // out retains the control's own default. The report line below names what was refused. Each
-    // bespoke control stays and is seeded from the model.
+    // A caller that wants a given view asks for it here. It does not publish a page and tell the
+    // reader which controls to move. The model of the shared control bar reads these:
+    //   - it checks each value in DATA.settings against the one schema that the build injected.
+    //   - it names and refuses a value of the wrong type or out of range, and never clamps it.
+    //   - a key that the build leaves out keeps the own default of the control.
+    //
+    // The report line below names what the model refused. Each bespoke control stays, and takes its
+    // first value from the model.
 
     var SCHEMA = DATA.schema || {};
     var SET = DATA.settings || {};
@@ -2815,8 +2822,8 @@
       refused.push(key + ": no such value " + wanted[key]);
     }
 
-    // A slider setting seeds its control and its readout, then applies. The value is in range
-    // already: an out-of-range one was refused by the schema and given() is false.
+    // A slider setting gives its control and its readout their first value, then applies. The value
+    // is in range already: the schema refuses an out-of-range one, and given() is false.
     function slide(id, key, apply) {
       if (!given(key)) {
         return;
@@ -2929,8 +2936,8 @@
       redraw();
     }
 
-    // Motion. Turns per minute about the observer's own up or right, which retains turning about the
-    // axis the reader sees and not a world axis that drifts as the object is dragged.
+    // Motion. Turns per minute about the own up or right of the observer. That keeps the turn about
+    // the axis that the reader sees, and not a world axis that drifts as the user drags the object.
     if (given("spin")) {
       var perFrame = (wanted.spin * TAU) / (60 * 60);
       var about = given("spinaxis") && wanted.spinaxis === "right" ? "right" : "up";
@@ -2946,9 +2953,9 @@
       }).wake();
     }
 
-    // The report line. A refusal is named; otherwise the keys the build set are listed, and an empty
-    // settings object opens at the page defaults and says that. A control whose value was refused
-    // retains its own default and stays visible.
+    // The report line. It names a refusal. Else it lists the keys that the build set, and an empty
+    // settings object opens at the page defaults and says that. A control whose value the model
+    // refused keeps its own default, and stays visible.
     var reportEl = document.getElementById("open-report");
     if (reportEl) {
       reportEl.classList.remove("refused");
@@ -2964,19 +2971,19 @@
 
     window.addEventListener("resize", resize);
 
-    // Dragging the stage's corner changes its height but fires no window resize. The renderer
-    // would retain drawing at the old size and the picture would stretch. Watching the element itself
-    // catches the drag, and writing the height back out as a custom property retains the
-    // sidecar's cap tied to whatever the view window has become.
+    // A drag of the corner of the stage changes its height, but fires no window resize. Then the
+    // renderer draws at the old size, and the picture stretches. An observer on the element itself
+    // catches the drag. The height goes back out as a custom property, and that keeps the cap of
+    // the sidecar tied to whatever the view window becomes.
     if (window.ResizeObserver) {
       var stage = document.querySelector(".stage");
       var wasHigh = 0;
       new ResizeObserver(function () {
-        // Read offsetHeight here. clientHeight leaves out the stage's 1px borders, and with
-        // box-sizing: border-box writing it back as the height makes the box two pixels shorter,
-        // which fires this observer again, which takes off another two. The stage walks down to its
+        // Read offsetHeight here. clientHeight leaves out the 1px borders of the stage. With
+        // `box-sizing: border-box`, to write it back as the height makes the box two pixels
+        // shorter. That fires this observer again, which takes off another two. The stage walks down to its
         // minimum on its own while nobody touches it. offsetHeight is the same number the height
-        // property means. Writing it back changes nothing and the loop has no step.
+        // property means. To write it back changes nothing, and the loop has no step.
         var high = stage.offsetHeight;
         if (Math.abs(high - wasHigh) < 1) {
           return;
