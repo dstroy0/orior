@@ -738,6 +738,21 @@ EMBED_INLINE void quick_outline(const QuickCtx *args)
     }
 }
 
+// The rows a tree search builds: the build they go into and the query typed
+typedef struct
+{
+    QuickBuild *build;
+    const char *query;
+} QuickTreeFound;
+
+// one declaration the tree finds made a row
+static void quick_tree_found(const CliEachFoundCfg *args)
+{
+    const QuickTreeFound *const found = (const QuickTreeFound *)args->context;
+    EMBED_CALL(quick_symbol_row, QuickCtx, .build = found->build, .text = args->name, .length = args->name_length,
+               .query = found->query, .type_text = args->type, .path = args->path, .at = args->line, .in_tree = 1);
+}
+
 // the rows of what the tree's files declare for `length` bytes of `text` typed, at max `max`, the best first, and the
 // reading row while the tree is read; a sentence where no tree is open and the rows are not `grouped`
 EMBED_INLINE void quick_tree(const QuickCtx *args)
@@ -755,44 +770,13 @@ EMBED_INLINE void quick_tree(const QuickCtx *args)
     VerbaLinea typed = {query, sizeof(query), 0ULL};
     mmgr_line_put_n(&typed, args->text, args->length);
     (void)mmgr_line_finish(&typed);
-    const CarcerMovableEntry *const found =
-        EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = query,
-                   .max = args->max, .owner = g_cli_quick_owner);
-    CliFoundDeclarations head = {0u, 0};
-    if (found != NULL)
-    {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .dst = &head, .bytes = sizeof(head)});
-    }
-    for (unsigned int at = 0u; at < head.count; at += 1u)
-    {
-        CliFoundDeclaration one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = found, .offset = CLI_FOUND_DECLARATION_AT(at), .dst = &one, .bytes = sizeof(one)});
-        // the row's name, type and path read out of the list's cell, each cut to a path's max
-        char name[CLI_PATH_MAX_LEN];
-        char type[CLI_PATH_MAX_LEN];
-        char path[CLI_PATH_MAX_LEN];
-        const unsigned int places[3] = {one.name, one.type, one.path};
-        char *const texts[3] = {name, type, path};
-        unsigned long long lengths[3] = {0ULL, 0ULL, 0ULL};
-        for (unsigned int each = 0u; each < 3u; each += 1u)
-        {
-            const unsigned long long measured =
-                g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = found, .offset = places[each]});
-            lengths[each] = (measured < (CLI_PATH_MAX_LEN - 1ULL)) ? measured : (CLI_PATH_MAX_LEN - 1ULL);
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = found, .offset = places[each], .dst = texts[each], .bytes = lengths[each]});
-            texts[each][lengths[each]] = '\0';
-        }
-        EMBED_CALL(quick_symbol_row, QuickCtx, .build = build, .text = name, .length = lengths[0], .query = query,
-                   .type_text = type, .path = path, .at = one.line, .in_tree = 1);
-    }
-    if (head.reading)
+    QuickTreeFound found = {build, query};
+    if (EMBED_CALL(cli_symbols_query_max.tree_declarations_each, CliSymbolsQueryMaxCfg, .query = query,
+                   .max = args->max, .each = quick_tree_found, .context = &found))
     {
         build->reading = 1;
         EMBED_CALL(quick_said, QuickCtx, .build = build, .type = CLI_QUICK_ROW_READING, .text = QUICK_READING);
     }
-    (void)g_cli_guard->movable_buf_release(found, g_cli_quick_owner);
 }
 
 // Search Everywhere's rows for `length` bytes of `text`: the files, then with something typed what the tree declares

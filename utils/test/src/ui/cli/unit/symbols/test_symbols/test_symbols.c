@@ -1,18 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_symbols.c: Python's, Rust's, scripts', C's and the other languages' declarations are read; scores rank the name itself first; a first reading reports
-// how far it has gone and a stop stores what it read; the tree is read and a file read again once it changes; a call's signature is read from the tree; a
-// name's definition in effect is found through includes, conditions and the compilation database's defines; a slice is cut for a view; and a name's usages,
+// test_symbols.c: Python's, Rust's, scripts', C's and the other languages' declarations are read; scores rank the name
+// itself first; a first reading reports how far it has gone and a stop stores what it read; the tree is read and a file
+// read again once it changes; a call's signature is read from the tree; a name's definition in effect is found through
+// includes, conditions and the compilation database's defines; a slice is cut for a view; and a name's usages,
 // definition, completions, hints, spans, bracket pair and call hierarchy are read
+#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/code/symbols_tree.h"
-#include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the tree the cases over a walked tree read: a header, a definition and a file that calls it, walked once for the process
+// the tree the cases over a walked tree read: a header, a definition and a file that calls it, walked once for the
+// process
 static const char s_shape_text[] = "#ifndef SHAPE_H\n#define SHAPE_H\nint area(int side);\n#define SIDES 4\n#endif\n";
 static const char s_area_text[] = "#include \"shape.h\"\nint area(int n)\n{\n    return n * n * SIDES;\n}\n";
-static const char s_use_text[] = "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n";
+static const char s_use_text[] =
+    "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n";
 static char s_tree[CLI_PATH_MAX_LEN];
 static int s_begun;
 static char s_reached[1024];
@@ -66,12 +69,14 @@ static void reached_recorded(const CliCallReachedCfg *args)
 }
 
 // the functions the call hierarchy entry `each` reaches from line `line` of `path`, NUL-terminated in s_reached
-static const char *reached_of(int (*each)(const CliSymbolsPathContextLineCfg *args), const char *path, unsigned int line)
+static const char *reached_of(int (*each)(const CliSymbolsPathContextLineCfg *args), const char *path,
+                              unsigned int line)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_reached_line.at = 0ull;
-    TEST_ASSERT_EQUAL_INT(1, each(&(CliSymbolsPathContextLineCfg){.path = path, .line = line, .each = reached_recorded, .err_msg = &err_msg}));
+    TEST_ASSERT_EQUAL_INT(1, each(&(CliSymbolsPathContextLineCfg){
+                                 .path = path, .line = line, .each = reached_recorded, .err_msg = &err_msg}));
     (void)mmgr_line_finish(&s_reached_line);
     return s_reached;
 }
@@ -120,7 +125,8 @@ static void assert_declarations(const char *path, const char *text, const char *
 {
     char out[1024];
     VerbaLinea line = {out, sizeof(out), 0ull};
-    EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = path, .text = text, .size = CLI_UNITY_LENGTH(text), .each_declared = declaration_recorded, .context = &line);
+    EMBED_CALL(cli_symbols_path_text_size.declare, CliSymbolsPathTextSizeCfg, .path = path, .text = text,
+               .size = CLI_UNITY_LENGTH(text), .each_declared = declaration_recorded, .context = &line);
     CLI_TEST_ASSERT_TEXT(required, out, line.at);
 }
 
@@ -128,7 +134,10 @@ static void assert_declarations(const char *path, const char *text, const char *
 static long long score_of(const char *query, const char *name)
 {
     long long points = 0ll;
-    return EMBED_CALL(cli_symbols_query.score, CliSymbolsQueryCfg, .query = query, .name = name, .name_length = CLI_UNITY_LENGTH(name), .points = &points) ? points : -1ll;
+    return EMBED_CALL(cli_symbols_query.score, CliSymbolsQueryCfg, .query = query, .name = name,
+                      .name_length = CLI_UNITY_LENGTH(name), .points = &points)
+               ? points
+               : -1ll;
 }
 
 void setUp(void)
@@ -142,37 +151,41 @@ void tearDown(void)
 
 void test_pythons_declarations_are_read(void)
 {
-    assert_declarations("x.py",
-                        "import os\nLIMIT = 3\nlimit = 4\nX: int = 5\nclass Page:\n    def read(self):\n        pass\nasync def "
-                        "go():\n    if a == b:\n        pass\n",
-                        "LIMIT constant 1|X constant 3|Page class 4|read function 5|go function 7");
+    assert_declarations(
+        "x.py",
+        "import os\nLIMIT = 3\nlimit = 4\nX: int = 5\nclass Page:\n    def read(self):\n        pass\nasync def "
+        "go():\n    if a == b:\n        pass\n",
+        "LIMIT constant 1|X constant 3|Page class 4|read function 5|go function 7");
 }
 
 void test_rusts_declarations_are_read(void)
 {
-    assert_declarations("x.rs",
-                        "pub(crate) fn alpha() {}\npub struct Beta;\nconst GAMMA: u32 = 1;\nmacro_rules! delta {\n}\npub async "
-                        "unsafe fn epsilon() {}\nmod zeta;\nimpl Beta {\nextern \"C\" fn eta() {}\nstatic mut THETA: u8 = 0;\n",
-                        "alpha function 0|Beta class 1|GAMMA constant 2|delta function 3|epsilon function 5|zeta module 6|eta "
-                        "function 8|THETA constant 9");
+    assert_declarations(
+        "x.rs",
+        "pub(crate) fn alpha() {}\npub struct Beta;\nconst GAMMA: u32 = 1;\nmacro_rules! delta {\n}\npub async "
+        "unsafe fn epsilon() {}\nmod zeta;\nimpl Beta {\nextern \"C\" fn eta() {}\nstatic mut THETA: u8 = 0;\n",
+        "alpha function 0|Beta class 1|GAMMA constant 2|delta function 3|epsilon function 5|zeta module 6|eta "
+        "function 8|THETA constant 9");
 }
 
 void test_a_scripts_declarations_are_read(void)
 {
-    assert_declarations("x.js",
-                        "export async function load(path) {\nclass Editor {\n  paint() {\n    if (x) {\n  }\nconst STEP = "
-                        "4;\nexport const go = (a) => a;\nlet run = async () => 1;\n",
-                        "load function 0|Editor class 1|paint method 2|STEP constant 5|go function 6|run function 7");
+    assert_declarations(
+        "x.js",
+        "export async function load(path) {\nclass Editor {\n  paint() {\n    if (x) {\n  }\nconst STEP = "
+        "4;\nexport const go = (a) => a;\nlet run = async () => 1;\n",
+        "load function 0|Editor class 1|paint method 2|STEP constant 5|go function 6|run function 7");
 }
 
 void test_cs_declarations_are_read(void)
 {
-    assert_declarations("x.c",
-                        "#define LIMIT 4\n#  define TWICE(x) ((x) * 2)\nstruct grid {\ntypedef enum shade\nstatic int "
-                        "count_cells(const struct grid *g) {\nint scale(int a,\n  return helper(1);\nint value = make(2);\nvoid "
-                        "declared(int);\nif (x) {\n",
-                        "LIMIT constant 0|TWICE constant 1|grid class 2|shade class 3|count_cells function 4|scale function 5|declared "
-                        "function 8");
+    assert_declarations(
+        "x.c",
+        "#define LIMIT 4\n#  define TWICE(x) ((x) * 2)\nstruct grid {\ntypedef enum shade\nstatic int "
+        "count_cells(const struct grid *g) {\nint scale(int a,\n  return helper(1);\nint value = make(2);\nvoid "
+        "declared(int);\nif (x) {\n",
+        "LIMIT constant 0|TWICE constant 1|grid class 2|shade class 3|count_cells function 4|scale function 5|declared "
+        "function 8");
 }
 
 void test_a_shells_declarations_are_read(void)
@@ -192,7 +205,8 @@ void test_tomls_tables_are_read(void)
 
 void test_markdowns_headings_are_read_none_in_code(void)
 {
-    assert_declarations("x.md", "# Title\n```\n# not this\n```\n## Part two ##\n", "Title heading 0|Part two heading 4");
+    assert_declarations("x.md", "# Title\n```\n# not this\n```\n## Part two ##\n",
+                        "Title heading 0|Part two heading 4");
 }
 
 void test_texs_sections_are_read(void)
@@ -227,10 +241,12 @@ void test_the_tree_is_listed_and_its_first_reading_has_ended_with_every_file_don
 {
     tree_begun();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = s_tree));
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = "build/harness/no_such_tree"));
+    TEST_ASSERT_FALSE(
+        EMBED_CALL(cli_symbols_root.tree_is_list, CliSymbolsRootCfg, .root = "build/harness/no_such_tree"));
     unsigned long long done = 0ull;
     unsigned long long total = 0ull;
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_symbols_done.tree_walk_progress, CliSymbolsDoneCfg, .done = &done, .total = &total));
+    TEST_ASSERT_FALSE(
+        EMBED_CALL(cli_symbols_done.tree_walk_progress, CliSymbolsDoneCfg, .done = &done, .total = &total));
     TEST_ASSERT_EQUAL_UINT64(total, done);
 }
 
@@ -242,7 +258,9 @@ void test_the_call_hierarchy_names_the_function_at_a_line_its_callers_and_its_ca
     TEST_ASSERT_EQUAL_STRING("src/shape.h:2 area 2", reached_of(cli_symbols_callees, "src/use.c", 1u));
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_EQUAL_INT(0, EMBED_CALL(cli_symbols_path_context_line.function_at, CliSymbolsPathContextLineCfg, .path = "src/use.c", .line = 0u, .each = reached_recorded, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_INT(0,
+                          EMBED_CALL(cli_symbols_path_context_line.function_at, CliSymbolsPathContextLineCfg,
+                                     .path = "src/use.c", .line = 0u, .each = reached_recorded, .err_msg = &err_msg));
 }
 
 void test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view(void)
@@ -252,7 +270,9 @@ void test_a_slice_for_a_view_carries_its_openers_and_the_lines_in_view(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int opener[1] = {2u};
     s_sliced_line.at = 0ull;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path.slice_each, CliSymbolsPathCfg, .path = "src/use.c", .text = s_use_text, .size = sizeof(s_use_text) - 1u, .first = 3u, .last = 4u, .opener = opener, .openers = 1u, .each_slice_line = slice_line_recorded, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path.slice_each, CliSymbolsPathCfg, .path = "src/use.c", .text = s_use_text,
+                                .size = sizeof(s_use_text) - 1u, .first = 3u, .last = 4u, .opener = opener,
+                                .openers = 1u, .each_slice_line = slice_line_recorded, .err_msg = &err_msg));
     (void)mmgr_line_finish(&s_sliced_line);
     CLI_TEST_ASSERT_CONTAINS("2:{\n", s_sliced);
     CLI_TEST_ASSERT_CONTAINS("3:    int w = area(n) + SIDES;\n", s_sliced);
@@ -266,7 +286,10 @@ void test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_sliced_line.at = 0ull;
     s_windows = 0u;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path_text_size_context_err_msg.slices_each, CliSymbolsPathTextSizeContextErrMsgCfg, .path = "src/use.c", .text = s_use_text, .size = sizeof(s_use_text) - 1u, .height = 3u, .each_slice_line = slice_line_recorded, .window = window_counted, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path_text_size_context_err_msg.slices_each,
+                                CliSymbolsPathTextSizeContextErrMsgCfg, .path = "src/use.c", .text = s_use_text,
+                                .size = sizeof(s_use_text) - 1u, .height = 3u, .each_slice_line = slice_line_recorded,
+                                .window = window_counted, .err_msg = &err_msg));
     (void)mmgr_line_finish(&s_sliced_line);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_windows);
     TEST_ASSERT_EQUAL_UINT(0u, s_first_window_first);
@@ -275,31 +298,51 @@ void test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk(void)
 
 void test_a_token_names_roles_come_off_its_segments(void)
 {
-    TEST_ASSERT_BITS_HIGH(CLI_ROLE_REGION_OPENS | CLI_ROLE_DEPTH_OPENS, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "delimiter.bracket.region.depth.open"));
-    TEST_ASSERT_BITS_HIGH(CLI_ROLE_REGION_CLOSES | CLI_ROLE_CLOSING, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "delimiter.bracket.region.depth.close"));
-    TEST_ASSERT_EQUAL_UINT(CLI_ROLE_QUOTED, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "string"));
-    TEST_ASSERT_BITS_HIGH(CLI_ROLE_NAME | CLI_ROLE_WORD, EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "identifier"));
+    TEST_ASSERT_BITS_HIGH(
+        CLI_ROLE_REGION_OPENS | CLI_ROLE_DEPTH_OPENS,
+        EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "delimiter.bracket.region.depth.open"));
+    TEST_ASSERT_BITS_HIGH(
+        CLI_ROLE_REGION_CLOSES | CLI_ROLE_CLOSING,
+        EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "delimiter.bracket.region.depth.close"));
+    TEST_ASSERT_EQUAL_UINT(CLI_ROLE_QUOTED,
+                           EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "string"));
+    TEST_ASSERT_BITS_HIGH(CLI_ROLE_NAME | CLI_ROLE_WORD,
+                          EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = "identifier"));
+}
+
+// the declarations a query finds counted, the first one's name kept
+typedef struct
+{
+    unsigned int count;
+    char first[16];
+} FoundRecorded;
+
+static void found_recorded(const CliEachFoundCfg *args)
+{
+    FoundRecorded *const recorded = (FoundRecorded *)args->context;
+    if ((recorded->count == 0u) && (args->name_length < sizeof(recorded->first)))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = recorded->first, .src = args->name, .bytes = args->name_length + 1ull});
+    }
+    recorded->count += 1u;
 }
 
 void test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read(void)
 {
     tree_begun();
-    const CarcerMovableEntry *const found = EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = "area", .max = 8u, .owner = g_cli_text_owner);
-    TEST_ASSERT_NOT_NULL(found);
-    CliFoundDeclarations head = {0u, 0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .dst = &head, .bytes = sizeof(head)});
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, head.count);
-    CliFoundDeclaration first;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .offset = CLI_FOUND_DECLARATION_AT(0u), .dst = &first, .bytes = sizeof(first)});
-    char name[16] = "";
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found, .offset = first.name, .dst = name, .bytes = 5u});
-    TEST_ASSERT_EQUAL_STRING("area", name);
-    (void)g_cli_guard->movable_buf_release(found, g_cli_text_owner);
+    FoundRecorded recorded = {0u, ""};
+    (void)EMBED_CALL(cli_symbols_query_max.tree_declarations_each, CliSymbolsQueryMaxCfg, .query = "area", .max = 8u,
+                     .each = found_recorded, .context = &recorded);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, recorded.count);
+    TEST_ASSERT_EQUAL_STRING("area", recorded.first);
     static CliSignatureStore s_store;
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the cursor inside `area(n)` on line 3 of the caller
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path_text_size_out.signature_read, CliSymbolsPathTextSizeOutCfg, .path = "src/use.c", .text = s_use_text, .size = sizeof(s_use_text) - 1u, .state = "root", .line = 3u, .col = 18u, .owner = g_cli_text_owner, .err_msg = &err_msg, .store = &s_store));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_symbols_path_text_size_out.signature_read, CliSymbolsPathTextSizeOutCfg,
+                                .path = "src/use.c", .text = s_use_text, .size = sizeof(s_use_text) - 1u,
+                                .state = "root", .line = 3u, .col = 18u, .owner = g_cli_text_owner, .err_msg = &err_msg,
+                                .store = &s_store));
     CLI_TEST_ASSERT_CONTAINS("area", s_store.label);
 }
 
@@ -324,23 +367,31 @@ void test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_re
     EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = branch.bytes);
     char *const scratch = cli_branch_copy_alloc();
     TEST_ASSERT_NOT_NULL(scratch);
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = branch.cell, .offset = 0u, .dst = scratch, .bytes = (embed_word)branch.bytes});
-    TEST_ASSERT_EQUAL_STRING("src/area.c", EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path, CliSymbolsTreeBranchScratchCfg, .branch = &branch, .scratch_read = scratch));
-    const CliDeclaration *const declarations = EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations, CliSymbolsTreeBranchScratchCfg, .branch = &branch, .scratch_read = scratch);
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = branch.cell, .offset = 0u, .dst = scratch, .bytes = (embed_word)branch.bytes});
+    TEST_ASSERT_EQUAL_STRING("src/area.c",
+                             EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path,
+                                        CliSymbolsTreeBranchScratchCfg, .branch = &branch, .scratch_read = scratch));
+    const CliDeclaration *const declarations =
+        EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations, CliSymbolsTreeBranchScratchCfg,
+                   .branch = &branch, .scratch_read = scratch);
     TEST_ASSERT_NOT_NULL(declarations);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, branch.count);
     int area_declared = 0;
     for (unsigned int at = 0u; at < branch.count; at += 1u)
     {
         const char *const name = scratch + declarations[at].name;
-        area_declared |= (declarations[at].length == 4u) && (name[0] == 'a') && (name[1] == 'r') && (name[2] == 'e') && (name[3] == 'a');
+        area_declared |= (declarations[at].length == 4u) && (name[0] == 'a') && (name[1] == 'r') && (name[2] == 'e') &&
+                         (name[3] == 'a');
     }
     TEST_ASSERT_TRUE_MESSAGE(area_declared, "area is declared in src/area.c");
     g_cli_guard->persistent_buf_release(scratch, mmgr_owner_of_buf(cli_pool_series_cellularum(), scratch));
     // a file written anew moves its stamp, which the tree reports where nothing else reports its changes
     s_stamp_line = (VerbaLinea){s_stamps, sizeof(s_stamps), 0ull};
-    cli_unity_file(s_tree, "src/use.c", "#include \"shape.h\"\nint use(void)\n{\n    return area(1) + area(2) + SIDES;\n}\n");
-    EMBED_CALL(cli_symbols_context.tree_stamp, CliSymbolsContextCfg, .root = s_tree, .emit = stamp_recorded, .context = NULL);
+    cli_unity_file(s_tree, "src/use.c",
+                   "#include \"shape.h\"\nint use(void)\n{\n    return area(1) + area(2) + SIDES;\n}\n");
+    EMBED_CALL(cli_symbols_context.tree_stamp, CliSymbolsContextCfg, .root = s_tree, .emit = stamp_recorded,
+               .context = NULL);
     (void)mmgr_line_finish(&s_stamp_line);
     CLI_TEST_ASSERT_CONTAINS("src/use.c", s_stamps);
 }
@@ -350,15 +401,19 @@ void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(v
     tree_begun();
     unsigned int before = 0u;
     unsigned long long bytes = 0ull;
-    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &before, .bytes_u64s = &bytes);
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &before,
+               .bytes_u64s = &bytes);
     TEST_ASSERT_EQUAL_UINT(3u, before);
-    const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_exists, CliSymbolsTreePathCfg, .path = "src/new.c", .folder = 0);
+    const unsigned int file =
+        EMBED_CALL(cli_symbols_tree_path.branch_exists, CliSymbolsTreePathCfg, .path = "src/new.c", .folder = 0);
     TEST_ASSERT_NOT_EQUAL(CLI_BRANCHES_MAX, file);
-    TEST_ASSERT_EQUAL_UINT(file, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"));
+    TEST_ASSERT_EQUAL_UINT(file,
+                           EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"));
     CliTreeBranch branch;
     EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = file, .branch_out = &branch);
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = &branch, .path_out = path);
+    EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = &branch,
+               .path_out = path);
     TEST_ASSERT_EQUAL_STRING("src/new.c", path);
     // a branch written at its place is read back as it was written
     branch.written = 12345ULL;
@@ -368,15 +423,18 @@ void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(v
     TEST_ASSERT_EQUAL_UINT64(12345ULL, written.written);
     TEST_ASSERT_EQUAL_PTR(branch.cell, written.cell);
     unsigned int after = 0u;
-    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after, .bytes_u64s = &bytes);
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after,
+               .bytes_u64s = &bytes);
     TEST_ASSERT_EQUAL_UINT(before + 1u, after);
     EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = file);
-    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after, .bytes_u64s = &bytes);
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after,
+               .bytes_u64s = &bytes);
     TEST_ASSERT_EQUAL_UINT(before, after);
-    TEST_ASSERT_EQUAL_UINT(CLI_BRANCHES_MAX, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"));
+    TEST_ASSERT_EQUAL_UINT(CLI_BRANCHES_MAX,
+                           EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = "src/new.c"));
     cli_tree_walk_stop();
     cli_tree_clear();
-    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after, .bytes_u64s = &bytes);
+    EMBED_CALL(cli_symbols_tree_count.branch_files_count, CliSymbolsTreeCountCfg, .count = &after,
+               .bytes_u64s = &bytes);
     TEST_ASSERT_EQUAL_UINT(0u, after);
 }
-
