@@ -1,0 +1,126 @@
+
+\chapter{The removable uncertainty}
+
+\textbf{Purpose:} Divide the CODATA listing into the uncertainties arithmetic can remove and the
+ones it cannot, and carry out the removable ones. \textbf{Scope:}
+\texttt{codata\_exact.py}, \texttt{dn\_constants.py}, \texttt{proved\_digits.py},
+\texttt{reproduce.py}.
+
+Three different kinds of number wear the word \emph{exact} in the 2022 CODATA listing. The result is
+which is which.
+
+\section{The split}
+
+Counted from the listing as fetched from NIST on 2026-09-11:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+class & count \\
+\midrule
+constants in the listing & 358 \\
+marked \texttt{(exact)} & 81 \\
+\quad of those, \textbf{terminating} & 19 \\
+\quad of those, \textbf{truncated} & \textbf{62} \\
+carrying a measured uncertainty & \textbf{277} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{The nineteen terminating ones need nothing.} \(1.602\,176\,634 \times 10^{-19}\) is the
+elementary charge, and that is all. The printed digits are the value, with no tail.
+A thousand places of them would only append 985 zeros.
+
+\textbf{The sixty two truncated ones are the target.} NIST prints them as
+\(1.054\,571\,817\ldots \times 10^{-34}\), and the ellipsis is not an uncertainty. It is a
+typesetting decision. Every one is a closed form in the seven constants that define the SI, and those are
+exact \emph{by definition} since the 2019 redefinition. Their absent digits are unprinted, and not
+unknown.
+
+\textbf{The two hundred and seventy seven measured ones are permanent.} The fine-structure constant,
+the gravitational constant, the electron mass. Their uncertainty is what a laboratory measured.
+Computing \(\alpha\) to a thousand places would be computing a thousand places of a number known to
+eleven, and any claim that precision reduces an experimental error is false.
+
+So the honest statement is not that the uncertainty was removed. It is \textbf{which uncertainties
+are mathematical and removable, and which are physical and permanent}. That division is not
+published anywhere and it falls straight out of the listing.
+
+\section{What was carried out}
+
+Forty four of the sixty two, at a thousand places.
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+verification & count \\
+\midrule
+exactly verified by multiplying back & \textbf{38} \\
+verified against this tree's own \(\pi\) & \textbf{6} \\
+agreeing with the NIST printed digits & \textbf{44 of 44} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The other eighteen need extra definitions, and not extra arithmetic: the conventional
+\(-90\) values, the Loschmidt constants and molar volumes at stated gas conditions, the radiation
+constants, the Stefan-Boltzmann constant which needs \(\pi^5\), and the two Wien displacement
+constants, which need the root of \(x = 5(1 - e^{-x})\) and are the only entries here that are not a
+closed form in the defining constants at all.
+
+\section{Why this verification is stronger than the rest of the precision table}
+
+\texttt{dn\_constants.csv} lives by two routes agreeing to a zero gap. That is evidence, and two
+routes can share an error.
+
+A pure rational admits something better. If \(p/q\) is reported as \(v\) at \(N\) places then
+
+\[
+  v\,q \;\le\; p \cdot 10^{N} \;<\; (v+1)\,q
+\]
+
+is an exact integer statement with no arithmetic in it that could go wrong. Either it holds or the
+digits are wrong. That is \textbf{verification}, and not agreement, and it is available for the
+thirty eight constants that do not involve \(\pi\).
+
+The seven defining constants are integers times powers of ten:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+constant & exact value \\
+\midrule
+caesium hyperfine frequency & \(9\,192\,631\,770\) Hz \\
+speed of light & \(299\,792\,458\) m/s \\
+Planck constant & \(662607015 \times 10^{-42}\) J s \\
+elementary charge & \(1602176634 \times 10^{-28}\) C \\
+Boltzmann constant & \(1380649 \times 10^{-29}\) J/K \\
+Avogadro constant & \(602214076 \times 10^{15}\) mol\(^{-1}\) \\
+luminous efficacy & \(683\) lm/W \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Everything built from those by field operations is a rational. This can be
+exact at all for that reason.
+
+\section{The error the exact check could not catch}
+
+\texttt{elementary charge over h-bar} came out wrong on the first run, and how it was caught is the
+argument for keeping an external check even when an internal one is exact.
+
+\[
+  e/\hbar \;=\; e \big/ (h/2\pi) \;=\; 2\pi e / h
+\]
+
+Every other \(\pi\) constant in the set has \(\hbar\) \emph{as} its value and therefore divides by
+\(2\pi\). This one has \(\hbar\) in its \textbf{denominator}, and multiplies. A division here,
+with a spurious factor of two besides, would come out low by
+\((2\pi)^2 = 19.74\).
+
+\textbf{The exact check would pass it.} A multiplication back verifies a correct division of a rational,
+and says nothing about whether it is the right rational. An exact check cannot see a correctly
+computed wrong expression. The NIST comparison catches it.
+
+That has the same shape as the standing lesson on instruments in this tree: a blindness is a property
+of the instrument, and it must be known, and not hoped about.

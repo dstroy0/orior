@@ -1,0 +1,149 @@
+
+\chapter{The eye test, and the null known in advance}
+
+\textbf{Purpose:} Ask whether a line integral through the compression state predicts the final
+digest where a region integral could not, and then establish that the reach of any such null is
+derivable before the measurement is taken. \textbf{Scope:} \texttt{beam\_read.py},
+\texttt{build\_beam\_view.py}, \texttt{null\_first.py}, \texttt{aimed\_arms.py}.
+
+\section{Why this ran when the question was already answered}
+
+\texttt{nonce\_read.py} asked the same question and returned null, and that null is real. But it was
+measured with six scalars: weight, monopole share, dipole share, quadrupole share, fine-structure
+share, and the zonal dipole. \textbf{Five of those are power shares, and a power share is invariant
+under rotation by construction.} An instrument assembled from rotation invariants cannot see
+orientation at any strength.
+
+The state carries 256 numbers, one per bit, and that is the rank bound this tree has now measured
+five separate ways. So the prior null covered a six-dimensional rotation-averaged summary of a
+256-dimensional object. It is a real result about that summary and it was never a result about the
+object.
+
+\section{The instrument}
+
+A harmonic row is a whole-sphere integral. An arm is a region integral. A \textbf{beam is a line
+integral}: occlusion along a ray, weighted by perpendicular distance to it. It reads passively:
+it observes from outside, and does not perturb what it observes.
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+map & rank \\
+\midrule
+harmonic rows, degree 8 & 81 \\
+beam rows, 256 line integrals & 256 \\
+both stacked & 256 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The beams add \textbf{175 dimensions of rank} the region reading does not have. They are a different
+row type and not a restatement of one.
+
+\section{The result}
+
+2048 nonces on one real header shape. The target is the leading zero count of state 64. The bar is
+the 95th percentile of the largest absolute correlation over the same feature count under 200
+shuffled pairings.
+
+\begin{center}
+\begin{tabular}{rlrrlr}
+\toprule
+round & instrument & loudest & null bar & verdict & limit \\
+\midrule
+8 & beam & 0.0000 & 0.0000 & null & by construction \\
+15 & beam & 0.0000 & 0.0000 & null & by construction \\
+16 & beam & 0.0468 & 0.0736 & null & 0.070 \\
+17 & beam & 0.0546 & 0.0776 & null & 0.100 \\
+24 & beam & 0.0562 & 0.0797 & null & 0.070 \\
+48 & beam & 0.0594 & 0.0834 & null & 0.050 \\
+\textbf{64} & \textbf{beam} & \(\mathbf{0.5361}\) & 0.0811 & \textbf{FIRES} & 0.030 \\
+\textbf{64} & \textbf{harmonic} & \(\mathbf{0.2570}\) & 0.0721 & \textbf{FIRES} & 0.010 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Null at every live round before 64, on both instruments.} The weakest limit across the live
+rounds is 0.100, a correlation below about that would not have been visible to this sample.
+
+\section{The free exact null, which is ala control}
+
+The nonce sits in schedule word 15, and round \(r\) consumes schedule word \(r\). So rounds 0 through
+14 consume words 0 through 14, every one identical across the sweep, and \textbf{states 0 through 15
+are bit-identical for every nonce}. State 16 is the first the nonce has reached.
+
+Rounds 8 and 15 are therefore an exact null by construction and they are in the table for that
+reason: they must read exactly \(0.0000\), and variance there is a wiring bug, and not a
+discovery. Verified at 192, 256 and 500 nonces. An unlabelled zero in a results table reads as the
+strongest measurement on it, and these therefore carry labels.
+
+\section{Where the eyes do win}
+
+On the one round carrying a signal, the two instruments do not read the same amount of it: beam
+\(0.5361\) against harmonic \(0.2570\), a factor of \(\mathbf{2.09}\) on the same state, the same
+target and the same null. That is the directional information a power share averages away, and it is
+a measured property of the row type, and not a claim about it.
+
+\textbf{It does not help a miner.} The early rounds have nothing for either instrument to find, and a
+better instrument pointed at an empty room still reads empty.
+
+\section{The null known in advance: the demon's position}
+
+Every null above was earned the expensive way: run the instrument, fade an injected signal until it
+disappears, report the level at which it vanished. That is honest and it is a measurement of the
+instrument's blindness discovered by experiment.
+
+\textbf{The kernel does not have to be discovered.} It is a property of the reading map
+alone. Rank-nullity gives its dimension before any object is chosen, a singular value decomposition
+gives an explicit basis for it, and every vector in that basis \emph{is} a null permutation: a
+change to the object the reading cannot see, exactly, by construction, and not below a threshold.
+
+\begin{center}
+\begin{tabular}{lrrl}
+\toprule
+instrument & rank & kernel & a null from it excludes \\
+\midrule
+harmonic degree 2 & 9 & 247 & 3.5\% of directions \\
+harmonic degree 4 & 25 & 231 & 9.8\% \\
+harmonic degree 8 & 81 & 175 & 31.6\% \\
+harmonic degree 15 & 256 & \textbf{0} & \textbf{the whole source space} \\
+256 beams & 256 & \textbf{0} & \textbf{the whole source space} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Verified exactly: twelve kernel vectors derived from the map's decomposition, added to a random
+object, moved the reading by \(7.1054 \times 10^{-15}\) against a reading scale of
+\(3.4133 \times 10^{1}\), a relative change of \(2 \times 10^{-16}\), while the object itself moved
+by \(0.678\).
+
+This grades the two nulls in this research paper against each other. \texttt{nonce\_read.py} uses six scalars,
+at most rank six of 256. Its null therefore excludes \textbf{at most 2.3\%} of the directions the state can
+move in. \texttt{beam\_read.py} uses 256 beams, rank 256 and kernel 0, and its null therefore excludes
+signal in \textbf{every} direction the object has. It is worth a run for that reason, and the reach is a
+quantity, and not an assertion.
+
+\section{The ceiling is the source count, not a wall}
+
+\begin{center}
+\begin{tabular}{rrrrr}
+\toprule
+sources & rank & ceiling & kernel & arms to close \\
+\midrule
+64 & 64 & 64 & \textbf{0} & 0 \\
+128 & 81 & 128 & 47 & 47 \\
+256 & 81 & 256 & 175 & 175 \\
+512 & 81 & 512 & 431 & 431 \\
+1024 & 81 & 1024 & 943 & 943 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Arms to closure equals the kernel exactly at every width, and arms aimed at the kernel beat randomly
+scattered arms by a factor of 1.00 to 1.02. \textbf{Position is free and the count is the bill.} At
+64 sources a degree-8 reading has no kernel at all. Blindness appears only when the object carries
+more sources than the reading has coefficients.
+
+Two bounds in an earlier draft of this apparatus were the author's own and both were removed: an arm
+cap of 1200, and a source count of 256 treated as fixed. A rank ceiling of 256 is a statement about a
+256-source object and says nothing about arms.

@@ -1,0 +1,179 @@
+
+\chapter{The snap, the rate, and the one asymptotic advantage}
+
+\textbf{Purpose:} Build the fourth term as the operation it exists for, measure what a twist and a
+relaxation actually move, and locate the single place in this work where a quantum algorithm holds a
+genuine asymptotic advantage. \textbf{Scope:} \texttt{snap\_release.py},
+\texttt{graph\_machine.py}, \texttt{hhl\_nested.py}, \texttt{product\_machine.py}.
+
+\section{The wrong question, asked first}
+
+Static capacity is how many reals it takes to write an arbitrary pure state, which is
+\(2^{n+1} - 2\), against a fixed budget of \(cn\):
+
+\begin{center}
+\begin{tabular}{rrrl}
+\toprule
+qubits & reals needed & 4 reals gives & \\
+\midrule
+1 & 2 & 4 & exact \\
+2 & 6 & 8 & exact \\
+3 & 14 & 12 & short \\
+16 & 131\,070 & 64 & short \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Four reals a qubit is exact through two qubits and short from three on, and raising 64 bits to 128
+does not move that line by one qubit. It is a counting result, and it is not what the fourth term is
+for.
+
+The fourth term is not storage for an amplitude. It is a magnitude of 0 or 1 saying whether the qubit
+is bound to anything, and its purpose is to make the snap available. \textbf{A three-term qubit
+cannot ask the question the snap answers}: with a direction and a polarization, a qubit carries where
+it points, and nothing in it says whether it is bound. The fourth term is the predicate the operation
+is conditioned on.
+
+\section{The two snaps}
+
+\textbf{Release}, a \(Z\) measurement: delete every edge on the qubit. It leaves the cluster and its
+entanglement is gone. \textbf{Switch}, a \(Y\) measurement: complement the edges \emph{among} the
+qubit's neighbors, then delete its own edges. The neighbors inherit the connectivity, and the
+entanglement moves, and does not vanish.
+
+Order is not interchangeable. The complementation must happen while the qubit still has its edges,
+because the edges define the neighborhood. A delete first would complement an empty set, and switch
+would silently degrade into release.
+
+\section{The exact null on the twist}
+
+A twist is local complementation, and local complementation is a local Clifford operation. Those
+preserve entanglement across every bipartition. So:
+
+\begin{quote}
+The entanglement response to a twist is \textbf{exactly \(0.0\)} at every vertex, on every shape, at
+any size.
+\end{quote}
+
+Computed, and not remembered. That is an exact null in the same family as the others here, and it
+says the thing this tree keeps finding from new directions: \textbf{relabelling is free.} A twist
+moves the description and not the content.
+
+The edge count is not a local Clifford invariant. The tension therefore moves while the correlation does
+not. That is the torsion against tension relationship, with the conservation measured, and not
+asserted, and the tension moment separates all four test shapes at \(0.75\), \(1.0\), \(55.125\) and
+\(441.0\).
+
+\section{Dissipation, which reads null}
+
+The model has no dissipation in it at all: local complementation and measurement are closed, nothing
+leaks and nothing relaxes. Dissipation therefore cannot explain the tension table, and the table is
+neighborhood parity.
+
+Added as a process: release qubits one at a time until nothing is bound. \textbf{Driven} takes the
+qubit under the most neighbor pressure, recomputed each step, where pressure is the sum of the
+\emph{neighbors'} degrees, and not the qubit's own. \textbf{Random} takes a fixed order over 20
+seeds and is the matched control.
+
+\begin{center}
+\begin{tabular}{lrrrl}
+\toprule
+shape & driven rate & random mean & random range, 20 seeds & verdict \\
+\midrule
+line & 0.3612 & 0.3248 & 0.2785 -- 0.4494 & inside \\
+ring & 0.3006 & 0.3251 & 0.2473 -- 0.4056 & inside \\
+complete & 0.0501 & 0.0501 & 0.0501 -- 0.0501 & inside \\
+grid 2x5 & 0.3583 & 0.3006 & 0.2397 -- 0.4094 & inside \\
+fibonacci & 0.2617 & 0.2573 & 0.2272 -- 0.2924 & inside \\
+golden sphere & 0.2747 & 0.2692 & 0.2310 -- 0.3140 & inside \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Zero of six shapes put the driven rate outside the random orders' own range.} Neighbor
+pressure changes nothing measurable: the relaxation rate is a property of the shape and not of the
+order of release. The complete-graph row is a free exact control, since every qubit in it carries
+identical neighbor pressure and the range has width exactly zero.
+
+What remains is the rate itself, intrinsic to the topology and robust to order. A complete graph
+resists relaxation about \(6\times\) harder than a line, with half-lives of 13.85 steps against 1.92.
+
+\section{A gap needs the range of its control}
+
+Gaps of \(+0.0457\), \(-0.0200\) and \(+0.0641\) against rates near \(0.3\), counted as ``differed on 5
+of 6'' by exact floating-point inequality, would call pressure a real driver. They have no null: without
+the spread from seed to seed of the random control, no gap can show that it exceeds noise. Gaps of both
+signs alone forbid the claim. Against the control's own range over 20 seeds, every gap sits inside it.
+
+\section{The one genuine asymptotic quantum win}
+
+HHL solves \(Ax = b\) in \(O(\log(N)\, s^2 \kappa^2 / \epsilon)\). It needs sparsity, size, and
+conditioning. A 1D qubit chain is tridiagonal, and \(s = 2\), and the graph representation reaches a
+million qubits in 8 MB. Conditioning is the only open question and the diagonal decides it.
+
+A connected graph's Laplacian is \textbf{singular}: the all-ones vector is in its kernel. Add a
+diagonal field term \(m\) and the spectrum moves from \([0, 4d]\) to \([m, 4d+m]\). Then
+\(\kappa = 1 + 4d/m\), \textbf{constant in \(N\)}. Measured against the exact finite-width prediction
+to \(7.28 \times 10^{-16}\), climbing monotonically to its bound through \(4.8478\), \(4.9616\),
+\(4.9904\), \(4.9976\), \(4.9994\), \(4.9998\).
+
+The field term is the lever, and the diagonal is the fourth term: a per-qubit entanglement magnitude
+\emph{is} a diagonal contribution. The four-term specification and HHL's applicability are therefore the
+same fact.
+
+\begin{center}
+\begin{tabular}{rrr}
+\toprule
+field \(m\) & \(\kappa\) & qubits needed \\
+\midrule
+0.25 & 17.00 & 16.00 MB \\
+1.00 & 5.00 & 2.00 MB \\
+8.00 & 1.50 & \textbf{0.25 MB} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A \(32\times\) stronger field cuts the qubit requirement \(64\times\). More carried per qubit, fewer
+qubits, and that is the conditioning bound, and not a metaphor.
+
+Uneven field distance is punished by its weakest qubit, since
+\(\kappa \le (\lambda_{\max} + m_{\max})/m_{\min}\):
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+shape & \(m_{\min}\) & \(m_{\max}\) & \(\kappa\) & crossover \\
+\midrule
+uniform & 1.000 & 1.000 & 5.00 & \(6.554 \times 10^{4}\) \\
+spikeball & 0.250 & 8.000 & \textbf{40.78} & \(2.097 \times 10^{6}\) \\
+fuzzball & 0.754 & 1.271 & \textbf{5.28} & \(6.554 \times 10^{4}\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A fuzzball costs almost nothing against uniform. A spikeball is \(32\times\) worse despite
+carrying qubits at eight times the field.
+
+Nesting does not lower the bar. Against the honest classical baseline, conjugate gradient at
+\(O(N s \sqrt{\kappa})\), and not a dense solve, the crossover \emph{rises} with dimension from
+\(6.554 \times 10^{4}\) qubits in 1D to \(8.389 \times 10^{6}\) in 8D, because \(s\) and \(\kappa\)
+both grow with \(d\) and enter the quantum cost squared while the classical cost takes them linearly
+and as a square root. What nesting preserves is the logarithmic \(N\) term at every dimension.
+
+\textbf{This is a real exponential-in-\(N\) advantage, and it is on the qubit map, and not on the hash.}
+It solves a linear system. SHA-256 is not one.
+
+\section{The null permutation on placement}
+
+The bound \(\kappa \le (\lambda_{\max} + m_{\max})/m_{\min}\) depends only on the \emph{multiset} of
+field distances. A permutation of which qubit carries which value is therefore a null permutation: the object
+changes and the bound cannot move.
+
+Across 44 arrangements of one multiset the bound took \textbf{exactly one value}, \(48.0000\), while
+the measured \(\kappa\) ranged from \(40.5676\) to \(47.5125\). So the bound is blind to something
+real, and placement carries a factor of \(1.170\) in conditioning for the same field strength, free.
+
+The magnitude is honest about itself. That factor is 17\% and not \(32\times\), and it does not rescue
+a spikeball; even placement recovers a sixth of one factor of the thirty-two that uniformity is
+worth. And the best random draw at \(40.5676\) edged the evenly spread arrangement at \(40.6150\). The
+placement optimum is therefore a real problem, and not a formula.

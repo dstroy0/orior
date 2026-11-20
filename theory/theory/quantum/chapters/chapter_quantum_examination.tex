@@ -1,0 +1,133 @@
+
+\chapter{A quantum examination}
+
+\textbf{Purpose:} Ask whether a quantum route to a SHA-256 preimage beats running the function, and
+answer it with measurements, and not with an appeal to hardware that does not exist.
+\textbf{Scope:} \texttt{nonce\_period.py}, \texttt{shor\_trace.py}, \texttt{qubit\_trace.py},
+\texttt{exact\_qubits.py}, \texttt{hhl\_nested.py}, \texttt{src/engine/cuda\_miner.cu}.
+
+Every figure below is measured in this tree, derived in one line from something measured here, or
+labeled \emph{quoted}. There are two quoted figures, both from the published literature on quantum
+preimage attacks, and the text names each where it uses it.
+
+\section{What the function is, computationally}
+
+SHA-256 is arithmetic in the ring modulo \(2^{32}\). That is the definition and not a tuning
+choice: widening the word computes a different function and fails silently.
+
+Its per-round work is three operations. Two are three-input boolean functions, \(\mathrm{Ch}\) and
+\(\mathrm{Maj}\). The third is rotation, since the \(\Sigma\) and \(\sigma\) mixers are each three
+rotates combined by exclusive or. Rotation is the torsion on the state and it is the dominant cost.
+Counted from the compiled machine code of the miner in this tree:
+
+\begin{center}
+\begin{tabular}{lrrl}
+\toprule
+opcode & count & share & what it is \\
+\midrule
+SHF       & 5394 & 29.90\% & funnel shift, the rotation \\
+LOP3      & 3625 & 20.09\% & three-input boolean: Ch and Maj are one instruction each \\
+IMAD      & 2126 & 11.78\% & \\
+IADD3     & 1996 & 11.06\% & three-way add, fused \\
+LDL / STL & 0    & 0\%     & no register spills anywhere \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Occupancy of the mining kernel is \textbf{100\%} at 38 registers, 48 of 48 warps resident. The
+classical implementation is at the integer-pipe roofline and its rotations are 30\% of everything,
+which is worth establishing before asking whether a different kind of machine helps.
+
+Rotation is also where the classical optimizations stop. SHA-256's rotate distances are 2/13/22,
+6/11/25, 7/18 and 17/19, and \textbf{none is byte-aligned}. No rotate therefore collapses into a single
+byte-permute.
+
+\section{Shor is the wrong tool, and the reason is measurable}
+
+Shor's algorithm finds the \emph{period} of a function. It prepares a superposition over the domain,
+applies the function, and lets the Fourier transform peak on the period.
+\texttt{shor\_trace.py} shows exactly that on \(N = 15\) with base 7: peaks at 0, 4, 8, 12 because
+\(7^x \bmod 15\) has period 4, and two controlled multiplies that move nothing at all because
+\(7^4 \bmod 15\) closes the orbit. The factors fall out by greatest common divisor,
+\(\gcd(48,15) = 3\) and \(\gcd(50,15) = 5\).
+
+That run \textbf{factors 15}. It has never touched a nonce, and no run in this tree has.
+
+So the question deciding Shor's relevance is whether the nonce to hash map has a period.
+\texttt{nonce\_period.py} measures it on a chain-verified header with an exact Poisson tail and a
+family-wise threshold: \textbf{null across 75 tests, detection limit \(1.83 \times 10^{-2}\)}.
+
+Two walls follow and the second does not care about the first.
+
+\subsection{Size}
+
+Shor needs about \(2n+3\) qubits for an \(n\)-bit domain:
+
+\begin{center}
+\begin{tabular}{rrrr}
+\toprule
+domain bits & qubits & amplitudes & bytes \\
+\midrule
+16 & 35 & \(10^{11}\) & \(10^{12}\) \\
+\textbf{32} & \textbf{67} & \(\mathbf{10^{20}}\) & \(\mathbf{10^{21}}\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A 32-bit nonce space wants 67 qubits as a full state vector, which is \(10^{21}\) bytes. The largest
+full state-vector simulations performed anywhere are near 46 qubits.
+
+\subsection{Structure}
+
+Hand a 67-qubit machine an aperiodic function and it returns a flat distribution, correctly and
+uselessly. The resource count is not the obstruction. The absent period is.
+
+\section{What a qubit costs, and where the exponential lives}
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+representation & bytes a qubit & 68 qubits & how many in 46 GB \\
+\midrule
+product state, \(4 \times\) float64 & 32 & 2176 B & \(2.29 \times 10^{7}\) \\
+graph state, 4 terms and adjacency & \(\approx 36\) & 2461 B & \(2.03 \times 10^{7}\) \\
+full state vector & not linear & \(4.72 \times 10^{21}\) B & \textbf{0} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Sixty-eight qubits is 2.46 kB in the graph form and \(4.72 \times 10^{21}\) bytes as a state vector.
+The same qubit count, eighteen orders of magnitude apart. \textbf{The exponential lives in the
+entanglement and never in the qubit count.}
+
+The cheap representations are cheap for a reason with weight here: they hold stabilizer states, and
+stabilizer states are classically simulable. \texttt{exact\_qubits.py} measures the same wall from
+the other side. The Clifford gate set is exact at \(0.000 \times 10^{0}\) at every width and every
+depth, because those gates are swaps and sign flips with no arithmetic in them. Nothing that exact
+is doing work.
+
+Sixty-four bits a term is the floor, measured and not preferred. At \(2 \times\)
+float32 the state error is \(1.2157 \times 10^{-7}\); at \(2 \times\) float16 it is
+\(1.0162 \times 10^{-3}\), which sits above the detection limits this tree's own instruments use. A
+representation cheaper than the measurements it serves is not a saving.
+
+\section{Verdict}
+
+\textbf{The proof of work is structurally resistant, and the argument contains no hardware
+estimate.} Grover gives \(\sqrt{N}\) at best, the BBBV bound says nothing does better on a
+structureless oracle, four instruments here found no structure to exploit, the oracle is a coherent
+double SHA-256, and parallel Grover buys \(\sqrt{m}\) where classical buys \(m\). Adding hardware
+helps the defenders faster than the attacker.
+
+\textbf{The signatures are a different matter.} Bitcoin spends are secured by ECDSA on secp256k1,
+and Shor breaks discrete logarithms outright given a large enough fault-tolerant machine. That is
+the same Shor as \texttt{shor\_trace.py}, applied to a problem that \emph{does} carry the periodic
+structure the nonce map lacks. The deterrent there is that the machine does not exist yet, a
+time sink, and not a lock.
+
+So the mining is safe and the coins are not, and those two facts get called quantum resistance
+interchangeably when only one of them holds.
+
+The lever on the mining side is unchanged by any of this. The card exhausts a 32-bit nonce space in
+\textbf{1.82 seconds} at \(2.359 \times 10^{9}\) hashes a second. More trials is the only thing that
+has ever moved the number.

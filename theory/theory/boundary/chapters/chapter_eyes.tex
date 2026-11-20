@@ -1,0 +1,186 @@
+
+\chapter{The eyes}
+
+\textbf{Purpose:} Add occlusion along a ray to the reading map as a row type, measure whether it
+reaches directions the harmonic rows cannot, and price the closure. \textbf{Scope:}
+\texttt{beam\_rows.py}, \texttt{arm\_rank.py}, \texttt{reading\_rank.py},
+\texttt{build\_sha\_clock\_view.py}.
+
+A boundary reading to degree 8 over 256 sources has rank 81 and is blind in 175 directions. Adding
+256 beams closes \textbf{all 175} and takes the reading to rank 256, the source count. The
+closure is real, and not nominal: a random binary state recovers at \(6.5 \times 10^{-15}\) with a
+condition number of 55.
+
+\section{Why a beam is a different kind of row}
+
+The viewer has carried these from the start and its own documentation states the mechanism: what
+stops the carried beam is the bit being set, what casts the shadow is the stopping, and the pattern
+on the wall is the state.
+
+a beam is \emph{occlusion along a ray}, and therefore a line integral, where every instrument
+already in the engine was a different shape.
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+instrument & what it integrates & over what \\
+\midrule
+a harmonic row & the lit set against \(Y_{lm}\) & the whole sphere \\
+an arm & the weight inside a region & a region \\
+\textbf{a beam} & the weight lying along one line & \textbf{a line} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A line integral is not in the span of region integrals. A beam is worth adding for that alone, and the claim
+is a statement about linear algebra, and not about metaphor. The arms are touch; the beams are
+eyes; the difference is which functional of the same state each one takes.
+
+\section{What the beams buy}
+
+\begin{center}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+beams & own rank & stacked rank & new directions & reach into kernel \\
+\midrule
+8 & 8 & 89 & 8 & 0.783320 \\
+32 & 32 & 113 & 32 & 0.771013 \\
+64 & 64 & 145 & 64 & 0.968161 \\
+128 & 128 & 209 & 128 & \textbf{1.000000} \\
+256 & 256 & \textbf{256} & \textbf{175} & 1.000000 \\
+512 & 256 & 256 & 175 & 1.000000 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Every beam added is a new direction, with no waste at any count until the ceiling.} Eight buy
+eight. A hundred and twenty eight buy a hundred and twenty eight. At 256 the stacked rank reaches the
+source count and the harmonic kernel is gone.
+
+Reach is the quantity to read: it is the largest principal angle cosine between the beam row space
+and the harmonic kernel. A value of \(1.000000\) means some direction of the beam set lies entirely where the
+harmonics are blind. It arrives at 128 beams and holds.
+
+\textbf{The ceiling holds and is not a disappointment.} Five hundred and twelve beams still give 256,
+because 256 is the number of sources. Beams cannot pass the dimension of the thing being read and are
+not meant to; what they do is climb to it from a direction the harmonics do not have. That bound has
+now been measured four independent ways: 1024 arms give 256, a precision sweep from 16 to 55 digits
+gives 256, 512 beams give 256, and the kernel of the reading map empties at exactly 256.
+
+\section{Both controls, and the negative one carries the weight}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+control & result \\
+\midrule
+the harmonic rows restacked on themselves & rank 81, \textbf{+0 new}, reach \(1.132 \times 10^{-15}\) into their own kernel \\
+12 rows drawn \emph{from} the kernel & rank 93, \textbf{+12 new}, reach 1.000000 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+An instrument that reports a gain for a copy of its own rows reports a gain for anything. This one
+reports zero for the copy and exactly twelve for twelve kernel rows. The count means what it says.
+
+\section{Is the closure usable, which rank alone cannot answer}
+
+This work has already been caught by the gap between completeness and usability: degree 15 is
+complete at a least singular value of \(3.5 \times 10^{-3}\) and degree 16 is complete at
+\(1.5 \times 10^{-1}\), a factor of forty four in noise tolerance between two maps of equal rank. The
+closure therefore takes its grade from a round trip against a random \emph{binary} state, the form of a bit
+pattern.
+
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+beam set & rank & least live & condition & recovery error \\
+\midrule
+harmonics alone & 81 & 4.365 & 1.058 & \(5.605 \times 10^{-1}\) \\
+plus 256 random beams & 256 & \(1.387 \times 10^{-1}\) & \textbf{55} & \(\mathbf{6.516 \times 10^{-15}}\) \\
+plus 256 fixed on bits & 256 & \(4.113 \times 10^{-2}\) & 138 & \(1.025 \times 10^{-14}\) \\
+plus 256 fixed, signed & 256 & \(4.113 \times 10^{-2}\) & 138 & \(1.025 \times 10^{-14}\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The closure is real. A condition number of 55 is good and the state comes back at the arithmetic
+floor.
+
+\textbf{Fixing the beams on bits is worse than spreading them, which was not the expected direction.}
+A beam aimed head on at its own source runs along that source's radial direction, a set of them is
+more alike than a set aimed across the object, and alike rows are redundant rows. The least live value
+falls from \(1.387 \times 10^{-1}\) to \(4.113 \times 10^{-2}\) and the condition number rises from 55
+to 138. Both recover. The loss is in noise tolerance, and not in completeness. It is the same
+lesson as the golden placement beating a random one on efficiency, read from the other side.
+
+\textbf{Signed amplitudes change nothing, to every digit.} A linear span does not care about signs.
+What a sign would change is a recovery constrained to non-negative combinations, which is a different
+and harder problem than the least squares run here.
+
+\section{A beam is a distribution}
+
+One beam aimed at a single source touches \textbf{51 of 256} sources, with an entropy of 2.1581 nats,
+about nine sources' worth of spread. a beam is not a probe of one bit even when it is aimed at one,
+because it is a line integral.
+
+\textbf{Calling it a wave function claims a phase it does not have.} A probability distribution is the
+square of a wave function and the difference is phase. These rows are real and non-negative:
+intensity, no phase, and two beams cannot interfere or cancel. The harmonic rows are the opposite,
+complex coefficients whose phase is what torsion reads. So the engine holds both kinds, amplitude in
+the harmonics and intensity in the beams, and which one is the right instrument depends on the object.
+For a bit pattern, the beams. For a complex amplitude vector, the harmonics.
+
+\section{Obliquity: the reading rises and the chord falls}
+
+\begin{center}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+impact & chord & sources lit & row norm & obliquity \\
+\midrule
+0.0000 & 1.2400 & 17 & 1.2864 & \(0.0^\circ\) \\
+0.3044 & 1.0803 & 17 & 1.3967 & \(29.4^\circ\) \\
+0.4565 & 0.8390 & 28 & 1.6102 & \(47.4^\circ\) \\
+0.6087 & 0.2354 & 20 & \textbf{1.9253} & \(79.1^\circ\) \\
+0.6848 & 0.0000 & 14 & 0.9471 & \(90.0^\circ\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{The row norm rises about fifty percent as the beam goes oblique, then collapses once the ray
+misses the shell.} The chord through the interior shrinks the whole way, as
+\(2\sqrt{r^2 - b^2}\). The chord is therefore the wrong measure, and an argument from it gives the wrong answer.
+A reading of this table from the chord contradicts its own rows.
+
+\textbf{The sources sit on a shell, and not throughout a ball.} What a beam reads is time spent near the
+shell. A grazing ray is nearly tangent to it, and runs alongside many sources at once. A central
+ray crosses the shell twice, briefly, and spends the rest of its chord in an empty interior. Obliquity
+buys contact even as it loses chord. That is a property of a shell placement and would not hold for
+sources filling a volume.
+
+The functional form is \textbf{not} named here. Over one decade of angle the rise is consistent with a
+logarithm, with a reciprocal square root of the cosine, and with several other shapes. Naming it wants
+a wider sweep or the wall reading, where an oblique beam also spreads its shadow over more area at one
+over the cosine.
+
+\section{What the model does not contain}
+
+\textbf{Pure occlusion.} A source attenuates the ray passing it and nothing scatters. There is no
+backscatter term, no second order path and no re-emission, any claim resting on backscatter is
+outside what this measures. Adding it would be a further row type again, with its own controls.
+
+\textbf{And the opacity is a free parameter, and not a derived one.} Attenuation goes as
+\(\exp(-\tau \ell)\). At \(\tau\) near zero there is no signal; at \(\tau\) large every beam saturates
+to ``blocked'' and carries exactly one bit, the silhouette. Information per beam peaks at intermediate
+\(\tau\), around \(\tau \ell \approx 1\). Maximum opacity therefore \emph{minimizes} what a beam reports.
+A \(\tau\) from a natural constant is reproducible, and not physical.
+
+\section{What this does not establish}
+
+It measures a property of the reading map, and not of any physical field. Nothing here shows that
+information in any medium propagates along rays, and the beam is a model of occlusion chosen because
+the viewer already drew it that way.
+
+And rank is silent on worth. A large change in directions the map cannot resolve is still a large
+number, and rank is a ceiling on what can be recovered, and not a statement about what is worth
+recovering.
