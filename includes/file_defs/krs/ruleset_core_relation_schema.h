@@ -74,9 +74,12 @@ CODEGEN_CORE void ruleset_core_relation_schema(RulesetCoreRelations *relations)
     }
 }
 
-// a classification's counts checked against the questions its file writes, and each question's class against the
-// classes its file names: a channel is named `channel <name> ...`, a class `class <name> ...`, a count `count
-// <channel> <class> <number>`, and a question opens with a channel's name, its class the next word
+// the counts of a classification, checked against the questions that its file writes. The check also reads the class of
+// each question against the classes that its file names:
+//   - a channel is the line `channel <name> ...`.
+//   - a class is the line `class <name> ...`.
+//   - a count is the line `count <channel> <class> <number>`.
+//   - a question opens with the name of a channel, and its class is the next word.
 CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, unsigned int at)
 {
     const unsigned char *const text = relations->text;
@@ -115,7 +118,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
         unsigned int number = 0u;
         for (unsigned int digit = 0u; digit < digits.length; digit += 1u)
         {
-            // a count is a few digits, and one past 32 bits is written as no count represents
+            // a count is a few digits. The code writes one past 32 bits as a value that no count holds
             number = (number * 10u) + (unsigned int)(text[digits.first + digit] - '0');
         }
         if (number != parameter_count)
@@ -129,19 +132,18 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
     }
 }
 
-// The relations of a map from one set of files to another, the two read apart, each name written in `from` against the
-// same name written in `to`, each relation between an entry of `from` and `other`:
+// The relations of a map from one set of files to another, the two read apart. Each name in `from` goes against the
+// same name in `to`. Each relation is between an entry of `from` and `other`:
+//   - BREAKS: two names are one text in `from` and two texts in `to`. A read of `from` cannot tell which one `to`
+//     writes. `other` is the entry of the second name in `from`.
+//   - COLLAPSES: two names are two texts in `from` and one text in `to`. `other` is the entry of the second name in
+//     `from`.
+//   - KIND: `from` gives a name as one type and `to` as another, of form, nop, err and construct. `other` is the entry
+//     of `to`.
+//   - ABSENT: `from` gives a name and no entry of `to` does. A file added to `to` undoes it, and thus it is open.
 //
-//     BREAKS     two names one text in `from` and two texts in `to`: a reading of `from` cannot determine which `to`
-//     writes,
-//                `other` the second name's entry in `from`
-//     COLLAPSES  two names two texts in `from` and one text in `to`, `other` the second name's entry in `from`
-//     KIND       a name `from` gives as one type and `to` as another, of form, nop, err and construct, `other` the
-//                entry of `to`
-//     ABSENT     a name `from` gives and no entry of `to` does, which a file of `to` added undoes: open
-//
-// Each of the others is a line a lane cannot be read through as it is (P8). It is true between two languages that
-// each write their own names rightly, and is no verdict on either set
+// Each of the others is a line that a lane cannot read through as it is (P8). It is true between two languages that
+// each write their own names correctly, and is no verdict on either set
 #define RULESET_CORE_MAP_BREAKS 0u
 #define RULESET_CORE_MAP_COLLAPSES 1u
 #define RULESET_CORE_MAP_KIND 2u
@@ -149,7 +151,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
 #define RULESET_CORE_MAP_KINDS 4u
 #define RULESET_CORE_MAP_OPEN(type_) ((type_) == RULESET_CORE_MAP_ABSENT)
 
-// the first entry of `to` giving the name `name` of `from`, or RULESET_CORE_NONE where none does
+// the first entry of `to` that gives the name `name` of `from`, or RULESET_CORE_NONE where none does
 CODEGEN_CORE unsigned int ruleset_core_map_giver(const RulesetCoreRelations *from, RulesetCoreSpan name,
                                                  const RulesetCoreRelations *to)
 {
@@ -175,9 +177,10 @@ CODEGEN_CORE int ruleset_core_map_same(const RulesetCoreRelations *relations, un
            ruleset_core_relation_walk(relations, left, right, 0, 0);
 }
 
-// Every relation of the map from `from` to `to`, both read by ruleset_core_relations, into `maps`, which has room for
-// `capacity`: for each name `from` gives, its type and whether `to` gives it, and the first earlier name it is one text
-// with on one side and two on the other. The count found, those past the capacity counted and not stored; three an
+// Each relation of the map from `from` to `to`, both read by ruleset_core_relations, into `maps`, which has room for
+// `capacity`. For each name that `from` gives, it holds its type and whether `to` gives it. It also holds the first
+// earlier name that is one text with it on one side and two on the other.
+// The result is the count found. The call counts those past the capacity, and does not store them. There are three an
 // entry of `from` at max
 CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, const RulesetCoreRelations *to,
                                            RulesetCoreRelation *maps, unsigned int capacity)
@@ -233,8 +236,9 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
     return count;
 }
 
-// every file's entries read, and every absurd relation among them recorded: each entry against every other, each
-// construct's lines and walk, each classification's counts, and where a schema is given, the whole against it
+// the entries of each file read, and each absurd relation among them recorded. That is each entry against each other
+// entry, the lines and walk of each construct, and the counts of each classification. Where the caller gives a schema,
+// it is also the whole against it
 CODEGEN_CORE void ruleset_core_relations(RulesetCoreRelations *relations)
 {
     relations->entry_count = 0u;
