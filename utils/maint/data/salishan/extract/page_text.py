@@ -1043,8 +1043,9 @@ PAPER_DRAWN_BACK = tables.members("PAPER_DRAWN_BACK")
 PAPER_MARK_BASE = tables.members("PAPER_MARK_BASE")
 MARK_BASES = "’'ʼ"
 # Papers whose stream sets a mark ahead of the character that it is over. An example is the comma
-# above of the 2011 k̓ʷúl̓-nt-n of Lyon, which TIPA draws before the k and before the l. A mark with no character under it
-# yet waits for the page's glyphs, and the character under its middle takes it. Read in rows mode only.
+# above of the 2011 k̓ʷúl̓-nt-n of Lyon, which TIPA draws before the k and before the l.
+# A mark with no character under it yet waits for the glyphs of the page, and the character under its
+# middle takes it. Read in rows mode only.
 PAPER_MARKS_AHEAD = tables.members("PAPER_MARKS_AHEAD")
 # Papers that set an index as a lowered digit, Bill₁ and ∅₁ in Cable's co-reference examples, which
 # the glyph rows read as a plain one. Read in rows mode only.
@@ -1964,33 +1965,39 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 if previous is not None:
                     gap = box[0] - (reach.get(previous[3], previous[1][2])
                                     if not spaced and italic(font) == italic(previous[2]) else previous[1][2])
-                    # A capital set smaller than its row's characters, a word processor's small
-                    # capital, retains the row's character spacing: the O B L of Sardinha's 2011 glosses
-                    # is 1.1 to 1.3pt apart, 0.16 em of its 7.92pt and 0.13 of the row's 9.84.
-                    # Its gap is measured against the row's size.
+                    # A capital set smaller than the characters of its row is the small capital of a word
+                    # processor. It keeps the character spacing of the row. The O B L of the 2011 glosses of
+                    # Sardinha is 1.1 to 1.3pt apart, 0.16 em of its 7.92pt and 0.13 of the 9.84 of the row.
+                    # The code measures its gap against the size of the row.
                     measure = row_size if tracked and symbol[0].isupper() and size < 0.9 * row_size else size
                     digit = symbol[0].isdigit() or previous[0][-1].isdigit()
-                    # Where the slant changes the gap takes the word space too: Lyon and Davis set
-                    # an italic Clinton against a roman a 0.08 em on, and s against an italic Cultus
-                    # 0.10 em on, both inside a word. A narrower space there, marker ji in Brown's §3
-                    # at 0.09 em and of Indigenous at 0.05, is on the stream's space. A word can
-                    # change weight inside it, japxwit with its extraction suffix bold.
-                    # The box of an f reaches over the character after it and a j's under the character
-                    # before it: -0.10 em inside after, 0.15 em between of the. The word space
-                    # there is narrower than share, and so is the gap it has to beat.
-                    # The box of U+2019 is narrower than its advance: t’aan in Brown's (16) sets a after
-                    # it 0.15 em on, and a word after it 0.45.
-                    # The box of a j also stops short of its advance: rejections in Hannon's §2
+                    # Where the slant changes, the gap takes the word space too. Lyon and Davis set an italic
+                    # Clinton against a roman a 0.08 em on, and s against an italic Cultus 0.10 em on. Both
+                    # are inside a word.
+                    # A narrower space there is on the space of the stream. Examples are marker ji in §3 of
+                    # Brown at 0.09 em, and of Indigenous at 0.05. A word can change weight inside it, as
+                    # japxwit with its extraction suffix bold.
+                    #
+                    # The box of an f reaches over the character after it, and the box of a j under the
+                    # character before it. The values are -0.10 em inside after, and 0.15 em between of
+                    # the. The word space there is narrower than share, and so is the gap that it must beat.
+                    #
+                    # The box of U+2019 is narrower than its advance. The form t’aan in (16) of Brown sets a
+                    # after it 0.15 em on, and a word after it 0.45.
+                    # The box of a j also stops short of its advance. The word rejections in §2 of Hannon
                     # sets e 0.12 em after the j, over a word space of 0.112.
-                    # A 1 is narrow in a figure's advance: the raised 11 of Lyon and
-                    # Czaykowska-Higgins's page 7 sets its 1s 0.27 em apart.
-                    # The box of the Straight face's hyphen is narrower than its advance too: the
-                    # 202 hyphens of Gerdts and Peter, Urbanczyk and Gerdts's 2010 paper are 0.10
-                    # to 0.18 em before the next character with no space in the stream, and the renders
-                    # print s-xʷənitəm̓-aʔł and š-niʔ-s closed. The face sets its characters loose as
-                    # well, 0.15 to 0.16 em apart, and the justified abstract of Gerdts's 2010 paper
-                    # tracks naʔət out to 0.18 em. No gap between two glyphs of the face without a
-                    # space in the stream passes 0.18 em in the three papers.
+                    # A 1 is narrow in the advance of a figure. The raised 11 of page 7 of Lyon and
+                    # Czaykowska-Higgins sets its 1s 0.27 em apart.
+                    #
+                    # The box of the hyphen of the Straight face is narrower than its advance too. Take the
+                    # 202 hyphens of Gerdts and Peter, and of the 2010 paper of Urbanczyk and Gerdts. They
+                    # are 0.10 to 0.18 em before the next character, with no space in the stream.
+                    #
+                    # The renders print s-xʷənitəm̓-aʔł and š-niʔ-s closed. The face also sets its
+                    # characters loose, 0.15 to 0.16 em apart. The justified abstract of the 2010 paper of
+                    # Gerdts tracks naʔət out to 0.18 em.
+                    # No gap between two glyphs of the face without a space in the stream passes 0.18 em in
+                    # the three papers.
                     plain = 0.3 if digit and "1" in (symbol[0], previous[0][-1]) else \
                         0.25 if digit or previous[0][-1] in "’ʼ" or \
                         ("Straight" in previous[2] and (previous[0][-1] == "-" or "Straight" in font)) else \
@@ -1998,85 +2005,88 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                         max(share, 0.2) if previous[0][-1] == "j" else share
                     limit = plain if plain == 0.25 else \
                         0.02 if previous[0][-1] == "f" and symbol[0].isupper() else plain
-                    # A ’ closes a quote on the word before it, and opens a glottalized word a word
-                    # space after it, hadiks ’nii’y in Brown's (1), 0.37 em.
+                    # A ’ closes a quote on the word before it, and opens a glottalized word a word space
+                    # after it. An example is hadiks ’nii’y in (1) of Brown, 0.37 em.
                     closing = symbol[0] in ",.;:!?)]}”" or (symbol[0] == "’" and gap <= 0.25 * size)
-                    # The box of ’, ∙, ʹ and ʼ also starts well into its advance: Robertson's tables
-                    # set the ’ closing a gloss 0.24 to 0.33 em after its character and hi∙lu∙'s dots
-                    # 0.11 to 0.15, with no space in the stream. Where the stream sets none, a gap
-                    # up to 0.35 em before one of them is no word space.
+                    # The box of ’, ∙, ʹ and ʼ also starts well into its advance. The tables of Robertson
+                    # set the ’ that closes a gloss 0.24 to 0.33 em after its character. They set the dots
+                    # of hi∙lu∙ 0.11 to 0.15, with no space in the stream.
+                    # Where the stream sets none, a gap up to 0.35 em before one of them is no word space.
                     if symbol[0] in "’∙ʹʼ" and not spaced and gap <= 0.35 * size:
                         closing = True
-                    # A spacing acute located for a stressed vowel the form leaves unwritten, Rude's
-                    # 2012 /p´qʷn/ and /s´wn/, draws its stroke to the right of its advance too.
-                    # With lone_acute, where the stream sets no space, a gap up to 0.35 em before
-                    # one is no word space. Lyon's and Lee's papers set ´ as a mark over the character
-                    # before it, and retain their gaps.
+                    # A spacing acute for a stressed vowel that the form leaves unwritten draws its stroke
+                    # to the right of its advance too. Examples are /p´qʷn/ and /s´wn/ of Rude 2012.
+                    # With lone_acute, where the stream sets no space, a gap up to 0.35 em before one is no
+                    # word space. The papers of Lyon and Lee set ´ as a mark over the character before it,
+                    # and keep their gaps.
                     if lone_acute and symbol[0] == "´" and not spaced and gap <= 0.35 * size:
                         closing = True
-                    # The stress marks ˈ and ˌ draw a hairline in the middle of their advance: Black's
-                    # awiˈnag̱wił in (14) sets ˈ 0.17 em after the i and n 0.17 em after it, where its
-                    # advance meets both. Where the stream sets no space, a gap up to 0.25 em on either
-                    # side of one is no word space.
+                    # The stress marks ˈ and ˌ draw a hairline in the middle of their advance. The form awiˈnag̱wił
+                    # in (14) of Black sets ˈ 0.17 em after the i, and n 0.17 em after it, where its advance
+                    # meets both. Where the stream sets no space, a gap up to 0.25 em on either side of one
+                    # is no word space.
                     if (symbol[0] in "ˈˌ" or previous[0][-1] in "ˈˌ") and not spaced and gap <= 0.25 * size:
                         closing = True
-                    # A modifier character taken from a monospaced Menlo sits in the middle of an
-                    # advance 0.6 em wide: the ʲ of [hʲi-] on Sardinha's 2011 page 26 is 0.25 em
-                    # after its h and 0.27 before its i. Where the stream sets no space, a gap up to
-                    # 0.3 em on either side of one is no word space.
+                    # A modifier character from a monospaced Menlo sits in the middle of an advance 0.6 em
+                    # wide. The ʲ of [hʲi-] on page 26 of Sardinha 2011 is 0.25 em after its h, and 0.27
+                    # before its i. Where the stream sets no space, a gap up to 0.3 em on either side of
+                    # one is no word space.
                     if tracked and (symbol[0] in MODIFIER_CHARACTERS and "Menlo" in font or
                             previous[0][-1] in MODIFIER_CHARACTERS and "Menlo" in previous[2]) and \
                             not spaced and gap <= 0.3 * size:
                         closing = True
-                    # A face named in stream_faces sets every word space in the stream: the Calibri
-                    # of Mellesmoen's footnote 8 on page 11 opens 0.14 em between the l and l of
-                    # following, and her Times 0.14 em between the ] and - of [h]-epenthesis, where
-                    # its word spaces are 0.05 em apart. Between two glyphs of that face with no
-                    # space in the stream, a gap under a column's is no word space. A glyph after a
-                    # smaller one retains the gap test: the stream sets no space after the raised 5
-                    # opening footnote 5, where the page prints one. The two glyphs can be of two
-                    # faces the paper names: Brown's Lucida Sans ː sits 0.14 em before the Times s
-                    # of thoːst, over the paper's calibrated 0.127.
+                    # A face named in stream_faces sets each word space in the stream. The Calibri of
+                    # footnote 8 on page 11 of Mellesmoen opens 0.14 em between the l and l of `following`.
+                    # Her Times opens 0.14 em between the ] and - of [h]-epenthesis, where its word spaces
+                    # are 0.05 em apart.
+                    # Between two glyphs of that face with no space in the stream, a gap under that of a
+                    # column is no word space.
+                    #
+                    # A glyph after a smaller one keeps the gap test. The stream sets no space after the
+                    # raised 5 that opens footnote 5, where the page prints one.
+                    # The two glyphs can be of two faces that the paper names. The Lucida Sans ː of Brown
+                    # sits 0.14 em before the Times s of thoːst, over the calibrated 0.127 of the paper.
                     if not spaced and gap <= 0.35 * size and members[place - 1][2] >= 0.9 * size and \
                             any(face in font for face in stream_faces) and \
                             any(face in previous[2] for face in stream_faces):
                         closing = True
-                    # A spaced ellipsis, prompts . . . . in Zenk's §1, sets each stop a word space
-                    # from the one before it. A stop with another stop beside it takes the gap test.
+                    # A spaced ellipsis, prompts . . . . in §1 of Zenk, sets each stop a word space from the
+                    # one before it. A stop with another stop beside it takes the gap test.
                     beside = [one[0][0] for one in members[place - 1:place] + members[place + 1:place + 2]]
                     if symbol[0] == "." and "." in beside:
                         closing = False
-                    # pdfium also sets a space after a combining mark the stream carries on its
-                    # own, scw̓ éxmx and ƛ̓ ʔék, where the page has none. A character whose mark came late
-                    # retains a space the stream itself carries after it, *t'əx̌ is in Denzer-King's
-                    # §3.1; one pdfium made up there, spiʔx̣ éwt in Hannon's (25), goes.
+                    # pdfium also sets a space after a mark that the stream carries on its own, as scw̓ éxmx
+                    # and ƛ̓ ʔék, where the page has none.
+                    # A character whose mark came late keeps a space that the stream itself carries after
+                    # it, as *t'əx̌ is in §3.1 of Denzer-King. A space that pdfium made up there goes, as
+                    # spiʔx̣ éwt in (25) of Hannon.
                     streamed = stream_spaces and spaced and previous[3] == order - 1 and \
                         gap > 0.03 * size and (not unicodedata.combining(previous[0][-1]) or
                                                (previous[3] in late and spaced is True))
-                    # The box of an f can reach over the whole word space after it: of pidgins,
-                    # of London and of American in Robertson's references are -0.05 to 0.02 em
-                    # apart, where no f inside a word is more than -0.03 em from its character.
-                    # There the stream's space goes.
+                    # The box of an f can reach over the whole word space after it. The words of pidgins,
+                    # of London and of American in the references of Robertson are -0.05 to 0.02 em apart.
+                    # No f inside a word there is more than -0.03 em from its character. There the space of
+                    # the stream goes.
                     if previous[0][-1] == "f" and spaced and previous[3] == order - 1 and gap > -0.06 * size:
                         streamed = True
-                    # Between two glyphs of a face named in stream_faces, the space the stream itself
-                    # carries is whatever the gap: the italic f of Jules's returned for and off
-                    # for in (55) and (45) reaches back over the space to the character before it.
+                    # Between two glyphs of a face named in stream_faces, the space that the stream itself
+                    # carries counts, whatever the gap. The italic f of returned for and off for of Jules in
+                    # (55) and (45) reaches back over the space to the character before it.
                     if spaced is True and previous[3] == order - 1 and \
                             any(face in font for face in stream_faces) and \
                             any(face in previous[2] for face in stream_faces):
                         streamed = True
-                    # The box of a stop is narrower than its advance, and a stop with a stop or a
-                    # character after it takes the gap test of U+2019: the stops of built... on Lyon and
-                    # Davis's page 13 are 0.15 em apart and the s of stsut.s 0.12 em after its
-                    # stop, where a word space after a stop measures 0.33 em at least. Between two
-                    # stops the stream's space goes too.
+                    # The box of a stop is narrower than its advance. A stop with a stop or a character after
+                    # it takes the gap test of U+2019.
+                    # The stops of built... on page 13 of Lyon and Davis are 0.15 em apart, and the s of
+                    # stsut.s is 0.12 em after its stop. A word space after a stop measures 0.33 em at
+                    # least. Between two stops, the space of the stream goes too.
                     if previous[0][-1] == "." and (symbol[0] == "." or symbol[0].isalpha()):
                         closing, limit = False, 0.25
                         streamed = streamed and symbol[0] != "."
-                    # A brace or square bracket retains the word space the stream sets inside it:
-                    # Table 5 of Sardinha's 2011 paper prints { =ńd.s } and { = sgi }, the = 0.38 em
-                    # after its { and the } 0.41 em after its i, and her (S.1) [ PREP + NP ].
+                    # A brace or square bracket keeps the word space that the stream sets inside it. Table 5
+                    # of the 2011 paper of Sardinha prints { =ńd.s } and { = sgi }. The = is 0.38 em after
+                    # its {, and the } 0.41 em after its i. Her (S.1) [ PREP + NP ] is another.
                     braced = tracked and (symbol[0] in "]}" or previous[0][-1] in "[{") and spaced and \
                         gap > limit * measure
                     if gap > 1.2 * size:
@@ -2096,8 +2106,8 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
                 lifted.setdefault("lines", []).append(
                     (number + 1, "raised character set on the line",
                      "".join(swapped.get(at, piece) for at, piece in enumerate(text)).strip(), line.strip()))
-            # An example's number the page sets lower than its first line, (1) beside ɬe
-            # meʔmʔéw̓s, heads that line as the text layer has it.
+            # The page can set the number of an example lower than its first line, as (1) beside ɬe
+            # meʔmʔéw̓s. It heads that line, as the text layer has it.
             if re.fullmatch(r"\(\d+[a-z]?\)", line) and page_lines and \
                     not re.match(r"^\(\d+[a-z]?\)", page_lines[-1]):
                 page_lines[-1] = line + "   " + page_lines[-1]
@@ -2108,10 +2118,11 @@ def row_lines(document, marks, share=0.18, read_marks=True, slanted=None, stream
 
 
 def union_spaces(line, spaced):
-    """Add to spaced the gaps the text layer line has and it lost: like ɬɛn̓ in, where the glyph
-    positions give ɬɛn̓in. A text layer gap after a combining mark with no character under it is not
-    the page's, ⃗ v for ⃗v, and neither is one beside a digit, string. 3 for the footnote mark of
-    string.3, or before closing or after opening punctuation."""
+    """Add to spaced the gaps that the text layer line has and that it lost, like ɬɛn̓ in, where the glyph
+    positions give ɬɛn̓in.
+    A text layer gap after a mark with no character under it is not the gap of the page, ⃗ v for ⃗v. A
+    gap beside a digit is not either, string. 3 for the footnote mark of string.3. A gap before
+    closing or after opening punctuation is not either."""
     def gaps(text):
         found, count = set(), 0
         for character in text:
@@ -2139,8 +2150,9 @@ def union_spaces(line, spaced):
 
 
 def open_columns(line, spaced):
-    """Open in line the column gaps spaced shows as three spaces and line runs together:
-    almost=1SG.SUBJ=EXCLget.forgotten in Davis's (11), where the page leaves 1.44 em before get."""
+    """Open in line the column gaps that spaced shows as three spaces and that line runs together. An
+    example is almost=1SG.SUBJ=EXCLget.forgotten in (11) of Davis, where the page leaves 1.44 em before
+    get."""
     wide, count, run = set(), 0, ""
     for character in spaced:
         if character.isspace():
@@ -2162,9 +2174,9 @@ def open_columns(line, spaced):
 
 
 def subtract_spaces(line, spaced):
-    """Take out of the text layer line the gaps the glyph positions do not show, retention the width
-    of each one left: n ɬeʔkepmxcín demonstrative s is nɬeʔkepmxcín demonstratives on the page, and
-    the three spaces between two cells of a tier stay three."""
+    """Take out of the text layer line the gaps that the glyph positions do not show, and keep the width
+    of each one left. The text n ɬeʔkepmxcín demonstrative s is nɬeʔkepmxcín demonstratives on the page. The
+    three spaces between two cells of a tier stay three."""
     retained, count, run = [], 0, ""
     glyph_gaps = set()
     for character in spaced:
@@ -2186,16 +2198,16 @@ def subtract_spaces(line, spaced):
 
 
 def base_characters(text):
-    """text's characters less their combining marks and spaces: the key a layer line and a glyph row
-    share where the rows set a mark apart or drop it, ḵ ̕ux̱ -t̕sa̱ w in the layer and ḵux̱ -tsa̱w in the
-    row of Sardinha's (2d)."""
+    """The characters of text, less their marks and spaces. That is the key that a layer line and a glyph
+    row share, where the rows set a mark apart or drop it. An example is ḵ ̕ux̱ -t̕sa̱ w in the layer and
+    ḵux̱ -tsa̱w in the row of (2d) of Sardinha."""
     return "".join(one for one in unicodedata.normalize("NFD", text)
                    if not one.isspace() and not unicodedata.category(one).startswith("M"))
 
 
 def subtract_base_spaces(line, spaced):
-    """subtract_spaces counted on base characters: a space before a combining mark counts after the
-    character the mark belongs to, and the layer's marks are retained."""
+    """subtract_spaces, counted on base characters. A space before a mark counts after the character that
+    the mark belongs to, and the marks of the layer stay."""
     gaps, count = set(), 0
     for character in unicodedata.normalize("NFD", spaced):
         if character.isspace():
@@ -2222,17 +2234,22 @@ BAR, COMMA = chr(0x331), chr(0x315)
 
 
 def italic_mark_words(textpage):
-    """The words of one page whose italic marks the text layer misreads, each as (units, types): a
-    unit is one character with its marks, as the layer defines it, mended, and the character's box.
+    """The words of one page whose italic marks the text layer misreads, each as (units, types). A unit
+    is one character with its marks, as the layer defines it, mended, and the box of the character.
 
-    Sardinha's italic Kwak̕wala sets the macron below as a space glyph 0.6pt tall under the baseline,
-    x ux for x̱ux̱, and the comma above as one glyph read as U+0331 U+0315 in one box, ṯ̕sud for
-    t̕sud. A bar is a space glyph over 0.3pt and under 1.2pt tall whose top is below the bottom of the
-    character before it, and at least twice as wide as it is tall: a real space has no height, the
-    upright tiers' macron is U+0331 itself, and Pincott's dot below, k̓lə̣́m in Table 8 of
-    PincottICSNL60, is a space glyph 1.2pt square. pdfium breaks the line before a mark glyph inside a word, t ̓sux̱wa, which the layer does not. A
-    comma the stream sets after later characters, tsu ̱̕ x̱wit̕id in Sardinha's note 8, belongs to the
-    last character that ends before it, and the space pdfium sets back after it is no word break."""
+    The italic Kwak̕wala of Sardinha sets the macron below as a space glyph 0.6pt tall under the
+    baseline, x ux for x̱ux̱. It sets the comma above as one glyph read as U+0331 U+0315 in one box,
+    ṯ̕sud for t̕sud.
+
+    A bar is a space glyph over 0.3pt and under 1.2pt tall, whose top is below the bottom of the
+    character before it. It is at least twice as wide as it is tall.
+    A real space has no height. The macron of the upright tiers is U+0331 itself. The dot below of
+    Pincott, k̓lə̣́m in Table 8 of PincottICSNL60, is a space glyph 1.2pt square.
+
+    pdfium breaks the line before a mark glyph inside a word, t ̓sux̱wa, and the layer does not. A comma
+    that the stream sets after later characters belongs to the last character that ends before it.
+    An example is tsu ̱̕ x̱wit̕id in note 8 of Sardinha. The space that pdfium sets back after it is no
+    word break."""
     count = textpage.count_chars()
     glyphs = [(textpage.get_text_range(index, 1), textpage.get_charbox(index)) for index in range(count)]
 
@@ -2270,8 +2287,8 @@ def italic_mark_words(textpage):
         if symbol == " " and character is not None and 0.3 < top - bottom < 1.2 and top < character[1] and \
                 right - left >= 2 * (top - bottom):
             mark(" ", BAR, MACRON_BELOW)
-            # A bar that ends a word is for its space too, x ux Simonx ‘Simon in pdfium's
-            # stream: the word ends where the next glyph is clear of the barred character.
+            # A bar that ends a word is for its space too, as x ux Simonx ‘Simon in the stream of
+            # pdfium. The word ends where the next glyph is clear of the barred character.
             if index + 1 < count and glyphs[index + 1][1][0] - character[2] > 1.5:
                 close()
             character = None
@@ -2303,10 +2320,11 @@ def italic_mark_words(textpage):
 
 def mend_italic_marks(lines, words, page):
     """lines, one page of the text layer, with each word of words mended where the layer holds its
-    characters in order, taken in reading order. A space the layer sets between two characters where the
-    glyphs have none, no g adalat for nog̱adalat, is retained for the closeup to weigh. A word that
-    begins or ends at a character or a bar must not run on into a character. Returns the lines and a
-    defects row to each repair."""
+    characters in order, in read order.
+    The layer can set a space between two characters where the glyphs have none, as no g adalat for
+    nog̱adalat. The code keeps it, for the closeup to weigh. A word that begins or ends at a character
+    or a bar must not run on into a character. Returns the lines, and a defects row for each
+    repair."""
     decomposed = [unicodedata.normalize("NFD", one) for one in lines]
     changed, repairs = set(), []
     at_line, at_column = 0, 0
@@ -2350,9 +2368,9 @@ def mend_italic_marks(lines, words, page):
 
 
 def write_rows(stem, by_page, document, lifted=None):
-    """Write a page text read by glyph rows, with the .rows file residue.paper_repair looks for.
-    lifted is row_lines's record of the raised characters it wrote. Returns the file and the lines
-    given back a raised character."""
+    """Write a page text read by glyph rows, with the .rows file that residue.paper_repair looks for.
+    The argument lifted is the record of row_lines of the raised characters that it wrote. Returns the
+    file, and the lines that get back a raised character."""
     merged = []
     for number, page_lines in enumerate(by_page):
         merged.append("===== page %d =====" % (number + 1))
