@@ -1,56 +1,52 @@
 """Traces a quantum state while an algorithm runs, and reads each step as a boundary field.
 
-    python examples/00_blob_viz_tools/qubit_trace.py --check
-    python examples/00_blob_viz_tools/qubit_trace.py                 Grover, step by step
-    python examples/00_blob_viz_tools/qubit_trace.py --compare       Grover against SHA-256's tail bit
+    `python examples/00_blob_viz_tools/qubit_trace.py --check`
+    `python examples/00_blob_viz_tools/qubit_trace.py`                 Grover, step by step
+    `python examples/00_blob_viz_tools/qubit_trace.py --compare`       Grover against SHA-256's tail bit
 
 WHY THE HARMONIC READING IS THE RIGHT INSTRUMENT FOR THIS, AND THE BEAMS ARE NOT
 
-A quantum state is a vector of COMPLEX amplitudes. The harmonic rows carry complex coefficients
-whose phase is what torsion reads. They hold amplitude. The beam rows are real and
-non-negative. They hold intensity and would throw the phase away. For a state vector the
-harmonics are the instrument and the beams are the wrong tool, the reverse of the bit
+A quantum state is a vector of COMPLEX amplitudes. The harmonic rows carry complex coefficients whose phase is what
+torsion reads. They hold amplitude. The beam rows are real and non-negative. They hold intensity, and would throw the
+phase away. For a state vector the harmonics are the instrument and the beams are the wrong tool, the reverse of the bit
 pattern case.
 
-THE SIZES LINE UP EXACTLY AND THAT IS NOT A COINCIDENCE WORTH HIDING
+THE SIZES LINE UP EXACTLY, AND THAT IS NOT A COINCIDENCE WORTH HIDING
 
-Eight qubits is 256 amplitudes. The placement carries 256 sources. A degree 16 reading has 289
-coefficients and rank 256, measured in conserved.py. So the reading is COMPLETE for an eight qubit
-state: every amplitude is recoverable, and nothing about the state sits in a kernel.
+Eight qubits is 256 amplitudes. The placement carries 256 sources. A degree 16 reading has 289 coefficients and rank
+256, measured in conserved.py. The reading is therefore COMPLETE for an eight qubit state: every amplitude is
+recoverable, and nothing about the state sits in a kernel.
 
-THE PREDICTION THIS FILE WAS WRITTEN TO TEST, AND IT FAILED
+THE PREDICTION UNDER TEST, AND ITS FAILURE
 
-The prediction was that Grover's iteration, being a rotation, would show a large rigid component in
-the deformation scalar, against SHA-256's tail bit which showed none. IT DID NOT. The scalar reads
-1.0000 at every Grover step, indistinguishable from the avalanche.
+The prediction says that Grover's iteration, a rotation, shows a large rigid component in the deformation scalar,
+against SHA-256's tail bit, which shows none. IT DOES NOT. The scalar reads 1.0000 at every Grover step, and the
+avalanche reads the same.
 
-THE REASON IS STRUCTURAL AND WORTH MORE THAN THE PREDICTION WAS. The only rigid motion divided out
-here is a GLOBAL PHASE, the right invariance for physical indistinguishability and is not
-the motion Grover performs. Grover rotates inside the two dimensional span of the marked state and
-everything else, and the identity of that subspace depends on the marked item. So dividing it out
-requires already knowing the answer, the thing being searched for. A quotient that needs
-the answer is not an instrument.
+THE REASON IS STRUCTURAL, AND WORTH MORE THAN THE PREDICTION. The only rigid motion that this divides out is a GLOBAL
+PHASE. That is the right invariance for physical indistinguishability, and it is not the motion that Grover performs.
+Grover rotates inside the two dimensional span of the marked state and everything else, and the identity of that
+subspace depends on the marked item. A division of it would need the answer already: the thing that the search looks
+for. A quotient that needs the answer is not an instrument.
 
 WHAT ACTUALLY SEPARATES THEM IS THE MAGNITUDE, NOT THE DIRECTION
 
-Everything here is supposed to be a magnitude and a vector. That is the resolution. The
-step NORM carries the rotation signature that the direction quotient cannot:
+Everything here should be a magnitude and a vector, and that is the resolution. The step NORM carries the rotation
+signature that the direction quotient cannot:
+  - a rotation at fixed angular rate takes fixed size steps, and reverses at the point where it turns.
+  - an avalanche takes steps of no fixed size at all.
 
-    a rotation at fixed angular rate takes fixed size steps, and reverses at the turning point
-    an avalanche takes steps of no fixed size at all
+Measured: Grover's step norm holds within about six percent across seventeen iterations, and has a clean minimum at the
+optimum, where the over-rotation begins. SHA-256's tail bit moves over an order of magnitude between consecutive rounds.
+The separator is therefore the CONSTANCY of the magnitude, which `--compare` reports as a coefficient of variation. The
+scalar is the wrong column for this question.
 
-Measured: Grover's step norm holds within about six percent across seventeen iterations and has a
-clean minimum at the optimum, where the over-rotation begins. SHA-256's tail bit moves over an
-order of magnitude between consecutive rounds. So the separator is the CONSTANCY of the magnitude,
-reported by `--compare` as a coefficient of variation, and the scalar is the wrong column for this
-question. It was the right column for the deformation work , and for that reason it was reached for.
+WHAT THIS DOES NOT CLAIM
 
-WHAT IS NOT CLAIMED
-
-This simulates a quantum computer and does not use one. The cost is 2^n complex amplitudes, which is
-16 KB at ten qubits and 500 MB at twenty five. The method is bounded to small circuits by
-counting and not by engineering. Nothing here is a route to more qubits than memory holds, and the
-compressible states are the nearly classical ones that carry no advantage.
+This simulates a quantum computer, and does not use one. The cost is 2^n complex amplitudes, which is 16 KB at ten
+qubits and 500 MB at twenty five. A count of the cost bounds the method to small circuits, and engineering does not.
+Nothing here is a route to more qubits than memory holds, and the compressible states are the nearly classical ones that
+carry no advantage.
 """
 
 import argparse
@@ -93,8 +89,8 @@ def oracle(state, marked=MARKED):
 def diffuser(state):
     """Reflect about the mean amplitude, which is Grover's second reflection.
 
-    2|psi><psi| - I on the even superposition is exactly "twice the mean, minus yourself". This
-    is written as that and not as a matrix, which retains it exact up to one mean.
+    2|psi><psi| - I on the even superposition is exactly "twice the mean, minus yourself". The code writes it as that,
+    and not as a matrix, which keeps it exact up to one mean.
     """
     mean = state.mean()
     return 2.0 * mean - state
@@ -155,10 +151,10 @@ def placement_angles(width=WIDTH):
 def deformation_between(first, second, angles):
     """The fraction of the reading's change that no rigid phase rotation explains.
 
-    `deform_rate` keys its tables by (degree, order) and takes the rotation as a phase on the order.
-    Here the reading is keyed by a flat coefficient index. The rotation this divides out is a
-    GLOBAL phase and not a spatial one. That is the right invariance for a quantum state: a
-    global phase is unobservable, a change that is only a global phase must read as zero.
+    `deform_rate` keys its tables by (degree, order), and takes the rotation as a phase on the order. Here a flat
+    coefficient index keys the reading. The rotation that this divides out is a GLOBAL phase, and not a spatial one.
+    That is the right invariance for a quantum state. A global phase is unobservable, and a change that is only a global
+    phase must read as zero.
     """
     before = reading_of(first, angles)
     after = reading_of(second, angles)
@@ -227,9 +223,9 @@ def _report():
 def amplitude_amplification(marks, count, width=WIDTH):
     """Grover generalized to several marked items, which is amplitude amplification.
 
-    The oracle flips every marked amplitude and the diffuser is unchanged. The optimal iteration
-    count becomes (pi/4) sqrt(N/M) for M marked items. Sweeping M sweeps the optimal time and
-    gives the detector something to be tested against and not demonstrated on.
+    The oracle flips every marked amplitude, and the diffuser stays the same. The optimal iteration count becomes (pi/4)
+    sqrt(N/M) for M marked items. A sweep of M sweeps the optimal time, and gives the detector something to test
+    against, and not a demonstration.
     """
     state = uniform(width)
     out = [state.copy()]
@@ -259,7 +255,7 @@ def correlating_phase(state, angle, qubits=QUBITS, reach=1):
 
 
 def wave_forward(steps, reach=1, qubits=QUBITS):
-    """Run the correlating phases forward, returning the final state and the angles used."""
+    """Run the phases that correlate forward, and return the final state and the angles used."""
     width = 1 << qubits
     state = uniform(width)
     angles = []
@@ -273,13 +269,13 @@ def wave_forward(steps, reach=1, qubits=QUBITS):
 def wave_inverted(state, angles, reach=1, qubits=QUBITS, touch=None):
     """Invert the surface wave: apply the negated phases in reverse order.
 
-    INVERTING A WAVE IS CONJUGATING ITS PHASE. The exact inverse of a phase sequence is the
-    negated sequence run backwards. That is U dagger, alone, and it is exact: a phase and
-    its negation multiply to one with no arithmetic to round.
+    AN INVERSE OF A WAVE IS THE CONJUGATE OF ITS PHASE. The exact inverse of a phase sequence is the negated sequence
+    run backwards. That is U dagger, alone, and it is exact: a phase and its negation multiply to one, with no
+    arithmetic to round.
 
-    `touch` limits how many of the traced qubits the inversion is allowed to act on, the
-    whole question. An inversion that reaches everything the coupling reached undoes it exactly. One
-    that reaches less cannot, and the point is to measure by how much.
+    `touch` limits how many of the traced qubits the inversion may act on, and the question turns on that limit. An
+    inversion that reaches all that the coupling reached undoes it exactly. One that reaches less cannot, and the point
+    is to measure by how much.
     """
     if touch is None:
         touch = reach
@@ -291,7 +287,7 @@ def wave_inverted(state, angles, reach=1, qubits=QUBITS, touch=None):
 
 
 def _partial_inverse(state, angle, qubits, touch):
-    """A phase applied using only `touch` of the traced qubits. It cannot match the coupling."""
+    """A phase applied with only `touch` of the traced qubits. It cannot match the coupling."""
     out = state.copy()
     mask = 1
     for step in range(touch):
@@ -303,18 +299,18 @@ def _partial_inverse(state, angle, qubits, touch):
 
 
 def _nested():
-    """Does nesting the constituents cost the global coherence anything, and what does it cost?
+    """Does a nest of constituents cost the global coherence anything, and what does it cost?
 
-    The claim: even if the n constituents contained n constituents, because the description is
-    vectors and magnitudes, it remains forever coherent.
+    The claim: even if the n constituents contained n constituents, it remains forever coherent, because the description
+    is vectors and magnitudes.
 
-    The global half is a theorem and nesting cannot touch it: a tensor product of unitaries is
-    unitary. Purity is conserved at any depth of structure. Depth is not a variable in that
-    statement, and that is worth confirming and not asserting.
+    The global half is a theorem, and a nest cannot touch it: a tensor product of unitaries is unitary. Purity stays the
+    same at any depth of structure. Depth is not a variable in that statement, and that deserves a confirmation, and not
+    an assertion.
 
-    What nesting DOES change is the reach. If each of n constituents holds n more, a correlation can
-    spread through n^d modes at depth d, and the inversion measured in --invert must act on every
-    one of them. So the same run reports both, and the two columns move in opposite directions.
+    What a nest DOES change is the reach. If each of n constituents holds n more, a correlation can spread through n^d
+    modes at depth d. The inversion measured in --invert must then act on every one of them. The same run therefore
+    reports both, and the two columns move in opposite directions.
     """
     print("  A CORRECTION FIRST, BECAUSE IT INVALIDATES A COLUMN THIS FILE PRINTED FOR SEVERAL")
     print("  RUNS. Global purity is |<psi|psi>|^2, which is ONE FOR ANY NORMALIZED STATE VECTOR")
@@ -341,10 +337,9 @@ def _nested():
         width = 1 << modes
         state = numpy.full(width, 1.0 / math.sqrt(width), dtype=complex)
 
-        # A genuine entangling coupling: a controlled phase on each parent and child pair, walked
-        # level by level so the correlation really does reach through the hierarchy. Pairs are taken
-        # from the tree's own structure and not from a mask expression. A mask can produce a product
-        # state, and then the purity never moves.
+        # A genuine coupling that entangles: a controlled phase on each parent and child pair, walked level by level.
+        # The correlation then really does reach through the hierarchy. The pairs come from the tree's own structure,
+        # and not from a mask expression. A mask can produce a product state, and then the purity never moves.
         pairs = []
         for level in range(depth - 1):
             for node in range(branch ** level):
@@ -396,13 +391,13 @@ def _nested():
 
 
 def _invert():
-    """What does inverting the boundary surface wave actually recover, and what must it touch?
+    """What does an inversion of the boundary surface wave actually recover, and what must it touch?
 
     The claim: the boundary surface wave needs to invert.
 
-    That is the right operation and it is exactly computable, because inverting a wave is
-    conjugating its phase. The question this settles is not whether the inversion works but WHAT IT
-    HAS TO REACH, and the answer is a theorem with a number attached.
+    That is the right operation, and it is exactly computable, because the inverse of a wave is the conjugate of its
+    phase. The question that this settles is not whether the inversion works. It is WHAT THE INVERSION MUST REACH, and
+    the answer is a theorem with a number attached.
     """
     steps = 8
     print("  A correlation is built by phases coupling one retained qubit to `reach` traced qubits.")
@@ -462,8 +457,8 @@ def _invert():
 def reduced_state(state, retain, qubits=QUBITS):
     """The density matrix of the first `retain` qubits, with the rest traced out.
 
-    Reshaping the amplitude vector into a matrix indexed by (retained, traced) and multiplying by its
-    own conjugate transpose IS the partial trace. It is exact: no approximation and no sampling.
+    The amplitude vector, reshaped into a matrix indexed by (kept, traced) and multiplied by its own conjugate
+    transpose, IS the partial trace. It is exact: no approximation and no sampling.
     """
     retained = 1 << retain
     rest = 1 << (qubits - retain)
@@ -477,11 +472,10 @@ def purity_of(rho):
 
 
 def entangling_sweep(steps, qubits=QUBITS):
-    """States that start unentangled and become progressively correlated across the split.
+    """States that start unentangled and grow more correlated across the split.
 
-    A controlled phase between a retained qubit and a traced one builds correlation without moving any
-    probability, the cleanest form of the thing being tested: the local state degrades
-    while nothing about the global state is lost.
+    A controlled phase between a kept qubit and a traced one builds correlation, and moves no probability. That is the
+    cleanest form of the thing under test: the local state degrades, while the global state loses nothing.
     """
     width = 1 << qubits
     state = uniform(width)
@@ -499,20 +493,19 @@ def entangling_sweep(steps, qubits=QUBITS):
 
 
 def _elsewhere():
-    """Is the coherence destroyed, or is it somewhere this instrument is not looking?
+    """Is the coherence destroyed, or is it somewhere that this instrument does not look?
 
-    The claim: incoherent information need not be retained stable here, because it is coherent
-    elsewhere, and for that reason qubits resist being expressed.
+    The claim: incoherent information need not stay stable here, because it is coherent elsewhere, and for that reason
+    qubits resist expression.
 
-    The physics half of that is right and is testable in one table. Decoherence is not destruction,
-    it is DELOCALIZATION: the global state stays pure and unitary while the local one goes mixed,
-    and the local one goes mixed only because the environment was traced out. So the question
-    "where did the coherence go" has an exact answer and it is "into the correlations", which is a
-    subspace the local instrument does not span.
+    The physics half of that is right, and one table tests it. Decoherence is not destruction. It is DELOCALIZATION: the
+    global state stays pure and unitary while the local one goes mixed. The local one goes mixed only because the
+    environment goes out in the trace. The question "where did the coherence go" therefore has an exact answer. It is
+    "into the correlations", a subspace that the local instrument does not span.
 
-    THAT IS THE SAME SHAPE AS THE KERNEL RESULT MEASURED IN conserved.py. A vector invisible to a
-    degree 8 reading read 2.7376e-02 at degree 16: unread and not destroyed. Here the narrow
-    instrument is the partial trace and the wider one is the whole state.
+    THAT IS THE SAME SHAPE AS THE KERNEL RESULT MEASURED IN conserved.py. A vector invisible to a degree 8 reading reads
+    2.7376e-02 at degree 16: unread, and not destroyed. Here the narrow instrument is the partial trace, and the wider
+    one is the whole state.
     """
     states = entangling_sweep(8)
 
@@ -601,17 +594,16 @@ def _elsewhere():
 
 
 def first_turning_point(norms):
-    """The first step where the step norm stops falling, as a one-based iteration count.
+    """The first step where the step norm stops its fall, as a one-based iteration count.
 
-    THE GLOBAL MINIMUM IS THE WRONG ANSWER AND USING IT PUT A WRONG ROW IN THIS TABLE. Amplitude
-    amplification is a rotation. It is PERIODIC: the step norm falls to a minimum, rises, and
-    falls again every half turn. Taking the least value over a window therefore picks whichever
-    minimum happens to be lowest in that window, which for 32 marked items is the second one, and
-    reports 7 against a predicted 2.22. That is not a resolution limit: the signal is present and
-    unambiguous, and such a reader looks at the wrong feature of it.
+    THE GLOBAL MINIMUM IS THE WRONG ANSWER. Amplitude amplification is a rotation. It is PERIODIC: the step norm falls
+    to a minimum, rises, and falls again every half turn. The least value over a window therefore picks whichever
+    minimum is lowest in that window. For 32 marked items that is the second one, which reports 7 against a predicted
+    2.22. That is not a resolution limit, because the signal is present and unambiguous: such a reader looks at the
+    wrong feature of it.
 
-    The first turning point is the optimum, because the first half turn carries the amplitude
-    onto the marked set. Later minima are over-rotations that have come back around.
+    The first turn is the optimum, because the first half turn carries the amplitude onto the marked set. Later minima
+    are over-rotations that came back around.
     """
     for at in range(len(norms) - 1):
         if norms[at] <= norms[at + 1]:
@@ -625,17 +617,16 @@ def predicted_optimum(marked_count, width=WIDTH):
 
 
 def _optime():
-    """Does the magnitude's turning point find the optimal time without being told the answer?
+    """Does the turn of the magnitude find the optimal time with no knowledge of the answer?
 
-    THIS IS A TEST OF THE DETECTOR AND NOT A DEMONSTRATION OF GROVER. The optimal iteration count
-    for M marked items out of N is (pi/4) sqrt(N/M), which is known in advance and is NOT given to
-    the detector. The detector sees only the step norms of the trace. If its turning point lands
-    on the prediction for every M then it reads the geometry and not the setup.
+    THIS IS A TEST OF THE DETECTOR, AND NOT A DEMONSTRATION OF GROVER. The optimal iteration count for M marked items
+    out of N is (pi/4) sqrt(N/M). The count is clear in advance, and the detector does NOT get it. The detector sees
+    only the step norms of the trace. If its turn lands on the prediction for every M, then it reads the geometry and
+    not the setup.
 
-    The failure mode to watch is M large. At M marked items the optimum falls as one over the square
-    root of M. By M = 64 out of 256 the optimum is under two iterations and there is no curve
-    left to find a minimum in. A detector that reported a confident answer there would be reporting
-    rounding.
+    The failure mode to watch is M large. At M marked items, the optimum falls as one over the square root of M. By M =
+    64 out of 256, the optimum is under two iterations, and there is no curve left to find a minimum in. A detector that
+    reported a confident answer there would report rounding.
     """
     angles = placement_angles()
     generator = numpy.random.default_rng(13)
@@ -697,8 +688,8 @@ def spread_of(values):
 def _compare():
     """Grover against SHA-256's tail bit, on both columns. The failure is visible beside the win.
 
-    The scalar is reported first BECAUSE it fails. A file that only printed the column that worked
-    would be a file that had quietly dropped its own prediction.
+    The report gives the scalar first, BECAUSE it fails. A file that only printed the column that worked would be a file
+    that quietly dropped its own prediction.
     """
     angles = placement_angles()
     best = optimal_iterations()
@@ -774,8 +765,8 @@ def _check():
         lines.append("    FAIL the simulation is not unitary, so nothing downstream means anything")
         failed += 1
 
-    # THE POSITIVE CONTROL FOR THE ALGORITHM. Grover must actually find the item, or the trace is
-    # of a broken search and the scalar is measuring noise.
+    # THE POSITIVE CONTROL FOR THE ALGORITHM. Grover must actually find the item. Otherwise the trace is of a broken
+    # search, and the scalar measures noise.
     start = float(abs(states[0][MARKED]) ** 2)
     peak = max(float(abs(one[MARKED]) ** 2) for one in states)
     lines.append("  P(marked) starts at %.6f and peaks at %.6f, a gain of %.1f times"
@@ -801,8 +792,8 @@ def _check():
         lines.append("    FAIL an unchanged state produced a change")
         failed += 1
 
-    # A GLOBAL PHASE IS UNOBSERVABLE AND MUST READ AS RIGID. This is the invariance the scalar is
-    # dividing out. If a pure global phase read as deformation the measure would be wrong.
+    # A GLOBAL PHASE IS UNOBSERVABLE AND MUST READ AS RIGID. This is the invariance that the scalar divides out. If a
+    # pure global phase read as deformation, the measure would be wrong.
     turned = states[3] * numpy.exp(1j * 0.7)
     scalar, phase, _total = deformation_between(states[3], turned, angles)
     lines.append("  a pure global phase of 0.7: scalar %.3e, phase recovered %.4f" % (scalar, phase))
