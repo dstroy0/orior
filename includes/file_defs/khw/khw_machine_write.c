@@ -7,31 +7,49 @@
 //
 //     orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
-// Six modes; `assemble` assembles the texts the protocol passes and passes them back (assembled.c). What `krs` and
-// `kernel` write for the protocol is given as `answers`, and what `final` and `costs` read from the protocol is read
-// from it: the blob of that name in the run where a run's writer runs (qry_member.h), and the file where none
-// does. In `krs` the file at `path.khw` is read and each form that answered a relation is given one a line: the
-// relation, 1 where the answers read a word signed and 0 where not, the encoding the form was first seen with, low
-// word first, and the form's text with each operand that is in the relation's tuple written as its place,
-// {<place>}, for the protocol to name; nothing else is read. In `kernel` the container the layout contains is read and
-// the kernel the system accepted is appended as kernel_blob.h positions it out: its head, the places, the registers a
-// thread uses, the place the least opening begins at and the probe place, each of the two as the part's .ksc beside
-// the machine file answers it (Open 6.3), then every place's encoding as the container stores it. In
-// `gate` the file contains those same places, one form a place, so that the gate reads every question of a round
-// against what the part has already run (cubin_safe.h). In `final` the file contains the forms the part answered for,
-// read from `answers` as the protocol gave them, each named from the vendor's table (mnemonic_nvidia.tsv) and positioned
-// out as the instruction its runs make; a form the table names none of is no form of the file. The answers are one
-// form a line: the relation the protocol read, whether it read a word signed and whether it queried, the encoding, how
-// many runs its operands sit in, and each run's first and last bit and its place in the relation's tuple, - where it
-// has none. Each form is written with its relation, its signedness and its runs' places as the protocol read them.
-// In `costs` the file contains both: the kernel's places as `gate` positions them out, then the forms the part answered for
-// as `final` does, so that the gate reads a costs question, a form written many times over from the probe place inside
-// the kernel's places, as stored whole.
+// Six modes. `assemble` assembles the texts that the protocol passes, and passes them back (assembled.c).
+//
+// `krs` and `kernel` write their output for the protocol to `answers`. `final` and `costs` read their input from the
+// protocol from `answers`. Where a writer of a run runs, that is the blob of that name in the run (qry_member.h).
+// Where none runs, it is the file.
+//
+// In `krs`, the writer reads the file at `path.khw`. It gives each form that answered a relation, one a line:
+//   - the relation.
+//   - 1 where the answers read a word as signed, and 0 where not.
+//   - the encoding that the form first came with, low word first.
+//   - the text of the form. Each operand in the tuple of the relation shows as its place, {<place>}, for the protocol
+//     to name.
+//
+// The writer reads nothing else in `krs`.
+//
+// In `kernel`, the writer reads the container in the layout. It appends the kernel that the system accepted, in the
+// form of kernel_blob.h:
+//   - its head, the places, and the registers that a thread uses.
+//   - the place where the least opening begins, and the probe place. The .ksc of the part beside the machine file
+//     answers each (Open 6.3).
+//   - the encoding of each place, as the container stores it.
+//
+// In `gate`, the file holds those same places, one form a place. The gate then reads each question of a round against
+// what the part ran before (cubin_safe.h).
+//
+// In `final`, the file holds the forms that the part answered for, read from `answers` as the protocol gave them. The
+// table of the vendor (mnemonic_nvidia.tsv) names each. Each goes out as the instruction that its runs make. A form
+// that the table does not name is no form of the file. The answers are one form a line:
+//   - the relation that the protocol read.
+//   - whether it read a word as signed, and whether it queried.
+//   - the encoding, and how many runs its operands sit in.
+//   - the first and last bit of each run, and its place in the tuple of the relation, or - where it has none.
+//
+// The writer writes each form with its relation, its signedness and the places of its runs, as the protocol read them.
+//
+// In `costs`, the file holds both. First come the places of the kernel, as `gate` puts them out. Then come the forms
+// that the part answered for, as `final` puts them out. A costs question is a form, written many times over from the
+// probe place inside the places of the kernel. The gate then reads a costs question as stored whole.
 #include "khw_machine_write/khw_machine_write_internal.h"
 #include "khw_machine_write/opening.h"
 
-// the path of the part's .ksc beside the machine file at `path`, its extension put in place of the machine file's,
-// into `ksc`, which has room for `room`: 1, or 0 where it does not fit
+// the path of the .ksc of the part beside the machine file at `path`, into `ksc`, which has room for `room`. Its
+// extension takes the place of the extension of the machine file. The result is 1, or 0 where it does not fit
 static int khw_ksc_path(const char *path, char *ksc, size_t room)
 {
     static const char s_extension[] = ".ksc";
@@ -62,15 +80,15 @@ int main(int count, char **word)
     const char *const mode = word[6];
     if (strcmp(mode, "kernel") == 0)
     {
-        // the kernel read out of the container and appended for the protocol as `answers` (kernel_blob.h): its head,
-        // then every place's encoding as the container stores it
+        // the kernel, read out of the container and appended for the protocol as `answers` (kernel_blob.h). It is its
+        // head, then the encoding of each place as the container stores it
         char ksc[1024];
         if (!khw_kernel_read(layout) || !khw_ksc_path(path, ksc, sizeof(ksc)))
         {
             return 1;
         }
-        // the place the least opening begins at and the probe place, each the part's answer in its .ksc beside the
-        // machine file: 0 and none where it has not answered or names a place past the kernel
+        // the place where the least opening begins, and the probe place. Each is the answer of the part in its .ksc
+        // beside the machine file. Each is 0 and none where the part gave no answer, or names a place past the kernel
         const unsigned int from = khw_opening_read(ksc);
         const unsigned int place = khw_probe_place_read(ksc);
         const KernelBlobHead head = {
@@ -126,8 +144,8 @@ int main(int count, char **word)
     {
         return 1;
     }
-    // the guard field as the part's .ksc beside the machine file names it: a predicate run inside it prints as the
-    // guard, and one outside it as an operand
+    // the guard field, as the .ksc of the part beside the machine file names it. A predicate run inside it prints as
+    // the guard. A predicate run outside it prints as an operand
     {
         char ksc[1024];
         unsigned int guard_first = 0u;
@@ -156,8 +174,8 @@ int main(int count, char **word)
         }
         kernel_forms = khw_kernel_forms_store();
     }
-    // the forms the part answered for, each named from the vendor's table, after the kernel's places where those are
-    // stored
+    // the forms that the part answered for, each named from the table of the vendor. They come after the places of the
+    // kernel, where the file stores those
     static KhwForm s_form[SASS_MACHINE_FORMS];
     unsigned int forms = 0u;
     unsigned int named = 0u;
