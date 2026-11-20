@@ -1,13 +1,13 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""Emits qasm_pi.h: pi from representation.constants.naturals.pi, to the places the qasm fixed point needs.
+"""Emits qasm_pi.h: pi from utils/maint/dn_precision/calc/dn_constants.py, to the places the qasm fixed point needs.
 
-    python examples/qasm/maint/emit_qasm_pi.py            write the header
-    python examples/qasm/maint/emit_qasm_pi.py --check    exit 1 where the header on disk is not what this writes
+Run python examples/qasm/maint/emit_qasm_pi.py to write the header.
+Run it with --check to exit 1 where the header on disk is not what this writes.
 
-The guard width is read from QASM_GUARD_BITS in qasm_internal.h and never written here. The places are the least p
-with 10^p past 2^(G + 1), found in integers: pi cut to p places is then within half a unit of pi * 2^G, and
-qasm_fixed_constants takes it the rest of the way. naturals.pi reaches its digits by two routes that have to agree.
+This reads the guard width G from QASM_GUARD_BITS in qasm_internal.h, and never writes it. The places are the least p
+with 10^p past 2^(G + 1), found in integers. Pi cut to p places is then within half a unit of pi * 2^G, and
+qasm_fixed_constants takes it the rest of the way. dn_constants reaches the digits of pi by two routes that must agree.
 """
 import os
 import re
@@ -17,14 +17,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 QASM = os.path.join(ROOT, "examples", "qasm", "src")
 INTERNAL = os.path.join(QASM, "qasm_internal.h")
 HEADER = os.path.join(QASM, "qasm_pi.h")
-sys.path.insert(0, os.path.join(ROOT, "src", "python"))
-import manifest  # noqa: E402,F401
+sys.path.insert(0, os.path.join(ROOT, "utils", "maint", "dn_precision", "calc"))
+import dn_constants  # noqa: E402
 
-from representation.constants.naturals import pi  # noqa: E402
-
+COPYRIGHT = "// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>"
 SPDX = "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational"
 # characters of the digit string on one line of the header
 WIDTH = 100
+
+
+def pi(places):
+    """floor(pi * 10**places) from dn_constants. Refuses a row whose two routes disagree."""
+    row = next(one for one in dn_constants.assemble(places) if one["name"] == "pi")
+    if row["last_digit_gap"] != 0:
+        sys.exit("dn_constants: the two routes of pi disagree at %d places" % places)
+    return int(row["value"].replace(".", ""))
 
 
 def guard_bits():
@@ -52,10 +59,11 @@ def header_text():
     text = digits[0] + "." + digits[1:]
     pieces = [text[at:at + WIDTH] for at in range(0, len(text), WIDTH)]
     lines = [
+        COPYRIGHT,
         SPDX,
         "// qasm_pi.h: pi to QASM_PI_PLACES places, for the fixed point at QASM_PI_BITS guard bits",
         "//",
-        "// Written by examples/qasm/maint/emit_qasm_pi.py from representation.constants.naturals.pi. Do not edit it: emit",
+        "// Written by examples/qasm/maint/emit_qasm_pi.py from the pi of dn_constants. Do not edit it: emit",
         "// it again. 10^QASM_PI_PLACES is past 2^(QASM_PI_BITS + 1): the digits are within half a unit of pi at that",
         "// width, and qasm_exact.c refuses to build where QASM_GUARD_BITS has grown past QASM_PI_BITS.",
         "#ifndef QASM_PI_H",

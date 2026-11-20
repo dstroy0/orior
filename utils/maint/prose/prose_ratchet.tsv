@@ -389,7 +389,7 @@ examples/proteins/build_protein_view.py	8
 examples/proteins/derive_family_rules.py	14
 examples/proteins/ramachandran_rules.py	26
 examples/qasm/build.sh	2
-examples/qasm/maint/emit_qasm_pi.py	3
+examples/qasm/maint/emit_qasm_pi.py	1
 examples/qasm/src/qasm.cu	1
 examples/qasm/src/qasm_bitstring.cu	3
 examples/qasm/src/qasm_chain_apply.c	1
