@@ -314,12 +314,12 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
-    g_cli_guard->persistent_buf_release(window->editor.names, g_cli_view_owner);
+    (void)g_cli_guard->movable_buf_release(window->editor.names, g_cli_view_owner);
     cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[0]});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[1]});
-    g_cli_guard->persistent_buf_release(window->terminal.names[0], g_cli_view_owner);
-    g_cli_guard->persistent_buf_release(window->terminal.names[1], g_cli_view_owner);
+    (void)g_cli_guard->movable_buf_release(window->terminal.names[0], g_cli_view_owner);
+    (void)g_cli_guard->movable_buf_release(window->terminal.names[1], g_cli_view_owner);
     window->editor.frame = NULL;
     window->editor.names = NULL;
     window->minimap.lines = NULL;
@@ -514,7 +514,7 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
         const char *const key = displayed ? terminal->view[view].key : NULL;
         cli_view_frame_release(&(CliViewAtCfg){.frame = terminal->frame[view]});
         terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
-        g_cli_guard->persistent_buf_release(terminal->names[view], g_cli_view_owner);
+        (void)g_cli_guard->movable_buf_release(terminal->names[view], g_cli_view_owner);
         terminal->names[view] = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
                                                            .key = key, .owner = g_cli_view_owner)
                                               : NULL;
@@ -742,7 +742,7 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
         !cellul.eq(&(CatenaFinitaCfg){.src = window->colors_key, .other = key, .cap = sizeof(window->colors_key)});
     if (recolored || (window->editor.names == NULL))
     {
-        g_cli_guard->persistent_buf_release(window->editor.names, g_cli_view_owner);
+        (void)g_cli_guard->movable_buf_release(window->editor.names, g_cli_view_owner);
         window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
                                                           .key = key, .owner = g_cli_view_owner)
                                              : NULL;
@@ -4377,7 +4377,19 @@ EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
     const int on_frame = (frame->cursor.line >= frame->from) && ((frame->cursor.line - frame->from) < frame->count);
     // a row of the frame is far fewer than an int counts
     const unsigned int row = on_frame ? (unsigned int)(frame->cursor.line - frame->from) : 0u;
-    const unsigned int runs = (on_frame && (frame->runs != NULL)) ? frame->runs->line[row].runs : 0u;
+    // the cursor's row's entry and the words' offset read out of the frame's runs cell
+    CliDocumentLineRuns held = {0u, 0u};
+    CliDocumentRuns runs_head = {0u, 0u};
+    if (on_frame && (frame->runs != NULL))
+    {
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = frame->runs, .dst = &runs_head, .bytes = sizeof(runs_head)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &held, .bytes = sizeof(held)});
+    }
+    const unsigned int runs = held.runs;
+    const unsigned long long columns_at =
+        (unsigned long long)runs_head.words_at + ((unsigned long long)held.at * sizeof(unsigned int));
     char text[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "frame ");
@@ -4390,11 +4402,22 @@ EMBED_INLINE void window_frame_telemetry(const GuiWindowCtx *args)
     mmgr_line_decimal(&line, runs, 1u);
     for (unsigned int at = 0u; (at < runs) && (at < 8u); at += 1u)
     {
-        const CliDocumentLineRuns held = frame->runs->line[row];
+        unsigned int column = 0u;
+        unsigned int name = 0u;
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = frame->runs,
+                                .offset = columns_at + ((unsigned long long)at * sizeof(column)),
+                                .dst = &column,
+                                .bytes = sizeof(column)});
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = frame->runs,
+                                .offset = columns_at + ((unsigned long long)(runs + at) * sizeof(name)),
+                                .dst = &name,
+                                .bytes = sizeof(name)});
         mmgr_line_ch(&line, ' ');
-        mmgr_line_decimal(&line, frame->runs->word_text[held.at + at], 1u);
+        mmgr_line_decimal(&line, column, 1u);
         mmgr_line_ch(&line, ':');
-        mmgr_line_decimal(&line, frame->runs->word_text[held.at + runs + at], 1u);
+        mmgr_line_decimal(&line, name, 1u);
     }
     mmgr_line_ch(&line, '\n');
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = text,

@@ -143,8 +143,9 @@ void cli_document_release(const CliDocumentCfg *args);
 int cli_document_crlf(const CliDocumentCfg *args);
 int cli_document_shape(const CliDocumentTextCfg *args);
 int cli_document_edit(const CliDocumentErrMsgCfg *args);
-// the units of the line `line` of the text read whole stored under `key` copied into `dst`, `capacity` of them at the
-// max, the line's count into `count`: 1, or 0 with `count` 0 where no such text or line is stored
+// the units of the line `line` of the text read whole stored under `key` from its unit `from` on, copied into `dst`,
+// `capacity` of them at the max, the line's count into `count`: 1, or 0 with `count` 0 where no such text or line is
+// stored
 unsigned long long cli_document_line_units(const CliDocumentLineUnitsCfg *args);
 int cli_document_has_head(const CliDocumentCfg *args);
 // the changes of the text read whole stored under `key` against its file as the last commit has it, each passed to
@@ -169,21 +170,25 @@ int cli_document_find(const CliDocumentOutNeedleCfg *args);
 // what is called, on the walk's thread, as a branch's colors or folds are worked out: nothing is passed over, the
 // lines' runs are in the branch for whoever reads them
 typedef void (*CliDocColored)(void);
-// The names a text's tokens take in one cell, the empty name first, a run's name a place among them
+// The head of the names a text's tokens take, at the start of their movable cell. After it come `count` places, each
+// an unsigned int that is the offset in the cell of a name's first byte. The names come after the places, each ended
+// by a zero. The empty name is first, and a run's name is a place among them
 typedef struct
 {
     unsigned int count;
-    const char **name;
+    unsigned int reserved;
 } CliDocumentNames;
+// the offset in the names' cell of the place of the name `at`
+#define CLI_DOCUMENT_NAME_AT(at) (sizeof(CliDocumentNames) + ((unsigned long long)(at) * sizeof(unsigned int)))
 // the names the tokens of the text under `key` take, those of its grammar and after them a name for each depth of each
-// that counts a pair's, in a cell of `owner`: the cell, or NULL where no text is stored under the key or the cells
-// cannot meet it
+// that counts a pair's, in a movable cell of `owner`, given back with movable_buf_release: the cell, or NULL where no
+// text is stored under the key or the cells cannot meet it
 typedef struct
 {
     const char *key;
     const CellOwner *owner;
 } CliDocumentNamesCfg;
-CliDocumentNames *cli_document_names_alloc(const CliDocumentNamesCfg *args);
+const CarcerMovableEntry *cli_document_names_alloc(const CliDocumentNamesCfg *args);
 // the colors worked out from here on passed to `colored`, NULL for nowhere, and walked out by a thread of their own
 // where `threaded` is 1; the text stored under `key` colored by the grammar stored under `grammar`, empty for none,
 // every line of it not colored yet and the walk woken, the names its grammar's tokens take passed on by the caller
@@ -226,15 +231,20 @@ typedef struct
     unsigned int at;
     unsigned int runs;
 } CliDocumentLineRuns;
-// The runs of some lines off what the walk saved, in one cell: `line` one for each line asked
+// The head of the runs of some lines off what the walk saved, at the start of their movable cell: how many lines it
+// holds, and the offset in the cell of its words. After the head comes a CliDocumentLineRuns for each line asked, then
+// the words, each an unsigned int, a line's columns then its names
 typedef struct
 {
-    CliDocumentLineRuns *line;
-    unsigned int *word_text;
+    unsigned int lines;
+    unsigned int words_at;
 } CliDocumentRuns;
+// the offset in the runs' cell of the line `line`'s CliDocumentLineRuns
+#define CLI_DOCUMENT_RUNS_LINE_AT(line)                                                                                \
+    (sizeof(CliDocumentRuns) + ((unsigned long long)(line) * sizeof(CliDocumentLineRuns)))
 // the `count` lines at `number`, in order, of the text under `key` walked where they save no runs that are, and their
-// runs in a cell of `owner`, sized to them; `mirrored` as cli_document_runs_write reads it: the cell, or NULL where no
-// text is stored under the key or the cells cannot meet it
+// runs in a movable cell of `owner`, sized to them, given back with movable_buf_release; `mirrored` as
+// cli_document_runs_write reads it: the cell, or NULL where no text is stored under the key or the cells cannot meet it
 typedef struct
 {
     const char *key;
@@ -243,7 +253,7 @@ typedef struct
     int mirrored;
     const CellOwner *owner;
 } CliDocumentRunsCfg;
-CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args);
+const CarcerMovableEntry *cli_document_runs_alloc(const CliDocumentRunsCfg *args);
 // One bar of the minimap, a run the grammar names: its first cell, its width in cells and its name
 typedef struct
 {
@@ -411,6 +421,7 @@ struct CliDocumentLineUnitsCfg
     unsigned long long *count;
     unsigned short *dst;
     unsigned long long capacity;
+    unsigned long long from;
 };
 
 struct CliDocumentUnitsCfg
@@ -696,7 +707,7 @@ EMBED_TABLE_STORAGE CliDocumentOutNs cli_document_out EMBED_UNUSED = {
 
 typedef struct
 {
-    CliDocumentNames *(*names_alloc)(const CliDocumentNamesCfg *args);
+    const CarcerMovableEntry *(*names_alloc)(const CliDocumentNamesCfg *args);
 } CliDocumentNamesNs;
 EMBED_TABLE_LAYOUT(CliDocumentNamesNs, names_alloc);
 EMBED_TABLE_STORAGE CliDocumentNamesNs cli_document_names EMBED_UNUSED = {
@@ -705,7 +716,7 @@ EMBED_TABLE_STORAGE CliDocumentNamesNs cli_document_names EMBED_UNUSED = {
 
 typedef struct
 {
-    CliDocumentRuns *(*runs_alloc)(const CliDocumentRunsCfg *args);
+    const CarcerMovableEntry *(*runs_alloc)(const CliDocumentRunsCfg *args);
 } CliDocumentRunsNs;
 EMBED_TABLE_LAYOUT(CliDocumentRunsNs, runs_alloc);
 EMBED_TABLE_STORAGE CliDocumentRunsNs cli_document_runs EMBED_UNUSED = {

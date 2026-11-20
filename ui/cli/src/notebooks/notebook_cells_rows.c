@@ -360,11 +360,13 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
         for (unsigned int other = 0u; other < model->cells; other += 1u)
         {
             CliNotebookCell other_cell = {0};
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-                .cell = model->cells_cell, .offset = CLI_NOTEBOOK_CELL_AT(other), .dst = &other_cell, .bytes = sizeof(other_cell)});
-            if ((other == args->cell) ||
-                !EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = other_cell.first_run,
-                            .last_run = other_cell.last_run, .edited = other_cell.edited, .gone = 0))
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                    .offset = CLI_NOTEBOOK_CELL_AT(other),
+                                                                    .dst = &other_cell,
+                                                                    .bytes = sizeof(other_cell)});
+            if ((other == args->cell) || !EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
+                                                     .first_run = other_cell.first_run, .last_run = other_cell.last_run,
+                                                     .edited = other_cell.edited, .gone = 0))
             {
                 continue;
             }
@@ -380,8 +382,8 @@ EMBED_INLINE void sentence_written(const NotebookRowsCtx *args)
                                     .offset = CLI_NOTEBOOK_GONE_AT(gone),
                                     .dst = &gone_cell,
                                     .bytes = sizeof(CliNotebookGone)});
-            if (EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell, .first_run = gone_cell.first_run,
-                           .last_run = gone_cell.last_run, .edited = 0u, .gone = 1))
+            if (EMBED_CALL(is_on, NotebookRowsCtx, .model_read = model, .cell = args->cell,
+                           .first_run = gone_cell.first_run, .last_run = gone_cell.last_run, .edited = 0u, .gone = 1))
             {
                 mmgr_line_put(out, listed ? ", a cell since deleted" : "a cell since deleted");
                 listed = 1;
@@ -653,8 +655,8 @@ void cli_notebook_model_frame_release(const CliNotebookCellsFrameCfg *args)
     }
     for (unsigned int at = 0u; at < frame->parts; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(frame->part[at].runs, g_cli_notebook_open_owner);
-        g_cli_guard->persistent_buf_release(frame->part[at].labels, g_cli_notebook_open_owner);
+        (void)g_cli_guard->movable_buf_release(frame->part[at].runs, g_cli_notebook_open_owner);
+        (void)g_cli_guard->movable_buf_release(frame->part[at].labels, g_cli_notebook_open_owner);
     }
     if (frame->view != NULL)
     {

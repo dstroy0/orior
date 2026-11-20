@@ -135,23 +135,23 @@ typedef struct
 } CliViewFind;
 
 // A view's frame: every count and pointer the window draws from, in cells of the views' owner, immutable once read. The
-// rows are the lines displayed from `from`, the lines a closed fold hides left out, each row's runs at
-// `runs->line[row]`; the closers are among `bytes` from `closers`; each match is a line, a from and a to column;
-// `indent_tabs` is 1 for tabs, 0 for spaces and -1 where nothing set it. The file is a grid of lines by cells and the
-// view a window on it: `top` is its first line and `left` its first cell column. Each row holds its line from its start
-// through the view's last column, so every column stays the file's own and the window draws the row moved left by
-// `left` cells. `widest` is the max cells of any line the view has displayed, the grid's width as the view knows it.
-// After the `count` rows displayed are `stickies` sticky rows, the head lines of the regions the first line under them
-// is inside, outermost first, each with its text and runs as the rows displayed have theirs, for the window to pin over
-// the rows at the view's top; a region opened on a line of its brace alone has the line before as its head. A table
-// file, as its plugin defines the characters for the file extension, has `table` as the delimiter character that
-// separates a line into fields and `table_quote` as the quote character that encloses a field, 0 for none, and
-// `column_count` column offsets and one past them: the field at column index `k` begins at the cell offset
-// `column_offset[k]`, the sum of the previous offset, the previous column's width and one cell for the delimiter, and
-// `column_offset[column_count]` is the cell after the last column; a column's width is the max width of its fields,
-// or the width a CLI_VIEW_COLUMN input set; a file that is not a table has `table` 0 and a column count of 0.
-// `colors_serial` is the text's colors serial, read before the rows' runs. A frame with the same serial as an earlier
-// one has the same colors
+// rows are the lines displayed from `from`, the lines a closed fold hides left out, each row's runs in
+// the movable cell `runs` at CLI_DOCUMENT_RUNS_LINE_AT(row); the closers are among `bytes` from `closers`; each match
+// is a line, a from and a to column; `indent_tabs` is 1 for tabs, 0 for spaces and -1 where nothing set it. The file is
+// a grid of lines by cells and the view a window on it: `top` is its first line and `left` its first cell column. Each
+// row holds its line from its start through the view's last column, so every column stays the file's own and the window
+// draws the row moved left by `left` cells. `widest` is the max cells of any line the view has displayed, the grid's
+// width as the view knows it. After the `count` rows displayed are `stickies` sticky rows, the head lines of the
+// regions the first line under them is inside, outermost first, each with its text and runs as the rows displayed have
+// theirs, for the window to pin over the rows at the view's top; a region opened on a line of its brace alone has the
+// line before as its head. A table file, as its plugin defines the characters for the file extension, has `table` as
+// the delimiter character that separates a line into fields and `table_quote` as the quote character that encloses a
+// field, 0 for none, and `column_count` column offsets and one past them: the field at column index `k` begins at the
+// cell offset `column_offset[k]`, the sum of the previous offset, the previous column's width and one cell for the
+// delimiter, and `column_offset[column_count]` is the cell after the last column; a column's width is the max width of
+// its fields, or the width a CLI_VIEW_COLUMN input set; a file that is not a table has `table` 0 and a column count of
+// 0. `colors_serial` is the text's colors serial, read before the rows' runs. A frame with the same serial as an
+// earlier one has the same colors
 typedef struct
 {
     unsigned int colors_serial;
@@ -181,7 +181,7 @@ typedef struct
     unsigned long long (*match)[3];
     unsigned long long *column_offset;
     char *bytes;
-    CliDocumentRuns *runs;
+    const CarcerMovableEntry *runs;
 } CliViewFrame;
 
 // the frame of the view under `key` in cells taken for it, sized to its rows and columns: the frame, or NULL where no

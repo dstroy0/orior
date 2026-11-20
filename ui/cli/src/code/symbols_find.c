@@ -35,7 +35,7 @@ typedef struct
     unsigned int bytes;
     const CliScored *one_scored_pointer;
     const CliScored *other_scored_pointer;
-    CliScored *found;
+    const CarcerMovableEntry *found;
     unsigned int count;
     unsigned int capacity;
 } SymbolsFindCtx;
@@ -168,18 +168,25 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
     return (order != 0) ? (order < 0) : (left.line < right.line);
 }
 
-// `one_scored_pointer` put in rank among the best `capacity` of the `count` in `found`, after each that ranks before
-// it: the count after
+// `one_scored_pointer` put in rank among the best `capacity` of the `count` in the movable cell `found`, after each
+// that ranks before it: the count after. Each entry is read and written through the cell at its offset
 EMBED_INLINE unsigned int cli_rank_in(const SymbolsFindCtx *args)
 {
-    CliScored *const found = args->found;
     unsigned int place = (args->count < args->capacity) ? args->count : args->capacity;
-    while ((place > 0u) && EMBED_CALL(cli_ranks_before, SymbolsFindCtx, .one_scored_pointer = args->one_scored_pointer,
-                                      .other_scored_pointer = &found[place - 1u]))
+    while (place > 0u)
     {
+        CliScored before;
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = args->found, .offset = (place - 1u) * sizeof(CliScored), .dst = &before, .bytes = sizeof(before)});
+        if (!EMBED_CALL(cli_ranks_before, SymbolsFindCtx, .one_scored_pointer = args->one_scored_pointer,
+                        .other_scored_pointer = &before))
+        {
+            break;
+        }
         if (place < args->capacity)
         {
-            found[place] = found[place - 1u];
+            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = args->found, .offset = place * sizeof(CliScored), .src = &before, .bytes = sizeof(before)});
         }
         place -= 1u;
     }
@@ -187,14 +194,24 @@ EMBED_INLINE unsigned int cli_rank_in(const SymbolsFindCtx *args)
     {
         return args->count;
     }
-    found[place] = *args->one_scored_pointer;
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->found,
+                                                             .offset = place * sizeof(CliScored),
+                                                             .src = args->one_scored_pointer,
+                                                             .bytes = sizeof(CliScored)});
     return args->count + ((args->count < args->capacity) ? 1u : 0u);
 }
 
 CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args)
 {
-    static CliScored s_found[CLI_SYMBOLS_FOUND];
+    // The ranked list is a movable cell of this call's own. Callers on the view thread and on the workers search at
+    // once, and a list that the calls share mixes their results
     const unsigned int capacity = (args->max < CLI_SYMBOLS_FOUND) ? args->max : CLI_SYMBOLS_FOUND;
+    const CarcerMovableEntry *const ranked =
+        g_cli_guard->movable_buf_alloc(((capacity != 0u) ? capacity : 1u) * sizeof(CliScored), g_cli_code_owner);
+    if (ranked == NULL)
+    {
+        return NULL;
+    }
     unsigned int count = 0u;
     char *const scratch = cli_branch_copy_alloc();
     for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
@@ -217,7 +234,7 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
             {
                 continue;
             }
-            count = EMBED_CALL(cli_rank_in, SymbolsFindCtx, .one_scored_pointer = &scored, .found = s_found,
+            count = EMBED_CALL(cli_rank_in, SymbolsFindCtx, .one_scored_pointer = &scored, .found = ranked,
                                .count = count, .capacity = capacity);
         }
     }
@@ -236,15 +253,17 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
         VerbaLinea text = {(char *)(void *)(declarations->found + count), text_capacity, 0ULL};
         for (unsigned int at = 0u; at < count; at += 1u)
         {
+            CliScored entry;
+            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                .cell = ranked, .offset = at * sizeof(CliScored), .dst = &entry, .bytes = sizeof(entry)});
             CliTreeBranch read;
-            EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = s_found[at].file,
-                       .branch_out = &read);
+            EMBED_CALL(cli_symbols_tree_at.branch_read, CliSymbolsTreeAtCfg, .file = entry.file, .branch_out = &read);
             const CliTreeBranch *const branch = &read;
             (void)g_cli_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = branch->cell, .dst = scratch, .bytes = branch->bytes});
             const CliDeclaration *const symbol =
                 &EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations, CliSymbolsTreeBranchScratchCfg,
-                            .branch = branch, .scratch_read = scratch)[s_found[at].symbol];
+                            .branch = branch, .scratch_read = scratch)[entry.symbol];
             const char *const path =
                 EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path, CliSymbolsTreeBranchScratchCfg,
                            .branch = branch, .scratch_read = scratch);
@@ -268,5 +287,6 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
         }
     }
     g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
+    (void)g_cli_guard->movable_buf_release(ranked, g_cli_code_owner);
     return declarations;
 }

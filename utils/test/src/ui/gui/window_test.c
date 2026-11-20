@@ -551,7 +551,13 @@ static void cells_rounds_checked(void)
 static unsigned int row_runs(unsigned int row)
 {
     const CliViewFrame *const frame = s_window.editor.frame;
-    return ((frame != NULL) && (frame->runs != NULL) && (row < frame->count)) ? frame->runs->line[row].runs : 0u;
+    CliDocumentLineRuns one = {0u, 0u};
+    if ((frame != NULL) && (frame->runs != NULL) && (row < frame->count))
+    {
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &one, .bytes = sizeof(one)});
+    }
+    return one.runs;
 }
 
 // the window stepped until the row `row` has runs or `milliseconds` pass: its runs
@@ -604,11 +610,23 @@ static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsig
     {
         return 0u;
     }
-    const CliDocumentLineRuns line = frame->runs->line[row];
+    CliDocumentRuns head = {0u, 0u};
+    CliDocumentLineRuns line = {0u, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs, .dst = &head, .bytes = sizeof(head)});
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = frame->runs, .offset = CLI_DOCUMENT_RUNS_LINE_AT(row), .dst = &line, .bytes = sizeof(line)});
+    const unsigned long long columns_at =
+        (unsigned long long)head.words_at + ((unsigned long long)line.at * sizeof(*words));
     for (unsigned int at = 0u; at < runs; at += 1u)
     {
-        words[2u * at] = frame->runs->word_text[line.at + at];
-        words[(2u * at) + 1u] = frame->runs->word_text[line.at + runs + at];
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
+                                                                .offset = columns_at + (at * sizeof(*words)),
+                                                                .dst = &words[2u * at],
+                                                                .bytes = sizeof(*words)});
+        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frame->runs,
+                                                                .offset = columns_at + ((runs + at) * sizeof(*words)),
+                                                                .dst = &words[(2u * at) + 1u],
+                                                                .bytes = sizeof(*words)});
     }
     return runs;
 }

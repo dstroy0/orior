@@ -5929,7 +5929,7 @@ void cli_view_frame_release(const CliViewAtCfg *args)
 {
     if (args->frame != NULL)
     {
-        g_cli_guard->persistent_buf_release(args->frame->runs, g_cli_views_owner);
+        (void)g_cli_guard->movable_buf_release(args->frame->runs, g_cli_views_owner);
         g_cli_guard->persistent_buf_release(args->frame, g_cli_views_owner);
     }
 }
