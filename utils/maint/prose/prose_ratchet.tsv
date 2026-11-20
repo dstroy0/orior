@@ -103,7 +103,6 @@ examples/00_blob_viz_tools/script_check.py	44
 examples/00_blob_viz_tools/settings.py	16
 examples/00_blob_viz_tools/shapes_view_template.html	2
 examples/00_blob_viz_tools/shor_trace.py	22
-examples/00_blob_viz_tools/snap_release.py	96
 examples/00_blob_viz_tools/sources_view_template.html	2
 examples/00_blob_viz_tools/sphere_field.py	61
 examples/00_blob_viz_tools/sphere_view_template.html	59
@@ -154,7 +153,6 @@ examples/0_experimental/exact_zeta_spherical.sh	1
 examples/0_experimental/exact_zeta_tail.cu	7
 examples/0_experimental/exact_zeta_tail.sh	1
 examples/0_experimental/exact_zeta_tension.py	10
-examples/0_experimental/exact_zeta_turing.py	100
 examples/0_experimental/exact_zeta_turing.sh	1
 examples/0_experimental/exact_zeta_values.py	5
 examples/0_experimental/exact_zeta_zeros.py	30

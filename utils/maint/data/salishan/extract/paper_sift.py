@@ -2,19 +2,19 @@
 
 usage: python paper_sift.py <stem> <authors> <language>
 
-1. Every repaired line of the text layer is sorted by english_sift.sorted_into against the English
-   reference and the pure corpus. The lines it calls English are this paper's English.
-2. That English is the target. Its byte pairs become the English anchor and its words the English
-   vocabulary, and every line is sorted again against it. What the paper's own English does not
-   account for is the language, a gloss tier, or residue.
-3. The alphabet is every character that sits mostly outside the paper's English: characters of the
-   language on one side and gloss-label small capitals on the other.
-4. The word web is built with word_web.web() over the language tokens, each carrying the English
-   translation or quoted gloss beside it as its concept, the example it sits in as its context.
-5. The draft table is written: English lines grouped as notes, language and gloss lines one row each,
-   and every language token outside an example block as a cited form candidate. Tokens that are
-   neither the paper's English nor carry the alphabet, in lines the engine would not call English,
-   are listed as residue for a person to read against the page.
+1. english_sift.sorted_into sorts every repaired line of the text layer against the English reference and the
+   pure corpus. The lines that it calls English are the paper's English.
+2. That English is the target. Its byte pairs become the English anchor, and its words the English vocabulary.
+   The tool sorts every line again against it. What the paper's own English does not explain is the language, a
+   gloss tier, or residue.
+3. The alphabet is every character that sits mostly outside the paper's English. Those are characters of the
+   language on one side, and gloss-label small capitals on the other.
+4. word_web.web() builds the word web over the language tokens. Each token carries the English translation or
+   quoted gloss beside it as its concept. The example that it sits in is its context.
+5. The tool writes the draft table. English lines go in groups as notes, and language and gloss lines one row
+   each. Every language token outside an example block goes in as a cited form candidate. Some tokens are not the
+   paper's English and carry no character of the alphabet. Where the engine would not call their line English,
+   the tool lists them as residue. A person reads the residue against the page.
 
 Writes <stem>.draft.tsv, <stem>.alphabet.txt, <stem>.web.tsv and <stem>.residue.tsv to workdir.WORK.
 """
@@ -50,14 +50,14 @@ WORD = re.compile(r"[A-Za-z]+")
 CAPS_LABEL = re.compile(r"[A-Z]{2,}|\b[123](?:SG|PL|DU|sg|pl)\b|(?:^|[-=.])[123]?[A-Z]{2,}")
 # The judgement mark can sit against the character, b.*xʷúy̓ in Steiner and Matthewson's (7).
 SUB = re.compile(r"^([a-mA-D])\.(?:(?:\s+|(?=[*#?]))(.*))?$")
-# The cells of a comparative table row: ⟨definition⟩, {romanized shorthand}, [*reconstruction] or
-# [phonetic], /phonemic/, ‘gloss’, and a parenthetical. What sits between cells is a bare form, a
-# language label such as Th, or a dash for an empty column.
-# An infix inside a word, t̓<ʔ>ʕas in Lyon's tables, is part of the form: a cell in angle brackets
-# opens after a space.
-# A gloss runs to the quote that no character follows: ‘herbalist’s song’ is one cell, and a gloss in
-# straight quotes, 'idem', is between spaces. A parenthesis is a cell where it is apart, and
-# the (ə) of kw(ə)l is part of the form.
+# The cells of a comparative table row: ⟨written form⟩, {romanized shorthand}, [*reconstruction] or [phonetic],
+# /phonemic/, ‘gloss’, and a parenthetical. What sits between cells is a bare form, a language label such as Th, or
+# a dash for an empty column.
+# An infix inside a word, `t̓<ʔ>ʕas` in Lyon's tables, is part of the form: a cell in angle brackets opens after a
+# space.
+# A gloss runs to the quote that no character follows. `‘herbalist’s song’` is one cell, and a gloss in straight
+# quotes, `'idem'`, is between spaces. A parenthesis is a cell where it is apart, and the `(ə)` of `kw(ə)l` is part
+# of the form.
 CELL = re.compile(r"(?<!\S)<[^<>]*>|⟨[^⟩]*⟩|\{[^}]*\}|(?<![^\W\d_])\[[^\]]*\]|\[[^\]]*\](?![^\W\d_/])|/[^/‘’“”]+/"
                   r"|[‘“](?:[^’”]|[’”](?=[^\W\d_]))*[’”]|(?<!\S)'[^']+'(?!\S)"
                   r"|(?<!\S)\((?:[^()]|\([^()]*\))*\)(?![^\W\d_•])")
@@ -68,26 +68,26 @@ TABLE = re.compile(r"^(Table \d+):\s*(.*)$")
 LABEL = re.compile(r"^[A-Z][a-zA-Z]$")
 STAMP = re.compile(r"\s*\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*$")
 STAMP_ONLY = re.compile(r"^\s*\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*$")
-# What opens a display the authors analyze with and nobody said: a rule, a tree, a derivation.
-# A denotation, ⟦√ɬʕat̓⟧ = m = λdλxλs.[wet(x,s)] ≥ d, is a display of the author's, and so is a
-# lambda term located alone, a. λsλe.[BECOME(e,s) ∧ P(x,s)]. A reading written with a lambda
-# inside a sentence, Only Peter λx[x claimed x is the winner] in Davis, is no denotation.
+# What opens a display that the authors analyze with and nobody said: a rule, a tree, a derivation.
+# A denotation, `⟦√ɬʕat̓⟧ = m = λdλxλs.[wet(x,s)] ≥ d`, is a display of the author's. So is a lambda term located
+# alone, `a. λsλe.[BECOME(e,s) ∧ P(x,s)]`. A reading written with a lambda inside a sentence is no denotation:
+# `Only Peter λx[x claimed x is the winner]` in Davis.
 DENOTATION = re.compile(r"⟦|^(?:[a-j]\.\s*)?λ")
-# A denotation goes on over a line that closes its bracket, CS⟧ = inch = λg ∈ DmΔ ..., or carries
-# its value, = λt.∃e∃s.cutΔ(x,e,s) = max(cutΔ).
+# A denotation goes on over a line that closes its bracket, `CS⟧ = inch = λg ∈ DmΔ ...`. It also goes on over a
+# line that carries its value, `= λt.∃e∃s.cutΔ(x,e,s) = max(cutΔ)`.
 DENOTATION_GOES_ON = re.compile(r"⟧|=\s*λ|^[↑=]")
 DISPLAY = re.compile(r"[⇔→⟶]|\b[A-Z][a-z]*P\b|^\s*√\s*$|\]\s*ω|^\[")
 # Labels an author sets before an English reading of an example instead of speakers.
 TRANSLATION_LABELS = ("Target", "Intended", "Actual", "Literally", "Lit", "Literal", "Gloss")
-# A speaker's own comment after an example: Dave Michel: ... or DD Comment: ...
-# A comment can name the example it is on, Comment on (9)A3: or Comments on versions of (6): in Hill
-# and Matthewson, and a heading like that one opens a list of quotes on the lines below.
+# A speaker's own comment after an example: `Dave Michel: ...` or `DD Comment: ...`
+# A comment can name the example that it is on, `Comment on (9)A3:` or `Comments on versions of (6):` in Hill and
+# Matthewson. A heading like that one opens a list of quotes on the lines below.
 SPEAKER = re.compile(r"^([A-Z][A-Za-z’'.]+(?: [A-Z][A-Za-z’'.-]+){0,3})"
                      r"(?: [Cc]omment(?: for [Cc]ontext \w+| on \([a-j]\))?|’s question"
                      r"|(?<=Comment|omments) (?:on|about) (?:versions of )?\(\d+[a-z]?\)(?:[a-z]|A\d)?)?"
                      r":(?:\s+(.*))?$")
-# A line of a list of words: the form, the root after < where the list gives one, and the gloss in
-# quotes, c̓ál̓<c̓al̓>-t < √c̓al̓ ‘shady’ or maʕ̓ʷ-t ‘break’. A footnote mark can follow the gloss.
+# A line of a list of words: the form, the root after < where the list gives one, and the gloss in quotes. Examples
+# are `c̓ál̓<c̓al̓>-t < √c̓al̓ ‘shady’` and `maʕ̓ʷ-t ‘break’`. A footnote mark can follow the gloss.
 WORD_ROW = re.compile(r"^([^‘\s](?:[^‘]{0,40}?[^‘\s])?)\s+(?:<\s*(√[^‘]+?)\s+)?(‘[^‘]*?)\s*\d{0,2}$")
 
 # How many times the paper's own English counts against one line of the general reference.
@@ -106,10 +106,10 @@ def ordinary_english():
 
 
 def same_characters(one, other, ratio=0.8):
-    """True where two lines define nearly the same characters once marks, breaks and spaces are set aside.
+    """True where two lines write nearly the same characters, with marks, breaks and spaces set aside.
 
-    A segmentation can write an allomorph its tier does not, tue squamish over tw=e=squamish, and
-    four characters in five alike is enough.
+    A segmentation can write an allomorph that its tier does not, `tue squamish` over `tw=e=squamish`. Four
+    characters in five alike is enough.
     """
     def characters(text):
         return "".join(symbol for symbol in unicodedata.normalize("NFD", text.lower())
@@ -148,10 +148,10 @@ def main():
     first = {number: sorted_into(text, english, pure) for number, page, text in lines}
     paper_english = [text for number, page, text in lines if first[number] == "english"]
 
-    # 2. The paper's English is the target now. Alone it is too small an anchor: surprise() smooths
-    # over all 2^16 cells, and a 30 kB reference charges an unseen pair little more than a seen one,
-    # which sorted the gloss tiers as English. It is positioned over the general reference instead,
-    # weighted so the paper's own words and typography dominate.
+    # 2. The paper's English is the target now. Alone it is too small an anchor: surprise() smooths over all 2^16
+    # cells. A 30 kB reference then charges an unseen pair little more than a seen one. That would sort the gloss
+    # tiers as English. The anchor therefore sits over the general reference. Weights let the paper's own words and
+    # typography dominate.
     own, own_total = counts_of(paper_english)
     merged = dict(english[0])
     for pair, seen in own.items():
@@ -222,8 +222,8 @@ def main():
         return None
 
     def list_resumes(at_line):
-        """True where the first line of the next page is a word of a list, kʷax̌ʷ-t ‘wake’ at the
-        top of Davis and Nederveen's page 8, the rest of (4a)."""
+        """True where the first line of the next page is a word of a list. An example is `kʷax̌ʷ-t ‘wake’` at the top of
+        Davis and Nederveen's page 8, the rest of (4a)."""
         page = lines[at_line][1]
         for one in lines[at_line + 1:]:
             if one[1] == page or re.fullmatch(r"\d{1,3}", one[2].strip()):
@@ -238,12 +238,12 @@ def main():
     def emit_cells(example, body, page, verdict):
         """One line of a comparative table as a row per cell. False where the table ended.
 
-        example[4] holds the column heads, each a language name or None, and example[5] the first
-        half of a row whose ⟨ or { closes on the next line.
+        `example[4]` holds the column heads, each a language name or None. `example[5]` holds the first half of a row
+        whose ⟨ or { closes on the next line.
         """
         if example[5]:
-            # The wrapped half closes the cell it left open: <shna-hle ‘a lazy woman’ over
-            # t sek-ha> is <shna-hle t sek-ha> and then the rest of the row.
+            # The wrapped half closes the cell that it left open. `<shna-hle ‘a lazy woman’` over `t sek-ha>` is
+            # `<shna-hle t sek-ha>`, and then the rest of the row.
             stash = example[5]
             example[5] = ""
             # The opener left open instead of the last one: <rapentle’he ‘a lazy man’ closes its gloss.
@@ -280,8 +280,8 @@ def main():
             body = body[label.end():]
             character = label.group(1)
             # (i) after (h) is a character. Under a character it numbers the morphemes of one form.
-            # A table can name one line twice, (a) √q'ay then (a) √q'ay, or come back to it after
-            # another, and its rows count on under that character.
+            # A table can name one line twice, `(a) √q'ay` then `(a) √q'ay`, or come back to it after another. Its rows
+            # count on under that character.
             if len(character) == 1 and (character != "i" or example[6] == "h") and character != example[6]:
                 if len(example) == 7:
                     example.append({})
@@ -299,12 +299,12 @@ def main():
                 example[7]["open"] = True
                 return True
         row_below_label = len(example) > 7 and example[7].pop("open", False)
-        # The morphemes of a row of / /, [ ] and its translation, on the line under it with the
-        # source at the right after a wide gap: turn-CTR-TR-3ERG   (T&T 1996:321), or
-        # STAT-separate-foot   BP in Hall et al.
-        # A source with its year needs no wide gap, STAT-use~COS (Hall & Phillips this volume).
-        # The form the example is not can sit between them, fast-IMM   (not [x̣ʷə.nə́t])   (Hall
-        # & Phillips this volume).
+        # The morphemes of a row of / /, [ ] and its translation sit on the line under it. The source sits at the right,
+        # after a wide gap. Examples are `turn-CTR-TR-3ERG   (T&T 1996:321)`, or `STAT-separate-foot   BP` in Hall et
+        # al.
+        # A source with its year needs no wide gap, `STAT-use~COS (Hall & Phillips this volume)`.
+        # The form that the example is not can sit between them:
+        # `fast-IMM   (not [x̣ʷə.nə́t])   (Hall & Phillips this volume)`.
         aside = re.search(r"\s+(\(not [^()]*\))(?=\s{2,}|\s*$)", body)
         core = (body[:aside.start()] + body[aside.end():] if aside else body).strip()
         under = re.match(r"^(\S+(?: \S+){0,5}?)(?:\s{2,}(\([^()]*\)|[A-Z]{2,4}(?:, [A-Z]{2,4})*)"
@@ -313,9 +313,9 @@ def main():
             under = re.match(r"^(.*?)\s(\(.*\))$", core)
         row_above = example[3] and rows and rows[-1][2] == "translation" and \
             rows[-1][0] == cell_where(example)
-        # Every piece between the boundaries is a gloss label or an English word; a row of forms,
-        # √kwun kwunnuhwut kʷən-nəxʷ-ət in Schneider-Gerdts, is not.
-        # A plain word the paper's English does not hold is a gloss word too, sleep<DIM>.
+        # Every piece between the boundaries is a gloss label or an English word. A row of forms is not, as
+        # `√kwun kwunnuhwut kʷən-nəxʷ-ət` in Schneider-Gerdts.
+        # A plain word that the paper's English does not hold is a gloss word too, `sleep<DIM>`.
         glossed = under and all(
             token_type(piece)[0] in ("english", "label") or not re.search(r"[^\W\d_]", piece) or
             re.fullmatch(r"[a-z]+", piece)
@@ -413,8 +413,8 @@ def main():
         def place(type, separator):
             nonlocal column
             wide = bool(re.search(r"\s{2,}", separator))
-            # A form after the English column opens the next column however close it is set:
-            # ‘strap or band for packing’ tl’oolh12.
+            # A form after the English column opens the next column, however close the page sets it:
+            # `‘strap or band for packing’ tl’oolh12`.
             after_english = previous == "‘" and type != "‘" and example[4] and \
                 column < len(example[4]) and example[4][column] is None
             if previous is not None and (wide or after_english or (type == "/" and previous == "/"
@@ -424,9 +424,9 @@ def main():
         def close_run():
             if not run:
                 return
-            # A practical orthography and a phonemic column one space apart, q’aytum q̓ay-t-əm, are
-            # two cells: the run breaks where its words start carrying characters of the phonemic
-            # alphabet. An accented vowel, í of tsedutní, is not one of those.
+            # A practical orthography and a phonemic column one space apart, `q’aytum q̓ay-t-əm`, are two cells. The run
+            # breaks where its words start to carry characters of the phonemic alphabet. An accented vowel, the í of
+            # `tsedutní`, is not one of those.
             def phonemic(token):
                 return any(one in alphabet and not unicodedata.normalize("NFD", one)[0].isascii()
                            for one in token)
@@ -448,9 +448,8 @@ def main():
             del run[:]
             if not text or not any(one.isalpha() for one in text):
                 return
-            # A run is prose where two of its words are English, / doubling of vowel 7, or one long
-            # one, perhaps ~. Anything else between the cells is a form: ren púp̓smen, -éc ~ -c,
-            # ɣ : x, and ll or kw.
+            # A run is prose where two of its words are English, `/ doubling of vowel 7`, or one long one, `perhaps ~`.
+            # Anything else between the cells is a form: `ren púp̓smen`, `-éc ~ -c`, `ɣ : x`, and `ll` or `kw`.
             english_words = [one for one in text.split() if re.fullmatch(r"[A-Za-z]{2,}", one)
                              and token_type(one)[0] == "english"]
             # The run after a root in its row is the form built on it, √thuy thuytus.
@@ -526,11 +525,11 @@ def main():
     paragraph_at = (section, 0)
 
     def glossed_below(at_line, reach=6):
-        """True where one of the next lines is shaped as a gloss tier or opens a translation.
+        """True where one of the next lines has the shape of a gloss tier, or opens a translation.
 
-        A language written in plain characters, Gitksan's dim hadiks ’nii’y, reads as English line by
-        line, and an example of it is known by the author's format instead: a line of gloss labels,
-        PROSP swim 1SG.PRON, a third of its pieces capital labels, or a line opening on a quote."""
+        A language in plain characters reads as English line by line, as Gitksan's `dim hadiks ’nii’y` does. The
+        author's format marks an example of it instead. That is a line of gloss labels with a third of its pieces
+        capital labels, as `PROSP swim 1SG.PRON`, or a line that opens on a quote."""
         for one in lines[at_line + 1:at_line + 1 + reach]:
             if EXAMPLE.match(one[2]):
                 return False
@@ -576,10 +575,10 @@ def main():
     def offer(text, body, types, number, page, verdict):
         """Offer the language forms of one line of prose or of a footnote as cited form candidates."""
         for raw, (type, plain) in zip(body.split(), types):
-            # A form of a practical orthography in plain characters, cited in the prose: a root,
-            # √qw’aqw, or a word carrying ’ for the glottal stop, qw’qwuy’al’stun. An English
-            # contraction, don’t or Hukari’s, is not one. Its ’ at either end is a character,
-            # √nuw’ and ’i’mush, and a parenthesis in it is part of it, √t’il(um).
+            # A form of a practical orthography in plain characters, cited in the prose. It is a root, `√qw’aqw`, or a
+            # word that carries ’ for the glottal stop, `qw’qwuy’al’stun`. An English contraction, `don’t` or
+            # `Hukari’s`, is not one. Its ’ at either end is a character, `√nuw’` and `’i’mush`, and a parenthesis in it
+            # is part of it, `√t’il(um)`.
             if type != "language" and section != "references" and (
                     re.match(r"^√\S", plain) or
                     re.search(r"(?:^|[^\W\d_])’(?!(?:s|t|re|ll|ve|d|m)$)[^\W\d_]", plain)):
@@ -590,10 +589,10 @@ def main():
                 if plain.count("(") > plain.count(")"):
                     plain = plain.lstrip("(")
                 plain = plain.rstrip(",.;:!?")
-            # A form with no mark at all, glossed where it is, snuhwulhshun ‘car tire’: a word
-            # in lower case the paper's English barely uses, its gloss in quotes right after it.
-            # English sets means ‘mat’ and hyphen ‘-’ the same way. A word ordinary English writes,
-            # in the four megabytes of it the engine's English reference is built from, is English.
+            # A form with no mark at all, glossed where it is, `snuhwulhshun ‘car tire’`. It is a word in lower case
+            # that the paper's English barely uses, with its gloss in quotes right after it. English sets `means ‘mat’`
+            # and `hyphen ‘-’` the same way. A word that ordinary English writes is English. The test uses the four
+            # megabytes of it that make up the engine's English reference.
             elif type in ("unknown", "english") and section != "references" and \
                     plain.lower() not in ordinary_english() and \
                     re.fullmatch(r"[a-z][a-z.\-]{2,}", plain) and vocabulary[plain.lower()] <= 3 and \
@@ -668,15 +667,14 @@ def main():
         if example is not None:
             last_example = example
         heading = HEADING.match(text)
-        # A heading can be in the language, 3 nɬeʔkepmxcín. It is known by its number coming
-        # after the section before it, which retains a footnote or an abbreviation row out.
+        # A heading can be in the language, `3 nɬeʔkepmxcín`. Its number marks it, because the number comes after the
+        # section before it, and that keeps a footnote or an abbreviation row out.
         if heading:
             order = tuple(int(one) for one in heading.group(1).split("."))
             current = tuple(int(one) for one in section[1:].split(".")) \
                 if re.match(r"^§[\d.]+$", section) else (0,)
-            # A long heading mostly in the language, 4.2.2 xʷúy̓ and ʔe stx̣ә́pe neʔ, is let through
-            # when its number comes next: the next section at some depth, or the
-            # first subsection of this one.
+            # A long heading mostly in the language, `4.2.2 xʷúy̓ and ʔe stx̣ә́pe neʔ`, goes through when its number
+            # comes next. That is the next section at some depth, or the first subsection of this one.
             following = {current[:depth] + (current[depth] + 1,) for depth in range(len(current))}
             following.add(current + (1,))
             if order <= current or order[0] > current[0] + 1 or \
@@ -689,8 +687,8 @@ def main():
                 if any(re.match(r"^%d\.\s" % (order[0] + step), one) for one in beside
                        for step in (-1, 1)):
                     heading = None
-        # Under an appendix, a numbered row of a list, 1 ˬ(')iˬks F-L WHQ-UNSPEC, has its neighbors
-        # numbered one less and one more with no period after the number.
+        # Under an appendix, a numbered row of a list, `1 ˬ(')iˬks F-L WHQ-UNSPEC`, has neighbors with numbers one less
+        # and one more, and no period after the number.
         if heading and section == "appendix" and len(order) == 1:
             beside = [one[2] for one in lines[max(0, at_line - 1):at_line + 2] if one[2] != text]
             if any(re.match(r"^%d\s" % (order[0] + step), one) for one in beside for step in (-1, 1)):
@@ -727,10 +725,10 @@ def main():
                 not opened.group(1).isdigit() and not TABLE.match(text):
             opened = None
         body = text
-        # A caption over a comparative table, (1) Cognates showing Secwepemctsín deglottalization,
-        # is English and opens an example all the same: one of the next lines is a row of cells, or
-        # a form with its gloss, cf. (i) /tə̣́mɬ ‘red ochre’. A first line that is itself a row,
-        # (6) <êstahi΄tz> ‘elk’ cf. s-/txéc’ ‘elk’, opens one too.
+        # A caption over a comparative table, `(1) Cognates showing Secwepemctsín deglottalization`, is English. It
+        # opens an example all the same, where one of the next lines is a row of cells or a form with its gloss, as
+        # `cf. (i) /tə̣́mɬ ‘red ochre’`. A first line that is itself a row opens one too, as
+        # `(6) <êstahi΄tz> ‘elk’ cf. s-/txéc’ ‘elk’`.
         below = lines[at_line + 1:at_line + 5]
         row_opens = bool(opened) and bool(NOTATION_CELL.search(opened.group(2))) and \
             bool(re.search(r"[‘“][^’”]*[’”]", opened.group(2)))
@@ -766,19 +764,18 @@ def main():
             share = [token_type(one)[0] for one in opened.group(2).split()]
             if share.count("language") < 0.3 * max(1, len(share)):
                 opened = None
-        # "in (14)." at the start of a line closes a sentence and opens nothing, and neither does
-        # (5): 17, a reference carrying a footnote mark.
-        # A line that opens on a reference and goes on with the sentence, (24), which takes the long
-        # form, opens nothing either.
+        # `"in (14)."` at the start of a line closes a sentence and opens nothing. Neither does `(5): 17`, a reference
+        # with a footnote mark.
+        # A line that opens on a reference and goes on with the sentence, `(24), which takes the long form`, opens
+        # nothing either.
         if opened and opened.group(2).strip() and (
                 re.match(r"^[.,;:)\]]*\s*\d*\s*$", opened.group(2)) or
                 (re.match(r"^[.,;:)\]]", opened.group(2)) and verdict == "english")):
             opened = None
-        # (1) tabulates these: in the middle of a sentence refers to the example; it is not one.
-        # An example in a practical orthography opens in lower case too, (2) a. ’e.e.ey’ tthu, set
-        # with its character or a wide gap after the number, and the line above can close on a
-        # footnote mark, bolded.3.
-        # A heading in lower case over its tiers opens one after a tag, (30) dim > ii under (BS).
+        # `(1) tabulates these:` in the middle of a sentence refers to the example, and is not one.
+        # An example in a practical orthography opens in lower case too, as `(2) a. ’e.e.ey’ tthu`. It sits with its
+        # character or a wide gap after the number, and the line above can close on a footnote mark, `bolded.3`.
+        # A heading in lower case over its tiers opens one after a tag, `(30) dim > ii` under (BS).
         if opened and at_line and opened.group(2)[:1].islower() and verdict == "english" and \
                 not tiers_below(at_line) and not language_head(opened.group(2)) and \
                 not re.match(r"^[a-j]\.\s", opened.group(2)) and \
@@ -790,9 +787,9 @@ def main():
         if opened:
             flush()
             opened_numbers.append(opened.group(1))
-            # An example a footnote sets out, (i) under footnote 2, is that footnote's.
-            # A footnote at the foot of one page can go on at the foot of the next, and its (i)
-            # sits there under the paper's own examples: Steiner's footnotes 2 and 12.
+            # An example that a footnote sets out, (i) under footnote 2, belongs to that footnote.
+            # A footnote at the foot of one page can go on at the foot of the next. Its (i) then sits there under the
+            # paper's own examples, as in footnotes 2 and 12 of Steiner.
             footnote_at = re.search(r"page (\d+)", rows[footnote_row][4]) if footnote_row is not None else None
             over_page = footnote_at is not None and int(footnote_at.group(1)) == page - 1 and \
                 re.fullmatch(r"[ivx]+", opened.group(1))
@@ -801,8 +798,8 @@ def main():
                 owner = re.match(r"^(\d{1,2})", rows[footnote_row][3])
                 if owner:
                     footnote_examples.append((len(rows), "(%s)" % opened.group(1), owner.group(1)))
-                    # The paper's own example the footnotes cut into goes on at the top of the
-                    # next page: (29a) of Steiner and Matthewson under footnote 17's (i).
+                    # The footnotes cut into the paper's own example, and it goes on at the top of the next page. An
+                    # instance is (29a) of Steiner and Matthewson under the (i) of footnote 17.
                     if example is not None and not re.fullmatch(r"[ivx]+", example[0]) and \
                             example[2] != "cells" and interrupted is None:
                         interrupted = (example, page)
@@ -842,8 +839,8 @@ def main():
                 (example[1] == 0 and DISPLAY.search(body) or DENOTATION.search(body)):
             example[2] = "display"
         if example is not None and example[2] == "display":
-            # A denotation runs as long as its formula, ⟦əc- TRGT.STAT⟧ = Stat = λg ∈ DmΔ ... target
-            # stativizer in Lyon, and a lettered one, (52) b. ⟦∅⟧ = pos, is its own sub-example.
+            # A denotation runs as long as its formula, `⟦əc- TRGT.STAT⟧ = Stat = λg ∈ DmΔ ... target stativizer` in
+            # Lyon. A lettered one, `(52) b. ⟦∅⟧ = pos`, is its own sub-example.
             denotation = DENOTATION.search(body)
             if denotation or DENOTATION_GOES_ON.search(body) or len(body.split()) <= 8 and not re.match(r"^\d{1,2} [A-Z]", body) and \
                     max(len(one) for one in body.split()) <= 30:
@@ -919,14 +916,13 @@ def main():
                     if type == "language":
                         rows.append(("(%s)" % example[0], language, "cited form", plain,
                                      "in the speaker comment, page %d" % page))
-                # A speaker's comment closes the tiers the way a translation does: Steiner's
-                # rejected sentences have the comment and no translation, and the prose after
-                # it is no gloss.
+                # A speaker's comment closes the tiers the way a translation does. Steiner's rejected sentences have the
+                # comment and no translation, and the prose after it is no gloss.
                 example[2] = "after"
                 continue
-        # The footnotes at the foot of a page can fall between two tiers of one example, as in (2)
-        # of Phillips et al., or inside a paragraph whose line above carries the mark, language.4.
-        # They are notes, and the example or the paragraph goes on over the page break.
+        # The footnotes at the foot of a page can fall between two tiers of one example, as in (2) of Phillips et al.
+        # They can also fall inside a paragraph whose line above carries the mark, `language.4`. They are notes, and
+        # the example or the paragraph goes on over the page break.
         if footnote_page is not None and page != footnote_page:
             footnote_page = None
         if example is None or example[2] in ("tiers", "cells", "after"):
@@ -943,10 +939,10 @@ def main():
                           r"|[^\W\d\s] %s(?=[,.;])|[.’”)] %s(?= [A-Z]))"
                           % (mark.group(1), mark.group(1), mark.group(1)), one[2])
                 for one in lines[max(0, at_line - 80):at_line] if one[1] in (page, page - 1))
-            # The next footnote in the paper's count, marked in the text above, opens one after a
-            # blank line as well as under a paragraph: 1 Thanks to Linda Smith, below the title's
-            # Dene1. One the engine missed, 5 A possible argument, leaves the next one a step past
-            # the count, and it is still the next footnote.
+            # The next footnote in the paper's count, marked in the text above, opens one after a blank line, as well as
+            # under a paragraph. An example is `1 Thanks to Linda Smith`, below the `Dene1` of the title. One that the
+            # engine missed, `5 A possible argument`, leaves the next one a step past the count, and it is still the
+            # next footnote.
             expected = bool(marked) and footnote_last < int(mark.group(1)) <= footnote_last + 2
             # The next number in the count can open on a lowercase name, 30 c̕úʔsinek does often use.
             loose = re.match(r"^(\d{1,2}) +[^\W\d_]", body) if not mark else None
@@ -955,15 +951,15 @@ def main():
                     for one in lines[max(0, at_line - 80):at_line] if one[1] in (page, page - 1)):
                 mark = marked = loose
                 expected = True
-            # Below one footnote, a line opening with the next number is the next footnote, however
-            # it opens: 7 I.e. kinnikinnik, 17  Nɬeʔkepmxcín, 24 =cin regularly surfaces.
+            # Below one footnote, a line that opens with the next number is the next footnote, however it opens.
+            # Examples are `7 I.e. kinnikinnik`, `17  Nɬeʔkepmxcín` and `24 =cin regularly surfaces`.
             if footnote_page == page and footnote_row is not None:
                 before = re.match(r"^(\d{1,2})", rows[footnote_row][3])
                 following = re.match(r"^(\d{1,2})\s+\S", body)
                 if before and following and int(following.group(1)) == int(before.group(1)) + 1:
                     mark = marked = following
-            # A footnote marked with a star, the acknowledgement under a title that ends Kíl*: the
-            # line opens * Háw'aa, and a line above it on its page carries the star.
+            # A footnote marked with a star, the acknowledgement under a title that ends `Kíl*`. The line opens
+            # `* Háw'aa`, and a line above it on its page carries the star.
             starred = re.match(r"^\* *[A-Z]", body) and any(
                 re.search(r"[^\W\d\s][.,;:!?’”)]*\*(?=[\s,.;:)]|$)", one[2])
                 for one in lines[max(0, at_line - 80):at_line] if one[1] == page)
@@ -986,8 +982,8 @@ def main():
                     fixed.append((page, "footnote inside an example", body,
                                   "(%s) goes on below it" % example[0]))
                 continue
-            # The footnotes close the page, and what follows one on its page is more of it, save an
-            # example the footnote sets out, (i) under footnote 3 of Kelly et al.
+            # The footnotes close the page, and what follows one on its page is more of it. The exception is an example
+            # that the footnote sets out, (i) under footnote 3 of Kelly et al.
             if footnote_page == page and footnote_row is not None and not EXAMPLE.match(body) and \
                     not any(" line " in one[0] for one in rows[footnote_row + 1:]):
                 last = rows[footnote_row]
@@ -1035,16 +1031,16 @@ def main():
         counted = collections.Counter(type for type, plain in types if type)
         gloss_line = counted["label"] >= 1 and counted["label"] >= counted["language"]
         tier_like = (counted["language"] + counted["label"]) > 0 or verdict != "english"
-        # A translation whose closing quote is on the next line: ... and what something seems / like.'
-        # A translation of three lines has a middle line with no quote at all, and the closing
-        # quote on the line after it.
+        # A translation whose closing quote is on the next line: `... and what something seems / like.'`.
+        # A translation of three lines has a middle line with no quote at all, and the closing quote on the line
+        # after it.
         closes = r"[’”']\W*(?:\([^()]*\)?\S*\s*)?$"
-        # The translation is open until the quote it opened with closes: ‘"I'm helping you!" is
-        # still open after the speech inside it closes. A straight quote closes itself.
+        # The translation is open until the quote that it opened with closes. `‘"I'm helping you!"` is still open after
+        # the speech inside it closes. A straight quote closes itself.
         opener = re.match(r"^[#?*%]*([‘“'])", rows[-1][3]) if rows else None
-        # The quote left open is the last one opened: a literal reading after the free one,
-        # `‘I jumped over the log in order to get my axe.’` (More literally: ‘I jumped over the
-        # log so, wraps with its own quote open in Davis's (58).
+        # The quote left open is the last one opened. In Davis's (58), a literal reading after the free one wraps with
+        # its own quote open: `‘I jumped over the log in order to get my axe.’` then
+        # `(More literally: ‘I jumped over the log so,`.
         last_open = rows[-1][3].rfind(opener.group(1)) + 1 if opener else 0
         if example is not None and example[2] == "after" and example[3] == len(rows) - 1 and \
                 opener and not re.search(
@@ -1056,19 +1052,18 @@ def main():
             rows.append((last[0], last[1], last[2], last[3] + " " + body, last[4]))
             fixed.append((page, "translation broken at a line end", body, rows[-1][3]))
             continue
-        # A speaker's comment runs on until its quote closes: BP: "I think it's okay, ... / what the
-        # thing you're eating is." (SF | BP 17 April 2025)
-        # The forms the comment cites sit after it as cited form rows of the example.
+        # A speaker's comment runs on until its quote closes:
+        # `BP: "I think it's okay, ... / what the thing you're eating is." (SF | BP 17 April 2025)`.
+        # The forms that the comment cites sit after it as cited form rows of the example.
         comment_at = len(rows) - 1
         while example is not None and comment_at > 0 and rows[comment_at][2] == "cited form" and \
                 rows[comment_at][0] == "(%s)" % example[0]:
             comment_at -= 1
-        # A comment heading, Comments on versions of (6):, gathers the quotes set on the lines
-        # right under it, each closing on its speaker's initials, (BS), and a line holding only
-        # the initials joins the quote above it. A blank line ends the comment, and a comment
-        # closed on initials ends there even with a quote the page leaves open, "It's saying "Oh,
-        # is there no good restaurant here?" (BS).
-        # A tag with its fields, (SF | KBG 12 Nov 2025), is the example's own row and joins nothing.
+        # A comment heading, `Comments on versions of (6):`, gathers the quotes on the lines right under it. Each
+        # closes on the initials of its speaker, (BS), and a line with only the initials joins the quote above it.
+        # A blank line ends the comment. A comment closed on initials ends there, even with a quote that the page
+        # leaves open, as `"It's saying "Oh, is there no good restaurant here?" (BS)`.
+        # A tag with its fields, `(SF | KBG 12 Nov 2025)`, is the example's own row and joins nothing.
         adjacent = number == comment_number + 1
         said = rows[comment_at][3] if rows else ""
         bracket_open = said.count("[") > said.count("]")
@@ -1093,9 +1088,9 @@ def main():
             rows.append((last[0], last[1], last[2], last[3] + " " + body, last[4]))
             fixed.append((page, "source broken inside its parentheses", body, rows[-1][3]))
             continue
-        # An example the page draws as a picture, the tree of Steiner and Matthewson's (44), has no
-        # line in the text layer, and the paragraph after it is prose. A context set with no
-        # Context: label, Hannon's (28), has its tiers a few lines below.
+        # An example that the page draws as a picture, the tree of Steiner and Matthewson's (44), has no line in the
+        # text layer. The paragraph after it is prose. A context set with no `Context:` label, Hannon's (28), has its
+        # tiers a few lines below.
         if example is not None and example[2] == "context" and example[1] == 0 and \
                 re.fullmatch(r"\d+", example[0]) and \
                 verdict == "english" and len(body) > 60 and not SUB.match(body) and \
@@ -1122,13 +1117,12 @@ def main():
             state = example[2]
             type = None
             previous = rows[-1][2] if rows and rows[-1][0].startswith(label + " line") else None
-            # A list of words by language, Davis and Nederveen's (1): a sub-character names the
-            # language and its source, b. Secwepemctsín (Kuipers 1974:54-55), and each line under
-            # it is a form, the root it is built on after <, and its gloss, páḷ<pəḷ>-t < √paḷ
-            # ‘stubborn’. The forms are that language's.
-            # The label can go on to say what the words are, a. Secwepemctsín adjectives formed
-            # with -t but without C1C2 reduplication in their (2); the name then carries a character
-            # of the alphabet.
+            # A list of words by language, Davis and Nederveen's (1). A sub-character names the language and its source,
+            # as `b. Secwepemctsín (Kuipers 1974:54-55)`. Each line under it is a form, the root that it comes from
+            # after <, and its gloss, as `páḷ<pəḷ>-t < √paḷ ‘stubborn’`. The forms are that language's.
+            # The label can go on to say what the words are, as
+            # `a. Secwepemctsín adjectives formed with -t but without C1C2 reduplication` in their (2). The name then
+            # carries a character of the alphabet.
             named = re.match(r"^([^\W\d_][^\s()]*?)\d{0,2}\s*(?:\([^()]*\d{4}[^()]*\))?\s*$", body)
             captioned = re.match(r"^([^\W\d_][^\s()]*)\s+[a-z][^‘“]*$", body)
             if not named and captioned and any(one in alphabet for one in captioned.group(1)):
@@ -1141,10 +1135,9 @@ def main():
                 rows.append(("%s line %d" % (label, example[1]), authors, "note", body,
                              "page %d, the language of the words below" % page))
                 continue
-            # The footnotes at the foot of a page can fall inside a list: the end of footnote 5 and
-            # footnote 6 under the first three words of Davis and Nederveen's (4a), which goes on
-            # at the top of the next page. A numbered footnote under the last word of a list, 12
-            # under (5d), ends the list.
+            # The footnotes at the foot of a page can fall inside a list. The end of footnote 5 and all of footnote 6
+            # sit under the first three words of Davis and Nederveen's (4a). That list goes on at the top of the next
+            # page. A numbered footnote under the last word of a list, 12 under (5d), ends the list.
             if label in word_lists and state == "context" and example[1] > 0 and \
                     not WORD_ROW.match(body) and not named:
                 numbered = re.match(r"^(\d{1,2})\s+\S", body)
@@ -1182,15 +1175,16 @@ def main():
                     rows.append((where, word_lists[label], "root", root,
                                  "page %d, the root of %s" % (page, form)))
                 continue
-            # A line in a practical orthography of plain characters and apostrophes, suw’ thu.u.uytus
-            # ’imush, which the engine cannot tell from English: no character of the phonemic
-            # alphabet, and its words carry the glottal stop as ’ or are no English word. It is the
-            # first line of an example, with a tier or a translation below it, or the next line
-            # of an orthography line that wraps, ’u kwsus wulh kwunnuhwus. A first line can open
-            # on the quote of what someone says, “’a.a.a, me’.
-            # A wrapped line can be one or two words, thuyumun. or hwu saay’.
-            # A sentence of the prose citing forms, Here the passive and active forms of the verb
-            # root √tth’as, carries the words English cannot do without.
+            # A line in a practical orthography of plain characters and apostrophes, `suw’ thu.u.uytus ’imush`, which
+            # the engine cannot tell from English. It has no character of the phonemic alphabet, and its words carry the
+            # glottal stop as ’ or are no English word.
+            #
+            # It is the first line of an example, with a tier or a translation below it. It can also be the next line of
+            # an orthography line that wraps, `’u kwsus wulh kwunnuhwus`. A first line can open on the quote of what
+            # someone says, `“’a.a.a, me’`.
+            # A wrapped line can be one or two words, `thuyumun.` or `hwu saay’`.
+            # A sentence of the prose that cites forms carries the words that English cannot do without, as
+            # `Here the passive and active forms of the verb root √tth’as`.
             function_words = sum(1 for one in re.findall(r"[A-Za-z]+", body)
                                  if one.lower() in ("the", "and", "of", "in", "is", "to", "a",
                                                     "that", "with", "by", "for", "as", "are",
@@ -1212,43 +1206,45 @@ def main():
                 for one in lines[at_line + 1:at_line + 5])) or (
                 state == "tiers" and previous == "transcription" and plain_characters and
                 (orthographic or len(body.split()) <= 2))
-            # A tier and its segmentation define the same characters, e nicola lake over e=nicola lake,
-            # whatever the words are: a name in a tier reads as English and is still a tier.
+            # A tier and its segmentation write the same characters, `e nicola lake` over `e=nicola lake`, whatever the
+            # words are. A name in a tier reads as English and is still a tier.
             following_line = lines[at_line + 1][2] if at_line + 1 < len(lines) else ""
             spells_next = state in ("context", "tiers") and "=" not in body and \
                 re.search(r"\S[=-]\S", following_line) and \
                 same_characters(body, following_line) and not re.match(r"^[#?*%]*[‘“]", body)
-            # Over a line of glosses the stems can be defined apart, yukw-@t under yugwit.
+            # Over a line of glosses, a segmentation can write the stems apart, `yukw-@t` under `yugwit`.
             spells_previous = state == "tiers" and previous == "transcription" and \
                 re.search(r"\S[=-]\S", body) and (same_characters(body, rows[-1][3]) or (
                     same_characters(body, rows[-1][3], 0.6) and at_line + 1 < len(lines) and
                     gloss_shaped(lines[at_line + 1][2], 4)))
-            # A segmentation of words with no boundary in them, bax ’nii’y under Bax ’nii’y., is
-            # the sentence again without its capital and full stop, with the glosses below it.
+            # A segmentation of words with no boundary in them, `bax ’nii’y` under `Bax ’nii’y.`, is the sentence again.
+            # It lacks its capital and full stop, and has the glosses below it.
             if state == "tiers" and previous == "transcription" and not spells_previous and \
                     body != rows[-1][3] and same_characters(body, rows[-1][3]) and \
                     at_line + 1 < len(lines):
                 below = collections.Counter(
                     token_type(one)[0] for one in lines[at_line + 1][2].split())
                 spells_previous = below["label"] >= 1 and below["label"] >= below["language"]
-            # A context whose sentence the line end broke goes on, whatever it quotes: ask / zuzúʔt
-            # kʷn̕ ‘Aren't you late?’ He responds: in Steiner and Matthewson's (33).
-            # A new sentence of the context can quote a form too, There are no other salmon in the
-            # room. Ella says k̓ʷén̓ete xéʔe tk sqyéytn ‘Look at that salmon’, where the context above
-            # does not end on the colon that introduces the example.
-            # The author's format where the words read as English: the sentence, its segmentation
-            # definition the same characters, and a line of gloss labels, Luu amhl goodi’y dim wil wis. /
-            # luu am =hl goot-’y [dim wil wis] / in good =CN heart-1SG.II PROSP COMP rain in Brown's (2).
-            # The segmentation can define the stems apart, Guhl yugwit jebin? over gu =hl yukw-@t
-            # [jep-@-n ], and the glosses be mostly English words, not.exist =CN fish.
+            # A context whose sentence the line end broke goes on, whatever it quotes. An example is
+            # `ask / zuzúʔt kʷn̕ ‘Aren't you late?’ He responds:` in Steiner and Matthewson's (33).
+            # A new sentence of the context can quote a form too, where the context above does not end on the colon that
+            # introduces the example. An example is
+            # `There are no other salmon in the room. Ella says k̓ʷén̓ete xéʔe tk sqyéytn ‘Look at that salmon’`.
+            #
+            # Where the words read as English, the author's format has three lines. They are the sentence, its
+            # segmentation with the same characters, and a line of gloss labels. An example is Brown's (2):
+            # `Luu amhl goodi’y dim wil wis.` / `luu am =hl goot-’y [dim wil wis]` /
+            # `in good =CN heart-1SG.II PROSP COMP rain`.
+            # The segmentation can write the stems apart, `Guhl yugwit jebin?` over `gu =hl yukw-@t [jep-@-n ]`. The
+            # glosses can be mostly English words, `not.exist =CN fish`.
             shaped = state == "context" and at_line + 2 < len(lines) and \
                 gloss_shaped(lines[at_line + 2][2], 4) and not gloss_shaped(body) and \
                 (same_characters(body, lines[at_line + 1][2]) or (
                     same_characters(re.sub(r"^[a-j]\.\s+[*#?]*", "", body), lines[at_line + 1][2], 0.6) and
                     re.search(r"\S[=-]\S|\[", lines[at_line + 1][2]))) and \
                 not re.match(r"^[#?*%]*[‘“']", body)
-            # A sentence with its tiers under it is no context going on, Nee diit jeps Cindyhl
-            # ha'niit'aa. under Dependent clause: no transitive suffix in Brown's (8b).
+            # A sentence with its tiers under it does not continue a context. An example is
+            # `Nee diit jeps Cindyhl ha'niit'aa.` under `Dependent clause: no transitive suffix` in Brown's (8b).
             context_open = state == "context" and rows and rows[-1][2] == "note" and \
                 rows[-1][0].startswith(label + " line") and not shaped and \
                 not re.search(r"\S[=-]\S|∅", body) and (
@@ -1262,9 +1258,9 @@ def main():
                 rows.append((last[0], last[1], last[2], last[3] + " " + body, last[4]))
                 fixed.append((page, "context broken at a line end", body, rows[-1][3]))
                 continue
-            # The heading an example opens with, dim precedes complementizer wil:, over its tiers.
-            # One with no colon heads them where the tiers start right under it, Yukw selects
-            # complement headed by =hl over Yukwhl dim wis. / yukw [=hl dim wis] / PROG =CN PROSP rain.
+            # The heading that an example opens with, `dim precedes complementizer wil:`, sits over its tiers.
+            # One with no colon heads them where the tiers start right under it. An example is
+            # `Yukw selects complement headed by =hl` over `Yukwhl dim wis. / yukw [=hl dim wis] / PROG =CN PROSP rain`.
             tiers_under = tiers_below(at_line)
             # A heading of two particles in their order, dim > ii, reads as no English.
             heads = state == "context" and example[1] == 0 and len(body) < 90 and \
@@ -1285,10 +1281,10 @@ def main():
                 type = "segmentation"
             elif orthographic:
                 type = "transcription"
-            # A translation, or a reading the speaker rejected, marked #‘ or ?‘ or *‘. Some pages set
-            # it in straight quotes, 'This bag will rip if I fill it up.'
-            # A quote holding clitic boundaries is speech in the language, the first tier of
-            # Davis's (50e), "waʔ=ɬkan=á=qaʔ ƛ̓it zəwát-ən-Ø.
+            # A translation, or a reading that the speaker rejected, marked #‘ or ?‘ or *‘. Some pages set it in
+            # straight quotes, `'This bag will rip if I fill it up.'`.
+            # A quote with clitic boundaries is speech in the language, as the first tier of Davis's (50e),
+            # `"waʔ=ɬkan=á=qaʔ ƛ̓it zəwát-ən-Ø`.
             elif re.match(r"^[#?*%]*(?:[‘“]|'(?=[#*?]*[A-Z]))", body) and \
                     (state != "after" or body[0] in "#?*%") and \
                     not re.search(r"[^\W\d_]=[^\W\d_]", body):
@@ -1298,11 +1294,11 @@ def main():
             elif state == "tiers" and previous in ("gloss", "word gloss") and \
                     re.match(r"^'[^\W\d_]", body):
                 type = "translation"
-            # An English tier under the gloss, word for word, with another tier or the translation
-            # on the line after it: the spouse of coyote and, under REM DET AUG married both OBL
-            # coyote ADD in wlwlmelst and Janzen's (1).
-            # A line with a quote, a colon, a speaker's tag or a closing full stop is a translation,
-            # Intended: ‘We are here.’ or The berries might be ripe now. (Dave Michele | CF).
+            # An English tier under the gloss, word for word, with another tier or the translation on the line after it.
+            # An example is `the spouse of coyote and` under `REM DET AUG married both OBL coyote ADD` in wlwlmelst and
+            # Janzen's (1).
+            # A line with a quote, a colon, a speaker's tag or a closing full stop is a translation. Examples are
+            # `Intended: ‘We are here.’` and `The berries might be ripe now. (Dave Michele | CF)`.
             elif state == "tiers" and previous == "gloss" and verdict == "english" and \
                     len(body) < 80 and not re.search(r"[‘’“”'≠|:]|[.?!]\s*(?:\(|$)", body) and \
                     at_line + 1 < len(lines) and (
@@ -1328,8 +1324,8 @@ def main():
                     (re.match(r"^[A-Z][^:‘“]*:$", body) or
                      re.match(r"^[A-Z][A-Za-z ()/,.-]*:\s[^‘“]*$", body)) and verdict == "english":
                 type = "context"
-            # A second reading right under the first, whole on its line: Steiner's (7) sets
-            # ‘#You’ll get sick if you eat that.’ over ‘You’ll get sick if you eat it.’
+            # A second reading right under the first, whole on its line. Steiner's (7) sets
+            # `‘#You’ll get sick if you eat that.’` over `‘You’ll get sick if you eat it.’`
             elif state == "after" and example[3] == len(rows) - 1 and \
                     re.match(r"^‘[^‘’]*(?:’\w[^‘’]*)*’\s*(?:\([^()]*\))?\s*$", body):
                 type = "translation"
@@ -1337,8 +1333,8 @@ def main():
             # in Steiner's (82), under the last gloss.
             elif state == "tiers" and previous == "gloss" and re.match(r"^’[^’]+[.?!]’$", body):
                 type = "translation"
-            # A label can be set in parentheses with the word meaning, (Intended meaning: ‘Tell him
-            # where to go.’) in Davis's (26b).
+            # A label can sit in parentheses with the word `meaning`, as `(Intended meaning: ‘Tell him where to go.’)`
+            # in Davis's (26b).
             elif re.sub(r"^\(|\s+meaning$", "", body.split(":")[0]) in TRANSLATION_LABELS and \
                     ":" in body and state in ("tiers", "after"):
                 type = "translation"
@@ -1363,13 +1359,12 @@ def main():
             elif state in ("context", "tiers") and tier_like and not (
                     previous == "segmentation" and (verdict == "english"
                                                     or counted["language"] == 0)):
-                # The tier under an orthography line is its segmentation, whether the
-                # word carries a boundary: ƛ̓ʊxʷegən above ƛ̓əxʷigan.
-                # Two tiers the page wraps together go on in turn, a segmentation and its glosses
-                # and then the rest of each: [kʷa cəkláw̓sxən]] in Davis's (23), where the
-                # segmentation above and its glosses both left a bracket open. A new sentence
-                # after the glosses starts with every bracket closed, and so does the rest of a
-                # formula, p]] under Steiner's (73a).
+                # The tier under an orthography line is its segmentation, whether the word carries a boundary:
+                # `ƛ̓ʊxʷegən` above `ƛ̓əxʷigan`.
+                # Two tiers that the page wraps together go on in turn: a segmentation and its glosses, and then the
+                # rest of each. An example is `[kʷa cəkláw̓sxən]]` in Davis's (23), where the segmentation above and its
+                # glosses both left a bracket open. A new sentence after the glosses starts with every bracket closed,
+                # and so does the rest of a formula, `p]]` under Steiner's (73a).
                 wrapped_pair = previous == "gloss" and len(rows) >= 2 and \
                     rows[-2][2] == "segmentation" and rows[-2][0].startswith(label) and \
                     all(one[3].count("[") > one[3].count("]") for one in rows[-2:])
@@ -1459,8 +1454,8 @@ def main():
                                                   rows[at][4].endswith(", footnote")):
                 break
 
-    # The prose of a footnote goes on under its example to the foot of the page: Lit. ‘Where a
-    # fire started under the fruits was there.’ under footnote 12's (i) in Steiner.
+    # The prose of a footnote goes on under its example to the foot of the page. An example is
+    # `Lit. ‘Where a fire started under the fruits was there.’` under footnote 12's (i) in Steiner.
     def page_of(row):
         found = re.search(r"page (\d+)", row[4])
         return int(found.group(1)) if found else None
@@ -1483,11 +1478,11 @@ def main():
             fixed.append((str(page_of(row)), "footnote prose under its example, read as body text",
                           row[3][:80], "footnote %s" % owner))
 
-    # An author sets the tiers one way throughout. Where nearly every segmentation in the paper
-    # has its gloss on the line below, a line under a segmentation that reads as a transcription
-    # is a gloss that repeats the word: kéʔe / kéʔe / kéʔe in Steiner's (i).
-    # The line has to repeat the segmentation itself. Kelly et al. (7) sets its second word out of
-    # order, tᶿ=niy-əxʷ above tᶿ niyʊxʷ., and that line is the transcription.
+    # An author sets the tiers one way throughout. In some papers nearly every segmentation has its gloss on the
+    # line below. There, a line under a segmentation that reads as a transcription is a gloss that repeats the
+    # word: `kéʔe / kéʔe / kéʔe` in Steiner's (i).
+    # The line must repeat the segmentation itself. Kelly et al. (7) sets its second word out of order,
+    # `tᶿ=niy-əxʷ` above `tᶿ niyʊxʷ.`, and that line is the transcription.
     def example_of(row):
         return row[0].split(" line ")[0] if " line " in row[0] else None
     below_segmentation = collections.Counter(
@@ -1504,8 +1499,8 @@ def main():
                 fixed.append((re.search(r"page (\d+)", rows[at][4]).group(1),
                               "gloss that repeats its word, read as a transcription",
                               rows[at][3], rows[at][0] + " gloss"))
-        # A second segmentation under a segmentation that puts a gloss label where the first has
-        # the morpheme is the gloss: DET=nɬeʔképmx under e=nɬeʔképmx, a name glossed as itself.
+        # A second segmentation under a segmentation, which puts a gloss label where the first has the morpheme, is
+        # the gloss. An example is `DET=nɬeʔképmx` under `e=nɬeʔképmx`, a name glossed as itself.
         for at in range(1, len(rows)):
             if rows[at][2] == "segmentation" and rows[at - 1][2] == "segmentation" and \
                     example_of(rows[at]) and example_of(rows[at]) == example_of(rows[at - 1]) and \
@@ -1515,11 +1510,11 @@ def main():
                 fixed.append((re.search(r"page (\d+)", rows[at][4]).group(1),
                               "gloss read as a second segmentation", rows[at][3], rows[at][0] + " gloss"))
 
-    # A paper that numbers its examples again in every section, (1) to (17) in §3.1 and (1) again in
-    # §3.2, gets the section in front of each example's where: §3.2 (1) line 2.
-    # A reference in the prose that opens a line, (13), the overt NPs or (3) never saw the object,
-    # is not a second (13): only the examples the engine opened are counted, and a paper that
-    # numbers again in every section starts over at (1).
+    # A paper can number its examples again in every section, as (1) to (17) in §3.1 and (1) again in §3.2. The
+    # where of each example then has the section in front: §3.2 (1) line 2.
+    # A reference in the prose that opens a line, as `(13), the overt NPs` or `(3) never saw the object`, is not
+    # a second (13). The engine counts only the examples that it opened. A paper that numbers again in every
+    # section starts over at (1).
     if opened_numbers.count("1") > 1:
         current = "front"
         for at, row in enumerate(rows):
