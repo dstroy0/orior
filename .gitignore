@@ -8,6 +8,10 @@ build-*/
 # A copy in git is one that goes stale the moment a page changes.
 site/
 
+# The miner configuration holds a payout address or a pool account name. miner.example.json is the
+# template in git, and each machine keeps its own miner.json.
+/examples/miner/miner.json
+
 # A deps/ folder at the root is never carried. The slash anchors it to the root, and a directory
 # named deps anywhere below is carried as usual.
 /deps/

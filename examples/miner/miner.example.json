@@ -1,0 +1,14 @@
+{
+  "version": "v2",
+  "pool": "solo.ckpool.org",
+  "port": 3333,
+  "address": "",
+  "user": "",
+  "difficulty": 0,
+  "threads": 0,
+  "normal_priority": false,
+  "no_gpu": false,
+  "dry_run": false,
+  "restart": false,
+  "cache": ""
+}

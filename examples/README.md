@@ -11,7 +11,7 @@ examples/<subject>/<stage>/<file>.py
 
 The subject says what type of corpus it reads. The stage says which step of the reading it does. So `language/4_measure/cross_corpus.py` measures text.
 
-Every script sits at that depth, and not one counts parent directories to locate the repository. They start at their own directory and walk up until they find `archive/src/python`. Counting parent directories breaks when a file moves: its distance from the root changes, its imports fail, and the breakage does not show up until somebody runs the script.
+Every script sits at that depth, and not one counts parent directories to locate the repository. They start at their own directory and walk up until they find `archive/src/python`. A count of parent directories breaks when a file moves. Its distance from the root changes, and its imports fail. The breakage does not show until somebody runs the script.
 
 ## Stages
 
@@ -26,7 +26,7 @@ A corpus goes through these in order.
 | `5_sift`      | filters candidates using the necessary condition               |
 | `6_oracle`    | compares the result against an answer published elsewhere      |
 
-Where a subject has no script for a stage, the directory is absent. That means nobody has written one, not that the stage does not apply.
+Where a subject has no script for a stage, the directory is absent. That means that no script exists yet, and not that the stage does not apply.
 
 ## Subjects
 
@@ -47,17 +47,19 @@ Where a subject has no script for a stage, the directory is absent. That means n
 
 Start with `any_corpus`. Those scripts do not know what they are reading, and the rest of the work rests on that claim. Each other subject runs the same steps with domain knowledge added at stage one, and some of them can check the answer at stage six.
 
-Five directories sit outside the subject and stage layout. `0_experimental` holds work that does not yet fit a subject or a stage. `00_blob_viz_tools` is the viewers, a Python generator plus an HTML template each, documented in its own README. `proofing` is the precision work the ledger rests on, the pi-digit reading and the device and host arithmetic engines. `cell_tracking` is a full implementation with its own build scripts, configs, source and tests, not a walk through a corpus. `qasm` is the exact qubit states read from OpenQASM, with its own build scripts, source and tests.
+Six directories sit outside the subject and stage layout. `0_experimental` holds work that does not yet fit a subject or a stage. `00_blob_viz_tools` is the viewers, a Python generator plus an HTML template each, documented in its own README. `proofing` is the precision work the ledger rests on, the pi-digit reading and the device and host arithmetic engines. `cell_tracking` is a full implementation with its own build scripts, configs, source and tests, not a walk through a corpus. `qasm` is the exact qubit states read from OpenQASM, with its own build scripts, source and tests.
+
+`miner` is the SHA-256 stratum miner on the CPU and the device, documented in its own README.
 
 The proofs of the posits the ledger cites are not under `examples/`. They are in `evidence/proofs/posits/`.
 
 ## Failures are retained
 
-A reading that was tried and did not work stays in its subject, next to whatever came after it. Reading Dravidian languages at the codepoint put the family further apart than unrelated languages, and that script is still in `language/4_measure` beside the two that repaired it. Anyone who finds only the repair cannot tell what it repaired.
+A reading that does not work stays in its subject, next to whatever comes after it. A read of Dravidian languages at the codepoint puts the family further apart than unrelated languages. That script stays in `language/4_measure` beside the two that repair it. Anyone who finds only the repair cannot tell what it repairs.
 
 ## Fetchers are not examples
 
-Scripts that download or generate corpora do not sit here. They are in `utils/maint/data/fetch/`. Getting a corpus is a separate job from reading one.
+Scripts that download or generate corpora do not sit here. They are in `utils/maint/data/fetch/`. To get a corpus is a separate job from a read of one.
 
 ## Nothing in the engine imports from here
 
