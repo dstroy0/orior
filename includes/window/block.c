@@ -18,8 +18,8 @@ static mmgr_ring *const s_rings[GUI_BLOCK_COUNT] = {GUI_BLOCK_PARTS(GUI_BLOCK_RI
 #define GUI_BLOCK_SEGMENTS_AT(name_, segments_) segments_,
 static const unsigned int s_segments[GUI_BLOCK_COUNT] = {GUI_BLOCK_PARTS(GUI_BLOCK_SEGMENTS_AT)};
 
-// The block: its pages and their bytes, a segment's bytes, each part's place from the pages' start, and how far each
-// segment's pages are committed from the segment's start
+// The block: its pages and their bytes, and the bytes of a segment. Then the place of each part from the start of the
+// pages. Last, how far the commit of the pages of each segment goes from its start
 typedef struct
 {
     unsigned char *pages;
@@ -90,9 +90,9 @@ typedef struct
     unsigned long long offset;
     unsigned long long bytes;
 } BlockRange;
-// the pages of part `part` from `offset` for `bytes` committed, each segment the range reaches committed from its start
-// as far as the range reaches in it, to the next boundary: 1, or 0 where the block has no pages, the part is none, or
-// the range passes the part
+// the pages of part `part` from `offset` for `bytes`, committed. The call commits each segment that the range reaches
+// from its start, as far as the range reaches in it, to the next boundary.
+// The result is 1, or 0 where the block has no pages, the part is none, or the range passes the part
 EMBED_INLINE int block_range_committed(const BlockRange *args)
 {
     if ((s_block.pages == NULL) || (args->part >= GUI_BLOCK_COUNT))
@@ -125,8 +125,8 @@ EMBED_INLINE int block_range_committed(const BlockRange *args)
     return 1;
 }
 
-// the pages of segment `segment` of part `part` committed from the segment's start as far as `bytes` reach: 1, or 0
-// where the block has no pages, the part or segment is none, or `bytes` pass the segment
+// the pages of segment `segment` of part `part`, committed from the start of the segment as far as `bytes` reach. The
+// result is 1, or 0 where the block has no pages, the part or segment is none, or `bytes` pass the segment
 EMBED_INLINE int block_committed(const GuiBlockPartCfg *args)
 {
     if ((args->part >= GUI_BLOCK_COUNT) || (args->segment >= s_segments[args->part]) || (args->bytes > s_block.segment))
@@ -161,7 +161,8 @@ mmgr_ring *gui_block_ring(const GuiBlockPartCfg *args)
             return NULL;
         }
     }
-    // the segments' sizes are the block's, each a whole number of boundaries, so no size needs to be a power of two
+    // the sizes of the segments are those of the block, each a whole number of boundaries. No size thus needs to be a
+    // power of two
     return anularis.init(&(AnularisCfg){.ring = s_rings[args->part],
                                         .buf = s_block.pages + s_block.at[args->part],
                                         .capacity = (embed_word)(s_block.segment * s_segments[args->part]),
@@ -194,8 +195,8 @@ int gui_block_raster_init(const GuiBlockRasterCfg *args)
                       .height = args->height, .pixels = (GuiColor *)(void *)span);
 }
 
-// the three segments the framebuffers lie in committed as far as a window `width` by `height` draws: 1, or 0 where
-// the block has no pages or the window passes a segment
+// the three segments of the framebuffers, committed as far as a window `width` by `height` draws. The result is 1, or
+// 0 where the block has no pages or the window passes a segment
 EMBED_INLINE int block_framebuffer_committed(const GuiBlockFramebufferCfg *args)
 {
     const unsigned long long window =
