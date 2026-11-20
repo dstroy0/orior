@@ -577,7 +577,6 @@ includes/parsers/target_parse.cu	6
 includes/parsers/tree_folder.h	3
 includes/parsers/who.c	5
 includes/parsers/who.h	2
-includes/raster/raster.h	36
 includes/utf8/utf8.c	3
 includes/utf8/utf8.h	1
 includes/window/base.c	20

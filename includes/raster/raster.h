@@ -50,10 +50,10 @@ typedef struct
     int height;
 } GuiRect;
 
-// A raster: its size and its pixels, row after row with no gap, in a cell of the cellblock; and where its pixels are
-// a framebuffer's, the pages they lie in, the bytes of those pages and how far into them the pixels start, the pages
-// NULL for any other raster. Last, the part a frame writes: an empty clip lets the frame write the whole raster, and a
-// clip that is not empty stops every write outside it
+// A raster. It holds its size and its pixels, row after row with no gap, in a cell of the cellblock. Where its pixels
+// belong to a framebuffer, it holds their pages, the bytes of those pages and how far into them the pixels start. The
+// pages are NULL for any other raster. Last, it holds the part that a frame writes. An empty clip lets the frame write
+// the whole raster, and a clip that is not empty stops each write outside it
 typedef struct
 {
     unsigned int width;
@@ -65,13 +65,13 @@ typedef struct
     GuiRect clip;
 } GuiRaster;
 
-// the pixels a frame's row is positioned in: its width rounded up to GUI_RASTER_PITCH, which positions every row on a 256-byte
-// step a copy into the system's own surfaces reads whole
+// the pixels that hold a row of a frame: its width, rounded up to GUI_RASTER_PITCH. That puts each row on a 256-byte
+// step, which a copy into the surfaces of the system reads whole
 #define GUI_RASTER_PITCH 64u
 unsigned int gui_raster_pitch(const GuiRasterWidthCfg *args);
 
-// A mask of coverage: its size, where its top left is from the pen on the baseline, and each pixel's share of
-// what it covers, 0 to 255, row after row
+// A mask of coverage. It holds its size, and its top left from the pen on the baseline. It holds the share of each
+// pixel of what it covers, 0 to 255, row after row
 typedef struct
 {
     unsigned int width;
@@ -88,15 +88,17 @@ GuiRect gui_rect_intersect(const GuiRasterOneCfg *args);
 // a raster of `width` by `height` made clear over `pixels`, which hold width by height words: 1, or 0 where there is
 // no size or no pixels
 int gui_raster_init(const GuiRasterWidthXCfg *args);
-// `rect` filled with `color`, blended by its alpha over what is there, no further than the raster; the same with its
-// corners rounded by `radius` pixels, each corner's pixels covered by their share inside the arc; and a line from
-// x0, y0 to x1, y1 in `color`, one pixel wide
+// `rect` filled with `color`, blended by its alpha over what is there, no further than the raster. The second call
+// does the same with its corners rounded by `radius` pixels. The pixels of each corner get their share inside the arc.
+// The third call draws a line from x0, y0 to x1, y1 in `color`, one pixel wide
 void gui_raster_fill(const GuiRasterRectColorCfg *args);
 void gui_raster_round(const GuiRasterRectColorCfg *args);
-// The ground a cut positions bare: the raster it is read from, pixel for pixel, or `color` where the raster is NULL, with
-// `over` blended over it by its alpha, and `grain_color` blended over that by the alpha the tile of `grain` bytes,
-// `tile` a side, gives the pixel at the grain color's own alpha, where a grain is given; the tile is positioned from the
-// raster's own top left and repeated
+// The ground that a cut lays bare. It is the source raster, pixel for pixel, or `color` where the raster is NULL. `over`
+// goes over it by its alpha.
+//
+// Where the caller gives a grain, `grain_color` goes over that. Its alpha is the alpha that the tile of `grain` bytes,
+// `tile` a side, gives the pixel, at the alpha of the grain color. The tile starts from the top left of the raster and
+// repeats
 typedef struct
 {
     const GuiRaster *raster;
@@ -109,16 +111,20 @@ typedef struct
 
 // `color` blended over `background_fill` by the color's alpha, the pixel left opaque
 GuiColor gui_color_over(const GuiRasterCfg *args);
-// the corners of `rect` cut round by `radius`: each corner pixel blended with the ground by the share of it outside
-// the arc, what was drawn inside the rectangle left located inside the arcs
+// the corners of `rect` cut round by `radius`. Each corner pixel blends with the ground by its share outside the arc.
+// The pixels inside the rectangle stay inside the arcs
 void gui_raster_corners_cut(const GuiRasterRectRadiusBackgroundCfg *args);
-// a pane of `inner` tint on the table `background_fill` positions: every pixel of `rect`, or of its corners' squares alone
-// where `corners_only` is set, the ground's own pixel with the ink at an alpha between the table's tint's outside the
-// pane's arcs of `radius` and `inner`'s inside them, by the pixel's share inside, then the ground's grain; the two
-// tints share one ink, and a pane's edge is the ink thickening, never a second layer
+// a pane of `inner` tint on the table that `background_fill` positions. It writes each pixel of `rect`, or of the
+// squares of its corners alone where `corners_only` is on.
+//
+// Each pixel is the pixel of the ground with the ink. Outside the arcs of `radius` of the pane, the ink has the alpha of
+// the tint of the table. Inside them it has the alpha of `inner`, by the share of the pixel inside. The grain of the
+// ground goes over that.
+//
+// The two tints share one ink. The edge of a pane is where the ink gets thicker, and never a second layer
 void gui_raster_pane(const GuiRasterRectRadiusBackgroundCfg *args);
-// The lines the work is in: along each edge its color and its width in pixels, the lines bending round the
-// work's corners from one into the next
+// The lines round the work. Each edge has its color and its width in pixels. The lines bend round the corners of the
+// work from one into the next
 typedef struct
 {
     GuiColor top;
@@ -131,24 +137,28 @@ typedef struct
     int left_width;
 } GuiOutline;
 
-// the work's outline positioned: `work` cut round by `radius` to the `table`, `inside`, the work less its lines, cut round
-// by a pixel less to the `clear` ground, the lines between the two positioned along each edge and round each corner; and
-// round each of the `count` holes the parts make in the work: the hole's corners inside the work filleted by the
-// radius, the table positioned inside each fillet's arc, the work's corners on the hole turned out to the table, and the
-// line of the edge the hole reaches run along the hole's sides inside the work, round its fillets and its turns; a
-// corner of the work a hole takes whole is the hole's
+// the outline of the work. `work` gets its corners cut round by `radius` to the `table`. `inside`, the work less its
+// lines, gets its corners cut round by a pixel less to the `clear` ground. The lines go between the two, along each edge
+// and round each corner.
+//
+// The parts make `count` holes in the work. The corners of each hole inside the work get a fillet of the radius, with
+// the table inside the arc of each fillet. The corners of the work on the hole turn out to the table.
+//
+// The line of the edge that the hole reaches runs along the sides of the hole inside the work, round its fillets and
+// turns. A corner of the work that a hole takes whole belongs to the hole
 void gui_raster_outline(const GuiRasterRadiusWorkCfg *args);
-// the squares of `notch`'s corners inside `work`, each the notch's fillet there, `radius` a side, no more than half
-// the notch's shorter side, into `squares`, sized for four: their count
+// the squares of the corners of `notch` inside `work`, into `squares`, with room for four. Each is the fillet of the
+// notch there, `radius` a side, half of the shorter side of the notch at max. The result is their count
 unsigned int gui_raster_notch_fillets(const GuiRasterRadiusCfg *args);
-// `notch`, a hole in `work` reaching one or more of its edges, cut out of what was drawn in `work`: the notch filled
-// with the ground, and the work's outline rounded by `radius` at each turn it makes round the notch, a corner of the
-// notch inside the work filleted, what was drawn left located outside the arc, and a corner of the notch on the
-// work's edge cut, the ground positioned outside the arc; a notch reaching none of the work's edges is cut as a rounded
-// hole
+// `notch`, a hole in `work` that reaches one or more of its edges, cut out of the pixels of `work`. The ground fills
+// the notch. The outline of the work gets a round of `radius` at each turn that it makes round the notch.
+//
+// A corner of the notch inside the work gets a fillet, and the pixels outside the arc stay. A corner of the notch on
+// the edge of the work gets a cut, with the ground outside the arc. A notch that reaches no edge of the work is a
+// rounded hole
 void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args);
-// `rect` grained inside its corners rounded by `radius`: each pixel blended with white by the alpha the tile of
-// `alpha` bytes, `tile` a side, gives it, the tile positioned from the raster's own top left and repeated
+// a grain inside `rect`, with its corners rounded by `radius`. Each pixel blends with white by the alpha that the tile
+// of `alpha` bytes, `tile` a side, gives it. The tile starts from the top left of the raster and repeats
 void gui_raster_grain(const GuiRasterRectRadiusCfg *args);
 // a line from x0, y0 to x1, y1, each pixel on it blended in `color` by the color's alpha, cut to `clip` where `clip` is
 // not empty
@@ -156,36 +166,44 @@ void gui_raster_line(const GuiRasterColorX0Cfg *args);
 // `mask` positioned with its top left at x, y, each pixel blended in `color` by its coverage and the color's alpha, no
 // further than `clip` and the raster
 void gui_raster_mask(const GuiRasterXYColorCfg *args);
-// a picture's lanes positioned with its top left at x, y, no further than `clip` and the raster: `width` by `height`
-// pixels, row after row, each with the ink's red and blue lanes by its share with half of 255 in, `red_blue`, its
-// green lane the same, `green`, and the rest of 255 the ground saves, `rest`; each pixel of the raster takes the
-// ground's lanes by the rest plus the ink's, the one blend every drawing goes through, positioned straight along
+// the lanes of a picture, with its top left at x, y, no further than `clip` and the raster. The picture is `width` by
+// `height` pixels, row after row.
+//
+// Each pixel has the red and blue lanes of the ink by its share, with half of 255 in, in `red_blue`. Its green lane is
+// the same, in `green`. The rest of 255, the part of the ground that stays, is in `rest`.
+//
+// Each pixel of the raster takes the lanes of the ground by the rest, plus the lanes of the ink. Each drawing goes
+// through this blend, straight along
 void gui_raster_lanes_layout(const GuiRasterWidthXCfg *args);
-// a row of `width` coverage bytes stretched across the raster's row `y` from `left` to `right`, each a count of pixels
-// with sixteen bits of fraction, no further than the raster: each pixel blended in `color` by the mean of what of the
-// row lands on it and the share of it the row covers
+// a row of `width` coverage bytes, stretched across the row `y` of the raster from `left` to `right`. Each is a count
+// of pixels with sixteen bits of fraction, no further than the raster. Each pixel blends in `color` by two things. They
+// are the mean of the part of the row on it, and the share of it that the row covers
 unsigned int gui_raster_row_cover(const GuiRasterWidthCfg *args);
-// a span of `count` pixels of coverage positioned in `color` at x, y, y off the raster positioning nothing: the blit a stage of a
-// movement is made of
+// a span of `count` pixels of coverage in `color` at x, y. A y off the raster positions nothing. This is the blit that
+// makes a stage of a movement
 void gui_raster_span_layout(const GuiRasterXYColorCountCfg *args);
-// the share of 255 of a pixel inside an arc of `reach` pixels, the pixel `across` and `down` whole pixels from the
-// arc's center, read from a table made once for the reach: every rounded corner, fillet and turn of a frame reads it
+// the share of 255 of a pixel inside an arc of `reach` pixels. The pixel is `across` and `down` whole pixels from the
+// center of the arc. The share comes from a table made once for the reach. Each rounded corner, fillet and turn of a
+// frame reads it
 unsigned int gui_raster_arc_cover(const GuiRasterReachCfg *args);
-// the raster made `mask`'s picture in `color`: each pixel the color with the mask's cover as its alpha, straight
-// over nothing, the raster's size the mask's, for an icon the system takes with its own alpha
+// the raster made into the picture of `mask` in `color`. Each pixel is the color, with the cover of the mask as its
+// alpha, straight over nothing. The raster has the size of the mask. This is for an icon that the system takes with
+// its own alpha
 void gui_raster_stencil(const GuiRasterXYColorCfg *args);
 // `mask` in `color` positioned at x, y over a picture that saves its own alpha, straight, no further than the picture. And
 // such a picture positioned on `raster` at x, y, no further than the raster, each pixel blended by its alpha and `opacity`
 // of 255
 void gui_raster_stenciled_over(const GuiRasterXYCfg *args);
 void gui_raster_picture_layout(const GuiRasterXCfg *args);
-// the 4 by 4 ordered threshold at x, y, 0 to 15, as the page's shader orders it: the pixel's own parity across and
-// down weighs max, its pair's parity the rest
+// the 4 by 4 ordered threshold at x, y, 0 to 15, in the order of the shader of the page. The parity of the pixel across
+// and down weighs most, and the parity of its pair weighs the rest
 unsigned int gui_raster_order(const GuiRasterRectCfg *args);
-// a dot about x, y of `radius`, each in pixels, soft-edged: each pixel takes `color` by the color's alpha and the
-// pixel's share inside the dot, a pixel-wide ramp from all of it at the dot's edge to none a pixel out, the share
-// dithered by a 4 by 4 ordered threshold below one level of 255, which puts a share between two levels down as both,
-// cut to `clip` where `clip` is not empty
+// a soft dot about x, y of `radius`, each in pixels. Each pixel takes `color` by the alpha of the color and the share of
+// the pixel inside the dot.
+//
+// The share is a ramp one pixel wide, from all of it at the edge of the dot to none a pixel out. A 4 by 4 ordered
+// threshold below one level of 255 dithers the share. A share between two levels then goes down as both. The dot cuts
+// to `clip` where `clip` is not empty
 void gui_raster_dot(const GuiRasterColorCfg *args);
 struct GuiRasterWidthXCfg
 {
@@ -313,8 +331,9 @@ struct GuiRasterXYCfg
     GuiRaster *picture;
 };
 
-// The corners a rounded fill rounds, a bit each; none set rounds all four. A rounded fill with a `stroke` draws a line
-// that many pixels wide in place of the whole: along each edge that meets a rounded corner, and round those corners
+// The corners that a rounded fill rounds, a bit each. With no bit on, it rounds all four. A rounded fill with a `stroke`
+// draws a line that many pixels wide, in place of the whole fill. The line runs along each edge that meets a rounded
+// corner, and round those corners
 #define GUI_RASTER_CORNER_TOP_LEFT 1u
 #define GUI_RASTER_CORNER_TOP_RIGHT 2u
 #define GUI_RASTER_CORNER_BOTTOM_LEFT 4u
