@@ -12,19 +12,19 @@
 typedef struct GuiIconsCoverCfg GuiIconsCoverCfg;
 typedef struct GuiIconsCfg GuiIconsCfg;
 
-// the cache's entries, one rasterized icon each; when every entry is in use the cache is emptied and icons are
-// rasterized again on demand. The units of an icon's square; and the width of an icon's line in those units, as the
+// the entries of the cache, one rasterized icon each. When each entry is in use, the code empties the cache, and it
+// rasterizes icons again on demand. The units of an icon's square; and the width of an icon's line in those units, as the
 // page draws them
 #define GUI_ICON_CACHE_ENTRIES 64u
 #define GUI_ICON_UNITS 16.0f
 #define GUI_ICON_STROKE 1.1f
-// the eye's box in its own units, its longer side, and its line in those units as the page strokes it: a line's
-// width in pixels at a size is the stroke by the size over the side, and no thinner than a pixel
+// the box of the eye in its own units, its longer side, and its line in those units as the page strokes it. The width
+// of a line in pixels at a size is the stroke by the size over the side, and no thinner than a pixel
 #define GUI_LOGO_SIDE 255.2f
 #define GUI_LOGO_STROKE 2.2f
 
-// A cache entry: whether it is in use, its key (the icon, the pixel size and the line width), and the coverage mask,
-// allocated in a cell of its own
+// A cache entry: whether it is in use, and its key (the icon, the pixel size and the line width). Then the coverage
+// mask, allocated in a cell of its own
 typedef struct
 {
     int used;
@@ -42,16 +42,16 @@ typedef struct
     unsigned long long covers_used;
 } GuiIcons;
 
-// the icons holding none drawn; and every cell of theirs given back
+// the icons, with no drawn icon in them. Then each cell of theirs given back
 void gui_icons_init(const GuiIconsCfg *args);
-// whether an icon is named `name`
+// whether an icon has the name `name`
 int gui_icon_exists(const GuiIconsCfg *args);
-// the icon named `name` drawn on a square of `size` pixels a side, its line `stroke` pixels wide, and saved: its mask,
-// positioned with its top left at the square's, or NULL where no icon has the name or a cell could not be taken
+// the icon named `name`, drawn on a square of `size` pixels a side, its line `stroke` pixels wide, and kept. The result
+// is its mask, with its top left at that of the square. It is NULL where no icon has the name or the call got no cell
 const GuiMask *gui_icon_get(const GuiIconsCfg *args);
 // the shape of `corners` corners, each an x and a y in pixels, filled on `cover`, `width` by `height` floats from 0 to
-// 1: each pixel of it takes its share inside the shape where that is more than it has, a sample inside where the edges
-// round it wind about it, as SVG's nonzero fill has it
+// 1. Each pixel of it takes its share inside the shape where that is more than it has.
+// A sample is inside where the edges round it wind about it, as the nonzero fill of SVG has it
 void gui_icons_polygon_fill(const GuiIconsCoverCfg *args);
 struct GuiIconsCoverCfg
 {
