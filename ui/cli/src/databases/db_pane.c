@@ -556,7 +556,7 @@ static void pane_confirmed(const CliPromptCfg *args)
 {
     CliDbPaneState *const pane = &g_cli_db_pane_state;
     pane->asking = 0;
-    char *const statement = pane->confirming;
+    const char *const statement = pane->confirming;
     const unsigned long long size = pane->confirming_size;
     pane->confirming = NULL;
     pane->confirming_size = 0ULL;

@@ -612,7 +612,7 @@ int cli_search_pane_row(const CliSearchPaneCfg *args)
 
 void cli_search_pane_toggle(const CliSearchPaneCfg *args)
 {
-    Search *const search = &s_search;
+    const Search *const search = &s_search;
     if (args->at >= search->rows)
     {
         return;

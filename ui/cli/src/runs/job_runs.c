@@ -345,7 +345,7 @@ EMBED_INLINE void line_read(const JobRunsCtx *args)
 // is never released, and the run that ended is
 EMBED_INLINE void runs_retained(const JobRunsCtx *args)
 {
-    CliJobRunsStore *const store = &g_cli_job_runs_store;
+    const CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun ended_run;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &ended_run, .bytes = sizeof(ended_run)});

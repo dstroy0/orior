@@ -401,7 +401,7 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
 EMBED_INLINE void opened_found(const GitLogCtx *args)
 {
     (void)args;
-    GitLog *const log = &s_log;
+    const GitLog *const log = &s_log;
     for (unsigned int record = 0u; record < log->opens; record += 1u)
     {
         GitLogOpened opened;

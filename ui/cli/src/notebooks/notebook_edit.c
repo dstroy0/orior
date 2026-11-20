@@ -139,7 +139,7 @@ int cli_notebook_cell_input(const CliNotebookEditFocusCfg *args)
 
 int cli_notebook_cell_key(const CliNotebookEditKeyCfg *args)
 {
-    CliNotebookModel *const model = EMBED_CALL(cli_notebook_model_internal.of, CliNotebookModelCtx, .key = args->key);
+    const CliNotebookModel *const model = EMBED_CALL(cli_notebook_model_internal.of, CliNotebookModelCtx, .key = args->key);
     if ((model == NULL) || (model->focused == CLI_NOTEBOOK_NONE))
     {
         return 0;

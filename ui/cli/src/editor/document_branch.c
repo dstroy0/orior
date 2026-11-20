@@ -2250,7 +2250,7 @@ unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
 // run or the names' roles are not read yet
 static unsigned int run_roles_locked(const CliDocumentKeyLineCfg *args)
 {
-    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if ((one == NULL) || (args->line >= one->lines.lines) || !one->roles_complete)
     {
         return 0u;
@@ -2481,7 +2481,7 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
 // walk coming to it
 EMBED_INLINE void branch_cache_moved(const DocumentBranchCtx *args)
 {
-    CliStoredText *const one = args->one;
+    const CliStoredText *const one = args->one;
     const CliStoredLines *const lines = &one->lines;
     const unsigned int was_from = one->cached_from;
     const unsigned int was_to = (one->cached_to < lines->lines) ? one->cached_to : lines->lines;

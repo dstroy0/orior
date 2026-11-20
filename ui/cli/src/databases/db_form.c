@@ -294,7 +294,7 @@ EMBED_INLINE void form_saved(const DbFormCtx *args)
 EMBED_INLINE void form_removed(const DbFormCtx *args)
 {
     CliDbPaneState *const pane = &g_cli_db_pane_state;
-    CliDbPaneForm *const form = &pane->form;
+    const CliDbPaneForm *const form = &pane->form;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     CliDbConnection removed;

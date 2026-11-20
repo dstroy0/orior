@@ -109,7 +109,7 @@ EMBED_INLINE int is_on(const NotebookRowsCtx *args)
 
 void cli_notebook_model_stale_settled(const CliNotebookModelCtx *args)
 {
-    CliNotebookModel *const model = args->model;
+    const CliNotebookModel *const model = args->model;
     for (unsigned int at = 0u; at < model->cells; at += 1u)
     {
         CliNotebookCell cell = {0};

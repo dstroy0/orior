@@ -5179,7 +5179,7 @@ EMBED_INLINE void view_line_place(const CliStoredText *one, unsigned long long l
 // writes the span it put into `from_pointer` and `to_pointer`. It gives 1, or 0 where the clipboard took nothing.
 EMBED_INLINE int view_copied(const ViewCtx *args)
 {
-    CliView *const view = args->view;
+    const CliView *const view = args->view;
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = view->key);
     if ((one == NULL) || view->paged || (one->lines.lines == 0u))
     {

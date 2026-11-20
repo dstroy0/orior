@@ -64,7 +64,7 @@ void cli_catalog_emptied(const CliCatalogCellsCfg *args)
 
 void cli_catalog_alloc(const CliCatalogCellsCfg *args)
 {
-    CellOwner *cells = args->cells;
+    const CellOwner *cells = args->cells;
     unsigned int jobs_max = args->jobs_max;
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = args->catalog, .jobs = NULL, .jobs_max = 0u,
                .params = NULL, .params_max = 0u, .steps = NULL, .steps_max = 0u, .request = NULL, .args_max = 0u,

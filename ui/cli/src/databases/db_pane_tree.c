@@ -679,7 +679,7 @@ int cli_db_pane_menu(const CliDbPaneTreeCfg *args)
 // connection
 EMBED_INLINE int first_rows_run(const DbPaneTreeCtx *args)
 {
-    CliDbPaneState *const pane = &g_cli_db_pane_state;
+    const CliDbPaneState *const pane = &g_cli_db_pane_state;
     if (pane->chosen == CLI_DB_PANE_NONE)
     {
         return 0;
@@ -707,7 +707,7 @@ EMBED_INLINE int first_rows_run(const DbPaneTreeCtx *args)
 
 int cli_db_pane_command(const CliDbPaneTreeCfg *args)
 {
-    CliDbPaneState *const pane = &g_cli_db_pane_state;
+    const CliDbPaneState *const pane = &g_cli_db_pane_state;
     const char *const first_word = (args->count != 0u) ? args->words[0] : NULL;
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "db-choose", .cap = 32ULL}))
     {

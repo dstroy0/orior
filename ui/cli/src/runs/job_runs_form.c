@@ -46,7 +46,7 @@ EMBED_INLINE unsigned long long form_starts_bytes(const FormCtx *args)
 // its bytes, through a cell of the call's own, the value written and the starts after it moved
 EMBED_INLINE void form_set(const FormCtx *args)
 {
-    CliJobRunsStore *const store = &g_cli_job_runs_store;
+    const CliJobRunsStore *const store = &g_cli_job_runs_store;
     if ((store->form == NULL) || (args->param >= store->form_params))
     {
         return;

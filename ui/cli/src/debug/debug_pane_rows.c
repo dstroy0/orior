@@ -479,7 +479,7 @@ void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
 {
     (void)args;
     CliDebugPaneStore built = {0};
-    CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
+    const CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
     const int framed =
         g_cli_debug_pane.has_session && g_cli_debug_pane.paused && (g_cli_debug_pane.frame_at < frames->count);
     CliDebugPaneEntry chosen = {0};
@@ -745,7 +745,7 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
                                                    .text = args->text, .at = from, .size = args->length, .set = "\n");
         const int ended = stop < args->length;
         const unsigned long long piece = stop - from;
-        CliDebugPaneEntry *const last =
+        const CliDebugPaneEntry *const last =
             (console->count != 0u) ? EMBED_CALL(rows_console_at, DebugPaneRowsCtx, .at = console->count - 1u) : NULL;
         const int runs_on = (last != NULL) && (last->line_type == args->type) && !last->ended;
         if (runs_on)

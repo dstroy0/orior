@@ -214,7 +214,7 @@ int cli_db_pane_connected(const CliDbPaneCtx *args)
 EMBED_INLINE void chosen_closed(const DbPaneActCtx *args)
 {
     (void)args;
-    CliDbPaneState *const pane = &g_cli_db_pane_state;
+    const CliDbPaneState *const pane = &g_cli_db_pane_state;
     CliDbOpen *open = NULL;
     (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
                                                             .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
