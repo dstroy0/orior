@@ -760,7 +760,6 @@ src/cu/transpiler/lstar/protocol/table/identity/walk.cu	30
 src/cu/transpiler/lstar/protocol/table/klq_decoder.cu	17
 src/cu/transpiler/lstar/protocol/table/klq_identity.cu	24
 src/cu/transpiler/lstar/protocol/table_text.h	3
-src/cu/transpiler/lstar/protocol/teacher/run_channel.h	93
 src/cu/transpiler/lstar/protocol/teacher/run_channel/admitted.c	19
 src/cu/transpiler/lstar/protocol/teacher/run_channel/airlock.c	22
 src/cu/transpiler/lstar/protocol/teacher/run_channel/carried.c	26
@@ -1060,7 +1059,6 @@ utils/maint/data/fetch/recipe_dates.py	11
 utils/maint/data/fetch/vocalization_domain.py	17
 utils/maint/data/fetch/wals_fetch.py	12
 utils/maint/data/fetch/wiki_probe.py	9
-utils/maint/data/salishan/corpus_derivation.py	91
 utils/maint/data/salishan/corpus_purity.py	16
 utils/maint/data/salishan/corpus_script_extraction/case_delta.py	10
 utils/maint/data/salishan/corpus_script_extraction/coverage_check.py	55
@@ -1138,7 +1136,6 @@ utils/maint/data/salishan/extract/ops.py	9
 utils/maint/data/salishan/extract/oracle.py	4
 utils/maint/data/salishan/extract/outline_match.py	8
 utils/maint/data/salishan/extract/pairs.py	60
-utils/maint/data/salishan/extract/paper_sift.py	95
 utils/maint/data/salishan/extract/pua_crops.py	3
 utils/maint/data/salishan/extract/raise_ops.py	5
 utils/maint/data/salishan/extract/repaired_lines.py	5
@@ -1201,7 +1198,6 @@ utils/maint/hardware/compressor_test.py	19
 utils/maint/prose/ban_evidence.py	14
 utils/maint/prose/build_fixes.py	9
 utils/maint/prose/check_fixes.py	15
-utils/maint/prose/dependence_decay.py	91
 utils/maint/prose/english_gate.py	22
 utils/maint/prose/fix_prose.py	18
 utils/maint/prose/grade_tex.py	31
