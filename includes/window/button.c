@@ -4,7 +4,7 @@
 // button's press a slide of the claim's, the press on the ease-out and the release on the bead's spring
 #include "button.h"
 
-// the press slide's rest, so the release's wobble below rest stays above 0
+// the rest of the press slide. The wobble of the release below rest then stays above 0
 #define BUTTONS_PRESS_REST GUI_FIXED_ONE
 
 typedef struct
@@ -51,7 +51,7 @@ EMBED_INLINE unsigned long long buttons_press_lasts_ms(const GuiSlide *press)
 }
 
 // The button `tool`'s press slide sent to `press` at `time_ms` on `curve` from where it is. A release while the
-// press still runs waits for the press to end, so a quick click shows the whole press and the spring back
+// press still runs waits for the press to end. A quick click then shows the whole press and the spring back
 EMBED_INLINE void buttons_press_send(const ButtonsCtx *args)
 {
     GuiSlide *const press = &args->buttons->press[args->tool];
@@ -78,7 +78,7 @@ void gui_buttons_press(const GuiButtonsMoveCfg *args)
     {
         return;
     }
-    // a button held while another is pressed is let go first
+    // a press on a button lets go of the button that stays pressed first
     gui_buttons_release(args);
     args->buttons->pressed = args->tool;
     EMBED_CALL(buttons_press_send, ButtonsCtx, .buttons = args->buttons, .tool = args->tool,
