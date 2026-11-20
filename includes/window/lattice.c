@@ -26,13 +26,13 @@ static double lattice_remainder(double value, double by)
     return arith_remainder(value, by);
 }
 
-// the probes across and down at which the loop's change is read, and the least move of a point that shows
+// the probes across and down at which the code reads the change of the loop, and the least move of a point that shows
 #define LATTICE_PROBES 24u
 #define LATTICE_PROBE_COUNT ((LATTICE_PROBES + 1u) * (LATTICE_PROBES + 1u))
 #define LATTICE_STEP_DISPLAYED 0.25
 
-// how far apart the loop is looked at for its next change, a display's frame at 60 a second, and how close the
-// moment found is to the first that shows, in seconds
+// how far apart the looks at the loop for its next change are, a frame of a display at 60 a second. Then how close the
+// found moment is to the first that shows, in seconds
 #define LATTICE_LOOK 0.016
 #define LATTICE_LOOK_CLOSE 0.001
 
@@ -72,16 +72,17 @@ LatticeSlot *lattice_slot(embed_u32 slot)
     return &s_lattice_slots[slot];
 }
 
-// where a slot's dots start in its segment of the block: after its offsets, on a boundary
+// where the dots of a `slot` start in its segment of the block: after its offsets, on a boundary
 static embed_word lattice_dots_at(embed_u32 capacity)
 {
     return ((embed_word)capacity * 2u + GUI_BLOCK_POSITION - 1u) & ~(embed_word)(GUI_BLOCK_POSITION - 1u);
 }
 
-// `bytes` from the start of the slot's segment of the block's lattice part: the span, or 0 where the segment has no room
+// `bytes` from the start of the segment of `slot` in the lattice part of the block: the span, or 0 where the segment
+// has no room
 static void *lattice_taken(const LatticeSlot *lattice, embed_word bytes)
 {
-    // the slot's place among the slots is its segment
+    // the place of `slot` among the LATTICE_SLOTS lattices is its segment
     const unsigned int segment = (unsigned int)(lattice - s_lattice_slots);
     return EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_LATTICE, .segment = segment,
                       .bytes = bytes);
@@ -135,11 +136,11 @@ static embed_i8 lattice_offset(double share)
     return (embed_i8)arith_floor(share * LATTICE_OFFSET_MAX + 0.5);
 }
 
-// the seed of the point at `row` and `column`, the same wherever the box it is arranged over ends
+// the seed of the point at `row` and `column`, the same wherever the box under the lattice ends
 static embed_u32 lattice_seed_at(embed_u32 row, embed_u32 column)
 {
-    // the row and the column mixed into the lattice's seed, each by an odd constant, which retains two points near
-    // each other from starting their draws alike
+    // the row and the column, mixed into the seed of the lattice, each by an odd constant. Two points near each other
+    // then do not start their draws alike
     return LATTICE_SEED ^ (row * 0x9e3779b1u) ^ (column * 0x85ebca77u);
 }
 
@@ -274,8 +275,8 @@ void lattice_shaded(const LatticePens *pens, LatticeShades *shades)
     }
 }
 
-// The disorder over the lattice with the loop at one moment: a plane over the place across and down, each from 0 to 1,
-// its slope across and down and its value at the top left, retained between `least` and 1
+// The disorder over the lattice with the loop at one moment. It is a plane over the place across and down, each from 0
+// to 1. It holds its slope across and down, and its value at the top left, kept between `least` and 1
 typedef struct
 {
     double across;
@@ -284,9 +285,9 @@ typedef struct
     double least;
 } LatticePlane;
 
-// the plane of the disorder with the loop at `at`: a spread's front ramping across; the whole lattice at one share;
-// and a side ordered away from the angle, the ordered share before the ramp, which a gathering holds above what is
-// still to gather
+// the plane of the disorder with the loop at `at`. For a spread, its front ramps across. For one share, the whole
+// lattice is at that share. For a side, the order is away from the angle, with the share in order before the ramp. A
+// collect holds that share above the part that it has yet to collect
 static LatticePlane lattice_plane(const LatticeStageAt *at)
 {
     if (at->type == LATTICE_SPREAD)
@@ -320,8 +321,8 @@ static double lattice_loose(const LatticePlane *plane, double u, double v)
     return loose;
 }
 
-// the disorder at x, y of the plane read in the floats the points move in: its slopes `across` and `down`, its value
-// `start` at the top left, retained between `least` and 1
+// the disorder at x, y of the plane, read in the floats that the points move in. The plane has the slopes `across` and
+// `down`, and the value `start` at the top left, kept between `least` and 1
 static float lattice_loose_at(float across, float down, float start, float least, float x, float y)
 {
     const float plain = across * x + down * y + start;
@@ -332,7 +333,7 @@ static float lattice_loose_at(float across, float down, float start, float least
     return (plain > 1.0f) ? 1.0f : plain;
 }
 
-// the share of its reach a point at x, y has gone from its origin: its disorder squared, as its shift is
+// the share of its reach that a point at x, y is away from its origin: its disorder squared, as its shift is
 static float lattice_gone_at(float across, float down, float start, float least, float x, float y)
 {
     const float loose = lattice_loose_at(across, down, start, least, x, y);
@@ -354,8 +355,8 @@ embed_u32 lattice_dots_moved(LatticeSlot *lattice, double width, double height, 
         lattice->dots_capacity = lattice->capacity;
     }
     const LatticePlane plane = lattice_plane(lattice_stage(seconds));
-    // the plane's slopes a pixel across and down, read once in the floats each point is moved in, and a byte of offset
-    // as a share of the reach; a slope, a share and a place on the page are well inside what a float holds
+    // the slopes of the plane a pixel across and down, read once in the floats that each point moves in. Then a byte of
+    // offset as a share of the reach. A slope, a share and a place on the page are well inside what a float holds
     const float across = (float)(plane.across / width);
     const float down = (float)(plane.down / height);
     const float start = (float)plane.start;
@@ -374,8 +375,8 @@ embed_u32 lattice_dots_moved(LatticeSlot *lattice, double width, double height, 
             const float shift = loose * loose * reach;
             // the shade is a whole step from 0 to LATTICE_SHADES less one
             const embed_u32 shade = (embed_u32)(loose * steps + 0.5f);
-            // the ink fades with the alignment about the point: its own share of its reach gone and its four nearest
-            // neighbors', a fifth each, against the fade's span
+            // the ink fades with the alignment about the point. Its own share of its reach gone and those of its four
+            // nearest neighbors count a fifth each, against the span of the fade
             const float gone = (loose * loose + lattice_gone_at(across, down, start, least, x - step, y) +
                                 lattice_gone_at(across, down, start, least, x + step, y) +
                                 lattice_gone_at(across, down, start, least, x, y - step) +
@@ -420,8 +421,8 @@ static void lattice_probe(double seconds, float *out)
     }
 }
 
-// 1 where the disorder probed at `now` moves some point from where the disorder probed at `then` put it by a quarter
-// pixel, which the soft-edged points show as a shift of shade; 0 where no point moved that far
+// 1 where the disorder probed at `now` moves a point by a quarter pixel from where the disorder probed at `then` put
+// it. The soft-edged points show that as a shift of shade. 0 where no point moved that far
 static embed_u32 lattice_probes_moved(double now)
 {
     lattice_probe(now, s_lattice_loose_now);
