@@ -7,17 +7,17 @@
  */
 /**
  * @file arm.h
- * @brief One interface every implementation of the exact measure presents, letting a driver call any.
+ * @brief The one interface of each implementation of the exact measure. A driver can call any of them through it.
  * @author dstroy0 (Douglas Quigg (dstroy0) <dquigg123@gmail.com>
  *
- * @note Every engine returns the same counts. Where two disagree one of them has a defect, and
- *       nothing about the difference is a tradeoff. This is the same contract OriorEngine
- *       carries for the search kernel and it is retained for the same reason.
- * @note The portable arm is the reference. It is always present, uses no intrinsic and no compiler
- *       extension, and every other arm is graded against it on the same data.
- * @note An arm reports itself absent at run time where the machine cannot run it. A build that
- *       compiled an AVX2 arm still has to query the processor before calling it, since the build
- *       machine and the running machine are not the same machine.
+ * @note Each engine returns the same counts. Where two disagree, one of them has a defect, and the
+ *       difference is no tradeoff. OriorEngine has the same contract for the search kernel, for the same
+ *       reason.
+ * @note The portable arm is the reference. It is always present, and uses no intrinsic and no compiler
+ *       extension. The tests grade each other arm against it on the same data.
+ * @note An arm reports at run time that it is absent where the machine cannot run it. A build with an
+ *       AVX2 arm must still ask the processor before it calls the arm. The build machine and the machine
+ *       that runs the program are different machines.
  */
 #ifndef ORIOR_EXACT_ARM_H
 #define ORIOR_EXACT_ARM_H
@@ -25,7 +25,7 @@
 #include "exact_integer.h"
 
 #ifdef __cplusplus
-/* The GPU arm is compiled as C++ by nvcc and defines its arm here, while every other arm is C. */
+/* nvcc compiles the GPU arm as C++, and it defines its arm here. Each other arm is C. */
 extern "C"
 {
 #endif
@@ -33,9 +33,9 @@ extern "C"
     /**
      * @brief One implementation of the operations a measure requires of an exact integer.
      *
-     * @note `equal` and `compare` are the two the measure spends its time in. `agreement` is offered
-     *       whole because an arm may parallelize across positions instead of across limbs. The GPU arm
-     *       does exactly that, and neither vectorized arm does.
+     * @note The measure spends its time in `equal` and `compare`. The arm gives `agreement` whole, because
+     *       an arm can work in parallel across positions in place of across limbs. The GPU arm does that,
+     *       and neither vectorized arm does.
      */
     typedef struct
     {
@@ -47,7 +47,7 @@ extern "C"
     } OriorExactArm;
 
     /**
-     * @brief The portable C11 arm, the reference every other arm is graded against.
+     * @brief The portable C11 arm, the reference for the grade of each other arm.
      *
      * @return A pointer to the arm. Never null, since this arm runs anywhere a C11 compiler built it.
      */
@@ -56,11 +56,11 @@ extern "C"
 #if defined(ORIOR_EXACT_HAVE_AVX2) && ORIOR_EXACT_HAVE_AVX2
 
     /**
-     * @brief The AVX2 arm, comparing eight limbs per instruction.
+     * @brief The AVX2 arm, which compares eight limbs per instruction.
      *
      * @return A pointer to the arm, or NULL where this processor does not carry AVX2.
-     * @note Queries the processor instead of trusting the build. A binary compiled with AVX2 available
-     *       runs on machines that do not have it, and calling in would raise an illegal instruction.
+     * @note Asks the processor, and does not trust the build. A program compiled where AVX2 is present
+     *       runs on machines without it. A call into the arm there raises an illegal instruction.
      */
     const OriorExactArm *orior_exact_avx2_arm(void);
 
@@ -69,12 +69,13 @@ extern "C"
 #if defined(ORIOR_EXACT_HAVE_AVX512) && ORIOR_EXACT_HAVE_AVX512
 
     /**
-     * @brief The AVX-512 arm, comparing sixteen limbs per instruction.
+     * @brief The AVX-512 arm, which compares sixteen limbs per instruction.
      *
      * @return A pointer to the arm, or NULL where this processor lacks AVX-512F and AVX-512BW.
-     * @note Never run. No machine in this project carries AVX-512. This arm is graded on the
-     *       instructions it emits and not on any answer it produced. It calls itself avx512-unrun, which
-     *       prevents a row of results from showing it beside a run arm with the difference invisible.
+     * @note No test runs it on hardware, because no machine in this project has AVX-512. The grade of
+     *       this arm reads the instructions that it emits, and not an answer of it.
+     * @note Its name is avx512-unrun. A row of results then cannot show it beside an arm that runs and
+     *       hide the difference.
      */
     const OriorExactArm *orior_exact_avx512_arm(void);
 
@@ -83,7 +84,7 @@ extern "C"
 #if defined(ORIOR_EXACT_HAVE_NEON) && ORIOR_EXACT_HAVE_NEON
 
     /**
-     * @brief The NEON arm, comparing four limbs per instruction.
+     * @brief The NEON arm, which compares four limbs per instruction.
      *
      * @return A pointer to the arm, or NULL where this processor does not carry NEON.
      */
@@ -94,12 +95,12 @@ extern "C"
 #if defined(ORIOR_EXACT_HAVE_SVE) && ORIOR_EXACT_HAVE_SVE
 
     /**
-     * @brief The SVE arm, comparing whatever vector length the part turns out to carry.
+     * @brief The SVE arm, which compares at the vector length of the part, whatever that is.
      *
      * @return A pointer to the arm, or NULL where the kernel does not report SVE.
-     * @note Never run. The Raspberry Pi 5 is a Cortex-A76 and is NEON only. This arm is graded on
-     *       the instructions it emits and calls itself sve-unrun for the same reason the AVX-512 one
-     *       does.
+     * @note No test runs it on hardware. The Raspberry Pi 5 is a Cortex-A76, and is NEON only.
+     * @note The grade of this arm reads the instructions that it emits. Its name is sve-unrun, for the
+     *       same reason as the AVX-512 arm.
      */
     const OriorExactArm *orior_exact_sve_arm(void);
 
@@ -108,11 +109,11 @@ extern "C"
 #if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
 
     /**
-     * @brief The CUDA arm, taking one position per thread instead of one limb per lane.
+     * @brief The CUDA arm, which takes one position per thread and not one limb per lane.
      *
      * @return A pointer to the arm, or NULL where no usable device is present.
-     * @note Its `equal` and `compare` run on the host and are the portable ones. A single comparison is
-     *       far too small to be worth crossing the bus for, and only `agreement` is passed over.
+     * @note Its `equal` and `compare` run on the host, and are the portable functions. A single comparison
+     *       is far too small for a bus crossing, and the arm passes only `agreement` to the device.
      */
     const OriorExactArm *orior_exact_cuda_arm(void);
 
