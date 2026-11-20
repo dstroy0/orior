@@ -19,12 +19,17 @@ typedef struct GuiBaseFrameCfg GuiBaseFrameCfg;
 typedef struct GuiBaseCfg GuiBaseCfg;
 typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 
-// the grain's levels, 0 to its max alpha; the sixteenths a share is positioned in; the layers: nothing over the lattice, the
-// editor's ground, the side's, the tabs row's surface, that surface at each of its sixteenths of its alpha as the claim
-// fades the row, the side's ground at each of its sixteenths as its pane slides and the terminal's panel arrives, the
-// editor's ground at each of its sixteenths as the panel's views arrive, the glass sheet at each grain level, a pane at
-// each, and a pane's edge at each of its sixteenths of a pixel at each, the edge's tint between the sheet's and the
-// pane's by its share; and the entries in all
+// the levels of the grain, 0 to its max alpha, and the sixteenths that a share sits in. Then the layers:
+//   - nothing over the lattice.
+//   - the ground of the editor, the ground of the side, and the surface of the tabs row.
+//   - that surface at each of its sixteenths of its alpha, as the claim fades the row.
+//   - the ground of the side at each of its sixteenths, as its pane slides and the panel of the terminal arrives.
+//   - the ground of the editor at each of its sixteenths, as the views of the panel arrive.
+//   - the glass sheet at each grain level, and a pane at each.
+//   - the edge of a pane at each of its sixteenths of a pixel, at each grain level. The tint of the edge is between the
+//     sheet and the pane, by its share.
+//
+// Then the entries in all
 #define GUI_BASE_GRAIN_LEVELS 19u
 #define GUI_BASE_PARTS ((unsigned int)GUI_FRAME_PARTS)
 #define GUI_BASE_CLEAR 0u
@@ -39,8 +44,8 @@ typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 #define GUI_BASE_PANE_PART (GUI_BASE_PANE + GUI_BASE_GRAIN_LEVELS)
 #define GUI_BASE_ENTRIES (GUI_BASE_PANE_PART + ((GUI_BASE_PARTS - 1u) * GUI_BASE_GRAIN_LEVELS))
 
-// An entry: a layer's lanes over the lattice, red and blue in one word and green in another, each lane the layer's
-// share of its color with half of 255 in it, and the rest of 255 the lattice's pixel saves
+// An entry: the lanes of a layer over the lattice, red and blue in one word and green in another. Each lane is the share
+// of the layer of its color, with half of 255 in it. Then the rest of 255 that the pixel of the lattice keeps
 typedef struct
 {
     unsigned int red_blue;
@@ -48,8 +53,8 @@ typedef struct
     unsigned int rest;
 } GuiBaseEntry;
 
-// the max rectangles the map is positioned in, the max bands of rows their edges cut it into and the max runs a band
-// holds, each a rectangle's edge or the map's at max
+// the most rectangles in the map, and the most bands of rows that their edges cut it into. Then the most runs that a
+// band holds, each an edge of a rectangle or of the map at max
 #define GUI_BASE_LAYERS 48u
 #define GUI_BASE_BANDS (2u * GUI_BASE_LAYERS)
 #define GUI_BASE_RUNS (2u * GUI_BASE_LAYERS)
@@ -79,12 +84,18 @@ typedef struct
     const GuiBaseRun *run;
 } GuiBaseMap;
 
-// The base: the size of its map; the entries; the sheet's and a pane's entries arranged as the grain's tile is, one
-// for each of the tile's pixels, lane by lane in a cell of their own, the sheet's tile first and the pane's after,
-// which a run of either reads straight along; the rectangles positioned, in order; the bands, each the row it starts at,
-// the last's end after them, and where each band's runs start among the runs; the frame and the colors the map was positioned
-// for, whether it was positioned with the controls' pane located, and whether it is positioned; whether the entries are made for
-// the colors; and how many times it has been positioned
+// The base:
+//   - the size of its map, and the entries.
+//   - the entries of the sheet and of a pane, in the order of the tile of the grain, one for each pixel of the tile.
+//     They are lane by lane in a cell of their own, the tile of the sheet first and that of the pane after. A run of
+//     either reads them straight along.
+//   - the positioned rectangles, in order.
+//   - the bands, each the row where it starts, with the end of the last after them. Then where the runs of each band
+//     start among the runs.
+//   - the frame and the colors of the layout of the map. Whether the pane of the controls had a place in that layout,
+//     and whether the map has its layout.
+//   - whether the code made the entries for the colors.
+//   - how many layouts the map had.
 typedef struct
 {
     unsigned int width;
@@ -110,13 +121,15 @@ typedef struct
     unsigned int positioned_count;
 } GuiBase;
 
-// the base made for a window `width` by `height`, its tile tables in a cell of their own, positioned for nothing yet: 1,
-// or 0 where the cell could not be taken; and its cell given back
+// the base made for a window `width` by `height`, with its tile tables in a cell of their own, and no layout yet. The
+// result is 1, or 0 where the call got no cell. Then its cell given back
 int gui_base_init(const GuiBaseWidthCfg *args);
-// the base's map sized to a window `width` by `height`, its tile tables saved, positioned for nothing until it is positioned again
+// the map of the base, sized to a window `width` by `height`, with its tile tables kept. It has no layout until the next
+// layout
 void gui_base_resize(const GuiBaseWidthCfg *args);
-// the map positioned for `frame` in `palette`'s colors, the controls' pane positioned as a pane where `controls_steady` is set,
-// where the base is not already positioned for them: 1 where it was positioned, 0 where it was
+// the map positioned for `frame` in the colors of `palette`, where the base does not already have that layout. Where
+// `controls_steady` is not 0, the pane of the controls gets a place as a pane. The result is 1 where the call made the
+// layout, 0 where it was already in place
 int gui_base_layout(const GuiBaseFrameCfg *args);
 // the layer the map holds at x, y: the last rectangle positioned over the pixel, or nothing
 unsigned int gui_base_layer_at(const GuiBaseCfg *args);
