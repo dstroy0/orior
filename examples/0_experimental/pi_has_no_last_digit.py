@@ -3,67 +3,82 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # Catalog: EXP-x-012
 #
-# What is the last digit of pi at the floor. The answer is that there is no last digit, because there is
-# no floor, and this shows it by naming the digit at any floor asked for and then naming one below it.
+# What is the last digit of pi at the floor? There is no last digit, because there is no floor. This
+# shows it. It names the digit at each floor that it asks for, and then names one below it.
 #
 #   Usage:  python examples/0_experimental/pi_has_no_last_digit.py
 #
-# This reads no corpus and sits in 0_experimental: an arithmetic result displayed working, ahead of any stage
-# reading. Pi is transcendental, and its decimal expansion never ends and never repeats. A floor is a
-# scale, 10^-N, and pi truncated to that floor has a definite last digit, its Nth decimal digit, exact
-# and computable. But N has no ceiling on this engine, and raising the floor always turns up another
-# digit. The last digit at the floor exists for every floor and is never the last, the same claim the
-# precision document beside this file makes, displayed on the max familiar irrational.
+# This reads no corpus, and sits in 0_experimental. It is an arithmetic result that runs, ahead of any
+# stage reading.
 #
-# The digits come from representation/constants/naturals.py, which computes pi to any precision and returns
-# a value only when two independent routes, Machin and Euler, agree at that precision. That agreement is
-# the positive control, and it consults no stored expansion: a natural constant is derived, never looked
-# up. The posit evidence/proofs/posits/proof_constants_two_routes.py drives the two routes apart on a wrong
-# series and shows the disagreement caught. Drawn null here: computing at a deeper floor retains every digit
-# above the old floor and moves only the last one, the shape "no floor" takes from inside. No bounding: the
-# floor is a declared input, and the arithmetic is exact integers throughout.
+# Pi is transcendental, and its decimal expansion never ends and never repeats. A floor is a scale,
+# 10^-N. Pi cut at that floor has a definite last digit, its Nth decimal digit, exact and computable.
+# But N has no ceiling on this engine, and a higher floor always turns up another digit. The last
+# digit at the floor exists for every floor, and is never the last. The precision document beside
+# this file makes the same claim, and this shows it on the most familiar irrational.
+#
+# The digits come from utils/maint/dn_precision/calc/dn_constants.py. Its two routes for pi are the
+# Chudnovsky series of digit_engine and the arctangent formula of Machin. This script accepts a value
+# only where the two agree at that precision. That agreement is the positive control, and it uses no
+# stored expansion: the script derives a natural constant, and never looks it up. The command
+# dn_constants.py --check grades both routes, and a caller runs it before any digit counts.
+#
+# The null: a computation at a deeper floor keeps every digit above the old floor, and moves only the
+# last one. Thus "no floor" looks like this from inside. No bound: the floor is a declared input, and
+# the arithmetic is exact integers throughout.
 
 import io
 import os
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-sys.path.insert(0, os.path.join(ROOT, "src", "python"))
-import manifest  # noqa: E402,F401
-from representation.constants import naturals  # noqa: E402
+sys.path.insert(0, os.path.join(ROOT, "utils", "maint", "dn_precision", "calc"))
+import dn_constants  # noqa: E402
 
-# The floors to name pi's digit at. The last is deep enough to make the point and quick to reach.
+# The floors at which to name the digit of pi. The last is deep enough to make the point, and quick.
 FLOORS = [1, 10, 100, 1000, 5000, 10000]
 DEEPEST = FLOORS[-1]
 
 
-def digit_at_floor(floor):
-    """pi's last decimal digit at scale 10^-floor, its floor-th decimal digit.
+def pi(places):
+    """floor(pi * 10^places), from two routes that must agree.
 
-    naturals.pi(floor) is floor(pi * 10^floor), an exact integer, and its last digit is pi's floor-th
-    decimal place.
+    Chudnovsky and Machin share no term. A value that both give is the two-route positive control.
+    A disagreement stops the run, and the script prints no digit.
     """
-    return naturals.pi(floor) % 10
+    fast = dn_constants.digit_engine.chudnovsky(places)
+    slow = dn_constants.pi_machin(places)
+    if fast != slow:
+        raise SystemExit("Chudnovsky and Machin disagree at %d places: gap %d" % (places, abs(fast - slow)))
+    return fast
+
+
+def digit_at_floor(floor):
+    """The last decimal digit of pi at scale 10^-floor, its floor-th decimal digit.
+
+    pi(floor) is floor(pi * 10^floor), an exact integer. Its last digit is decimal place floor of pi.
+    """
+    return pi(floor) % 10
 
 
 def main():
     out = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", newline="")
     out.write("  the last digit of pi at the floor: there is none, because there is no floor\n\n")
 
-    # pi to the deepest floor. naturals.pi returns only when Machin and Euler agree, and a value at all is
-    # the two-route positive control, with no published expansion consulted.
-    pi_deep = naturals.pi(DEEPEST)
-    out.write("  pi computed to %d places, Machin and Euler agreeing, no stored expansion consulted\n\n"
+    # Pi to the deepest floor. pi() returns only where Chudnovsky and Machin agree. A value at all is
+    # the two-route positive control, with no published expansion in use.
+    pi_deep = pi(DEEPEST)
+    out.write("  pi computed to %d places, Chudnovsky and Machin agreeing, no stored expansion consulted\n\n"
               % DEEPEST)
 
     out.write("  %-14s %s\n" % ("floor (place)", "pi's last digit at that floor"))
     for floor in FLOORS:
         out.write("  %-14d %d\n" % (floor, digit_at_floor(floor)))
 
-    # The drawn null: go deeper and show every digit above the old floor is unchanged, only the last one
-    # moved, the shape "no floor" takes from inside.
+    # The null: go deeper, and show that every digit above the old floor stays the same. Only the
+    # last one moves. Thus "no floor" looks like this from inside.
     deeper = DEEPEST + 5
-    pi_deeper = naturals.pi(deeper)
+    pi_deeper = pi(deeper)
     above_old_floor = pi_deeper // (10 ** (deeper - DEEPEST))   # pi at DEEPEST, read from the deeper value
     prefix_stable = above_old_floor == pi_deep                 # every digit above DEEPEST is unchanged
     old_digit = pi_deep % 10
