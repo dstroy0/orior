@@ -1,14 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kfile_lines.h: a k-file people read and write, stored as its lines (kfile_lines.oracle.tsv): read whole, as the run
-// stores it (qry_member_file), each line without its end, and passed back whole to the run's writer, which writes it in
-// the file's place (qry_member_filed), each line ended by a newline. Its reader turns what it reads into numbers once,
-// as it reads it; the file stays the text a person writes.
+// kfile_lines.h: a k-file that people read and write, stored as its lines (kfile_lines.oracle.tsv). The code reads it
+// whole, as the run stores it (qry_member_file), each line without its end. It passes it back whole to the writer of
+// the run, which writes it in the place of the file (qry_member_filed), each line ended by a newline.
+// Its reader turns what it reads into numbers once, as it reads it. The file stays the text that a person writes.
 //
-// What a run puts in it goes after a who line, `who <code>` (who.h, Who), the who of the lines after it to
-// the next who line, where the who in force there is another's; and where lines of the file follow, the who that was
-// in force over them is written again after what was put, `who -` where none was. A who line that is over no line
-// is let go. Every other line is as the file contained it.
+// What a run puts in it goes after a who line, `who <code>` (who.h, Who), where the who in force there is another. That
+// who is the who of the lines after it, up to the next who line.
+// Where lines of the file follow, the code writes again the who that was in force over them after the new lines. It
+// writes `who -` where none was. The code drops a who line that is over no line. Each other line stays as it was in the
+// file.
 #ifndef KFILE_LINES_H
 #define KFILE_LINES_H
 
@@ -30,13 +31,13 @@ extern "C"
         unsigned int room;
     } KfileLines;
 
-    // the file at `path` read into `file` as the run stores it, its latest blob or the file where the run stores none
-    // (qry_member_file), whatever it contained before let go: 1, and none of its lines where there is neither; 0 where
-    // there was no memory for a line
+    // the file at `path`, read into `file` as the run stores it (qry_member_file). That is its latest blob, or the file
+    // where the run stores none. The call lets go of the old contents of `file`.
+    // The result is 1, with no lines where there is neither. It is 0 where there was no memory for a line
     int kfile_lines_read(KfileLines *file, const char *path);
 
-    // `file` passed to the run's writer as the file at `path` (qry_member_filed), written by `who`: 1, or 0 where no
-    // run's writer runs, the path is outside the tree, or it could not be written
+    // `file`, passed to the writer of the run as the file at `path` (qry_member_filed), written by `who`. The result is
+    // 1, or 0 where no writer of a run runs, the path is outside the tree, or the write failed
     int kfile_lines_write_by(const KfileLines *file, const char *path, Who who);
 
     // everything `file` contains let go, and the file zeros again
@@ -58,30 +59,36 @@ extern "C"
     // one is `who -`
     int kfile_lines_who_at(const KfileLines *file, unsigned int at, Who *who);
 
-    // `count` lines from `lines` put at `at` by `who`, after a who line of `who` where the who in force there is
-    // another's, and the who that was in force there written again after them where lines follow: the count of lines
-    // put, who lines and all, or 0 where there was no memory for them, the file as it was
+    // `count` lines from `lines`, put at `at` by `who`. They come after a who line of `who` where the who in force there
+    // is another. Where lines follow, the call writes again the who that was in force there after them.
+    // The result is the count of lines put, with the who lines. It is 0 where there was no memory for them, and the file
+    // stays as it was
     unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *const *lines, unsigned int count,
                                     Who who);
 
     // every who line that is over no line let go: one a who line or the file's end follows
     void kfile_lines_who_tidied(KfileLines *file);
 
-    // Every line of `file` replaced by `lines`, `count` of them, written by `who`: the first `first` of them are
-    // before any who line; each line after them that the file contained, the same text, retains the who that was in
-    // force over it there, each line taken once in the order the file contained them; and every other line goes under
-    // `who`. A who line is written wherever the who in force changes: a file written again as it was is the same lines.
-    // 1, or 0 where there was no memory for them, the file as it was
+    // Each line of `file`, replaced by `lines`, `count` of them, written by `who`:
+    //   - the first `first` of them are before any who line.
+    //   - each line after them that was in the file, the same text, keeps the who that was in force over it there. The
+    //     call takes each line once, in the order of the file.
+    //   - each other line goes under `who`.
+    //
+    // The call writes a who line wherever the who in force changes. A file written again as it was is the same lines.
+    // The result is 1, or 0 where there was no memory for them, and the file stays as it was
     int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *const *lines, unsigned int count,
                                Who who);
 
-    // the lines of the `size` bytes of `text`, each ended by a newline, cut in place into `*lines`, an allocation of
-    // the caller's to free whose lines are in `text`, `*count` of them: 1, or 0 where there was no memory for it
+    // the lines of the `size` bytes of `text`, each ended by a newline, cut in place into `*lines`, `*count` of them.
+    // That is an allocation that the caller frees, and its lines are in `text`. The result is 1, or 0 where there was no
+    // memory for it
     int kfile_lines_cut(char *text, unsigned long long size, const char ***lines, unsigned int *count);
 
-    // The lines of the first block of `lang` (klang.h) from the line `from` on, its opener `__<lang>__(` and its
-    // closer `)__<lang>__` each a line of its own: 1 with the line after the opener's in `*first` and the closer's in
-    // `*past`; 0 where none opens or the one that opens is never closed
+    // The lines of the first block of `lang` (klang.h) from the line `from` on. Its opener `__<lang>__(` and its closer
+    // `)__<lang>__` are each a line of their own.
+    // The result is 1, with the line after the opener in `*first` and the line of the closer in `*past`. It is 0 where
+    // none opens, or the one that opens never closes
     int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned int from, unsigned int *first,
                                 unsigned int *past);
 
