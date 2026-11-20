@@ -5,14 +5,14 @@
 
 #define PARQUET_FOOTER_MEMBER "footer"
 
-// the side leaves of a member, in the order they are stored: a footer has the first alone, a fixed-width leaf the first
-// three, a BYTE_ARRAY leaf all four
+// the side leaves of a member, in their order of storage. A footer has the first alone, a fixed-width leaf the first
+// three, and a BYTE_ARRAY leaf all four
 #define PARQUET_SIDE_LEAVES_MAX 4u
 
 static const char *const PARQUET_SIDE_NAMES[PARQUET_SIDE_LEAVES_MAX] = {"bytes", "definition", "repetition",
                                                                          "lengths"};
 
-// the member cached decoded, its file and name, and the footer it was found through. A footer member contains the
+// the member, kept decoded, its file and name, and the footer that led to it. A footer member contains the
 // footer's own bytes as its values and no levels
 typedef struct
 {
@@ -113,7 +113,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
             range.bytes = resident->footer->footer_bytes;
             range.out = values->bytes;
             values->count = resident->footer->footer_bytes;
-            // the footer's bytes were limited to 16 MiB when it was read, a count that fits a long long
+            // the read of the footer limited its bytes to 16 MiB, a count that fits a long long
             ok = PARQUET_CHECK(tools->read(&range) == (long long)values->count, path, error, ENGINE_ERROR_REQUEST);
         }
     }
@@ -179,8 +179,9 @@ static void parquet_side_release(EngineSideBytes *side)
     memset(side, 0, sizeof(*side));
 }
 
-// the cached member's side leaves: its byte count eight bytes little-endian, and a leaf's levels and a BYTE_ARRAY
-// leaf's lengths as they were decoded. No lane sits inside a side leaf, and each is stored whole
+// the side leaves of the kept member: its byte count, eight bytes little-endian, and the levels of a leaf. Then the
+// lengths of a BYTE_ARRAY leaf, as the decode gave them. No lane sits inside a side leaf, and the code stores each
+// whole
 static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
 {
     const ParquetResident *const resident = &s_parquet_resident;
@@ -188,7 +189,7 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
     unsigned char count[8];
     for (unsigned int place = 0u; place < 8u; place += 1u)
     {
-        // one byte of the member's byte count is taken whole
+        // the code takes one byte of the byte count of the member whole
         count[place] = (unsigned char)((column->values.count >> (8u * place)) & 0xFFULL);
     }
     const unsigned char *const parts[PARQUET_SIDE_LEAVES_MAX] = {count, column->definition, column->repetition,
