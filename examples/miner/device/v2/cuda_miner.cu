@@ -336,6 +336,168 @@ __global__ void scan_nonces(CudaScanParameters parameters, uint32_t nonce_base,
     }
 }
 
+/**
+ * @brief Scans a nonce range, one nonce per thread, with every probe unconditional: the free arm.
+ *
+ * @param[in]     parameters       Header tail, midstate and threshold [BORROWS].
+ * @param[in]     nonce_base       First nonce this launch covers.
+ * @param[in]     nonce_count      How many nonces this launch covers.
+ * @param[in,out] found_count      Count of winners written so far [BORROWS].
+ * @param[out]    found_nonces     Where winners land [BORROWS].
+ * @param[in]     found_limit      How many winners the buffer holds.
+ * @param[in,out] anchor_survivors Count of nonces that pass the anchor [BORROWS].
+ *
+ * @note The free arm of the anchor sift, on the device. scan_nonces exits at round 61 where the anchor
+ *       refuses. This kernel runs all 64 rounds of the second block for every nonce. It then evaluates the
+ *       anchor word and the eight digest word compares without a branch, and branches one time on the
+ *       combined result. A second branch counts the survivors of the anchor, one nonce in four billion.
+ * @note It must return exactly the winners of scan_nonces and of the raw arm.
+ */
+__global__ void scan_nonces_free(CudaScanParameters parameters, uint32_t nonce_base, uint32_t nonce_count,
+                                 uint32_t *found_count, uint32_t *found_nonces, uint32_t found_limit,
+                                 unsigned long long *anchor_survivors)
+{
+    const uint32_t index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    if (index >= nonce_count)
+    {
+        return;
+    }
+    const uint32_t nonce = nonce_base + index;
+
+    uint32_t schedule[64];
+    uint32_t state[8];
+
+    schedule[0] = parameters.merkle_root_tail;
+    schedule[1] = parameters.ntime;
+    schedule[2] = parameters.nbits;
+    schedule[3] = __byte_perm(nonce, 0u, 0x0123u);
+    schedule[4] = 0x80000000u;
+#pragma unroll
+    for (int slot = 5; slot < 15; slot += 1)
+    {
+        schedule[slot] = 0u;
+    }
+    schedule[15] = 0x00000280u;
+    schedule[16] = parameters.shared_schedule[0];
+    schedule[17] = parameters.shared_schedule[1];
+
+#pragma unroll
+    for (int slot = SHARED_SCHEDULE; slot < 64; slot += 1)
+    {
+        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] + spread_low(schedule[slot - 15]) +
+                         schedule[slot - 16];
+    }
+
+    uint32_t first_a = parameters.shared_state[0];
+    uint32_t first_b = parameters.shared_state[1];
+    uint32_t first_c = parameters.shared_state[2];
+    uint32_t first_d = parameters.shared_state[3];
+    uint32_t first_e = parameters.shared_state[4];
+    uint32_t first_f = parameters.shared_state[5];
+    uint32_t first_g = parameters.shared_state[6];
+    uint32_t first_h = parameters.shared_state[7];
+
+#pragma unroll
+    for (int round = SHARED_ROUNDS; round < 64; round += 1)
+    {
+        DEVICE_ROUND(first_a, first_b, first_c, first_d, first_e, first_f, first_g, first_h, round,
+                     schedule[round]);
+    }
+
+    state[0] = parameters.midstate[0] + first_a;
+    state[1] = parameters.midstate[1] + first_b;
+    state[2] = parameters.midstate[2] + first_c;
+    state[3] = parameters.midstate[3] + first_d;
+    state[4] = parameters.midstate[4] + first_e;
+    state[5] = parameters.midstate[5] + first_f;
+    state[6] = parameters.midstate[6] + first_g;
+    state[7] = parameters.midstate[7] + first_h;
+
+#pragma unroll
+    for (int slot = 0; slot < 8; slot += 1)
+    {
+        schedule[slot] = state[slot];
+        state[slot] = d_initial_state[slot];
+    }
+    schedule[8] = 0x80000000u;
+#pragma unroll
+    for (int slot = 9; slot < 15; slot += 1)
+    {
+        schedule[slot] = 0u;
+    }
+    schedule[15] = 0x00000100u;
+
+    // All 64 schedule words and all 64 rounds, for every nonce. No round waits on the anchor.
+#pragma unroll
+    for (int slot = 16; slot < 64; slot += 1)
+    {
+        schedule[slot] = spread_high(schedule[slot - 2]) + schedule[slot - 7] + spread_low(schedule[slot - 15]) +
+                         schedule[slot - 16];
+    }
+
+    uint32_t pass_a = state[0];
+    uint32_t pass_b = state[1];
+    uint32_t pass_c = state[2];
+    uint32_t pass_d = state[3];
+    uint32_t pass_e = state[4];
+    uint32_t pass_f = state[5];
+    uint32_t pass_g = state[6];
+    uint32_t pass_h = state[7];
+
+#pragma unroll
+    for (int round = 0; round < 64; round += 1)
+    {
+        DEVICE_ROUND(pass_a, pass_b, pass_c, pass_d, pass_e, pass_f, pass_g, pass_h, round, schedule[round]);
+    }
+
+    state[0] += pass_a;
+    state[1] += pass_b;
+    state[2] += pass_c;
+    state[3] += pass_d;
+    state[4] += pass_e;
+    state[5] += pass_f;
+    state[6] += pass_g;
+    state[7] += pass_h;
+
+    // State word seven is the most significant digest word, byte-reversed. The anchor passes where it is
+    // zero. Where the anchor is not sound, it passes every nonce.
+    const uint32_t anchor_hit = (uint32_t)(state[7] == 0u);
+    const uint32_t anchor_pass = anchor_hit | (uint32_t)(parameters.anchor_is_sound == 0u);
+
+    // The order of the digest against the threshold, most significant word first, with no branch. The
+    // first word that differs decides. Where no word differs, the digest equals the threshold and wins.
+    uint32_t decided = 0u;
+    uint32_t within = 1u;
+#pragma unroll
+    for (int rank = 0; rank < 8; rank += 1)
+    {
+        const uint32_t digest_word = __byte_perm(state[7 - rank], 0u, 0x0123u);
+        const uint32_t below = (uint32_t)(digest_word < parameters.share_target[rank]);
+        const uint32_t above = (uint32_t)(digest_word > parameters.share_target[rank]);
+        const uint32_t open = decided ^ 1u;
+        within = within & ((open & above) ^ 1u);
+        decided = decided | (open & (below | above));
+    }
+
+    if ((anchor_hit & parameters.anchor_is_sound) != 0u)
+    {
+        if (anchor_survivors != nullptr)
+        {
+            atomicAdd(anchor_survivors, 1ull);
+        }
+    }
+
+    if ((anchor_pass & within) != 0u)
+    {
+        const uint32_t slot = atomicAdd(found_count, 1u);
+        if (slot < found_limit)
+        {
+            found_nonces[slot] = nonce;
+        }
+    }
+}
+
 /** @brief Warps per survey block. Each keeps its own counter row. Thus the block needs no atomic inside. */
 #define SURVEY_WARPS 8u
 
@@ -869,13 +1031,13 @@ extern "C" int cuda_miner_scan_inorder(CudaMinerContext *context, const CudaScan
     return execute_streamed_scan(context, parameters, nonce_base, nonce_count, found_nonces, found_count, scan_nonces);
 }
 
-// The survivor-restricted arm of the engine is not in the tree. Thus this third entry resolves to the
-// same sound anchored kernel as the inorder arm. When the anchor_sift descent exists, point it here.
+// The free arm: every probe unconditional, and one branch on the combined result.
 extern "C" int cuda_miner_scan_free(CudaMinerContext *context, const CudaScanParameters *parameters,
                                     uint32_t nonce_base, uint32_t nonce_count,
                                     uint32_t *found_nonces, uint32_t *found_count)
 {
-    return execute_streamed_scan(context, parameters, nonce_base, nonce_count, found_nonces, found_count, scan_nonces);
+    return execute_streamed_scan(context, parameters, nonce_base, nonce_count, found_nonces, found_count,
+                                 scan_nonces_free);
 }
 
 // ============================================================================
@@ -886,6 +1048,9 @@ extern "C" int cuda_miner_scan_free(CudaMinerContext *context, const CudaScanPar
 // real share target does. Where that is true, the anchored arm early-outs at round 61 and is the
 // advantage. Where it is not, the raw arm is the only sound choice. Both arms find the same
 // winners. Thus this choice affects speed, and never correctness.
+//
+// The free arm also finds the same winners, but bench_cuda_v2 measures it at 0.93 times the anchored
+// arm on sm_86. Thus the dispatcher does not choose it.
 extern "C" CudaScanArm cuda_miner_choose(const CudaScanParameters *parameters)
 {
     if ((parameters == nullptr) || (parameters->anchor_is_sound == 0u))

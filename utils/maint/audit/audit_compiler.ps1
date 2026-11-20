@@ -65,8 +65,10 @@ $arms = @(
 
 # The list includes kat_validation deliberately. Every other result rests on that correctness gate.
 # A compiler-dependent answer there would be the max expensive one to miss.
+#
+# The device benches need nvcc and a card. The list excludes them, and their own scripts build them.
 $benches = @(Get-ChildItem -Path $benchDirectory -Filter "bench_*.cpp" |
-    Where-Object { $_.Name -notin @("bench_cuda.cpp", "bench_keyhole.cpp") }) +
+    Where-Object { $_.Name -notin @("bench_cuda.cpp", "bench_cuda_v2.cpp", "bench_keyhole.cpp") }) +
     @(Get-ChildItem -Path $testDirectory -Filter "kat_validation.cpp")
 $benches = $benches | Sort-Object Name
 

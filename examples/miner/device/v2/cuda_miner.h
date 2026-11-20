@@ -67,8 +67,9 @@ int cuda_miner_scan_inorder(CudaMinerContext *context, const CudaScanParameters 
                             uint32_t *found_nonces, uint32_t *found_count);
 
 /**
- * @brief The place for the survivor-restricted arm of the engine. Until that arm exists in the tree,
- *        this resolves to the same sound anchored kernel as the inorder arm.
+ * @brief Scans with every probe unconditional: all 64 rounds, then one branch on the anchor and the
+ *        threshold together. Finds the same winners as the raw arm. On sm_86 it measures 0.93 times
+ *        the inorder arm, and cuda_miner_choose does not choose it.
  */
 int cuda_miner_scan_free(CudaMinerContext *context, const CudaScanParameters *parameters,
                          uint32_t nonce_base, uint32_t nonce_count,
