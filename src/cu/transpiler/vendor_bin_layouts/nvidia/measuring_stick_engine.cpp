@@ -1032,9 +1032,10 @@ class StickKernel
         return 0;
     }
 
-    // `name` stored in `value` as a value of type `type`, or as a word of no type of C where `type` is -1, never
-    // negative where `nonnegative` is set. A name stored anew is read from `value` alone, whatever was for it before,
-    // and every expression stored that reads the name is let go: its value is of what the name stored when it was read
+    // `name`, stored in `value` as a value of type `type`, or as a word of no type of C where `type` is -1. It is
+    // never negative where `nonnegative` is not 0.
+    // A name stored anew reads from `value` alone, whatever was in it before. The code lets go of each stored
+    // expression that reads the name. Its value is of what the name stored at the time of its read
     void bind(const std::string &name, StickValue value, int type, int nonnegative = 0)
     {
         value.is_signed = (type >= 0) ? s_types[type].is_signed : 0;
@@ -1054,8 +1055,8 @@ class StickKernel
         }
     }
 
-    // `name`, a bool, stored as the flag `flag` reads as, read where the name is read, with the word of 0 and 1 it is
-    // tested off where it is one
+    // `name`, a bool, stored as the flag that `flag` reads as. The code reads it where the read of the name is. It
+    // reads it with the word of 0 and 1 that it tests off, where it is one
     void bind_flag(const std::string &name, const StickTyped &flag)
     {
         StickTyped binding{"(" + flag.text + ")", flag.type};
@@ -1064,14 +1065,15 @@ class StickKernel
         flags[name] = binding;
     }
 
-    // `name` read as `value`, written where the name is read and only as much of it as is read there
+    // `name` read as `value`. The code writes it where the read of the name is, and only as much of it as that read
+    // takes
     void are(const std::string &name, const StickTyped &value)
     {
         located[name] = value;
     }
 
-    // `expression` typed, and written out with every conversion C makes in it, for the reader to read through
-    // cu.krs; type -1 where it is not typed, `question` then stating why
+    // `expression`, typed, and written out with each conversion that C makes in it, for the reader to read through
+    // cu.krs. Type -1 where it has no type, with the reason in `question`
     StickTyped typed(const std::string &expression)
     {
         tokens = stick_tokens(expression);
@@ -1084,10 +1086,12 @@ class StickKernel
         return whole;
     }
 
-    // `value` converted to type `to` as C converts it. A bool is a flag, and its segment the select of 1 and 0 over
-    // it; a value converted to a bool is the flag of its differing from 0. A value of a register's width converted to
-    // another of that width is the same register; a word converted to a pair is widened as its sign specifies; a pair
-    // converted to a word is its low word
+    // `value` converted to type `to` as C converts it:
+    //   - a bool is a flag, and its segment is the select of 1 and 0 over it.
+    //   - a value converted to a bool is the flag of its difference from 0.
+    //   - a value of the width of a register, converted to another of that width, is the same register.
+    //   - a word converted to a pair widens as its sign says.
+    //   - a pair converted to a word is its low word.
     StickTyped converted(const StickTyped &value, int to)
     {
         if ((value.type < 0) || (value.type == to))
@@ -1117,7 +1121,8 @@ class StickKernel
         }
         const unsigned int from_bits = s_types[value.type].bits;
         const unsigned int to_bits = s_types[to].bits;
-        // A byte or a halfword is stored in a word extended as its sign specifies, the narrowing of the word's low bits
+        // A byte or a halfword sits in a word, extended as its sign says. It is the narrowing of the low bits of the
+        // word
         if (to_bits < STICK_REGISTER_BITS)
         {
             const int whole = (value.low_bits < to_bits);
@@ -1150,14 +1155,14 @@ class StickKernel
         return cut;
     }
 
-    // 1 where `name` is stored
+    // 1 where the kernel stores `name`
     int binds(const std::string &name) const
     {
         return bound_values.find(name) != bound_values.end();
     }
 
-    // A fresh register of `bits`: a predicate's one of the predicates, and a word's or a wide's one the kernel names
-    // until assign() gives it a register of the file
+    // A fresh register of `bits`. For a predicate, it is one of the predicates. For a word or a wide, it is one that
+    // the kernel names until assign() gives it a register of the file
     StickValue fresh(unsigned int bits)
     {
         if (bits == STICK_PREDICATE_BITS)
@@ -1169,12 +1174,15 @@ class StickKernel
         return StickValue{std::string((bits == 64u) ? "%w" : "%r") + std::to_string(next - 1u), bits, 0};
     }
 
-    // Each register the kernel names given one of the file for the lines it lives over, from the first that names it
-    // to the last, and given again once it is let go: a word one register, and a wide an even pair. A word moved into
-    // another and used nowhere else, its own writing and the move, is the word_used_once of the move's form, and where
-    // the system folds it the word moved into is the moved word itself. A wide made of a word whose move the system
-    // folds is the pair that word begins, the word given the even register. A move of a register into itself is then
-    // left out as the nothing it does
+    // Each register that the kernel names gets one of the file for the lines that it lives over. That is from the first
+    // line that names it to the last. It goes back once the code lets it go. A word takes one register, and a wide an
+    // even pair.
+    //
+    // Take a word moved into another and used nowhere else, its own write and the move. It is the word_used_once of
+    // the form of the move. Where the system folds it, the word moved into is the moved word itself.
+    //
+    // A wide made of a word whose move the system folds is the pair that the word begins. The word gets the even
+    // register. The code then leaves out a move of a register into itself, because it does nothing
     void assign(void)
     {
         for (const auto &copy : pending_copies)
@@ -1226,10 +1234,11 @@ class StickKernel
             }
             line_at = line_end + 1u;
         }
-        // Each name given a register at the line that first names it and the register let go after the line that
-        // last names it, never on a line that names it: a word one register, the lowest free, and a wide an even pair,
-        // the lowest both of which are free. The high water mark, from the first past the ones kernel_open writes,
-        // rises only where no register under it is free
+        // Each name gets a register at the line that first names it. The register goes free after the line that last
+        // names it, and never on a line that names it.
+        // A word takes one register, the lowest free one. A wide takes an even pair, the lowest pair that is free. The
+        // high water mark starts at the first register past the ones that kernel_open writes. It rises only where no
+        // register under it is free
         std::map<std::string, unsigned int> given;
         std::map<std::string, size_t> first_line;
         // each name's last line as the text names it, before the walk marks a name let go by moving it past every line
@@ -1289,10 +1298,12 @@ class StickKernel
         {
             given[tie.first] = given[tie.second];
         }
-        // A register a form names by its own number past the high water mark is the form's own, and is moved to just
-        // past the mark, the second register of a pair and the pair it begins retained even, the mark rising over it:
-        // the kernel's registers lie next to each other, and it declares the mark. A number the text names before the
-        // kernel's names are given is a form's, since every register of the kernel's own is named by %r or %w
+        // A register that a form names by its own number past the high water mark belongs to the form. The code moves
+        // it to just past the mark, and the mark rises over it. The second register of a pair and the pair that it
+        // begins stay even.
+        // The registers of the kernel then lie next to each other, and it declares the mark. A number that the text
+        // names before the names of the kernel get registers belongs to a form. Each own register of the kernel has the
+        // name %r or %w
         static const std::regex pinned("\\bR([0-9]+)(\\.hi)?\\b");
         std::map<unsigned int, int> pinned_pairs;
         for (std::sregex_iterator found(text.begin(), text.end(), pinned), end; found != end; ++found)
@@ -1340,8 +1351,8 @@ class StickKernel
         static const std::regex itself("^\\s*MOV\\s+(\\S+)\\s*,\\s*(\\S+)\\s*;\\s*$");
         std::smatch move;
         text.clear();
-        // each line of the text before a move of a register into itself is left out, by its number in the text after,
-        // counted from 1, and 0 where it is left out
+        // each line of the text before the code leaves out a move of a register into itself. The value is its number in
+        // the text after, counted from 1. It is 0 where the code leaves it out
         std::vector<size_t> retained_at;
         size_t line_at = 0u;
         while (line_at < written.size())
@@ -1360,10 +1371,11 @@ class StickKernel
         register_lines_written(given, first_line, named_last, retained_at);
     }
 
-    // The register each name of the kernel was given, claimed at the line that first names it and released after the
-    // line that last names it, those lines numbered as the text numbers them once a move of a register into itself is
-    // left out: a claim at a line left out is at the next line retained, and a release at one at the line retained
-    // before it. Then each fixed register the text names, claimed at the first line naming it and released at the last
+    // The register that each name of the kernel got. The name claims it at the line that first names it, and releases
+    // it after the line that last names it. Those lines carry the numbers of the text, after the code leaves out each
+    // move of a register into itself.
+    // A claim at a line left out goes to the next kept line. A release at such a line goes to the kept line before it.
+    // Then each fixed register that the text names, claimed at the first line that names it, and released at the last
     void register_lines_written(const std::map<std::string, unsigned int> &given,
                                 const std::map<std::string, size_t> &first_line,
                                 const std::map<std::string, size_t> &last_line, const std::vector<size_t> &retained_at)
@@ -1429,8 +1441,8 @@ class StickKernel
         }
     }
 
-    // A word loaded and read nowhere but by its extension from a byte or a halfword is loaded by the load that extends
-    // it, global_load_<thing> for word_from_<thing>, into the register the extension wrote
+    // A word loaded and read nowhere but by its extension from a byte or a halfword. The load that extends it loads it
+    // into the register that the extension wrote: global_load_<thing> for word_from_<thing>
     void fold_loads(void)
     {
         static const char *const s_narrow[] = {"byte", "signed_byte", "halfword", "signed_halfword"};
@@ -1491,8 +1503,8 @@ class StickKernel
         }
     }
 
-    // Each operation the system writes on either pipe written on the FMA pipe, where the part's .kdm records the lane
-    // it moves in and the kernel's text is such a lane
+    // Each operation that the system writes on either pipe, written on the FMA pipe. That holds where the .kdm of the
+    // part records the lane that it moves in, and the text of the kernel is such a lane
     void balance(void)
     {
         std::vector<std::string> lines;
@@ -1526,7 +1538,7 @@ class StickKernel
         }
     }
 
-    // form `name` written in sass.krs with `arguments`; 0 where it is not, `question` then stating why
+    // form `name` written in sass.krs with `arguments`. 0 where the write failed, with the reason in `question`
     int write(const std::string &name, const std::vector<std::string> &arguments)
     {
         std::string listed;
@@ -1626,16 +1638,17 @@ class StickKernel
     unsigned int next;
     unsigned int predicates;
     std::map<std::string, StickValue> bound_values;
-    // how many values a `++` or a `--` has stored under a name of their own, the value its name stored before the step
+    // how many values a `++` or a `--` stored under a name of their own, the value of its name before the step
     unsigned int steps_stored = 0u;
     // the names stored whose value is never negative
     std::set<std::string> nonnegatives;
     // the joins of two flags read exchanged, each read in that order once
     std::set<std::string> exchanging;
-    // Each reading made since the kernel last stored a value, by whether it was read in place and its text, and
-    // whether it read. A reading is of the values stored, the kernel's parameters and the rulesets alone, and a text
-    // read again while nothing new is stored reads the same: an expression's parts are read once each, however
-    // many of its readings contain them
+    // Each reading made since the kernel last stored a value, by whether it read in place, and its text. Then whether
+    // it read.
+    // A reading is of the stored values, the parameters of the kernel and the rulesets alone. A text read again while
+    // the kernel stores nothing new reads the same. The parts of an expression read once each, however many of its
+    // readings hold them
     std::map<std::string, std::pair<int, StickReading>> readings;
     // each bool stored as a flag, by its name, and the expression it is the flag of
     std::map<std::string, StickTyped> flags;
@@ -1652,8 +1665,8 @@ class StickKernel
         return StickTyped{"", -1};
     }
 
-    // The type of `name`: a value or a parameter the kernel stores, or a built-in variable cu.krs reads through a form
-    // of no parameters, of the type of a register of the form's width; -1 where it has none
+    // The type of `name`. It is a value or a parameter that the kernel stores, or a built-in variable that cu.krs reads
+    // through a form of no parameters. It is of the type of a register of the width of the form. -1 where it has none
     int type_of(const std::string &name)
     {
         const auto binding = bound_values.find(name);
@@ -1731,11 +1744,14 @@ class StickKernel
         return left;
     }
 
-    // `left` and `right` under binary operator `token`, each converted as C converts it. The logical operators take
-    // two flags and give one. A shift takes each side promoted and gives the left's type. Every other operator takes
-    // both sides in their common type, and a comparison gives a flag. An ordering, a quotient, a remainder and a
-    // right shift are of their operands' type, and a signed one is written with its type's cast before each operand,
-    // which the signed forms read. Equality reads no sign and takes no cast
+    // `left` and `right` under binary operator `token`, each converted as C converts it:
+    //   - the logical operators take two flags and give one.
+    //   - a shift takes each side promoted, and gives the type of the left.
+    //   - each other operator takes both sides in their common type, and a comparison gives a flag.
+    //
+    // An ordering, a quotient, a remainder and a right shift are of the type of their operands. The code writes a
+    // signed one with the cast of its type before each operand, which the signed forms read. Equality reads no sign,
+    // and takes no cast
     StickTyped combined(const StickTyped &left, const std::string &token, const StickTyped &right)
     {
         const int flag = stick_type_bare("bool");
@@ -1758,11 +1774,11 @@ class StickKernel
         {
             return StickTyped{"", -1};
         }
-        // two values neither of which is negative order alike signed and unsigned, and are ordered unsigned
+        // two values, neither of which is negative, order alike signed and unsigned. The code orders them unsigned
         const int orders = (stick_compares(token) != 0) && (token != "==") && (token != "!=") &&
                            ((first.nonnegative == 0) || (second.nonnegative == 0));
-        // a quotient and a remainder of two values neither of which is negative, and a right shift of a value that is
-        // not, come out alike signed and unsigned, and are written unsigned
+        // a quotient and a remainder of two values, neither of which is negative, come out alike signed and unsigned.
+        // So does a right shift of a value that is not negative. The code writes them unsigned
         const int divides =
             ((token == "/") || (token == "%")) && ((first.nonnegative == 0) || (second.nonnegative == 0));
         const int shifts = (token == ">>") && (first.nonnegative == 0);
@@ -1773,8 +1789,8 @@ class StickKernel
             second.text = (shift != 0) ? second.text : (stick_cast(common) + second.text);
         }
         StickTyped whole{"(" + first.text + token + second.text + ")", (stick_compares(token) != 0) ? flag : common};
-        // the low bits of a sum, a difference, a product, a bitwise operation and a left shift are of their operands'
-        // low bits alone, the count of a shift taken whole
+        // the low bits of a sum, a difference, a product, a bitwise operation and a left shift. They come from the low
+        // bits of their operands alone. The count of a shift counts whole
         const int low_alone = (token == "+") || (token == "-") || (token == "*") || (token == "&") ||
                               (token == "|") || (token == "^") || (token == "<<");
         if ((low_alone != 0) && ((first.low_bits != 0u) || ((token != "<<") && (second.low_bits != 0u))))
@@ -1790,11 +1806,14 @@ class StickKernel
         return whole;
     }
 
-    // `name` stepped by one, `step` the `+` or the `-` of the step: the name read once, its value and 1 under `step`
-    // as C combines them, converted back to the name's type, and stored as the name's value from here on. `++` and `--`
-    // are each an assignment that gives a value, `a += 1` and `a -= 1`: the add primitive of the name's own context
-    // and nothing past it. The value read is stored under a name of its own and given through `before`; type -1 where
-    // the name stores no value of C to step
+    // `name` stepped by one, with `step` the `+` or the `-` of the step. The code reads the name once. It combines its
+    // value and 1 under `step` as C does, and converts the result back to the type of the name. It stores that as the
+    // value of the name from here on.
+    //
+    // `++` and `--` are each an assignment that gives a value, `a += 1` and `a -= 1`. That is the add primitive of the
+    // own context of the name, and nothing past it.
+    // The read value goes under a name of its own, and comes back through `before`. Type -1 where the name stores no
+    // value of C to step
     StickTyped stepped(const std::string &name, const std::string &step, StickTyped *before)
     {
         const auto is = located.find(name);
@@ -1830,9 +1849,9 @@ class StickKernel
         return StickTyped{name, type, sum.nonnegative};
     }
 
-    // a unary operator over what it binds, a cast, or a primary expression. A step is read in its order: the
-    // operation before the operand gives the operand's value after the step, the operand before the operation the
-    // value before it
+    // a unary operator over what it binds, a cast, or a primary expression. The code reads a step in its order. The
+    // operation before the operand gives the value of the operand after the step. The operand before the operation
+    // gives the value before it
     StickTyped unary(void)
     {
         if (token_at >= tokens.size())
@@ -1948,8 +1967,8 @@ class StickKernel
                           : StickTyped{token, type, (nonnegatives.count(token) != 0u) ? 1 : 0};
     }
 
-    // a number of C as cu.krs's bank of immediates writes it, of the type its suffix and its size give it: unsigned
-    // for a suffix u, long long for ll, and an int otherwise where it fits one
+    // a number of C as the bank of immediates of cu.krs writes it, of the type that its suffix and its size give it.
+    // A suffix u gives unsigned, and ll gives long long. Else it is an int where it fits one
     StickTyped number_typed(const std::string &token)
     {
         char *end = NULL;
@@ -1973,11 +1992,12 @@ class StickKernel
     // each wide that is the pair a word begins, by the wide's name, and the words so stored
     std::map<std::string, std::string> ties;
     std::set<std::string> tied_words;
-    // each word moved into another: the form that moves it, the word it is moved into, and the word moved
+    // each word moved into another: the form that moves it, the word that it moves into, and the moved word
     std::vector<std::pair<unsigned int, std::pair<std::string, std::string>>> pending_copies;
 
-    // The word of the constant bank form `form` moves into the register put for its first parameter, where its
-    // sass.krs text, its operands `arguments`, is nothing but such moves: the first move's word. Empty otherwise
+    // The word of the constant bank that form `form` moves into the register put for its first parameter. That holds
+    // where its sass.krs text, with operands `arguments`, is only such moves. The result is the word of the first move.
+    // Empty else
     std::string moves(unsigned int form, const std::vector<std::string> &arguments) const
     {
         std::vector<std::string> given = {"\x01"};
@@ -2017,8 +2037,8 @@ class StickKernel
         return std::regex_search(lines, std::regex("(^|\\n)\\s*MOV\\s+\x01\\s*,\\s*\x02\\s*;"));
     }
 
-    // the operands of a form's parameters past its outputs, as `children` are written: a number or a folded word in
-    // place, and a register or predicate of its width otherwise, stand-ins numbered from `are_in`
+    // the operands of the parameters of a form past its outputs, as the code writes `children`. A number or a folded
+    // word goes in place. Else it is a register or predicate of its width, with stand-ins numbered from `are_in`
     std::vector<std::string> are_ins(const std::vector<StickReading> &children, unsigned int are_in) const
     {
         std::vector<std::string> arguments;
@@ -2084,13 +2104,17 @@ class StickKernel
         return assembled;
     }
 
-    // Of form `form` over `spans`, its outputs `outputs`, the reading of fewest forms whose text assembles, stored in
-    // `best` where it has fewer forms than `best` has: each span read in place, as the zero register where it is
-    // the number 0, and in a register, every choice tried. A span is stored in registers of the width
-    // `placeholder_bits` gives its parameter where `placeholder_bits` is given, a flag in any width. The span at
-    // `negated`, where it is not -1, is read as the complement of its flag. An expression's form is given no outputs,
-    // and is gated with a register of its value's width put for its to, or a predicate where the text takes no register
-    // there
+    // Of form `form` over `spans`, with its outputs `outputs`, the reading of fewest forms whose text assembles. The
+    // code stores it in `best` where it has fewer forms than `best` has.
+    // Each span reads in place, as the zero register where it is the number 0, and in a register. The code tries each
+    // choice.
+    //
+    // A span goes in registers of the width that `placeholder_bits` gives its parameter, where the caller gives
+    // `placeholder_bits`. A flag goes in any width. The code reads the span at `negated`, where it is not -1, as the
+    // complement of its flag.
+    //
+    // The form of an expression gets no outputs. A register of the width of its value, put for its to, gates it. Where
+    // the text takes no register there, a predicate gates it
     int choose(unsigned int form, const std::vector<std::string> &outputs, const std::vector<std::string> &spans,
                unsigned int bits_given, int expression, const std::vector<unsigned int> &placeholder_bits, int negated,
                StickReading *best)
