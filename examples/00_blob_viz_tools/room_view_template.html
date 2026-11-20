@@ -3952,12 +3952,13 @@
       // as brightness that grows from a dark side. The draw then shows the cold half of the sky as
       // absence. There are hot spots and there are cold spots, and both are something.
       //
-      // The scale is symmetric about the mean for the same reason. Fitted to the two extremes
-      // separately, a field that runs further hot than cold would draw its cold half at full contrast
-      // and claim a depth it does not have.
-      // The lean, cached per boundary. This is the expensive pass -- the same 2,701 by 121 product the
-      // surface pays, once for every boundary -- and it answers the same question every frame until
-      // one of its inputs moves. Cached, and recomputed only when the key says the answer changed.
+      // The scale is symmetric about the mean for the same reason. Fitted to the two extremes apart, a
+      // field that runs further hot than cold draws its cold half at full contrast. It then claims a
+      // depth that it does not have.
+      //
+      // The lean, in a cache per boundary. This is the expensive pass: the same 2,701 by 121 product that
+      // the surface pays, once for each boundary. It answers the same question each frame until one of
+      // its inputs moves. The code computes it again only when the key says that the answer changed.
       one.lean = sized(one.lean, points);
       if (fresh) {
         var sum = 0;
@@ -3979,34 +3980,36 @@
           }
         }
         one.span = reachOut;
-        // Normalized in place. The blend below reads a lean and never rescales one. Minus one for
-        // the coldest, plus one for the hottest, zero at the mean.
+        // Normalized in place. The blend below reads a lean, and never rescales one. Minus one for the
+        // coldest, plus one for the hottest, and zero at the mean.
         for (var p4 = 0; p4 < points; p4++) {
           one.lean[p4] = (one.lean[p4] - mean) / reachOut;
         }
       }
 
-      // The blend runs on every frame whether the field moved or not, because this is the boundary's
-      // own memory settling and it moves under a frozen field too. One pass, no coefficient loop.
+      // The blend runs on each frame, whether the field moved or not. This is the own memory of the
+      // boundary as it settles, and it moves under a still field too. One pass, no coefficient loop.
       for (var v = 0; v < points; v++) {
         var lean = one.lean[v];
         one.averaged[v] = one.averaged[v] * retain + lean * (1 - retain);
         var displayed = Math.max(-1, Math.min(1, one.averaged[v])) * litGain;
 
         // The ordinary boundaries paint color on a sphere at a fixed radius. The inverse boundary
-        // DEFORMS instead, the same way the anisotropic envelope does: its radius is pushed out where
-        // its amplified field runs hot and pulled in where it runs cold. It reads as a shape and not
-        // a painted ball. Written every frame for it so the deformation settles with the retention, and
-        // only on a fresh field for the others, which never move.
+        // DEFORMS, as the anisotropic envelope does. Its radius goes out where its amplified field runs
+        // hot, and in where it runs cold. It reads as a shape, and not a painted ball.
+        // The code writes it each frame for this boundary, and the deformation settles with the
+        // retention. It writes the others only on a fresh field, and they never move.
         if (fresh || one.inverse) {
           var rHere = one.reach;
           if (one.inverse) {
-            // Grows TOWARD the center, and we are watching for a FUNNEL: a hot region that descends
-            // inward and narrows to a one-dimensional spike is the elision, the whole amplified field
-            // collapsing onto a single line. So the map is sharpened, along squared. The bulk stays
-            // near the outer shell and only the hottest reaches deep, and the floor is set well inside
-            // the innermost boundary a true funnel can converge toward a point instead of stopping
-            // at a surface. A funnel that reaches the floor and holds is a one-dimensional superobject.
+            // Grows TOWARD the center, and we look for a FUNNEL. A hot region that descends inward and
+            // narrows to a one-dimensional spike is the elision: the whole amplified field collapses onto
+            // a single line.
+            //
+            // The map is thus sharper, along squared. The bulk stays near the outer shell, and only the
+            // hottest reaches deep. The floor sits well inside the innermost boundary. A true funnel can
+            // then converge toward a point, and does not stop at a surface.
+            // A funnel that reaches the floor and holds is a one-dimensional superobject.
             var along = (Math.max(-1, Math.min(1, one.averaged[v])) + 1) * 0.5;
             along = along * along;
             rHere = one.reach - along * (one.reach - bandOuter(0) * 0.12);
@@ -4017,15 +4020,16 @@
         }
 
         var toward = displayed >= 0 ? HOT_SPOT : COLD_SPOT;
-        // The measurement is one.averaged and it stays linear. This is the display value, and it is
-        // deliberately a second number and not the same one displayed differently.
+        // The measurement is one.averaged, and it stays linear. This is the display value. By design it
+        // is a second number, and not the same one shown differently.
         var pull = saturated(Math.abs(displayed));
         one.tone[v * 3] = MID_SPOT.r + (toward.r - MID_SPOT.r) * pull;
         one.tone[v * 3 + 1] = MID_SPOT.g + (toward.g - MID_SPOT.g) * pull;
         one.tone[v * 3 + 2] = MID_SPOT.b + (toward.b - MID_SPOT.b) * pull;
       }
-      // The color moves every frame with the memory. The positions only when the field moved, except
-      // the inverse boundary whose deformation settles with the retention and so moves every frame too.
+      // The color moves each frame with the memory. The positions move only when the field moved. The
+      // inverse boundary is the exception: its deformation settles with the retention, and it moves
+      // each frame too.
       if (fresh || one.inverse) {
         one.mesh.geometry.attributes.position.needsUpdate = true;
         one.mesh.geometry.computeBoundingSphere();
@@ -4048,13 +4052,12 @@
 
   // Asked for now, done once on the next frame.
   //
-  // A dragged slider fires input events faster than the screen refreshes. A handler that wants the
-  // picture redrawn and calls applyTick straight out of the event runs the whole reading several times
-  // inside a single frame, all but the last of them thrown away, and the main thread has no time left
-  // to handle the next event.
+  // A dragged slider fires input events faster than the screen refreshes. A handler that calls
+  // applyTick straight out of the event runs the whole reading many times inside a single frame. All
+  // but the last of them go to waste, and the main thread has no time for the next event.
   //
-  // Marking instead of doing collapses a burst of events into one redraw at the moment the redraw can
-  // actually be displayed. The frame loop clears it.
+  // A mark, and not the work, collapses a burst of events into one redraw at the moment that the
+  // screen can show it. The frame loop clears it.
   var tickWanted = false;
   function wantTick() {
     tickWanted = true;
@@ -4068,31 +4071,33 @@
     var phase = Math.max(0, Math.min(1, state.tick - whole));
     var frame = frameAt(whole);
 
-    // The state does not change size. Eight words of thirty-two bits at the first operation and eight
-    // words of thirty-two bits at the last: the compression function never adds a bit or takes one
-    // away. It does not grow. What advances is the values, and the thing
-    // carrying them is one fixed size from the first operation to the last.
+    // The state does not change size. It is eight words of thirty-two bits at the first operation, and
+    // eight words of thirty-two bits at the last. The compression function never adds a bit or takes
+    // one away. It does not grow. The values advance, and the thing that carries them is one fixed size
+    // from the first operation to the last.
     //
-    // Depth is a setting, because depth is what the boundary reading is against: the same fixed
-    // state read from further in reaches the surface with fewer degrees. That is a knob the reader
-    // turns, and never a thing the clock moves.
+    // Depth is a setting, because the boundary reading is against depth. The same fixed state read
+    // from further in reaches the surface with fewer degrees. That is a knob that the reader turns, and
+    // never a thing that the clock moves.
     var deep = state.hold;
     var reach = deep * SHELL;
     var which = bandFor(deep);
 
     for (var k = 0; k < COUNT; k++) {
-      // 49 is the character one. Read off the frame directly and not parsed into an array per
-      // tick, because the trace is the largest thing on the page.
+      // 49 is the character one. The code reads it off the frame directly, and does not parse it into
+      // an array per tick. The trace is the largest thing on the page.
       var set = frame.charCodeAt(k) === 49;
       stops[k] = set ? 0.92 : 0.14;
 
-      // Two ways to get from one place to the next, and both are offered because the reading differs.
+      // Two ways to get from one place to the next, and the page gives both because the reading
+      // differs.
       //
-      // On the curve a bit retains its radius the whole way and rides the surface it lives on. The
-      // path is the arc the operation traces and the object never breathes. On the line it goes
-      // straight from where it was to where it is going, which cuts inside the radius and dips the
-      // whole ring toward the middle as it turns. The arc is the truer picture of a rotation and the
-      // line is the truer picture of a thing crossing a distance. The choice belongs to the reader.
+      // On the curve, a bit keeps its radius the whole way, and rides the surface that it lives on. The
+      // path is the arc that the operation traces, and the object never breathes.
+      // On the line, it goes straight from where it was to where it goes. That cuts inside the radius,
+      // and dips the whole ring toward the middle as it turns.
+      // The arc is the truer picture of a rotation, and the line is the truer picture of a thing that
+      // crosses a distance. The choice belongs to the reader.
       var turn = homeTurn[k] + spinTurn(wordOf[k], whole, phase);
       var down = shiftDown(k, whole, phase);
       if (!state.chord) {
@@ -4101,8 +4106,8 @@
         atY[k] = Math.cos(down) * reach;
         atZ[k] = across * Math.sin(turn);
       } else {
-        // The two ends of this operation, taken at the phase it starts and the phase it finishes, and
-        // a straight run between them on the eased clock.
+        // The two ends of this operation, taken at the phase where it starts and where it ends. Then a
+        // straight run between them on the eased clock.
         var turn0 = homeTurn[k] + spinTurn(wordOf[k], whole, 0);
         var turn1 = homeTurn[k] + spinTurn(wordOf[k], whole, 1);
         var down0 = shiftDown(k, whole, 0);
@@ -4122,9 +4127,9 @@
       }
       band[k] = which;
 
-      // A set bit is lit and a clear bit is not gone. Drawing only the ones would make the ring a
-      // gap-toothed arc and say the zeroes are absent, when a zero is a bit that is there and is
-      // zero. So the clear ones stay, cold and small, and the ring stays a ring.
+      // A bit at 1 is lit, and a bit at 0 stays in the ring. A draw of only the ones makes the ring a
+      // gap-toothed arc, and says that the zeroes are absent. A zero is a bit that is there, and is
+      // zero. The zeroes thus stay, cold and small, and the ring stays a ring.
       var glow = 0.35 + 0.65 * (things[k].glow || 0);
       warmth.setHSL(
         set ? 0.09 : 0.56,
@@ -4138,10 +4143,10 @@
 
     paintSurface(whole, deep);
 
-    // The panels carry numbers that change with the reading and never between two readings of the
-    // same thing. They are written when the reading is. Rewriting a table's markup sixty times a
-    // second to arrive at the same characters costs a style recalculation each time, and a style
-    // recalculation is paid on the thread that is also trying to answer the reader's next drag.
+    // The panels carry numbers that change with the reading, and never between two readings of the
+    // same thing. The code writes them with the reading.
+    // A rewrite of the markup of a table sixty times a second, to the same characters, costs a style
+    // recalculation each time. The thread that pays it also must answer the next drag of the reader.
     if (paintFresh) {
       paintBars(whole, deep);
       paintArms();
@@ -4150,12 +4155,13 @@
     applyEnergy();
   }
 
-  // Power per harmonic degree of the current state, read on the same boundary the envelope is, drawn
-  // as bars. Degree zero is the isotropic part, the average over the whole sphere; every bar above it
-  // is structure that points somewhere. The row of bars is the anisotropy arranged by dimension.
-  // A state that left only degree one located draws one tall bar and an egg for an envelope; a lumpy
-  // envelope is bars located at many degrees. Computed from the same coefficients and the same depth
-  // and conduction gain paintSurface uses. The bars and the shape are one reading displayed two ways.
+  // The power per harmonic degree of the current state, read on the same boundary as the envelope,
+  // drawn as bars. Degree zero is the isotropic part, the average over the whole sphere. Each bar
+  // above it is structure that points somewhere. The row of bars is the anisotropy, by dimension.
+  //
+  // A state with only degree one draws one tall bar, and an egg for an envelope. A lumpy envelope is
+  // bars at many degrees. The bars come from the same coefficients, depth and conduction gain that
+  // paintSurface uses. The bars and the shape are one reading, shown two ways.
   var barPen = null;
   var barPower = null;
   var barGain = null;
@@ -4173,10 +4179,9 @@
     var coefficients = CLOCK.harmonics[CLOCK.index[whole]];
     var ratio = (reach * SHELL) / bandOuter(bandFor(reach));
 
-    // This runs on every frame the clock advances. A fresh array per frame fails nothing; the heap just
-    // climbs until a collection
-    // stalls a frame. The gains are retained alongside so the box below can print the ones being used
-    // instead of recomputing them and risking a second, disagreeing answer.
+    // This runs on each frame where the clock advances. A fresh array per frame fails nothing. The heap
+    // climbs until a collection stalls a frame. The code keeps the gains beside it. The box below can
+    // then print the gains in use, with no second computation and no risk of a second answer.
     barPower = sized(barPower, ceiling + 1);
     barGain = sized(barGain, ceiling + 1);
     var climb = 1.0;
@@ -4198,9 +4203,9 @@
     var wide = canvas.width,
       high = canvas.height;
     barPen.clearRect(0, 0, wide, high);
-    // Log height, because degree zero towers over the rest by orders of magnitude and a linear axis
-    // would draw one bar and a flat floor. The floor of the axis is set well under the smallest bar
-    // that carries anything, a degree with nothing reads as nothing and not as a stub.
+    // Log height, because degree zero towers over the rest by orders of magnitude. A linear axis draws
+    // one bar and a flat floor. The floor of the axis sits well under the smallest bar that carries
+    // anything. A degree with nothing then reads as nothing, and not as a stub.
     var peak = 0;
     for (var p = 0; p <= ceiling; p++) {
       if (power[p] > peak) {
@@ -4221,8 +4226,8 @@
               (Math.log10(power[b]) - floor) / (Math.log10(peak) - floor),
             );
       var barHigh = lit * (high - 14);
-      // Degree zero cool, the rest warming with the degree so the eye reads how far out the structure
-      // reaches, and not only that it is there.
+      // Degree zero is cool, and the rest grow warmer with the degree. The eye then reads how far out
+      // the structure reaches, and not only that it is there.
       barPen.fillStyle =
         b === 0
           ? "#3d6a9b"
@@ -4234,20 +4239,22 @@
     barPen.fillText("0", 2, high - 2);
     barPen.fillText("degree " + ceiling, wide - 54, high - 2);
 
-    // Printed from the values just used, and never recomputed. Two paths to one number is two numbers
-    // that agree until one of them is edited.
+    // Printed from the values just used, and never computed again. Two paths to one number give two
+    // numbers that agree until an edit changes one of them.
     paintSums(whole, ceiling, ratio, coefficients, peak);
   }
 
   // The arithmetic, in the box above the bars.
   //
-  // The reason this is worth screen space is the last two rows. A reading to degree L carries exactly
-  // (L+1)^2 real numbers about its source, whatever the source is, because that is how many
-  // coefficients there are. The lit set here has COUNT degrees of freedom. Where (L+1)^2 is smaller,
-  // the map from one to the other has a null space of at least the difference, and every direction in
-  // it is a change to the object that moves no coefficient at all -- invisible to this instrument at
-  // any precision, any sample count, any number of beams. That is a property of the arithmetic and not
-  // a defect of the reading, and it belongs on the picture beside the picture's own conclusion.
+  // The last two rows are the reason why this is worth screen space. A reading to degree L carries
+  // exactly (L+1)^2 real numbers about its source, whatever the source is. That is how many
+  // coefficients there are. The lit set here has COUNT degrees of freedom.
+  //
+  // Where (L+1)^2 is smaller, the map from one to the other has a null space of at least the
+  // difference. Each direction in it is a change to the object that moves no coefficient at all.
+  // This instrument cannot see it, at any precision, any sample count, and any number of beams.
+  // That is a property of the arithmetic, and not a defect of the reading. It belongs on the picture,
+  // beside the own conclusion of the picture.
   var sumRows = null;
   function paintSums(whole, ceiling, ratio, coefficients, peak) {
     var box = document.getElementById("sums");
@@ -4303,8 +4310,8 @@
           " the count is exact and the reading is ill conditioned; a degree above it is not.";
   }
 
-  // Where (L+1)^2 first reaches the source count. Computed and not written down, a viewer built
-  // over a different number of things reports its own floor and not this one's.
+  // Where (L+1)^2 first reaches the source count. The code computes it, and no literal sets it. A
+  // viewer built over a different number of things then reports its own floor, and not this one.
   var COMPLETE_AT = Math.ceil(Math.sqrt(COUNT)) - 1;
 
   function strongestDegree(ceiling) {
@@ -4323,16 +4330,16 @@
     }
     var whole = Math.max(0, Math.min(CLOCK.ticks - 1, Math.floor(state.tick)));
     var step = CLOCK.steps[opAt(whole)];
-    // Short enough for the value column. Defined as "round 8, op 5" it broke across two lines and
-    // left the operation number sitting alone under its own label. The counts panel carries the long
-    // form, where there is width for it.
+    // Short enough for the value column. The form "round 8, op 5" breaks across two lines, and leaves
+    // the operation number alone under its own label. The counts panel carries the long form, where
+    // there is width for it.
     document.getElementById("clockOut").textContent =
       roundAt(whole) + "·" + (opAt(whole) + 1);
     document.getElementById("clockOp").textContent = step ? step.label : "–";
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Wiring.
+  // The bindings.
   // ---------------------------------------------------------------------------------------------
 
   function bind(id, outId, apply, format) {
@@ -4348,13 +4355,13 @@
     run();
   }
 
-  // The fastest the clock will run, in operations a second. Chosen so the slowest setting above zero
-  // is slow enough to follow a single operation and the fastest still takes long enough to watch the
-  // whole compression and not flash it.
+  // The fastest rate of the clock, in operations a second. The slowest setting above zero is slow
+  // enough to follow a single operation. The fastest still takes long enough to watch the whole
+  // compression, and does not flash it.
   var CLOCK_TOP = 24;
 
-  // Set up before the sliders below are bound, because binding one runs it immediately and it would
-  // otherwise read an opening value this block is about to change.
+  // Set up before the code binds the sliders below. A bind runs the slider at once, and else it reads
+  // an open value that this block then changes.
   if (CLOCK) {
     document.getElementById("clockBlock").style.display = "";
     var clockInput = document.getElementById("clock");
@@ -4367,9 +4374,9 @@
     degreeInput.max = String(CLOCK.degrees);
     degreeInput.value = String(CLOCK.degrees);
     if (CLOCK.harmonics) {
-      // Built, and left hidden. Which panels are on screen is the menu's decision now, and a builder
-      // revealing its own panel here would fight it: the menu would hide the box and this would show
-      // it again on the next rebuild, which reads as a panel that will not stay shut.
+      // Built, and left hidden. The menu decides which panels are on screen. A builder that shows its
+      // own panel here fights it. The menu hides the box, and this shows it again on the next build,
+      // which reads as a panel that does not stay shut.
       buildSurface();
     }
 
@@ -4378,9 +4385,9 @@
     document.getElementById("motion").value = "0";
   }
 
-  // Shadow casting, off as well as on. A shadow is the reading here. Being able to drop it separates
-  // the picture from the claim: with the casters switched off the wall goes dark except for
-  // what the sources light directly, and every mark that was doing work disappears with them.
+  // Shadow casting, off as well as on. A shadow is the reading here. A switch to drop it separates the
+  // picture from the claim. With the casters off, the wall goes dark except for what the sources
+  // light directly. Each mark that did work goes with them.
   function tie(id, apply) {
     var box = document.getElementById(id);
     box.addEventListener("change", function () {
@@ -4445,8 +4452,8 @@
     }
   });
 
-  // Changing the count rebuilds the set. The old geometry and material are released here and not
-  // left to accumulate, since this is a control a reader will hold down.
+  // A change of the count builds the set again. The code releases the old geometry and material
+  // here, and does not let them accumulate, because a reader holds this control down.
   function rearm(count) {
     var showing = armLine ? armLine.visible : false;
     if (armLine) {
@@ -4476,20 +4483,21 @@
   // The config: every control, as one JSON object.
   // ---------------------------------------------------------------------------------------------
   //
-  // THE SETTINGS ARE THE CONTROLS AND NOT A DESCRIPTION OF THEM. There is no second table naming what
-  // a page can be told, no schema to retain in step, and no list that goes stale when a control is
-  // added. The object is collected from the controls themselves by their own ids, a control that
-  // exists is configurable and a control that is removed stops being mentioned, both without anybody
-  // maintaining anything.
+  // THE SETTINGS ARE THE CONTROLS AND NOT A DESCRIPTION OF THEM. There is no second table of what a
+  // page accepts, and no schema to keep in step. No list goes stale when a new control comes.
   //
-  // Applying sets each input and dispatches the event its own handler already listens for. Nothing
-  // here knows what any control means. A slider that repaints on input repaints; a checkbox that
-  // rebuilds geometry rebuilds. The alternative, a switch naming every id, would be a second
-  // implementation of every handler and would drift from the first one the day it was written.
+  // The code collects the object from the controls themselves by their own ids. A control that exists
+  // is configurable. A removed control drops out of the object. Neither needs upkeep.
   //
-  // An unknown name is reported and never guessed at. Silently dropping it would let a typed config
-  // look applied while doing nothing, the failure this tree retains meeting: the quantity
-  // reported was not the quantity intended.
+  // An apply sets each input, and dispatches the event that its own handler already listens for.
+  // Nothing here knows what a control means. A slider that repaints on input repaints. A checkbox that
+  // builds geometry builds it.
+  // The alternative, a switch that names each id, is a second implementation of each handler, and it
+  // drifts from the first one.
+  //
+  // The code reports an unknown name, and never guesses at it. A silent drop of it makes a typed
+  // config look applied while it does nothing. That is the failure that this tree meets again and again: the
+  // reported quantity is not the intended quantity.
   var CONFIG_SKIP = { configFile: 1, configText: 1 };
 
   function configInputs() {
