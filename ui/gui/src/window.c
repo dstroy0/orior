@@ -749,6 +749,9 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     // the map's lines follow the view: a frame that moved the map's first row takes the lines it now is for
     EMBED_CALL(window_map_span, GuiWindowCtx, .window = window);
     EMBED_CALL(window_scroll_adopt, GuiWindowCtx, .window = window);
+    // Every frame the view answers shows the caret through the input rest. Its blink begins after the rest, so the
+    // caret stays displayed while the keys go.
+    window->caret_blink_start_ms = cli_clock_milliseconds() + GUI_CARET_INPUT_REST_MS;
     if (args->on)
     {
         EMBED_CALL(window_scroll_damage, GuiWindowCtx, .window = window);
@@ -1374,11 +1377,43 @@ void gui_window_show(const GuiWindowDisplayedCfg *args)
     args->window->pending = args->displayed || args->window->pending;
 }
 
-// the caret's ink, 0 or 255: hidden while the editor does not have the keys, displayed while it does. The caret does
-// not blink: a blink is a timer, and the window runs none
+// The caret's ink, 0 or 255. The caret is hidden while the editor does not have the keys. It shows through the input
+// rest before its blink begins. Then it shows for the first half of each blink and hides for the second. It shows
+// while no cursor is, while the system asks for less motion, or while another window has the keys.
 EMBED_INLINE unsigned int window_caret_color(const GuiWindowCtx *args)
 {
-    return args->window_read->editing ? 255u : 0u;
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
+    if (!args->window_read->editing)
+    {
+        return 0u;
+    }
+    if ((args->window_read->editor.frame == NULL) || args->window_read->motion_still || args->window_read->blurred ||
+        (now_ms < begun_ms))
+    {
+        return 255u;
+    }
+    return (((now_ms - begun_ms) % GUI_CARET_BLINK_PERIOD_MS) < (GUI_CARET_BLINK_PERIOD_MS / 2ULL)) ? 255u : 0u;
+}
+
+// The deadline at which the caret's ink next changes. While the input rest runs, it is the end of the blink's first
+// half. After the rest, it is the end of the half of the blink the caret is in. It is 0 while the editor does not have
+// the keys, while no cursor is, while the system asks for less motion, or while another window has the keys.
+EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *args)
+{
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    const unsigned long long begun_ms = args->window_read->caret_blink_start_ms;
+    const unsigned long long half_ms = GUI_CARET_BLINK_PERIOD_MS / 2ULL;
+    if (!args->window_read->editing || (args->window_read->editor.frame == NULL) || args->window_read->motion_still ||
+        args->window_read->blurred)
+    {
+        return 0ULL;
+    }
+    if (now_ms < begun_ms)
+    {
+        return begun_ms + half_ms;
+    }
+    return now_ms + half_ms - ((now_ms - begun_ms) % half_ms);
 }
 
 void gui_window_tick(const GuiWindowCfg *args)
@@ -1553,9 +1588,8 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 static unsigned int s_timeout_source = GUI_WINDOW_WAKES;
 
 const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES] = {
-    "autohide", "scroll", "slide",   "ground",   "preferences", "dialog", "wordmark",
-    "sides",    "busy",   "panels",  "terminal", "notices",     "menus",  "runs",
-    "search",   "git",    "preview", "comms",    "debug",       "tip",    "bead",
+    "autohide", "scroll",  "slide", "ground", "preferences", "dialog", "wordmark", "caret", "sides", "busy", "panels",
+    "terminal", "notices", "menus", "runs",   "search",      "git",    "preview",  "comms", "debug", "tip",  "bead",
 };
 
 unsigned int gui_window_timeout_source(void)
@@ -1589,6 +1623,7 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
             : 0ULL,
         EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark,
                    .now_ms = cli_clock_milliseconds()),
+        EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = window),
         EMBED_CALL(gui_sides.next_deadline_ms, GuiSidesCfg, .sides_read = &window->sides),
         // the circle's clock stops while the window is off screen, a wake from a module's thread waking it as any does
         window->off_screen ? 0ULL
@@ -6929,8 +6964,8 @@ void gui_window_draw(const GuiWindowCfg *args)
     EMBED_CALL(gui_tip_raster.draw, GuiTipRasterCfg, .tip = &args->window->tip, .raster = raster,
                .glyphs = &args->window->glyphs, .palette = palette,
                .bounds = (GuiRect){0, 0, (int)frame->width, (int)frame->height}, .scale = frame->scale);
-    // the caret last, where no panel or menu lies over it: drawn over the frame whole, and drawn again alone where
-    // its ink alone changed; none is while the view is not drawn
+    // the caret last, at the ink its blink is at, where no panel or menu lies over it: drawn over the frame whole, its
+    // blink's flips draw it again alone; none is while the view is not drawn
     args->window->caret_color = EMBED_CALL(window_caret_color, GuiWindowCtx, .window_read = args->window);
     args->window->editor.caret_color = args->window->caret_color;
     const GuiRect caret =
@@ -8654,9 +8689,11 @@ static void window_key(const GuiInputHandlerCfg *args)
                .on = window->wordmark.exists);
 }
 
-// the keys gone to another window: the menus open closed
+// The keys gone to another window: the menus open close, and the caret stands still until the keys come back.
 static void window_blur(const GuiInputHandlerCfg *args)
 {
+    args->window->blurred = 1;
+    args->window->pending = 1;
     EMBED_CALL(window_tip_cleared, GuiWindowCtx, .window = args->window);
     EMBED_CALL(window_menus_close, GuiWindowCtx, .window = args->window);
     // the changed tabs saved as the window loses the focus while auto save is on
@@ -8667,9 +8704,12 @@ static void window_blur(const GuiInputHandlerCfg *args)
     }
 }
 
-// the focus come to the main window or to Preferences' window: the signal moves to the edge of the one that holds it
+// The focus come to the main window or to Preferences' window: the signal moves to the edge of the one that holds it.
+// On the main window, the caret's blink begins again after the input rest.
 static void window_focus(const GuiInputHandlerCfg *args)
 {
+    args->window->blurred = 0;
+    args->window->caret_blink_start_ms = cli_clock_milliseconds() + GUI_CARET_INPUT_REST_MS;
     args->window->preferences.focused = 0;
     args->window->pending = 1;
     args->window->preferences_pending = 1;

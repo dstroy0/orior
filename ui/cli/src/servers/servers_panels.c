@@ -95,7 +95,8 @@ typedef struct
 // whether it was forced open; the signature's store and whether it shows, when it is asked for, the place it was asked
 // at and whether it is being asked for; the cursor; whether the text changed since the server last took it; when the
 // server is sent where the view rests, whether it was sent, and the view's top, rows and lines then; when the changed
-// text is read again; the key of the view last opened in its server; and the tree and the editor's rows
+// text is read again; the key of the view last opened in its server, and the key of the view last sent; and the tree
+// and the editor's rows
 typedef struct
 {
     int pointer_in_text;
@@ -127,6 +128,7 @@ typedef struct
     unsigned int view_rows;
     unsigned long long view_lines;
     char open_key[CLI_NAME_MAX_LEN];
+    char sent_key[CLI_NAME_MAX_LEN];
     const char *root;
     unsigned int rows;
 } Panels;
@@ -360,7 +362,6 @@ void cli_servers_panels_hide(void)
     s_panels.hover_due_ms = 0ULL;
     s_panels.hover_ask += 1ULL;
     s_panels.completion_wanted = 0;
-    s_panels.view_sent = 0;
 }
 
 // whether the pointer is on the hover's word, a unit either side
@@ -1824,6 +1825,9 @@ EMBED_INLINE void panels_view_send(const PanelsCtx *args)
     {
         s_panels.view_sent = 1;
         s_panels.view_rows = rows;
+        VerbaLinea sent = {s_panels.sent_key, sizeof(s_panels.sent_key), 0ULL};
+        mmgr_line_put(&sent, key);
+        (void)mmgr_line_finish(&sent);
     }
 }
 
@@ -1838,7 +1842,10 @@ static void panels_drawn(const CliViewDrawn *args)
     }
     s_panels.rows = args->rows;
     s_panels.cursor = args->cursor;
-    const int rested = s_panels.view_sent && (s_panels.view_top == args->top) && (s_panels.view_rows == args->rows);
+    // the server has where this view rests: the view sent is this one, at this top and these rows
+    const int rested =
+        s_panels.view_sent && (s_panels.view_top == args->top) && (s_panels.view_rows == args->rows) &&
+        cellul.eq(&(CatenaFinitaCfg){.src = s_panels.sent_key, .other = key, .cap = sizeof(s_panels.sent_key)});
     s_panels.view_top = args->top;
     s_panels.view_lines = args->lines;
     if (!rested)
