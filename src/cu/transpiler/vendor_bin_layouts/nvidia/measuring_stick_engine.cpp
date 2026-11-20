@@ -1,41 +1,52 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// measuring_stick_engine: each kernel of the measuring stick read form by form through cu.krs, and each form written at
-// once in sass.krs, the two rulesets of one schema (cu_target.h). The kernel is assembled against the part's machine
-// file and its encodings written for nvdisasm to read back.
+// measuring_stick_engine: the engine reads each kernel of the measuring stick form by form through cu.krs. It writes
+// each form at once in sass.krs. The two are rulesets of one schema (cu_target.h). The engine assembles the kernel
+// against the machine file of the part, and writes its encodings for nvdisasm to read back.
 //
 //     measuring_stick_engine <stick .cu> <nvcc listing> <out directory>
 //
-// An expression is read against every form cu.krs gives as `{to} = <text>;`, and a statement against every form cu.krs
-// gives as a statement of its own: the text is the pattern, and each parameter past a form's to takes a value the
-// kernel stores, a number as cu.krs's bank of immediates writes one, a parameter of the kernel, or an expression read
-// the same way. Of the readings that fit, a form is retained only where sass.krs's text for it assembles with the
-// operands it is given, its to a register or, where the text writes a predicate there, a predicate; of those the
-// reading of the fewest forms is taken. An expression read once is stored in its register and read again from there.
+// The engine reads an expression against each form that cu.krs gives as `{to} = <text>;`. It reads a statement against
+// each form that cu.krs gives as a statement of its own.
+// The text is the pattern. Each parameter past the to of a form takes a value that the kernel stores. It can be a
+// number as the bank of immediates of cu.krs writes one, or a parameter of the kernel. It can also be an expression,
+// read the same way.
 //
-// The stick has one arity: an operand (T)in[i] is the word at in + 8 . i, and out[thread] =
-// (unsigned long long)r is the wide stored at out + 8 . thread, its conversion written out as C converts a signed word.
-// Each of its forms is gated and ranked as an expression's is. A statement nothing here reads, and a value other than a
-// 32-bit word, are each a question the kernel puts, and its line in <out>/engine.tsv specifies which.
+// Of the readings that fit, the engine keeps a form only where the sass.krs text for it assembles with its operands.
+// Its to is a register, or a predicate where the text writes a predicate there. Of those, the engine takes the reading
+// of the fewest forms. An expression read once goes into its register, and later reads take it from there.
 //
-// The folds are the system's own, stored in sass.ksc beside sass.krs, each found on the compile channel by checking a
-// kernel as written against nvcc's listing of it:
+// The stick has one arity. An operand (T)in[i] is the word at in + 8 . i.
+// The value out[thread] = (unsigned long long)r is the wide stored at out + 8 . thread. The code writes out its
+// conversion as C converts a signed word.
 //
-//   - register put for to: a form whose sass.krs text moves one word of the constant bank into its to writes nothing,
-//     and the word is as the operand of each form that reads it. Found where nvcc's listing reads the word as the
-//     operand of an instruction other than a move.
-//   - pow2 put for a parameter: a multiply by a power of two is written as the shift of the multiply's stem, by the
-//     power's log2. Found where nvcc's listing contains the shift's operation with that log2.
-//   - offset put for address: in[i + k] is loaded from the address of in[i], k elements on in the load's offset, and
-//     operands that differ only in k share the address. Found where nvcc's listing loads at that offset.
+// The engine gates and ranks each of its forms as it does those of an expression. A statement that nothing here reads,
+// and a value other than a 32-bit word, are each a question that the kernel puts. Its line in <out>/engine.tsv says
+// which.
 //
-// The stick is read in rounds. The first writes every form unfolded; each later one folds by what sass.ksc contains,
-// which can show a fold the round before hid. After each round sass.ksc is written: what it contained of each question
-// this run queried dropped, and every fold this run found taken. The last round is written out: each kernel as
-// <out>/NNNN.sass and its encodings <out>/NNNN.bin. Nothing goes to a device.
+// The folds are the own folds of the system, stored in sass.ksc beside sass.krs. The engine finds each on the compile
+// channel. It checks a kernel as written against the listing of nvcc for it:
 //
-// Each kernel's trace is passed to the query run QRY names as the blob NNNN.trace, as every path's trace is unless
-// (qry_member.h). With no run's writer to take it, nothing is read.
+//   - register put for to: a form whose sass.krs text moves one word of the constant bank into its to writes nothing.
+//     The word is the operand of each form that reads it. The engine finds this where the listing of nvcc reads the
+//     word as the operand of an instruction other than a move.
+//   - pow2 put for a parameter: a multiply by a power of two becomes the shift of the stem of the multiply. The shift
+//     is by the log2 of the power. The engine finds this where the listing of nvcc holds the operation of the shift
+//     with that log2.
+//   - offset put for address: in[i + k] loads from the address of in[i], k elements on in the offset of the load.
+//     Operands that differ only in k share the address. The engine finds this where the listing of nvcc loads at that
+//     offset.
+//
+// The engine reads the stick in rounds. The first writes each form unfolded. Each later round folds by what sass.ksc
+// holds, which can show a fold that the round before hid.
+//
+// After each round, the engine writes sass.ksc. It drops the old lines of the file for each question that this run
+// queried, and takes each fold that this run found.
+// The engine writes out the last round: each kernel as <out>/NNNN.sass, and its encodings as <out>/NNNN.bin. Nothing
+// goes to a device.
+//
+// The engine passes the trace of each kernel to the query run that QRY names, as the blob NNNN.trace. It does the same
+// for the trace of each path (qry_member.h). With no writer of a run to take it, nothing reads it.
 extern "C"
 {
 #include "sass_assemble.h"
@@ -70,23 +81,23 @@ extern "C"
 extern "C" const char __ehdr_start = 0;
 #endif
 
-// the max rounds the stick is read in
+// the most rounds of the read of the stick
 #define STICK_ROUNDS 4u
 
-// the part the stick is assembled for, and the folder its machine file and its .kdm are in
+// the part of the assembly of the stick, and the folder of its machine file and its .kdm
 #define STICK_MACHINES "src/cu/transpiler/lstar/protocol/table"
 // the part whose machine file and classification the stick reads, as sass.krs names it in its part line
 static std::string s_part;
 
-// the width a value stored in a predicate is given
+// the width of a value stored in a predicate
 #define STICK_PREDICATE_BITS 1u
 
-// The part's registers: one stores STICK_REGISTER_BITS, and a value wider than one is stored in an even register and
-// the one past it, its low word in the even register. A value narrower than a register is stored in the low bits of one
+// The registers of the part. One stores STICK_REGISTER_BITS. A value wider than one goes in an even register and the
+// one past it, with its low word in the even register. A value narrower than a register goes in the low bits of one
 #define STICK_REGISTER_BITS 32u
 #define STICK_PAIR_BITS 64u
-// the width of a shift's count, `bits` in the rulesets: one register, a value stored in a pair read as its low word. C
-// leaves a count past the width undefined, and the low word represents every count under it
+// the width of the count of a shift, `bits` in the rulesets: one register. A value stored in a pair reads as its low
+// word. C leaves a count past the width undefined, and the low word holds each count under it
 #define STICK_COUNT_BITS 0u
 
 // the schema's forms by their place in it, as machine_ir_types.h names them
@@ -94,8 +105,8 @@ static std::string s_part;
 
 static const char *const s_form_names[OPCODE_COUNT] = {OPCODES(STICK_FORM_NAME)};
 
-// The types of C a kernel's values are read in, each its width and whether it is signed. A bool is stored as a flag, in
-// a predicate, or as a segment, the word 0 or 1
+// The types of C that the values of a kernel read in, each its width and whether it has a sign. A bool goes in as a
+// flag, in a predicate, or as a segment, the word 0 or 1
 static const struct
 {
     const char *type_name;
@@ -113,7 +124,7 @@ static const struct
     {"bool", STICK_PREDICATE_BITS, 0},
 };
 
-// the width of the registers a value of `bits` is stored in: a predicate's, one register's, or a pair's
+// the width of the registers that hold a value of `bits`: that of a predicate, of one register, or of a pair
 static unsigned int stick_register_bits(unsigned int bits)
 {
     return (bits == STICK_PREDICATE_BITS) ? bits
@@ -149,8 +160,9 @@ static int stick_promoted(int type)
     return (s_types[type].bits < 32u) ? stick_type_bare("int") : type;
 }
 
-// the type C's usual arithmetic conversions give two promoted types: the wider of two of one signedness, else the
-// unsigned one where it is at least as wide, else the signed one, which then represents every value of the other
+// the type that the usual arithmetic conversions of C give two promoted types. It is the wider of two of one
+// signedness. Else it is the unsigned one where it is at least as wide. Else it is the signed one, which then holds
+// each value of the other
 static int stick_common(int left, int right)
 {
     if (s_types[left].is_signed == s_types[right].is_signed)
@@ -200,9 +212,10 @@ static std::string stick_operation(const std::string &token)
     return ((token.size() > 2u) && (token[0] == '`')) ? token.substr(1u, token.size() - 2u) : std::string();
 }
 
-// `expression` cut into C's tokens as it is written, its white space parting them: names, a member of one taken with
-// it, numbers with their suffixes, and each operator, the longest that is at its place, stored as stick_operator()
-// gives it. `a - -b` is cut as `a`, `-`, `-`, `b` and `a--b` as `a`, `--`, `b`, as C cuts them
+// `expression`, cut into the tokens of C as the source has it, with its white space between them. The tokens are
+// names, a member of one taken with it, numbers with their suffixes, and each operator. The operator is the longest at
+// its place, stored as stick_operator() gives it. `a - -b` cuts as `a`, `-`, `-`, `b`, and `a--b` as `a`, `--`, `b`, as
+// C cuts them
 static std::vector<std::string> stick_tokens(const std::string &expression)
 {
     static const char *const s_pairs[] = {"<<", ">>", "<=", ">=", "==", "!=", "&&", "||", "++", "--"};
@@ -238,12 +251,15 @@ static std::vector<std::string> stick_tokens(const std::string &expression)
     return tokens;
 }
 
-// A form cu.krs writes: its place, its text cut at its parameters with white space taken out, and the width its casts
-// give the value. An expression's form is `{to} = <text>;`, its pieces the text after `=` cut at the parameters past
-// to; a statement's is its whole text cut at every parameter. `order` gives each parameter the text names, in the
-// text's order, its place among the parameters past to as the schema orders them, and `placeholder_bits`, in the
-// schema's order, the width of the registers each is stored in. `select` is 1 where the text is C's conditional,
-// `({where}) ? chosen : otherwise`
+// A form that cu.krs writes: its place, and its text cut at its parameters with white space taken out. Then the width
+// that its casts give the value.
+//
+// The form of an expression is `{to} = <text>;`. Its pieces are the text after `=`, cut at the parameters past to. The
+// form of a statement is its whole text, cut at each parameter.
+//
+// `order` gives each parameter that the text names, in the order of the text, its place among the parameters past to,
+// as the schema orders them. `placeholder_bits` gives, in the order of the schema, the width of the registers of each.
+// `select` is 1 where the text is the conditional of C, `({where}) ? chosen : otherwise`
 struct StickPattern
 {
     unsigned int form;
@@ -255,10 +271,10 @@ struct StickPattern
     int select;
 };
 
-// The trace of the kernel being read: every reading tried, nested as it is tried, every
-// form whose text matches and every choice of its operands with why it fails, what each reading gives, every line
-// written and every question put, gathered in memory and passed to the run once the kernel is read. Nothing
-// is gathered where s_tracing is false
+// The trace of the kernel in its read. It holds each tried reading, nested as the engine tries it. It holds each form
+// whose text matches, and each choice of its operands with the reason why it fails.
+// It holds what each reading gives, each written line and each question put. It collects in memory, and goes to the
+// run once the read of the kernel ends. Nothing collects where s_tracing is false
 static std::string s_trace;
 static bool s_tracing = false;
 static unsigned int s_trace_depth = 0u;
@@ -280,7 +296,7 @@ static void stick_trace(const char *format, ...)
     if (length > 0)
     {
         const size_t at = s_trace.size();
-        // a length vsnprintf returns past 0 widens to the size it is added to
+        // a length past 0 that vsnprintf returns widens to the size that it adds to
         s_trace.resize(at + (size_t)length + 1u);
         vsnprintf(&s_trace[at], (size_t)length + 1u, format, arguments);
         s_trace.resize(at + (size_t)length);
@@ -302,8 +318,8 @@ struct StickTraceDeeper
     }
 };
 
-// what a reading is: a form over the readings of its parameters, a value the kernel stores, a number written in
-// place, a number set into a register, or a parameter of the kernel
+// what a reading is: a form over the readings of its parameters, or a value that the kernel stores. It can also be a
+// number written in place, a number set into a register, or a parameter of the kernel
 enum StickLeaf
 {
     STICK_FORM = 0,
@@ -313,8 +329,9 @@ enum StickLeaf
     STICK_PARAMETER = 4
 };
 
-// an expression as read: what it is, its form, its text, its number, its count of forms and its width. The readings
-// of its parameters; where it is folded, the word it is as; and whether a flag is read as its complement
+// an expression as read: what it is, its form, its text, its number, its count of forms and its width. Then the
+// readings of its parameters, and where it folds, the word that it is. Then whether the engine reads a flag as its
+// complement
 struct StickReading
 {
     StickLeaf leaf;
@@ -328,8 +345,8 @@ struct StickReading
     int negated = 0;
 };
 
-// a register the kernel stores a value in, as sass.krs writes it, or the word a folded value is as. Its width,
-// whether its type is signed, and its type's place in s_types
+// a register that the kernel stores a value in, as sass.krs writes it, or the word that a folded value is. Its width,
+// whether its type has a sign, and the place of its type in s_types
 struct StickValue
 {
     std::string name;
@@ -346,12 +363,15 @@ struct StickParameter
     int type = -1;
 };
 
-// An expression written out with every conversion C makes in it, the place in s_types of the type it gives, and 1
-// where its value is never negative, a number or a flag's select of 1 and 0, so that widening it signed or unsigned
-// gives one value. Where `low_bits` is not 0, `low` is a text whose low `low_bits` bits are the value's own and which
-// leaves out conversions those bits do not need: a narrowing reads no more of its operand than that. `zero_one` is 1
-// where the value is a word that contains 0 or 1 alone. A flag tested off such a word retains it in `word`, of type
-// `word_type`: the flag read back as a word is that word, [select(p, 1, 0) != 0] = p
+// An expression written out with each conversion that C makes in it, and the place in s_types of the type that it
+// gives. Then 1 where its value is never negative, a number or the select of 1 and 0 of a flag. A widening of it signed
+// or unsigned then gives one value.
+//
+// Where `low_bits` is not 0, `low` is a text whose low `low_bits` bits are the own bits of the value. It leaves out
+// conversions that those bits do not need: a narrowing reads no more of its operand than that.
+//
+// `zero_one` is 1 where the value is a word that holds 0 or 1 alone. A flag tested off such a word keeps it in `word`,
+// of type `word_type`. The flag read back as a word is that word, [select(p, 1, 0) != 0] = p
 struct StickTyped
 {
     std::string text;
@@ -364,9 +384,11 @@ struct StickTyped
     int word_type = -1;
 };
 
-// what a round requires of nvcc's listing about one kernel: each form that moved a word of the constant bank, and the
-// word; each multiply by a power of two, its parameter and the log2; each load's form and offset into the elements;
-// and each test a select read over, with the test of its complement
+// what a round needs from the listing of nvcc about one kernel:
+//   - each form that moved a word of the constant bank, and the word.
+//   - each multiply by a power of two, its parameter and the log2.
+//   - the form of each load, and its offset into the elements.
+//   - each test that a select read over, with the test of its complement.
 struct StickListingQuery
 {
     std::vector<std::pair<unsigned int, std::string>> moved;
@@ -516,8 +538,8 @@ static std::string stick_complement(const std::string &bare)
     return std::string();
 }
 
-// The pipe an operation issues to on the part, as NVIDIA's profiler names them: 1 the integer pipe, 2 the FMA pipe,
-// 0 any other, a load, a store, a branch, the double pipe or the transcendental unit
+// The pipe that an operation issues to on the part, as the profiler of NVIDIA names them: 1 the integer pipe, 2 the
+// FMA pipe. 0 is any other: a load, a store, a branch, the double pipe or the transcendental unit
 static int stick_pipe_of(const std::string &operation)
 {
     static const char *const s_fma[] = {"IMAD", "IMUL", "FFMA", "FMUL", "FADD", "HFMA2", "HADD2", "HMUL2", "I2FP",
@@ -542,17 +564,20 @@ static int stick_pipe_of(const std::string &operation)
     return 0;
 }
 
-// Where `instruction`, squeezed, is one the system writes on either pipe, the operation it is written with on the
-// integer pipe, and its writing on the FMA pipe in `writing`: a move of a word of the constant bank, IMAD.MOV.U32 over
-// two zero registers; a left shift by a number, IMAD.SHL.U32 by the power of two; or an add of two words and a carry,
-// IMAD.X of the first by 1 added to the second. Empty where it is none of these
+// Where `instruction`, squeezed, is one that the system writes on either pipe. The result is the operation of its write
+// on the integer pipe, and its write on the FMA pipe in `writing`. These are:
+//   - a move of a word of the constant bank, IMAD.MOV.U32 over two zero registers.
+//   - a left shift by a number, IMAD.SHL.U32 by the power of two.
+//   - an add of two words and a carry, IMAD.X of the first by 1 added to the second.
+//
+// Empty where it is none of these
 static std::string stick_pipe_choice(const std::string &instruction, std::string *writing)
 {
     std::smatch found;
     const std::string text = (!instruction.empty() && (instruction.back() == ';'))
                                  ? stick_squeeze(instruction.substr(0u, instruction.size() - 1u))
                                  : instruction;
-    // each pattern compiled once, the first time a line is put to it
+    // the code compiles each pattern once, the first time that a line goes to it
     static const std::string word = "(R[0-9]+(?:\\.hi)?)";
     static const std::regex carried_add("^IADD3\\.X " + word + ", " + word + ", " + word + ", RZ, (P[0-6]), !PT$");
     static const std::regex carried_product("^IMAD\\.X " + word + ", " + word + ", 0x1, " + word + ", (P[0-6])$");
@@ -610,8 +635,8 @@ static std::pair<unsigned int, unsigned int> stick_pipe_lane(const std::vector<s
     return lane;
 }
 
-// `squeezed`, a line of sass.krs's text written with the stand-ins \x01 to \x09 for its parameters, as a pattern that
-// matches the line written with any operands, each parameter's operand a group of its own
+// `squeezed`, a line of the text of sass.krs written with the stand-ins \x01 to \x09 for its parameters. The result is
+// a pattern that matches the line written with any operands, with the operand of each parameter a group of its own
 static std::regex stick_line_pattern(const std::string &squeezed)
 {
     std::string pattern = "^";
@@ -683,16 +708,16 @@ static std::string stick_constant(const std::string &text)
     return written;
 }
 
-// a register a form's scratch is written with where its text is only looked at or assembled, and never run: one no
-// stand-in names
+// the register for the scratch of a form, where its text is only for a look or an assembly, and never runs. It is one
+// that no stand-in names
 static std::string stick_scratch_are_in(const std::string &bank)
 {
     return (bank == "wide") ? std::string("R200") : ((bank == "predicate") ? std::string("P5") : std::string("R202"));
 }
 
-// The width of the registers sass.krs's text for `form` takes each parameter in, by the parameter's place: a pair
-// where the text writes the parameter's high word or reads it as a 64-bit address, STICK_COUNT_BITS for a shift's
-// count, else one register
+// The width of the registers that the sass.krs text for `form` takes each parameter in, by the place of the parameter.
+// It is a pair where the text writes the high word of the parameter, or reads it as a 64-bit address. It is
+// STICK_COUNT_BITS for the count of a shift, else one register
 static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsigned int form)
 {
     const std::vector<std::string> names = ruleset_parameters(sass, s_form_names[form]);
@@ -718,8 +743,8 @@ static std::vector<unsigned int> stick_parameter_bits(const Ruleset *sass, unsig
     return bits;
 }
 
-// the width of the registers of the C type, written bare, of the cast that ends `piece`; 0 where `piece` ends
-// in no cast to a register's own type, unsigned int or unsigned long long
+// the width of the registers of the C type, written bare, of the cast that ends `piece`. 0 where `piece` ends in no
+// cast to the own type of a register, unsigned int or unsigned long long
 static unsigned int stick_own_cast(const std::string &piece)
 {
     static const char *const s_own[] = {"(unsignedint)", "(unsignedlonglong)"};
@@ -734,17 +759,18 @@ static unsigned int stick_own_cast(const std::string &piece)
     return 0u;
 }
 
-// Every form cu.krs gives as an expression or as a statement of its own, each with a character of its own text. A cast
-// to a register's own type just before a parameter converts nothing where the parameter is stored in a register of that
-// width, and the form is also read with the cast left out, the parameter then stored at the cast's width
+// Each form that cu.krs gives as an expression or as a statement of its own, each with a character of its own text.
+// A cast to the own type of a register just before a parameter converts nothing, where a register of that width holds
+// the parameter. The engine then also reads the form with the cast left out, with the parameter at the width of the
+// cast
 static std::vector<StickPattern> stick_patterns(const Ruleset *rules, const Ruleset *sass)
 {
     std::vector<StickPattern> patterns;
     for (unsigned int form = 0u; form < OPCODE_COUNT; form += 1u)
     {
         const InstrTemplate &text = rules->forms[form];
-        // a sign, a byte of -1, 0 or 1, is no type of C, and a form over one reads no text of C: its text narrows
-        // to a signed char only what is a sign already
+        // a sign, a byte of -1, 0 or 1, is no type of C, and a form over one reads no text of C. Its text narrows to a
+        // signed char only what is already a sign
         const std::string name = s_form_names[form];
         const int sign = (name.compare(0u, 5u, "sign_") == 0) || (name.compare(0u, 10u, "test_sign_") == 0);
         if ((rules->form_given[form] != (unsigned char)RULESET_CORE_GIVEN) || text.placeholders.empty() || (sign != 0))
@@ -793,7 +819,7 @@ static std::vector<StickPattern> stick_patterns(const Ruleset *rules, const Rule
                            (pieces[1].compare(0u, 2u, ")?") == 0) && (pieces[2].compare(0u, 1u, ":") == 0);
         std::vector<unsigned int> order;
         std::vector<size_t> casts;
-        // a parameter the text leaves out still has its place: the widths are fixed by the parameter's place
+        // a parameter that the text leaves out still has its place: the place of the parameter fixes the widths
         size_t places = placeholders;
         for (size_t placeholder = 0u; placeholder < placeholders; placeholder += 1u)
         {
@@ -847,7 +873,7 @@ static std::vector<StickPattern> stick_patterns(const Ruleset *rules, const Rule
     return patterns;
 }
 
-// every way `pieces` from `piece` on matches `text` from `at` on, each parameter taking a balanced span, into `found`
+// each way that `pieces` from `piece` on matches `text` from `at` on, each parameter with a balanced span, into `found`
 static void stick_match(const std::vector<std::string> &pieces, size_t piece, const std::string &text, size_t at,
                         std::vector<std::string> &bound, std::vector<std::vector<std::string>> &found)
 {
@@ -919,12 +945,12 @@ static std::string stick_fold_line(const Ruleset *sass, unsigned int form, const
     return (opening != 0) ? line : (line + ((parameter < names.size()) ? names[parameter] : std::string()));
 }
 
-// every writing put to a machine's assembler, and 1 where it assembled: a writing is put once, its answer read here
-// every time after
+// each write put to the assembler of a machine, and 1 where it assembled. The engine puts a write once, and reads its
+// answer here each time after
 static std::map<std::pair<const SassMachine *, std::string>, int> s_stick_assembled;
 
-// a kernel read and written: the rulesets, the machine file a form is gated on, whether it folds, the values and
-// parameters it stores, the text written so far, and what it requires of nvcc's listing
+// a kernel read and written: the rulesets, and the machine file that gates a form. Then whether it folds, the values
+// and parameters that it stores, the text written so far, and what it needs from the listing of nvcc
 class StickKernel
 {
   public:
@@ -940,13 +966,15 @@ class StickKernel
     std::string question;
     unsigned int forms;
     StickListingQuery listing_query;
-    // the count of registers the kernel names, its high water mark once assign() has given them
+    // the count of registers that the kernel names, its high water mark once assign() gives them
     unsigned int register_count = 0u;
-    // each register the kernel uses, one a line: the register, what stores it, a name of the kernel's or a fixed
-    // register by its name, and the lines of the text that claim it and release it, written by assign()
+    // each register that the kernel uses, one a line. The line holds the register and what stores it: a name of the
+    // kernel, or a fixed register by its name. Then the lines of the text that claim it and release it, written by
+    // assign()
     std::string register_lines;
 
-    // `expression` read and written into a register, its value; empty where it is not read, `question` then stating why
+    // `expression`, read and written into a register: its value. Empty where the read failed, with the reason in
+    // `question`
     StickValue value(const std::string &expression)
     {
         const std::string bare = stick_bare(expression);
@@ -964,9 +992,9 @@ class StickKernel
         return written(reading);
     }
 
-    // Form `name` over the expressions `spans`, its first `outputs` its own registers: each span read with a number
-    // or a folded word in place and in a register, and of the choices sass.krs's text assembles, the one of fewest
-    // forms written. 0 where none assembles, `question` then stating why
+    // Form `name` over the expressions `spans`, its first `outputs` its own registers. Each span reads with a number or
+    // a folded word in place, and in a register. Of the choices that the sass.krs text assembles, the code writes the
+    // one of fewest forms. 0 where none assembles, with the reason in `question`
     int form(const std::string &name, const std::vector<std::string> &outputs, const std::vector<std::string> &spans)
     {
         const unsigned int place = stick_form(name);
@@ -985,7 +1013,7 @@ class StickKernel
         return write(name, arguments);
     }
 
-    // 1 where `bare`, a statement, is read through a statement form of cu.krs and written
+    // 1 where `bare`, a statement, reads through a statement form of cu.krs, and the code writes it
     int statement(const std::string &bare)
     {
         for (const StickPattern &pattern : *patterns)
