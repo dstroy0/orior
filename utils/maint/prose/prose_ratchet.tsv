@@ -585,7 +585,6 @@ includes/window/ground.c	2
 includes/window/ground.h	4
 includes/window/icons.h	9
 includes/window/lattice.c	20
-includes/window/lattice.h	22
 includes/window/lights.c	1
 includes/window/lights.h	3
 includes/window/palette.c	15
