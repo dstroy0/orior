@@ -48,6 +48,7 @@ error-detecting
 faulting
 fetching
 filtering
+finding
 flattening
 floating
 folding
@@ -79,6 +80,7 @@ masking
 matching
 mining
 moving
+naming
 narrowing
 non-breaking
 nonradiating
@@ -115,6 +117,7 @@ scanning
 scattering
 scheduling
 scraping
+setting
 shading
 shaping
 shuffling
