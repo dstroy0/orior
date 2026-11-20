@@ -99,7 +99,7 @@ examples/00_blob_viz_tools/qubit_trace.py	71
 examples/00_blob_viz_tools/quotient_coherence.py	25
 examples/00_blob_viz_tools/reading_rank.py	24
 examples/00_blob_viz_tools/ring_quadrant.py	25
-examples/00_blob_viz_tools/room_view_template.html	753
+examples/00_blob_viz_tools/room_view_template.html	752
 examples/00_blob_viz_tools/scope_view_template.html	6
 examples/00_blob_viz_tools/script_check.py	45
 examples/00_blob_viz_tools/settings.py	16
@@ -469,7 +469,6 @@ includes/exact_types/integerfloats/edouble/edouble_record.h	20
 includes/exact_types/integers/arm.c	4
 includes/exact_types/integers/arm.cu	23
 includes/exact_types/integers/arm.h	20
-includes/exact_types/integers/arm_avx2.c	24
 includes/exact_types/integers/arm_avx512.c	20
 includes/exact_types/integers/arm_cuda.h	8
 includes/exact_types/integers/arm_neon.c	11
@@ -618,7 +617,7 @@ includes/window/wordmark.c	29
 includes/window/wordmark.h	19
 includes/window/work.h	4
 src/build_engine.sh	9
-src/cu/CMakeLists.txt	9
+src/cu/CMakeLists.txt	8
 src/cu/engine/analysis/compression/compression.cu	6
 src/cu/engine/analysis/compression/compression.h	3
 src/cu/engine/analysis/cycle/cycle.c	6
@@ -1096,7 +1095,7 @@ utils/maint/audit/audit_seeds.py	2
 utils/maint/audit/chirality.py	12
 utils/maint/audit/comb_arms.py	10
 utils/maint/audit/compare_corpus.py	27
-utils/maint/audit/compressibility.py	15
+utils/maint/audit/compressibility.py	13
 utils/maint/audit/conserve_headers.py	18
 utils/maint/audit/grammar.py	6
 utils/maint/audit/handedness.py	14

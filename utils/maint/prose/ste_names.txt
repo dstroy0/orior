@@ -86,6 +86,7 @@ non-breaking
 nonradiating
 numbering
 opening
+operating
 ordering
 oversampling
 packaging
