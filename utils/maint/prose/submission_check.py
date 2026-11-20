@@ -4,59 +4,53 @@
 #
 # What a contribution looks like before a person reads it.
 #
-#   Usage:  python utils/maint/prose/submission_check.py <path> [<path> ...]
-#           python utils/maint/prose/submission_check.py --tree <repository root>
+#   Usage:  `python utils/maint/prose/submission_check.py <path> [<path> ...]`
+#           `python utils/maint/prose/submission_check.py --tree <repository root>`
 #
 # THE RULE THIS SERVES
 #
-# CONTRIBUTING.md:8 states a condition as non-negotiable, and it is the only one there: a tool for
-# language that comes out of this work requires a human to review its output, and a contribution
-# that removes a person from that loop is not accepted. CONTRIBUTING.md:30 then lists three checks,
-# prose and the kernel and the ports, and not one looks at the condition that comes first.
-# Somebody pasting generated text into a Salishan form is a person removed from the loop, and
-# nothing in the tree caught it.
+# CONTRIBUTING.md:8 states a condition as non-negotiable, and it is the only one there. A tool for language that comes
+# out of this work requires a human to review its output. The project does not accept a contribution that removes a
+# person from that loop. CONTRIBUTING.md:30 then lists three checks, prose and the kernel and the ports, and not one
+# looks at the condition that comes first. A person who pastes generated text into a Salishan form is a person removed
+# from the loop. No other part of the tree catches it.
 #
-# IT REPORTS. IT DOES NOT DECIDE, AND IT MUST NOT BE WIRED AS ONE
+# IT REPORTS. IT DOES NOT DECIDE, AND NOBODY MAY WIRE IT AS ONE
 #
-# A scanner that errors on a contribution on its own automates away the human that CONTRIBUTING.md:8
-# requires, in the name of enforcing that rule. Nothing here prints pass, fail, accept or reject,
-# and the exit status reports what was found and never what to do about it. Do not put this in a
-# hook that rejects. Whoever wires it up next will not have read the conversation this came out of.
-# The constraint is written here for that reason, where they will be looking.
+# A scanner that errors on a contribution on its own automates away the human that CONTRIBUTING.md:8 requires, in the
+# name of that same rule. Nothing here prints pass, fail, accept or reject. The exit status reports what the scan found,
+# and never what to do about it. Do not put this in a hook that rejects. The next person to wire it up may not know this
+# rule, and this comment states it where that person will look.
 #
-# The numbers below are evidence for a person, and a person can look at any of them and say the
-# contributor writes that way. A contributor who does is not doing anything wrong.
+# The numbers below are evidence for a person, and a person can look at any of them and say that the contributor writes
+# that way. A contributor who does is not at fault.
 #
 # TWO SURFACES
 #
-# A name. Generated text pasted in whole tends to carry the vendor's own name somewhere, in a
-# preamble, an error, or a stray line of chat. That is the cheap surface and it catches the
-# careless case only.
+# A name. Generated text pasted in whole tends to carry the vendor's own name somewhere: in a preamble, an error, or a
+# stray line of chat. That is the cheap surface, and it catches the careless case only.
 #
-# A register. This surface carries the measurement. utils/maint/prose/docs_check holds 285 patterns and,
-# for 121 of them, the rate a human research writer uses them at, counted over 759,815 words of
-# the papers under build/papers. Those rates are imported from that file and never restated here.
-# Their sum is the rate a human carries for the whole list. The baseline this compares against
-# is derived from the same table the findings come from and cannot drift away from it.
+# A register, and this surface carries the measurement. The tool utils/maint/prose/docs_check holds 285 patterns. For
+# 121 of them, it holds the human rate: the rate in 759,815 words of the papers under build/papers. This file imports
+# those rates from that file, and never restates them. Their sum is the rate that a human carries for the whole list.
+# The baseline here comes from the same table as the findings, and cannot drift away from it.
 #
-# WHAT THE RATES ARE COUNTED OVER, WHICH DECIDES WHETHER THEY MEAN ANYTHING
+# WHAT THE RATES COUNT OVER, WHICH DECIDES WHETHER THEY MEAN ANYTHING
 #
-# A rate is per hundred thousand words. The denominator here is a count of character runs in the prose
-# of the submission, after docs_check.prose_only has removed code, math and markup. The human rates
-# were counted over english_gate's output instead, which is stricter: it drops the interlinear
-# glosses, the orthography and the tables that fill a Salishan paper.
+# A rate is per hundred thousand words. The denominator here is a count of character runs in the prose of the
+# submission, after docs_check.prose_only removes code, math and markup. The human rates count over the output of
+# english_gate instead, which is stricter. It drops the interlinear glosses, the orthography and the tables that fill a
+# Salishan paper.
 #
-# For a submission that is English prose the two denominators are close and the ratio is worth
-# reading. For a submission that is mostly a table, a word list or IPA, this count runs high, every
-# rate runs low, and the comparison says little. The word count is printed for that reason. Read it
-# before reading the ratio.
+# For a submission that is English prose, the two denominators are close, and the ratio is worth a read. For a
+# submission that is mostly a table, a word list or IPA, this count runs high and every rate runs low. The comparison
+# then says little. The output prints the word count for that reason. Read it before the ratio.
 #
 # A LOW NUMBER IS NOT EVIDENCE OF ANYTHING
 #
-# The rates are a floor and only a floor. A contributor who knows the list can write around it, and
-# the phrases were suppressed in this tree's own prose while the human corpus was being counted.
-# A submission scoring near the human rate told you nothing except that it scored near the
-# human rate.
+# The rates are a floor and only a floor. A contributor who knows the list can write around it. This tree's own prose
+# also suppresses the phrases, and the human corpus does not. A submission with a score near the human rate says
+# nothing, except that its score is near the human rate.
 
 import os
 import re
@@ -80,22 +74,22 @@ from docs_check import (
 # Summed from the table instead of written down. The two cannot disagree. It comes to 387.9.
 HUMAN_WHOLE = sum(HUMAN_RATE.values())
 
-# What a submission arrives as. docs_check reads the five this repository writes in. A contribution
-# also turns up as a plain page or a transcribed paper, and neither has a comment marker to find
-# prose behind. Both are read as prose all the way down.
+# What a submission arrives as. docs_check reads the five that this repository writes in. A contribution also arrives as
+# a plain page or a transcribed paper, and neither has a comment marker to find prose behind. The tool reads both as
+# prose all the way down.
 PLAIN = (".txt", ".rst", ".markdown", ".text", ".org")
 SUBMITTED = CHECKED + PLAIN
 
-# Names that identify a vendor or a product. None of these is also an ordinary English word.
-# Each one is matched anywhere on a line, case folded. The PHRASES below need more care.
+# Names that identify a vendor or a product. None of these is also an ordinary English word. The tool matches each one
+# anywhere on a line, case folded. The PHRASES below need more care.
 NAMES = ("anthropic", "claude", "openai", "chatgpt")
 
-# Words that are ordinary English on their own. Each is matched only where a version number sits
-# beside it. opus is a work, sonnet is a poem, haiku is a poem, and all three are model names.
+# Words that are ordinary English on their own. The tool matches each only where a version number sits beside it. The
+# word opus is a work, and sonnet and haiku are poems, and all three are model names.
 #
-# Two details here were measured. The leading \b retains octopus 4 out, and a Salishan word list
-# supplied that one. The separator is required instead of optional because
-# opus1.com is an address inside an RFC, and an optional separator matched it.
+# A measurement sets two details here. The leading \b keeps octopus 4 out, which a Salishan word list supplies. The
+# pattern requires the separator, and does not make it optional, because opus1.com is an address inside an RFC. An
+# optional separator matches it.
 PHRASES = (
     r"\bopus[\s._-]+\d",
     r"\bsonnet[\s._-]+\d",
@@ -103,28 +97,27 @@ PHRASES = (
     r"\bgpt[\s._-]*\d",
 )
 
-# Phrases that hold one of those names and are not a vendor reference. claudetite is an antimony
-# oxide and it sits in the crystallography oracle beside senarmontite and valentinite.
+# Phrases that hold one of those names and are not a vendor reference. The first is an antimony oxide mineral, which
+# sits in the crystallography oracle beside senarmontite and valentinite.
 ALLOWED = ("claudetite",)
 
-# Claude is a given name, and a Salishan bibliography is full of people who carry it: Hagege,
-# Levi-Strauss, Vaucher, Bacqueville de la Potherie. Shannon is one entry away from joining them.
-# An exact phrase for each would need a new entry every time a paper arrives, and the entry would
-# be missing on the day it mattered.
+# One of the vendor's model names is also a given name. A Salishan bibliography is full of people who carry it:
+# Hagege, Levi-Strauss, Vaucher, Bacqueville de la Potherie. Shannon is one entry away from them. An exact phrase for
+# each would need a new entry for every new paper, and the entry would be absent on the day it mattered.
 #
-# A person is recognized by shape instead. A given name is followed by a surname, or it trails one,
-# and a scanned page separates the two with whatever the scanner made of the comma.
+# The tool finds a person by shape instead. A surname follows the given name, or the given name trails one. A scanned
+# page separates the two with whatever the scanner made of the comma.
 #
-# The surname is captured instead of only matched, because its first character separates a person from
-# a model. Claude Hagege carries a capital there and Claude output does not. The test runs on the
-# line as written and never on a folded copy, since folding destroys the capital it reads.
+# The pattern captures the surname, and does not only match it, because its first character separates a person from a
+# model. A person's surname carries a capital there, and the word "output" after a model name does not. The test runs on
+# the line as written and never on a folded copy, because a fold destroys the capital that it reads.
 #
-# The character class admits combining marks. A scanned bibliography stores Levi-Strauss decomposed,
-# as L, e, U+0301, and \w alone stops at the mark and falls through to a lowercase start further
-# along, which reported one bibliography entry as a vendor reference.
+# The character class admits diacritics. A scanned bibliography stores Levi-Strauss decomposed, as L, e, U+0301. A bare
+# \w stops at the mark, and falls through to a lowercase start further along. That would report one bibliography entry
+# as a vendor reference.
 #
-# These do not clear a line. They move it to a count that prints and errors nothing, and the lines
-# themselves print under --people. A hit that is quietly dropped is a hit nobody reads.
+# These do not clear a line. They move it to a count that prints and errors nothing, and the lines themselves print
+# under --people. A hit that the tool drops quietly is a hit that nobody reads.
 CHARACTER = r"[^\W\d_]"
 MARK = chr(0x0300) + chr(0x002D) + chr(0x036F)
 PEOPLE = (
@@ -140,8 +133,8 @@ PEOPLE = (
     ),
 )
 
-# Words that follow the given name in a model's name and never in a person's. A line holding one of
-# these beside the name is a model reference whatever else its shape looks like.
+# Words that follow the given name in a model's name, and never in a person's. A line that holds one of these beside the
+# name is a model reference, whatever else its shape looks like.
 MODELS = ("opus", "sonnet", "haiku", "instant", "code", "next")
 
 # Extensions read as bytes. A match inside one would be unreadable in a report.
@@ -179,8 +172,8 @@ BINARY = (
     ".bin",
 )
 
-# Bytes above which a file is reported as skipped instead of read. A silent skip reads as a clean
-# result. Every skipped file is named at the foot of the report.
+# Bytes above which the report names a file as skipped, and does not read it. A silent skip reads as a clean result. The
+# foot of the report names every skipped file.
 LARGE = 4 * 1024 * 1024
 
 MATCHERS = tuple(
@@ -188,8 +181,8 @@ MATCHERS = tuple(
     + [(one, re.compile(one)) for one in PHRASES]
 )
 
-# A character run. Digits, punctuation and the markup docs_check leaves behind are not words, and
-# counting them lowers every rate by inflating the denominator.
+# A character run. Digits, punctuation and the markup that docs_check leaves behind are not words. A count of them would
+# lower every rate, because the denominator would grow.
 WORD = re.compile(r"[^\W\d_][\w'’-]*")
 
 TRIM = 92
@@ -248,7 +241,7 @@ def displayed(text):
 
 
 def text_of(path):
-    """One submitted file as text, or None where it was not read."""
+    """One submitted file as text, or None where the read failed."""
     try:
         if os.path.getsize(path) > LARGE:
             return None
@@ -264,9 +257,8 @@ def text_of(path):
 def prose_of(path, lines):
     """The prose of one submitted file, with code, math and markup taken out.
 
-    docs_check knows the five extensions this repository writes in. A plain page or a transcribed
-    paper has no comment marker to find prose behind. It is read whole and only its quiet blocks
-    are honored.
+    docs_check knows the five extensions that this repository writes in. A plain page or a transcribed paper has no
+    comment marker to find prose behind. The function reads it whole, and honors only its quiet blocks.
     """
     if path.endswith(CHECKED):
         return prose_only(path, lines)
@@ -274,7 +266,7 @@ def prose_of(path, lines):
 
 
 def walk(roots):
-    """Every submitted file under the given paths, taking a file argument as itself."""
+    """Every submitted file under the given paths, with a file argument taken as itself."""
     found = []
     for root in roots:
         if os.path.isfile(root):
@@ -289,23 +281,21 @@ def walk(roots):
 def git(root, *arguments):
     """One git command in one repository, as text, or None where git errored.
 
-    core.quotePath is turned OFF for every call and not at the two sites that list paths.
+    The helper turns core.quotePath OFF for every call, and not only at the two sites that list paths.
 
-    With it on, which is git's default, a path holding any character outside ASCII comes back
-    quoted and octal-escaped: papers/...Kwak’wala.pdf is returned as
-    "papers/...Kwak\\342\\200\\231wala.pdf". tracked() then joins that to the root and produces a
-    path that does not exist. The file is dropped from the listing with no error. A screen that
+    With it on, which is git's default, a path that holds any character outside ASCII comes back
+    quoted and octal-escaped. The path `papers/...Kwak’wala.pdf` comes back as
+    `"papers/...Kwak\\342\\200\\231wala.pdf"`. tracked() then joins that to the root, and produces a
+    path that does not exist. The file drops out of the listing with no error. A screen that
     cannot see a file reports it clean.
 
     This is not hypothetical in this tree. The Salishan corpus tracks two papers whose names carry
-    U+2019, which is ordinary Salishan orthography, and a listing without this flag returns 0 of
-    them where one with it returns 2. The corpus custodian hit it twice in one day -- cataloged it
-    in the morning, wrote a rule about it, and walked into it again four hours later on the same
-    character in the same repository.
+    U+2019, which is ordinary Salishan orthography. A listing without this flag returns 0 of them,
+    and one with it returns 2.
 
-    That is the argument for putting it in the helper. A rule recorded in a document has to be
-    remembered by whoever writes the next call site; a flag in the one function every call goes
-    through does not.
+    That is the argument for the flag in the helper. A rule in a document relies on the memory of
+    whoever writes the next call site. A flag in the one function that every call goes through does
+    not.
     """
     try:
         done = subprocess.run(
@@ -322,10 +312,10 @@ def git(root, *arguments):
 
 
 def tracked(root):
-    """Every path git tracks under one repository root, or None where git errored.
+    """Every path that git tracks under one repository root, or None where git errored.
 
-    The tree mode asks a question about a contribution too: whether what a contributor is being
-    asked to work inside already carries the thing being screened for.
+    The tree mode asks a question about a contribution too. It asks whether the tree that a contributor works
+    inside already carries what the screen looks for.
     """
     listed = git(root, "ls-files")
     if listed is None:
@@ -338,12 +328,11 @@ def tracked(root):
 
 
 def served(root):
-    """Every path the upstream branch holds, which is every path a fresh clone receives.
+    """Every path that the upstream branch holds, which is every path that a fresh clone receives.
 
-    A tracked file and a served one are different situations and only one of them can still be
-    changed quietly. A file removed from the working tree later stays in the commits that carry it,
-    and a clean listing means only that new clones stop showing it in the tree. The history still
-    holds it.
+    A tracked file and a served one are different situations, and only one of them can still change quietly. A file
+    removed from the working tree later stays in the commits that carry it. A clean listing means only that new clones
+    no longer show it in the tree. The history still holds it.
     """
     named = git(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
     if not (named and named.strip()):
@@ -372,8 +361,8 @@ def counted(paths, base, show_people, out, clones=None):
 
         found, person = names_in(shortened)
         if found and not person:
-            # Where the tree is a repository, whether a fresh clone already receives this path.
-            # A submission is tracked nowhere. The column is left off entirely.
+            # Where the tree is a repository: whether a fresh clone already receives this path. Nothing tracks a
+            # submission, and the output leaves the column off entirely.
             located = (
                 None
                 if clones is None
@@ -486,7 +475,7 @@ def phrase_human():
 
 
 def excess(pattern, rate):
-    """How far above a human writer one pattern sits, for ranking. Absent patterns rank first."""
+    """How far above a human writer one pattern sits, for the rank order. Absent patterns rank first."""
     human = HUMAN_RATE.get(pattern, 0.0)
     if not human:
         return float("inf") if rate else 0.0
@@ -501,7 +490,7 @@ def times(rate, human):
 
 
 def readable(pattern):
-    """One pattern with its regex furniture removed, leaving the phrase a reader can read."""
+    """One pattern with its regex furniture removed, which leaves the phrase that a reader can read."""
     flat = pattern.replace(r"\b", "").replace(r"\s?", " ").replace(r"\s+", " ")
     flat = flat.replace("[\\w-]+", "X").replace(".{1,40}", " ... ")
     flat = re.sub(r"\\(.)", r"\1", flat)
@@ -566,9 +555,8 @@ def main():
     out.write("  A person reads this. Nothing here is a verdict.\n")
     out.flush()
 
-    # Reading nothing is never passing. A run that opens no file and reports success is the failure
-    # nobody sees, and it is how a wrong path goes unnoticed for as long as it takes somebody to
-    # wonder why the count never moves.
+    # A read of nothing is never a pass. A run that opens no file and reports success is the failure that nobody sees.
+    # That is how a wrong path goes unnoticed, until somebody wonders why the count never moves.
     if read == 0:
         out.write("  no file was read. Nothing was screened. Nothing came back clean\n")
         out.flush()
