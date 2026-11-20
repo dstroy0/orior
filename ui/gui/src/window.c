@@ -163,6 +163,8 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     // the themes' cell is until the window ends; with none the theme commands are refused
     (void)EMBED_CALL(gui_themes_owner.init, GuiThemesOwnerCfg, .themes = &args->window->themes,
                      .owner = g_cli_view_owner);
+    // the reader's plugins folder kept open as one of the program's own files until the window ends
+    cli_plugins_watch_start();
     EMBED_CALL(gui_palette_scheme.own_init, GuiPaletteCfg, .own = &args->window->palette_own,
                .scheme = GUI_SCHEME_DARK);
     args->window->palette = &args->window->palette_own.colors;
@@ -301,6 +303,7 @@ void gui_window_end(const GuiWindowCfg *args)
     cli_terminal_tabs_end();
     cli_servers_problems_end();
     cli_servers_panels_end();
+    cli_folder_watch_stop();
     cli_plugins_languages_end();
     cli_files_explorer_end();
     cli_comms_pane_end();

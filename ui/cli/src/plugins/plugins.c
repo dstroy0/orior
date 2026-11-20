@@ -421,6 +421,17 @@ void cli_plugins_languages_changed(void)
     EMBED_CALL(cli_languages_placed, PluginsCtx, .pairs = pairs);
 }
 
+void cli_plugins_watch_start(void)
+{
+    char dir[CLI_PATH_MAX_LEN];
+    if (EMBED_CALL(cli_folder_internal.home_plugins, CliFolderCtx, .folder_out = dir) &&
+        EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = dir))
+    {
+        (void)EMBED_CALL(cli_folder_watch_internal.start, CliFolderWatchCtx, .folder = dir,
+                         .changed = cli_plugins_languages_changed);
+    }
+}
+
 void cli_plugins_languages_end(void)
 {
     EMBED_CALL(cli_languages_placed, PluginsCtx, .pairs = NULL);

@@ -10,6 +10,8 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_watch_started_passes_a_change_and_passes_none_once_stopped(void);
+extern void test_a_folder_kept_open_calls_on_a_change_under_it_and_calls_none_once_stopped(void);
+extern void test_a_burst_of_writes_under_a_folder_kept_open_calls_once(void);
 extern void test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed(void);
 extern void test_a_hidden_file_written_is_left_out_whole(void);
 extern void test_a_poll_finds_a_written_file(void);
@@ -76,10 +78,12 @@ int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/watch/test_watch/test_watch.c");
   run_test(test_a_watch_started_passes_a_change_and_passes_none_once_stopped, "test_a_watch_started_passes_a_change_and_passes_none_once_stopped", 92);
-  run_test(test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed, "test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed", 158);
-  run_test(test_a_hidden_file_written_is_left_out_whole, "test_a_hidden_file_written_is_left_out_whole", 168);
-  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 175);
-  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 181);
+  run_test(test_a_folder_kept_open_calls_on_a_change_under_it_and_calls_none_once_stopped, "test_a_folder_kept_open_calls_on_a_change_under_it_and_calls_none_once_stopped", 143);
+  run_test(test_a_burst_of_writes_under_a_folder_kept_open_calls_once, "test_a_burst_of_writes_under_a_folder_kept_open_calls_once", 161);
+  run_test(test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed, "test_a_hidden_folder_removed_marks_the_folder_it_was_in_changed", 209);
+  run_test(test_a_hidden_file_written_is_left_out_whole, "test_a_hidden_file_written_is_left_out_whole", 219);
+  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 226);
+  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 232);
 
   return UNITY_END();
 }

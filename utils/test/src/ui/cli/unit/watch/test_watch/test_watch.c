@@ -122,6 +122,57 @@ void test_a_watch_started_passes_a_change_and_passes_none_once_stopped(void)
     TEST_ASSERT_EQUAL_UINT(before, s_live_batches);
 }
 
+static unsigned int s_folder_calls;
+
+static void folder_changed(void)
+{
+    s_folder_calls += 1u;
+}
+
+// the calls of the folder watch counted while `milliseconds` pass or until `calls` came
+static void folder_calls_waited(unsigned int calls, unsigned long long milliseconds)
+{
+    const unsigned long long until = cli_clock_milliseconds() + milliseconds;
+    while ((s_folder_calls < calls) && (cli_clock_milliseconds() < until))
+    {
+        CliWake pause = CLI_WAKE_INIT;
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 20ull);
+    }
+}
+
+void test_a_folder_kept_open_calls_on_a_change_under_it_and_calls_none_once_stopped(void)
+{
+    tree_written("watch_folder");
+    cli_unity_file(s_root, "src/plugin.json", "{}");
+    s_folder_calls = 0u;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_folder_watch_internal.start, CliFolderWatchCtx, .folder = s_root,
+                                .changed = folder_changed));
+    cli_unity_file(s_root, "src/plugin.json", "{\"id\": \"one\"}");
+    // a system with no change notice reads the folder every two seconds: the wait spans several readings
+    folder_calls_waited(1u, 10000ull);
+    TEST_ASSERT_NOT_EQUAL(0u, s_folder_calls);
+    cli_folder_watch_stop();
+    const unsigned int before = s_folder_calls;
+    cli_unity_file(s_root, "src/other.json", "{}");
+    folder_calls_waited(before + 1u, 500ull);
+    TEST_ASSERT_EQUAL_UINT(before, s_folder_calls);
+}
+
+void test_a_burst_of_writes_under_a_folder_kept_open_calls_once(void)
+{
+    tree_written("watch_burst");
+    s_folder_calls = 0u;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_folder_watch_internal.start, CliFolderWatchCtx, .folder = s_root,
+                                .changed = folder_changed));
+    cli_unity_file(s_root, "src/plugin.json", "{}");
+    cli_unity_file(s_root, "src/sample.txt", "a");
+    cli_unity_file(s_root, "src/other.json", "{}");
+    folder_calls_waited(1u, 10000ull);
+    folder_calls_waited(2u, 1000ull);
+    cli_folder_watch_stop();
+    TEST_ASSERT_EQUAL_UINT(1u, s_folder_calls);
+}
+
 static char s_folders[1024];
 static unsigned int s_folders_count;
 static unsigned int s_files_count;

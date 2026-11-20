@@ -105,9 +105,12 @@ typedef struct
 // every plugin passed to `each`: those that come with orior, then the reader's, each in the order of its id
 void cli_plugins_each(const CliPluginsEachCfg *args);
 // The language each extension, whole name and pattern of paths opens as, read anew from the language plugins into the
-// table the plugins module owns, a reader's plugin located in for one that comes with orior. A write of a plugin calls
-// it, and the next call of cli_plugins_language_for reads the new table. And the table given back as the program ends
+// table the plugins module owns, a reader's plugin located in for one that comes with orior. The next call of
+// cli_plugins_language_for reads the new table. The reader's plugins folder, made where it is absent, kept open from
+// the window's start to its end: a change under it reads the table again on the watch's thread. And the table given
+// back as the program ends
 void cli_plugins_languages_changed(void);
+void cli_plugins_watch_start(void);
 void cli_plugins_languages_end(void);
 // the grammar of the language plugin `id` stored for the colorer under `plugin:<id>`, its key written into `key`,
 // sized for CLI_NAME_MAX_LEN: read from the plugin.json of the plugin of that id that is, and read again only where
