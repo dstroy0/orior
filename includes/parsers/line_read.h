@@ -11,28 +11,29 @@ extern "C"
 {
 #endif
 
-    // the line at `*at` of the `size` bytes at `bytes` read into `line`, which has room for `room`, as much of it as
-    // fits, and `*at` moved past it: 1, or 0 where no line is left
+    // the line at `*at` of the `size` bytes at `bytes`, read into `line`, which has room for `room`, as much of it as
+    // fits. `*at` moves past it. The result is 1, or 0 where no line stays
     int line_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at, char *line, size_t room);
 
-    // the word at `*at`, past the spaces and tabs before it and up to the next space, tab or line's end, into `word`,
-    // which has room for `room`, and `*at` moved past it: 1, or 0 where no word is left or it does not fit
+    // the word at `*at`, past the spaces and tabs before it, up to the next space, tab or end of line. It goes into
+    // `word`, which has room for `room`, and `*at` moves past it. The result is 1, or 0 where no word stays or it does
+    // not fit
     int line_word(const char **at, char *word, size_t room);
 
-    // the text at `*at` up to the next `end` or the line's end, into `text`, which has room for `room`, and `*at` moved
-    // to the `end` it stopped at: 1, or 0 where no character is there or it does not fit
+    // the text at `*at` up to the next `end` or the end of the line, into `text`, which has room for `room`. `*at` moves
+    // to the `end` that it stopped at. The result is 1, or 0 where no character is there or it does not fit
     int line_until(const char **at, char end, char *text, size_t room);
 
-    // the number at `*at`, past the spaces and tabs before it, in decimal or, with `hex`, in hex with or without a
-    // leading 0x, into `value`, and `*at` moved past it: 1, or 0 where no digit is there or it passes 64 bits
+    // the number at `*at`, past the spaces and tabs before it, into `value`. It is in decimal, or with `hex` in hex, with
+    // or without 0x before it. `*at` moves past it. The result is 1, or 0 where no digit is there or it passes 64 bits
     int line_number(const char **at, int hex, unsigned long long *value);
 
-    // the decimal number at `*at`, past the spaces and tabs before it, into `value`, and `*at` moved past it: 1, or 0
-    // where no digit is there or an unsigned int does not represent it
+    // the decimal number at `*at`, past the spaces and tabs before it, into `value`. `*at` moves past it. The result is
+    // 1, or 0 where no digit is there or an unsigned int does not hold it
     int line_unsigned(const char **at, unsigned int *value);
 
-    // the decimal number at `*at`, past the spaces and tabs before it and a `-` before its digits, into `value`, and
-    // `*at` moved past it: 1, or 0 where no digit is there or an int does not represent it
+    // the decimal number at `*at`, past the spaces and tabs before it and a `-` before its digits, into `value`. `*at`
+    // moves past it. The result is 1, or 0 where no digit is there or an int does not hold it
     int line_signed(const char **at, int *value);
 
     // the characters `text` at `*at`, past the spaces and tabs before them, and `*at` moved past them: 1, or 0 where they
