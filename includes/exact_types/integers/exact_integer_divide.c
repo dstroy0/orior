@@ -39,11 +39,13 @@ static int limbs_compare(const uint32_t *left, size_t left_used, const uint32_t 
     return 0;
 }
 
-// Knuth's algorithm D in base 2^32 on operands of any length: the top two limbs of the running remainder over the
-// divisor's normalized top limb estimate each quotient limb, the estimate is at max two high, and the
-// multiply-subtract's borrow determines when to add the divisor back. top has top_used limbs and bottom bottom_used,
-// its top limb nonzero; quotient takes top_used - bottom_used + 1 limbs and rest bottom_used, both written in full;
-// work contains top_used + bottom_used + 1 words
+// Knuth's algorithm D in base 2^32 on operands of any length. The top two limbs of the current remainder over the
+// normalized top limb of the divisor estimate each quotient limb. The estimate is at max two high. The borrow of the
+// multiply-subtract tells when to add the divisor back.
+//
+// The operand top has `top_used` limbs, and bottom has `bottom_used`, with its top limb nonzero. The quotient takes
+// `top_used - bottom_used + 1` limbs and rest takes `bottom_used`, both written in full. The work holds
+// `top_used + bottom_used + 1` words
 static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *bottom, size_t bottom_used,
                          uint32_t *quotient, uint32_t *rest, uint32_t *work)
 {
@@ -115,7 +117,7 @@ static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *b
             carry = product >> LIMB_BITS;
             const uint64_t difference = (uint64_t)running[at + limb] - (product & LIMB_MASK) - borrow;
             running[at + limb] = (uint32_t)(difference & LIMB_MASK);
-            // a wrapped difference has its top bit set, both parts being below 2^33
+            // a wrapped difference has its top bit at 1, because both parts are below 2^33
             borrow = difference >> 63u;
         }
         const uint64_t difference = (uint64_t)running[at + bottom_used] - carry - borrow;
@@ -132,7 +134,7 @@ static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *b
             }
             running[at + bottom_used] = (uint32_t)(((uint64_t)running[at + bottom_used] + sum_carry) & LIMB_MASK);
         }
-        // the estimate was brought below 2^32 above
+        // the code above brought the estimate below 2^32
         quotient[at] = (uint32_t)estimate;
     }
     for (size_t at = 0u; at < bottom_used; at++)
@@ -142,14 +144,16 @@ static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *b
     }
 }
 
-// the precision below which the reciprocal is taken by long division outright
+// the precision below which long division takes the reciprocal directly
 #define NEWTON_BASE_LIMBS 32u
 
-// x = floor(beta^t / d), beta = 2^32, for d of used limbs with its top limb nonzero and t >= used; x takes
-// t - used + 2 limbs. Each level halves the quotient's precision p: the top p/2 + 2 limbs of d give a reciprocal good
-// to half the limbs, shifted back up. One Newton step x + x (beta^t - d x) / beta^t squares its relative error; and
-// multiplying back fixes the last units exactly. Every product is on the ladder. The reciprocal costs a few
-// products. 0 when workspace cannot be allocated
+// x = floor(beta^t / d), beta = 2^32, for d of used limbs with its top limb nonzero and t >= used. The result x takes
+// t - used + 2 limbs. Each level halves the precision p of the quotient. The top p/2 + 2 limbs of d give a reciprocal
+// good to half the limbs, shifted back up.
+//
+// One Newton step x + x (beta^t - d x) / beta^t squares its relative error. A multiply back then fixes the last units
+// exactly. Each product is on the ladder, and the reciprocal costs a few products. 0 when the allocation of the
+// workspace fails
 static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t t)
 {
     const size_t precision = t - used;
@@ -219,7 +223,7 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
         limbs_ladder_product(step, guess, guess_used, error, error_used);
         const size_t step_used = limbs_used(step, guess_used + error_used);
         memset(correction, 0, span * sizeof(uint32_t));
-        // the step is below the guess; the cap only limits a far guess inside its limbs, the exact pass below fixing it
+        // the step is below the guess. The cap only limits a far guess inside its limbs, and the exact pass below fixes it
         const size_t correction_used = (step_used > t) ? (((step_used - t) < count) ? (step_used - t) : count) : 0u;
         memcpy(correction, &step[t], correction_used * sizeof(uint32_t));
         if (over)
@@ -258,9 +262,9 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
     return 1;
 }
 
-// division by the reciprocal: with x = floor(beta^n / d) for a top of n limbs, q = floor(top x / beta^n) is the
-// quotient or at max two below it, and the remainder settles it; quotient takes n - used + 1 limbs and rest used.
-// 0 when workspace cannot be allocated
+// division by the reciprocal. Let x = floor(beta^n / d) for a top of n limbs. Then q = floor(top x / beta^n) is the
+// quotient or at max two below it. The remainder settles it. The quotient takes n - used + 1 limbs, and rest takes
+// used. 0 when the allocation of the workspace fails
 static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint32_t *bottom, size_t bottom_used,
                                uint32_t *quotient, uint32_t *rest)
 {
@@ -320,9 +324,9 @@ static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint3
     return 1;
 }
 
-// the full-width division: Newton's once the divisor and the quotient both reach ORIOR_EXACT_NEWTON_LIMBS (or
-// always, when requested), long division below it or when Newton's workspace cannot be allocated; work contains 2 limbs
-// + 1 words
+// the full-width division. It uses the Newton division once the divisor and the quotient both reach
+// ORIOR_EXACT_NEWTON_LIMBS, or always where the caller asks for it. It uses long division below that, or where the
+// allocation of the Newton workspace fails. The work holds 2 limbs + 1 words
 static void magnitude_divide_by(const uint32_t *top, const uint32_t *bottom, uint32_t *quotient, uint32_t *rest,
                                 uint32_t *work, int newton_only)
 {
@@ -335,7 +339,7 @@ static void magnitude_divide_by(const uint32_t *top, const uint32_t *bottom, uin
                                                  (quotient_limbs >= (size_t)ORIOR_EXACT_NEWTON_LIMBS));
     if ((quotient_limbs != 0u) && (by_newton != 0))
     {
-        // the quotient's limbs past the width are zero, the quotient being no larger than the top
+        // the limbs of the quotient past the width are zero, because the quotient is no larger than the top
         uint32_t *const full_quotient = (uint32_t *)calloc(quotient_limbs + 1u, sizeof(uint32_t));
         if ((full_quotient != NULL) &&
             (limbs_divide_newton(top, top_used, bottom, bottom_used, full_quotient, rest) != 0))
@@ -375,7 +379,7 @@ static OriorExactStatus exact_divide_by(const OriorExactInteger *numerator, cons
     uint32_t *const full_quotient = work;
     uint32_t *const rest = &work[EXACT_LIMBS];
     magnitude_divide_by(numerator->limb, divisor->limb, full_quotient, rest, &work[2u * EXACT_LIMBS], newton_only);
-    // the signs are read before an output that shares an input is written
+    // the code reads the signs before it writes an output that shares an input
     const int32_t quotient_sign = numerator->sign * divisor->sign;
     const int32_t rest_sign = numerator->sign;
     memcpy(quotient->limb, full_quotient, EXACT_LIMBS * sizeof(uint32_t));
