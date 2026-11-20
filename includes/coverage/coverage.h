@@ -18,14 +18,17 @@ typedef struct CoverageCfg CoverageCfg;
 #define COVERAGE_EDGE_BYTES 32ULL
 #define COVERAGE_SCENE_BYTES_A_CAPACITY 92ULL
 
-// The outline's points, `x` and `y` in pixels with y up, and the contours they make: contour k ends before
+// The points of the outline, `x` and `y` in pixels with y up, and the contours that they make. Contour k ends before
 // point `end[k]`. Each point and the next in its contour make an edge, and the last point closes to the first.
-// `origin_x` and `origin_y` are the outline's point at the top left corner of the cover: the cover's pixel (c, r) spans
-// x from origin_x + c to origin_x + c + 1 and y from origin_y - r - 1 to origin_y - r. `cover` takes `width` by
-// `height` shares, row after row, each from 0 to 1. The shares follow the nonzero rule on the area each edge leaves.
-// Every point lies within 16384 pixels of the origin, which the 16.16 numbers hold. The edges are positioned in `scratch`,
-// which has `scratch_bytes`, COVERAGE_EDGE_BYTES a point, as `coverage_draw_bytes` counts them; a scratch too small
-// draws the cover clear
+//
+// `origin_x` and `origin_y` are the point of the outline at the top left corner of the cover. The pixel (c, r) of the
+// cover spans x from origin_x + c to origin_x + c + 1, and y from origin_y - r - 1 to origin_y - r.
+//
+// `cover` takes `width` by `height` shares, row after row, each from 0 to 1. The shares follow the nonzero rule on the
+// area that each edge leaves. Each point lies within 16384 pixels of the origin, which the 16.16 numbers hold.
+//
+// The edges go in `scratch`, which has `scratch_bytes`, COVERAGE_EDGE_BYTES a point, as `coverage_draw_bytes` counts
+// them. A scratch that is too small draws the cover clear
 void coverage_draw(const CoverageCfg *args);
 unsigned long long coverage_draw_bytes(const CoverageCfg *args);
 struct CoverageCfg
@@ -68,13 +71,17 @@ typedef struct
     int y;
 } CoveragePoint;
 
-// The scene: what the frame draws, in the order it draws it, as commands for the fine pass. Each fill's path becomes
-// strips of 4 by 4 tiles at the moment it is filled: `share` holds 16 coverage bytes for each tile in a strip, in
-// Morton order. Each command positions a run of whole tiles of one wide tile's row in one color: a strip by its tiles'
-// shares from `command_share`, or a gap between strips by a share for each of its 4 pixel rows packed in
-// `command_rows`. The edges and tiles hold one path at a time; `key` holds the commands' sort keys. Each cell lies in
-// the caller's block, passed to init and sized by the capacity: `capacity` tiles a path, `capacity` commands and 16
-// shares a tile. A fill past a capacity is dropped whole and counted in `dropped`
+// The scene: what the frame draws, in the order that it draws it, as commands for the fine pass. The path of each fill
+// becomes strips of 4 by 4 tiles at the moment of its fill. `share` holds 16 coverage bytes for each tile in a strip,
+// in Morton order.
+//
+// Each command positions a run of whole tiles of the row of one wide tile, in one color. A strip goes by the shares of
+// its tiles from `command_share`. A gap between strips goes by a share for each of its 4 pixel rows, packed in
+// `command_rows`.
+//
+// The edges and tiles hold one path at a time, and `key` holds the sort keys of the commands. Each cell lies in the
+// block of the caller, passed to init and sized by the capacity: `capacity` tiles a path, `capacity` commands and 16
+// shares a tile. The scene drops a fill past a capacity whole, and counts it in `dropped`
 typedef struct
 {
     unsigned int width;
@@ -103,14 +110,19 @@ typedef struct
     unsigned int dropped;
 } CoverageScene;
 
-// The scene made for a target `width` by `height` pixels with `capacity` for each of its parts: 1, or 0 where no
-// cell holds it. Given back, its cell with it. Cleared, it draws nothing. `fill` puts the path of `contours` contours
-// of 16.16 `point`s, contour k ending before point end[k], in `color` over what the scene draws before it, by the
-// nonzero rule. `render` composites the scene over the target's pixels, `pitch` pixels from row to row, inside the
-// clip `clip_x`, `clip_y`, `clip_width` by `clip_height` and no further: each pixel is read once and written once,
-// and a stretch with nothing drawn on it is not touched. The scene's parts lie in `block`, the caller's, of
-// `block_bytes`, COVERAGE_SCENE_BYTES_A_CAPACITY for each unit of `capacity`, as `bytes` counts them; a block too
-// small refuses the scene
+// The scene made for a target `width` by `height` pixels, with `capacity` for each of its parts. The result is 1, or 0
+// where no cell holds it. Then the scene given back, its cell with it. After a clear, it draws nothing.
+//
+// `fill` puts the path of `contours` contours of 16.16 `point`s in `color` over what the scene draws before it, by the
+// nonzero rule. Contour k ends before point end[k].
+//
+// `render` composites the scene over the pixels of the target, `pitch` pixels from row to row. It stays inside the clip
+// `clip_x`, `clip_y`, `clip_width` by `clip_height`. It reads each pixel once and writes it once. It does not touch a
+// stretch with nothing drawn on it.
+//
+// The parts of the scene lie in `block`, which the caller owns, of `block_bytes`. That is
+// COVERAGE_SCENE_BYTES_A_CAPACITY for each unit of `capacity`, as `bytes` counts them. A block that is too small refuses
+// the scene
 int coverage_scene_init(const CoverageSceneCfg *args);
 unsigned long long coverage_scene_bytes(const CoverageSceneCfg *args);
 void coverage_scene_free(const CoverageSceneCfg *args);
