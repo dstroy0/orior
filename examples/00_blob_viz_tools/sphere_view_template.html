@@ -299,10 +299,10 @@
   var DATA = /*DATA*/ null;
 
   // ---------------------------------------------------------------------------------------------
-  // The page recomputes no physics. Every profile, every coefficient and the whole surface came out
-  // of the generator. What moves here is the reading: where the edge is cut, how hard that cut is,
-  // and where the observer is. Retention those apart from the field is the entire point of the
-  // tool, because a control that changed the physics would let a slider manufacture a result.
+  // The page recomputes no physics. Every profile, every coefficient and the whole surface came out of the generator.
+  // What moves here is the reading: where the edge cut sits, how hard that cut is, and where the observer is. The
+  // separation of those from the field is the entire point of the tool. A control that changed the physics would let a
+  // slider manufacture a result.
   // ---------------------------------------------------------------------------------------------
 
   var TWO_PI = Math.PI * 2;
@@ -311,9 +311,9 @@
   var stage = document.getElementById("stage");
 
   var scene = new THREE.Scene();
-  // Forty-six degrees and an opening distance of three and a half radii. The whole ball is inside
-  // the frame when the page opens. At the distance this started with the sphere overran the viewport
-  // on every side, which reads as a rendering fault and is a camera that was never framed.
+  // Forty-six degrees, and an opening distance of three and a half radii. The whole ball is inside the frame when the
+  // page opens. A closer opening distance lets the sphere overrun the viewport on every side. That reads as a rendering
+  // fault, and it is a camera that nobody framed.
   var camera = new THREE.PerspectiveCamera(46, 1, 0.1, 200);
   var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -329,9 +329,8 @@
   var ringGroup = new THREE.Group();
   scene.add(ringGroup);
 
-  // The observer, stored as an offset and an up vector so the axes are re-derived from where it
-  // actually is. Euler angles were tried first and they invert the drag past the pole, which reads
-  // as the object fighting the hand.
+  // The observer, stored as an offset and an up vector, so that the code derives the axes again from where it actually
+  // is. Euler angles invert the drag past the pole, which reads as an object that fights the hand.
   var target = new THREE.Vector3(0, 0, 0);
   var offset = new THREE.Vector3(0, 5, 34);
   var upVec = new THREE.Vector3(0, 1, 0);
@@ -346,8 +345,8 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Color. Cool is nothing arriving and hot is a lot, with the edge controls deciding how much of
-  // the middle survives the trip to the screen.
+  // Color. Cool means that little arrives, and hot means a lot. The edge controls decide how much of the middle
+  // survives the trip to the screen.
   // ---------------------------------------------------------------------------------------------
 
   function ramp(t) {
@@ -368,15 +367,14 @@
     return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
   }
 
-  // Torsion is a PHASE, and a phase is cyclic: it has no top and no bottom, a ramp with two ends
-  // misrepresents it - the two extremes of a linear ramp are the same torsion and get opposite
-  // colors. Hue is the channel that closes on itself. That makes it the correct one here and also
-  // the loudest, since fully saturated hues are as far apart as color gets.
+  // Torsion is a PHASE, and a phase is cyclic: it has no top and no bottom. A ramp with two ends misrepresents it,
+  // because the two extremes of a linear ramp are the same torsion and get opposite colors. Hue is the channel that
+  // closes on itself. That makes it the correct one here, and also the loudest, because fully saturated hues are as far
+  // apart as color gets.
   //
-  // The magnitude does NOT go into the hue. It gates the brightness against the floor, anything
-  // the field cannot distinguish from noise goes black and only what clears it carries color. The
-  // surface then reads as a beacon instead of a gradient: the quiet parts stop competing
-  // for attention entirely instead of merely being dimmer.
+  // The magnitude does NOT go into the hue. It gates the brightness against the floor. Anything that the field cannot
+  // distinguish from noise goes black, and only what clears it carries color. The surface then reads as a beacon
+  // instead of a gradient. The quiet parts drop out of view entirely, and are not merely dimmer.
   function hueToRgb(hue) {
     var h = ((hue % 1) + 1) % 1;
     var sector = h * 6.0;
@@ -407,8 +405,8 @@
       var floorGrey = 0.045 + 0.035 * Math.min(1, strength);
       return [floorGrey, floorGrey * 1.05, floorGrey * 1.25];
     }
-    // Above the floor the color saturates fast. Clearing the bar is visible immediately and
-    // does not need another factor of two to become obvious.
+    // Above the floor, the color saturates fast. A value that clears the bar is visible immediately, and does not need
+    // another factor of two to become obvious.
     var lift = Math.min(1, Math.pow((strength - 1.0) * boost, 0.55));
     var glow = 0.25 + 0.75 * lift;
     return [base[0] * glow, base[1] * glow, base[2] * glow];
@@ -452,16 +450,16 @@
       var raw = sampleGrid(u, v);
       var shade;
       if (state.beacon) {
-        // Torsion as hue, magnitude as a gate against the floor. The phase is taken from the field's
-        // own local turning and not from a separate table: the direction the surface is climbing
-        // at this point. Torsion is a reading of it.
+        // Torsion as hue, magnitude as a gate against the floor. The phase comes from the field's own local turn, and
+        // not from a separate table: the direction in which the surface climbs at this point. Torsion is a reading of
+        // it.
         var east = sampleGrid((u + 0.004) % 1, v) - sampleGrid((u - 0.004 + 1) % 1, v);
         var north = sampleGrid(u, Math.min(0.999, v + 0.004)) - sampleGrid(u, Math.max(0.001, v - 0.004));
         var phase = Math.atan2(north, east) + Math.PI;
         var span = grid.high - grid.low || 1;
         var over = (raw - grid.low) / span;
-        // Strength as a multiple of the floor. The floor is where the surface stops being
-        // distinguishable from its own noise, the same bar the detector draws.
+        // Strength as a multiple of the floor. Below the floor, the surface is no longer distinguishable from its own
+        // noise, the same bar that the detector draws.
         var strength = over / Math.max(0.0001, state.floor);
         shade = torsionRamp(phase, strength, state.boost);
       } else {
@@ -554,11 +552,10 @@
     }
   }
 
-  // The level a circle is cut at has to be measured against one source's own peak and never against
-  // the summed surface. On a file with ninety-five symbols the sum runs five hundred times higher
-  // than any single contributor. A level taken from the sum sat above every profile and every
-  // circle came back with radius zero. The panel then reported no circles meeting, which is a
-  // believable answer and was an arithmetic mistake.
+  // The level of a circle cut must be relative to one source's own peak, and never to the summed surface. On a file
+  // with ninety-five symbols, the sum runs five hundred times higher than any single contributor. A level from the sum
+  // would sit above every profile, and every circle would come back with radius zero. The panel would then report no
+  // circles that meet: a believable answer from an arithmetic mistake.
   var PEAK = 0;
   for (var seek = 0; seek < sources.length; seek++) {
     var seen = DATA.profiles[sources[seek].depth.toFixed(4)];
@@ -572,9 +569,9 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Relative geometry. The angle between two sources is the same from everywhere, and the angle the
-  // observer happens to see is not. Both are reported, because the gap between them is what moving
-  // obliquely is for: a pair squashed against the limb opens up as the observer comes around.
+  // Relative geometry. The angle between two sources is the same from everywhere, and the angle that the observer
+  // happens to see is not. The panel reports both, because the gap between them is the reason to move obliquely. A pair
+  // squashed against the limb opens up as the observer comes around.
   // ---------------------------------------------------------------------------------------------
 
   function angleBetween(one, two) {
@@ -625,13 +622,13 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Counting, by two routes that do not share a step: how many harmonic modes carry anything, and
-  // how many circles of the size now being drawn fit on the sphere without lying on top of one
-  // another. They do not land on one number and they are not supposed to. A mode is signed and a
-  // circle is not, and a degree carries 2l + 1 of them. The mode count runs a small factor above
-  // the circle count. Both scale with area over a squared length and neither
-  // scales with volume, and a run where one of them started tracking the source count instead would
-  // be reporting that something in the geometry had come loose.
+  // Two counts, by two routes that do not share a step. One is how many harmonic modes carry anything. The other is how
+  // many circles of the current size fit on the sphere, with no two on top of one another. They do not land on one
+  // number, and they should not.
+  //
+  // A mode has a sign and a circle does not, and a degree carries 2l + 1 of them. The mode count runs a small factor
+  // above the circle count. Both scale with area over a squared length, and neither scales with volume. If one of them
+  // tracks the source count instead, something in the geometry came loose.
   // ---------------------------------------------------------------------------------------------
 
   function counts(state, met) {
@@ -668,10 +665,9 @@
     var visible = distance > 1 ? Math.acos(1 / distance) : 0;
     var share = (1 - Math.cos(visible)) / 2;
 
-    // The inversion, and where it stops. Undoing the trip from a source to the surface means
-    // dividing degree l by its own gain, and that gain is already below one part in a million by the
-    // degree the spectrum has died at. Past there the division amplifies the noise faster than the
-    // signal and returns a confident answer about nothing.
+    // The inversion, and where it stops. To undo the trip from a source to the surface, the code divides degree l by
+    // its own gain. That gain is already below one part in a million at the degree where the spectrum dies. Past there,
+    // the division amplifies the noise faster than the signal, and returns a confident answer about nothing.
     var finest = reached > 0 ? Math.PI / reached : Math.PI;
 
     return {
@@ -805,9 +801,9 @@
       pen.setLineDash([]);
     }
 
-    // The null goes on top. Underneath it vanishes wherever the two agree, and the degrees where
-    // they agree are the reading: a map that has stopped beating random placement is the answer, and
-    // a plot that hides it looks like a map winning everywhere.
+    // The null goes on top. Underneath, it vanishes wherever the two agree, and the degrees where they agree are the
+    // reading. A map that no longer beats random placement is the answer. A plot that hides it looks like a map that
+    // wins everywhere.
     trace(DATA.spectrum, hot, false);
     trace(DATA.null_spectrum, nul, true);
 
@@ -818,7 +814,7 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // State and wiring.
+  // State, and the event handlers.
   // ---------------------------------------------------------------------------------------------
 
   var state = {
@@ -884,8 +880,8 @@
     "floor",
     "floorOut",
     function (raw) {
-      // Where the surface stops being distinguishable from its own noise. Everything under it is
-      // painted out entirely and not dimmed. Quiet ground cannot be mistaken for weak signal.
+      // Where the surface is no longer distinguishable from its own noise. The page paints everything under it out
+      // entirely, and does not dim it. Quiet ground cannot then pass for weak signal.
       state.floor = raw / 100;
       refresh(true);
       return state.floor;
@@ -899,8 +895,8 @@
     "boost",
     "boostOut",
     function (raw) {
-      // How hard color comes up once the floor is cleared. High values make clearing the bar visible
-      // at once instead of needing another factor of two to become obvious.
+      // How hard color comes up once a value clears the floor. High values make the bar visible at once, with no need
+      // of another factor of two to become obvious.
       state.boost = raw / 10;
       refresh(true);
       return state.boost;
@@ -924,9 +920,9 @@
     "tau",
     "tauOut",
     function (raw) {
-      // Conduction past what the page was built with cannot be added here, since smoothing the field
-      // further is a change to the physics and this panel only ever changes the reading. The control
-      // reports what it was built with and stays put, which is honest about where the boundary is.
+      // This panel cannot add conduction past the build's own, because further smoothing of the field is a change to
+      // the physics. This panel only ever changes the reading. The control reports the build's value and stays put,
+      // which is honest about where the boundary is.
       return raw;
     },
     function () {
@@ -1004,9 +1000,8 @@
     movable(boxes[b]);
   }
 
-  // The observer, dragged. Left and right always mean left and right to whoever is looking, and the
-  // axes come from where the observer is located now instead of from a world axis. Nothing
-  // inverts when it passes over the top.
+  // The observer, dragged. Left and right always mean left and right to whoever looks. The axes come from where the
+  // observer is now, and not from a world axis. Nothing inverts when it passes over the top.
   var dragging = false,
     lastX = 0,
     lastY = 0;
@@ -1089,13 +1084,14 @@
   window.addEventListener("resize", fit);
   fit();
 
-  // Opening appearance through the shared control bar's model. The schema is the build's one settings
-  // source: a value of the wrong type or out of range is named in the report below and never applied,
-  // and a key the build leaves out retains the page default. The sphere's own reading controls are
-  // untouched. The bar governs the chrome the page can honor: the theme, the backdrop the transparent
-  // canvas lets through, the opening observer distance, and how present the boxes are. The observer
-  // distance opens on a range narrowed to this scene, a span a ball-centered view needs and an open
-  // one does not, and a value past it comes back named and refused under the range the slider carries.
+  // Opening appearance through the model of the shared control bar, whose schema is the build's one settings source.
+  // The report below names a value of the wrong type or out of range, and the page never applies it. A key that the
+  // build leaves out keeps the page default. The sphere's own reading controls stay as they are. The bar governs the
+  // chrome that the page can honor. That is the theme, the backdrop that the transparent canvas lets through, the
+  // opening observer distance, and how present the boxes are.
+  //
+  // The observer distance opens on a range narrowed to this scene, a span that a ball-centered view needs and an open
+  // one does not. A value past it comes back named and refused, under the range that the slider carries.
   var SCHEMA = DATA.schema || {};
   var SET = DATA.settings || {};
   var wanted = BAR.defaultView(SCHEMA);
@@ -1122,8 +1118,8 @@
     fader.dispatchEvent(new Event("input"));
   }
 
-  // The report line. A refusal is named; otherwise the keys the build set are listed, and an empty
-  // settings object opens at the page defaults and says so.
+  // The report line. It names a refusal. Otherwise it lists the keys that the build set, and an empty settings object
+  // opens at the page defaults and says so.
   var reportEl = document.getElementById("open-report");
   if (reportEl) {
     reportEl.classList.remove("refused");
