@@ -1522,7 +1522,6 @@ utils/test/src/ui/cli/unit/debug_pane/test_debug_pane/test_debug_pane.c	3
 utils/test/src/ui/cli/unit/diff/test_diff/test_diff.c	3
 utils/test/src/ui/cli/unit/digest/test_digest/test_digest.c	1
 utils/test/src/ui/cli/unit/disasm_verify/test_disasm_verify/test_disasm_verify.c	1
-utils/test/src/ui/cli/unit/document/test_document/test_document.c	22
 utils/test/src/ui/cli/unit/editorconfig/test_editorconfig/test_editorconfig.c	1
 utils/test/src/ui/cli/unit/executables/test_executables/test_executables.c	3
 utils/test/src/ui/cli/unit/file_writing/test_file_writing/test_file_writing.c	1

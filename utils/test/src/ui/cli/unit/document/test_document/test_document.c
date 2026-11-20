@@ -14,14 +14,14 @@
 #include "ui/cli/src/plugins/plugins.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the cells the pool is allocated in for a search in little capacity, and the max of them
+// the cells the pool takes for a search in little capacity, and the max of them
 #define DOCUMENT_TAKEN_CELL (8ull << 20u)
 #define DOCUMENT_TAKEN_MAX 64u
 
 // the lines of the branch, a comment opened on the first and closed on the one before the last
 #define DOCUMENT_BRANCH_LINES 401u
 
-// the lines of the text an edit moves the state of every line after, and the capacity the text is written in
+// the lines of the text an edit moves the state of every line after, and the capacity the test writes the text in
 #define DOCUMENT_ONWARD_LINES 40000ull
 #define DOCUMENT_ONWARD_CAPACITY (4ull << 20u)
 
@@ -56,7 +56,7 @@ static char s_printed[DOCUMENT_AT_ONCE_TEXTS + 1u][1u << 16u];
 // what each step of the live sequences recorded
 static int s_branch_run_result;
 static int s_branch_step[12];
-// the state the branch's second line is entered in, as the walk left it
+// the state the branch's second line enters in, as the walk left it
 static char s_branch_entered[64];
 static int s_at_once_run_result;
 static int s_at_once_during;
@@ -149,7 +149,7 @@ static void branch_run_result(void)
     cli_document_walk();
     s_branch_step[6] =
         EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "branch", .from = 100ull, .to = 110ull);
-    // the second line is entered in the comment's state, which the states' index answers by its number
+    // the second line enters in the comment's state, which the states' index answers by its number
     unsigned long long entered_size = 0ull;
     char *const second = cli_document_lines_alloc(&(CliDocumentKeyCfg){.key = "branch",
                                                                        .first = 1ull,
@@ -235,7 +235,7 @@ void test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit
     static const CliEdit s_character[1] = {{{50000u, 0u}, {50000u, 0u}, "x", 1u}};
     const CliEdit *const changes[1] = {s_character};
     const unsigned int counts[1] = {1u};
-    // 100000 lines of 12 characters, in a cell released once the text is stored
+    // 100000 lines of 12 characters, in a cell the test releases once the document stores the text
     const unsigned long long lines = 100000ull;
     const unsigned long long size = lines * 13ull;
     CliShape shape;
@@ -494,10 +494,10 @@ void test_a_lines_entered_state_reads_back_by_its_number_after_the_walk(void)
         .src = s_branch_entered, .cap = sizeof(s_branch_entered), .other = "comment", .other_cap = 8ull}));
 }
 
-// the lines of the text whose runs cell is compacted while the pool is starved, the bytes of the wide line whose
-// runs pass the cell's room, and the bytes left between the tiers for it: the compaction's work cell fits them and
-// the cell it moves the runs into does not; the cell a hole that holds one of the moved cell is taken in, and the
-// cut's margin; and the cells the starving takes at max
+// The text whose runs cell the compaction moves while the pool starves. First come its lines and the bytes of its wide
+// line, whose runs pass the cell's room. Then come the bytes left between the tiers: the compaction's work cell fits
+// them, and the cell it moves the runs into does not. Last come the cell for a hole that holds one moved cell, the
+// cut's margin, and the max cells the starved pool takes
 #define DOCUMENT_COMPACT_LINES 4000u
 #define DOCUMENT_COMPACT_WIDE 10000u
 #define DOCUMENT_COMPACT_LEFT (860ull << 10u)
@@ -511,8 +511,8 @@ static unsigned int s_starved_count;
 static void *s_starved_temporary[DOCUMENT_COMPACT_CELLS];
 static unsigned int s_starved_temporary_count;
 
-// cells of `bytes` of `tier` taken until the pool refuses one, kept among the starving cells: 1, or 0 where the
-// starving cells are at max
+// cells of `bytes` of `tier` taken until the pool refuses one, kept among the starved pool's cells: 1, or 0 where
+// those cells are at max
 static int pool_taken_until_refused(unsigned long long bytes, int temporary)
 {
     void **const cells = temporary ? s_starved_temporary : s_starved;
@@ -530,17 +530,17 @@ static int pool_taken_until_refused(unsigned long long bytes, int temporary)
     return 0;
 }
 
-// a take the pool cannot meet, after which the persistent tier's boundary is trimmed of the cells let go at it, which
-// the pool does as it sweeps for a free run
+// a take the pool cannot meet. After it, the pool trims the cells let go at the persistent tier's boundary, as it
+// sweeps for a free run
 static void pool_trimmed(void)
 {
     TEST_ASSERT_NULL(g_cli_guard->persistent_buf_alloc(64ull << 20u, g_checks_owner));
 }
 
-// The pool starved so that a compaction's work cell fits the bytes between the tiers and the cell it moves the
-// runs into does not, with no hole in either tier that holds the moved cell. A take spills into a hole only once
-// the bytes between the tiers refuse it: the bytes are cut to the margin first, the holes of both tiers that
-// hold the moved cell taken, then the cut let go and the bytes between the tiers cut to the bytes left
+// The pool starved so that a compaction's work cell fits the bytes between the tiers. The cell it moves the runs into
+// does not fit, and no hole in either tier holds the moved cell. A take goes into a hole only after the bytes between
+// the tiers refuse it. The steps first cut those bytes to the margin, then take each hole of both tiers that holds the
+// moved cell. Last, they let the cut go and cut the bytes between the tiers to the bytes left
 static void pool_starved(void)
 {
     s_starved_count = 0u;
@@ -569,7 +569,7 @@ static void pool_starved(void)
     TEST_ASSERT_NOT_NULL(s_starved[cut]);
 }
 
-// the starving cells given back
+// the starved pool's cells given back
 static void pool_given_back(void)
 {
     for (unsigned int at = 0u; at < s_starved_temporary_count; at += 1u)
@@ -608,11 +608,11 @@ static void line_rewritten(const char *key, unsigned int line, unsigned int leng
 
 void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_were(void)
 {
-    // the text's first line has three runs and its third five; the second is rewritten twice as a wide line of many
-    // runs, the first past the cell's room, after which the runs are gathered again with the second line's record last;
-    // then the first line is rewritten wide past the room while the pool has room for the gathering's work cell alone,
-    // and the gathering is refused: the third line's runs are its own, the first line's none, and the pool given back
-    // the next edit colors the text again
+    // The text's first line has three runs and its third has five. The test rewrites the second line twice as a wide
+    // line of many runs, the first time past the cell's room. The document then compacts the runs again, with the
+    // second line's record last. Next the test rewrites the first line wide past the room, while the pool has room for
+    // the compaction's work cell alone. The pool refuses the compaction: the third line keeps its runs and the first
+    // line has none. With the pool given back, the next edit colors the text again
     static char s_compact[4u * DOCUMENT_COMPACT_LINES];
     static char s_wide[DOCUMENT_COMPACT_WIDE];
     VerbaLinea text = {s_compact, sizeof(s_compact), 0ull};
