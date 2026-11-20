@@ -1,8 +1,8 @@
 """The boundary basis at any precision, in the NORMALIZED convention. The reader's format stops
 being the limit.
 
-    python src/import/dn_precision/calc/normalized_harmonics.py --check
-    python src/import/dn_precision/calc/normalized_harmonics.py --agree
+    python examples/00_blob_viz_tools/normalized_harmonics.py --check
+    python examples/00_blob_viz_tools/normalized_harmonics.py --agree
 
     from normalized_harmonics import golden_place, direction_of, flat_harmonics
     places = golden_place(64, 60)                    64 directions, 60 digits
@@ -81,7 +81,7 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FAMILY = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "import", "dn_precision")
+FAMILY = os.path.join(os.path.dirname(os.path.dirname(HERE)), "utils", "maint", "dn_precision")
 SUPPORT = os.path.join(FAMILY, "support")
 for where in (SUPPORT, HERE):
     if where not in sys.path:

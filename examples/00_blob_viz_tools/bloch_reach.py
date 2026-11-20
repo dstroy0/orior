@@ -137,7 +137,7 @@ def covering_radius(points, probes=20000, seed=17):
     """
     generator = numpy.random.default_rng(seed)
     cosines = 2.0 * generator.random(probes) - 1.0
-    sines = numpy.sqrt(numpy.max(0.0, 1.0 - cosines * cosines))
+    sines = numpy.sqrt(numpy.maximum(0.0, 1.0 - cosines * cosines))
     angles = 2.0 * math.pi * generator.random(probes)
     probe = numpy.stack([sines * numpy.cos(angles), sines * numpy.sin(angles), cosines], axis=1)
 

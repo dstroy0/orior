@@ -39,8 +39,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-PRECISION = os.path.join(ROOT, "src", "import", "dn_precision", "calc")
-SUPPORT = os.path.join(ROOT, "src", "import", "dn_precision", "support")
+PRECISION = os.path.join(ROOT, "utils", "maint", "dn_precision", "calc")
+SUPPORT = os.path.join(ROOT, "utils", "maint", "dn_precision", "support")
 for _where in (HERE, PRECISION, SUPPORT):
     if _where not in sys.path:
         sys.path.insert(0, _where)

@@ -46,7 +46,7 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PRECISION = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "import", "dn_precision",
+PRECISION = os.path.join(os.path.dirname(os.path.dirname(HERE)), "utils", "maint", "dn_precision",
                          "support")
 for _where in (HERE, PRECISION):
     if _where not in sys.path:
