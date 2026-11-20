@@ -19,10 +19,14 @@
 
 typedef struct GuiSidesCfg GuiSidesCfg;
 
-// the times in milliseconds: the pointer away before the pane collapses, its rest on the edge before the pane shows,
-// how long it may be off the edge and still rest on it, its rest on an icon before the icon's pane shows, and the
-// pane's slide, up and toward the left on the page's ease, as style.css sets it; and the edge's width in the page's
-// pixels
+// the times in milliseconds:
+//   - the pointer away before the pane collapses.
+//   - its rest on the edge before the pane shows.
+//   - how long it can be off the edge and still rest on it.
+//   - its rest on an icon before the pane of the icon shows.
+//   - the slide of the pane, up and toward the left on the ease of the page, as style.css sets it.
+//
+// Then the width of the edge in the pixels of the page
 #define GUI_SIDES_REST_MS 700ULL
 #define GUI_SIDES_EDGE_REST_MS 250ULL
 #define GUI_SIDES_EDGE_GRACE_MS 120ULL
@@ -30,12 +34,15 @@ typedef struct GuiSidesCfg GuiSidesCfg;
 #define GUI_SIDES_SLIDE_MS 220ULL
 #define GUI_SIDES_EDGE 12
 
-// The pane's waits: whether the pointer is on the pane, on the side_menu and on the edge; when the pane is looked at to
-// collapse, 0 for no wait; when the pointer's rest on the edge shows the pane, 0 for none; when its rest on the edge
-// ends while it is off the edge, 0 for none; the icon the pointer rests on, GUI_SIDE_MENU_NONE for none, and when its pane
-// shows, 0 for none; whether a preview is, the icon it shows and the tool and the pane's collapse before it; and
-// its slide, the share of its way gone running from and to, GUI_FIXED_ONE gone, over GUI_SIDES_SLIDE_MS on the page's
-// ease, located where its ends are one
+// The waits of the pane:
+//   - whether the pointer is on the pane, on the side_menu and on the edge.
+//   - when the code next looks at the pane for a collapse, 0 for no wait.
+//   - when the rest of the pointer on the edge shows the pane, 0 for none.
+//   - when its rest on the edge ends while it is off the edge, 0 for none.
+//   - the icon that the pointer rests on, GUI_SIDE_MENU_NONE for none, and when its pane shows, 0 for none.
+//   - whether a preview exists, the icon that it shows, and the tool and the collapse of the pane before it.
+//   - its slide: the share of its way gone, from and to, GUI_FIXED_ONE gone, over GUI_SIDES_SLIDE_MS on the ease of
+//     the page. It is at rest where its two ends are the same.
 typedef struct
 {
     int over_pane;
@@ -53,31 +60,34 @@ typedef struct
     GuiSlide slide;
 } GuiSides;
 
-// no wait, no rest and no preview
+// the sides with no wait, rest or preview
 void gui_sides_init(const GuiSidesCfg *args);
 // the pane looked at to collapse GUI_SIDES_REST_MS after `time_ms`, as the window begins
 void gui_sides_settle(const GuiSidesCfg *args);
-// a press on the side tool `at`'s icon, or its keys: its pane collapsed where it shows, else displayed, the tool `at` the
-// side_menu's, located with no wait until the pointer leaves it or the side_menu, and any preview ended with its pane
-// located
+// a press on the icon of the side tool `at`, or its keys. Where its pane shows, the pane collapses, and else it shows.
+// The tool `at` becomes the tool of the side_menu, at rest with no wait until the pointer leaves it or the side_menu. A
+// preview ends, with its pane at rest
 void gui_sides_toggle(const GuiSidesCfg *args);
-// the pointer moved to x, y at `time_ms`: the pane's waits and rests begun and ended by where it is, and a preview
-// it leaves taken back: 1 where the pane displayed changed
+// the pointer moved to x, y at `time_ms`. Where it is begins and ends the waits and rests of the pane. A preview that
+// it leaves goes back. The result is 1 where the displayed pane changed
 int gui_sides_move(const GuiSidesCfg *args);
 // the pointer gone from the window at `time_ms`, as it leaves the pane, the side_menu and the edge
 void gui_sides_leave(const GuiSidesCfg *args);
-// a press at x, y: a preview ended with its pane located where the press is on an icon or in the pane: 1 where the
-// press is on the icon the preview shows, which does nothing more
+// a press at x, y. Where the press is on an icon or in the pane, a preview ends with its pane at rest. The result is 1
+// where the press is on the icon that the preview shows, and the press then does no more
 int gui_sides_press(const GuiSidesCfg *args);
-// the waits reached by `time_ms` run: the pane collapsed where the pointer is on neither it nor the side_menu and no
-// menu is open, displayed by a rest on the edge, or a tool's pane displayed as a preview by a rest on its icon: 1 where the
-// pane displayed changed
+// the waits that `time_ms` reaches, run:
+//   - the pane collapses where the pointer is on neither it nor the side_menu, and no menu is open.
+//   - a rest on the edge shows the pane.
+//   - a rest on the icon of a tool shows its pane as a preview.
+//
+// The result is 1 where the displayed pane changed
 int gui_sides_tick(const GuiSidesCfg *args);
 // when the next wait ends, 0 for none
 unsigned long long gui_sides_next_deadline_ms(const GuiSidesCfg *args);
-// the share of its way the pane has gone at `time_ms`, GUI_FIXED_ONE gone, 0 located; whether the side is in the
-// work at `time_ms` for the side_menu's tool `side_menu_read`, a collapsing pane holding its width until its slide ends: 1 or
-// 0; and when the slide ends, 0 where none runs at `time_ms`
+// the share of its way that the pane went at `time_ms`, GUI_FIXED_ONE gone, 0 at rest. Then whether the side is in the
+// work at `time_ms` for the tool `side_menu_read` of the side_menu, 1 or 0. A pane in its collapse keeps its width until
+// its slide ends. Then when the slide ends, 0 where none runs at `time_ms`
 int gui_sides_away(const GuiSidesCfg *args);
 int gui_sides_is(const GuiSidesCfg *args);
 unsigned long long gui_sides_slide_end_ms(const GuiSidesCfg *args);
