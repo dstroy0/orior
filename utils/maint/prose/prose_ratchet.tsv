@@ -1397,7 +1397,6 @@ utils/test/src/ui/cli/unit/files/test_files/test_files.c	6
 utils/test/src/ui/cli/unit/files_rank/test_files_rank/test_files_rank.c	1
 utils/test/src/ui/cli/unit/git/test_git/test_git.c	2
 utils/test/src/ui/cli/unit/git_history/test_git_history/test_git_history.c	6
-utils/test/src/ui/cli/unit/highlight/test_highlight/test_highlight.c	9
 utils/test/src/ui/cli/unit/history/test_history/test_history.c	2
 utils/test/src/ui/cli/unit/interface/test_interface/test_interface.c	16
 utils/test/src/ui/cli/unit/job_runs/test_job_runs/test_job_runs.c	2
@@ -1487,7 +1486,6 @@ utils/test/src/ui/gui/sides_test.c	1
 utils/test/src/ui/gui/statusbar_test.c	2
 utils/test/src/ui/gui/system_test.c	8
 utils/test/src/ui/gui/tabs_test.c	3
-utils/test/src/ui/gui/terminal_test.c	1
 utils/test/src/ui/gui/themes_test.c	2
 utils/test/src/ui/gui/window_test.c	2
 utils/test/src/ui/gui/work_test.c	3

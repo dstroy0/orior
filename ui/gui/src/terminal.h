@@ -46,14 +46,12 @@ typedef struct GuiTerminalCfg GuiTerminalCfg;
 #define GUI_TERMINAL_CHOSEN_LINE 2
 
 // The terminal as the window last read it of the terminal's tabs: the panel, its two panes, the one displayed then the
-// one beside it, each pane's frame of its tab's text, NULL for none, and the table of its runs' tokens, which sets
-// their colors, NULL for none
+// one beside it, and each pane's frame of its tab's text, NULL for none
 typedef struct
 {
     CliTerminalPanel panel;
     CliTerminalView view[2];
     CliViewFrame *frame[2];
-    const CarcerMovableEntry *names[2];
 } GuiTerminal;
 
 // the columns and rows the pane `view` shows, 0 the one displayed and 1 the one beside it, into `columns` and `rows`,

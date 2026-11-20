@@ -49,18 +49,22 @@ typedef struct GuiEditorCfg GuiEditorCfg;
 #define GUI_FIND_TOGGLE 26
 #define GUI_FIND_COUNT 88
 
-// The editor: the displayed view's frame and token names as the window last took them of the view (editor/view.h), NULL
-// for none, read alone; the caret's ink, 0 to 255 of its color, which the window sets before drawing where its breath
+// The editor: the displayed view's frame as the window last took it of the view (editor/view.h), NULL for none, and the
+// key of the text whose token names it colors, empty for none, with the count and the serial of its names table as the
+// window last read them (editor/document.h); the caret's ink, 0 to 255 of its color, which the window sets before
+// drawing where its breath
 // is, the caret's rectangle as last drawn, whether the pixels under it are saved and those pixels, row after row.
 // Last, the part of a line the view has scrolled past its first line and first cell column. `scroll_y` is the pixels
 // of the frame's first row above the editor's top, 0 to a line's height less 1. `scroll_x` is the pixels of the first
 // cell column left of the text's edge, 0 to a cell less a part of a pixel. Then the color of each token name, retained
-// for the names table, its count `name_colors` and the palette they were read for, `colored_names` and
-// `colored_palette`; a name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
+// for the names table's serial `colored_serial`, its count `name_colors` and the palette they were read for
+// `colored_palette`. A name at GUI_EDITOR_NAME_COLORS or past it is read from the palette each time
 typedef struct
 {
     CliViewFrame *frame;
-    const CarcerMovableEntry *names;
+    char names_key[CLI_NAME_MAX_LEN];
+    unsigned int names_count;
+    unsigned int names_serial;
     unsigned int caret_color;
     GuiRect caret_rect;
     int caret_saved;
@@ -69,7 +73,7 @@ typedef struct
     float scroll_x;
     GuiColor name_color[GUI_EDITOR_NAME_COLORS];
     unsigned int name_colors;
-    const CarcerMovableEntry *colored_names;
+    unsigned int colored_serial;
     const GuiPalette *colored_palette;
     // whether a space is drawn as a middle dot and a tab as an arrow, in the quietest text color
     int whitespace;

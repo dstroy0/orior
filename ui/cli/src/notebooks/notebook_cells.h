@@ -103,12 +103,11 @@ typedef struct
     unsigned int part_line;
 } CliNotebookFrameRow;
 
-// A run of rows positioned from the lines of one text: their runs, as the walk saved them, and the labels the runs'
-// tokens take, each in a cell of the open notebooks' owner, NULL where the text is not colored
+// A run of rows positioned from the lines of one text: their runs, as the walk saved them, in a cell of the open
+// notebooks' owner, NULL where the text is not colored
 typedef struct
 {
     const CarcerMovableEntry *runs;
-    const CarcerMovableEntry *labels;
 } CliNotebookFramePart;
 
 // A notebook's frame, every count and pointer the window draws from, immutable once positioned: the model's top row,

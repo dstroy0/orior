@@ -318,19 +318,13 @@ void gui_window_end(const GuiWindowCfg *args)
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
     // what the window took of the views goes back to them: nothing of it is read from here on
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->editor.frame});
-    (void)g_cli_guard->movable_buf_release(window->editor.names, g_cli_view_owner);
     cli_view_map_release(&(CliViewAtCfg){.map = window->minimap.lines});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[0]});
     cli_view_frame_release(&(CliViewAtCfg){.frame = window->terminal.frame[1]});
-    (void)g_cli_guard->movable_buf_release(window->terminal.names[0], g_cli_view_owner);
-    (void)g_cli_guard->movable_buf_release(window->terminal.names[1], g_cli_view_owner);
     window->editor.frame = NULL;
-    window->editor.names = NULL;
     window->minimap.lines = NULL;
     window->terminal.frame[0] = NULL;
     window->terminal.frame[1] = NULL;
-    window->terminal.names[0] = NULL;
-    window->terminal.names[1] = NULL;
     window->hover.panel = NULL;
     window->suggest.panel = NULL;
     window->signature.panel = NULL;
@@ -518,10 +512,6 @@ EMBED_INLINE void window_terminal_take(const GuiWindowCtx *args)
         const char *const key = displayed ? terminal->view[view].key : NULL;
         cli_view_frame_release(&(CliViewAtCfg){.frame = terminal->frame[view]});
         terminal->frame[view] = (key != NULL) ? cli_view_frame_alloc(&(CliViewAtCfg){.key = key}) : NULL;
-        (void)g_cli_guard->movable_buf_release(terminal->names[view], g_cli_view_owner);
-        terminal->names[view] = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
-                                                           .key = key, .owner = g_cli_view_owner)
-                                              : NULL;
     }
     args->window->pending = 1;
 }
@@ -640,7 +630,8 @@ EMBED_INLINE void window_scroll_adopt(const GuiWindowCtx *args)
     window->editor.scroll_x = 0.0f;
 }
 
-// The displayed view's frame, names and map taken anew of it, those it had released, and the displayed pane's data
+// The displayed view's frame and map taken anew of it, those it had released, its names table's count read, and the
+// displayed pane's data
 // where the view's change reaches it; `edited` where the text changed, which the map's lines no longer show. A take
 // where the view only scrolled, `on` 1, marks the scroll's part of the frame changed, and any other take owes a frame
 // whole
@@ -740,12 +731,19 @@ EMBED_INLINE void window_view_take(const GuiWindowCtx *args)
     const int recolored =
         (key == NULL) || (window->editor.frame == NULL) || (colors != window->colors_serial) ||
         !cellul.eq(&(CatenaFinitaCfg){.src = window->colors_key, .other = key, .cap = sizeof(window->colors_key)});
-    if (recolored || (window->editor.names == NULL))
+    if (recolored)
     {
-        (void)g_cli_guard->movable_buf_release(window->editor.names, g_cli_view_owner);
-        window->editor.names = (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg,
-                                                          .key = key, .owner = g_cli_view_owner)
-                                             : NULL;
+        window->editor.names_key[0] = '\0';
+        if (key != NULL)
+        {
+            memor.cpy(
+                &(MemoriaCfg){.dst = window->editor.names_key,
+                              .src = key,
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_NAME_MAX_LEN - 1u}) + 1u});
+        }
+        window->editor.names_count = (key != NULL) ? EMBED_CALL(cli_document_names.count, CliDocumentNamesCfg,
+                                                                .key = key, .serial = &window->editor.names_serial)
+                                                   : 0u;
     }
     if (args->edited || recolored || (window->minimap.lines == NULL) || (key == NULL))
     {

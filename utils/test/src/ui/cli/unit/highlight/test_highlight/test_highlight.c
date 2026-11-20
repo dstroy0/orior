@@ -1,40 +1,44 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_highlight.c: a JSON line containing a string of thousands of characters colors; a line is colored by its rules, each token a run of its own; a
-// state carries to the next line; columns count as the page counts them; a rule reads its groups and a grammar its includes; what matches no rule has no
-// token; a grammar's leaves are returned a line at a time; colorings run at once, beside one another and within one another, and a grammar stored again
-// while one reads it; a language plugin's grammar is stored under its id's key; and the C, Python, Rust and JavaScript grammars name a function's
-// parameters, their types and a body's locals
+// test_highlight.c: a JSON line containing a string of thousands of characters colors; a line is colored by its rules,
+// each token a run of its own; a state carries to the next line; columns count as the page counts them; a rule reads
+// its groups and a grammar its includes; what matches no rule has no token; a grammar's leaves are returned a line at a
+// time; colorings run at once, beside one another and within one another, and a grammar stored again while one reads
+// it; a language plugin's grammar is stored under its id's key; and the C, Python, Rust and JavaScript grammars name a
+// function's parameters, their types and a body's locals
 #include "ui/cli/src/editor/highlight.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-static const char s_grammar[] = "{\"keywords\": [\"if\", \"return\"], \"tokenizer\": {\"root\": ["
-                                "[{\"pattern\": \"(\\\\w+)(:)\", \"flags\": \"\"}, [\"label\", \"delimiter\"]],"
-                                "[{\"pattern\": \"[a-z_]\\\\w*\", \"flags\": \"\"}, {\"cases\": {\"@keywords\": \"keyword\", \"@default\": "
-                                "\"identifier\"}}],"
-                                "[{\"pattern\": \"\\\\d+\", \"flags\": \"\"}, \"number\"],"
-                                "[{\"pattern\": \"\\\"\", \"flags\": \"\"}, \"string\", \"@string\"],"
-                                "[{\"pattern\": \"\\\\/\\\\*\", \"flags\": \"\"}, \"comment\", \"@comment\"],"
-                                "[{\"pattern\": \"[()]\", \"flags\": \"\"}, \"@brackets\"],"
-                                "{\"include\": \"@space\"}],"
-                                "\"space\": [[{\"pattern\": \"\\\\s+\", \"flags\": \"\"}, \"\"]],"
-                                "\"string\": [[{\"pattern\": \"[^\\\"]+\", \"flags\": \"\"}, \"string\"], [{\"pattern\": \"\\\"\", \"flags\": "
-                                "\"\"}, "
-                                "\"string\", \"@pop\"]],"
-                                "\"comment\": [[{\"pattern\": \"[^*]+\", \"flags\": \"\"}, \"comment\"], [{\"pattern\": \"\\\\*\\\\/\", \"flags\": "
-                                "\"\"}, \"comment\", \"@pop\"], [{\"pattern\": \"\\\\*\", \"flags\": \"\"}, \"comment\"]]}}";
+static const char s_grammar[] =
+    "{\"keywords\": [\"if\", \"return\"], \"tokenizer\": {\"root\": ["
+    "[{\"pattern\": \"(\\\\w+)(:)\", \"flags\": \"\"}, [\"label\", \"delimiter\"]],"
+    "[{\"pattern\": \"[a-z_]\\\\w*\", \"flags\": \"\"}, {\"cases\": {\"@keywords\": \"keyword\", \"@default\": "
+    "\"identifier\"}}],"
+    "[{\"pattern\": \"\\\\d+\", \"flags\": \"\"}, \"number\"],"
+    "[{\"pattern\": \"\\\"\", \"flags\": \"\"}, \"string\", \"@string\"],"
+    "[{\"pattern\": \"\\\\/\\\\*\", \"flags\": \"\"}, \"comment\", \"@comment\"],"
+    "[{\"pattern\": \"[()]\", \"flags\": \"\"}, \"@brackets\"],"
+    "{\"include\": \"@space\"}],"
+    "\"space\": [[{\"pattern\": \"\\\\s+\", \"flags\": \"\"}, \"\"]],"
+    "\"string\": [[{\"pattern\": \"[^\\\"]+\", \"flags\": \"\"}, \"string\"], [{\"pattern\": \"\\\"\", \"flags\": "
+    "\"\"}, "
+    "\"string\", \"@pop\"]],"
+    "\"comment\": [[{\"pattern\": \"[^*]+\", \"flags\": \"\"}, \"comment\"], [{\"pattern\": \"\\\\*\\\\/\", \"flags\": "
+    "\"\"}, \"comment\", \"@pop\"], [{\"pattern\": \"\\\\*\", \"flags\": \"\"}, \"comment\"]]}}";
 
 // a grammar that names every word `word`
 static const char s_words[] = "{\"tokenizer\": {\"root\": [[\"[a-z]+\", \"word\"], [\"\\\\s+\", \"\"]]}}";
 
-// a grammar whose `indent` runs a block by indent, a tab to the next fourth column, lines of blanks or a `;` note alone skipped, and statements written in root and in a block
-static const char s_indented[] = "{\"indent\": {\"states\": {\"block\": \"close\"}, \"tab\": 4, \"skip\": \"^\\\\s*(?:;.*)?$\", "
-                                 "\"begins\": [\"root\", \"block\"]}, \"tokenizer\": {"
-                                 "\"root\": [[\"$\", \"end\"], [\":$\", \"open\", \"@block\"], {\"include\": \"@code\"}],"
-                                 "\"block\": [[\"$\", \"end\"], [\":$\", \"open\", \"@block\"], {\"include\": \"@code\"}],"
-                                 "\"code\": [[\"[a-z]+\", \"word\"], [\";.*$\", \"note\"], [\"\\\\s+\", \"\"]]}}";
+// a grammar whose `indent` state reads a block by its indent, a tab to the next fourth column. It skips a line of
+// blanks or of a `;` note alone, and it has statements in root and in a block
+static const char s_indented[] =
+    "{\"indent\": {\"states\": {\"block\": \"close\"}, \"tab\": 4, \"skip\": \"^\\\\s*(?:;.*)?$\", "
+    "\"begins\": [\"root\", \"block\"]}, \"tokenizer\": {"
+    "\"root\": [[\"$\", \"end\"], [\":$\", \"open\", \"@block\"], {\"include\": \"@code\"}],"
+    "\"block\": [[\"$\", \"end\"], [\":$\", \"open\", \"@block\"], {\"include\": \"@code\"}],"
+    "\"code\": [[\"[a-z]+\", \"word\"], [\";.*$\", \"note\"], [\"\\\\s+\", \"\"]]}}";
 
 static const char s_one_line[] = "0 keyword|2 |3 delimiter.bracket|4 identifier|5 delimiter.bracket/";
 
@@ -44,25 +48,32 @@ static char s_plugin[1u << 18u];
 static char s_state[256];
 static char s_runs[1u << 16u];
 
-// Work done beside a coloring under way, on a thread of its own: what it does, the lock and wake its end is reported under, 1 where it ended and did its
-// work, -1 where it ended and did not, 0 before it ends, and the leaves it colored
+// Work beside a coloring that runs, on a thread of its own: what it does, and the wake that tells its end. The end is
+// 1 where the work ended and did its work, -1 where it ended and did not, and 0 before it ends. Last come the leaves
+// it colored
 static int (*s_aside_work)(void);
 static CliWake s_aside_wake = CLI_WAKE_INIT;
 static int s_aside_ended;
 static char s_aside_leaves[256];
 static int s_test_grammar_stored;
 
-// the grammar of `size` bytes of JSON, its `member` where it is not NULL, stored under `key`: 1, or 0 where it is refused
+// the grammar of `size` bytes of JSON, its `member` where it is not NULL, stored under `key`: 1, or 0 where the
+// store refuses it
 static int grammar_stored(const char *key, const char *text, unsigned long long size, const char *member)
 {
     unsigned int root = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(text, size, &root);
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    return EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = key, .json = json, .def = (member != NULL) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = member) : root, .err_msg = &err_msg);
+    return EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = key, .json = json,
+                      .def = (member != NULL) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                           .json_read = json, .object = root, .name = member)
+                                              : root,
+                      .err_msg = &err_msg);
 }
 
-// `line` colored from `state` with the grammar under `key`, its runs `column name` joined by `|` in s_runs, and the state it ends in in s_state
+// `line` colored from `state` with the grammar under `key`, its runs `column name` joined by `|` in s_runs, and the
+// state it ends in in s_state
 static const char *line_colored(const char *key, const char *line, const char *state)
 {
     const char *const lines[1] = {line};
@@ -71,30 +82,51 @@ static const char *line_colored(const char *key, const char *line, const char *s
     VerbaLinea colored = {s_out, sizeof(s_out), 0ull};
     VerbaLinea runs_line = {s_runs, sizeof(s_runs), 0ull};
     s_state[0] = '\0';
-    if (EMBED_CALL(cli_highlight_key_err_msg.color, CliHighlightKeyErrMsgCfg, .key = key, .state = state, .lines = lines, .count = 1u, .out = &colored, .err_msg = &err_msg))
+    if (EMBED_CALL(cli_highlight_key_err_msg.color, CliHighlightKeyErrMsgCfg, .key = key, .state = state,
+                   .lines = lines, .count = 1u, .out = &colored, .err_msg = &err_msg))
     {
         unsigned int found = CLI_JSON_NONE;
         const CliJson *const json = cli_unity_parsed(s_out, colored.at, &found);
-        const unsigned int names = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = found, .name = "names");
-        const unsigned int runs = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = found, .name = "runs"), .index = 0u);
-        for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = runs, .index = at) != CLI_JSON_NONE; at += 1u)
+        const unsigned int names = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                              .object = found, .name = "names");
+        const unsigned int runs =
+            EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
+                       .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                           .object = found, .name = "runs"),
+                       .index = 0u);
+        for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                              .json_read = json, .array = runs, .index = at) != CLI_JSON_NONE;
+             at += 1u)
         {
-            const unsigned int run = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = runs, .index = at);
-            const unsigned int column = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = run, .index = 0u);
-            const unsigned int name = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = run, .index = 1u);
+            const unsigned int run = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                                .json_read = json, .array = runs, .index = at);
+            const unsigned int column = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                                   .json_read = json, .array = run, .index = 0u);
+            const unsigned int name = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                                 .json_read = json, .array = run, .index = 1u);
             unsigned int index = 0u;
             for (unsigned long long digit = 0ull; digit < json->node[name].length; digit += 1ull)
             {
                 // a digit's value is below 10
                 index = index * 10u + (unsigned int)(json->text[json->node[name].text + digit] - '0');
             }
-            const char *const named = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = names, .index = index), .length_pointer = NULL);
+            const char *const named =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                           .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                              .json_read = json, .array = names, .index = index),
+                           .length_pointer = NULL);
             mmgr_line_put(&runs_line, (at > 0u) ? "|" : "");
             mmgr_line_put_n(&runs_line, json->text + json->node[column].text, json->node[column].length);
             mmgr_line_ch(&runs_line, ' ');
             mmgr_line_put(&runs_line, (named != NULL) ? named : "?");
         }
-        const char *const ended = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = found, .name = "states"), .index = 0u), .length_pointer = NULL);
+        const char *const ended = EMBED_CALL(
+            cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+            .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
+                               .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                   .json_read = json, .object = found, .name = "states"),
+                               .index = 0u),
+            .length_pointer = NULL);
         const char *const copied = (ended != NULL) ? ended : "";
         memor.cpy(&(MemoriaCfg){.dst = s_state, .src = copied, .bytes = CLI_UNITY_LENGTH(copied) + 1u});
     }
@@ -125,12 +157,14 @@ static int aside_colored(void)
     VerbaLinea out = {s_aside_leaves, sizeof(s_aside_leaves), 0ull};
     VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int colored = EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root", .lines = s_lines, .count = 1u, .ends = 0, .each = leaves_recorded, .context = &out, .ended = &ended_line, .err_msg = &err_msg);
+    const int colored = EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root",
+                                   .lines = s_lines, .count = 1u, .ends = 0, .each = leaves_recorded, .context = &out,
+                                   .ended = &ended_line, .err_msg = &err_msg);
     (void)mmgr_line_finish(&out);
     return colored;
 }
 
-// the grammar `swapped` stored again beside a coloring that reads it, another in its place: 1 where it was stored
+// the grammar `swapped` stored again beside a coloring that reads it, another in its place: 1 where the store took it
 static int aside_stored(void)
 {
     return grammar_stored("swapped", s_words, sizeof(s_words) - 1u, NULL);
@@ -145,8 +179,8 @@ static void aside_run(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_aside_wake);
 }
 
-// the first line of a coloring recorded, and the aside's work started on a thread of its own and waited for, five seconds at max, before the coloring
-// goes on; each line after recorded alone
+// the first line of a coloring recorded, then the aside's work started on a thread of its own. The coloring waits for
+// that work, five seconds at max, before it goes on. It records each line after that alone
 static void leaves_waiting(const CliLeavesEachCfg *args)
 {
     static CliThread s_thread = {aside_run, NULL, CLI_PRIORITY_WORK};
@@ -155,16 +189,18 @@ static void leaves_waiting(const CliLeavesEachCfg *args)
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
     if (first && EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread))
     {
-        for (unsigned long long now = cli_clock_milliseconds(); (s_aside_ended == 0) && (now < until); now = cli_clock_milliseconds())
+        for (unsigned long long now = cli_clock_milliseconds(); (s_aside_ended == 0) && (now < until);
+             now = cli_clock_milliseconds())
         {
-            (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_aside_wake, .milliseconds_u64 = until - now);
+            (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_aside_wake,
+                             .milliseconds_u64 = until - now);
         }
     }
     s_aside_ended = (first && (s_aside_ended == 0)) ? -2 : s_aside_ended;
 }
 
-// two lines of the grammar under `key` colored, the aside's work `work` done beside the first, their leaves into `leaves`, `capacity` bytes: 1 where they
-// colored and the aside ended while the first waited and did its work
+// two lines of the grammar under `key` colored, with the aside's work `work` beside the first. Their leaves go into
+// `leaves`, `capacity` bytes: 1 where they colored, and the aside ended while the first waited and did its work
 static int colored_adjacent(const char *key, int (*work)(void), char *leaves, unsigned long long capacity)
 {
     static const char *const s_lines[2] = {"if (x)", "if (x)"};
@@ -175,12 +211,15 @@ static int colored_adjacent(const char *key, int (*work)(void), char *leaves, un
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_aside_work = work;
     s_aside_ended = 0;
-    const int returned = EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = key, .state = "root", .lines = s_lines, .count = 2u, .ends = 0, .each = leaves_waiting, .context = &out, .ended = &ended_line, .err_msg = &err_msg);
+    const int returned = EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = key, .state = "root",
+                                    .lines = s_lines, .count = 2u, .ends = 0, .each = leaves_waiting, .context = &out,
+                                    .ended = &ended_line, .err_msg = &err_msg);
     (void)mmgr_line_finish(&out);
     return returned && (s_aside_ended == 1);
 }
 
-// a line colored and leaves recorded on the same thread as a coloring under way returns them, the one under way going on in its own capacity
+// a line colored and its leaves recorded on the thread of a coloring that runs: the call returns them. The coloring
+// that runs then goes on in its own capacity
 static void leaves_nested(const CliLeavesEachCfg *args)
 {
     leaves_recorded(args);
@@ -196,7 +235,9 @@ static void assert_plugin_line(const char *id, const char *text, const char *req
     char key[CLI_NAME_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = key, .err_msg = &err_msg), id);
+    TEST_ASSERT_TRUE_MESSAGE(
+        EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = key, .err_msg = &err_msg),
+        id);
     TEST_ASSERT_EQUAL_STRING(required, line_colored(key, text, "root"));
 }
 
@@ -223,7 +264,8 @@ void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void)
     {
         TEST_IGNORE_MESSAGE("no tree is found: JSON's grammar is not read");
     }
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "ui/plugins/json/plugin.json", .joined = path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "ui/plugins/json/plugin.json",
+               .joined = path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_plugin, sizeof(s_plugin));
     TEST_ASSERT_NOT_EQUAL(QRY_MEMBER_UNREAD, size);
     TEST_ASSERT_TRUE(grammar_stored("json", s_plugin, size, "grammar"));
@@ -238,7 +280,8 @@ void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void)
     mmgr_line_put(&line, "\", \"n\": 1}");
     (void)mmgr_line_finish(&line);
     (void)line_colored("json", s_line, "root");
-    const char *const string = cellul.find(&(CatenaFinitaCfg){.src = s_runs, .cap = CLI_POOL_BYTES, .other = "|9 ", .other_cap = CLI_POOL_BYTES});
+    const char *const string = cellul.find(
+        &(CatenaFinitaCfg){.src = s_runs, .cap = CLI_POOL_BYTES, .other = "|9 ", .other_cap = CLI_POOL_BYTES});
     TEST_ASSERT_NOT_NULL(string);
     CLI_TEST_ASSERT_CONTAINS("string", string);
     VerbaLinea next = {required, sizeof(required), 0ull};
@@ -248,12 +291,15 @@ void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void)
     (void)mmgr_line_finish(&next);
     const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = string + 1, .cap = CLI_POOL_BYTES, .byte = '|'});
     TEST_ASSERT_NOT_NULL(bar);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = bar, .other_pointer = required, .size = CLI_UNITY_LENGTH(required)));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = bar, .other_pointer = required,
+                                .size = CLI_UNITY_LENGTH(required)));
 }
 
 void test_a_line_is_colored_by_its_rules_and_ends_in_root(void)
 {
-    TEST_ASSERT_EQUAL_STRING("0 keyword|2 |3 delimiter.bracket|4 identifier|5 delimiter.bracket|6 |7 keyword|13 |14 number", line_colored("test", "if (x) return 12", "root"));
+    TEST_ASSERT_EQUAL_STRING(
+        "0 keyword|2 |3 delimiter.bracket|4 identifier|5 delimiter.bracket|6 |7 keyword|13 |14 number",
+        line_colored("test", "if (x) return 12", "root"));
     TEST_ASSERT_EQUAL_STRING("root", s_state);
 }
 
@@ -278,7 +324,8 @@ void test_a_comments_state_transfers_to_the_next_line_until_it_closes(void)
 
 void test_columns_count_as_the_page_counts_them(void)
 {
-    TEST_ASSERT_EQUAL_STRING("0 string|1 string|3 string|4 |5 number", line_colored("test", "\"\xF0\x9F\x98\x80\" 7", "root"));
+    TEST_ASSERT_EQUAL_STRING("0 string|1 string|3 string|4 |5 number",
+                             line_colored("test", "\"\xF0\x9F\x98\x80\" 7", "root"));
 }
 
 // each name passed written after those before as `place name`, `|` between them
@@ -296,14 +343,54 @@ static void name_recorded(const CliNameEachCfg *args)
 void test_a_grammars_names_are_passed_each_with_its_place_the_empty_name_first(void)
 {
     VerbaLinea out = {s_names, sizeof(s_names), 0ull};
-    const unsigned int count = EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = "test", .each_name_each = name_recorded, .context = &out);
+    const unsigned int count = EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg,
+                                          .key = "test", .each_name_each = name_recorded, .context = &out);
     (void)mmgr_line_finish(&out);
     TEST_ASSERT_GREATER_THAN_UINT(1u, count);
     TEST_ASSERT_EQUAL_CHAR('0', s_names[0]);
     TEST_ASSERT_EQUAL_CHAR(' ', s_names[1]);
     TEST_ASSERT_EQUAL_CHAR('|', s_names[2]);
     CLI_TEST_ASSERT_CONTAINS("keyword", s_names);
-    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = "none", .each_name_each = name_recorded, .context = &out));
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg,
+                                          .key = "none", .each_name_each = name_recorded, .context = &out));
+}
+
+void test_the_store_keeps_a_grammars_names_table_read_by_place_and_by_name(void)
+{
+    const unsigned int count = EMBED_CALL(cli_highlight_names.count, CliHighlightNamesCfg, .key = "test");
+    TEST_ASSERT_GREATER_THAN_UINT(1u, count);
+    const unsigned int keyword =
+        EMBED_CALL(cli_highlight_names.place, CliHighlightNamesCfg, .key = "test", .text = "keyword");
+    TEST_ASSERT_LESS_THAN_UINT(count, keyword);
+    char text[64];
+    VerbaLinea out = {text, sizeof(text), 0ull};
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_highlight_names.read, CliHighlightNamesCfg, .key = "test", .name = keyword, .out = &out));
+    (void)mmgr_line_finish(&out);
+    TEST_ASSERT_EQUAL_STRING("keyword", text);
+    TEST_ASSERT_EQUAL_UINT(
+        count, EMBED_CALL(cli_highlight_names.place, CliHighlightNamesCfg, .key = "test", .text = "keyword.none"));
+    TEST_ASSERT_FALSE(
+        EMBED_CALL(cli_highlight_names.read, CliHighlightNamesCfg, .key = "test", .name = count, .out = &out));
+    // a key with no grammar stored has the empty name alone, at serial 0
+    unsigned int serial = 7u;
+    TEST_ASSERT_EQUAL_UINT(
+        1u, EMBED_CALL(cli_highlight_names.count, CliHighlightNamesCfg, .key = "none", .serial = &serial));
+    TEST_ASSERT_EQUAL_UINT(0u, serial);
+}
+
+void test_a_grammar_stored_again_takes_a_new_names_table_at_a_new_serial(void)
+{
+    TEST_ASSERT_TRUE(grammar_stored("names_again", s_grammar, sizeof(s_grammar) - 1u, NULL));
+    unsigned int first = 0u;
+    const unsigned int count =
+        EMBED_CALL(cli_highlight_names.count, CliHighlightNamesCfg, .key = "names_again", .serial = &first);
+    TEST_ASSERT_TRUE(grammar_stored("names_again", s_grammar, sizeof(s_grammar) - 1u, NULL));
+    unsigned int second = 0u;
+    TEST_ASSERT_EQUAL_UINT(
+        count, EMBED_CALL(cli_highlight_names.count, CliHighlightNamesCfg, .key = "names_again", .serial = &second));
+    TEST_ASSERT_NOT_EQUAL_UINT(0u, first);
+    TEST_ASSERT_NOT_EQUAL_UINT(first, second);
 }
 
 // a line's leaves written as the page reads a line's colors
@@ -320,7 +407,9 @@ void test_a_lines_runs_are_written_as_columns_and_names(void)
     VerbaLinea out = {s_runs, sizeof(s_runs), 0ull};
     VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root", .lines = s_lines, .count = 1u, .ends = 0, .each = runs_written, .context = &out, .ended = &ended_line, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root",
+                                .lines = s_lines, .count = 1u, .ends = 0, .each = runs_written, .context = &out,
+                                .ended = &ended_line, .err_msg = &err_msg));
     (void)mmgr_line_finish(&out);
     // the five runs of `if (x)`, each its column and its name's place, the keyword's run first at column 0
     TEST_ASSERT_EQUAL_CHAR('[', s_runs[0]);
@@ -369,7 +458,9 @@ void test_a_grammars_leaves_are_returned_a_line_at_a_time(void)
     VerbaLinea out = {leaves, sizeof(leaves), 0ull};
     VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root", .lines = s_lines, .count = 3u, .ends = 0, .each = leaves_recorded, .context = &out, .ended = &ended_line, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root",
+                                .lines = s_lines, .count = 3u, .ends = 0, .each = leaves_recorded, .context = &out,
+                                .ended = &ended_line, .err_msg = &err_msg));
     (void)mmgr_line_finish(&out);
     (void)mmgr_line_finish(&ended_line);
     TEST_ASSERT_EQUAL_STRING("0 keyword|2 |3 delimiter.bracket|4 identifier|5 "
@@ -384,10 +475,12 @@ void test_a_plugins_grammar_is_stored_under_its_key_and_colors(void)
     char key[CLI_NAME_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING("plugin:c", key);
     TEST_ASSERT_EQUAL_STRING("0 type|3 |4 identifier|5 delimiter.statement", line_colored(key, "int x;", "root"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
 }
 
 void test_a_plugin_there_is_none_of_is_refused_with_error(void)
@@ -395,7 +488,8 @@ void test_a_plugin_there_is_none_of_is_refused_with_error(void)
     char key[CLI_NAME_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "no_such_plugin", .key = key, .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "no_such_plugin",
+                                 .key = key, .err_msg = &err_msg));
     TEST_ASSERT_NOT_EQUAL(0ull, err_msg.at);
 }
 
@@ -433,7 +527,9 @@ void test_a_coloring_begun_within_another_on_its_thread_colors_and_the_other_goe
     VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_aside_leaves[0] = '\0';
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root", .lines = s_lines, .count = 2u, .ends = 0, .each = leaves_nested, .context = &out, .ended = &ended_line, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "test", .state = "root",
+                                .lines = s_lines, .count = 2u, .ends = 0, .each = leaves_nested, .context = &out,
+                                .ended = &ended_line, .err_msg = &err_msg));
     (void)mmgr_line_finish(&out);
     TEST_ASSERT_EQUAL_STRING(s_one_line, s_aside_leaves);
     TEST_ASSERT_EQUAL_STRING("0 identifier|1 |2 comment|4 comment/0 comment|6 comment|8 |9 identifier/", leaves);
@@ -449,7 +545,9 @@ void test_a_grammars_indent_runs_its_block_each_close_a_mark(void)
     VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     TEST_ASSERT_TRUE(grammar_stored("indented", s_indented, sizeof(s_indented) - 1u, NULL));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "indented", .state = "root", .lines = s_lines, .count = 6u, .ends = 1, .each = leaves_recorded, .context = &out, .ended = &ended_line, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = "indented", .state = "root",
+                                .lines = s_lines, .count = 6u, .ends = 1, .each = leaves_recorded, .context = &out,
+                                .ended = &ended_line, .err_msg = &err_msg));
     (void)mmgr_line_finish(&out);
     (void)mmgr_line_finish(&ended_line);
     TEST_ASSERT_EQUAL_STRING("0 word|1 open|2 end/0 |1 word|2 end/0 note|6 end/0 "
@@ -478,12 +576,13 @@ void test_a_c_pointer_to_a_function_names_no_function_and_its_type_is_a_type(voi
 
 void test_a_c_function_that_returns_a_pointer_is_named_inside_its_brackets(void)
 {
-    assert_plugin_line("c", "const unsigned int (*khw_frame_cases(unsigned int *count))[2]",
-                       "0 keyword|5 |6 type|14 |15 type|18 |19 delimiter.bracket.depth.open|20 operator.memory|21 "
-                       "identifier.declaration.function|36 delimiter.bracket.parameter.depth.open|37 type.number|45 |46 "
-                       "type.number|49 |50 operator.memory|51 identifier.parameter|56 "
-                       "delimiter.bracket.parameter.depth.close|57 delimiter.bracket.depth.close|58 "
-                       "delimiter.bracket.depth.open|59 number|60 delimiter.bracket.depth.close");
+    assert_plugin_line(
+        "c", "const unsigned int (*khw_frame_cases(unsigned int *count))[2]",
+        "0 keyword|5 |6 type|14 |15 type|18 |19 delimiter.bracket.depth.open|20 operator.memory|21 "
+        "identifier.declaration.function|36 delimiter.bracket.parameter.depth.open|37 type.number|45 |46 "
+        "type.number|49 |50 operator.memory|51 identifier.parameter|56 "
+        "delimiter.bracket.parameter.depth.close|57 delimiter.bracket.depth.close|58 "
+        "delimiter.bracket.depth.open|59 number|60 delimiter.bracket.depth.close");
 }
 
 void test_a_c_local_and_its_type_are_named(void)
@@ -495,11 +594,12 @@ void test_a_c_local_and_its_type_are_named(void)
 
 void test_pythons_head_names_its_parameters_and_an_annotations_type(void)
 {
-    assert_plugin_line("python", "def total(first: int, second=\"x\"):",
-                       "0 keyword|3 |4 identifier.declaration.function|9 delimiter.bracket.parameter.depth.open|10 "
-                       "identifier.parameter|15 delimiter|16 |17 type.number|20 delimiter.separator|21 |22 "
-                       "identifier.parameter|28 operator.assign|29 string|32 delimiter.bracket.parameter.depth.close|33 "
-                       "operator.region.open|34 delimiter.statement");
+    assert_plugin_line(
+        "python", "def total(first: int, second=\"x\"):",
+        "0 keyword|3 |4 identifier.declaration.function|9 delimiter.bracket.parameter.depth.open|10 "
+        "identifier.parameter|15 delimiter|16 |17 type.number|20 delimiter.separator|21 |22 "
+        "identifier.parameter|28 operator.assign|29 string|32 delimiter.bracket.parameter.depth.close|33 "
+        "operator.region.open|34 delimiter.statement");
 }
 
 void test_a_python_local_with_its_annotation_is_named(void)
@@ -511,7 +611,8 @@ void test_a_python_local_with_its_annotation_is_named(void)
 
 void test_a_python_local_without_an_annotation_is_named(void)
 {
-    assert_plugin_line("python", "    total = 4", "0 |4 identifier.local|9 |10 operator.assign|11 |12 number|13 delimiter.statement");
+    assert_plugin_line("python", "    total = 4",
+                       "0 |4 identifier.local|9 |10 operator.assign|11 |12 number|13 delimiter.statement");
 }
 
 void test_rusts_head_names_its_parameters_and_their_types(void)
@@ -575,13 +676,16 @@ void test_the_c_grammar_names_a_local_at_its_declaration_and_an_identifier_at_it
     char key[CLI_NAME_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(
+        EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
     // the lines of a function body colored in turn, each from the state the one before it ends in
     static const char *const s_body[] = {
         "EMBED_INLINE void window_pane_read_event(const GuiWindowCtx *args)",
         "{",
-        "    const GuiPaneTable *const tables[2] = {EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = args->window),",
-        "                                           EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = args->window)};",
+        "    const GuiPaneTable *const tables[2] = {EMBED_CALL(window_pane_table, GuiWindowCtx, .window_read = "
+        "args->window),",
+        "                                           EMBED_CALL(window_foot_table, GuiWindowCtx, .window_read = "
+        "args->window)};",
         "    const int displayed = cli_view_displayed();",
         "    for (unsigned int at = 0u; at < 2u; at += 1u)",
         "    {",

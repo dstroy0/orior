@@ -261,7 +261,6 @@ typedef struct
     unsigned int at;
     const CliSignaturePanel *own;
     const CliSignaturePanel *panel;
-    const CarcerMovableEntry *names;
     PanelsHoverAsk *hover_ask;
     unsigned long long size;
     const char *word;
@@ -427,27 +426,6 @@ EMBED_INLINE void panels_declaration_write(const PanelsCtx *args)
     mmgr_line_ch(args->out, '`');
 }
 
-// The place among the names' cell `names` of the token named `text`, the names' count where none is. Each name is
-// compared in the cell with its end, so a longer name that starts with `text` does not match
-EMBED_INLINE unsigned int panels_name_place(const PanelsCtx *args)
-{
-    CliDocumentNames head = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->names, .dst = &head, .bytes = sizeof(head)});
-    const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
-    for (unsigned int at = 0u; at < head.count; at += 1u)
-    {
-        unsigned int place = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = args->names, .offset = CLI_DOCUMENT_NAME_AT(at), .dst = &place, .bytes = sizeof(place)});
-        if (g_cli_guard->movable_buf_compare(
-                &(CarcerMovableCfg){.cell = args->names, .offset = place, .src = args->text, .bytes = bytes}) == 0)
-        {
-            return at;
-        }
-    }
-    return head.count;
-}
-
 // The hover's word as a parameter or a local of the function the pointer is in, off the runs the walk saved: the
 // lines above the pointer's read upward to the line the grammar marks identifier.declaration.function, that line's
 // own parameters read too, and the topmost run the grammar names identifier.parameter or identifier.local whose text
@@ -456,18 +434,16 @@ EMBED_INLINE unsigned int panels_name_place(const PanelsCtx *args)
 EMBED_INLINE int panels_hover_local_run(const PanelsCtx *args)
 {
     PanelsHoverAsk *const ask = args->hover_ask;
-    const CarcerMovableEntry *const names =
-        EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = ask->key, .owner = g_cli_servers_owner);
-    if (names == NULL)
+    if (EMBED_CALL(cli_document_names.count, CliDocumentNamesCfg, .key = ask->key) == 0u)
     {
         return 0;
     }
     const unsigned int parameter =
-        EMBED_CALL(panels_name_place, PanelsCtx, .names = names, .text = "identifier.parameter");
-    const unsigned int local = EMBED_CALL(panels_name_place, PanelsCtx, .names = names, .text = "identifier.local");
-    const unsigned int head =
-        EMBED_CALL(panels_name_place, PanelsCtx, .names = names, .text = "identifier.declaration.function");
-    (void)g_cli_guard->movable_buf_release(names, g_cli_servers_owner);
+        EMBED_CALL(cli_document_names.place, CliDocumentNamesCfg, .key = ask->key, .text = "identifier.parameter");
+    const unsigned int local =
+        EMBED_CALL(cli_document_names.place, CliDocumentNamesCfg, .key = ask->key, .text = "identifier.local");
+    const unsigned int head = EMBED_CALL(cli_document_names.place, CliDocumentNamesCfg, .key = ask->key,
+                                         .text = "identifier.declaration.function");
     const unsigned long long low = (ask->line > CLI_PANELS_LOCAL_LINES) ? (ask->line - CLI_PANELS_LOCAL_LINES) : 0ULL;
     unsigned long long end = ask->line + 1ULL;
     unsigned long long found_line = 0ULL;
