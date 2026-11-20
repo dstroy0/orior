@@ -8,14 +8,15 @@
 
 #include "embed_compiler_directives.h"
 
-// whether the vector blend is built: the target has vectors and the compiler has the builtins that turn and widen them
+// whether the build has the vector blend: the target has vectors and the compiler has the builtins that turn and widen
+// them
 #if EMBED_HAS_VECTOR_SIZE && EMBED_HAS_BUILTIN(__builtin_shufflevector) && EMBED_HAS_BUILTIN(__builtin_convertvector)
 #define COMPOSITOR_VECTOR 1
 #else
 #define COMPOSITOR_VECTOR 0
 #endif
 
-// the bytes a block's parts are aligned to: a cache line
+// the alignment of the parts of a block, in bytes: a cache line
 #define COMPOSITOR_ALIGN 64ULL
 #define COMPOSITOR_ALIGNED(bytes_) ((((embed_u64)(bytes_)) + COMPOSITOR_ALIGN - 1ULL) & ~(COMPOSITOR_ALIGN - 1ULL))
 // the pixels of a tile
@@ -169,8 +170,8 @@ EMBED_INLINE void compositor_command_mark(const CompositorCtx *args)
     }
 }
 
-// the tiles the pixels `left` to `right` across and `top` to `bottom` down cover, both ends in, cut to the surface,
-// put in the command: 1, or 0 where none of them is on the surface
+// the tiles that the pixels `left` to `right` across and `top` to `bottom` down cover, both ends in. The call cuts
+// them to the surface and puts them in the command. The result is 1, or 0 where none of them is on the surface
 EMBED_INLINE int compositor_range(const CompositorCtx *args)
 {
     const GuiCompositorSurface *const surface = args->surface_read;
@@ -186,7 +187,7 @@ EMBED_INLINE int compositor_range(const CompositorCtx *args)
     const embed_i32 bottom =
         (args->bottom >= (embed_i32)surface->height) ? ((embed_i32)surface->height - 1) : args->bottom;
     GuiCompositorCommand *const command = args->range;
-    // the pixels are cut to the surface: they are not negative, and a tile's number fits 16 bits
+    // the code cut the pixels to the surface. They are not negative, and the number of a tile fits 16 bits
     command->tile_left = (embed_u16)((embed_u32)left >> GUI_COMPOSITOR_TILE_SHIFT);
     command->tile_top = (embed_u16)((embed_u32)top >> GUI_COMPOSITOR_TILE_SHIFT);
     command->tile_right = (embed_u16)((embed_u32)right >> GUI_COMPOSITOR_TILE_SHIFT);
@@ -194,7 +195,7 @@ EMBED_INLINE int compositor_range(const CompositorCtx *args)
     return 1;
 }
 
-// the layer `layer` of `surface`, NULL where either is past its table or the surface is shut
+// the layer `layer` of `surface`, NULL where either is past its table or the surface is not open
 static GuiCompositorLayer *compositor_layer(GuiCompositor *compositor, embed_u32 surface, embed_u32 layer)
 {
     if ((surface >= GUI_COMPOSITOR_SURFACES) || (layer >= GUI_COMPOSITOR_LAYERS) || !compositor->surface[surface].open)
@@ -204,8 +205,9 @@ static GuiCompositorLayer *compositor_layer(GuiCompositor *compositor, embed_u32
     return &compositor->surface[surface].layer[layer];
 }
 
-// The command put last on the layer's recorded list, its tiles worked out from its place and size in 16.16: 1, or 0
-// where the layer does not record or its list is full. A command off the surface records nothing and is 1
+// The command, put last on the recorded list of the layer, with its tiles found from its place and size in 16.16. The
+// result is 1, or 0 where the layer does not record or its list is full. A command off the surface records nothing
+// and is 1
 static int compositor_record(GuiCompositor *compositor, embed_u32 surface_index, embed_u32 layer_index,
                              const GuiCompositorCommand *command)
 {
@@ -328,7 +330,7 @@ EMBED_INLINE int compositor_same(const CompositorCtx *args)
            (one->tile_bottom == other->tile_bottom);
 }
 
-// how many bits of `bits` are set, `words` words of them
+// how many bits of `bits` are 1, `words` words of them
 static embed_u32 compositor_bits_count(const embed_u64 *bits, embed_u32 words)
 {
     embed_u32 count = 0u;
@@ -420,7 +422,7 @@ static embed_u32 compositor_glyphs_digest(const GuiCompositorGlyph *glyphs, embe
     embed_u32 digest = 2166136261u;
     for (embed_u32 at = 0u; at < count; at += 1u)
     {
-        // a pen's place is taken as its bits, its sign with them
+        // the code takes the place of a pen as its bits, its sign with them
         const embed_u32 words[3] = {(embed_u32)glyphs[at].x, (embed_u32)glyphs[at].y, glyphs[at].entry};
         for (embed_u32 word = 0u; word < 3u; word += 1u)
         {
@@ -594,7 +596,7 @@ EMBED_INLINE CompositorBytes compositor_over_four(CompositorBytes target, Compos
         (__builtin_convertvector(target, CompositorWide) * __builtin_convertvector(keep, CompositorWide)) + 128u;
     product = (product + (product >> 8u)) >> 8u;
     CompositorWide sum = product + __builtin_convertvector(source, CompositorWide);
-    // a lane past 255 is brought down to 255: the compare is all ones in such a lane
+    // a lane past 255 comes down to 255. The compare is all ones in such a lane
     sum = sum - ((CompositorWide)(sum > 255u) & (sum - 255u));
     return __builtin_convertvector(sum, CompositorBytes);
 }
@@ -684,9 +686,9 @@ EMBED_INLINE embed_u32 compositor_share(embed_i32 pixel, embed_i32 from, embed_i
     return (high > low) ? ((embed_u32)(high - low) >> 8u) : 0u;
 }
 
-// The fill `command` drawn into the target, its pixels `left` to `right` across and `top` to `bottom` down the part it
-// draws, both ends in, the target's top left the pixel at `rect`'s x and y, `stride` pixels a row. Each pixel takes the
-// color scaled by the share of it the rectangle covers across times the share down
+// The fill `command`, drawn into the target. The pixels `left` to `right` across and `top` to `bottom` down are the part
+// that it draws, both ends in. The top left of the target is the pixel at the x and y of `rect`, `stride` pixels a row.
+// Each pixel takes the color scaled by the share of it that the rectangle covers across, times the share down
 EMBED_INLINE void compositor_fill_draw(const CompositorCtx *args)
 {
     const GuiCompositorCommand *const command = args->command;
@@ -730,8 +732,8 @@ EMBED_INLINE void compositor_fill_draw(const CompositorCtx *args)
     }
 }
 
-// The image `command` names drawn into the target as compositor_fill_draw draws a fill: each row of the part it
-// draws put over the target's row in one blend
+// The image that `command` names, drawn into the target as compositor_fill_draw draws a fill. Each row of the part that
+// it draws goes over the row of the target in one blend
 EMBED_INLINE void compositor_image_draw(const CompositorCtx *args)
 {
     const GuiCompositorCommand *const command = args->command;
@@ -761,9 +763,10 @@ EMBED_INLINE embed_u32 compositor_brightness(embed_u32 color)
 }
 
 // The run `command` drawn into the target as compositor_fill_draw draws a fill, its part `left` to `right` and `top`
-// to `bottom`. The ground's brightness under that part is read first, a pixel in four each way. The nearer it is to
-// the text's, the more the band lifts the coverage. Each glyph's coverage out of its page then takes the text's color
-// through the band, and each page drawn from is marked with the compose's stamp
+// to `bottom`. The code first reads the brightness of the ground under that part, a pixel in four each way. The
+// nearer it is to that of the text, the more the band lifts the coverage.
+// The coverage of each glyph out of its page then takes the color of the text through the band. The code marks each
+// page that it draws from with the stamp of the compose
 EMBED_INLINE void compositor_run_draw(const CompositorCtx *args)
 {
     GuiCompositor *const compositor = args->compositor;
@@ -876,9 +879,9 @@ EMBED_INLINE void compositor_layer_draw(const CompositorCtx *args)
     }
 }
 
-// The retained layer's tile `cell`: its pool tile's pixels drawn again from the layer's commands where the layer marked
-// the tile or the pool tile is new, then put over the raster's tile. A layer with no tile left in the pool draws its
-// commands straight into the raster, which gives the same pixels
+// The tile `cell` of the kept layer. Where the layer marked the tile or the pool tile is new, the code draws its pool
+// tile again from the commands of the layer. It then puts them over the tile of the raster.
+// A layer with no tile left in the pool draws its commands straight into the raster, which gives the same pixels
 EMBED_INLINE void compositor_retained_compose(const CompositorCtx *args)
 {
     GuiCompositor *const compositor = args->compositor;
