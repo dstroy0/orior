@@ -1,75 +1,71 @@
-"""SHA-256 running, inside the room, on its own operation clock with time as the radius.
+"""SHA-256 running, inside the room, on its own operation clock, with time as the radius.
 
     python tools/view/build_sha_clock_view.py
     python tools/view/build_sha_clock_view.py --message "abc" --rounds 16
     python tools/view/build_sha_clock_view.py --glow random --shell dodecahedron
 
-  --message   the block to compress. Default the empty message, padded.
-  --rounds    how many of the 64 rounds are traced. Default 64.
-  --glow      luminosity: value, random, or flat. Default value.
-  --seed      the draw behind --glow random. Default 4.
-  --degrees   highest harmonic degree the boundary is expanded to. Default 10.
-  --tau       conduction time the surface is left to smooth for. Default 0.0008.
-  --sources   how many neutrino points are carried, 1 to 12. Default 2.
-  --shell     the room wall: sphere, cube, hexagon, octahedron, dodecahedron. Default sphere.
-  --core      the nested boundaries: sphere, cube, octahedron, cone. Default sphere.
-  --out       where to write. Default: sha_clock_view.html in build/view, through out_path.
+  - `--message`: the block to compress. Default the empty message, padded.
+  - `--rounds`: how many of the 64 rounds the trace covers. Default 64.
+  - `--glow`: luminosity: value, random, or flat. Default value.
+  - `--seed`: the draw behind --glow random. Default 4.
+  - `--degrees`: highest harmonic degree of the boundary expansion. Default 10.
+  - `--tau`: conduction time that the surface gets to smooth for. Default 0.0008.
+  - `--sources`: how many neutrino points the room carries, 1 to 12. Default 2.
+  - `--shell`: the room wall: sphere, cube, hexagon, octahedron, dodecahedron. Default sphere.
+  - `--core`: the nested boundaries: sphere, cube, octahedron, cone. Default sphere.
+  - `--out`: where to write. Default: sha_clock_view.html in build/view, through out_path.
 
-WHAT IS BEING WATCHED
+WHAT THE PAGE WATCHES
 
-The operation, and not a summary of it. The other SHA pages here read a finished measurement: a
-dependency field, a leak per output bit, a spectrum. This one runs the compression function and
-draws the state while it is still moving, one operation at a time, at whatever rate the reader sets.
+The operation, and not a summary of it. The other SHA pages here read a finished measurement: a dependency field, a leak
+per output bit, a spectrum. This one runs the compression function, and draws the state while it still moves, one
+operation at a time, at whatever rate the reader sets.
 
-The working state is eight words of thirty-two bits. Each word is drawn as a ring of thirty-two
-bodies and the eight rings are stacked as eight latitudes. The whole live state is two hundred
-and fifty-six bodies on one globe. A body is a bit. It is lit when the bit is set.
+The working state is eight words of thirty-two bits. Each word is a ring of thirty-two bodies, and the eight rings stack
+as eight latitudes. The whole live state is two hundred and fifty-six bodies on one globe. A body is a bit. It is lit
+when the bit is on.
 
 TIME IS THE RADIUS
 
-The globe is not a fixed size. Its radius is the clock. The state starts small near the middle
-and inflates outward as the computation runs, reaching the shell at the last operation traced. The
-reader stationary therefore has the computation arrive at them and pass, and where they are
-located decides which part of the run they are inside of. Depth in this room has meant distance
-from a boundary on every other page. Here it is time, and it is the same axis the round-depth
+The globe is not a fixed size: its radius is the clock. The state starts small near the middle, and inflates outward as
+the computation runs, until it reaches the shell at the last operation traced. A reader who stays still therefore has
+the computation arrive and pass. Where the reader stands decides which part of the run they are inside of. Depth in this
+room means distance from a boundary on every other page. Here it is time, and it is the same axis that the round-depth
 experiment puts the leak against.
 
 THE SPIN
 
-SHA-256's mixing is rotations. Sigma1 reads e as three rotations by 6, 11 and 25 and exclusive-ors
-them; Sigma0 reads a by 2, 13 and 22. Drawn as rings those are literal spins, and a rotation
-operation turns the ring it reads through each of its three amounts before the result settles. That
-is the operation itself and not an illustration of it: the bit that ends up in position j came from
-position j plus the rotate, and the ring turning is that sentence.
+SHA-256's mix is rotations. Sigma1 reads e as three rotations by 6, 11 and 25, and exclusive-ors them, and Sigma0 reads
+a by 2, 13 and 22. Drawn as rings, those are literal spins. A rotation operation turns the ring that it reads through
+each of its three amounts before the result settles. That is the operation itself, and not an illustration of it. The
+bit that ends up in position j came from position j plus the rotate, and the ring's turn is that sentence.
 
-Once a round, at the last operation, the register shifts: b takes a, c takes b, d takes c, f takes
-e, g takes f, h takes g. Eight rings turning through each other, once per round, sixty-four times.
+Once a round, at the last operation, the register shifts. Then b takes a, c takes b, d takes c, f takes e, g takes f,
+and h takes g. Eight rings turn through each other, once per round, sixty-four times.
 
 THE SERIALIZATION
 
-The reference round assigns its eight words at once. Watching it that way there is nothing to watch.
-The round is written out in the order the arithmetic actually forces:
+The reference round assigns its eight words at once, and that way there is nothing to watch. This file writes the round
+out in the order that the arithmetic actually forces:
+  - `0  Sigma1(e)`: reads e, and spins it by 6, 11, 25.
+  - `1  Ch(e, f, g)`: reads e, f, g.
+  - `2  T1 = h + Sigma1 + Ch + K + W`: reads h, and the round's key and schedule word.
+  - `3  Sigma0(a)`: reads a, and spins it by 2, 13, 22.
+  - `4  Maj(a, b, c)`: reads a, b, c.
+  - `5  T2 = Sigma0 + Maj`.
+  - `6  e = d + T1`: writes e.
+  - `7  a = T1 + T2`, and the register shifts.
 
-    0  Sigma1(e)                       reads e, spins it by 6, 11, 25
-    1  Ch(e, f, g)                     reads e, f, g
-    2  T1 = h + Sigma1 + Ch + K + W    reads h, and the round's key and schedule word
-    3  Sigma0(a)                       reads a, spins it by 2, 13, 22
-    4  Maj(a, b, c)                    reads a, b, c
-    5  T2 = Sigma0 + Maj
-    6  e = d + T1                      writes e
-    7  a = T1 + T2, and the register shifts
-
-Nothing is reordered and nothing is skipped. Operation 6 writes exactly d + T1, the new e,
-and operation 7 writes T1 + T2 and moves the six carried words, using the values they contained before
-the write. The digest that falls out at the end is the digest, and the run prints it so that can be
-checked against any other implementation and not taken on trust.
+Nothing changes order, and nothing drops out. Operation 6 writes exactly d + T1, the new e. Operation 7 writes T1 + T2,
+and moves the six carried words with the values that they had before the write. The digest that falls out at the end is
+the digest. The run prints it, and anyone can check it against any other implementation and not take it on trust.
 
 WHAT LUMINOSITY IS NOT
 
-Brightness is a free channel and carries no reading. What stops the carried beam is the bit being
-set, what casts the shadow is the stopping, and the pattern on the wall is the state. So --glow
-random is offered next to the measured one: turn the brightness over to a draw, watch the shadows
-stay exactly where they were, and the pattern on the wall is not something the shading put there.
+Brightness is a free channel, and carries no reading. The set bit stops the carried beam, the stop casts the shadow, and
+the pattern on the wall is the state. The option --glow random therefore sits next to the measured one. Turn the
+brightness over to a draw, and watch the shadows stay exactly where they were. The pattern on the wall is then not
+something that the shade put there.
 """
 
 import io
@@ -123,17 +119,16 @@ K = [
 
 H0 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
 
-# The range of depths the room splits into bands, and the depth the state is fixed at inside it.
+# The range of depths that the room splits into bands, and the depth of the state inside it.
 #
-# HOLD is a single number. The state is eight words of thirty-two bits at every operation. Its
-# size carries no information and must not move. Depth stays a setting because the boundary reading
-# is taken against it, but the reader sets it and the clock never touches it.
+# HOLD is a single number. The state is eight words of thirty-two bits at every operation. Its size carries no
+# information, and must not move. Depth stays a setting, because the boundary reading uses it, but the reader sets it
+# and the clock never touches it.
 INNER = 0.12
 OUTER = 0.82
 
-# Inside the first boundary. The room splits the shell into three. The innermost surface sits at
-# a third of it, and the state and the envelope drawn around the state both have to fit within that
-# surface.
+# Inside the first boundary. The room splits the shell into three. The innermost surface sits at a third of it. The
+# state and the envelope drawn around the state must both fit within that surface.
 HOLD = 0.22
 
 
@@ -190,12 +185,11 @@ def as_bits(state):
 
 
 def trace(block, rounds):
-    """Runs the compression function and records the state after every single operation.
+    """Runs the compression function, and records the state after every single operation.
 
-    The round is serialized exactly as STEPS describes it and no value is invented along the way:
-    operation six writes d + T1, the new e, and operation seven writes T1 + T2 and moves
-    the six carried words using the values they contained before that write. Running the whole thing and
-    reading the digest off the end is what checks that, and main prints it.
+    The serial order is exactly as STEPS describes it, and the code invents no value along the way. Operation six writes
+    d + T1, the new e. Operation seven writes T1 + T2, and moves the six carried words with the values that they had
+    before that write. A run of the whole thing, and a read of the digest off the end, checks that, and main prints it.
     """
     words = schedule(block)
     state = list(H0)
@@ -223,12 +217,12 @@ def trace(block, rounds):
 
 
 def distinct(frames):
-    """The states the run actually passes through, and the tick to state map.
+    """The states that the run actually passes through, and the map from tick to state.
 
-    Six of the eight operations in a round form temporaries and leave the eight words alone, and a
-    trace of five hundred and twelve operations holds about a hundred and thirty different states
-    and four hundred repeats of them. Shipping the repeats would be shipping the same string four
-    times over, and the harmonic expansion below would be computed four times for the same input.
+    Six of the eight operations in a round form temporaries, and leave the eight words alone. A trace of five hundred
+    and twelve operations holds about a hundred and thirty different states, and four hundred repeats of them. To ship
+    the repeats would ship the same string four times over, and the harmonic expansion below would run four times for
+    the same input.
     """
     order = []
     seen = {}
@@ -244,9 +238,8 @@ def distinct(frames):
 def harmonic_basis(top):
     """The real harmonics at each of the 256 bit directions, evaluated once.
 
-    A direction belongs to a bit and never to a state. This is computed here and reused for
-    every state and not recomputed inside the sum. It is the difference between evaluating the
-    basis a hundred and thirty times over and evaluating it once.
+    A direction belongs to a bit, and never to a state. The code computes this here, and reuses it for every state, and
+    does not compute it again inside the sum. One evaluation of the basis then does the work of a hundred and thirty.
     """
     rows = []
     for word in range(WORDS):
@@ -261,11 +254,11 @@ def harmonic_basis(top):
 def expand(states, basis, top):
     """The depth-free harmonic coefficients of each state, as one flat list per state.
 
-    Every bit sits at the same radius at a given operation, because the radius is the clock. The
-    kernel is diagonal in degree. The whole depth dependence is one factor per degree that
-    multiplies every coefficient of that degree. Leaving it out here and applying it in the page is
-    not an approximation: it is the same product, formed where the radius is known. The page can
-    then move the depth and the degree ceiling while the reader watches, and it is the reading.
+    Every bit sits at the same radius at a given operation, because the radius is the clock. The kernel is diagonal in
+    degree. All of the depth dependence is one factor per degree, which multiplies every coefficient of that degree. The
+    code leaves it out here and applies it in the page, and that is not an approximation. It is the same product, formed
+    where the page knows the radius. The page can then move the depth and the degree ceiling while the reader watches,
+    and that is the reading.
     """
     width = (top + 1) * (top + 1)
     out = []
@@ -282,11 +275,10 @@ def expand(states, basis, top):
 
 
 def ring(word, bit):
-    """A direction for this bit: its word chooses a latitude, its position chooses the angle.
+    """A direction for this bit: its word chooses a latitude, and its position chooses the angle.
 
-    Eight rings of thirty-two on one globe. The latitudes are the interiors of the eight equal
-    bands. No ring lands on a pole where thirty-two bodies would pile into one place, and the
-    rings stay evenly spaced in angle and not in height.
+    Eight rings of thirty-two on one globe. The latitudes are the interiors of the eight equal bands. No ring lands on a
+    pole, where thirty-two bodies would pile into one place. The rings stay evenly spaced in angle, and not in height.
     """
     down = math.pi * (word + 0.5) / float(WORDS)
     around = 2.0 * math.pi * bit / float(WIDTH)
@@ -318,9 +310,9 @@ def main():
     top = option("--degrees", 10, int)
     tau = option("--tau", 0.0008, float)
 
-    # Checked here and never left to the page. An unknown word reaches the page as a word it does
-    # not recognize, the page falls through to its own default, and the caller gets a sphere while
-    # having asked for something else with no message anywhere saying so.
+    # Checked here, and never left to the page. An unknown word reaches the page as a word that it does not recognize,
+    # and the page falls through to its own default. The caller then gets a sphere after a request for something else,
+    # with no message anywhere.
     if glow not in GLOWS:
         sys.stderr.write("--glow takes one of: %s\n" % ", ".join(GLOWS))
         return 2
@@ -333,8 +325,8 @@ def main():
     if rounds < 1 or rounds > 64:
         sys.stderr.write("--rounds sits between 1 and 64\n")
         return 2
-    # One source cannot give depth and twelve share the light budget twelve ways. Both ends are
-    # allowed and the reader is told what they cost instead of being retained from the choice.
+    # One source cannot give depth, and twelve share the light budget twelve ways. The tool allows both ends, and the
+    # reader learns what they cost, and keeps the choice.
     if points < 1 or points > 12:
         sys.stderr.write("--sources sits between 1 and 12\n")
         return 2
@@ -379,9 +371,9 @@ def main():
                 # Still. A bit goes where the operation puts it and never anywhere on its own.
                 # The drift the drawn room gives its population would be a lie about this one.
                 "vel": [0.0, 0.0, 0.0],
-                # Small enough that the winding stays visible. At twice this the halos of adjacent
-                # bits overlap, the turns merge into a band of blobs, and the helix the placement
-                # exists to show is the first thing lost.
+                # Small enough that the winding stays visible. At twice this, the halos of adjacent bits overlap, and
+                # the turns merge into a band of blobs. The helix that the placement exists to show is then the first
+                # thing lost.
                 "size": 0.007,
                 "stops": 0.5,
                 "glow": lit,
@@ -435,8 +427,8 @@ def main():
     with io.open(out, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(page)
 
-    # The digest, printed so the trace can be checked against any other implementation and not
-    # taken on trust. At the full sixty-four rounds on the empty message this is the published one.
+    # The digest, printed so that anyone can check the trace against any other implementation, and not take it on trust.
+    # At the full sixty-four rounds on the empty message, this is the published one.
     print("%s (%.1f KB)" % (out, os.path.getsize(out) / 1024.0))
     print("  %d bits on %d rings, %d operations over %d rounds"
           % (BITS, WORDS, ticks, rounds))
