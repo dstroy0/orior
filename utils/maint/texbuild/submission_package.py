@@ -4,90 +4,77 @@
 #
 # Assemble one self-contained submission per research paper, in whatever shape the venue asks for.
 #
-#   python utils/maint/texbuild/submission_package.py                  every research paper, gzipped tar
-#   python utils/maint/texbuild/submission_package.py --archive zip    every research paper, zip
-#   python utils/maint/texbuild/submission_package.py --archive none   directories only
-#   python utils/maint/texbuild/submission_package.py <research_paper> ...       named research papers
-#   python utils/maint/texbuild/submission_package.py --arxiv [<research_paper>] arXiv's shape, under build/arxiv/
+#   `python utils/maint/texbuild/submission_package.py`                  every research paper, gzipped tar
+#   `python utils/maint/texbuild/submission_package.py --archive zip`    every research paper, zip
+#   `python utils/maint/texbuild/submission_package.py --archive none`   directories only
+#   `python utils/maint/texbuild/submission_package.py <research_paper> ...`       named research papers
+#   `python utils/maint/texbuild/submission_package.py --arxiv [<research_paper>]` arXiv's shape, under build/arxiv/
 #
-# Writes build/submission/<research_paper>/ and, unless --archive none, an archive beside it. Nothing under
-# theory/ is modified: the rewrite happens on the copy, and the source retains the shared preamble it
-# has always had.
+# The tool writes build/submission/<research_paper>/ and, unless --archive none, an archive beside it. It changes
+# nothing under theory/. The rewrite happens on the copy, and the source keeps its own preamble.
 #
 # THE REQUIREMENT IS NOT ANY ONE VENUE'S
 #
-# A submission is a directory that compiles in place. Every venue enforces that and they
-# differ only in what they want it wrapped in. arXiv extracts a tarball into one root and runs LaTeX
-# there. Max journals ask for a zip. A repository deposit takes the directory as it is. A venue
-# that wants only the built PDF still needs the build to have worked somewhere.
+# A submission is a directory that compiles in place. Every venue enforces that, and they differ only in what they want
+# it wrapped in. The arXiv site extracts a tarball into one root and runs LaTeX there. Most journals ask for a zip. A
+# repository deposit takes the directory as it is. A venue that wants only the built PDF still needs a build that worked
+# somewhere.
 #
-# So the assembly and the checks below are the whole job and they are the same every time. The
-# archive format is the only part that changes, and it is a flag.
-# This started life as arxiv_package.py and that was the wrong shape: it made one venue's
-# packaging look like a property of the work.
+# The assembly and the checks below are therefore all of the job, and they are the same every time. The archive format
+# is the only part that changes, and it is a flag. One venue's packaging is not a property of the work.
 #
-# WHY ANY OF IT IS NEEDED
+# WHY THE TOOL EXISTS
 #
-# Every research paper reaches outside its own directory for the two files it shares with the others.
-# theory/theory/Salishan/main.tex says \input{../preamble.tex} and theory/theory/cryptography/sha256/main.tex
-# says \input{../../preamble.tex}, and preamble.tex then says \input{../macros.tex}. That resolves
-# here because theory/ is the directory above them all, and it resolves nowhere else.
+# A research paper can reach outside its own directory for a file that it shares with the others. Take a main.tex that
+# says \input{../preamble.tex}, or a preamble.tex that says \input{../macros.tex}. Each resolves here, because theory/
+# is the directory above them. It resolves nowhere else.
 #
-# The fix is not to restructure theory/, because one shared preamble across every research paper retains
-# a layout change reaching all of them. The fix is to copy the shared files into the research paper at
-# packaging time and rewrite the lines that point at them.
+# The fix is not a new layout of theory/: one shared file across every research paper would let a layout change reach
+# all of them. The fix is to copy the shared files into the research paper when the tool packs it. The tool then
+# rewrites the lines that point at them.
 #
-# RESEARCH PAPERS ARE DISCOVERED, NOT LISTED
+# THE TOOL FINDS RESEARCH PAPERS, AND HOLDS NO LIST
 #
-# build_theory.sh:26 records what happens otherwise. The four names were written into it once, and a
-# research paper added after that line would not have built. Two research papers were missing from the tree's own
-# documentation for the same reason, and a seventh was missing from README.md and from
-# docs/research/index.md on the day it was created. This walks for main.tex at both depths so the
-# packager cannot go stale the way a hand-written list does.
+# A list written by hand goes stale. A research paper added after the list does not build, and does not appear where the
+# list feeds the documentation. This walks for main.tex at both depths, and the packager cannot go stale that way.
 #
-# WHAT IT ERRORS TO SHIP
+# WHAT IT REFUSES TO SHIP
 #
-# A submission still holding a climbing path is broken and fails on upload with a LaTeX error nobody
-# can read. Every .tex in the assembled copy is re-read AFTER the rewrite, and a remaining ../ in an
-# \input or \include fails that research paper and names the file and the line. A rule that was supposed to
-# catch a path is not evidence that it did.
+# A submission that still holds a path that climbs out is broken, and fails on upload with a LaTeX error that nobody can
+# read. The tool reads every .tex in the assembled copy again AFTER the rewrite. A ../ still in an \input or \include
+# fails that research paper, and names the file and the line. A rule meant to catch a path is not evidence that it did.
 #
-# It also errors instead of carrying what a LaTeX run leaves behind. See LEAVINGS.
+# It also errors where a submission would carry what a LaTeX run leaves behind. See LEAVINGS.
 #
 # WHAT --arxiv ADDS, AND WHY EACH STEP IS THERE
 #
-# arXiv extracts a tarball into one directory and runs LaTeX there, and everything extracted becomes
-# public whether the document reads it. That second half is the part that costs somebody
-# later. The extra steps are mostly deletions:
+# The arXiv site extracts a tarball into one directory and runs LaTeX there. Everything extracted becomes public, even
+# where the document does not read it. That second half is the part that costs somebody later. The extra steps are
+# mostly deletions:
+#   - flattened: the tool empties every subdirectory into the root, and rewrites the \input and \include lines that
+#     named it. It checks first for two files with one basename, because a flatten of those would silently destroy one
+#     of them.
+#   - comments gone: the tool deletes a full-line comment. A comment at the end of a line loses its text and keeps its
+#     percent sign. In LaTeX that percent sign eats the newline, and without it a space appears in the typeset page. A
+#     strip of the whole comment is the usual way this step goes wrong.
+#   - nothing hidden: the tool does not copy a dotfile or dot-directory. The document never reads one, and each one is
+#     somebody's local state.
+#   - nothing unread: the tool drops a .tex that no \input or \include chain from main.tex reaches. An old draft that
+#     nobody compiles still publishes.
+#   - no notes: the tool drops a Markdown file. The ones beside a research paper are the notes and logs of the work, and
+#     LaTeX reads none of them. The tool names and keeps any other file that is not source or a figure.
+#   - four passes: \typeout just before \end{document} makes arXiv run LaTeX until the labels settle. After
+#     \end{document}, LaTeX has already stopped reading, and the line never reaches the log.
+#   - 00README.json: the engine, the top-level file and the TeX Live release. They go in the JSON form that arXiv reads
+#     (https://info.arxiv.org/help/00README.html). Without it, arXiv guesses the engine from the source, and these
+#     research papers need xelatex.
+#   - flat tarball: no wrapping directory. `tar -cvvf ax.tar *` produces that from inside the assembled copy.
+#   - metadata.txt: the title, the authors and the abstract, with the LaTeX taken out and the line breaks collapsed. It
+#     is ready to paste into the web form. The arXiv form shows the whitespace that LaTeX ignores, and the collapse is
+#     not cosmetic.
 #
-#   flattened      Every subdirectory is emptied into the root and the \input and \include lines
-#                  that named it are rewritten. Checked first for two files sharing a basename,
-#                  because flattening those would destroy one of them silently.
-#   comments gone  A full-line comment is deleted. A comment at the end of a line has its text
-#                  deleted and its percent sign retained, because in LaTeX that percent sign eats the
-#                  newline and dropping it inserts a space into the typeset page. Stripping it
-#                  wholesale is the standard way this step goes wrong.
-#   nothing hidden A dotfile or dot-directory is not copied. None is ever read by the document and
-#                  each one is somebody's local state.
-#   nothing unread A .tex no \input or \include chain reaches from main.tex is dropped. An old
-#                  draft nobody compiles still publishes.
-#   no notes       A Markdown file is dropped. The ones beside a research paper are working notes and logs,
-#                  and LaTeX reads none of them. Any other file that is not source or a figure is
-#                  named and retained.
-#   four passes    \typeout just before \end{document} makes arXiv run LaTeX until the labels
-#                  settle. It was once placed after \end{document}, where LaTeX has already stopped
-#                  reading and the line never reached the log.
-#   00README.json  The engine, the top-level file and the TeX Live release, in the JSON form arXiv
-#                  reads (https://info.arxiv.org/help/00README.html, read 2026-09-23). Without it
-#                  arXiv guesses the engine from the source, and these research papers need xelatex.
-#   flat tarball   No wrapping directory. `tar -cvvf ax.tar *` produces that from inside
-#                  the assembled copy.
-#   metadata.txt   The title, the authors and the abstract with the LaTeX taken out and the line
-#                  breaks collapsed, ready to paste into the web form. arXiv shows the whitespace
-#                  that LaTeX ignores. The collapsing is not cosmetic.
-#
-# It does not submit anything and holds no credential. The tarball and the metadata are the whole
-# output, and a person uploads them.
+# It submits nothing and holds no credential. The tarball and the metadata are all of the output, and a person uploads
+# them.
 
 import io
 import json
@@ -102,15 +89,14 @@ import zipfile
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    A marker the repository produces, such as build/, is absent from a linked worktree and a
-    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
-    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
-    of it holds.
+    A marker that the repository produces, such as build/, is absent from a linked worktree and from a clone with no
+    build. A climb to it can pass this root and land in another checkout whose paths look valid. A marker infers the
+    root. Git answers it. The climb below serves only an exported tree with no git directory. It looks for
+    archive/src/python, which the repository tracks and every checkout of it holds.
 
-    Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
-    inherits it answers about that repository and not about the directory it was asked from,
-    returning the current directory instead of the root.
+    The function clears the variables of git first. Inside a hook, git exports GIT_DIR. A rev-parse that inherits it
+    answers about that repository, and not about the directory that the caller asks from. It then returns the current
+    directory instead of the root.
     """
     start = os.path.dirname(os.path.abspath(__file__))
     environment = dict(os.environ)
@@ -136,22 +122,21 @@ def _repository_root():
 
 ROOT = _repository_root()
 THEORY = os.path.join(ROOT, "theory")
-# Every research paper sits under theory/, a directory of this repository, on one of its three shelves:
-# theory/theory/, theory/workbooks/ and theory/thought_experiments/. A research paper is named by its path
-# below theory/.
+# Every research paper sits under theory/, a directory of this repository, on one of its three shelves: theory/theory/,
+# theory/workbooks/ and theory/thought_experiments/. Its path below theory/ names a research paper.
 TREES = (THEORY,)
 OUT = os.path.join(ROOT, "build", "submission")
 OUT_ARXIV = os.path.join(ROOT, "build", "arxiv")
 
-# The files every research paper shares, which sat in theory/ and not in any research paper. These are copied into the
-# submission root and the lines that reach up for them are rewritten to name them plainly.
+# The files that every research paper can share, which sit in theory/ and not in any research paper. The tool copies
+# these into the submission root, and rewrites the lines that reach up for them to name them plainly.
 #
-# dedication.tex is here for the same reason preamble.tex is. One wording reaches every research paper, retained
-# in one place so it cannot drift between them.
+# dedication.tex is here for the same reason as preamble.tex. One text reaches every research paper, kept in one place
+# so that it cannot drift between them.
 #
-# Every research paper now carries its own preamble.tex, and theory/ holds none of the three. A shared file
-# is copied only where theory/ still has it and the research paper does not. Copying unconditionally stopped
-# the packager on the first research paper with a missing-file error.
+# A research paper can carry its own preamble.tex. The tool copies a shared file only where theory/ has it and the
+# research paper does not. A copy with no such test would stop the packager on the first research paper, with an error
+# for an absent file.
 SHARED = ("preamble.tex", "macros.tex", "dedication.tex")
 
 # What arXiv reads before it compiles anything. spec_version 1 is the only version the format has.
@@ -162,13 +147,13 @@ README = {
     "texlive_version": 2025,
 }
 
-# An \input or \include whose argument climbs out of the directory it is read from. The name is
-# captured so only the shared files are rewritten: another climbing path is a different problem and
-# gets reported instead of quietly repointed.
+# An \input or \include whose argument climbs out of the directory of its own file. The pattern captures the name, and
+# only the shared files get a rewrite. Another path that climbs out is a different problem, and the tool reports it
+# instead of a quiet repoint.
 CLIMBING = re.compile(r"(\\(?:input|include)\{)((?:\.\./)+)([^}]+)(\})")
 
-# What a source file is. Everything else in a research paper directory is copied as it is, and on those
-# terms the matplotlib figure beside the corpus derivation chapter travels with its chapter.
+# What a source file is. The tool copies everything else in a research paper directory as it is. On those terms, the
+# matplotlib figure beside the corpus derivation chapter travels with its chapter.
 TEX = ".tex"
 
 # What the archive flag accepts, against what it writes.
@@ -176,22 +161,19 @@ ARCHIVES = ("tar.gz", "zip", "none")
 
 # What a LaTeX run leaves beside the source, and what never belongs in a submission.
 #
-# build_theory.sh compiles with -output-directory so it leaves none of this. TeXworks and TeXShop
-# compile IN PLACE, and a research paper opened in one of those to look at it comes back with main.pdf,
-# main.log, main.aux, main.toc, a .aux per included chapter, and a synctex index larger than the
-# whole rest of the research paper. Copying a research paper directory wholesale ships all of it.
-#
-# Measured once: theory/workbooks/orior packaged at 1,269,699 bytes against 73,201 for the same research paper
-# clean, and 705,688 of that was one synctex file. It would have been accepted.
+# build_theory.sh compiles with -output-directory, and leaves none of this. TeXworks and TeXShop compile IN PLACE. A
+# research paper opened in one of those comes back with main.pdf, main.log, main.aux and main.toc. It also gets a .aux
+# per included chapter, and a synctex index larger than all the rest of the research paper. A copy of a research paper
+# directory as a whole ships all of it.
 LEAVINGS = (".aux", ".log", ".toc", ".lof", ".lot", ".out", ".bbl", ".blg", ".idx", ".ilg",
             ".ind", ".nav", ".snm", ".vrb", ".fls", ".fdb_latexmk", ".synctex", ".synctex.gz")
 
 
 def is_leaving(name):
-    """Whether a filename is something a LaTeX run dropped beside the source.
+    """Whether a filename is something that a LaTeX run dropped beside the source.
 
-    main.pdf is excluded by name and not by extension. A PDF is otherwise a figure, and the corpus
-    derivation chapter's matplotlib figure has to travel with its chapter.
+    The test excludes main.pdf by name, and not by extension. A PDF is otherwise a figure, and the matplotlib figure of
+    the corpus derivation chapter must travel with its chapter.
     """
     lowered = name.lower()
     if lowered == "main.pdf":
@@ -204,20 +186,19 @@ def is_leaving(name):
 TYPEOUT = "\\typeout{get arXiv to do 4 passes: Label(s) may have changed. Rerun}"
 END_DOCUMENT = "\\end{document}"
 
-# An \input or \include naming a file inside the research paper. Rewritten when the tree is flattened.
+# An \input or \include that names a file inside the research paper. The flatten rewrites it.
 NAMED = re.compile(r"(\\(?:input|include)\{)([^}]+)(\})")
 
 
 def uncomment(text):
     """One file's text with the comment text removed, and how many comments that was.
 
-    A percent sign starts a comment when the run of backslashes before it is even, because an odd
-    run ends in an escaped percent that typesets as a character.
+    A percent sign starts a comment when the run of backslashes before it is even. An odd run ends in an escaped
+    percent, which typesets as a character.
 
-    A full line comment is deleted outright. A comment after content retains its percent sign and
-    loses everything after it. That percent sign is doing work: LaTeX drops the newline following
-    it. Removing it joins two words with a space that was not there before. This is the step
-    that quietly changes a typeset page, and retention the sign stops it.
+    The function deletes a full line comment outright. A comment after content keeps its percent sign, and loses all
+    after it. That percent sign does work: LaTeX drops the newline that follows it. Its removal joins two words with a
+    space that was not there before. This is the step that quietly changes a typeset page, and the kept sign stops it.
     """
     held = []
     found = 0
@@ -245,9 +226,8 @@ def uncomment(text):
 def reachable(out):
     """Every .tex under out that main.tex reaches, by name without its extension.
 
-    Walked from main.tex through \\input and \\include. A file reached only by a file that is
-    itself reached still counts. A .tex outside this set is an old draft, and uploading one
-    publishes it.
+    The walk goes from main.tex through \\input and \\include. A file that only another reached file reaches still
+    counts. A .tex outside this set is an old draft, and an upload of one publishes it.
     """
     seen = set()
     pending = ["main"]
@@ -271,8 +251,8 @@ def reachable(out):
 def flatten(out):
     """Every file moved into the root of out, with the naming lines rewritten.
 
-    Returns (moved, collisions). A collision is two files sharing a basename, and nothing is moved
-    when there is one: flattening past it would overwrite a file the document reads.
+    Returns (moved, collisions). A collision is two files with one basename. The function moves nothing when there is
+    one, because a flatten past it would overwrite a file that the document reads.
     """
     holding = {}
     for where, _dirs, names in os.walk(out):
@@ -311,11 +291,11 @@ def flatten(out):
 
 
 def strip_latex(text):
-    """One run of LaTeX source as the plain text arXiv's web form wants.
+    """One run of LaTeX source as the plain text that the arXiv web form wants.
 
-    Control sequences and their braces come out, the accented forms LaTeX defines in ASCII are left
-    as their character, and every run of whitespace becomes one space. The last part matters max:
-    LaTeX ignores the line breaks in an abstract and arXiv prints them.
+    Control sequences and their braces come out. The accented forms that LaTeX defines in ASCII become their character,
+    and every run of whitespace becomes one space. The last part matters most: LaTeX ignores the line breaks in an
+    abstract, and arXiv prints them.
     """
     text = re.sub(r"\\(?:emph|textbf|textit|texttt|text|mbox|spacedallcaps|spacedlowsmallcaps)"
                   r"\{([^{}]*)\}", r"\1", text)
@@ -329,9 +309,9 @@ def strip_latex(text):
 def metadata(out, research_paper):
     """The title, authors and abstract of an assembled research paper, as text to paste into the form.
 
-    Read off the assembled copy, because that copy ships. The titlepage carries the title and
-    the author and the abstract sits in its own file, and both are found by name and not by
-    position. A research paper that orders its frontmatter differently still reports.
+    The function reads them off the assembled copy, because that copy ships. The titlepage carries the title and the
+    author. The abstract sits in its own file. The function finds both by name and not by position, and a research paper
+    that orders its frontmatter differently still reports.
     """
     lines = []
     title = ""
@@ -413,10 +393,10 @@ def research_papers():
 
 
 def rewrite(text):
-    """One file's text with the shared inputs brought in, and what was left climbing.
+    """One file's text with the shared inputs brought in, and the paths that still climb out.
 
-    Returns (text, rewritten, errored). rewritten names the shared files repointed. errored holds
-    any other climbing path, which is not this function's to decide about.
+    Returns (text, rewritten, errored). `rewritten` names the shared files repointed. `errored` holds any other path
+    that climbs out, which is not for this function to decide.
     """
     rewritten = []
     error = []
@@ -464,10 +444,10 @@ def assemble(research_paper, out):
 
 
 def still_climbing(out):
-    """Any \\input or \\include left pointing above the submission root, with its line number.
+    """Any \\input or \\include left with a path above the submission root, with its line number.
 
-    Read back off the assembled copy and not predicted from the rewrite, because what ships is the
-    copy.
+    The function reads it back off the assembled copy, and does not predict it from the rewrite, because the copy is
+    what ships.
     """
     held = []
     for where, _dirs, names in os.walk(out):
@@ -485,8 +465,8 @@ def still_climbing(out):
 def bundle(out, type):
     """The assembled directory wrapped as the venue asked. Returns (name, bytes), or None.
 
-    Every path inside the archive sits under one top-level directory named for the research paper.
-    An extract-into-one-root venue needs that, and a person unpacking it locally wants it anyway.
+    Every path inside the archive sits under one top-level directory named for the research paper. A venue that extracts
+    into one root needs that, and a person who unpacks it locally wants it anyway.
     """
     base = os.path.basename(out)
     if type == "none":
@@ -572,8 +552,8 @@ def for_arxiv(out, research_paper):
             os.remove(os.path.join(out, name))
             said.append("notes        %s dropped, LaTeX does not read it" % name)
 
-    # Anything else left that is neither source nor a figure publishes with the paper. It is named
-    # here and not deleted, because an unknown file may be one the research paper needs.
+    # Anything else left that is neither source nor a figure publishes with the paper. The tool names it here and does
+    # not delete it, because an unknown file may be one that the research paper needs.
     for name in sorted(os.listdir(out)):
         if not name.lower().endswith((TEX, ".pdf", ".png", ".jpg", ".jpeg", ".json")):
             said.append("SHIPS        %s is not source or a figure and will be public" % name)
@@ -584,7 +564,7 @@ def for_arxiv(out, research_paper):
 
 
 def wanted_archive(argv):
-    """The archive type named on the command line, defaulting to a gzipped tar."""
+    """The archive type named on the command line, with a gzipped tar as the default."""
     if "--archive" not in argv:
         return "tar.gz"
     at = argv.index("--archive")
