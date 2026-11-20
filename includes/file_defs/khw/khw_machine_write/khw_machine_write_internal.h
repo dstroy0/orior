@@ -35,7 +35,7 @@
 
 #define KHW_READS 256u
 
-// the longest name a form is composed
+// the longest name of a form
 #define KHW_NAME 64u
 
 // the register number the part answers nothing at, which a form prints by the name the tree writes it under
@@ -48,8 +48,8 @@
 
 #define KHW_PIECE_SIGNED "S32"
 
-// what a run's operand is, as the protocol answered it beside its place: a register, a pair of registers an address
-// is read through, a number, or a predicate; and the character each is written as after the place in the answers
+// what the operand of a run is, as the protocol answered it beside its place. It is a register, a pair of registers that
+// an address comes through, a number, or a predicate. Then the character for each after the place in the answers
 #define KHW_KIND_REGISTER 0u
 
 #define KHW_KIND_ADDRESS 1u
@@ -62,9 +62,12 @@
 
 #define KHW_KIND_CHARACTERS "ranpc"
 
-// What the protocol answered of one form, read from the answers file: the relation every case of it answered, whether
-// the answers read a word signed and whether a case of the relation let the part answer so, the encoding, and the
-// runs of bits its operands sit in with each run's place in the relation's tuple and what its operand is
+// What the protocol answered of one form, read from the answers file:
+//   - the relation that each case of it answered.
+//   - whether the answers read a word as signed, and whether a case of the relation let the part answer so.
+//   - the encoding.
+//   - the runs of bits that its operands sit in, with the place of each run in the tuple of the relation. Then what
+//     its operand is.
 typedef struct
 {
     char relation[KHW_READS];
@@ -90,21 +93,21 @@ extern SassMachine s_machine;
 unsigned long long khw_word_read(const unsigned char *instruction, unsigned int byte);
 int khw_pieces_read(const char *path);
 const char *khw_piece_reading(const char *type, const char *word);
-// the field the part's .ksc names the guard, `first` and `bits`: a predicate run inside it prints as the guard, and
-// one outside it as an operand in its order; with none set, every predicate run is the guard
+// the field that the .ksc of the part names the guard, `first` and `bits`. A predicate run inside it prints as the
+// guard. A predicate run outside it prints as an operand in its order. With neither set, each predicate run is the guard
 void khw_guard_field_set(unsigned int first, unsigned int bits);
 void khw_text_composed(const KhwForm *form, char *written, size_t room);
 int khw_form_store(SassMachine *machine, const KhwForm *form, const char *text);
 int khw_kernel_read(const char *path);
 unsigned int khw_kernel_forms_store(void);
 unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int room);
-// the blob the texts the protocol passes are passed back in, assembled, and the max instructions a text contains
+// the blob that carries back the assembled texts that the protocol passes. Then the most instructions in a text
 #define KHW_ASSEMBLED "assembled.bin"
 
 #define KHW_ASSEMBLED_MAX 4096u
 
-// the max texts one call assembles, the max bytes one text contains, and the blob the reason goes in where a call's
-// texts were not assembled
+// the most texts that one call assembles, and the most bytes in one text. Then the blob for the reason where the
+// assembly of the texts of a call failed
 #define KHW_ASSEMBLED_TEXTS 256u
 #define KHW_ASSEMBLED_TEXT_BYTES (1u << 20u)
 #define KHW_ASSEMBLED_REASON "assembled_reason.txt"
