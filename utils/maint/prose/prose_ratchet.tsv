@@ -541,7 +541,6 @@ includes/window/panel.c	5
 includes/window/panel.h	5
 includes/window/scrollbar.c	4
 includes/window/scrollbar.h	6
-includes/window/side_menu.c	8
 includes/window/tip.h	6
 includes/window/top_menu.c	5
 includes/window/top_menu.h	4

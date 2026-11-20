@@ -71,7 +71,7 @@ GuiRect gui_side_menu_button(const GuiSideMenuCfg *args)
     const int pitch =
         side + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_BUTTON_GAP, .scale = scale);
     const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_PAD, .scale = scale);
-    // the strip the button is positioned in: the one passed in, else the frame's
+    // the strip that holds the button: the strip that the caller passes, else that of the frame
     const GuiRect strip = (args->strip != NULL) ? *args->strip : args->frame->side_menu;
     const int x = strip.x + ((strip.width - side) / 2);
     const GuiTool *const tool = &g_gui_tools[(args->at < g_gui_tools_count) ? args->at : 0u];
@@ -163,8 +163,9 @@ void gui_side_menu_draw(const GuiSideMenuFrameRasterCfg *args)
     const unsigned int icon =
         (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_ICON, .scale = scale);
     const float stroke = GUI_SIDE_MENU_STROKE * (float)icon / GUI_ICON_UNITS;
-    // the beads' atlas arranged for the buttons' size, each button's cell at its resting place and the window's lights,
-    // so the strip's slide moves the beads without baking them again: a button's frames bake the first time it is drawn
+    // the atlas of the beads, arranged for the size of the buttons and the lights of the window. The cell of each
+    // button is at its place at rest. The slide of the strip then moves the beads without a new bake. The frames of a
+    // button bake the first time that it draws
     const unsigned int side =
         (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SIDE_MENU_BUTTON, .scale = scale);
     const unsigned int reach =
@@ -228,8 +229,9 @@ void gui_side_menu_draw(const GuiSideMenuFrameRasterCfg *args)
                        .mask_bits = mask_bits, .x = button.x + ((button.width - (int)icon) / 2),
                        .y = button.y + ((button.height - (int)icon) / 2), .color = color, .clip = on);
         }
-        // a tool's mark, a dot at the button's top right corner: the Problems tool's in the error's color while it is
-        // marked, the Runs tool's in signal while a run is live and in the error's color while a live run panicked
+        // the mark of a tool, a dot at the top right corner of the button. The mark of the Problems tool is in the color
+        // of the error while it has its mark. The mark of the Runs tool is in signal while a run is live. It is in the
+        // color of the error while a live run panicked
         int marked = 0;
         GuiColor mark_color = args->palette->error;
         if (cellul.eq(&(CatenaFinitaCfg){.src = g_gui_tools[at].name, .other = "problems", .cap = 32ULL}))
