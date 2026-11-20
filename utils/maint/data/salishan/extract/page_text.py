@@ -1080,9 +1080,9 @@ def rule_edges(values):
 
 
 def ruled_grids(page):
-    """Each ruled grid of a page, top first, as (xs, ys): its column edges left to right and its
-    row edges top to bottom, in points from the foot of the page. A vertical rule joins the grid
-    whose span it touches; a grid's horizontal rules are the ones inside its span."""
+    """Each grid of rules on a page, top first, as (xs, ys). That is its column edges left to right, and
+    its row edges top to bottom. Both are in points from the foot of the page. A vertical rule joins the grid whose span
+    it touches. The horizontal rules of a grid are the ones inside its span."""
     flat, upright = [], []
     for obj in page.get_objects(max_depth=5):
         if obj.type != pdfium.raw.FPDF_PAGEOBJ_PATH:
@@ -1114,8 +1114,8 @@ def ruled_grids(page):
 
 
 def drawn_edges(page, xs, ys):
-    """For each row of a grid, the column edges a vertical rule is drawn at through that row. A
-    cell that spans columns has no rule inside it: the head of Mattina's Table 1, Forms written as
+    """For each row of a grid, the column edges where a vertical rule goes through that row. A cell that
+    spans columns has no rule inside it. An example is the head of Table 1 of Mattina, Forms written as
     separate words, over its three columns."""
     upright = []
     for obj in page.get_objects(max_depth=5):
@@ -1132,21 +1132,28 @@ def drawn_edges(page, xs, ys):
 
 
 def ruled_tables(page, bold=None, grids=None):
-    """Each ruled grid of a page read cell by cell, top first: (xs, ys, rows), each row a list of
-    cells and each cell a list of lines. Each glyph goes to the cell its middle is in. Inside a
-    cell the glyphs retain the order the stream sets them in, and a glyph whose top is below the
-    lowest bottom of the line so far opens a new line: a comma after a raised U+2019 stays on its line.
-    The spaces are the stream's own; a gap test between boxes reads the side bearings of a narrow 1
-    as spaces, Ku02 : 1 43 for Ku02:143. With bold, a pair of strings, each run of glyphs set in a
-    bold face is written between them: the reduplicant of each candidate in Mellesmoen's 2017
-    tableaux, θo[θ]mɪn with bold ("[", "]"). grids, a list of (xs, ys) as ruled_grids gives them,
-    reads a table whose columns no rule parts: Table 1 of the same paper, ruled only above and
-    below, its edges taken from the words' boxes."""
+    """Each grid of rules on a page, read cell by cell, top first: (xs, ys, rows). Each row is a list of
+    cells, and each cell a list of lines. Each glyph goes to the cell that its middle is in.
+
+    Inside a cell, the glyphs keep the order that the stream sets them in. A glyph whose top is below
+    the lowest bottom of the line so far opens a new line. A comma after a raised U+2019 stays on its
+    line.
+
+    The spaces are the own spaces of the stream. A gap test between boxes reads the side bearings of a
+    narrow 1 as spaces, Ku02 : 1 43 for Ku02:143.
+
+    With bold, a pair of strings, the code writes each run of glyphs in a bold face between them. An
+    example is the reduplicant of each candidate in the 2017 tableaux of Mellesmoen, θo[θ]mɪn with
+    bold ("[", "]").
+
+    The argument grids, a list of (xs, ys) as ruled_grids gives them, reads a table whose columns no
+    rule parts. An example is Table 1 of the same paper, with rules only above and below. Its edges
+    come from the boxes of the words."""
     textpage = page.get_textpage()
     found = ruled_grids(page) if grids is None else grids
     drawn = [drawn_edges(page, xs, ys) for xs, ys in found] if grids is None else None
-    # Each cell is a list of lines, each [text, lowest bottom so far, inside a bold run, and the
-    # left and right of each glyph that takes a mark with its end in the text].
+    # Each cell is a list of lines. Each line is [text, lowest bottom so far, inside a bold run, and
+    # the left and right of each glyph that takes a mark with its end in the text].
     cells = [[[[] for _ in range(len(xs) - 1)] for _ in range(len(ys) - 1)] for xs, ys in found]
     spaced = {}
     for index in range(textpage.count_chars()):
@@ -1154,9 +1161,10 @@ def ruled_tables(page, bold=None, grids=None):
         if symbol in ("\r", "\n", ""):
             continue
         box = textpage.get_charbox(index)
-        # pdfium gives U+FFFE for a hyphen that ends a line after a character, and the page prints
-        # it: ‘chiseling- / mouth’ in Nater's 2013 line 28, c’ikʷn- ending line 155's form, and C1i-
-        # at the end of a line of Table 1's cell in Mellesmoen's 2017 paper.
+        # pdfium gives U+FFFE for a hyphen that ends a line after a character, and the page prints it.
+        # Examples are ‘chiseling- / mouth’ in line 28 of the 2013 paper of Nater, and c’ikʷn- at the
+        # end of the form of line 155. Another is C1i- at the end of a line of the cell of Table 1 in
+        # the 2017 paper of Mellesmoen.
         if symbol == "￾":
             if box[2] <= box[0]:
                 continue
@@ -1171,18 +1179,22 @@ def ruled_tables(page, bold=None, grids=None):
                 column -= 1
             key = (which, row, column)
             lines = cells[which][row][column]
-            # pdfium makes up a space on either side of a mark the stream positions apart from its
-            # character, the acute of dìlɪ́bərèt in Mattina's Table 6, which goes. The spaces it makes up
-            # between words are: nu- ‘water’ in Nater's 2013 line 18, and Tahltan q’anaˑχán̥ (my
-            # in-laws in its line 577, after a mark set over the character streamed before it.
+            # pdfium makes up a space on either side of a mark that the stream positions apart from
+            # its character. An example is the acute of dìlɪ́bərèt in Table 6 of Mattina, and the code
+            # removes that space.
+            # The spaces that it makes up between words stay. Examples are nu- ‘water’ in line 18 of
+            # the 2013 paper of Nater, and Tahltan q’anaˑχán̥ (my in-laws in its line 577. Each comes
+            # after a mark set over the character streamed before it.
             if symbol == " ":
                 if not (pdfium.raw.FPDFText_IsGenerated(textpage.raw, index) and displaced_mark(textpage, index)):
                     spaced[key] = bool(lines)
                 break
-            # A combining mark goes on the glyph of its line it is over, wherever the stream
-            # sets it: Mattina's tables stream the marks of a cell's word after the word, pn+kin ̓ ̓
-            # for pn̓+kin̓ in Table 1, and the acute of lɪ́bərèt after its t in Table 6. A comma
-            # above right is just past its character, the l̕ of k̕ʷul̕+l̕ t in Table 1, 0.1pt after it.
+            # A mark that combines goes on the glyph of its line that it is over, wherever the stream
+            # sets it. The tables of Mattina stream the marks of the word of a cell after the word.
+            # Examples are pn+kin ̓ ̓ for pn̓+kin̓ in Table 1, and the acute of lɪ́bərèt after its t in
+            # Table 6.
+            # A comma above right is just past its character. An example is the l̕ of k̕ʷul̕+l̕ t in
+            # Table 1, 0.1pt after it.
             if unicodedata.combining(symbol) and lines:
                 under = [one for one in lines[-1][3] if one[0] <= middle_x <= one[1]] or \
                     [one for one in lines[-1][3] if 0 <= box[0] - one[1] <= 1.0]
@@ -1224,8 +1236,9 @@ def ruled_tables(page, bold=None, grids=None):
 
 
 def displaced_mark(textpage, index):
-    """Whether the space at index is before a combining mark, or after one that does not are
-    over the glyph the stream sets before it: a mark the stream positions apart from its character."""
+    """Whether the space at index is before a mark that combines. It is also true after such a mark that
+    is not over the glyph that the stream sets before it. That is a mark that the stream positions
+    apart from its character."""
     count = textpage.count_chars()
     if index + 1 < count and unicodedata.combining(textpage.get_text_range(index + 1, 1)):
         return True
@@ -1242,28 +1255,34 @@ def displaced_mark(textpage, index):
 
 
 def cell_text(cell):
-    """A cell's lines joined with a space, as gen joins a paragraph's lines. A line that ends on a
-    hyphen retains it and the space: the page does not show whether the hyphen joins a compound,
-    ‘chiseling- / mouth’ in Nater's 2013 line 28, or is before a space, C1i- / for CVC roots in
-    Mellesmoen's 2017 Table 1, and pdfium's stream is the same for both."""
+    """The lines of a cell, joined with a space, as gen joins the lines of a paragraph. A line that ends
+    on a hyphen keeps it and the space.
+    The page does not show whether the hyphen joins a compound, as ‘chiseling- / mouth’ in line 28 of
+    the 2013 paper of Nater. It can also come before a space, as C1i- / for CVC roots in the 2017 Table
+    1 of Mellesmoen. The stream of pdfium is the same for both."""
     return " ".join(cell)
 
 
 def ruled_line(row):
-    """A table row as one line of the page text: its cells three spaces apart, as the glyph rows
-    set a column's gap, and each cell's lines joined by cell_text."""
+    """A table row as one line of the page text. Its cells are three spaces apart, as the glyph rows set
+    the gap of a column. cell_text joins the lines of each cell."""
     return "   ".join(cell_text(cell) for cell in row if cell).strip()
 
 
 def strike_rules(page, glyphs):
-    """Set the long stroke overlay on each glyph of glyphs a short rule is drawn through: a filled
-    path under 0.15 em high whose level is inside the characters' boxes and 0.15 to 0.6 em over
-    their bottoms, through their x-height and the descender of the j of Cable's struck Object in
-    (41), over the characters whose middles it spans. Its width is 0.8 to 1.3 times that of the glyphs
-    whose middles it spans on the row, brackets and stops among them, and 0.1 em more: the rule
-    through Sardinha's hi runs 7.7pt over characters 7.4pt wide, 0.22 em up, and the one through
-    Cable's [ S. or R.-ko ]₁ in (44) over its brackets. A table's border runs a cell wide and spans
-    no characters' width. Returns the count set."""
+    """Set the long stroke overlay on each glyph of glyphs with a short rule drawn through it. The rule
+    is a filled path under 0.15 em high. Its level is inside the boxes of the characters, and 0.15 to
+    0.6 em over their bottoms.
+    It goes through their x-height, as through the descender of the j of the struck Object of Cable in
+    (41). It lies over the characters whose middles it spans.
+
+    Its width is 0.8 to 1.3 times that of the glyphs whose middles it spans on the row, brackets and
+    stops among them, and 0.1 em more.
+    The rule through hi of Sardinha runs 7.7pt over characters 7.4pt wide, 0.22 em up. The rule
+    through [ S. or R.-ko ]₁ of Cable in (44) runs over its brackets.
+
+    The border of a table runs a cell wide, and spans the width of no characters. Returns the count
+    set."""
     count = 0
     for one in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_PATH], max_depth=3):
         left, bottom, right, top = one.get_bounds()
@@ -1279,8 +1298,9 @@ def strike_rules(page, glyphs):
                    and left <= (glyph[1][0] + glyph[1][2]) / 2 <= right
                    and abs((glyph[1][1] + glyph[1][3]) / 2 - level) < 0.5 * size]
         first, last = min(glyph[1][0] for glyph in spanned), max(glyph[1][2] for glyph in spanned)
-        # A rule that runs on through the space to the next glyph or back to the one before, Tom
-        # and its space in Cable's struck [ Tom ka Linda ]₁ in (45), spans that space too.
+        # A rule that runs on through the space to the next glyph, or back to the one before, spans
+        # that space too. An example is Tom and its space in the struck [ Tom ka Linda ]₁ of Cable in
+        # (45).
         row = [glyph for glyph in glyphs if glyph[1][2] > glyph[1][0]
                and abs((glyph[1][1] + glyph[1][3]) / 2 - level) < 0.5 * size]
         after = [glyph[1][0] for glyph in row if glyph[1][0] >= last]
@@ -1301,12 +1321,13 @@ def strike_rules(page, glyphs):
 
 
 def underlined_runs(document, ciphers=None):
-    """The runs of text each page underlines, {page number: [text, ...]}, left to right down the
-    page: a rule under 1.2pt high and 3 to 80pt wide drawn up to 3.5pt under the glyphs whose
-    middles it spans. Rude's 2012 paper underlines the Nez Perce morphemes of strong vowel harmony,
-    /tahay/ in his (3), and the text layer retains the characters and drops the rule. A table's border
-    runs wider than any form and is left out. A glyph set more than 0.2 em after the one before it
-    opens a new word."""
+    """The runs of text that each page underlines, {page number: [text, ...]}, left to right down the
+    page. The rule is under 1.2pt high and 3 to 80pt wide, up to 3.5pt under the glyphs whose middles
+    it spans.
+    The 2012 paper of Rude underlines the Nez Perce morphemes of strong vowel harmony, /tahay/ in his
+    (3). The text layer keeps the characters and drops the rule.
+    The border of a table runs wider than any form, and the code skips it. A glyph set more than 0.2
+    em after the one before it opens a new word."""
     found = {}
     for number in range(len(document)):
         page = document[number]
@@ -1328,8 +1349,8 @@ def underlined_runs(document, ciphers=None):
             sitting = [glyph for glyph in spanned if -1.0 <= glyph[1][1] - top <= 3.5]
             if not sitting:
                 continue
-            # A mark located clear of the characters, the lone ´ of /c̓´kn/ in Rude's Table 3, is
-            # taken with them where its box reaches into their height.
+            # A mark clear of the characters goes with them where its box reaches into their height.
+            # An example is the lone ´ of /c̓´kn/ in Table 3 of Rude.
             low, high = min(glyph[1][1] for glyph in sitting), max(glyph[1][3] for glyph in sitting)
             over = sorted((glyph for glyph in spanned if glyph[1][1] < high and glyph[1][3] > low),
                           key=lambda glyph: glyph[1][0])
@@ -1352,15 +1373,19 @@ def underlined_runs(document, ciphers=None):
 
 
 def over_characters(glyphs):
-    """glyphs with each apostrophe drawn over a character set on that character as the comma above. The
-    mark's left edge starts inside the character's box or at its edge, 0.05 em in over the l̓ of
-    Sisyúl̓ecw, 0.08 over the italic y̓ of stsq̓ey̓ and 0.00 over the italic k̓ of n7ek̓, where a spacing
-    apostrophe starts 0.07 em past it or more, Teit’s and St’át’imcets. Its middle is over the character or up to 0.15 em past its right edge,
-    and its bottom at max 0.12 em under the character's top, over the ascender of l, and at max a third
-    of an em over it. The glyphs
-    left are renumbered in stream order. The stream can carry the mark far from its character, the ’ of
-    skwtut̓s set among the glyphs of a line above, with a space each side of it; the glyph after it
-    is left to the gap test."""
+    """glyphs, with each apostrophe drawn over a character set on that character as the comma above.
+
+    The left edge of the mark starts inside the box of the character, or at its edge. It is 0.05 em in
+    over the l̓ of Sisyúl̓ecw, and 0.08 over the italic y̓ of stsq̓ey̓. It is 0.00 over the italic k̓ of
+    n7ek̓.
+    A spacing apostrophe starts 0.07 em past it or more, as in Teit’s and St’át’imcets.
+
+    Its middle is over the character, or up to 0.15 em past its right edge. Its bottom is at max 0.12
+    em under the top of the character, over the ascender of l. It is at max a third of an em over it.
+
+    The code numbers the other glyphs again in stream order. The stream can carry the mark far from
+    its character. An example is the ’ of skwtut̓s, set among the glyphs of a line above, with a space
+    on each side of it. The gap test handles the glyph after it."""
     retained = []
     dropped = False
     for glyph in glyphs:
@@ -1379,8 +1404,8 @@ def over_characters(glyphs):
 
 
 def character_under(mark, glyphs):
-    """The glyph of glyphs whose character the apostrophe glyph mark is drawn over, by over_characters's
-    measures, or None."""
+    """The glyph of glyphs whose character the apostrophe glyph mark sits over, by the measures of
+    over_characters, or None."""
     box, size = mark[1], mark[2]
     middle = (box[0] + box[2]) / 2
     under = [one for one in glyphs if one[0][:1].isalpha() and box[0] < one[1][2] + 0.03 * size and
@@ -1391,8 +1416,9 @@ def character_under(mark, glyphs):
 
 
 def overset_marks(textpage):
-    """For italic_runs: {the index of each character an apostrophe is drawn over: the comma above}, and
-    the set of those apostrophes' indexes, by over_characters's measures on the page's glyphs."""
+    """For italic_runs: {the index of each character under an apostrophe: the comma above}. Then the set
+    of the indexes of those apostrophes, by the measures of over_characters on the glyphs of the
+    page."""
     glyphs = []
     for index in range(textpage.count_chars()):
         symbol = textpage.get_text_range(index, 1)
@@ -1408,11 +1434,13 @@ def overset_marks(textpage):
 
 
 def image_glyphs(page, images, number=None):
-    """(characters, box, size) for each image of page that images names by its bitmap, the box its ink's
-    alone: a bitmap's white margin reaches over the character after it, and its box would close the word
-    space there. An image whose character is drawn by its soft mask over a bitmap of two by two pixels,
-    which pdfium does not hand back, is named by its place instead, "page@left,bottom" in whole
-    points, number the page's index; its box is the image's and its size two thirds of its height."""
+    """(characters, box, size) for each image of page that images names by its bitmap. The box is that of
+    its ink alone. The white margin of a bitmap reaches over the character after it, and its box then
+    closes the word space there.
+    An image can draw its character by its soft mask over a bitmap of two by two pixels, which pdfium
+    does not hand back. The code then names it by its place, "page@left,bottom" in whole points, with
+    number the index of the page. Its box is that of the image, and its size two thirds of its
+    height."""
     found = []
     for one in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE], max_depth=3) if images else ():
         left, bottom, right, top = one.get_bounds()
@@ -1431,12 +1459,12 @@ def image_glyphs(page, images, number=None):
         width, height = right - left, top - bottom
         box = (left + ink[0] / gray.width * width, top - ink[3] / gray.height * height,
                left + ink[2] / gray.width * width, top - ink[1] / gray.height * height)
-        # The size is the box's height where the box is a line tall; a bold character's box ten lines
-        # tall would draw the rows round it into one, and there the ink's height gives the size, a
-        # character's ink with its comma about 0.7 of the type size.
+        # The size is the height of the box where the box is a line tall. The box of a bold character
+        # ten lines tall draws the rows round it into one. There the height of the ink gives the size.
+        # The ink of a character with its comma is about 0.7 of the type size.
         size = min(height, (box[3] - box[1]) / 0.7)
-        # A tie's ink is a thin arc under the line, and its middle and size would set it on a row of
-        # its own; it takes its height from the image, which is a line tall, as its tier does.
+        # The ink of a tie is a thin arc under the line, and its middle and size set it on a row of its
+        # own. It takes its height from the image, which is a line tall, as its tier does.
         if set(images[key]) == {"˽"}:
             box, size = (box[0], bottom, box[2], top), height
         found.append((unicodedata.normalize("NFC", images[key].replace("'", COMMA_ABOVE)), box, size))
@@ -1444,12 +1472,15 @@ def image_glyphs(page, images, number=None):
 
 
 def deciphered(symbol, textpage, index, ciphers=None):
-    """symbol as its font means it: a code in a FONT_CIPHERS range less the font's offset, taken
-    only where that gives a capital A to Z; any other code, or font, as it is. ciphers, a paper's
-    PAPER_CIPHERS entry, takes each code in a range of its font less that range's offset, or, where
-    the offset is text, as that text: Galloway's DoulosSIL draws the fi ligature at U+03E7. The
-    entry names a font with its subset tag where the paper sets another font of that name in
-    plain codes: Galloway's page numbers are in an untagged TimesNewRomanPSMT."""
+    """symbol as its font means it. A code in a FONT_CIPHERS range goes less the offset of the font, only
+    where that gives a capital A to Z. Any other code, or font, stays as it is.
+
+    The argument ciphers, the PAPER_CIPHERS entry of a paper, takes each code in a range of its font
+    less the offset of that range. Where the offset is text, it takes that text. The DoulosSIL of
+    Galloway draws the fi ligature at U+03E7.
+
+    The entry names a font with its subset tag where the paper sets another font of that name in
+    plain codes. The page numbers of Galloway are in an untagged TimesNewRomanPSMT."""
     if ciphers and len(symbol) == 1:
         font = font_name(textpage, index)
         for low, high, offset in ciphers.get(font, ciphers.get(re.sub(r"^[A-Z]{6}\+", "", font), ())):
@@ -1465,15 +1496,15 @@ def deciphered(symbol, textpage, index, ciphers=None):
 
 
 def drawn_space(textpage, index):
-    """True for a space the page draws with ink instead of one pdfium set: Galloway's enciphered Times
-    draws its = at the code of a space, (=[¢] on page 5."""
+    """True for a space that the page draws with ink, and not one that pdfium set. The enciphered Times
+    of Galloway draws its = at the code of a space, (=[¢] on page 5."""
     left, bottom, right, top = textpage.get_charbox(index)
     return not pdfium_c.FPDFText_IsGenerated(textpage.raw, index) and right - left > 0.01 and top - bottom > 0.01
 
 
 def clip_box(obj):
-    """The bounding box of a page object's clip path, (left, bottom, right, top), or None where it
-    has none."""
+    """The bound box of the clip path of a page object, (left, bottom, right, top), or None where it has
+    none."""
     clip = pdfium_c.FPDFPageObj_GetClipPath(obj)
     if not clip:
         return None
@@ -1489,11 +1520,13 @@ def clip_box(obj):
 
 
 def clipped(textpage, index, box, clips):
-    """True for a glyph located wholly outside its text object's clip, which the page carries and
-    does not draw: an earlier draft of Noguchi's page 19 under the one printed, 1,987 glyphs clipped
-    to Figure 13's frame. Of the other papers only Schneider's and Thompson's carry any, two glyphs
-    each, and both are read from the text layer. clips caches each object's clip box by its
-    pointer, one dict per page; 1 pt of slack retains a glyph whose box only grazes the clip's edge."""
+    """True for a glyph wholly outside the clip of its text object, which the page carries and does not
+    draw. An example is an earlier draft of page 19 of Noguchi under the printed one, 1,987 glyphs
+    clipped to the frame of Figure 13.
+    Of the other papers, only those of Schneider and Thompson carry any, two glyphs each. The code
+    reads both from the text layer.
+    The argument clips caches the clip box of each object by its pointer, one dict per page. A slack of
+    1 pt keeps a glyph whose box only grazes the edge of the clip."""
     obj = pdfium_c.FPDFText_GetTextObject(textpage.raw, index)
     if not obj:
         return False
@@ -1523,9 +1556,10 @@ def italic(font):
 
 
 def sheared(textpage, index):
-    """True for a glyph an upright face sets slanted by its text matrix, an oblique the writer made
-    of a face with no italic: Sardinha's 2011 FirstNationsUnicode forms, sheared by a quarter of
-    their size, təp'ídida bábaGʷəmeχ in her note 11 and the =χa qʷəʔsta of her page 16."""
+    """True for a glyph that an upright face sets slanted by its text matrix. That is an oblique that the
+    writer made of a face with no italic.
+    Examples are the 2011 FirstNationsUnicode forms of Sardinha, sheared by a quarter of their size:
+    təp'ídida bábaGʷəmeχ in her note 11, and the =χa qʷəʔsta of her page 16."""
     matrix = pdfium_c.FS_MATRIX()
     if not pdfium_c.FPDFText_GetMatrix(textpage.raw, index, ctypes.byref(matrix)) or not matrix.d:
         return False
