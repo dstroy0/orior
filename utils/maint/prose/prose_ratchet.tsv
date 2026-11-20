@@ -477,7 +477,6 @@ includes/exact_types/integers/arm_neon.c	11
 includes/exact_types/integers/arm_sve.c	19
 includes/exact_types/integers/exact_integer.h	12
 includes/exact_types/integers/exact_integer_add.c	19
-includes/exact_types/integers/exact_integer_api.h	84
 includes/exact_types/integers/exact_integer_decimal.c	13
 includes/exact_types/integers/exact_integer_divide.c	15
 includes/exact_types/integers/exact_integer_gcd.c	5
@@ -485,7 +484,6 @@ includes/exact_types/integers/exact_integer_hash.c	12
 includes/exact_types/integers/exact_integer_internal.h	10
 includes/exact_types/integers/exact_integer_limbs.c	8
 includes/exact_types/integers/exact_integer_multiply.c	18
-includes/exact_types/integers/exact_integer_widths.h	42
 includes/exact_types/integers/exact_record/exact_record.c	5
 includes/exact_types/integers/exact_record/exact_record.h	12
 includes/file_defs/file_defs.sh	11
