@@ -11,7 +11,8 @@
 #include <stddef.h>
 #include <string.h>
 
-// the max wide characters of a path, the longest a run's file is named under the top with a stream's name after it
+// the most wide characters of a path. That is the longest name of a file of a run under the top, with the name of a
+// stream after it
 #define QRY_WIDE_MAX_LEN (QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u)
 
 // a path of UTF-8 as Windows' wide characters into `wide`, which has room for QRY_WIDE_MAX_LEN: 1, or 0 where it is no
@@ -29,8 +30,8 @@ static void qry_shared_named(const char *path, char *name)
     unsigned long long hash = 0xcbf29ce484222325ULL;
     for (const char *at = path; *at != '\0'; at += 1)
     {
-        // Windows reads a path the same either way its separators are written and whatever its
-        // characters' case; every written form of one path therefore names one mapping
+        // Windows reads a path the same with either separator, and whatever the case of its
+        // characters. Each written form of one path thus names one map
         const unsigned char folded = (*at == '\\')                    ? (unsigned char)'/'
                                      : ((*at >= 'A') && (*at <= 'Z')) ? (unsigned char)(*at + ('a' - 'A'))
                                                                       : (unsigned char)*at;
@@ -109,8 +110,8 @@ int qry_writer_file_removed(const char *path)
     return qry_wide(path, wide) && (DeleteFileW(wide) != 0);
 }
 
-// A replace fails with a sharing violation while another process holds the file in its place open without delete
-// sharing. Such a hold is short: a reader opens the file, reads it and closes it. The replace tries again every
+// A replace fails with `ERROR_SHARING_VIOLATION` while another process holds the file in its place open without
+// `FILE_SHARE_DELETE`. Such a hold is short: a reader opens the file, reads it and closes it. The replace tries again every
 // QRY_PLACED_PAUSE_MS for QRY_PLACED_TRIES tries at max, and fails after them
 #define QRY_PLACED_TRIES 50u
 #define QRY_PLACED_PAUSE_MS 10u
@@ -213,8 +214,8 @@ void qry_writer_raised(void)
     SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 }
 
-// A process the system names no longer, or whose handle is signaled, ended. One the writer may not open runs as far
-// as the writer can tell
+// A process that the system names no longer, or whose handle has its signal, ended. A process that the writer cannot
+// open runs, as far as the writer can tell
 int qry_writer_process_ended(unsigned long long process)
 {
     // a member's process number is the DWORD GetCurrentProcessId gave it, widened
@@ -271,7 +272,7 @@ QryShared *qry_member_shared(const char *path)
     {
         return NULL;
     }
-    // the view maps the section for as long as it is mapped
+    // the view maps the section for as long as the map stays
     QryShared *const shared = (QryShared *)MapViewOfFile(section, FILE_MAP_ALL_ACCESS, 0u, 0u, 0u);
     CloseHandle(section);
     // a region whose whole the writer has not written yet is no run yet
@@ -294,7 +295,8 @@ unsigned long long qry_member_clock(void)
     LARGE_INTEGER frequency;
     QueryPerformanceCounter(&count);
     QueryPerformanceFrequency(&frequency);
-    // the counter and its frequency are not negative; the seconds and the rest are turned apart so neither overflows
+    // the counter and its frequency are not negative. The code turns the seconds and the rest apart, and neither
+    // overflows
     const unsigned long long ticks = (unsigned long long)count.QuadPart;
     const unsigned long long rate = (unsigned long long)frequency.QuadPart;
     return ((ticks / rate) * 1000000000ULL) + (((ticks % rate) * 1000000000ULL) / rate);

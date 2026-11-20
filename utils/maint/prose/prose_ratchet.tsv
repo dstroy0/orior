@@ -504,7 +504,6 @@ includes/file_defs/ksg/ksg_tool.h	4
 includes/file_defs/ksg/ksg_writing.c	2
 includes/file_defs/qry/qry.h	2
 includes/file_defs/qry/qry_read.h	1
-includes/file_defs/qry/writer/platform/windows.c	8
 includes/file_defs/vendor_writer_run.h	4
 includes/font/font.c	1
 includes/font/font_outline.c	2
