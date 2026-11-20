@@ -5,7 +5,7 @@ library does not have to be collected, because the variants can be built: the sa
 is taken from SHA-256 with one sub-function shorted out at a time, and what disappears says which
 channel that sub-function was carrying.
 
-The predictions were written into src/engine/c/sha256/bench/bench_sac.cu before the run:
+The predictions sit in utils/bench/bench_sac.cu, and they come before the run:
 
     without Sigma1     classes 6, 11 and 25 go
     without Sigma0     classes 2, 13 and 22 go, and they were weak already
@@ -105,7 +105,7 @@ def signature(rounds_map):
 
 def main():
     if not os.path.exists(SOURCE):
-        sys.stderr.write("no build/bench/assay.csv - build src/engine/c/sha256/bench/bench_sac.cu into build/bench and run it there with 18 45 64 assay\n")
+        sys.stderr.write("no build/bench/assay.csv - run utils/bench/bench_sac.ps1 18 45 64 assay\n")
         return 1
 
     data = load()

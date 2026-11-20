@@ -309,9 +309,9 @@ The diffusion question and its statistic are Webster and Tavares', who defined t
 criterion while looking for design principles for DES-like ciphers [3]. The measurement of SHA-256
 against it round by round, including the Bonferroni-relaxed threshold and the finding that Sigma1,
 integer addition, Choose and the message scheduler carry diffusion earliest, is Vaughn and
-Borowczak's [4][5]. `src/engine/c/sha256/bench/bench_sac.cu` reproduces their
-numbers and is not in the tree; `git show bdaed61^:src/engine/c/sha256/bench/bench_sac.cu`
-recovers it. The asymmetry between Sigma1 and Sigma0 at `docs/sha256-topology.md` is consistent
+Borowczak's [4][5]. `utils/bench/bench_sac.cu` reproduces their
+numbers, and `utils/bench/bench_sac.ps1` builds and runs it. The asymmetry between Sigma1 and Sigma0 at
+`theory/workbooks/orior/sha256-topology.md` is consistent
 with what they found.
 
 The fields being read were specified by other people too, and reading them correctly means reading

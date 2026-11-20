@@ -267,7 +267,7 @@ def main():
         return 2
 
     if not os.path.exists(source):
-        sys.stderr.write("no %s yet - run bench_sac in build/bench with 18 45 64 shadow\n" % source)
+        sys.stderr.write("no %s yet - run utils/bench/bench_sac.ps1 18 45 64 shadow\n" % source)
         return 1
 
     rows, seen = read_field(source, field)

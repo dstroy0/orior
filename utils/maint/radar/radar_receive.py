@@ -86,7 +86,7 @@ def os_cfar(values, cell):
 
 def main():
     if not os.path.exists(SOURCE):
-        sys.stderr.write("no build/bench/shadows.csv - build src/engine/c/sha256/bench/bench_sac.cu into build/bench and run it there with 18 45 64 shadow\n")
+        sys.stderr.write("no build/bench/shadows.csv - run utils/bench/bench_sac.ps1 18 45 64 shadow\n")
         return 1
 
     by_round = load()

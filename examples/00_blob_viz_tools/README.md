@@ -25,7 +25,7 @@ instead of tools:
 
 | stays here                                                           | why                                          |
 | -------------------------------------------------------------------- | -------------------------------------------- |
-| `build_voxel_view.py` `build_shadow_view.py` `build_sources_view.py` | open `build/bench/*.csv`, which `bench_sac` writes |
+| `build_voxel_view.py` `build_shadow_view.py` `build_sources_view.py` | open `build/bench/*.csv`, which `utils/bench/bench_sac.ps1` writes |
 | `make_shadow_figure.py`                                              | opens `build/bench/shadows.csv`              |
 | `build_step_view.py`                                                 | traces SHA-256, which is this tree's subject |
 
