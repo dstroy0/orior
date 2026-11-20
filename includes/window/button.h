@@ -21,8 +21,8 @@ typedef struct GuiButtonsDrawCfg GuiButtonsDrawCfg;
 #define GUI_BUTTONS_PRESS_MS 90ULL
 #define GUI_BUTTONS_RELEASE_MS 320ULL
 
-// The buttons: their beads' atlas. Each button's press, GUI_FIXED_ONE at rest to twice that pressed, below rest in
-// the wobble; and the button held pressed, GUI_BEAD_TOOLS_MAX for none
+// The buttons: the atlas of their beads. The press of each button, GUI_FIXED_ONE at rest to twice that pressed, below
+// rest in the wobble. Then the button that stays pressed, GUI_BEAD_TOOLS_MAX for none
 typedef struct
 {
     GuiBeadAtlas atlas;
@@ -32,22 +32,27 @@ typedef struct
 
 // buttons at rest with nothing baked
 void gui_buttons_init(const GuiButtonsCfg *args);
-// the bytes the beads' atlas takes for `tools` buttons `width` by `height` pixels at max, the margin `pad`
-// round each and the reach `reach`, 0 where the bead refuses the sizes; and the atlas arranged for them, their beads
-// of `shape` with the corner `radius`, their cells' top lefts `cells` in the window with each button's own width and
-// height, 0 for the max, lit by `light_count` of `lights` in the palette's bead colors, over `pixels`, which the
-// caller passes in holding the bytes: 1, or 0 where there are no pixels or the bead refuses the sizes. A button whose
-// frames are baked for the same sizes, shape, place, lights and colors retains them
+// the bytes that the atlas of the beads takes for `tools` buttons `width` by `height` pixels at max. The margin `pad`
+// goes round each, with the reach `reach`. The result is 0 where the bead refuses the sizes.
+//
+// Then the atlas arranged for them, over `pixels`, which the caller passes with the bytes in it:
+//   - their beads are of `shape`, with the corner `radius`.
+//   - the top lefts of their cells in the window are `cells`, with the own width and height of each button, 0 for the
+//     max.
+//   - `light_count` lights of `lights` light them in the bead colors of the palette.
+//
+// The result is 1, or 0 where there are no pixels or the bead refuses the sizes. A button whose frames had a bake for
+// the same sizes, shape, place, lights and colors keeps them
 unsigned long long gui_buttons_bytes(const GuiButtonsBakeCfg *args);
 int gui_buttons_bake(const GuiButtonsBakeCfg *args);
-// the button `tool` pressed at `time_ms`, the button held; and the held button let go at `time_ms`, which springs
-// its bead back with a wobble
+// the button `tool` pressed at `time_ms`, and it stays pressed. Then the pressed button let go at `time_ms`, which
+// springs its bead back with a wobble
 void gui_buttons_press(const GuiButtonsMoveCfg *args);
 void gui_buttons_release(const GuiButtonsMoveCfg *args);
 // when the buttons' presses end at `time_ms`, 0 where none runs
 unsigned long long gui_buttons_end_ms(const GuiButtonsCfg *args);
-// the button `tool`'s bead drawn as its press is at `time_ms`, its cell's top left at x, y, inside `clip`, with
-// `fade` of 255 taken off its opacity, 0 for the bead whole
+// the bead of the button `tool`, drawn as its press is at `time_ms`, with the top left of its cell at x, y, inside
+// `clip`. The draw takes `fade` of 255 off its opacity, 0 for the bead whole
 void gui_buttons_draw(const GuiButtonsDrawCfg *args);
 
 struct GuiButtonsCfg

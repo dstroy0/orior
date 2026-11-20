@@ -514,7 +514,6 @@ includes/utf8/utf8.c	3
 includes/utf8/utf8.h	1
 includes/window/block.c	6
 includes/window/button.c	6
-includes/window/button.h	7
 includes/window/controls.c	3
 includes/window/controls.h	2
 includes/window/dialog.c	3
