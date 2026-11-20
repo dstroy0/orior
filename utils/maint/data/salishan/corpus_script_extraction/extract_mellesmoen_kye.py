@@ -38,9 +38,10 @@
 #
 # WHAT EACH CHECK COMPARES
 #
-# The control is the hand extraction in build/oracles/Mellesmoen_Kye_ICSNL61.oracle.tsv. A person reads that file off
-# the paper and verifies it against the paper in both directions. That file is not in this repository. The hand
-# extractions are the papers' own text, and the tools read them under build/oracles. Nothing under maint/ holds one.
+# The control is the hand extraction in examples/Salishan/oracles/Mellesmoen_Kye_ICSNL61.oracle.tsv. A person reads
+# that file off the paper and verifies it against the paper in both directions. This repository keeps the oracle files
+# and not the papers. The paper text comes from the private corpus repository into build/papers, and this file reads
+# it there.
 #
 # `reader_check.py` grades this file against it. `coverage_check.py` asks the easier question apart from that, which is
 # whether each token got out of the paper at all.
