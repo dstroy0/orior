@@ -537,7 +537,6 @@ includes/file_defs/ksg/ksg_writing.c	2
 includes/file_defs/ksg/ksg_writing.h	13
 includes/file_defs/qry/qry.h	2
 includes/file_defs/qry/qry_read.h	1
-includes/file_defs/qry/qry_writer.c	21
 includes/file_defs/qry/writer/platform/posix.c	9
 includes/file_defs/qry/writer/platform/windows.c	8
 includes/file_defs/qry/writer/qry_member.c	8

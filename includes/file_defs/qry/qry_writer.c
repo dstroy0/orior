@@ -1,21 +1,25 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// qry_writer.c: a run's writer. It makes the run's shared memory and the members' rings, and until the run is stopped
-// takes each ring in turn and checks every record in it against its CRC. A record that matches goes into the run's
-// records at their end, its place the schedule's next, where every reader reads it in the order the writer took it, and
-// is written at the .qry's end. The rings are taken in the order their records arrived, the earliest time first, a
-// panic before a critical record and a critical record before an ordinary one. The .qry is the records end to end
-// (qry.h). A record whose name opens with `:` is written as well into the .qry's named stream of the rest of its
-// name, as it is taken. As the run ends, every record whose name is a path under the top of the tree, the latest of
-// each name, is written in that file's place.
+// qry_writer.c: the writer of a run. It makes the shared memory of the run and the rings of the members. Until the run
+// stops, it takes each ring in turn and checks each record in it against its CRC.
 //
-//     orior_qry_writer <qry> <top of the tree>       the run's writer, until it is requested to stop
-//     orior_qry_writer --stop <qry>                    the writer of the run of <qry> requested to stop, as a member of
-//     it orior_qry_writer --filed <qry> <path>            the standard input appended as the file at <path>, as a
-//     member
+// A record that matches goes at the end of the records of the run, at the next place of the schedule. Each reader
+// reads it in the order that the writer took it. The writer also writes it at the end of the .qry.
 //
-// The two member words are for a script, which is no member itself. Exit 0 where every record and file went whole
-// or the member did what it was requested, 1 where not, 2 where the words are not those
+// The writer takes the rings in the order that their records arrived, the earliest time first. A panic comes before a
+// critical record, and a critical record comes before an ordinary record. The .qry is the records end to end (qry.h).
+//
+// Where the name of a record opens with `:`, the writer also writes it into a named stream of the .qry. The rest of
+// its name names the stream, and the write comes as the writer takes it.
+// As the run ends, the writer takes each record whose name is a path under the top of the tree. It writes the latest
+// record of each name in the place of that file.
+//
+//   - orior_qry_writer <qry> <top of the tree>      the writer of the run, until a stop request.
+//   - orior_qry_writer --stop <qry>                 a request, as a member, that the writer of the run of <qry> stops.
+//   - orior_qry_writer --filed <qry> <path>         the standard input, appended as a member as the file at <path>.
+//
+// The two member words are for a script, which is no member itself. The exit is 0 where each record and file went
+// whole, or where the member did its task. It is 1 where not, and 2 where the words are not those
 #include "../ksg/ksg_writing.h"
 #include "qry_read.h"
 #include "writer/qry_writer_internal.h"
@@ -26,19 +30,20 @@
 // the path of the .qry the writer writes
 static const char *s_qry;
 
-// The writer's account of its run, its last record, QRY_WRITER_ACCOUNT: the records it put, their bytes, the records
-// that did not match their CRC, those the run had no room for, the panics, and the nanoseconds from its start to
-// its account on the run's one clock, eight bytes each
+// The account of the writer of its run, its last record, QRY_WRITER_ACCOUNT. It holds the records that it put, their
+// bytes, and the records that did not match their CRC. It holds the records that did not fit the run, and the panics.
+// It holds the nanoseconds from its start to its account on the one clock of the run. Each is eight bytes
 #define QRY_WRITER_ACCOUNT "writer"
 static unsigned long long s_account[6];
 
-// the max files the run writes in their places, and the positions that find which names are written, twice as many
+// the most files that the run writes in their places, and the positions that find which names the run writes, twice as
+// many
 #define QRY_WRITER_FILES (1u << 16u)
 #define QRY_WRITER_FILE_SLOTS (QRY_WRITER_FILES * 2u)
 
-// The `bytes` bytes of the record at `record` put at the end of the run's records, its place the schedule's next, and
-// written at the .qry's end: 1, or 0 where it was not written whole. A record the run or the schedule has no room
-// for is counted and goes nowhere
+// The `bytes` bytes of the record at `record`, put at the end of the records of the run, at the next place of the
+// schedule. The call also writes them at the end of the .qry. The result is 1, or 0 where the write was not whole.
+// The call counts a record that does not fit the run or the schedule, and it goes nowhere
 static int qry_writer_record_put(QryShared *shared, const unsigned char *record, unsigned long long bytes,
                                  long long file)
 {
@@ -58,7 +63,7 @@ static int qry_writer_record_put(QryShared *shared, const unsigned char *record,
     atomic_store(&shared->scheduled, scheduled + 1ULL);
     QryRecord head;
     memcpy(&head, record, sizeof(head));
-    // the line opened by the first panic, and by the first after a ruling closed it
+    // the line that the first panic opens, and the first panic after a decision shut it
     const unsigned long long panicked = atomic_load(&shared->panicked);
     s_account[4] += (head.priority == QRY_PANIC) ? 1ULL : 0ULL;
     if ((head.priority == QRY_PANIC) && ((panicked == 0ULL) || (panicked == atomic_load(&shared->closed))))
@@ -104,9 +109,9 @@ static const unsigned char *qry_writer_ring_head(QryRing *ring, QryRecord *head)
 // the nanoseconds between the writer's looks over the rings for a member whose process ended
 #define QRY_WRITER_RECLAIM_NANOSECONDS 1000000000ULL
 
-// Every ring whose member's process has ended given back, once the writer has taken all it contains, for another
-// member to take: a member that ended without parting, a fault or a kill among the ways, retains no ring. The process is
-// read as ended before the ring as empty, as an ended process appends nothing after
+// Each ring whose member process ended goes back, after the writer takes all that it holds, for another member to
+// take. A member that ended without a goodbye, by a fault or a kill, keeps no ring.
+// The code reads the process as ended before it reads the ring as empty. An ended process appends nothing after
 static void qry_writer_rings_reclaimed(QryShared *shared)
 {
     for (unsigned long long place = 0ULL; place < shared->members; place += 1ULL)
@@ -121,9 +126,9 @@ static void qry_writer_rings_reclaimed(QryShared *shared)
     }
 }
 
-// The next record taken, of every ring's head the one of the highest priority and of those the earliest time,
-// checked against its CRC and put (qry_writer_record_put), its ring's head moved past it; `*taken` 0 where no ring
-// contains one. 1, or 0 where it was not written whole
+// The next record to take. Of the heads of the rings, it is the head of the highest priority, and of those the earliest
+// time. The call checks it against its CRC, puts it (qry_writer_record_put), and moves the head of its ring past it.
+// `*taken` is 0 where no ring holds one. The result is 1, or 0 where the write was not whole
 static int qry_writer_next_taken(QryShared *shared, long long file, int *taken)
 {
     QryRing *chosen = NULL;
@@ -172,9 +177,9 @@ static int qry_writer_next_taken(QryShared *shared, long long file, int *taken)
     return whole;
 }
 
-// The latest record of each name that is a path under the top of the tree, the schedule read from its end back,
-// written whole in its file's place, and sealed beside it where it is of a type ksg seals (ksg_writing.h): 1, or 0
-// where one was not
+// The latest record of each name that is a path under the top of the tree, with the schedule read from its end back.
+// The call writes each whole in the place of its file. Where it is of a type that ksg seals, the call seals it beside
+// the file (ksg_writing.h). The result is 1, or 0 where one did not go
 static int qry_writer_files_placed(QryShared *shared)
 {
     static unsigned long long s_written[QRY_WRITER_FILE_SLOTS];
@@ -193,8 +198,8 @@ static int qry_writer_files_placed(QryShared *shared)
         {
             continue;
         }
-        // the name's hash, never 0, which marks an empty position; a name found in its position was written later in
-        // the run
+        // the hash of the name, never 0, which marks an empty position. A name that the search finds in its position came
+        // later in the run
         unsigned long long hash = 0xcbf29ce484222325ULL;
         for (unsigned int character = 0u; character < record->name_length; character += 1u)
         {
@@ -230,8 +235,8 @@ static int qry_writer_files_placed(QryShared *shared)
 // the standard input, which the --filed word appends as a file: at max what a record contains
 static unsigned char s_input[QRY_WRITER_RING_BYTES / 2ULL];
 
-// the member's words: the writer of the run of `qry` requested to stop, or the standard input appended as the file at
-// `path` where `path` is not NULL. 0 where it was done, 1 where not
+// the member words. They ask the writer of the run of `qry` to stop. Where `path` is not NULL, they append the standard
+// input as the file at `path`. The result is 0 where the task succeeded, 1 where not
 static int qry_writer_member(const char *qry, const char *path)
 {
     if (qry_member_joined(qry) == NULL)
@@ -286,7 +291,7 @@ int main(int count, char **words)
     shared->rings_at = (sizeof(QryShared) + 63ULL) & ~63ULL;
     shared->schedule_at = shared->rings_at + (members * sizeof(QryRing));
     shared->records_at = shared->schedule_at + ((places * 8ULL + 63ULL) & ~63ULL);
-    // the whole last, which a member reads to know the run is positioned
+    // the whole last, which a member reads to know that the run is in place
     atomic_store(&shared->whole, region_bytes);
     qry_writer_raised();
     s_qry = words[1];
@@ -295,7 +300,7 @@ int main(int count, char **words)
     int stopping = 0;
     int taken = 1;
     unsigned long long reclaimed = started;
-    // once stopped, every record the rings contain is taken before the writer ends
+    // once the run stops, the writer takes each record in the rings before it ends
     while (!stopping || taken)
     {
         stopping = stopping || (atomic_load(&shared->stop) != 0u);
