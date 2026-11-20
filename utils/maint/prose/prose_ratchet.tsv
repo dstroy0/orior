@@ -472,7 +472,6 @@ includes/file_defs/kdm/kdm.h	8
 includes/file_defs/kernel_blob/forms_blob.h	2
 includes/file_defs/kfile_lines/kfile_lines.c	5
 includes/file_defs/khw/khw_machine_write/assembled.c	6
-includes/file_defs/khw/khw_machine_write/kernel.c	8
 includes/file_defs/khw/khw_machine_write/opening.h	2
 includes/file_defs/klang/klang.h	1
 includes/file_defs/klq/query_trace.h	3

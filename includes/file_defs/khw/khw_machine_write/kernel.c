@@ -3,8 +3,8 @@
 // kernel.c: the kernel: its code read, its forms stored, the runs and the answers read, and the listing given
 #include "khw_machine_write_internal.h"
 
-// the kernel, read out of the container the layout at `path` contains: the container's bytes, the part it enters at,
-// the registers a thread of it uses, and its code. 1, or 0 with the reason printed
+// the kernel, read out of the container in the layout at `path`. That is the bytes of the container, the part where it
+// enters, the registers that a thread of it uses, and its code. The result is 1, or 0 with the reason printed
 int khw_kernel_read(const char *path)
 {
     s_pattern_size = cubin_pattern_read(path, s_pattern, sizeof(s_pattern), s_kernel, sizeof(s_kernel));
@@ -37,10 +37,13 @@ int khw_kernel_read(const char *path)
     return 1;
 }
 
-// Every place of the kernel stored in the machine as a form, so that the gate reads a question against what the part
-// has already run (cubin_safe.h, its rules 2 and 3). A place the container records as an ending carries the table's
-// name for the thread's end, which the gate reads to find where the code stops; every other place carries its own
-// encoding whole, so that the gate stores it as the system wrote it until the part names it. The count stored
+// Each place of the kernel, stored in the machine as a form. The gate then reads a question against what the part ran
+// before (cubin_safe.h, its rules 2 and 3).
+// A place that the container records as an end carries the name of the table for the end of the thread. The gate
+// reads it to find where the code stops.
+//
+// Each other place carries its own encoding whole. The gate then stores it as the system wrote it, until the part names
+// it. The result is the count stored
 unsigned int khw_kernel_forms_store(void)
 {
     unsigned int exits[KHW_EXITS];
@@ -67,8 +70,8 @@ unsigned int khw_kernel_forms_store(void)
         }
         SassForm *taken = NULL;
         const int took = sass_machine_take(&s_machine, text, low, high, &taken);
-        // an ending whose encoding differs from the one already stored under its name is stored whole beside it, so
-        // that the gate stores every ending as the system wrote it
+        // the code stores an end whose encoding differs from the one under its name whole beside it. The gate then
+        // stores each end as the system wrote it
         if (took && (taken != NULL) && ((taken->low != low) || (taken->high != high)) &&
             (s_machine.forms < SASS_MACHINE_FORMS))
         {
@@ -82,9 +85,12 @@ unsigned int khw_kernel_forms_store(void)
     return stored_count;
 }
 
-// the runs of `answered_form` read from `text`, `answered_form->runs` of them: three words a run, its first bit, its
-// last and its place with its type's character after it, a register where none; or two, its first bit and its last, where
-// the line contains no place, every run then containing none. 1, or 0 where the words are neither
+// the runs of `answered_form` read from `text`, `answered_form->runs` of them:
+//   - three words a run: its first bit, its last, and its place with the character of its type after it, a register
+//     where none.
+//   - or two words, its first bit and its last, where the line holds no place. Each run then holds none.
+//
+// The result is 1, or 0 where the words are neither
 static int khw_runs_read(KhwForm *answered_form, const char *text)
 {
     unsigned int words = 0u;
@@ -134,8 +140,9 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
     return 1;
 }
 
-// the forms the protocol answered for, read from `answers` into `form`, as many as `room` has room for: the latest blob
-// of that name in the run (qry_member.h). The count read, 0 where no run's writer runs or the run contains none
+// the forms that the protocol answered for, read from `answers` into `form`, as many as `room` has room for. That is
+// the latest blob of that name in the run (qry_member.h). The result is the count read, 0 where no writer of a run runs
+// or the run holds none
 unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int room)
 {
     QryShared *const run = qry_member_run();
