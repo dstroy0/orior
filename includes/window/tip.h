@@ -17,18 +17,20 @@ typedef struct GuiTipTimeCfg GuiTipTimeCfg;
 typedef struct GuiTipReadCfg GuiTipReadCfg;
 typedef struct GuiTipCfg GuiTipCfg;
 
-// the rest on a button before its tip shows, in milliseconds; and the sizes in the page's pixels: the box's padding
-// across and down, the gap between the label and the keys, and how far the box is off the button
+// the rest on a button before its tip shows, in milliseconds. Then the sizes in the pixels of the page. First the
+// padding of the box across and down, then the gap between the label and the keys. Last, how far the box is off the button
 #define GUI_TIP_REST_MS 600ULL
 #define GUI_TIP_PAD_X 8
 #define GUI_TIP_PAD_Y 4
 #define GUI_TIP_GAP 10
 #define GUI_TIP_OFF 4
 
-// The tip: the label of the button the pointer is on, NULL off every button, and its keys, NULL or empty for
-// none; the button's rectangle, and whether the box is beside the button, at its right as a side_menu tool's does,
-// in place of under it; when the rest on it ends; whether the tip shows; and the box's rectangle where it was drawn
-// last, empty while it does not show
+// The tip:
+//   - the label of the button that the pointer is on, NULL off each button, and its keys, NULL or empty for none.
+//   - the rectangle of the button, and whether the box is beside the button in place of under it. Beside is at its
+//     right, as the box of a side_menu tool is.
+//   - when the rest on it ends, and whether the tip shows.
+//   - the rectangle of the box where it was last drawn, empty while it does not show.
 typedef struct
 {
     const char *label;
@@ -42,17 +44,18 @@ typedef struct
 
 // a tip on no button
 void gui_tip_init(const GuiTipCfg *args);
-// the pointer at `time_ms` on the button `anchor` labelled `label` with `keys`, its box to be `beside` the button
-// or under it, or on no button where `label` is NULL: another button starts the rest again, the same one retains it: 1
-// where a tip that showed went
+// the pointer at `time_ms` on the button `anchor`, with the label `label` and `keys`. Its box goes `beside` the button
+// or under it. The pointer is on no button where `label` is NULL.
+// Another button starts the rest again, and the same button keeps it. The result is 1 where a tip that showed went
 int gui_tip_point(const GuiTipPointCfg *args);
 // the clock at `time_ms`: 1 where the rest ended and the tip came to show
 int gui_tip_tick(const GuiTipTimeCfg *args);
 // when the tip next wants a tick, in milliseconds, 0 for never
 unsigned long long gui_tip_deadline_ms(const GuiTipReadCfg *args);
-// the tip drawn under its button, centred on it, above the button where below has no room, or at the button's right,
-// centred on its row, where the tip is beside it, inside `bounds` at `scale`: the label in the interface face in
-// the text's color and the keys after it in the quieter text; the box's rectangle recorded
+// the tip, drawn inside `bounds` at `scale`. It goes under its button, centered on it, or above the button where below
+// has no room. Where the tip is beside the button, it goes at the right of the button, centered on its row.
+// The label is in the interface face in the color of the text, and the keys after it in the quieter text. The code
+// records the rectangle of the box
 void gui_tip_draw(const GuiTipRasterCfg *args);
 struct GuiTipRasterCfg
 {
