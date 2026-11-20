@@ -2,51 +2,46 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Extract the Lushootseed of Vi taqʷšəblu Hilbert from ICSNL 1983, following that paper's own
-# structure.
+# Extract the Lushootseed of Vi taqʷšəblu Hilbert from ICSNL 1983, in the order of that paper's own structure.
 #
 #   Usage:  python maint/data/salishan/corpus_script_extraction/extract_hilbert.py
 #
-# Written for one paper. Poking Fun in Lushootseed is her essay, in English, about humor her
-# students retained missing, with forty numbered examples in Lushootseed set into it. Each example is
-# printed twice under the same number: the Lushootseed first, then her English for it. So the
-# number is the pairing and the order decides which is which. Nothing else has to.
+# This file serves one paper. `Poking Fun in Lushootseed` is Hilbert's essay, in English, about humor that Hilbert's
+# students often miss, with forty numbered examples in Lushootseed set into it. The paper prints each example twice
+# under the same number: the Lushootseed first, then Hilbert's English for it. The number is therefore the pair, and the
+# order decides which is which. Nothing else needs to.
 #
-# THE ORTHOGRAPHY IS NOT REPAIRED.
+# THIS FILE DOES NOT REPAIR THE ORTHOGRAPHY.
 #
-# This is a 1983 typescript and its scan is badly damaged. ʔ arrives as ?, ə arrives as ~ and J and
-# G, ʷ arrives as V and v, and her own name is set as VI [!.aq liS'"} blu] lIil bert. The Lyon
-# papers had damage like this and it was repaired, but only because a candidate table could be
-# tested: applying it moved attested tokens from 1 of 3599 to 811 against Lyon's later papers on the
-# same language.
+# This is a 1983 typescript, and its scan is badly damaged. The glottal stop ʔ arrives as ?, ə as ~ and J and G, and ʷ
+# as V and v. The name of the author arrives as `VI [!.aq liS'"} blu] lIil bert`. The Lyon papers had damage like this,
+# and a repair works there, but only because a test of a candidate table is possible. The table moves attested tokens
+# from 1 of 3599 to 811 against Lyon's later papers on the same language.
 #
-# The same test on this paper says nothing. Six modern Lushootseed papers yield 1068 distinct
-# Lushootseed tokens between them, and of the 103 damaged tokens here, 0 are attested before a
-# candidate mapping and 0 after. Her vocabulary is Raven and Bear and Marblemount and the names of
-# houses; theirs is grammar. The reference does not share enough with her to decide anything, the
-# case font_substitution.py names as the test having said nothing either way.
+# The same test on this paper says nothing. Six modern Lushootseed papers yield 1068 distinct Lushootseed tokens between
+# them. Of the 103 damaged tokens here, 0 match before a candidate mapping, and 0 after. Hilbert's vocabulary is Raven
+# and Bear and Marblemount and the names of houses, and theirs is grammar. The reference does not share enough with this
+# paper to decide anything. font_substitution.py names that case as a test that says nothing either way.
 #
-# So the text comes out as it arrived. A guessed table applied to Vi Hilbert's words would put forms
-# into a corpus that nobody said, and nothing downstream would ever question them. Marked damaged
-# and left alone, the words are still hers, and the repair stays available to whoever finds a
-# reference that shares her vocabulary.
+# The text therefore comes out as it arrived. A guessed table applied to Vi Hilbert's words would put forms into a
+# corpus that nobody said, and nothing downstream would ever question them. Marked damaged and left alone, the words
+# stay Hilbert's. The repair stays available to whoever finds a reference that shares this vocabulary.
 #
-# WHERE HER ENGLISH ENDS, WHICH THIS FILE GETS RIGHT NINETEEN TIMES IN TWENTY-ONE
+# WHERE THE ENGLISH ENDS, WHICH THIS FILE GETS RIGHT NINETEEN TIMES IN TWENTY-ONE
 #
-# The typescript sets each example in an indented column and the essay at full width, and the
-# extraction dropped every leading space. The width survived and separates the two, and COLUMN
-# below reads it. What it does not separate is an example's English from a story summary
-# printed under it, because those are set in the same indented column and the blank line between
-# them is gone too.
+# The typescript sets each example in an indented column, and the essay at full width, and the extraction dropped every
+# leading space. The width survived, and separates the two, and COLUMN below reads it. It does not separate an example's
+# English from a story summary under it. Those share the same indented column, and the extraction lost the blank line
+# between them too.
 #
-# The proportion rule catches eight of the ten that run on: her English for an example is about as
-# long as the example, never more than one line longer. Examples 15 and 18 run on by exactly one
-# line and pass it. Both are recorded correctly in the hand extraction, the control this file is
-# graded against, and neither reaches the pure stream, since only the Lushootseed does.
+# The proportion rule catches eight of the ten that run on. The English of an example is about as long as the example,
+# and never more than one line longer. Examples 15 and 18 run on by exactly one line, and pass it. The hand extraction,
+# the control for this file, records both correctly, and neither reaches the pure stream, because only the Lushootseed
+# does.
 #
-# She asks in the paper that the moral of a story never be explained. That is not this file's to
-# retain or break. It is the reason her essay is retained whole beside the examples and not thrown away
-# as apparatus. The essay is where she says what she is doing and why.
+# The paper asks that nobody ever explain the moral of a story. That is not for this file to keep or break. It is the
+# reason that the file keeps the essay whole beside the examples, and does not throw it away as apparatus. The essay is
+# where Hilbert says what the paper does, and why.
 
 import io
 import os
@@ -68,15 +63,14 @@ from salish_unsorted import UNKNOWN_KIND, covered_tokens, unreached, write_unsor
 def _repository_root():
     """This repository, asked of git and not inferred from a marker directory.
 
-    A marker the repository produces, such as build/, is absent from a linked worktree and a
-    never-built clone, and a climb to it can pass this root and land in another checkout whose paths
-    look valid. A marker infers the root. Git answers it. The climb below serves only an exported tree
-    with no git directory. It looks for archive/src/python, which the repository tracks and every checkout
-    of it holds.
+    A marker that the repository produces, such as build/, is absent from a linked worktree and from a clone with no
+    build. A climb to it can pass this root and land in another checkout whose paths look valid. A marker infers the
+    root. Git answers it. The climb below serves only an exported tree with no git directory. It looks for
+    archive/src/python, which the repository tracks and every checkout of it holds.
 
-    Git's own variables are cleared first. Inside a hook GIT_DIR is exported, and a rev-parse that
-    inherits it answers about that repository and not about the directory it was asked from,
-    returning the current directory instead of the root.
+    The function clears the variables of git first. Inside a hook, git exports GIT_DIR. A rev-parse that inherits it
+    answers about that repository, and not about the directory that the caller asks from. It then returns the current
+    directory instead of the root.
     """
     start = os.path.dirname(os.path.abspath(__file__))
     environment = dict(os.environ)
@@ -119,10 +113,10 @@ SOURCE = os.path.join(PAPERS, "1983_Hilbert.txt")
 
 # <spoken by>_<original paper>_<who wrote it down>_Salish_<language without accents>_<year>_<mixed>
 #
-# The speaker comes first because the speaker is who the corpus is of. Vi Hilbert wrote this paper,
-# and the field is not hers: the twenty-one examples in it were said by her aunt Susie Sampson Peter
-# of the Upper Skagit and by Martha LaMont, recorded by Leon Metcalf between 1950 and 1958 and by
-# Thom Hess in 1963, and transcribed and translated by Hilbert afterward.
+# The speaker comes first, because the speaker is who the corpus is of. Vi Hilbert wrote this paper, and the field is
+# not Hilbert's. Two people said the twenty-one examples in it: Hilbert's aunt Susie Sampson Peter of the Upper Skagit,
+# and Martha LaMont. Leon Metcalf recorded them between 1950 and 1958, and Thom Hess in 1963. Hilbert transcribed and
+# translated them afterward.
 TARGET = os.path.join(
     CORPORA,
     "SusieSampsonPeter-MarthaLaMont_PokingFunInLushootseed_Hilbert"
@@ -131,29 +125,30 @@ TARGET = os.path.join(
 
 PAGE = re.compile(r"^===== page \d+ =====$")
 
-# A marker anywhere in a line, not only at its start, and tolerating the space this typewriter left
-# inside the bracket on either side of the number. Example 5 ends and its English begins on one line:
-# qa~qs. tai ?as~awit. (5 ) And he
-# Anchored at the start, that put her English into the Lushootseed stream. Allowing the space only
-# after the number missed ( 20), and the whole English translation of example 20 was then read as
-# more of Susie Sampson Peter's sentence and written into the pure stream as something she said.
+# A marker anywhere in a line, and not only at its start. The pattern allows the space that this typewriter left inside
+# the bracket on either side of the number. Example 5 ends, and its English begins, on one line:
+#
+#   `qa~qs. tai ?as~awit. (5 ) And he`
+#
+# An anchor at the start would put the English into the Lushootseed stream. A space allowed only after the number would
+# miss `( 20)`. The whole English translation of example 20 would then read as more of Susie Sampson Peter's sentence.
+# It would go into the pure stream as something that Susie Sampson Peter said.
 NUMBERED = re.compile(r"\(\s*(\d{1,3})\s*\)")
 
 # A page number the typescript left on its own line, between an example and its translation.
 PAGE_NUMBER = re.compile(r"^\d{1,4}$")
 
-# The width of the indented column the examples are set in.
+# The width of the indented column that the examples sit in.
 #
-# The typescript indents every numbered example, its Lushootseed and its English alike, and sets the
-# essay at full width. The extraction dropped the leading spaces. Both arrive flush left and
-# nothing in a line says which block it belongs to. What survived is the width: of the 138 lines
-# inside an example block, the longest is 46 characters, and 144 of the essay's 308 lines are longer
-# than that.
+# The typescript indents every numbered example, its Lushootseed and its English alike, and sets the essay at full
+# width. The extraction dropped the leading spaces. Both arrive flush left, and nothing in a line says which block it
+# belongs to. What survived is the width. Of the 138 lines inside an example block, the longest is 46 characters, and
+# 144 of the 308 lines of the essay are longer than that.
 #
-# Without this the English of an example ran on into the essay under it. Example 2's translation is
-# a single line, ‘High class, high class was Raven.’, and it was recorded with the next eleven lines
-# of Hilbert's commentary welded onto it, as something Susie Sampson Peter said. Coverage was
-# 100 percent throughout, because every token was in the file; it was in the wrong row.
+# Without this, the English of an example runs on into the essay under it. The translation of example 2 is a single
+# line, ‘High class, high class was Raven.’. With no width rule, its row would take the next eleven lines of Hilbert's
+# commentary, as something that Susie Sampson Peter said. Coverage would still read 100 percent, because every token
+# would be in the file, in the wrong row.
 COLUMN = 46
 
 # What the damaged typescript writes the language with. Not the modern orthography: ? is the
@@ -164,8 +159,8 @@ MARKS = "?~JG@V%]!"
 LAYER = {
     "transcription": SPOKEN,
     "citation": SPOKEN,
-    # Hilbert's English for what her aunt and Martha LaMont said, made from the recordings years
-    # afterward. It is hers and is not a record of anything either of them uttered.
+    # Hilbert's English for what Hilbert's aunt and Martha LaMont said, made from the recordings years afterward. It is
+    # Hilbert's, and is not a record of anything either of them uttered.
     "translation": DERIVED,
     "essay": DERIVED,
     # The page of Thomas E. Hukari's Halkomelem and Configuration the PDF carries after this paper.
@@ -180,21 +175,21 @@ def carries_language(text):
 
 
 def examples(lines, ends_at):
-    """The forty numbered examples, each as its Lushootseed and her English for it.
+    """The forty numbered examples, each as its Lushootseed and the English for it.
 
-    A number appears twice. The first time it opens the Lushootseed, the second time it opens her
-    translation, and each runs on until the next number or a page number interrupts it. Content
-    cannot tell the two apart here, because the damage leaves both looking like neither.
+    A number appears twice. The first time, it opens the Lushootseed, and the second time it opens the translation. Each
+    runs on until the next number or a page number interrupts it. Content cannot tell the two apart here, because the
+    damage makes both look like neither.
     """
     held = {}
     order = []
     taken = set()
     number = None
     which = None
-    # Set when a marker opened a Lushootseed field and carried no text with it. The typescript puts
-    # such a marker in the left margin, part way down the previous example's English, and the OCR
-    # flattened that into its own line. Example 3's English runs on for two lines after the bare
-    # (4) that interrupts it, and those two lines are hers in English instead of the start of example 4.
+    # Set when a marker opened a Lushootseed field and carried no text with it. The typescript puts such a marker in the
+    # left margin, part way down the English of the previous example. The OCR flattened that into its own line. The
+    # English of example 3 runs on for two lines after the bare (4) that interrupts it. Those two lines are English, and
+    # not the start of example 4.
     waiting = False
     previous = None
 
@@ -206,8 +201,8 @@ def examples(lines, ends_at):
         return "english"
 
     for at, line in enumerate(lines):
-        # Where this paper ends and the next one in the volume begins. Its opening lines are short
-        # enough to pass for the indented column. Example 21's English took its title.
+        # Where this paper ends, and the next one in the volume begins. Its opening lines are short enough to pass for
+        # the indented column, and the English of example 21 would take its title.
         if at >= ends_at:
             break
         trimmed = " ".join(line.split())
@@ -215,9 +210,9 @@ def examples(lines, ends_at):
             continue
 
         marks = list(NUMBERED.finditer(trimmed))
-        # A line too wide for the indented column is the essay resuming, and it closes whatever
-        # example was open. Tested before the marker search, because the essay names an example
-        # number in prose often enough to matter.
+        # A line too wide for the indented column is where the essay starts again, and it closes whatever example was
+        # open. The test runs before the marker search, because the essay names an example number in prose often enough
+        # to matter.
         if len(line.rstrip()) > COLUMN:
             number = None
             which = None
@@ -227,9 +222,8 @@ def examples(lines, ends_at):
             if (number is None) or (which is None):
                 continue
             taken.add(at)
-            # A line with none of the typescript's marks, while a Lushootseed field is still
-            # waiting for its first line, is the previous example's English running past the
-            # marker in the margin.
+            # A line with none of the typescript's marks, while a Lushootseed field still waits for its first line, is
+            # the English of the previous example. That English runs past the marker in the margin.
             if waiting and not carries_language(trimmed) and (previous is not None):
                 held[previous]["english"].append(trimmed)
                 continue
@@ -273,13 +267,12 @@ def main():
     with open(SOURCE, encoding="utf-8", errors="replace") as handle:
         lines = [one.rstrip("\n") for one in handle]
 
-    # The PDF carries the first page of the next paper in the volume, Thomas E. Hukari's Halkomelem
-    # and Configuration, after this one ends. Its prose is English and holds no Lushootseed, but the
-    # damaged mark set reads Victoria and nonconfigurationality? as forms of the language. It
-    # would put both into this record as things somebody said.
+    # The PDF carries the first page of the next paper in the volume, Thomas E. Hukari's Halkomelem and Configuration,
+    # after this one ends. Its prose is English and holds no Lushootseed, but the damaged mark set reads Victoria and
+    # nonconfigurationality? as forms of the language. It would put both into this record as things somebody said.
     #
-    # Retained and named instead of cut. Cutting it lost those tokens from the record and the coverage check
-    # then reported this paper as incomplete. It is not incomplete. The words are in the PDF and
+    # The file keeps that page and names it, and does not cut it. A cut would lose those tokens from the record, and the
+    # coverage check would then report this paper as incomplete. It is not incomplete. The words are in the PDF, and
     # they belong to somebody else's paper.
     next_paper = len(lines)
     for at, line in enumerate(lines):
@@ -300,10 +293,10 @@ def main():
         if english:
             rows.append(("N", number, "translation", english))
 
-    # Her essay. It is English and it is hers, and it is what the examples are set into. It is
-    # retained and marked derived instead of dropped as apparatus. Told from the examples by which lines they
-    # took instead of by comparing text. A line matched against a bag of words matches nothing, and every
-    # continuation line went into the essay a second time.
+    # Hilbert's essay. It is English and it is Hilbert's, and it is what the examples sit in. The file keeps it, marked
+    # derived, and does not drop it as apparatus. The lines that the examples took tell it apart, and no comparison of
+    # text does. A line matched against a bag of words matches nothing, and every continuation line would go into the
+    # essay a second time.
     for at, line in enumerate(lines):
         trimmed = " ".join(line.split())
         if (
@@ -317,14 +310,13 @@ def main():
             rows.append(("N", 0, "foreign", trimmed))
             continue
         rows.append(("N", 0, "essay", trimmed))
-        # She names four words in her essay and glosses each in quotes, and gives three names: the
-        # supernatural dawi?, the same name written ~awi? ten lines later, and the place ~acaladi.
-        # Those are the only Lushootseed outside the numbered examples, and a reader that retains the
-        # essay whole without pulling them leaves seven forms in prose and out of the record.
+        # Hilbert names four words in the essay and glosses each in quotes. The essay also gives three names: the
+        # supernatural `dawi?`, the same name written `~awi?` ten lines later, and the place `~acaladi`. Those are the
+        # only Lushootseed outside the numbered examples. A reader that keeps the essay whole and does not pull them out
+        # leaves seven forms in prose and out of the record.
         for token in trimmed.split():
-            # Only sentence punctuation comes off. The damaged orthography writes with ], [, ' and "
-            # as characters: ]u?il ‘happy’ opens with one, and stripping it gives u?il, a word this
-            # paper does not contain.
+            # Only sentence punctuation comes off. The damaged orthography writes with ], [, ' and " as characters.
+            # `]u?il ‘happy’` opens with one, and a strip of it gives `u?il`, a word that this paper does not contain.
             plain = token.strip(".,;:")
             if plain and carries_language(plain) and (plain not in cited):
                 cited.add(plain)
@@ -407,15 +399,15 @@ def main():
     ]
     flagged.extend(missed)
 
-    # The English of an example and the story summary under it are set in the same indented column.
-    # The width rule that separates both from the essay does not separate them from each other.
-    # Nothing else in the extracted lines does either: the blank line the typescript puts between
-    # two paragraphs is gone, and both are English prose in the same measure.
+    # The English of an example and the story summary under it sit in the same indented column. The width rule that
+    # separates both from the essay does not separate them from each other. Nothing else in the extracted lines does
+    # either. The extraction lost the blank line that the typescript puts between two paragraphs, and both are English
+    # prose in the same measure.
     #
-    # What the paper does give is proportion. Her English for an example runs to about as many lines
-    # as the example does, never more than one longer, except for example 13 where the translation
-    # carries two bracketed asides. A translation much longer than that has run on into the summary,
-    # and the ones that have are named here. None is trimmed at a guessed point.
+    # What the paper does give is proportion. The English for an example runs to about as many lines as the example, and
+    # never more than one longer. Example 13 is the exception, because its translation carries two bracketed asides. A
+    # translation much longer than that ran on into the summary, and this file names the ones that did. The file trims
+    # none at a guessed point.
     for number, said, english in ((one[1], one[3], one[4]) for one in held_lines):
         if english > (said + 1):
             flagged.append(
