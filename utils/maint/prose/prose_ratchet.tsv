@@ -95,7 +95,6 @@ examples/00_blob_viz_tools/settings.py	16
 examples/00_blob_viz_tools/shapes_view_template.html	2
 examples/00_blob_viz_tools/shor_trace.py	22
 examples/00_blob_viz_tools/sources_view_template.html	2
-examples/00_blob_viz_tools/sphere_view_template.html	59
 examples/00_blob_viz_tools/spiral_view_template.html	1
 examples/00_blob_viz_tools/stabilizer_rank.py	49
 examples/00_blob_viz_tools/step_view_template.html	3
@@ -371,7 +370,6 @@ examples/proofing/exact_harmonics.py	14
 examples/proofing/four_step.py	17
 examples/proofing/gpu_multiply.py	41
 examples/proofing/host_bench.py	15
-examples/proofing/natural_constants.py	57
 examples/proofing/precision_floor.py	36
 examples/proofing/precision_plot.py	25
 examples/proofing/proth_reach.py	12
@@ -691,7 +689,6 @@ src/cu/transpiler/lstar/protocol/order/scheduler.c	1
 src/cu/transpiler/lstar/protocol/order/scheduler.h	13
 src/cu/transpiler/lstar/protocol/order/stem_group.h	18
 src/cu/transpiler/lstar/protocol/overseer/accounts.c	6
-src/cu/transpiler/lstar/protocol/overseer/overseer.h	57
 src/cu/transpiler/lstar/protocol/overseer/overseer_internal.h	2
 src/cu/transpiler/lstar/protocol/overseer/ruling.c	5
 src/cu/transpiler/lstar/protocol/qry_crystal.c	8
@@ -1114,7 +1111,6 @@ utils/maint/data/salishan/extract/marks.py	1
 utils/maint/data/salishan/extract/ops.py	9
 utils/maint/data/salishan/extract/oracle.py	4
 utils/maint/data/salishan/extract/outline_match.py	8
-utils/maint/data/salishan/extract/pairs.py	60
 utils/maint/data/salishan/extract/pua_crops.py	3
 utils/maint/data/salishan/extract/raise_ops.py	5
 utils/maint/data/salishan/extract/repaired_lines.py	5
@@ -1132,7 +1128,6 @@ utils/maint/data/salishan/extract/workdir.py	7
 utils/maint/data/salishan/get_papers.py	38
 utils/maint/data/salishan/hand_extraction/papers.py	23
 utils/maint/data/salishan/hand_extraction/pure_corpus_index.py	16
-utils/maint/data/salishan/hand_extraction/reader_check.py	56
 utils/maint/data/salishan/hand_extraction/tsv_tidy.py	12
 utils/maint/data/salishan/instrument_figures.py	22
 utils/maint/data/salishan/orior_algorithmic_extraction/boundary_check.py	50
@@ -1193,7 +1188,7 @@ utils/maint/prose/voice_pdftotext.sh	10
 utils/maint/prose/voice_web.py	6
 utils/maint/radar/radar_assay.py	17
 utils/maint/radar/radar_receive.py	31
-utils/maint/radar/sei_round_constants.py	16
+utils/maint/radar/sei_round_constants.py	13
 utils/maint/repotools/docs/docs_maint/math_hazards.py	17
 utils/maint/repotools/docs/docs_maint/quotes.py	48
 utils/maint/repotools/media_tools/source_render/src2png.py	3
