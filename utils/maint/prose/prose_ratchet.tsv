@@ -340,7 +340,6 @@ examples/language/4_measure/word_length_families.py	12
 examples/language/6_oracle/control_values.py	18
 examples/language/6_oracle/gloss_harvest.py	9
 examples/language/6_oracle/language_families.py	7
-examples/medical_imaging/knee_abnormality/knee_period.cu	102
 examples/medical_imaging/knee_abnormality/knee_period.sh	1
 examples/molecules/1_represent/assembly_from_atomic_properties.py	8
 examples/molecules/1_represent/build_legal_molecules.py	19
@@ -829,7 +828,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_probe_runs
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_fields.sh	12
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe.h	105
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_check.c	11
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	21
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_cubin.c	3
@@ -871,7 +869,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.cpp	43
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.sh	2
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.cpp	100
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.sh	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_run.c	12
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_run.sh	1
@@ -1078,10 +1075,8 @@ utils/maint/data/salishan/corpus_script_extraction/extract_kim_twana.py	12
 utils/maint/data/salishan/corpus_script_extraction/extract_lafontaine_janzen.py	33
 utils/maint/data/salishan/corpus_script_extraction/extract_lindley_lyon.py	63
 utils/maint/data/salishan/corpus_script_extraction/extract_lyon_inchoatives.py	15
-utils/maint/data/salishan/corpus_script_extraction/extract_lyon_priests.py	101
 utils/maint/data/salishan/corpus_script_extraction/extract_mary_george.py	27
 utils/maint/data/salishan/corpus_script_extraction/extract_matthewson_redan.py	32
-utils/maint/data/salishan/corpus_script_extraction/extract_mellesmoen_kye.py	106
 utils/maint/data/salishan/corpus_script_extraction/extract_nater_bella_coola.py	18
 utils/maint/data/salishan/corpus_script_extraction/extract_nater_etymology.py	33
 utils/maint/data/salishan/corpus_script_extraction/extract_nater_voiceless.py	24
